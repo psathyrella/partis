@@ -1,17 +1,17 @@
 !!python/object:hmmwriter.HMM
 extras:
   gene_prob: 0.2413793103448276
-  overall_mute_freq: 0.021896551724137937
-  per_gene_mute_freq: 0.08873599166838118
-name: IGKV6-21_star_01
+  overall_mute_freq: 0.020862068965517244
+  per_gene_mute_freq: 0.08927120168207038
+name: IGKV1-27_star_01
 states:
 - !!python/object:hmmwriter.State
   emissions: null
   extras: {}
   name: init
   transitions:
-    IGKV6-21_star_01_0: 0.3333333333333333
-    insert_left_N: 0.6666666666666667
+    IGKV1-27_star_01_0: 0.38888888888888884
+    insert_left_N: 0.6111111111111112
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -26,8 +26,8 @@ states:
     germline: N
   name: insert_left_N
   transitions:
-    IGKV6-21_star_01_0: 0.33333333333333326
-    insert_left_N: 0.6666666666666667
+    IGKV1-27_star_01_0: 0.38888888888888884
+    insert_left_N: 0.6111111111111112
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -40,9 +40,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_0
+  name: IGKV1-27_star_01_0
   transitions:
-    IGKV6-21_star_01_1: 1.0
+    IGKV1-27_star_01_1: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -55,114 +55,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_1
+  name: IGKV1-27_star_01_1
   transitions:
-    IGKV6-21_star_01_2: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_2
-  transitions:
-    IGKV6-21_star_01_3: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_3
-  transitions:
-    IGKV6-21_star_01_4: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_4
-  transitions:
-    IGKV6-21_star_01_5: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_5
-  transitions:
-    IGKV6-21_star_01_6: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.065
-      C: 0.0325
-      G: 0.87
-      T: 0.0325
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_6
-  transitions:
-    IGKV6-21_star_01_7: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_7
-  transitions:
-    IGKV6-21_star_01_8: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_8
-  transitions:
-    IGKV6-21_star_01_9: 1.0
+    IGKV1-27_star_01_2: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -175,9 +70,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_9
+  name: IGKV1-27_star_01_2
   transitions:
-    IGKV6-21_star_01_10: 1.0
+    IGKV1-27_star_01_3: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_3
+  transitions:
+    IGKV1-27_star_01_4: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -190,69 +100,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_10
+  name: IGKV1-27_star_01_4
   transitions:
-    IGKV6-21_star_01_11: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_11
-  transitions:
-    IGKV6-21_star_01_12: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.87
-      C: 0.0325
-      G: 0.065
-      T: 0.0325
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_12
-  transitions:
-    IGKV6-21_star_01_13: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_13
-  transitions:
-    IGKV6-21_star_01_14: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.026666666666666665
-      C: 0.026666666666666665
-      G: 0.026666666666666665
-      T: 0.92
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_14
-  transitions:
-    IGKV6-21_star_01_15: 1.0
+    IGKV1-27_star_01_5: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -265,9 +115,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_15
+  name: IGKV1-27_star_01_5
   transitions:
-    IGKV6-21_star_01_16: 1.0
+    IGKV1-27_star_01_6: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.065
+      C: 0.87
+      G: 0.0325
+      T: 0.0325
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_6
+  transitions:
+    IGKV1-27_star_01_7: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -280,9 +145,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_16
+  name: IGKV1-27_star_01_7
   transitions:
-    IGKV6-21_star_01_17: 1.0
+    IGKV1-27_star_01_8: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -295,84 +160,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_17
+  name: IGKV1-27_star_01_8
   transitions:
-    IGKV6-21_star_01_18: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_18
-  transitions:
-    IGKV6-21_star_01_19: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_19
-  transitions:
-    IGKV6-21_star_01_20: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_20
-  transitions:
-    IGKV6-21_star_01_21: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_21
-  transitions:
-    IGKV6-21_star_01_22: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_22
-  transitions:
-    IGKV6-21_star_01_23: 1.0
+    IGKV1-27_star_01_9: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -385,9 +175,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_23
+  name: IGKV1-27_star_01_9
   transitions:
-    IGKV6-21_star_01_24: 1.0
+    IGKV1-27_star_01_10: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_10
+  transitions:
+    IGKV1-27_star_01_11: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -400,24 +205,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_24
+  name: IGKV1-27_star_01_11
   transitions:
-    IGKV6-21_star_01_25: 1.0
+    IGKV1-27_star_01_12: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
+      A: 0.87
+      C: 0.0325
+      G: 0.065
+      T: 0.0325
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_25
+  name: IGKV1-27_star_01_12
   transitions:
-    IGKV6-21_star_01_26: 1.0
+    IGKV1-27_star_01_13: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -430,54 +235,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_26
+  name: IGKV1-27_star_01_13
   transitions:
-    IGKV6-21_star_01_27: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_27
-  transitions:
-    IGKV6-21_star_01_28: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_28
-  transitions:
-    IGKV6-21_star_01_29: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_29
-  transitions:
-    IGKV6-21_star_01_30: 1.0
+    IGKV1-27_star_01_14: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -490,144 +250,69 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_30
+  name: IGKV1-27_star_01_14
   transitions:
-    IGKV6-21_star_01_31: 1.0
+    IGKV1-27_star_01_15: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_31
-  transitions:
-    IGKV6-21_star_01_32: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_32
-  transitions:
-    IGKV6-21_star_01_33: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_33
-  transitions:
-    IGKV6-21_star_01_34: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_34
-  transitions:
-    IGKV6-21_star_01_35: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_35
-  transitions:
-    IGKV6-21_star_01_36: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_36
-  transitions:
-    IGKV6-21_star_01_37: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_37
-  transitions:
-    IGKV6-21_star_01_38: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_38
-  transitions:
-    IGKV6-21_star_01_39: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.92
-      C: 0.026666666666666665
+      A: 0.026666666666666665
+      C: 0.92
       G: 0.026666666666666665
       T: 0.026666666666666665
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_39
+    germline: C
+  name: IGKV1-27_star_01_15
   transitions:
-    IGKV6-21_star_01_40: 1.0
+    IGKV1-27_star_01_16: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_16
+  transitions:
+    IGKV1-27_star_01_17: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_17
+  transitions:
+    IGKV1-27_star_01_18: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_18
+  transitions:
+    IGKV1-27_star_01_19: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -640,9 +325,324 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_40
+  name: IGKV1-27_star_01_19
   transitions:
-    IGKV6-21_star_01_41: 1.0
+    IGKV1-27_star_01_20: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_20
+  transitions:
+    IGKV1-27_star_01_21: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_21
+  transitions:
+    IGKV1-27_star_01_22: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_22
+  transitions:
+    IGKV1-27_star_01_23: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_23
+  transitions:
+    IGKV1-27_star_01_24: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_24
+  transitions:
+    IGKV1-27_star_01_25: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_25
+  transitions:
+    IGKV1-27_star_01_26: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_26
+  transitions:
+    IGKV1-27_star_01_27: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_27
+  transitions:
+    IGKV1-27_star_01_28: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_28
+  transitions:
+    IGKV1-27_star_01_29: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_29
+  transitions:
+    IGKV1-27_star_01_30: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_30
+  transitions:
+    IGKV1-27_star_01_31: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_31
+  transitions:
+    IGKV1-27_star_01_32: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_32
+  transitions:
+    IGKV1-27_star_01_33: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_33
+  transitions:
+    IGKV1-27_star_01_34: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_34
+  transitions:
+    IGKV1-27_star_01_35: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_35
+  transitions:
+    IGKV1-27_star_01_36: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_36
+  transitions:
+    IGKV1-27_star_01_37: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_37
+  transitions:
+    IGKV1-27_star_01_38: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_38
+  transitions:
+    IGKV1-27_star_01_39: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_39
+  transitions:
+    IGKV1-27_star_01_40: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_40
+  transitions:
+    IGKV1-27_star_01_41: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -655,84 +655,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_41
+  name: IGKV1-27_star_01_41
   transitions:
-    IGKV6-21_star_01_42: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_42
-  transitions:
-    IGKV6-21_star_01_43: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_43
-  transitions:
-    IGKV6-21_star_01_44: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.92
-      C: 0.026666666666666665
-      G: 0.026666666666666665
-      T: 0.026666666666666665
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_44
-  transitions:
-    IGKV6-21_star_01_45: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_45
-  transitions:
-    IGKV6-21_star_01_46: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_46
-  transitions:
-    IGKV6-21_star_01_47: 1.0
+    IGKV1-27_star_01_42: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -745,114 +670,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_47
+  name: IGKV1-27_star_01_42
   transitions:
-    IGKV6-21_star_01_48: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_48
-  transitions:
-    IGKV6-21_star_01_49: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_49
-  transitions:
-    IGKV6-21_star_01_50: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_50
-  transitions:
-    IGKV6-21_star_01_51: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.92
-      C: 0.026666666666666665
-      G: 0.026666666666666665
-      T: 0.026666666666666665
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_51
-  transitions:
-    IGKV6-21_star_01_52: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.92
-      C: 0.026666666666666665
-      G: 0.026666666666666665
-      T: 0.026666666666666665
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_52
-  transitions:
-    IGKV6-21_star_01_53: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_53
-  transitions:
-    IGKV6-21_star_01_54: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_54
-  transitions:
-    IGKV6-21_star_01_55: 1.0
+    IGKV1-27_star_01_43: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -865,24 +685,54 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_55
+  name: IGKV1-27_star_01_43
   transitions:
-    IGKV6-21_star_01_56: 1.0
+    IGKV1-27_star_01_44: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.92
+      C: 0.026666666666666665
+      G: 0.026666666666666665
+      T: 0.026666666666666665
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_44
+  transitions:
+    IGKV1-27_star_01_45: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
       A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
       T: 0.0276162271726
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_56
+    germline: G
+  name: IGKV1-27_star_01_45
   transitions:
-    IGKV6-21_star_01_57: 1.0
+    IGKV1-27_star_01_46: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_46
+  transitions:
+    IGKV1-27_star_01_47: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -895,9 +745,39 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_57
+  name: IGKV1-27_star_01_47
   transitions:
-    IGKV6-21_star_01_58: 1.0
+    IGKV1-27_star_01_48: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_48
+  transitions:
+    IGKV1-27_star_01_49: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_49
+  transitions:
+    IGKV1-27_star_01_50: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -910,9 +790,129 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_58
+  name: IGKV1-27_star_01_50
   transitions:
-    IGKV6-21_star_01_59: 1.0
+    IGKV1-27_star_01_51: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.92
+      C: 0.026666666666666665
+      G: 0.026666666666666665
+      T: 0.026666666666666665
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_51
+  transitions:
+    IGKV1-27_star_01_52: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.026666666666666665
+      C: 0.026666666666666665
+      G: 0.92
+      T: 0.026666666666666665
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_52
+  transitions:
+    IGKV1-27_star_01_53: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_53
+  transitions:
+    IGKV1-27_star_01_54: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_54
+  transitions:
+    IGKV1-27_star_01_55: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_55
+  transitions:
+    IGKV1-27_star_01_56: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_56
+  transitions:
+    IGKV1-27_star_01_57: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_57
+  transitions:
+    IGKV1-27_star_01_58: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_58
+  transitions:
+    IGKV1-27_star_01_59: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -925,9 +925,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_59
+  name: IGKV1-27_star_01_59
   transitions:
-    IGKV6-21_star_01_60: 1.0
+    IGKV1-27_star_01_60: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -940,9 +940,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_60
+  name: IGKV1-27_star_01_60
   transitions:
-    IGKV6-21_star_01_61: 1.0
+    IGKV1-27_star_01_61: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -955,9 +955,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_61
+  name: IGKV1-27_star_01_61
   transitions:
-    IGKV6-21_star_01_62: 1.0
+    IGKV1-27_star_01_62: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -970,9 +970,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_62
+  name: IGKV1-27_star_01_62
   transitions:
-    IGKV6-21_star_01_63: 1.0
+    IGKV1-27_star_01_63: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -985,9 +985,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_63
+  name: IGKV1-27_star_01_63
   transitions:
-    IGKV6-21_star_01_64: 1.0
+    IGKV1-27_star_01_64: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1000,24 +1000,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_64
+  name: IGKV1-27_star_01_64
   transitions:
-    IGKV6-21_star_01_65: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_65
-  transitions:
-    IGKV6-21_star_01_66: 1.0
+    IGKV1-27_star_01_65: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1030,9 +1015,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_66
+  name: IGKV1-27_star_01_65
   transitions:
-    IGKV6-21_star_01_67: 1.0
+    IGKV1-27_star_01_66: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.026666666666666665
+      C: 0.026666666666666665
+      G: 0.026666666666666665
+      T: 0.92
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_66
+  transitions:
+    IGKV1-27_star_01_67: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1045,9 +1045,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_67
+  name: IGKV1-27_star_01_67
   transitions:
-    IGKV6-21_star_01_68: 1.0
+    IGKV1-27_star_01_68: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1060,9 +1060,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_68
+  name: IGKV1-27_star_01_68
   transitions:
-    IGKV6-21_star_01_69: 1.0
+    IGKV1-27_star_01_69: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1075,9 +1075,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_69
+  name: IGKV1-27_star_01_69
   transitions:
-    IGKV6-21_star_01_70: 1.0
+    IGKV1-27_star_01_70: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1090,9 +1090,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_70
+  name: IGKV1-27_star_01_70
   transitions:
-    IGKV6-21_star_01_71: 1.0
+    IGKV1-27_star_01_71: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1105,9 +1105,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_71
+  name: IGKV1-27_star_01_71
   transitions:
-    IGKV6-21_star_01_72: 1.0
+    IGKV1-27_star_01_72: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1120,9 +1120,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_72
+  name: IGKV1-27_star_01_72
   transitions:
-    IGKV6-21_star_01_73: 1.0
+    IGKV1-27_star_01_73: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1135,39 +1135,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_73
+  name: IGKV1-27_star_01_73
   transitions:
-    IGKV6-21_star_01_74: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.026666666666666665
-      C: 0.92
-      G: 0.026666666666666665
-      T: 0.026666666666666665
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_74
-  transitions:
-    IGKV6-21_star_01_75: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_75
-  transitions:
-    IGKV6-21_star_01_76: 1.0
+    IGKV1-27_star_01_74: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1180,9 +1150,39 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_76
+  name: IGKV1-27_star_01_74
   transitions:
-    IGKV6-21_star_01_77: 1.0
+    IGKV1-27_star_01_75: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_75
+  transitions:
+    IGKV1-27_star_01_76: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_76
+  transitions:
+    IGKV1-27_star_01_77: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1195,9 +1195,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_77
+  name: IGKV1-27_star_01_77
   transitions:
-    IGKV6-21_star_01_78: 1.0
+    IGKV1-27_star_01_78: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1210,9 +1210,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_78
+  name: IGKV1-27_star_01_78
   transitions:
-    IGKV6-21_star_01_79: 1.0
+    IGKV1-27_star_01_79: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1225,9 +1225,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_79
+  name: IGKV1-27_star_01_79
   transitions:
-    IGKV6-21_star_01_80: 1.0
+    IGKV1-27_star_01_80: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1240,24 +1240,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_80
+  name: IGKV1-27_star_01_80
   transitions:
-    IGKV6-21_star_01_81: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_81
-  transitions:
-    IGKV6-21_star_01_82: 1.0
+    IGKV1-27_star_01_81: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1270,9 +1255,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_82
+  name: IGKV1-27_star_01_81
   transitions:
-    IGKV6-21_star_01_83: 1.0
+    IGKV1-27_star_01_82: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_82
+  transitions:
+    IGKV1-27_star_01_83: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1285,9 +1285,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_83
+  name: IGKV1-27_star_01_83
   transitions:
-    IGKV6-21_star_01_84: 1.0
+    IGKV1-27_star_01_84: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1300,9 +1300,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_84
+  name: IGKV1-27_star_01_84
   transitions:
-    IGKV6-21_star_01_85: 1.0
+    IGKV1-27_star_01_85: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1315,9 +1315,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_85
+  name: IGKV1-27_star_01_85
   transitions:
-    IGKV6-21_star_01_86: 1.0
+    IGKV1-27_star_01_86: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1330,9 +1330,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_86
+  name: IGKV1-27_star_01_86
   transitions:
-    IGKV6-21_star_01_87: 1.0
+    IGKV1-27_star_01_87: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.725
+      C: 0.039285714285714285
+      G: 0.19642857142857145
+      T: 0.039285714285714285
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_87
+  transitions:
+    IGKV1-27_star_01_88: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1345,39 +1360,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_87
+  name: IGKV1-27_star_01_88
   transitions:
-    IGKV6-21_star_01_88: 1.0
+    IGKV1-27_star_01_89: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
       A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
+      C: 0.9171513184822
+      G: 0.0276162271726
       T: 0.0276162271726
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_88
+    germline: C
+  name: IGKV1-27_star_01_89
   transitions:
-    IGKV6-21_star_01_89: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_89
-  transitions:
-    IGKV6-21_star_01_90: 1.0
+    IGKV1-27_star_01_90: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1390,24 +1390,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_90
+  name: IGKV1-27_star_01_90
   transitions:
-    IGKV6-21_star_01_91: 1.0
+    IGKV1-27_star_01_91: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
-      A: 0.0276162271726
+      A: 0.9171513184822
       C: 0.0276162271726
-      G: 0.9171513184822
+      G: 0.0276162271726
       T: 0.0276162271726
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_91
+    germline: A
+  name: IGKV1-27_star_01_91
   transitions:
-    IGKV6-21_star_01_92: 1.0
+    IGKV1-27_star_01_92: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1420,9 +1420,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_92
+  name: IGKV1-27_star_01_92
   transitions:
-    IGKV6-21_star_01_93: 1.0
+    IGKV1-27_star_01_93: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_93
+  transitions:
+    IGKV1-27_star_01_94: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1435,9 +1450,69 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_93
+  name: IGKV1-27_star_01_94
   transitions:
-    IGKV6-21_star_01_94: 1.0
+    IGKV1-27_star_01_95: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.026666666666666665
+      C: 0.026666666666666665
+      G: 0.026666666666666665
+      T: 0.92
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_95
+  transitions:
+    IGKV1-27_star_01_96: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_96
+  transitions:
+    IGKV1-27_star_01_97: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_97
+  transitions:
+    IGKV1-27_star_01_98: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_98
+  transitions:
+    IGKV1-27_star_01_99: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1450,9 +1525,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_94
+  name: IGKV1-27_star_01_99
   transitions:
-    IGKV6-21_star_01_95: 1.0
+    IGKV1-27_star_01_100: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1465,54 +1540,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_95
+  name: IGKV1-27_star_01_100
   transitions:
-    IGKV6-21_star_01_96: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_96
-  transitions:
-    IGKV6-21_star_01_97: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_97
-  transitions:
-    IGKV6-21_star_01_98: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_98
-  transitions:
-    IGKV6-21_star_01_99: 1.0
+    IGKV1-27_star_01_101: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1525,39 +1555,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_99
+  name: IGKV1-27_star_01_101
   transitions:
-    IGKV6-21_star_01_100: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_100
-  transitions:
-    IGKV6-21_star_01_101: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_101
-  transitions:
-    IGKV6-21_star_01_102: 1.0
+    IGKV1-27_star_01_102: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1570,9 +1570,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_102
+  name: IGKV1-27_star_01_102
   transitions:
-    IGKV6-21_star_01_103: 1.0
+    IGKV1-27_star_01_103: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1585,9 +1585,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_103
+  name: IGKV1-27_star_01_103
   transitions:
-    IGKV6-21_star_01_104: 1.0
+    IGKV1-27_star_01_104: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1600,9 +1600,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_104
+  name: IGKV1-27_star_01_104
   transitions:
-    IGKV6-21_star_01_105: 1.0
+    IGKV1-27_star_01_105: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1615,9 +1615,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_105
+  name: IGKV1-27_star_01_105
   transitions:
-    IGKV6-21_star_01_106: 1.0
+    IGKV1-27_star_01_106: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1630,9 +1630,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_106
+  name: IGKV1-27_star_01_106
   transitions:
-    IGKV6-21_star_01_107: 1.0
+    IGKV1-27_star_01_107: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_107
+  transitions:
+    IGKV1-27_star_01_108: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1645,24 +1660,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_107
+  name: IGKV1-27_star_01_108
   transitions:
-    IGKV6-21_star_01_108: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_108
-  transitions:
-    IGKV6-21_star_01_109: 1.0
+    IGKV1-27_star_01_109: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1675,9 +1675,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_109
+  name: IGKV1-27_star_01_109
   transitions:
-    IGKV6-21_star_01_110: 1.0
+    IGKV1-27_star_01_110: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1690,9 +1690,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_110
+  name: IGKV1-27_star_01_110
   transitions:
-    IGKV6-21_star_01_111: 1.0
+    IGKV1-27_star_01_111: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1705,9 +1705,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_111
+  name: IGKV1-27_star_01_111
   transitions:
-    IGKV6-21_star_01_112: 1.0
+    IGKV1-27_star_01_112: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1720,9 +1720,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_112
+  name: IGKV1-27_star_01_112
   transitions:
-    IGKV6-21_star_01_113: 1.0
+    IGKV1-27_star_01_113: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1735,9 +1735,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_113
+  name: IGKV1-27_star_01_113
   transitions:
-    IGKV6-21_star_01_114: 1.0
+    IGKV1-27_star_01_114: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1750,9 +1750,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_114
+  name: IGKV1-27_star_01_114
   transitions:
-    IGKV6-21_star_01_115: 1.0
+    IGKV1-27_star_01_115: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1765,9 +1765,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_115
+  name: IGKV1-27_star_01_115
   transitions:
-    IGKV6-21_star_01_116: 1.0
+    IGKV1-27_star_01_116: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1780,9 +1780,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_116
+  name: IGKV1-27_star_01_116
   transitions:
-    IGKV6-21_star_01_117: 1.0
+    IGKV1-27_star_01_117: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1795,9 +1795,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_117
+  name: IGKV1-27_star_01_117
   transitions:
-    IGKV6-21_star_01_118: 1.0
+    IGKV1-27_star_01_118: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1810,9 +1810,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_118
+  name: IGKV1-27_star_01_118
   transitions:
-    IGKV6-21_star_01_119: 1.0
+    IGKV1-27_star_01_119: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1825,9 +1825,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_119
+  name: IGKV1-27_star_01_119
   transitions:
-    IGKV6-21_star_01_120: 1.0
+    IGKV1-27_star_01_120: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1840,69 +1840,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_120
+  name: IGKV1-27_star_01_120
   transitions:
-    IGKV6-21_star_01_121: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_121
-  transitions:
-    IGKV6-21_star_01_122: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_122
-  transitions:
-    IGKV6-21_star_01_123: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_123
-  transitions:
-    IGKV6-21_star_01_124: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_124
-  transitions:
-    IGKV6-21_star_01_125: 1.0
+    IGKV1-27_star_01_121: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1915,39 +1855,84 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_125
+  name: IGKV1-27_star_01_121
   transitions:
-    IGKV6-21_star_01_126: 1.0
+    IGKV1-27_star_01_122: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_122
+  transitions:
+    IGKV1-27_star_01_123: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_123
+  transitions:
+    IGKV1-27_star_01_124: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_124
+  transitions:
+    IGKV1-27_star_01_125: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_125
+  transitions:
+    IGKV1-27_star_01_126: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
       A: 0.108
       C: 0.036
-      G: 0.036
-      T: 0.8200000000000001
+      G: 0.8200000000000001
+      T: 0.036
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_126
+    germline: G
+  name: IGKV1-27_star_01_126
   transitions:
-    IGKV6-21_star_01_127: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_127
-  transitions:
-    IGKV6-21_star_01_128: 1.0
+    IGKV1-27_star_01_127: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1960,9 +1945,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_128
+  name: IGKV1-27_star_01_127
   transitions:
-    IGKV6-21_star_01_129: 1.0
+    IGKV1-27_star_01_128: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_128
+  transitions:
+    IGKV1-27_star_01_129: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1975,9 +1975,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_129
+  name: IGKV1-27_star_01_129
   transitions:
-    IGKV6-21_star_01_130: 1.0
+    IGKV1-27_star_01_130: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -1990,24 +1990,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_130
+  name: IGKV1-27_star_01_130
   transitions:
-    IGKV6-21_star_01_131: 1.0
+    IGKV1-27_star_01_131: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
-      A: 0.9171513184822
+      A: 0.0276162271726
       C: 0.0276162271726
       G: 0.0276162271726
-      T: 0.0276162271726
+      T: 0.9171513184822
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_131
+    germline: T
+  name: IGKV1-27_star_01_131
   transitions:
-    IGKV6-21_star_01_132: 1.0
+    IGKV1-27_star_01_132: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2020,9 +2020,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_132
+  name: IGKV1-27_star_01_132
   transitions:
-    IGKV6-21_star_01_133: 1.0
+    IGKV1-27_star_01_133: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2035,9 +2035,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_133
+  name: IGKV1-27_star_01_133
   transitions:
-    IGKV6-21_star_01_134: 1.0
+    IGKV1-27_star_01_134: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2050,9 +2050,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_134
+  name: IGKV1-27_star_01_134
   transitions:
-    IGKV6-21_star_01_135: 1.0
+    IGKV1-27_star_01_135: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2065,9 +2065,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_135
+  name: IGKV1-27_star_01_135
   transitions:
-    IGKV6-21_star_01_136: 1.0
+    IGKV1-27_star_01_136: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2080,9 +2080,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_136
+  name: IGKV1-27_star_01_136
   transitions:
-    IGKV6-21_star_01_137: 1.0
+    IGKV1-27_star_01_137: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2095,9 +2095,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_137
+  name: IGKV1-27_star_01_137
   transitions:
-    IGKV6-21_star_01_138: 1.0
+    IGKV1-27_star_01_138: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2110,9 +2110,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_138
+  name: IGKV1-27_star_01_138
   transitions:
-    IGKV6-21_star_01_139: 1.0
+    IGKV1-27_star_01_139: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2125,24 +2125,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_139
+  name: IGKV1-27_star_01_139
   transitions:
-    IGKV6-21_star_01_140: 1.0
+    IGKV1-27_star_01_140: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
       A: 0.19642857142857145
-      C: 0.725
-      G: 0.039285714285714285
+      C: 0.039285714285714285
+      G: 0.725
       T: 0.039285714285714285
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_140
+    germline: G
+  name: IGKV1-27_star_01_140
   transitions:
-    IGKV6-21_star_01_141: 1.0
+    IGKV1-27_star_01_141: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2155,9 +2155,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_141
+  name: IGKV1-27_star_01_141
   transitions:
-    IGKV6-21_star_01_142: 1.0
+    IGKV1-27_star_01_142: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2170,9 +2170,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_142
+  name: IGKV1-27_star_01_142
   transitions:
-    IGKV6-21_star_01_143: 1.0
+    IGKV1-27_star_01_143: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2185,9 +2185,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_143
+  name: IGKV1-27_star_01_143
   transitions:
-    IGKV6-21_star_01_144: 1.0
+    IGKV1-27_star_01_144: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.026666666666666665
+      C: 0.026666666666666665
+      G: 0.026666666666666665
+      T: 0.92
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_144
+  transitions:
+    IGKV1-27_star_01_145: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2200,39 +2215,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_144
+  name: IGKV1-27_star_01_145
   transitions:
-    IGKV6-21_star_01_145: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_145
-  transitions:
-    IGKV6-21_star_01_146: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_146
-  transitions:
-    IGKV6-21_star_01_147: 1.0
+    IGKV1-27_star_01_146: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2245,39 +2230,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_147
+  name: IGKV1-27_star_01_146
   transitions:
-    IGKV6-21_star_01_148: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.725
-      C: 0.030555555555555558
-      G: 0.2138888888888889
-      T: 0.030555555555555558
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_148
-  transitions:
-    IGKV6-21_star_01_149: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_149
-  transitions:
-    IGKV6-21_star_01_150: 1.0
+    IGKV1-27_star_01_147: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -2290,1314 +2245,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_150
+  name: IGKV1-27_star_01_147
   transitions:
-    IGKV6-21_star_01_151: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_151
-  transitions:
-    IGKV6-21_star_01_152: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_152
-  transitions:
-    IGKV6-21_star_01_153: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_153
-  transitions:
-    IGKV6-21_star_01_154: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_154
-  transitions:
-    IGKV6-21_star_01_155: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_155
-  transitions:
-    IGKV6-21_star_01_156: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_156
-  transitions:
-    IGKV6-21_star_01_157: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_157
-  transitions:
-    IGKV6-21_star_01_158: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_158
-  transitions:
-    IGKV6-21_star_01_159: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_159
-  transitions:
-    IGKV6-21_star_01_160: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_160
-  transitions:
-    IGKV6-21_star_01_161: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_161
-  transitions:
-    IGKV6-21_star_01_162: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_162
-  transitions:
-    IGKV6-21_star_01_163: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_163
-  transitions:
-    IGKV6-21_star_01_164: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_164
-  transitions:
-    IGKV6-21_star_01_165: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_165
-  transitions:
-    IGKV6-21_star_01_166: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_166
-  transitions:
-    IGKV6-21_star_01_167: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_167
-  transitions:
-    IGKV6-21_star_01_168: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_168
-  transitions:
-    IGKV6-21_star_01_169: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_169
-  transitions:
-    IGKV6-21_star_01_170: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_170
-  transitions:
-    IGKV6-21_star_01_171: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_171
-  transitions:
-    IGKV6-21_star_01_172: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_172
-  transitions:
-    IGKV6-21_star_01_173: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_173
-  transitions:
-    IGKV6-21_star_01_174: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_174
-  transitions:
-    IGKV6-21_star_01_175: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_175
-  transitions:
-    IGKV6-21_star_01_176: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_176
-  transitions:
-    IGKV6-21_star_01_177: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_177
-  transitions:
-    IGKV6-21_star_01_178: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_178
-  transitions:
-    IGKV6-21_star_01_179: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_179
-  transitions:
-    IGKV6-21_star_01_180: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_180
-  transitions:
-    IGKV6-21_star_01_181: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_181
-  transitions:
-    IGKV6-21_star_01_182: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_182
-  transitions:
-    IGKV6-21_star_01_183: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_183
-  transitions:
-    IGKV6-21_star_01_184: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_184
-  transitions:
-    IGKV6-21_star_01_185: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_185
-  transitions:
-    IGKV6-21_star_01_186: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_186
-  transitions:
-    IGKV6-21_star_01_187: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_187
-  transitions:
-    IGKV6-21_star_01_188: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_188
-  transitions:
-    IGKV6-21_star_01_189: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_189
-  transitions:
-    IGKV6-21_star_01_190: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_190
-  transitions:
-    IGKV6-21_star_01_191: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_191
-  transitions:
-    IGKV6-21_star_01_192: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_192
-  transitions:
-    IGKV6-21_star_01_193: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.026666666666666665
-      C: 0.026666666666666665
-      G: 0.92
-      T: 0.026666666666666665
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_193
-  transitions:
-    IGKV6-21_star_01_194: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_194
-  transitions:
-    IGKV6-21_star_01_195: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_195
-  transitions:
-    IGKV6-21_star_01_196: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_196
-  transitions:
-    IGKV6-21_star_01_197: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.87
-      C: 0.065
-      G: 0.0325
-      T: 0.0325
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_197
-  transitions:
-    IGKV6-21_star_01_198: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_198
-  transitions:
-    IGKV6-21_star_01_199: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_199
-  transitions:
-    IGKV6-21_star_01_200: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_200
-  transitions:
-    IGKV6-21_star_01_201: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_201
-  transitions:
-    IGKV6-21_star_01_202: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_202
-  transitions:
-    IGKV6-21_star_01_203: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_203
-  transitions:
-    IGKV6-21_star_01_204: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_204
-  transitions:
-    IGKV6-21_star_01_205: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_205
-  transitions:
-    IGKV6-21_star_01_206: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_206
-  transitions:
-    IGKV6-21_star_01_207: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_207
-  transitions:
-    IGKV6-21_star_01_208: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_208
-  transitions:
-    IGKV6-21_star_01_209: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_209
-  transitions:
-    IGKV6-21_star_01_210: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_210
-  transitions:
-    IGKV6-21_star_01_211: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_211
-  transitions:
-    IGKV6-21_star_01_212: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_212
-  transitions:
-    IGKV6-21_star_01_213: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_213
-  transitions:
-    IGKV6-21_star_01_214: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_214
-  transitions:
-    IGKV6-21_star_01_215: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_215
-  transitions:
-    IGKV6-21_star_01_216: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0325
-      C: 0.87
-      G: 0.065
-      T: 0.0325
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_216
-  transitions:
-    IGKV6-21_star_01_217: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.036
-      C: 0.108
-      G: 0.036
-      T: 0.8200000000000001
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_217
-  transitions:
-    IGKV6-21_star_01_218: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_218
-  transitions:
-    IGKV6-21_star_01_219: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_219
-  transitions:
-    IGKV6-21_star_01_220: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_220
-  transitions:
-    IGKV6-21_star_01_221: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_221
-  transitions:
-    IGKV6-21_star_01_222: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_222
-  transitions:
-    IGKV6-21_star_01_223: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_223
-  transitions:
-    IGKV6-21_star_01_224: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_224
-  transitions:
-    IGKV6-21_star_01_225: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_225
-  transitions:
-    IGKV6-21_star_01_226: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_226
-  transitions:
-    IGKV6-21_star_01_227: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_227
-  transitions:
-    IGKV6-21_star_01_228: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_228
-  transitions:
-    IGKV6-21_star_01_229: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_229
-  transitions:
-    IGKV6-21_star_01_230: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_230
-  transitions:
-    IGKV6-21_star_01_231: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_231
-  transitions:
-    IGKV6-21_star_01_232: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_232
-  transitions:
-    IGKV6-21_star_01_233: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_233
-  transitions:
-    IGKV6-21_star_01_234: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_234
-  transitions:
-    IGKV6-21_star_01_235: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_235
-  transitions:
-    IGKV6-21_star_01_236: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_236
-  transitions:
-    IGKV6-21_star_01_237: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_237
-  transitions:
-    IGKV6-21_star_01_238: 1.0
+    IGKV1-27_star_01_148: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -3610,99 +2260,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: C
-  name: IGKV6-21_star_01_238
+  name: IGKV1-27_star_01_148
   transitions:
-    IGKV6-21_star_01_239: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0325
-      C: 0.065
-      G: 0.0325
-      T: 0.87
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_239
-  transitions:
-    IGKV6-21_star_01_240: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_240
-  transitions:
-    IGKV6-21_star_01_241: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_241
-  transitions:
-    IGKV6-21_star_01_242: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_242
-  transitions:
-    IGKV6-21_star_01_243: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_243
-  transitions:
-    IGKV6-21_star_01_244: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_244
-  transitions:
-    IGKV6-21_star_01_245: 1.0
+    IGKV1-27_star_01_149: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -3715,429 +2275,9 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: T
-  name: IGKV6-21_star_01_245
+  name: IGKV1-27_star_01_149
   transitions:
-    IGKV6-21_star_01_246: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_246
-  transitions:
-    IGKV6-21_star_01_247: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_247
-  transitions:
-    IGKV6-21_star_01_248: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_248
-  transitions:
-    IGKV6-21_star_01_249: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_249
-  transitions:
-    IGKV6-21_star_01_250: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_250
-  transitions:
-    IGKV6-21_star_01_251: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_251
-  transitions:
-    IGKV6-21_star_01_252: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.8200000000000001
-      C: 0.108
-      G: 0.036
-      T: 0.036
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_252
-  transitions:
-    IGKV6-21_star_01_253: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_253
-  transitions:
-    IGKV6-21_star_01_254: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_254
-  transitions:
-    IGKV6-21_star_01_255: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.19642857142857145
-      C: 0.039285714285714285
-      G: 0.039285714285714285
-      T: 0.725
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_255
-  transitions:
-    IGKV6-21_star_01_256: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_256
-  transitions:
-    IGKV6-21_star_01_257: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_257
-  transitions:
-    IGKV6-21_star_01_258: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_258
-  transitions:
-    IGKV6-21_star_01_259: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_259
-  transitions:
-    IGKV6-21_star_01_260: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_260
-  transitions:
-    IGKV6-21_star_01_261: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_261
-  transitions:
-    IGKV6-21_star_01_262: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_262
-  transitions:
-    IGKV6-21_star_01_263: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_263
-  transitions:
-    IGKV6-21_star_01_264: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_264
-  transitions:
-    IGKV6-21_star_01_265: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.725
-      C: 0.039285714285714285
-      G: 0.039285714285714285
-      T: 0.19642857142857145
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_265
-  transitions:
-    IGKV6-21_star_01_266: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_266
-  transitions:
-    IGKV6-21_star_01_267: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.9171513184822
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_267
-  transitions:
-    IGKV6-21_star_01_268: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_268
-  transitions:
-    IGKV6-21_star_01_269: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0325
-      C: 0.0325
-      G: 0.87
-      T: 0.065
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_269
-  transitions:
-    IGKV6-21_star_01_270: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.87
-      C: 0.065
-      G: 0.0325
-      T: 0.0325
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_270
-  transitions:
-    IGKV6-21_star_01_271: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.9171513184822
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: G
-  name: IGKV6-21_star_01_271
-  transitions:
-    IGKV6-21_star_01_272: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.0276162271726
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.9171513184822
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_272
-  transitions:
-    IGKV6-21_star_01_273: 1.0
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9171513184822
-      C: 0.0276162271726
-      G: 0.0276162271726
-      T: 0.0276162271726
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: A
-  name: IGKV6-21_star_01_273
-  transitions:
-    IGKV6-21_star_01_274: 1.0
+    IGKV1-27_star_01_150: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -4150,24 +2290,24 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_274
+  name: IGKV1-27_star_01_150
   transitions:
-    IGKV6-21_star_01_275: 1.0
+    IGKV1-27_star_01_151: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
       A: 0.0276162271726
-      C: 0.0276162271726
+      C: 0.9171513184822
       G: 0.0276162271726
-      T: 0.9171513184822
+      T: 0.0276162271726
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_275
+    germline: C
+  name: IGKV1-27_star_01_151
   transitions:
-    IGKV6-21_star_01_276: 1.0
+    IGKV1-27_star_01_152: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -4180,9 +2320,129 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_276
+  name: IGKV1-27_star_01_152
   transitions:
-    IGKV6-21_star_01_277: 1.0
+    IGKV1-27_star_01_153: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_153
+  transitions:
+    IGKV1-27_star_01_154: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_154
+  transitions:
+    IGKV1-27_star_01_155: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_155
+  transitions:
+    IGKV1-27_star_01_156: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_156
+  transitions:
+    IGKV1-27_star_01_157: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_157
+  transitions:
+    IGKV1-27_star_01_158: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_158
+  transitions:
+    IGKV1-27_star_01_159: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_159
+  transitions:
+    IGKV1-27_star_01_160: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_160
+  transitions:
+    IGKV1-27_star_01_161: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -4195,151 +2455,1891 @@ states:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: G
-  name: IGKV6-21_star_01_277
+  name: IGKV1-27_star_01_161
   transitions:
-    IGKV6-21_star_01_278: 0.9655172413793104
-    end: 0.034482758620689655
+    IGKV1-27_star_01_162: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
-      A: 0.0278342756966956
-      C: 0.0278342756966956
-      G: 0.0278342756966956
-      T: 0.9164971729099132
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_278
+    germline: C
+  name: IGKV1-27_star_01_162
   transitions:
-    IGKV6-21_star_01_279: 0.9655172413793104
-    end: 0.034482758620689655
+    IGKV1-27_star_01_163: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
-      A: 0.028052324220791198
-      C: 0.028052324220791198
-      G: 0.028052324220791198
-      T: 0.9158430273376263
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_279
-  transitions:
-    IGKV6-21_star_01_280: 0.9655172413793104
-    end: 0.034482758620689655
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.027637332407597907
-      C: 0.027637332407597907
-      G: 0.027637332407597907
-      T: 0.9170880027772063
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_280
-  transitions:
-    IGKV6-21_star_01_281: 0.9655172413793104
-    end: 0.034482758620689655
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9145347361930528
-      C: 0.0284884212689824
-      G: 0.0284884212689824
-      T: 0.0284884212689824
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_281
+  name: IGKV1-27_star_01_163
   transitions:
-    IGKV6-21_star_01_282: 0.9655172413793104
-    end: 0.034482758620689655
+    IGKV1-27_star_01_164: 1.0
 - !!python/object:hmmwriter.State
   emissions:
     probs:
-      A: 0.028706469793077997
-      C: 0.913880590620766
-      G: 0.028706469793077997
-      T: 0.028706469793077997
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_282
-  transitions:
-    IGKV6-21_star_01_283: 0.9655172413793104
-    end: 0.034482758620689655
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.028924518317173593
-      C: 0.9132264450484793
-      G: 0.028924518317173593
-      T: 0.028924518317173593
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_283
-  transitions:
-    IGKV6-21_star_01_284: 0.7586206896551724
-    end: 0.2413793103448276
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.029142566841269195
-      C: 0.029142566841269195
-      G: 0.029142566841269195
-      T: 0.9125722994761925
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: T
-  name: IGKV6-21_star_01_284
-  transitions:
-    IGKV6-21_star_01_285: 0.5172413793103448
-    end: 0.4827586206896552
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.029995849383224055
-      C: 0.9100124518503279
-      G: 0.029995849383224055
-      T: 0.029995849383224055
-    track: nukes
-  extras:
-    ambiguous_char: N
-    ambiguous_emission_prob: 0.25
-    germline: C
-  name: IGKV6-21_star_01_285
-  transitions:
-    IGKV6-21_star_01_286: 0.9655172413793104
-    end: 0.034482758620689655
-- !!python/object:hmmwriter.State
-  emissions:
-    probs:
-      A: 0.9112640083316188
-      C: 0.029578663889460392
-      G: 0.029578663889460392
-      T: 0.029578663889460392
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
     track: nukes
   extras:
     ambiguous_char: N
     ambiguous_emission_prob: 0.25
     germline: A
-  name: IGKV6-21_star_01_286
+  name: IGKV1-27_star_01_164
+  transitions:
+    IGKV1-27_star_01_165: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_165
+  transitions:
+    IGKV1-27_star_01_166: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_166
+  transitions:
+    IGKV1-27_star_01_167: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_167
+  transitions:
+    IGKV1-27_star_01_168: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_168
+  transitions:
+    IGKV1-27_star_01_169: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_169
+  transitions:
+    IGKV1-27_star_01_170: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_170
+  transitions:
+    IGKV1-27_star_01_171: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_171
+  transitions:
+    IGKV1-27_star_01_172: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_172
+  transitions:
+    IGKV1-27_star_01_173: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_173
+  transitions:
+    IGKV1-27_star_01_174: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_174
+  transitions:
+    IGKV1-27_star_01_175: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_175
+  transitions:
+    IGKV1-27_star_01_176: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_176
+  transitions:
+    IGKV1-27_star_01_177: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_177
+  transitions:
+    IGKV1-27_star_01_178: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_178
+  transitions:
+    IGKV1-27_star_01_179: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_179
+  transitions:
+    IGKV1-27_star_01_180: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.026666666666666665
+      C: 0.92
+      G: 0.026666666666666665
+      T: 0.026666666666666665
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_180
+  transitions:
+    IGKV1-27_star_01_181: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_181
+  transitions:
+    IGKV1-27_star_01_182: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_182
+  transitions:
+    IGKV1-27_star_01_183: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_183
+  transitions:
+    IGKV1-27_star_01_184: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_184
+  transitions:
+    IGKV1-27_star_01_185: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_185
+  transitions:
+    IGKV1-27_star_01_186: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_186
+  transitions:
+    IGKV1-27_star_01_187: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_187
+  transitions:
+    IGKV1-27_star_01_188: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_188
+  transitions:
+    IGKV1-27_star_01_189: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_189
+  transitions:
+    IGKV1-27_star_01_190: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_190
+  transitions:
+    IGKV1-27_star_01_191: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_191
+  transitions:
+    IGKV1-27_star_01_192: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_192
+  transitions:
+    IGKV1-27_star_01_193: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.026666666666666665
+      C: 0.026666666666666665
+      G: 0.92
+      T: 0.026666666666666665
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_193
+  transitions:
+    IGKV1-27_star_01_194: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_194
+  transitions:
+    IGKV1-27_star_01_195: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_195
+  transitions:
+    IGKV1-27_star_01_196: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_196
+  transitions:
+    IGKV1-27_star_01_197: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.87
+      C: 0.065
+      G: 0.0325
+      T: 0.0325
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_197
+  transitions:
+    IGKV1-27_star_01_198: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_198
+  transitions:
+    IGKV1-27_star_01_199: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_199
+  transitions:
+    IGKV1-27_star_01_200: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_200
+  transitions:
+    IGKV1-27_star_01_201: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_201
+  transitions:
+    IGKV1-27_star_01_202: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_202
+  transitions:
+    IGKV1-27_star_01_203: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_203
+  transitions:
+    IGKV1-27_star_01_204: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_204
+  transitions:
+    IGKV1-27_star_01_205: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_205
+  transitions:
+    IGKV1-27_star_01_206: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_206
+  transitions:
+    IGKV1-27_star_01_207: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_207
+  transitions:
+    IGKV1-27_star_01_208: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_208
+  transitions:
+    IGKV1-27_star_01_209: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_209
+  transitions:
+    IGKV1-27_star_01_210: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_210
+  transitions:
+    IGKV1-27_star_01_211: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_211
+  transitions:
+    IGKV1-27_star_01_212: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_212
+  transitions:
+    IGKV1-27_star_01_213: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_213
+  transitions:
+    IGKV1-27_star_01_214: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_214
+  transitions:
+    IGKV1-27_star_01_215: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_215
+  transitions:
+    IGKV1-27_star_01_216: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_216
+  transitions:
+    IGKV1-27_star_01_217: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.036
+      C: 0.108
+      G: 0.036
+      T: 0.8200000000000001
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_217
+  transitions:
+    IGKV1-27_star_01_218: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_218
+  transitions:
+    IGKV1-27_star_01_219: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_219
+  transitions:
+    IGKV1-27_star_01_220: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_220
+  transitions:
+    IGKV1-27_star_01_221: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_221
+  transitions:
+    IGKV1-27_star_01_222: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_222
+  transitions:
+    IGKV1-27_star_01_223: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_223
+  transitions:
+    IGKV1-27_star_01_224: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_224
+  transitions:
+    IGKV1-27_star_01_225: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_225
+  transitions:
+    IGKV1-27_star_01_226: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.026666666666666665
+      C: 0.026666666666666665
+      G: 0.92
+      T: 0.026666666666666665
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_226
+  transitions:
+    IGKV1-27_star_01_227: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_227
+  transitions:
+    IGKV1-27_star_01_228: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_228
+  transitions:
+    IGKV1-27_star_01_229: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_229
+  transitions:
+    IGKV1-27_star_01_230: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_230
+  transitions:
+    IGKV1-27_star_01_231: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_231
+  transitions:
+    IGKV1-27_star_01_232: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_232
+  transitions:
+    IGKV1-27_star_01_233: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_233
+  transitions:
+    IGKV1-27_star_01_234: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_234
+  transitions:
+    IGKV1-27_star_01_235: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_235
+  transitions:
+    IGKV1-27_star_01_236: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_236
+  transitions:
+    IGKV1-27_star_01_237: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0325
+      C: 0.87
+      G: 0.065
+      T: 0.0325
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_237
+  transitions:
+    IGKV1-27_star_01_238: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.030555555555555558
+      C: 0.725
+      G: 0.2138888888888889
+      T: 0.030555555555555558
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_238
+  transitions:
+    IGKV1-27_star_01_239: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0325
+      C: 0.0325
+      G: 0.065
+      T: 0.87
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_239
+  transitions:
+    IGKV1-27_star_01_240: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_240
+  transitions:
+    IGKV1-27_star_01_241: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_241
+  transitions:
+    IGKV1-27_star_01_242: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_242
+  transitions:
+    IGKV1-27_star_01_243: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_243
+  transitions:
+    IGKV1-27_star_01_244: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_244
+  transitions:
+    IGKV1-27_star_01_245: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_245
+  transitions:
+    IGKV1-27_star_01_246: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_246
+  transitions:
+    IGKV1-27_star_01_247: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_247
+  transitions:
+    IGKV1-27_star_01_248: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_248
+  transitions:
+    IGKV1-27_star_01_249: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_249
+  transitions:
+    IGKV1-27_star_01_250: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_250
+  transitions:
+    IGKV1-27_star_01_251: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_251
+  transitions:
+    IGKV1-27_star_01_252: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.8200000000000001
+      C: 0.108
+      G: 0.036
+      T: 0.036
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_252
+  transitions:
+    IGKV1-27_star_01_253: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_253
+  transitions:
+    IGKV1-27_star_01_254: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_254
+  transitions:
+    IGKV1-27_star_01_255: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.19642857142857145
+      C: 0.039285714285714285
+      G: 0.039285714285714285
+      T: 0.725
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_255
+  transitions:
+    IGKV1-27_star_01_256: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_256
+  transitions:
+    IGKV1-27_star_01_257: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_257
+  transitions:
+    IGKV1-27_star_01_258: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_258
+  transitions:
+    IGKV1-27_star_01_259: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_259
+  transitions:
+    IGKV1-27_star_01_260: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_260
+  transitions:
+    IGKV1-27_star_01_261: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_261
+  transitions:
+    IGKV1-27_star_01_262: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_262
+  transitions:
+    IGKV1-27_star_01_263: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_263
+  transitions:
+    IGKV1-27_star_01_264: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_264
+  transitions:
+    IGKV1-27_star_01_265: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.725
+      C: 0.039285714285714285
+      G: 0.039285714285714285
+      T: 0.19642857142857145
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_265
+  transitions:
+    IGKV1-27_star_01_266: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.92
+      C: 0.026666666666666665
+      G: 0.026666666666666665
+      T: 0.026666666666666665
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_266
+  transitions:
+    IGKV1-27_star_01_267: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_267
+  transitions:
+    IGKV1-27_star_01_268: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_268
+  transitions:
+    IGKV1-27_star_01_269: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0325
+      C: 0.0325
+      G: 0.87
+      T: 0.065
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_269
+  transitions:
+    IGKV1-27_star_01_270: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_270
+  transitions:
+    IGKV1-27_star_01_271: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_271
+  transitions:
+    IGKV1-27_star_01_272: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.9171513184822
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_272
+  transitions:
+    IGKV1-27_star_01_273: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_273
+  transitions:
+    IGKV1-27_star_01_274: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_274
+  transitions:
+    IGKV1-27_star_01_275: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.9171513184822
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_275
+  transitions:
+    IGKV1-27_star_01_276: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9171513184822
+      C: 0.0276162271726
+      G: 0.0276162271726
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKV1-27_star_01_276
+  transitions:
+    IGKV1-27_star_01_277: 1.0
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0276162271726
+      C: 0.0276162271726
+      G: 0.9171513184822
+      T: 0.0276162271726
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_277
+  transitions:
+    IGKV1-27_star_01_278: 0.9714285714285714
+    end: 0.02857142857142857
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0278540982897952
+      C: 0.0278540982897952
+      G: 0.0278540982897952
+      T: 0.9164377051306144
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_278
+  transitions:
+    IGKV1-27_star_01_279: 0.9714285714285714
+    end: 0.02857142857142857
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.028091969406990398
+      C: 0.028091969406990398
+      G: 0.9157240917790288
+      T: 0.028091969406990398
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGKV1-27_star_01_279
+  transitions:
+    IGKV1-27_star_01_280: 0.9714285714285714
+    end: 0.02857142857142857
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.0283298405241856
+      C: 0.9150104784274432
+      G: 0.0283298405241856
+      T: 0.0283298405241856
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_280
+  transitions:
+    IGKV1-27_star_01_281: 0.9714285714285714
+    end: 0.02857142857142857
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.028567711641380795
+      C: 0.9142968650758576
+      G: 0.028567711641380795
+      T: 0.028567711641380795
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_281
+  transitions:
+    IGKV1-27_star_01_282: 0.8666666666666667
+    end: 0.1333333333333333
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.028805582758575997
+      C: 0.913583251724272
+      G: 0.028805582758575997
+      T: 0.028805582758575997
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_282
+  transitions:
+    IGKV1-27_star_01_283: 0.7333333333333334
+    end: 0.2666666666666666
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.029043453875771195
+      C: 0.9128696383726864
+      G: 0.029043453875771195
+      T: 0.029043453875771195
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_283
+  transitions:
+    IGKV1-27_star_01_284: 0.6
+    end: 0.4
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.030551793028684913
+      C: 0.030551793028684913
+      G: 0.030551793028684913
+      T: 0.9083446209139453
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGKV1-27_star_01_284
+  transitions:
+    IGKV1-27_star_01_285: 0.9714285714285714
+    end: 0.02857142857142857
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.030154430128020854
+      C: 0.9095367096159375
+      G: 0.030154430128020854
+      T: 0.030154430128020854
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_285
+  transitions:
+    IGKV1-27_star_01_286: 0.9714285714285714
+    end: 0.02857142857142857
+- !!python/object:hmmwriter.State
+  emissions:
+    probs:
+      A: 0.02975706722735679
+      C: 0.9107287983179296
+      G: 0.02975706722735679
+      T: 0.02975706722735679
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGKV1-27_star_01_286
   transitions:
     end: 1.0
 tracks:
