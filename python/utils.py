@@ -173,6 +173,12 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
+def csvlines(fn):
+    with open(fn) as cfile:
+        reader = csv.DictReader(cfile)
+        return list(reader)
+
+# ----------------------------------------------------------------------------------------
 # make lists from args that are passed as strings of colon-separated values
 def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, boolify=False, translation=None, list_of_lists=False, key_val_pairs=False, key_list=None, choices=None, forbid_duplicates=False, default_vals=None):
     if arg is None:
