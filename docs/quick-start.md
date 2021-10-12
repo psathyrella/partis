@@ -11,7 +11,10 @@ If you have different loci mixed together, you'll need to either set `--paired-l
 Both of these take the argument `--reverse-negative-strands` if you have a mix of positive and negative sense sequences.
 If you have heavy/light pairing information, for instance from 10x single cell data, it is important to incorporate it as described [here](paired-loci.md) in order to take advantage of (among other things) dramatically improved partitioning accuracy.
 If you're using Docker, and you mounted your host filesystem as described [here](install.md#installation-with-docker), you should replace `/path/to` with the appropriate host mount point within Docker.
-To parallelize on your local machine, add `--n-procs N`; to paralellize over many machines, the slurm and sge batch systems are currently supported (details [here](parallel.md)).
+
+If you want it to run faster (by a factor of 5 to 10, and at the cost of some accuracy) add `--fast`, which uses [naive vsearch clustering](subcommands).
+The number of processes on your local machine defaults to the number of cpus, so shouldn't need to be adjusted (with `--n-procs N`) unless you're running several things at once.
+To paralellize over many machines, the slurm and sge batch systems are currently supported (details [here](parallel.md)).
 
 Typically, you can expect to annotate 10,000 sequences on an 8-core desktop in about five minutes, and partition in 25 minutes.
 If it's taking too long, or using too much memory, there are many ways to improve these by orders of magnitude by trading some accuracy, or by focusing only on specific aspects of the repertoire, described [here](subcommands.md#partition), [here](parallel.md) and [here](https://groups.google.com/forum/#!topic/partis/1IEfLapbStw).

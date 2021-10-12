@@ -3964,8 +3964,9 @@ def memory_usage_fraction(debug=False):  # return fraction of total system memor
 # ----------------------------------------------------------------------------------------
 def auto_n_procs():  # for running on the local machine
     n_procs = multiprocessing.cpu_count()
-    if n_procs > 10: # if it's a huge server, we probably shouldn't use all the cores
-        n_procs = int(float(n_procs) / 2.)
+    # UPDATE eh whatever just use 'em all
+    # if n_procs > 10: # if it's a huge server, we probably shouldn't use all the cores
+    #     n_procs = int(float(n_procs) / 2.)
     return n_procs
 
 # ----------------------------------------------------------------------------------------

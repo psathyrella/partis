@@ -549,7 +549,7 @@ class PartitionDriver(object):
             if self.args.synthetic_distance_based_partition:
                 self.write_fake_cache_file([[q] for q in self.sw_info['queries']])
             else:
-                self.run_hmm('viterbi', self.sub_param_dir, n_procs=self.auto_nprocs(len(self.sw_info['queries'])), precache_all_naive_seqs=True)
+                self.run_hmm('viterbi', self.sub_param_dir, precache_all_naive_seqs=True)  # , n_procs=self.auto_nprocs(len(self.sw_info['queries']))
 
         if self.args.simultaneous_true_clonal_seqs:
             print '  --simultaneous-true-clonal-seqs: using true clusters instead of partitioning'
@@ -823,29 +823,29 @@ class PartitionDriver(object):
             warnstr = 'queries missing from partition: ' + str(len(missing_ids))
             print '  ' + utils.color('red', 'warning') + ' ' + warnstr
 
-    # ----------------------------------------------------------------------------------------
-    def auto_nprocs(self, nseqs):
-        if self.args.n_precache_procs is not None:  # command line override
-            return self.args.n_precache_procs
+    # # ----------------------------------------------------------------------------------------
+    # def auto_nprocs(self, nseqs):
+    #     if self.args.n_precache_procs is not None:  # command line override
+    #         return self.args.n_precache_procs
 
-        n_max_procs = 100
+    #     n_max_procs = 100
 
-        if nseqs < 1000:
-            seqs_per_proc = 250
-        elif nseqs < 3000:
-            seqs_per_proc = 500
-        else:
-            seqs_per_proc = 1000
-        if self.args.batch_system is not None:  # if we're using a batch system, all the overhead (and priority issues) means it makes sense to have fewer processes
-            seqs_per_proc *= 4
-        n_precache_procs = int(math.ceil(float(nseqs) / seqs_per_proc))
-        n_precache_procs = min(n_precache_procs, n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
-        if self.args.batch_system is None:  # if we're not on a batch system, make sure it's less than the number of cpus
-            n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
-        else:
-            n_precache_procs = min(n_precache_procs, self.args.n_procs)  # aw, screw it, just limit it to --n-procs
+    #     if nseqs < 1000:
+    #         seqs_per_proc = 250
+    #     elif nseqs < 3000:
+    #         seqs_per_proc = 500
+    #     else:
+    #         seqs_per_proc = 1000
+    #     if self.args.batch_system is not None:  # if we're using a batch system, all the overhead (and priority issues) means it makes sense to have fewer processes
+    #         seqs_per_proc *= 4
+    #     n_precache_procs = int(math.ceil(float(nseqs) / seqs_per_proc))
+    #     n_precache_procs = min(n_precache_procs, n_max_procs)  # I can't get more'n a few hundred slots at a time, so it isn't worth using too much more than that
+    #     if self.args.batch_system is None:  # if we're not on a batch system, make sure it's less than the number of cpus
+    #         n_precache_procs = min(n_precache_procs, multiprocessing.cpu_count())
+    #     else:
+    #         n_precache_procs = min(n_precache_procs, self.args.n_procs)  # aw, screw it, just limit it to --n-procs
 
-        return n_precache_procs
+    #     return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
     def get_annotations_for_partitions(self, cpath):  # we used to try to have glomerator.cc try to guess what annoations to write (using ::WriteAnnotations()), but now we go back and rerun a separate bcrham process just to get the annotations we want, partly for that control, but also partly because we typically want all these annotations calculated without any uid translation.

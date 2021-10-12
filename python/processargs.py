@@ -197,6 +197,9 @@ def process(args):
     if args.annotation_clustering and args.action != 'annotate':
             raise Exception('action must be \'annotate\' for annotation clustering')
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)
+    if args.fast:
+        args.naive_vsearch = True
+        delattr(args, 'fast')
     if args.naive_hamming_cluster and args.naive_vsearch:
         raise Exception('can\'t specify both --naive-hamming-cluster and --naive-vsearch')
     if args.synthetic_distance_based_partition:

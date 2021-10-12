@@ -1,6 +1,11 @@
   - [overview](#overview)
   - [annotate](#annotate) find most likely annotation for each sequence
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
+    - [fast (naive vsearch)](#--fast-(synonym:---naive-vsearch))
+    - [subsampling](#subsampling)
+    - [ignore small clusters](#ignore-smaller-clusters)
+    - [limit maximum cluster size](#limit-maximum-cluster-size)
+	- [progress file](#progress- file)
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
     - [choosing antibodies](#choosing-antibodies)
@@ -54,6 +59,14 @@ By default, this uses the most accurate and slowest method: hierarchical agglome
 
 There are also a number of options for speeding things up either by sacrificing accuracy for speed, or by ignoring sequences you don't care about:
 
+##### `--fast` (synonym: `--naive-vsearch`)
+
+As for the default (full) clustering method, first calculates the naive ancestor for each sequence, but then passes these to vsearch for very fast heuristic clustering.
+Vsearch is extremely fast, because it includes a large number of optimizations to avoid all-against-all comparison, and thus scales much better than quadratically.
+Because these optimizations (like any purely distance-based approach) know nothing about VDJ rearrangement or SHM, however, they reduce accuracy.
+This is nevertheless a thoroughly reasonably way to get an idea of the lineage structure of your sample.
+After running vsearch clustering, you can always pass families of interest (e.g. with `--seed-unique-id`) to the more accurate clustering method.
+
 ##### subsampling
 
 The simplest way to go faster is to only use some of your sequences. You can choose a random subset with `--n-random-queries <n>` (random seed is set with `--seed <n>`), or take the first `n` sequences with `--n-max-queries <n>`. You can also limit it to specific sequence ids using `--queries <a:b:c>`, where `a:b:c` is a colon-separated list of sequence ids.
@@ -61,14 +74,6 @@ The simplest way to go faster is to only use some of your sequences. You can cho
 ##### `--seed-unique-id <id>`
 
 Ignores sequences that are not clonally related to the sequence specified by `<id>`, and is consequently vastly faster than partitioning the entire sample. You can specify the sequence rather than the id with `--seed-seq <seq>`.
-
-##### `--naive-vsearch`
-
-As for the default clustering method, first calculates the naive ancestor for each sequence, but then passes these to vsearch for very fast, very heuristic clustering.
-Vsearch is extremely fast, because it includes a large number of optimizations to avoid all-against-all comparison, and thus scales much better than quadratically.
-Because these optimizations (like any purely distance-based approach) know nothing about VDJ rearrangement or SHM, however, they significantly compromise accuracy.
-This is nevertheless a thoroughly reasonably way to get a rough idea of the lineage structure of your sample.
-After running vsearch clustering, you can always pass families of interest (e.g. with `--seed-unique-id`) to the more accurate clustering method.
 
 ##### ignore smaller clusters
 
@@ -299,7 +304,7 @@ If `--rearrange-from-scratch` is set, or you've set `--n-leaf-distrubtion` to so
 
 To simulate paired heavy/light repertoires, see [here](paired-loci.md#simulation).
 
-Partly because the simulation is so easy to parallelize (use `--n-procs N` and see [here](parallel.md)), its run time is not usually a limiting factor.
+Partly because the simulation is so easy to parallelize (since events are independent), its run time is not usually a limiting factor.
 With default parameters, 10,000 sequences takes about 8 minutes with one core (so a million sequences on ten cores would take an hour and a half), although this depends a lot on the family size distribution and mutation levels you specify.
 If you don't care very much about the details of the mutation model, you can get a factor of ten speedup by setting `--no-per-base-mutation`, which uses a simpler model in bppseqgen that doesn't account for different rates to different bases (e.g. A->T vs A->G).
 

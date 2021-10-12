@@ -142,7 +142,6 @@ class Tester(object):
                 self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
                 self.tests['multi-annotate-' + input_stype + '-simu']    = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
-                '--n-precache-procs', '10',
                 '--plot-annotation-performance',
                 # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             ]}

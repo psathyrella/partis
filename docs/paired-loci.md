@@ -7,7 +7,7 @@ This also allows the incorporation of heavy/light pairing info, for instance fro
 
 A simple invocation would be:
 ```
-partis partition --infname <fasta-input-file> --paired-loci --paired-outdir <output-dir> --n-procs N
+partis partition --infname <fasta-input-file> --paired-loci --paired-outdir <output-dir>
 ```
 As usual, this will first cache parameters if they don't exist; also as usual, if you want to use more advanced parameter caching options, it's best to run the `cache-parameters` step by hand.
 If this is indeed 10x single cell data, partis will automatically extract the droplet id from each sequence id in your input file, and use this to write pairing info to a json/yaml file (which it'll pass internally with `--input-metafnames`).
