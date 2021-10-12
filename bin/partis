@@ -82,7 +82,7 @@ def run_simulation(args):
         for iproc in range(args.n_procs):
             n_sub_events = get_sub_events(iproc)
             clist = copy.deepcopy(sys.argv)
-            utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
+            utils.replace_in_arglist(clist, '--n-procs', '1')
             clist.append('--im-a-subproc')
             utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
             utils.replace_in_arglist(clist, '--workdir', get_workdir(iproc))
