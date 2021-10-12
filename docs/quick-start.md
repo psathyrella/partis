@@ -12,7 +12,7 @@ Both of these take the argument `--reverse-negative-strands` if you have a mix o
 If you have heavy/light pairing information, for instance from 10x single cell data, it is important to incorporate it as described [here](paired-loci.md) in order to take advantage of (among other things) dramatically improved partitioning accuracy.
 If you're using Docker, and you mounted your host filesystem as described [here](install.md#installation-with-docker), you should replace `/path/to` with the appropriate host mount point within Docker.
 
-If you want it to run faster (by a factor of 5 to 10, and at the cost of some accuracy) add `--fast`, which uses [naive vsearch clustering](subcommands).
+If you want it to run faster (by a factor of 5 to 10, and at the cost of some accuracy) add `--fast`, which uses [naive vsearch clustering](subcommands#--fast-synonym---naive-vsearch).
 The number of processes on your local machine defaults to the number of cpus, so shouldn't need to be adjusted (with `--n-procs N`) unless you're running several things at once.
 To paralellize over many machines, the slurm and sge batch systems are currently supported (details [here](parallel.md)).
 

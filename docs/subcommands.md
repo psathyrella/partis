@@ -1,11 +1,11 @@
   - [overview](#overview)
   - [annotate](#annotate) find most likely annotation for each sequence
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family
-    - [fast (naive vsearch)](#--fast-(synonym:---naive-vsearch))
+    - [fast (naive vsearch)](#--fast-synonym---naive-vsearch)
     - [subsampling](#subsampling)
     - [ignore small clusters](#ignore-smaller-clusters)
     - [limit maximum cluster size](#limit-maximum-cluster-size)
-	- [progress file](#progress- file)
+	- [progress file](#progress-file)
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
     - [choosing antibodies](#choosing-antibodies)
@@ -62,7 +62,7 @@ There are also a number of options for speeding things up either by sacrificing 
 ##### `--fast` (synonym: `--naive-vsearch`)
 
 As for the default (full) clustering method, first calculates the naive ancestor for each sequence, but then passes these to vsearch for very fast heuristic clustering.
-Vsearch is extremely fast, because it includes a large number of optimizations to avoid all-against-all comparison, and thus scales much better than quadratically.
+Vsearch is fast because it includes a large number of optimizations to avoid all-against-all comparison, and thus scales much better than quadratically.
 Because these optimizations (like any purely distance-based approach) know nothing about VDJ rearrangement or SHM, however, they reduce accuracy.
 This is nevertheless a thoroughly reasonably way to get an idea of the lineage structure of your sample.
 After running vsearch clustering, you can always pass families of interest (e.g. with `--seed-unique-id`) to the more accurate clustering method.
