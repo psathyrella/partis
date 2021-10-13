@@ -566,6 +566,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def split_seeded_clusters(self, old_cpath):  # NOTE similarity to clusterpath.remove_unseeded_clusters()
+        start = time.time()
         seeded_clusters, unseeded_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: self.args.seed_unique_id in cluster)
         self.unseeded_seqs = [uid for uclust in unseeded_clusters for uid in uclust]  # note that we no longer expect them to all be singletons, since we're merging queries with identical naive seqs before passing to glomerator.cc
         seeded_singleton_set = set([uid for sclust in seeded_clusters for uid in sclust])  # in case there's duplicates
@@ -573,7 +574,7 @@ class PartitionDriver(object):
         seeded_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         seeded_cpath.add_partition(seeded_partition, -1., 1)
         print '      removed %d sequences in unseeded clusters,' % len(self.unseeded_seqs),
-        print 'split %d seeded clusters into %d singletons, and merged these into %d clusters with identical naive seqs' % (len(seeded_clusters), len(seeded_singleton_set), len(seeded_cpath.partitions[seeded_cpath.i_best_minus_x]))
+        print 'split %d seeded clusters into %d singletons, and merged these into %d clusters with identical naive seqs (%.1f sec)' % (len(seeded_clusters), len(seeded_singleton_set), len(seeded_cpath.partitions[seeded_cpath.i_best_minus_x]), time.time() - start)
 
         return seeded_cpath
 
