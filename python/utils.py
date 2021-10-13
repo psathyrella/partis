@@ -4430,6 +4430,7 @@ def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  #
 
 # ----------------------------------------------------------------------------------------
 def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is (atm) only used for naive vsearch clustering
+    start = time.time()
     naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
     naive_seq_hashes = {}  # X[cdr3][hash(naive_seq)] : [uid1, uid2, uid3...]  # NOTE didn't used to be also subset by [cdr3], but it seems that they can have different cdr3 but same naive seq, which screws up untranslation
     for uid, naive_seq in naive_seq_list:
@@ -4441,7 +4442,7 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
             naive_seq_map[c3len][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
             naive_seq_hashes[c3len][hashstr] = []  # first sequence that has this naive
         naive_seq_hashes[c3len][hashstr].append(uid)
-    print '        collapsed %d sequences into %d unique naive sequences' % (len(naive_seq_list), len(naive_seq_hashes))
+    print '        collapsed %d sequences into %d unique naive sequences (%.1f sec)' % (len(naive_seq_list), len(naive_seq_hashes), time.time() - start)
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
