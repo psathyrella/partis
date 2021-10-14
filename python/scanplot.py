@@ -60,7 +60,7 @@ def get_comparison_plotdir(args, mtmp, per_x=None, extra_str='', perf_metric=Non
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
 def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=None, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='',
-               locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
+               locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, make_legend=False, debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def legstr(label, title=False):
         if label is None: return None
@@ -74,6 +74,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         lstr = jstr.join(tmplist)
         # if per_x is None and ptntype is not None and label in args.plot_metrics:  # need to add single/joint to the method
         #     lstr += ' %s' % ltexts[ptntype]
+        if title:
+            lstr = lstr.replace(' fraction (nuc)', '')
         return lstr
     # ----------------------------------------------------------------------------------------
     def nsimevts():
@@ -382,7 +384,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 for tau, meanval, errval in dbgvals:
                     print '     %6s  %5.2f +/- %.1f' % (tau, meanval, errval)
     # ----------------------------------------------------------------------------------------
-    def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, dummy_leg=False, alpha=0.5, estr=''):
+    def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, add_to_leg=False, alpha=0.5, estr=''):
         markersize = 15  # 1 if len(xticks) > 1 else 15
         linestyle = linestyles.get(mtmp, '-')
         if args.plot_metrics.count(mtmp) > 1 and estr != '':
@@ -398,13 +400,12 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, label=legstr(label), color=color, alpha=alpha, linewidth=linewidth, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
         else:
             ax.plot(xticks, diffs_to_perfect, label=legstr(label), color=color, alpha=alpha, linewidth=linewidth)
-        if dummy_leg:
+        if add_to_leg:
             dlabel = mtmp
             if not args.dont_plot_extra_strs and estr != '':
                 dlabel += ' %s' % estr
-            ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=0)
-        # elif estr != '':
-        #     fig.text(0.5, 0.7, estr, color='red', fontweight='bold')
+            # ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=0)
+            leg_entries[legstr(dlabel)] = {'alpha' : alpha, 'linewidth' : linewidth, 'linestyle' : linestyle, 'color' : 'grey' if ipv is not None else color} #, marker='.', markersize=0)
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
         if per_x is None:
@@ -501,6 +502,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     fig, ax = plotting.mpl_init()
     all_xtks, all_xtls, xlabel = [], [], None
+    leg_entries = collections.OrderedDict()
     if action == 'plot':
         read_plot_info()
         outfo = []
@@ -558,7 +560,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels, xlabel = getxticks(pfo[pvkey]['xvals'])
-                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if (imtmp == 0 and len(pvk_list) > 1) else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, dummy_leg=ipv==0, estr=estr)
+                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if (imtmp == 0 and len(pvk_list) > 1) else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, add_to_leg=ipv==0, estr=estr)
                 all_xtks += [x for x in xticks if x not in all_xtks]
                 all_xtls += [l for l in xticklabels if l not in all_xtls]
         # if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
@@ -632,10 +634,12 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                               xlabel=xlabel,
                               # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
                               ylabel=ylabel,
-                              title=title, leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
+                              title=title,  # leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
                               xticks=all_xtks, xticklabels=all_xtls, xticklabelsize=12 if all_xtls is not None and '\n' in all_xtls[0] else 16,
                               yticks=yticks, yticklabels=yticklabels,
                               xbounds=(xmin, xmax), ybounds=(ymin, ymax), log=log, adjust=adjust,
     )
+    if make_legend:
+        plotting.plot_legend_only(leg_entries, plotdir, 'legend', title=legstr(pvlabel[0], title=True))  #[(l, leg_entries['color']) for l, lfo in leg_entries], )
     if fnames is not None:
         fnames.append(ffn)

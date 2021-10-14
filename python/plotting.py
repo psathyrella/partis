@@ -693,15 +693,15 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def plot_legend_only(color_labels, plotdir, plotname, alpha=None, title=None):
-    if len(color_labels) == 0:
+def plot_legend_only(leg_entries, plotdir, plotname, title=None):
+    if len(leg_entries) == 0:
         return
     fig = plt.figure()
-    max_label_len = max(len(str(l)) for l, _ in color_labels)
-    figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(color_labels) / 4.))
+    max_label_len = max(len(str(l)) for l in leg_entries)
+    figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(leg_entries) / 4.))
     ax = fig.add_subplot(111)
-    for tlab, tcol in color_labels:
-        ax.plot([None], [None], label=str(tlab), color=tcol, alpha=alpha, linewidth=5)  # str() is to convert None to 'None', otherwise it doesn't show up
+    for tlab, lfo in leg_entries.items():
+        ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
     handles, labels = ax.get_legend_handles_labels()
     figlegend.legend(handles, labels, 'center', title=title)
     figlegend.savefig(plotdir+'/'+plotname+'.svg')
@@ -1359,7 +1359,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         emph_colors = [(v, c) for v, c in emph_colors if v in all_emph_vals]  # remove 'None' if there weren't any in the actual annotations
         if any(c==title for c, _ in emph_colors):  # if it's actually a color (i.e. probably a bool) no point in adding title)
             title = None
-        plot_legend_only(emph_colors,  plotdir, plotname+'-legend', title=title, alpha=base_alpha)
+        plot_legend_only({l : {'color' : c, 'alpha' : base_alpha} for l, c in emph_colors},  plotdir, plotname+'-legend', title=title)
 
     if high_x_val is None:
         return fn

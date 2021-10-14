@@ -269,12 +269,15 @@ for action in args.actions:
         elif action == 'combine-plots':
             cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])
-            for pmetr in args.perf_metrics:
+            fnames, iplot = [[] for _ in args.perf_metrics], 0
+            for ipm, pmetr in enumerate(args.perf_metrics):
                 print '    ', pmetr
                 for ptntype in partition_types:
                     for ltmp in plot_loci():
-                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, debug=args.debug)
-            plotting.make_html(cfpdir, n_columns=3 if len(plot_loci())==3 else 4)
+                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[ipm], make_legend=iplot==0, debug=args.debug)
+                        iplot += 1
+            fnames += [[os.path.dirname(fnames[0][0]) + '/legend.svg']]
+            plotting.make_html(cfpdir, n_columns=3 if len(plot_loci())==3 else 4, fnames=fnames)
         else:
             raise Exception('unsupported action %s' % action)
     else:

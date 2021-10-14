@@ -667,7 +667,7 @@ def meta_emph_str(key, val, formats=None):  # ick
     if use_len:
         return 'None' if val is None else '%d' % len(val)
     elif isinstance(val, float):
-        return '%.2f' % v
+        return '%.2f' % val
     elif isinstance(val, bool) or val in ['True', 'False']:
         return kstr if val else 'nope'  # not sure what to do if it's False, but probably you'll only call it asking for True?
     else:
