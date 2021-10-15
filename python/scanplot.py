@@ -159,8 +159,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             return obs_frac
     # ----------------------------------------------------------------------------------------
     def get_n_seqs(vlists, varnames):
-        n_events, n_leaves = [utils.vlval(args, vlists, varnames, vstr) for vstr in ['n-leaves', 'n-sim-events']]
-        return int(n_events) * int(n_leaves)
+        n_leaves, n_events = [utils.vlval(args, vlists, varnames, vstr) for vstr in ['n-leaves', 'n-sim-events']]
+        return int(n_leaves) * int(n_events)
     # ----------------------------------------------------------------------------------------
     def pvkeystr(vlists, varnames):
         # ----------------------------------------------------------------------------------------
@@ -453,7 +453,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 dlabel += ' %s' % estr
             # ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=0)
             leg_entries[legstr(dlabel)] = {'alpha' : alpha, 'linewidth' : linewidth, 'linestyle' : linestyle, 'color' : 'grey' if ipv is not None else color} #, marker='.', markersize=0)
-        for dtp in diffs_to_perfect:
+        for dtp in diffs_to_perfect:  # NOTE can't add all at once bc of namespace issues
             all_yvals.add(dtp)
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
@@ -665,11 +665,9 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             yticks, yticklabels = plotting.timeticks, plotting.timeticklabels
             in_ticks = [y for y in yticks if y > ymin and y < ymax]  # ticks that will actually show up
             if ymin < in_ticks[0]:  # if the lowest tick isn't right at the min, add another tick below
-                new_tick = yticks[yticks.index(in_ticks[0]) - 1]
-                ymin = new_tick  # don't think there's any reason to add it to in_ticks
+                ymin = yticks[yticks.index(in_ticks[0]) - 1]  # don't think there's any reason to add it to in_ticks
             if ymax > in_ticks[-1]:  # same for max
-                new_tick = yticks[yticks.index(in_ticks[-1]) + 1]
-                ymax = new_tick
+                ymax = yticks[yticks.index(in_ticks[-1]) + 1]
         else:
             title += ' %s: %s %s' % (locus, ltexts[ptntype], legdict.get(ptilestr, ptilestr))
             ymin, ymax = (0, 1.05)
