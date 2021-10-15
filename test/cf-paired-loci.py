@@ -17,7 +17,7 @@ import clusterpath
 
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
-all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac']
+all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac', 'time-reqd']
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 
@@ -93,9 +93,9 @@ def odir(args, varnames, vstrs, action):
     return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), 'partis' if action in ['cache-parameters', 'partition'] else action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False):
+def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False):
     outdir = odir(args, varnames, vstrs, action)
-    if action == 'cache-parameters':
+    if action == 'cache-parameters' and not logfile:
         outdir += '/parameters'
         if locus is None and not single_file:
             return outdir
@@ -103,7 +103,9 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         assert locus is None
         locus = 'igk'
     assert locus is not None
-    if action == 'cache-parameters':
+    if logfile:
+        ofn = '%s/%s.log' % (outdir, action)
+    elif action == 'cache-parameters':
         ofn = '%s/%s' % (outdir, locus)
         if single_file:
             # ofn += '/hmm/germline-sets/%s/%sv.fasta' % (locus, locus)
@@ -220,8 +222,8 @@ def plot_loci():
         return [utils.heavy_locus('ig'), args.single_light_locus]
 
 # ----------------------------------------------------------------------------------------
-def get_fnfcn(method, locus, ptntype):
-    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single')
+def get_fnfcn(method, locus, ptntype, pmetr):
+    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single', logfile=pmetr=='time-reqd')
     return tmpfcn
 
 # ----------------------------------------------------------------------------------------
@@ -254,7 +256,7 @@ for action in args.actions:
                     for ltmp in plot_loci():
                         for pmetr in args.perf_metrics:
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
-                            arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}
+                            arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype, pmetr), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}
                             if args.test:
                                 scanplot.make_plots(*arglist, **kwargs)
                             else:

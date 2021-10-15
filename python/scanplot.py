@@ -281,13 +281,13 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         # ----------------------------------------------------------------------------------------
         def read_pairclust_file(vlists, vstrs):
             # ----------------------------------------------------------------------------------------
-            def gval():
+            def gval(cpath):
                 if ptilestr == 'precision':
-                    rval = ccfs[0]
+                    rval = cpath.ccfs[cpath.i_best][0]
                 elif ptilestr == 'sensitivity':
-                    rval = ccfs[1]
+                    rval = cpath.ccfs[cpath.i_best][1]
                 elif ptilestr == 'f1':
-                    rval = sys.modules['scipy.stats'].hmean(ccfs)
+                    rval = sys.modules['scipy.stats'].hmean(cpath.ccfs[cpath.i_best])
                 elif ptilestr == 'cln-frac':
                     rval = utils.collision_fraction(cpath.best())
                 else:
@@ -296,16 +296,47 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     print '  %s read none type val from %s' % (utils.color('yellow', 'warning'), yfname)
                 return rval
             # ----------------------------------------------------------------------------------------
+            def readlog(fn):
+                # ----------------------------------------------------------------------------------------
+                def timestr():
+                    if metric == 'partition':
+                        return 'loop time:'
+                    elif metric == 'vsearch-partition':
+                        return 'vsearch time:'
+                    else:
+                        assert False
+                # ----------------------------------------------------------------------------------------
+                with open(fn) as lfile:
+                    flines = lfile.readlines()
+                lstrs = ['./bin/partis', timestr()]
+                tlines = []
+                for tln in flines:
+                    for lstr in lstrs:
+                        if lstr in tln:
+                            tlines.append((lstr, tln))
+                assert len(tlines) == 5
+                tlines = tlines[1:]  # remove the paired cmd
+                tvals = {}
+                for locus, itmp in zip(['igh', 'igk'], [0, 2]):
+                    lstr, cmdline = tlines[itmp]
+                    assert locus == utils.get_val_from_arglist(cmdline.split(), '--locus')
+                    _, timeline = tlines[itmp + 1]
+                    _, _, timestr = timeline.split()
+                    tvals[locus] = float(timestr)
+                return {'time-reqd' : tvals['igh']}  # eh, just use igh for now
+            # ----------------------------------------------------------------------------------------
             if debug:
                 print '%s   | %s' % (get_varval_str(vstrs), ''),
             yfname = fnfcn(varnames, vstrs)
             try:
-                _, _, cpath = utils.read_output(yfname, skip_annotations=True)
+                if ptilestr == 'time-reqd':
+                    ytmpfo = readlog(yfname)
+                else:
+                    _, _, cpath = utils.read_output(yfname, skip_annotations=True)
+                    ytmpfo = {ptilestr : gval(cpath)}
             except IOError:  # os.path.exists() is too slow with this many files
                 missing_vstrs['missing'].append((None, vstrs))
                 return
-            ccfs = cpath.ccfs[cpath.i_best]
-            ytmpfo = {ptilestr : gval()}
             add_plot_vals(ytmpfo, vlists, varnames)
         # ----------------------------------------------------------------------------------------
         if debug:
@@ -601,7 +632,11 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     if per_x is None:
         ylabel = ptilelabel
         title += ' %s: %s %s' % (locus, ltexts[ptntype], ptilestr)
-        ymin, ymax = (0, 1.05)
+        if ptilestr == 'time-reqd':
+            if 'y' not in log:
+                log += 'y'
+        else:
+            ymin, ymax = (0, 1.05)
         leg_loc = [0.7, 0.15]
         if args.final_plot_xvar == 'n-leaves' and '--constant-number-of-leaves' in args.simu_extra_args:
             xlabel += ' (constant)'

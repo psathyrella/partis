@@ -464,6 +464,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'scratch-mute-freq' : 'SHM fraction (nuc)',
            'mfreq' : 'SHM fraction (nuc)',
            'mfreq-pct' : 'SHM % (nuc)',
+           'time-reqd' : 'time required',
            }
 
 colors = {'true' : '#006600',
