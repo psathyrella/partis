@@ -20,6 +20,7 @@ import baseutils
 import humans
 from clusterpath import ClusterPath
 
+# NOTE time required plotting is in bin/plot-time-required.py
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
 metrics = ['adj_mi', 'ccf_under', 'ccf_over', 'ccf_product']  # NOTE ccf_{under,over} is a deprecated name, they're 'purity' and 'completeness' now
 

@@ -434,6 +434,9 @@ def interpolate_values(xvals, yvals):
 # ----------------------------------------------------------------------------------------
 # NOTE annotation stuff is in plotconfig.py
 #
+timeticks = [0.1, 1, 10, 60, 600, 3600, 36000, 86400, 604800]  # seconds
+timeticklabels = ['0.1 sec', '1 sec', '10 sec', '1 min', '10 min', '1 hour', '10 hours', '1 day', '1 week']
+
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'vjcdr3-0.9' : 'VJ CDR3 0.9',
            # 'partition partis' : 'full partis',
@@ -465,6 +468,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'mfreq' : 'SHM fraction (nuc)',
            'mfreq-pct' : 'SHM % (nuc)',
            'time-reqd' : 'time required',
+           'n-seqs' : 'N seqs',
            }
 
 colors = {'true' : '#006600',

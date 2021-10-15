@@ -93,9 +93,7 @@ def make_plot():
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.grid(True)
-    yticks = [1, 60, 3600, 86400, 604800]  # seconds
-    yticklabels = ['1 sec', '1 min', '1 hour', '1 day', '1 week']
-    plt.yticks(yticks, yticklabels)
+    plt.yticks(plotting.timeticks, plotting.timeticklabels)
     plt.savefig(os.getenv('www') + '/partis/clustering/time-required.svg')
     sys.exit()
 

@@ -56,6 +56,59 @@ def get_comparison_plotdir(args, mtmp, per_x=None, extra_str='', perf_metric=Non
     return plotdir
 
 # ----------------------------------------------------------------------------------------
+def cp_val(cpath, ptilestr, yfname):
+    if ptilestr == 'precision':
+        rval = cpath.ccfs[cpath.i_best][0]
+    elif ptilestr == 'sensitivity':
+        rval = cpath.ccfs[cpath.i_best][1]
+    elif ptilestr == 'f1':
+        rval = sys.modules['scipy.stats'].hmean(cpath.ccfs[cpath.i_best])
+    elif ptilestr == 'cln-frac':
+        rval = utils.collision_fraction(cpath.best())
+    else:
+        assert False
+    if rval is None:
+        print '  %s read none type val from %s' % (utils.color('yellow', 'warning'), yfname)
+    return rval
+
+# ----------------------------------------------------------------------------------------
+def readlog(fname, metric, locus, ptntype):
+    # ----------------------------------------------------------------------------------------
+    def timestr():
+        if ptntype == 'joint':
+            return 'merge time'
+        elif metric == 'partition':
+            return 'loop time:'
+        elif metric == 'vsearch-partition':
+            return 'vsearch time:'
+        else:
+            assert False
+    # ----------------------------------------------------------------------------------------
+    with open(fname) as lfile:
+        flines = lfile.readlines()
+    lstrs = ['./bin/partis', timestr()] if ptntype=='single' else [timestr()]
+    tlines = []
+    for tln in flines:
+        for lstr in lstrs:
+            if lstr in tln:
+                tlines.append((lstr, tln))
+    if ptntype == 'single':
+        assert len(tlines) == 5
+        tlines = tlines[1:]  # remove the paired cmd
+        tvals = {}
+        for ltmp, itmp in zip(['igh', 'igk'], [0, 2]):
+            lstr, cmdline = tlines[itmp]
+            assert ltmp == utils.get_val_from_arglist(cmdline.split(), '--locus')
+            _, timeline = tlines[itmp + 1]
+            _, _, timestr = timeline.split()
+            tvals[ltmp] = float(timestr)
+        return {'time-reqd' : tvals[locus]}
+    else:
+        _, timeline = utils.get_single_entry(tlines)
+        _, _, timestr = timeline.split()
+        return {'time-reqd' : float(timestr)}
+
+# ----------------------------------------------------------------------------------------
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
@@ -104,6 +157,10 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             return dbgstr
         else:
             return obs_frac
+    # ----------------------------------------------------------------------------------------
+    def get_n_seqs(vlists, varnames):
+        n_events, n_leaves = [utils.vlval(args, vlists, varnames, vstr) for vstr in ['n-leaves', 'n-sim-events']]
+        return int(n_events) * int(n_leaves)
     # ----------------------------------------------------------------------------------------
     def pvkeystr(vlists, varnames):
         # ----------------------------------------------------------------------------------------
@@ -241,13 +298,16 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 if 'mfreq' in args.x_legend_var:
                     mfreq = utils.get_mean_mfreq(pdirfcn(varnames, vstrs) + '/hmm')
                     mstr = ('%.0f' % (100*mfreq)) if '-pct' in args.x_legend_var else '%.3f' % mfreq
-                    if mstr not in xleg_vals:
-                        xleg_vals[tau] = mstr
-                    else:
-                        if mstr != xleg_vals[tau]:
-                            print '  %s different values for derived var %s: %s vs %s' % (utils.color('yellow', 'warning'), args.x_legend_var, mstr, xleg_vals[tau])
+                elif args.x_legend_var == 'n-seqs':
+                    assert ptilestr == 'time-reqd'  # might require changing something otherwise (?)
+                    mstr = '%d' % get_n_seqs(vlists, varnames)
                 else:
                     assert False
+                if mstr not in xleg_vals:
+                    xleg_vals[tau] = mstr
+                else:
+                    if mstr != xleg_vals[tau]:
+                        print '  %s different values for derived var %s: %s vs %s' % (utils.color('yellow', 'warning'), args.x_legend_var, mstr, xleg_vals[tau])
         # ----------------------------------------------------------------------------------------
         def get_iclusts(yamlfo, yfname):
             assert per_x is not None  # just to make clear we don't get here for paired
@@ -281,59 +341,15 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         # ----------------------------------------------------------------------------------------
         def read_pairclust_file(vlists, vstrs):
             # ----------------------------------------------------------------------------------------
-            def gval(cpath):
-                if ptilestr == 'precision':
-                    rval = cpath.ccfs[cpath.i_best][0]
-                elif ptilestr == 'sensitivity':
-                    rval = cpath.ccfs[cpath.i_best][1]
-                elif ptilestr == 'f1':
-                    rval = sys.modules['scipy.stats'].hmean(cpath.ccfs[cpath.i_best])
-                elif ptilestr == 'cln-frac':
-                    rval = utils.collision_fraction(cpath.best())
-                else:
-                    assert False
-                if rval is None:
-                    print '  %s read none type val from %s' % (utils.color('yellow', 'warning'), yfname)
-                return rval
-            # ----------------------------------------------------------------------------------------
-            def readlog(fn):
-                # ----------------------------------------------------------------------------------------
-                def timestr():
-                    if metric == 'partition':
-                        return 'loop time:'
-                    elif metric == 'vsearch-partition':
-                        return 'vsearch time:'
-                    else:
-                        assert False
-                # ----------------------------------------------------------------------------------------
-                with open(fn) as lfile:
-                    flines = lfile.readlines()
-                lstrs = ['./bin/partis', timestr()]
-                tlines = []
-                for tln in flines:
-                    for lstr in lstrs:
-                        if lstr in tln:
-                            tlines.append((lstr, tln))
-                assert len(tlines) == 5
-                tlines = tlines[1:]  # remove the paired cmd
-                tvals = {}
-                for locus, itmp in zip(['igh', 'igk'], [0, 2]):
-                    lstr, cmdline = tlines[itmp]
-                    assert locus == utils.get_val_from_arglist(cmdline.split(), '--locus')
-                    _, timeline = tlines[itmp + 1]
-                    _, _, timestr = timeline.split()
-                    tvals[locus] = float(timestr)
-                return {'time-reqd' : tvals['igh']}  # eh, just use igh for now
-            # ----------------------------------------------------------------------------------------
             if debug:
                 print '%s   | %s' % (get_varval_str(vstrs), ''),
             yfname = fnfcn(varnames, vstrs)
             try:
                 if ptilestr == 'time-reqd':
-                    ytmpfo = readlog(yfname)
+                    ytmpfo = readlog(yfname, metric, locus, ptntype)
                 else:
                     _, _, cpath = utils.read_output(yfname, skip_annotations=True)
-                    ytmpfo = {ptilestr : gval(cpath)}
+                    ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
             except IOError:  # os.path.exists() is too slow with this many files
                 missing_vstrs['missing'].append((None, vstrs))
                 return
@@ -437,6 +453,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 dlabel += ' %s' % estr
             # ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=0)
             leg_entries[legstr(dlabel)] = {'alpha' : alpha, 'linewidth' : linewidth, 'linestyle' : linestyle, 'color' : 'grey' if ipv is not None else color} #, marker='.', markersize=0)
+        for dtp in diffs_to_perfect:
+            all_yvals.add(dtp)
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
         if per_x is None:
@@ -508,6 +526,12 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         else:
             xticks = [float(x) for x in xvals]  # i guess we can just float() all of them (and ignore svartypes)?
             xticklabels = [str(t) for t in xvals]
+        if args.x_legend_var is not None and l_xvar == 'n-seqs':
+            # ax.ticklabel_format(style='sci')
+            for itick, (xt, xtl) in enumerate(zip(xticks, xticklabels)):
+                # xticklabels[itick] = '10^{%d}' % math.log(xt)
+                if xtl[-3:] == '000':
+                    xticklabels[itick] = xticklabels[itick][:-3] + 'k'
         return xticks, xticklabels, xlabel
 
     # ----------------------------------------------------------------------------------------
@@ -532,7 +556,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     _, varnames, val_lists, valstrs = utils.get_var_info(args, svars)
     plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
     fig, ax = plotting.mpl_init()
-    all_xtks, all_xtls, xlabel = [], [], None
+    all_xtks, all_xtls, xlabel, all_yvals = [], [], None, set()
     leg_entries = collections.OrderedDict()
     if action == 'plot':
         read_plot_info()
@@ -631,11 +655,23 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     ylabel, leg_loc, yticks, yticklabels = '', None, None, None
     if per_x is None:
         ylabel = ptilelabel
-        title += ' %s: %s %s' % (locus, ltexts[ptntype], ptilestr)
         if ptilestr == 'time-reqd':
-            if 'y' not in log:
-                log += 'y'
+            if ltexts[ptntype] == 'joint':
+                title += 'joint merge time'
+            else:
+                title += ' %s: single chain partition time' % locus
+            ymin, ymax = [mfcn(sorted(all_yvals)) for mfcn in [min, max]]
+            if 'y' not in log: log += 'y'
+            yticks, yticklabels = plotting.timeticks, plotting.timeticklabels
+            in_ticks = [y for y in yticks if y > ymin and y < ymax]  # ticks that will actually show up
+            if ymin < in_ticks[0]:  # if the lowest tick isn't right at the min, add another tick below
+                new_tick = yticks[yticks.index(in_ticks[0]) - 1]
+                ymin = new_tick  # don't think there's any reason to add it to in_ticks
+            if ymax > in_ticks[-1]:  # same for max
+                new_tick = yticks[yticks.index(in_ticks[-1]) + 1]
+                ymax = new_tick
         else:
+            title += ' %s: %s %s' % (locus, ltexts[ptntype], legdict.get(ptilestr, ptilestr))
             ymin, ymax = (0, 1.05)
         leg_loc = [0.7, 0.15]
         if args.final_plot_xvar == 'n-leaves' and '--constant-number-of-leaves' in args.simu_extra_args:
