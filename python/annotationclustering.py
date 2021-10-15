@@ -2,6 +2,7 @@ import sys
 import csv
 import math
 from subprocess import check_call
+import time
 
 import utils
 
@@ -91,6 +92,7 @@ def vollmers(info, threshold, debug=False):
 
     # ----------------------------------------------------------------------------------------
     # the business
+    start = time.time()
     if any(len(l['unique_ids']) > 1 for l in info.values()):
         raise Exception('all initial annotations in annotation clustering need to have length 1, but got: %s' % [l['unique_ids'] for l in info.values() if len(l['unique_ids'])>1])
     print '  vj-cdr3 clustering %d sequences with threshold %.3f' % (len(info), threshold)
@@ -101,6 +103,7 @@ def vollmers(info, threshold, debug=False):
         last_cluster_id += 1
 
     partition = [uids for uids in id_clusters.values()]  # convert to list of lists (no clid info)
+    print '  vjcdr3 time: %.1f' % (time.time() - start)
     return partition
 
 # ----------------------------------------------------------------------------------------
