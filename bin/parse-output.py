@@ -126,7 +126,11 @@ else:
         clusters_to_use = [c for c in clusters_to_use if args.seed_unique_id in c]  # NOTE can result in more than one cluster with the seed sequence (e.g. if this file contains intermediate annotations from seed partitioning))
         print '    removing clusters not containing sequence \'%s\' (leaving %d)' % (args.seed_unique_id, len(clusters_to_use))
 
+if not os.path.exists(os.path.dirname(os.path.abspath(args.outfile))):
+    os.makedirs(os.path.dirname(os.path.abspath(args.outfile)))
+
 if args.airr_output:
+    print '  writing %d sequences to %s' % (len(annotation_list), args.outfile)
     utils.write_airr_output(args.outfile, annotation_list, cpath=cpath, extra_columns=args.extra_columns)
     sys.exit(0)
 
@@ -151,8 +155,6 @@ for cluster in clusters_to_use:
     seqfos += newfos
 
 # write output
-if not os.path.exists(os.path.dirname(os.path.abspath(args.outfile))):
-    os.makedirs(os.path.dirname(os.path.abspath(args.outfile)))
 print '  writing %d sequences to %s' % (len(seqfos), args.outfile)
 with open(args.outfile, 'w') as ofile:
     if utils.getsuffix(args.outfile) in ['.csv', '.tsv']:

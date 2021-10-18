@@ -19,7 +19,9 @@ import clusterpath
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac', 'time-reqd']
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
-ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9', 'scoper'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+def is_single_chain(action):
+    return 'synth-' in action or 'vjcdr3-' in action or action in ['scoper']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -111,7 +113,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
             # ofn += '/hmm/germline-sets/%s/%sv.fasta' % (locus, locus)
             ofn += '/hmm/all-mean-mute-freqs.csv'
     else:
-        ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or 'synth-' in action or 'vjcdr3-' in action)
+        ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or is_single_chain(action))
     return ofn
 
 # ----------------------------------------------------------------------------------------
@@ -129,6 +131,9 @@ def make_synthetic_partition(action, varnames, vstrs):
 
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
+    if action == 'scoper':
+        cmd = './test/scoper-run.py --indir %s --outdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action))
+        return cmd
     actstr = action
     if 'synth-distance-' in action or action == 'vsearch-partition' or action == 'partition-lthresh':
         actstr = 'partition'
@@ -205,14 +210,7 @@ def run_scan(action):
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         }]
 
-    if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), ofn)
-    if len(cmdfos) > 0:
-        print '      %s %d jobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos))
-        if args.dry:
-            print '  first command: %s' % cmdfos[0]['cmd_str']
-        else:
-            utils.run_cmds(cmdfos, debug='write:%s.log'%action, n_max_procs=args.n_max_procs, allow_failure=True)
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn)
 
 # ----------------------------------------------------------------------------------------
 def plot_loci():

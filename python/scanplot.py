@@ -526,7 +526,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         else:
             xticks = [float(x) for x in xvals]  # i guess we can just float() all of them (and ignore svartypes)?
             xticklabels = [str(t) for t in xvals]
-        if args.x_legend_var is not None and l_xvar == 'n-seqs':
+        if l_xvar in ['n-seqs', 'n-sim-events']:
             # ax.ticklabel_format(style='sci')
             for itick, (xt, xtl) in enumerate(zip(xticks, xticklabels)):
                 # xticklabels[itick] = '10^{%d}' % math.log(xt)

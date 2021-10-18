@@ -317,6 +317,7 @@ def get_tree_metrics(args):
             'workdir' : tmpdir,
         }]
 
+    # TODO use utils.run_scan_cmds()
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)[0])
     if len(cmdfos) > 0:
