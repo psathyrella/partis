@@ -1387,7 +1387,7 @@ def get_airr_line(line, iseq, partition=None, extra_columns=None, debug=False):
     return aline
 
 # ----------------------------------------------------------------------------------------
-def write_airr_output(outfname, annotation_list, cpath, failed_queries, extra_columns=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
+def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
     if extra_columns is None:
         extra_columns = []
     print '   writing airr annotations to %s' % outfname
@@ -1397,7 +1397,7 @@ def write_airr_output(outfname, annotation_list, cpath, failed_queries, extra_co
         writer.writeheader()
         for line in annotation_list:
             for iseq in range(len(line['unique_ids'])):
-                aline = get_airr_line(line, iseq, partition=cpath.partitions[cpath.i_best] if cpath is not None else None, extra_columns=extra_columns, debug=debug)
+                aline = get_airr_line(line, iseq, partition=None if cpath is None else cpath.partitions[cpath.i_best], extra_columns=extra_columns, debug=debug)
                 writer.writerow(aline)
 
         # and write empty lines for seqs that failed either in sw or the hmm

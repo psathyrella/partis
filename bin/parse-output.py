@@ -14,9 +14,31 @@ import utils
 import glutils
 from clusterpath import ClusterPath
 
+# ----------------------------------------------------------------------------------------
+def count_plot(tglfo, tlist, plotdir, paired_loci=None):
+    if len(tlist) == 0:
+        return
+    if args.only_count_correlations:
+        from corrcounter import CorrCounter
+        ccounter = CorrCounter(paired_loci=paired_loci)
+        for line in tlist:
+            l_info = None
+            if paired_loci is not None:
+                line, l_info = line
+            ccounter.increment(line, l_info=l_info)
+        ccounter.plot(plotdir + '/correlations', debug=args.debug)
+        return
+    assert not args.paired  # only handled for correlation counting atm
+    from parametercounter import ParameterCounter
+    setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})  # hackity hackity hackity
+    pcounter = ParameterCounter(tglfo, args)  # NOTE doesn't count correlations by default
+    for line in tlist:
+        pcounter.increment(line)
+    pcounter.plot(plotdir) #, make_per_base_plots=True) #, only_overall=True, make_per_base_plots=True
+
+# ----------------------------------------------------------------------------------------
 helpstr = """
 Extract sequences from a partis output file and write them to a fasta, csv, or tsv file, optionally with a limited amount of extra information for each sequence.
-To write airr-standard tsv files, use the partis --airr-output option.
 For details of partis output files, see the manual.
 To view the partitions and annotations in a partis output file, use the partis \'view-output\' action.
 Example usage:
@@ -40,6 +62,7 @@ parser.add_argument('--plotdir', help='if set, plot annotation parameters from i
 parser.add_argument('--only-count-correlations', action='store_true', help='instead of counting/plotting all parameters, including correlations, only count and plot correlations (no effect if --plotdir isn\'t set)')
 parser.add_argument('--fasta-info-separator', default=' ', help='character to use ')
 parser.add_argument('--debug', type=int, default=0)
+parser.add_argument('--airr-output', action='store_true', help='write output in AIRR tsv format')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
     print '  note: running deprecated script %s, which currently is just a link pointing to %s' % (os.path.basename(sys.argv[0]), os.path.basename(os.path.realpath( __file__)))
@@ -57,6 +80,8 @@ if utils.getsuffix(args.infile) == '.csv' and args.glfo_dir is None:
     print '  note: reading deprecated csv format, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir
     args.glfo_dir = default_glfo_dir
 
+# ----------------------------------------------------------------------------------------
+# read input
 if args.paired:
     import paircluster
     def getofn(ltmp, lpair=None):
@@ -68,28 +93,7 @@ if args.paired:
 else:
     glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
 
-# ----------------------------------------------------------------------------------------
-def count_plot(tglfo, tlist, plotdir, paired_loci=None):
-    if len(tlist) == 0:
-        return
-    if args.only_count_correlations:
-        from corrcounter import CorrCounter
-        ccounter = CorrCounter(paired_loci=paired_loci)
-        for line in tlist:
-            l_info = None
-            if paired_loci is not None:
-                line, l_info = line
-            ccounter.increment(line, l_info=l_info)
-        ccounter.plot(plotdir + '/correlations', debug=args.debug)
-        return
-    assert not args.paired  # only handled for correlation counting atm
-    from parametercounter import ParameterCounter
-    setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})  # hackity hackity hackity
-    pcounter = ParameterCounter(tglfo, args)  # NOTE doesn't count correlations by default
-    for line in tlist:
-        pcounter.increment(line)
-    pcounter.plot(plotdir) #, make_per_base_plots=True) #, only_overall=True, make_per_base_plots=True
-# ----------------------------------------------------------------------------------------
+# plot
 if args.plotdir is not None:
     if args.paired:
         for lpair in utils.locus_pairs['ig']:
@@ -105,6 +109,7 @@ if args.plotdir is not None:
 
 assert not args.paired  # only handled for plotting above atm
 
+# restrict to certain partitions/clusters
 if cpath is None or cpath.i_best is None:
     clusters_to_use = [l['unique_ids'] for l in annotation_list]
     print '  no cluster path in input file, so just using all %d sequences (in %d clusters) in annotations' % (sum(len(c) for c in clusters_to_use), len(clusters_to_use))
@@ -121,6 +126,11 @@ else:
         clusters_to_use = [c for c in clusters_to_use if args.seed_unique_id in c]  # NOTE can result in more than one cluster with the seed sequence (e.g. if this file contains intermediate annotations from seed partitioning))
         print '    removing clusters not containing sequence \'%s\' (leaving %d)' % (args.seed_unique_id, len(clusters_to_use))
 
+if args.airr_output:
+    utils.write_airr_output(args.outfile, annotation_list, cpath=cpath, extra_columns=args.extra_columns)
+    sys.exit(0)
+
+# condense partis info into <seqfos> for fasta/csv output
 seqfos = []
 annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
 for cluster in clusters_to_use:
@@ -140,6 +150,7 @@ for cluster in clusters_to_use:
                 newfos[iseq][ecol] = ival
     seqfos += newfos
 
+# write output
 if not os.path.exists(os.path.dirname(os.path.abspath(args.outfile))):
     os.makedirs(os.path.dirname(os.path.abspath(args.outfile)))
 print '  writing %d sequences to %s' % (len(seqfos), args.outfile)
