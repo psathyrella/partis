@@ -23,7 +23,6 @@ import json
 import types
 import collections
 import operator
-import re
 import yaml
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -1475,17 +1474,21 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None):
         reader = csv.DictReader(afile, delimiter='\t')
         for aline in reader:
             clone_ids[aline['sequence_id']] = aline['clone_id']
+            if 'sequence' not in aline:
+                continue
             plines.append(convert_airr_line(aline, glfo))
     partition = group_seqs_by_value(clone_ids.keys(), lambda q: clone_ids[q])
-    sorted_ids = [l['unique_ids'][0] for l in plines]
-    partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster
+    if len(plines) > 0:
+        sorted_ids = [l['unique_ids'][0] for l in plines]
+        partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster
     antn_list = []
-    for iclust, cluster in enumerate(partition):  # may as well sort by length, otherwise order is just random
-        cluster = [u for u in sorted_ids if u in cluster]  # it's nice to try to keep them in the same order, and if partis wrote the single-seq lines this'll put them back in the same order
-        partition[iclust] = cluster
-        multi_line = synthesize_multi_seq_line_from_reco_info(cluster, get_annotation_dict(plines))
-        # print_reco_event(multi_line, extra_str='  ')
-        antn_list.append(multi_line)
+    if len(plines) > 0:
+        for iclust, cluster in enumerate(partition):  # may as well sort by length, otherwise order is just random
+            cluster = [u for u in sorted_ids if u in cluster]  # it's nice to try to keep them in the same order, and if partis wrote the single-seq lines this'll put them back in the same order
+            partition[iclust] = cluster
+            multi_line = synthesize_multi_seq_line_from_reco_info(cluster, get_annotation_dict(plines))
+            # print_reco_event(multi_line, extra_str='  ')
+            antn_list.append(multi_line)
     return glfo, antn_list, clusterpath.ClusterPath(partition=partition)
 
 # ----------------------------------------------------------------------------------------

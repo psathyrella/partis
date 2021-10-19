@@ -132,7 +132,7 @@ def make_synthetic_partition(action, varnames, vstrs):
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
     if action == 'scoper':
-        cmd = './test/scoper-run.py --indir %s --outdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action))
+        cmd = './test/scoper-run.py --indir %s --outdir %s --simdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action), odir(args, varnames, vstrs, 'simu'))
         return cmd
     actstr = action
     if 'synth-distance-' in action or action == 'vsearch-partition' or action == 'partition-lthresh':

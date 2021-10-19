@@ -64,6 +64,7 @@ parser.add_argument('--fasta-info-separator', default=' ', help='character to us
 parser.add_argument('--debug', type=int, default=0)
 parser.add_argument('--airr-input', action='store_true', help='read input in AIRR tsv format, and if output file suffix is .yaml write partis output.')
 parser.add_argument('--airr-output', action='store_true', help='write output in AIRR tsv format')
+parser.add_argument('--simfname', help='simulation file corresponding to input file (i.e. presumably <infile> is inference that was performed on --simfname')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
     print '  note: running deprecated script %s, which currently is just a link pointing to %s' % (os.path.basename(sys.argv[0]), os.path.basename(os.path.realpath( __file__)))
@@ -175,6 +176,11 @@ with open(args.outfile, 'w') as ofile:
                 estr += args.fasta_info_separator.join(str(sfo[c]) for c in args.extra_columns)
             ofile.write('>%s%s\n%s\n' % (sfo['name'], estr, sfo['seq']))
     elif utils.getsuffix(args.outfile) == '.yaml':
-        utils.write_annotations(args.outfile, glfo, annotation_list, utils.add_lists(utils.annotation_headers, args.extra_columns), partition_lines=cpath.get_partition_lines())
+        true_partition = None
+        if args.simfname is not None:
+            _, _, true_cpath = utils.read_output(args.simfname, skip_annotations=True)
+            true_partition = true_cpath.best()
+        plines = cpath.get_partition_lines(true_partition=true_partition, calc_missing_values='none' if true_partition is None else 'best')
+        utils.write_annotations(args.outfile, glfo, annotation_list, utils.add_lists(utils.annotation_headers, args.extra_columns), partition_lines=plines)
     else:
         assert False
