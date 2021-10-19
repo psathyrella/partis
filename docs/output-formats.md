@@ -19,7 +19,9 @@ Any of these keys, together with several additional ones, can be added to the ou
 
 An example parsing script can be found [here](../bin/parse-output.py).
 
-To have partis write to an AIRR-format tsv file, set the partis option `--airr-output`; to convert existing partis output to AIRR tsv, pass the same option to `bin/parse-output.py`.
+To have partis write to an AIRR-format tsv file, set the partis option `--airr-output`.
+To convert existing partis output to AIRR tsv, pass the same option to `bin/parse-output.py`.
+Both `bin/partis` and `bin/parse-output.py` also take AIRR files as input with the flag `--airr-input`.
 
 For more information on all options, run `partis <action> --help`.
 

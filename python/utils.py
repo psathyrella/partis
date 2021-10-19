@@ -23,6 +23,7 @@ import json
 import types
 import collections
 import operator
+import re
 import yaml
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -951,6 +952,7 @@ def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting don
     return singlefo
 
 # ----------------------------------------------------------------------------------------
+# <reco_info> just needs to be an annotation dict with single-sequence annotations
 def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you already added all the implicit info
     assert len(uids) > 0
     multifo = copy.deepcopy(reco_info[uids[0]])
@@ -1239,6 +1241,8 @@ for rtmp in regions:
     airr_headers[rtmp+'_identity'] = None
     airr_headers[rtmp+'_sequence_start'] = None
     airr_headers[rtmp+'_sequence_end'] = None
+    airr_headers[rtmp+'_germline_start'] = None
+    airr_headers[rtmp+'_germline_end'] = None
 
 linearham_headers = OrderedDict((
     ('Iteration', None),
@@ -1314,11 +1318,12 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
         if region == 'v':
             print line['unique_ids'][iseq]
         print '  ', region
-    istart, istop = line['regional_bounds'][region]
-    if indelutils.has_indels(line['indelfos'][iseq]):
-        istart += count_gap_chars(qr_gap_seq, unaligned_pos=istart)
-        istop += count_gap_chars(qr_gap_seq, unaligned_pos=istop)
     assert len(qr_gap_seq) == len(gl_gap_seq)  # this should be checked in a bunch of other places, but it's nice to see it here
+    istart, istop = line['regional_bounds'][region]  # start/stop indices in indel-reversed seq
+    if indelutils.has_indels(line['indelfos'][iseq]):  # convert to indices in gap seq
+        istart += count_gap_chars(gl_gap_seq, unaligned_pos=istart)  # note: v_5p and j_3p dels appear as dots/gaps in the debug printing below, but in the gap seqs here they're still Ns
+        istop += count_gap_chars(gl_gap_seq, unaligned_pos=istop)
+    assert istop <= len(qr_gap_seq)  # in theory, i fixed this and it can't happen any more...
     regional_qr_gap_seq = istart * gap_chars[0] + qr_gap_seq[istart : istop] + (len(qr_gap_seq) - istop) * gap_chars[0]
     regional_gl_gap_seq = istart * gap_chars[0] + gl_gap_seq[istart : istop] + (len(qr_gap_seq) - istop) * gap_chars[0]
     if debug:
@@ -1328,74 +1333,118 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
     return cigarstr
 
 # ----------------------------------------------------------------------------------------
-def get_airr_line(line, iseq, partition=None, extra_columns=None, debug=False):
-    qr_gap_seq = line['seqs'][iseq]
-    gl_gap_seq = line['naive_seq']
-    if indelutils.has_indels(line['indelfos'][iseq]):
-        qr_gap_seq = line['indelfos'][iseq]['qr_gap_seq']
-        gl_gap_seq = line['indelfos'][iseq]['gl_gap_seq']
+def get_airr_line(pline, iseq, partition=None, extra_columns=None, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def getrgn(tk):  # get region from key name
+        rgn = tk.split('_')[0]
+        assert rgn in regions
+        return rgn
+    # ----------------------------------------------------------------------------------------
+    qr_gap_seq = pline['seqs'][iseq]
+    gl_gap_seq = pline['naive_seq']
+    if indelutils.has_indels(pline['indelfos'][iseq]):
+        qr_gap_seq = pline['indelfos'][iseq]['qr_gap_seq']
+        gl_gap_seq = pline['indelfos'][iseq]['gl_gap_seq']
 
     aline = {}
     for akey, pkey in airr_headers.items():
         if pkey is not None:  # if there's a direct correspondence to a partis key
-            aline[akey] = line[pkey][iseq] if pkey in linekeys['per_seq'] else line[pkey]
+            aline[akey] = pline[pkey][iseq] if pkey in linekeys['per_seq'] else pline[pkey]
         elif akey == 'rev_comp':
             aline[akey] = False
         elif '_cigar' in akey and akey[0] in regions:
-            aline[akey] = get_airr_cigar_str(line, iseq, akey[0], qr_gap_seq, gl_gap_seq, debug=debug)
+            aline[akey] = get_airr_cigar_str(pline, iseq, akey[0], qr_gap_seq, gl_gap_seq, debug=debug)
         elif akey == 'productive':
-            aline[akey] = is_functional(line, iseq)
+            aline[akey] = is_functional(pline, iseq)
         elif akey == 'sequence_alignment':
             aline[akey] = qr_gap_seq
         elif akey == 'germline_alignment':
             aline[akey] = gl_gap_seq
         elif akey == 'junction':
-            aline[akey] = get_cdr3_seq(line, iseq)
+            aline[akey] = get_cdr3_seq(pline, iseq)
         elif akey == 'junction_aa':
-            aline[akey] = ltranslate(aline.get('junction', get_cdr3_seq(line, iseq)))  # should already be in there, since we're using an ordered dict and the previous elif block should've added it
+            aline[akey] = ltranslate(aline.get('junction', get_cdr3_seq(pline, iseq)))  # should already be in there, since we're using an ordered dict and the previous elif block should've added it
         elif akey == 'clone_id':
             if partition is None:
                 continue
-            iclusts = [iclust for iclust in range(len(partition)) if line['unique_ids'][iseq] in partition[iclust]]
+            iclusts = [iclust for iclust in range(len(partition)) if pline['unique_ids'][iseq] in partition[iclust]]
             if len(iclusts) == 0:
-                print '  %s sequence \'%s\' not found in partition' % (color('red', 'warning'), line['unique_ids'][iseq])
+                print '  %s sequence \'%s\' not found in partition' % (color('red', 'warning'), pline['unique_ids'][iseq])
                 iclusts = [-1]  # uh, sure, that's a good default
             elif len(iclusts) > 1:
-                print '  %s sequence \'%s\' occurs multiple times (%d) in partition' % (color('red', 'warning'), line['unique_ids'][iseq], len(iclusts))
+                print '  %s sequence \'%s\' occurs multiple times (%d) in partition' % (color('red', 'warning'), pline['unique_ids'][iseq], len(iclusts))
             aline[akey] = str(iclusts[0])
         elif akey == 'locus':
-            aline[akey] = get_locus(line['v_gene'])
+            aline[akey] = get_locus(pline['v_gene'])
         elif '_support' in akey and akey[0] in regions:  # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
             pkey = akey[0] + '_per_gene_support'
-            gcall = line[akey[0] + '_gene']
-            if pkey not in line or gcall not in line[pkey]:
+            gcall = pline[akey[0] + '_gene']
+            if pkey not in pline or gcall not in pline[pkey]:
                 continue
-            aline[akey] = line[pkey][gcall]
+            aline[akey] = pline[pkey][gcall]
         elif akey == 'duplicate_count':
-            aline[akey] = get_multiplicity(line, iseq=iseq)
+            aline[akey] = get_multiplicity(pline, iseq=iseq)
         elif '_identity' in akey:
-            aline[akey] = 1. - get_mutation_rate(line, iseq, restrict_to_region=akey.split('_')[0])
+            aline[akey] = 1. - get_mutation_rate(pline, iseq, restrict_to_region=getrgn(akey))
         elif any(akey == r+'_sequence_start' for r in regions):
-            aline[akey] = line['regional_bounds'][akey.split('_')[0]][0] + 1  # +1 to switch to 1-based indexing
+            aline[akey] = pline['regional_bounds'][getrgn(akey)][0] + 1  # +1 to switch to 1-based indexing
         elif any(akey == r+'_sequence_end' for r in regions):
-            aline[akey] = line['regional_bounds'][akey.split('_')[0]][1]  # +1 to switch to 1-based indexing, -1 to switch to closed intervals, so net zero
+            aline[akey] = pline['regional_bounds'][getrgn(akey)][1]  # +1 to switch to 1-based indexing, -1 to switch to closed intervals, so net zero
+        elif any(akey == r+'_germline_start' for r in regions):
+            aline[akey] = pline[getrgn(akey)+'_5p_del'] + 1  # +1 to switch to 1-based indexing
+        elif any(akey == r+'_germline_end' for r in regions):
+            aline[akey] = len(pline[getrgn(akey)+'_gl_seq']) + pline[getrgn(akey)+'_5p_del']  # +1 to switch to 1-based indexing, -1 to switch to closed intervals, so net zero
         elif akey == 'cdr3_start':  # airr uses the imgt (correct) cdr3 definition, which excludes both conserved codons, so we add 3 (then add 1 to switch to 1-based indexing)
-            aline[akey] = line['codon_positions']['v'] + 3 + 1
+            aline[akey] = pline['codon_positions']['v'] + 3 + 1
         elif akey == 'cdr3_end':
-            aline[akey] = line['codon_positions']['j']
+            aline[akey] = pline['codon_positions']['j']
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
 
     if extra_columns is not None:
         for key in extra_columns:
-            if key in line:
-                aline[key] = line[key][iseq] if key in linekeys['per_seq'] else line[key]
+            if key in pline:
+                aline[key] = pline[key][iseq] if key in linekeys['per_seq'] else pline[key]
             else:
-                add_extra_column(key, line, aline)
+                add_extra_column(key, pline, aline)
                 if key in linekeys['per_seq']:  # have to restrict to iseq
                     aline[key] = aline[key][iseq]
 
     return aline
+
+# ----------------------------------------------------------------------------------------
+def convert_airr_line(aline, glfo):
+    pline = {}
+    for aky, pky in airr_headers.items():
+        if pky is not None:  # if there's a direct correspondence to a partis key
+            pline[pky] = [aline[aky]] if pky in linekeys['per_seq'] else aline[aky]  # NOTE/TODO all end up as single-sequence annotations
+    pline['duplicates'] = [[]]
+
+    for rgn in regions:
+        pline[rgn+'_5p_del'] = int(aline[rgn+'_germline_start']) - 1
+        pline[rgn+'_3p_del'] = len(gseq(glfo,pline[rgn+'_gene'])) - int(aline[rgn+'_germline_end'])
+        cigars = indelutils.split_cigarstrs(aline[rgn+'_cigar'])
+        if rgn == 'v':
+            ctype, clen = cigars[0]
+            pline['fv_insertion'] = ambig_base * (clen if ctype=='I' else 0)
+        elif rgn == 'j':
+            ctype, clen = cigars[-1]
+            pline['jf_insertion'] = ambig_base * (clen if ctype=='I' else 0)
+    assert len(aline['sequence_alignment']) == len(aline['germline_alignment'])
+    ir_seq = []  # need to calculate indel reversed seq (NOTE this duplicates code, i think somewhere in waterer)
+    for qch, gch in zip(aline['sequence_alignment'], aline['germline_alignment']):
+        if gch in gap_chars:  # shm insertion
+            continue
+        elif qch in gap_chars:  # shm deletion
+            ir_seq.append(gch)
+        else:
+            ir_seq.append(qch)
+    pline['seqs'] = [''.join(ir_seq)]
+    pline['qr_gap_seqs'] = [aline['sequence_alignment']]
+    pline['gl_gap_seqs'] = [aline['germline_alignment']]
+    add_implicit_info(glfo, pline)  # NOTE can't set check_line_keys=True since it crashes bc we add 'indelfos'
+
+    return pline
 
 # ----------------------------------------------------------------------------------------
 def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
@@ -1416,6 +1465,28 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
             for failfo in failed_queries:
                 assert len(failfo['unique_ids']) == 1
                 writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
+
+# ----------------------------------------------------------------------------------------
+def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None):
+    if glfo is None:
+        glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
+    clone_ids, plines = {}, []
+    with open(fname) as afile:
+        reader = csv.DictReader(afile, delimiter='\t')
+        for aline in reader:
+            clone_ids[aline['sequence_id']] = aline['clone_id']
+            plines.append(convert_airr_line(aline, glfo))
+    partition = group_seqs_by_value(clone_ids.keys(), lambda q: clone_ids[q])
+    sorted_ids = [l['unique_ids'][0] for l in plines]
+    partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster
+    antn_list = []
+    for iclust, cluster in enumerate(partition):  # may as well sort by length, otherwise order is just random
+        cluster = [u for u in sorted_ids if u in cluster]  # it's nice to try to keep them in the same order, and if partis wrote the single-seq lines this'll put them back in the same order
+        partition[iclust] = cluster
+        multi_line = synthesize_multi_seq_line_from_reco_info(cluster, get_annotation_dict(plines))
+        # print_reco_event(multi_line, extra_str='  ')
+        antn_list.append(multi_line)
+    return glfo, antn_list, clusterpath.ClusterPath(partition=partition)
 
 # ----------------------------------------------------------------------------------------
 def process_input_linearham_line(lh_line):

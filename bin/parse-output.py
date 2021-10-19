@@ -62,6 +62,7 @@ parser.add_argument('--plotdir', help='if set, plot annotation parameters from i
 parser.add_argument('--only-count-correlations', action='store_true', help='instead of counting/plotting all parameters, including correlations, only count and plot correlations (no effect if --plotdir isn\'t set)')
 parser.add_argument('--fasta-info-separator', default=' ', help='character to use ')
 parser.add_argument('--debug', type=int, default=0)
+parser.add_argument('--airr-input', action='store_true', help='read input in AIRR tsv format, and if output file suffix is .yaml write partis output.')
 parser.add_argument('--airr-output', action='store_true', help='write output in AIRR tsv format')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
@@ -73,7 +74,7 @@ if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old scrip
 
 args = parser.parse_args()
 args.extra_columns = utils.get_arg_list(args.extra_columns)
-assert utils.getsuffix(args.outfile) in ['.csv', '.tsv', '.fa', '.fasta']
+assert utils.getsuffix(args.outfile) in ['.csv', '.tsv', '.fa', '.fasta'] or args.airr_input and utils.getsuffix(args.outfile) == '.yaml'
 
 default_glfo_dir = partis_dir + '/data/germlines/human'
 if utils.getsuffix(args.infile) == '.csv' and args.glfo_dir is None:
@@ -91,7 +92,10 @@ if args.paired:
         return ofn
     lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs['ig'], getofn)
 else:
-    glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
+    if args.airr_input:
+        glfo, annotation_list, cpath = utils.read_airr_output(args.infile, locus=args.locus, glfo_dir=default_glfo_dir)
+    else:
+        glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
 
 # plot
 if args.plotdir is not None:
@@ -146,7 +150,8 @@ for cluster in clusters_to_use:
     if args.extra_columns is not None:
         for ecol in args.extra_columns:
             if ecol not in cluster_annotation:
-                raise Exception('column \'%s\' not found in annotations' % ecol)
+                utils.add_extra_column(ecol, cluster_annotation, cluster_annotation)
+                # raise Exception('column \'%s\' not found in annotations' % ecol)
             for iseq in range(len(newfos)):
                 ival = cluster_annotation[ecol]
                 if ecol in utils.linekeys['per_seq']:
@@ -169,5 +174,7 @@ with open(args.outfile, 'w') as ofile:
                 estr = args.fasta_info_separator
                 estr += args.fasta_info_separator.join(str(sfo[c]) for c in args.extra_columns)
             ofile.write('>%s%s\n%s\n' % (sfo['name'], estr, sfo['seq']))
+    elif utils.getsuffix(args.outfile) == '.yaml':
+        utils.write_annotations(args.outfile, glfo, annotation_list, utils.add_lists(utils.annotation_headers, args.extra_columns), partition_lines=cpath.get_partition_lines())
     else:
         assert False
