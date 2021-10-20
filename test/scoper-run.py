@@ -75,7 +75,7 @@ def run_scoper():
         rcmds = ['library(scoper)']
         rcmds += ['db <- read.csv("%s", sep="\t")' % getifn(locus)]
         rcmds += ['db <- db[ , !(names(db) %in% c("clone_id"))]']  # it crashes if clone_id is already there
-        rcmds += ['results <- spectralClones(db, method="novj", germline="germline_alignment_d_mask")']
+        rcmds += ['results <- spectralClones(db)']  # , method="novj", germline="germline_alignment_d_mask"
         rcmds += ['df <- as.data.frame(results)']
         rcmds += ['write.table(df[c("sequence_id", "clone_id")], "%s", sep="\t", quote=FALSE, row.names=FALSE)' % ofn]
 

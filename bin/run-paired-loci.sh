@@ -2,7 +2,7 @@
 
 bin=./test/cf-paired-loci.py
 
-methods=partition:vsearch-partition:vjcdr3-0.9:synth-distance-0.03:synth-singletons-0.20
+methods=partition:vsearch-partition:vjcdr3-0.9:synth-distance-0.03:synth-singletons-0.20:scoper
 astr="--actions simu:cache-parameters" #:$methods"
 # astr="--actions plot --plot-metrics $methods"
 # astr="--actions combine-plots --plot-metrics $methods"
