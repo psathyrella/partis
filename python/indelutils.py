@@ -518,10 +518,11 @@ def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
         print '     gl  %3d  %s' % (len(gl_gap_seq), gl_gap_seq)
 
     assert len(gl_gap_seq) == len(qr_gap_seq)
+    ctypes = [gettype(i) for i in range(len(qr_gap_seq))]
     cigars = []
-    for ipos in range(len(qr_gap_seq)):
-        if ipos == 0 or gettype(ipos) != gettype(ipos - 1):
-            cigars.append([gettype(ipos), 0])
+    for ipos, ct in enumerate(ctypes):
+        if ipos == 0 or ct != ctypes[ipos - 1]:
+            cigars.append([ct, 0])
         cigars[-1][1] += 1
 
     if debug:
