@@ -663,6 +663,7 @@ def add_input_meta_keys(meta_keys, are_line_keys=False):  # NOTE I'm adding this
         input_metafile_keys[ekey] = ekey + 's'
         reversed_input_metafile_keys[ekey+'s'] = ekey
         linekeys['per_seq'].append(ekey+'s')
+        sw_cache_headers.append(ekey+'s')
         annotation_headers.append(ekey+'s')
         new_keys.append(ekey)
     print '  note: added %d new input meta key%s to allowed keys (add \'s\'/plural to access it in the final annotations): %s (%s)' % (len(new_keys), plural(len(new_keys)), ' '.join(new_keys), ' '.join(k+'s' for k in new_keys))
