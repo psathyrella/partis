@@ -709,6 +709,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                               xbounds=(xmin, xmax), ybounds=(ymin, ymax), log=log, adjust=adjust,
     )
     if make_legend:
+        leg_entries = collections.OrderedDict(reversed(list(leg_entries.items())))  # the last things to be *plotted* cover earlier things, but we also want them to be at the top of the legend
         plotting.plot_legend_only(leg_entries, plotdir, 'legend', title=legstr(pvlabel[0], title=True))  #[(l, leg_entries['color']) for l, lfo in leg_entries], )
     if fnames is not None:
         fnames.append(ffn)

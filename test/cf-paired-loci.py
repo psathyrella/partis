@@ -249,7 +249,8 @@ for action in args.actions:
             fnames = {meth : {pmetr : [[] for _ in partition_types] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             procs = []
             for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are [selection] metrics, but here they're [clustering] methods
-                utils.prep_dir(scanplot.get_comparison_plotdir(args, method), subdirs=args.perf_metrics, wildlings=['*.html', '*.svg', '*.yaml'])
+                for pmetr in args.perf_metrics:
+                    utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
                 for ipt, ptntype in enumerate(partition_types):
                     for ltmp in plot_loci():
                         for pmetr in args.perf_metrics:
