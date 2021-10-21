@@ -2259,7 +2259,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def gsval(mfo, tch, vname):
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
         if vname in cln:
-            assert vname in utils.linekeys['per_seq']
+            # assert vname in utils.linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
             return cln[vname][iseq]
         elif vname == 'cell-types':
             return None
