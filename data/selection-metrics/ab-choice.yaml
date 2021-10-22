@@ -4,10 +4,12 @@ vars:
   # sort each family by the indicated variable, with direction <sort>, then take the top <n> seqs that haven't already been taken and that pass all other criteria
   aa-cfrac: {sort: low, n: [5, 3]}  # specity either 'n:' here *or* 'n-per-family:' below
   # shm-aa: {sort: high, n: [3, 3, 3, 3, 3, 2, 2, 2, 2, 2]}
-# cell-types: [pb]
+# cell-types: [pb]  # allow only cells of type 'pb'
+# cell-type-key: v0-cell-types  # use this key for cell type rather than 'cell-types' (allows to have multiple versions of cell type info in the annotations)
 max-ambig-positions: 2  # summed over h+l amino acid seqs
 # min-umis: 1000
 # n-per-family: [3, 2]  # specify either this *or* 'n:' for each of the 'vars:'
 # min-median-nuc-shm-%: 2
 min-hdist-to-already-chosen: 3  # only choose abs whose h/l seqs are at least this far from previously-chosen seqs (in amino acid hamming distance, summed over h+l)
 # droplet-ids: [TGACGGCGTCACCCAG-1, AGACGTTTCAACCAAC-1]  # choose specific droplet ids, before applying other criteria
+# meta-info-print-keys: [[neut-DENV1s, denv-1], [neut-DENV2s, denv-2]]  # list of [key-name, key label] pairs of extra keys to print as columns in the ascii output
