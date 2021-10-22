@@ -2368,7 +2368,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return any(sum(local_hdist_aa(cseq, mseq) for mseq, cseq in zip(mfseqs(mfo), acseqs)) < hdist for acseqs in all_chosen_seqs)
     # ----------------------------------------------------------------------------------------
     def add_unobs_cseqs(metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=False):
-        zero_cdist_mfos = [m for m in metric_pairs if sum(gsval(m, c, 'aa-cfrac') for c in 'hl')==0]
+        zero_cdist_mfos = [m for m in metric_pairs if sumv(m, 'aa-cfrac')==0]
         if 'max-ambig-positions' in cfgfo:
             zero_cdist_mfos = [m for m in zero_cdist_mfos if sum(nambig(m, c) for c in 'hl') <= cfgfo['max-ambig-positions']]
         if len(zero_cdist_mfos) > 0:  # if we observed the cons seq, use [one of] the observed ones
@@ -2453,7 +2453,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             def keepfcn(m):
                 if args.queries_to_include is not None and any(gsval(m, c, 'unique_ids') in args.queries_to_include for c in 'hl'):
                     return True
-                return sum(gsval(m, c, 'umis') for c in 'hl') > cfgfo['min-umis']  # queries_to_include probably won't have umis set, but still want to keep them
+                return sumv(m, 'umis') > cfgfo['min-umis']  # queries_to_include probably won't have umis set, but still want to keep them
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs) > 0:
@@ -2565,7 +2565,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             else:
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
                 for kn in ['aa-cfrac', 'shm-aa', 'aa-cdist']:
-                    ofo.update([('sum_'+kn, sum(gsval(mfo, c, kn) for c in 'hl'))])
+                    ofo.update([('sum_'+kn, sumv(mfo, kn))])
             ofo.update([(c+'_family_size', len(mfo[c]['unique_ids'])) for c in 'hl'])
             ofo.update([(c+'_'+r+'_gene' , mfo[c][r+'_gene']) for r in utils.regions for c in 'hl'])
             ofo.update([(c+'_locus', mfo[c]['loci'][0]) for r in utils.regions for c in 'hl'])
@@ -2575,7 +2575,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     ofo[tch+'_seq_nuc'] = mfo[tch+'_cseq_nuc']
                     ofo[tch+'_has_shm_indels'] = mfo[tch+'_use_input_seqs']
             else:
-                for ok, lk in [('has_shm_indels', None), ('cell_type', ctkey()), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None), ('seq_nuc', 'input_seqs'), ('seq_aa', 'input_seqs_aa')]:
+                okeys = [('has_shm_indels', None), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None), ('seq_nuc', 'input_seqs'), ('seq_aa', 'input_seqs_aa')]
+                if any(ctkey() in mfo[c] for c in 'hl'):
+                    okeys.insert(1, ('cell_type', ctkey()))
+                for ok, lk in okeys:
                     ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]))) for c in 'hl'])
             if 'consensus' not in mfo:  # check that the aa seqs are actually translations of the nuc seqs (for unobs cons seqs, we expect them to differ) NOTE i don't know if this is really worthwhile long term, but it makes me feel warm and fuzzy atm that it's here
                 for tch in 'hl':
@@ -2617,16 +2620,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         def neut_col(cg, tlen):
             if cg in [None, 'None']: return ' ' * tlen
             cg = float(cg)
-            if cg < 0:
-                tcol = 'blue'
-                cgstr = '-'
-            else:
-                tcol = None
-                cgstr = '%.0f' % cg
-            if cg > 50:
-                tcol = 'yellow'
-            if cg > 75:
-                tcol = 'red'
+            tcol, cgstr = ('blue', '-') if cg < 0 else (None, '%.0f' % cg)
+            if cg > 50: tcol = 'yellow'
+            if cg > 75: tcol = 'red'
             return utils.color(tcol, cgstr, width=tlen)
         # ----------------------------------------------------------------------------------------
         def get_xstr(mpfo, xlens):
@@ -2731,7 +2727,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             mm = 'sum-cons-dist-aa'
             h_atn['tree-info']['lb'][mm] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
             for mfo in metric_pairs:
-                h_atn['tree-info']['lb'][mm][gsval(mfo, 'h', 'unique_ids')] = -sum(gsval(mfo, c, 'aa-cdist') for c in 'hl')
+                h_atn['tree-info']['lb'][mm][gsval(mfo, 'h', 'unique_ids')] = -sumv(mfo, 'aa-cdist')
             fnames = []
             lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], mm, is_true_line=is_simu, fnames=fnames)
             plotting.make_html(plotdir, fnames=fnames, extra_links=[(mm, '%s/%s/' % (plotdir, mm)),])
