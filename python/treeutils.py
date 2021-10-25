@@ -2440,7 +2440,26 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return chosen_mfos
         if tdbg:
             print '    iclust %d: choosing abs from joint cluster with size %d (marked with %s)' % (iclust, len(metric_pairs), utils.color('green', 'x'))
-        for ctk, ntk in [('cell-types', 'cell-types'), ('min-umis', 'umis')]:
+
+        all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen
+
+        if any('chosens' in mfo[c] for mfo in metric_pairs for c in 'hl'):  # add any previously-chosen seqs
+            for mfo in metric_pairs:
+                if any('chosens' in mfo[c] and gsval(mfo, c, 'chosens') for c in 'hl'):
+                    assert [gsval(mfo, c, 'chosens') for c in 'hl'].count(True) == 2  # can't choose only one of a pair of abs
+                    chosen_mfos.append(mfo)
+                    all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
+                    if tdbg:
+                        print '        adding previously-chosen ab: %s' % ' '.join(gsval(mfo, c, 'unique_ids') for c in 'hl')
+        if 'droplet-ids' in cfgfo:  # add some specific seqs
+            for mfo in metric_pairs:
+                did = utils.get_single_entry(list(set([utils.get_droplet_id(gsval(mfo, c, 'unique_ids'), dtype=paired_data_type) for c in 'hl'])))
+                if did in cfgfo['droplet-ids']:
+                    chosen_mfos.append(mfo)
+                    all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
+                    if tdbg:
+                        print '        chose ab with droplet id %s' % did
+        for ctk, ntk in [('cell-types', ctkey()), ('min-umis', 'umis')]:
             if len(metric_pairs) > 0 and ctk in cfgfo and ntk not in metric_pairs[0]['h']:
                 print '  %s \'%s\' in cfgfo but \'%s\' info not in annotation' % (utils.color('yellow', 'warning'), ctk, ntk)
         if 'cell-types' in cfgfo and len(metric_pairs) > 0 and ctkey() in metric_pairs[0]['h']:
@@ -2476,24 +2495,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if len(metric_pairs) == 0:
             return []
 
-        all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen
-
-        if any('chosens' in mfo[c] for mfo in metric_pairs for c in 'hl'):  # add any previously-chosen seqs
-            for mfo in metric_pairs:
-                if any('chosens' in mfo[c] and gsval(mfo, c, 'chosens') for c in 'hl'):
-                    assert [gsval(mfo, c, 'chosens') for c in 'hl'].count(True) == 2  # can't choose only one of a pair of abs
-                    chosen_mfos.append(mfo)
-                    all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
-                    if tdbg:
-                        print '        adding previously-chosen ab: %s' % ' '.join(gsval(mfo, c, 'unique_ids') for c in 'hl')
-        if 'droplet-ids' in cfgfo:  # add some specific seqs
-            for mfo in metric_pairs:
-                did = utils.get_single_entry(list(set([utils.get_droplet_id(gsval(mfo, c, 'unique_ids'), dtype=paired_data_type) for c in 'hl'])))
-                if did in cfgfo['droplet-ids']:
-                    chosen_mfos.append(mfo)
-                    all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
-                    if tdbg:
-                        print '        chose ab with droplet id %s' % did
         if finished():
             return chosen_mfos
 
