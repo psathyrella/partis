@@ -818,7 +818,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
             clean_with_partition_info(cluster)
 
-    if not is_data:
+    if not is_data and (performance_outdir is not None or plotdir is not None):
         make_fraction_correct_plot()
     if plotdir is not None:
         make_final_plots(initial_seqs_per_seq, initial_flcounts)
