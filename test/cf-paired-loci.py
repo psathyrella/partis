@@ -26,6 +26,7 @@ def is_single_chain(action):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')  # can also be merge-paired-partitions and get-selection-metrics
+parser.add_argument('--merge-paired-partitions', action='store_true', help='for partis partition actions, don\'t re-partition, just merge paired partitions')
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
 parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
 parser.add_argument('--n-leaves-list', default='1') #'2:3:4:10') #1 5; do10)
@@ -140,6 +141,8 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         actstr = 'partition'
     if 'vjcdr3-' in action:
         actstr = 'annotate'
+    if args.merge_paired_partitions:
+        actstr = 'merge-paired-partitions'
     cmd = './bin/partis %s --paired-loci --paired-outdir %s' % (actstr.replace('simu', 'simulate'), odir(args, varnames, vstrs, action))
     if args.n_sub_procs > 1:
         cmd += ' --n-procs %d' % args.n_sub_procs
@@ -180,6 +183,9 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
 
     return cmd
 
+# scoper install:
+# pip3 install --user python-Levenshtein scikit-bio tqdm palettable
+
 # ----------------------------------------------------------------------------------------
 # TODO combine this also with fcns in cf-tree-metrics.py (and put it in scanplot)
 def run_scan(action):
@@ -194,9 +200,12 @@ def run_scan(action):
             print '   %s' % ' '.join(vstrs)
 
         ofn = ofname(args, varnames, vstrs, action, single_file=True)
-        if utils.output_exists(args, ofn, debug=False):
-            n_already_there += 1
-            continue
+        if args.merge_paired_partitions:
+            assert action in ['partition', 'vsearch-partition']
+        else:
+            if utils.output_exists(args, ofn, debug=False):
+                n_already_there += 1
+                continue
 
         if 'synth-reassign-' in action or 'synth-singletons-' in action:
             make_synthetic_partition(action, varnames, vstrs)
@@ -211,7 +220,7 @@ def run_scan(action):
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         }]
 
-    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn)
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%action if not args.merge_paired_partitions else 'merge-paired-partitions', len(valstrs), n_already_there, ofn)
 
 # ----------------------------------------------------------------------------------------
 def plot_loci():
