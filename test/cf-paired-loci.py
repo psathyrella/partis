@@ -83,6 +83,7 @@ if len(args.plot_metrics) != len(args.plot_metric_extra_strs):
     raise Exception('--plot-metrics %d not same length as --plot-metric-extra-strs %d' % (len(args.plot_metrics), len(args.plot_metric_extra_strs)))
 args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
 args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
+args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 
 utils.get_scanvar_arg_lists(args)
 if args.final_plot_xvar is None:  # set default value based on scan vars
@@ -266,7 +267,7 @@ for action in args.actions:
                 for pmetr in args.perf_metrics:
                     pmcdir = scanplot.get_comparison_plotdir(args, method) + '/' + pmetr
                     fnames[method][pmetr] = [[f.replace(pmcdir, '') for f in flist] for flist in fnames[method][pmetr]]
-                    plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])
+                    plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])  # this doesn't work unless --test is set, and i'm not sure why, but whatever, just run combine-plots
         elif action == 'combine-plots':
             cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])

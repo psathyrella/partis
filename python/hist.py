@@ -475,5 +475,5 @@ class Hist(object):
         import plotting
         fig, ax = plotting.mpl_init()  # this'll need to be updated when i want to use a kwarg for this fcn
         self.mpl_plot(ax, **pargs)
-        plotting.mpl_finish(ax, plotdir, plotname, **fargs)
         self.write('%s/%s.csv'%(plotdir, plotname))
+        return plotting.mpl_finish(ax, plotdir, plotname, **fargs)

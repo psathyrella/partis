@@ -470,16 +470,18 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             fklabels = {'func' : 'all func.', 'nonfunc' : 'any non.'}
             fig, ax = plotting.mpl_init()
             for fk, fcolor in zip(fhists, plotting.default_colors):
-                fhists[fk].mpl_plot(ax, label=fklabels[fk], color=fcolor)
+                fhists[fk].mpl_plot(ax, label=fklabels[fk], color=fcolor, remove_empty_bins=True)
                 if logstr == '':
                     fhists[fk].write('%s/%s.csv'%(plotdir, fk + '-per-drop'))
                 xticks = fhists[fk].get_bin_centers()
                 xticklabels = fhists[fk].bin_labels
                 xbounds = None if fhists[fk].n_bins<n_max_bins else (0, n_max_bins)
-            plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N seqs per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.6, 0.7), xticks=xticks, xticklabels=xticklabels, xbounds=xbounds)
+            fn = plotting.mpl_finish(ax, plotdir, 'func-non-func-per-drop'+logstr, xlabel='N seqs per droplet', ylabel='counts', title='before', log='' if logstr=='' else 'y', leg_loc=(0.6, 0.7), xticks=xticks, xticklabels=xticklabels, xbounds=xbounds)
+            fnames[0].append(fn)
         # ----------------------------------------------------------------------------------------
         bhist = Hist(value_list=[len(pg) for pg in pid_groups], init_int_bins=True)
-        bhist.fullplot(plotdir, 'seqs-per-droplet', fargs={'xlabel' : 'seqs per droplet', 'ylabel' : 'counts', 'title' : 'before'})
+        fn = bhist.fullplot(plotdir, 'seqs-per-droplet', pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'seqs per droplet', 'ylabel' : 'counts', 'title' : 'before', 'xticks' : [i for i in range(0, int(bhist.xmax+1), 2)]})
+        fnames[0].append(fn)
         # fhists = {f : Hist(bhist.n_bins, bhist.xmin, bhist.xmax) for f in ['func', 'nonfunc']}
         flcounts = {f : {} for f in ['func', 'nonfunc']}
         per_seq_flcounts = {}
@@ -522,20 +524,25 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 pidlengths.update({u : len(set(pids) - set([u])) for u, pids in zip(atn['unique_ids'], atn['paired-uids'])})
         ahist = Hist(value_list=pidlengths.values(), init_int_bins=True)
-        ahist.fullplot(plotdir, 'paired-seqs-per-seq-%s'%pstr, pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N paired seqs per seq', 'ylabel' : 'counts', 'title' : pstr, 'xbounds' : (-0.05, 1.05*ahist.xmax), 'xticks' : [i for i in range(0, int(ahist.xmax+1))]})
+        fn = ahist.fullplot(plotdir, 'paired-seqs-per-seq-%s'%pstr, pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N paired seqs per seq', 'ylabel' : 'counts', 'title' : pstr, 'xbounds' : (-0.05, 1.05*ahist.xmax), 'xticks' : [i for i in range(0, int(ahist.xmax+1), 1 if 'after' in pstr else 2)]})
+        fnames[1].append(fn)
         return pidlengths
     # ----------------------------------------------------------------------------------------
     def make_final_plots(initial_seqs_per_seq, initial_flcounts):
+        fnames.append([])
         final_seqs_per_seq = plot_n_pseqs_per_seq('after')
         import plotting
-        plotting.plot_smatrix(plotdir, 'pseq-matrix', xydicts=(final_seqs_per_seq, initial_seqs_per_seq), n_max_bins=12, xlabel='after', ylabel='before', lfcn=lambda x: 'miss.' if x==-1 else str(x), title='N paired seqs per seq')
+        fn = plotting.plot_smatrix(plotdir, 'pseq-matrix', xydicts=(final_seqs_per_seq, initial_seqs_per_seq), n_max_bins=12, xlabel='after', ylabel='before', lfcn=lambda x: 'miss.' if x==-1 else str(x), title='N paired seqs per seq')
+        fnames[2].append(fn)
         final_flcounts = {}  # note that this has to be per seq (even though that kind of double counts) since otherwise we wouldn't have a way to determine correspondence between initial and final
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 final_flcounts.update({u : lgstr(set([u] + pids), for_plot=True) for u, pids in zip(atn['unique_ids'], atn['paired-uids'])})  # have to make sure <u> is included in <pids> (as well as that there's no duplicates)
-        plotting.plot_smatrix(plotdir, 'flcount-matrix', xydicts=(final_flcounts, initial_flcounts), kfcn=len, n_max_bins=15,
-                              lfcn=lambda x: 'miss.' if x==-1 else ('none' if x=='' else str(x)), xlabel='after', ylabel='before', title='pair combo (per seq)', tdbg=2 if debug else False)
+        fn = plotting.plot_smatrix(plotdir, 'flcount-matrix', xydicts=(final_flcounts, initial_flcounts), kfcn=len, n_max_bins=15,
+                                   lfcn=lambda x: 'miss.' if x==-1 else ('none' if x=='' else str(x)), xlabel='after', ylabel='before', title='pair combo (per seq)', tdbg=2 if debug else False)
+        fnames[2].append(fn)
+        plotting.make_html(plotdir, fnames=fnames)
     # ----------------------------------------------------------------------------------------
     def getloc(uid):
         if uid not in all_antns:
@@ -551,6 +558,9 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         sfcn = utils.pass_fcn if dont_sort else sorted
         lfcn = (lambda x: x[2]) if for_plot else utils.locstr
         lgstrs = [lfcn(l) for l in sfcn([getloc(u) for u in lgroup])]
+        if for_plot and len(lgstrs) > 4:
+            lcounts = [(l, lgstrs.count(l)) for l in sorted(set(lgstrs), key=lambda x: lgstrs.index(x))]  # make a set but then order it same as in the label
+            lgstrs = ['%d%s'%(c, l) for l, c in lcounts]
         return ' '.join(lgstrs)
     # ----------------------------------------------------------------------------------------
     def choose_seqs_to_remove(chain_ids, tdbg=False):  # choose one of <chain_ids> to eliminate (based on identical/similar seq collapse and productivity)
@@ -717,6 +727,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
 
     idg_ok = check_droplet_id_groups(pid_groups, all_uids)  # NOTE not using the return value here, but I may need to in the future
     if plotdir is not None:
+        fnames = [[], [], []]
         initial_flcounts = plot_uids_before(plotdir, pid_groups, all_antns)
         initial_seqs_per_seq = plot_n_pseqs_per_seq('before')
 

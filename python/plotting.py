@@ -752,18 +752,20 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     sys.modules['seaborn'].despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    if xbounds is not None and xbounds[0] != xbounds[1]:  # this bound setting used to be after log + tick stuff, and maybe moving it beforehand screws something up?
+        plt.xlim(xbounds[0], xbounds[1])
+    if ybounds is not None and ybounds[0] != ybounds[1]:
+        plt.ylim(ybounds[0], ybounds[1])
     if 'x' in log:
         ax.set_xscale('symlog')  # 'log' used to work, but now it screws up the x axis labels
     if 'y' in log:
         ax.set_yscale('log')
+        if yticks is None:
+            yticks, yticklabels = get_auto_y_ticks(ax.get_ylim()[0], ax.get_ylim()[1], log=log)
     if xticks is not None:  # if these are after the xbound setting they override it
         plt.xticks(xticks)
     if yticks is not None:
         plt.yticks(yticks)
-    if xbounds is not None and xbounds[0] != xbounds[1]:
-        plt.xlim(xbounds[0], xbounds[1])
-    if ybounds is not None and ybounds[0] != ybounds[1]:
-        plt.ylim(ybounds[0], ybounds[1])
     if xticklabels is not None:
         # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
         median_length = numpy.median([len(xl) for xl in xticklabels])
@@ -917,10 +919,10 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
     heatmap = ax.pcolormesh(numpy.ma.array(smatrix, mask=numpy.isnan(smatrix)), cmap='viridis', vmin=vmin) #, vmax=1.) #, norm=mpl.colors.LogNorm()
     cbar = plt.colorbar(heatmap, label=('%s (skipped %d)'%(blabel, n_skipped)) if n_skipped > 0 else blabel, pad=0.12)
     def ltsize(n): return 15 if n < 15 else 8
-    mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,
-               xticks=[n - 0.5 for n in range(1, len(xbins) + 1)], yticks=[n - 0.5 for n in range(1, len(ybins) + 1)],
-               xticklabels=[lfcn(b) for b in xbins], yticklabels=[y_lfcn(b) for b in ybins],
-               xticklabelsize=ltsize(len(xbins)), yticklabelsize=ltsize(len(ybins)))
+    return mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel,
+                      xticks=[n - 0.5 for n in range(1, len(xbins) + 1)], yticks=[n - 0.5 for n in range(1, len(ybins) + 1)],
+                      xticklabels=[lfcn(b) for b in xbins], yticklabels=[y_lfcn(b) for b in ybins],
+                      xticklabelsize=ltsize(len(xbins)), yticklabelsize=ltsize(len(ybins)))
 
 # ----------------------------------------------------------------------------------------
 def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None, extra_links=None):

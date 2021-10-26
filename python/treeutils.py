@@ -2762,7 +2762,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     n_too_small = 0
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
-        print '      key: %s %s %s' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
+        print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
     for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
         for ltmp in (h_atn, l_atn):
             utils.add_seqs_aa(ltmp)

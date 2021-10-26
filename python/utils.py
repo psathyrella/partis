@@ -855,6 +855,9 @@ def extract_pairing_info(seqfos, droplet_id_separator='_', input_metafname=None,
 def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotation_dict, use_last=False, debug=False):
     if len(cpath.partitions) == 0:
         return
+    if len(annotation_list) == 0:
+        print '    %s zero length annotation list in check_concordance_of_cpath_and_annotations()' % color('yellow', 'warning')
+        return
     pfcn = 'last' if use_last else 'best'
     partition = getattr(cpath, pfcn)()
     miss_clusts = [c for c in partition if ':'.join(c) not in annotation_dict]
