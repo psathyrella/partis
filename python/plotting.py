@@ -752,10 +752,6 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     sys.modules['seaborn'].despine()  #trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    if xbounds is not None and xbounds[0] != xbounds[1]:  # this bound setting used to be after log + tick stuff, and maybe moving it beforehand screws something up?
-        plt.xlim(xbounds[0], xbounds[1])
-    if ybounds is not None and ybounds[0] != ybounds[1]:
-        plt.ylim(ybounds[0], ybounds[1])
     if 'x' in log:
         ax.set_xscale('symlog')  # 'log' used to work, but now it screws up the x axis labels
     if 'y' in log:
@@ -773,6 +769,10 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
         else:
             ax.set_xticklabels(xticklabels, size=xticklabelsize)
+    if xbounds is not None and xbounds[0] != xbounds[1]:
+        plt.xlim(xbounds[0], xbounds[1])
+    if ybounds is not None and ybounds[0] != ybounds[1]:
+        plt.ylim(ybounds[0], ybounds[1])
     if yticklabels is not None:  # NOTE there's some complicated auto log y tick stuff in draw_no_root()
         ax.set_yticklabels(yticklabels, size=yticklabelsize)
     plt.title(title, fontweight='bold', fontsize=20 if len(title) < 25 else 15)

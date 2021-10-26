@@ -476,4 +476,7 @@ class Hist(object):
         fig, ax = plotting.mpl_init()  # this'll need to be updated when i want to use a kwarg for this fcn
         self.mpl_plot(ax, **pargs)
         self.write('%s/%s.csv'%(plotdir, plotname))
+        if 'xticks' not in fargs and any(l != '' for l in self.bin_labels):
+            fargs['xticks'] = self.get_bin_centers()
+            fargs['xticklabels'] = self.bin_labels
         return plotting.mpl_finish(ax, plotdir, plotname, **fargs)
