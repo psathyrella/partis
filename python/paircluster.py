@@ -436,7 +436,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None, paired_data_type='10x', debug=False):
+def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None, performance_outdir=None, paired_data_type='10x', debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
         if not is_data:
@@ -530,28 +530,40 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         fnames[1].append(fn)
         return pidlengths
     # ----------------------------------------------------------------------------------------
+    def make_fraction_correct_plot():
+        # ----------------------------------------------------------------------------------------
+        def splid(utmp):
+            ustr, ltmp = utmp.split('-')
+            assert ltmp in utils.loci
+            return ustr
+        # ----------------------------------------------------------------------------------------
+        def gpt(uid, pids):
+            if len(pids) == 0:
+                return 'unpaired'
+            elif len(pids) > 1:
+                return 'multiple'
+            elif splid(uid) == splid(pids[0]):
+                return 'correct'
+            else:
+                return 'mispaired'
+        # ----------------------------------------------------------------------------------------
+        fcinfo = collections.OrderedDict([('correct', 0), ('mispaired', 0), ('unpaired', 0), ('multiple', 0)])
+        for ltmp in sorted(cpaths):
+            for cluster in cpaths[ltmp].best():
+                atn = antn_dicts[ltmp][':'.join(cluster)]
+                for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
+                    fcinfo[gpt(uid, pids)] += 1
+        fchist = hutils.make_hist_from_dict_of_counts(fcinfo, 'string', 'pair cleaning performance', no_sort=True)
+        fchist.normalize()
+        fcplname = 'true-pair-clean-performance'
+        if performance_outdir is not None:
+            fchist.write('%s/%s.csv'%(performance_outdir, fcplname))
+        if plotdir is not None:
+            fn = fchist.fullplot(plotdir, fcplname, pargs={'ignore_overflows' : True}, fargs={'xbounds' : (0.95, 1.05*len(fcinfo)), 'ybounds' : (0., 1.05), 'xticklabelsize' : 15, 'ylabel' : 'fraction of seqs'})
+            fnames.append([fn])
+    # ----------------------------------------------------------------------------------------
     def make_final_plots(initial_seqs_per_seq, initial_flcounts):
-        # ----------------------------------------------------------------------------------------
-        def incr_frac_corr(atn):
-            # ----------------------------------------------------------------------------------------
-            def splid(utmp):
-                ustr, ltmp = utmp.split('-')
-                assert ltmp in utils.loci
-                return ustr
-            # ----------------------------------------------------------------------------------------
-            for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
-                if len(pids) == 0:
-                    fcinfo['unpaired'] += 1
-                elif len(pids) > 1:
-                    fcinfo['multiple'] += 1
-                elif splid(uid) == splid(pids[0]):
-                    fcinfo['correct'] += 1
-                else:
-                    fcinfo['mispaired'] += 1
-        # ----------------------------------------------------------------------------------------
         final_seqs_per_seq = plot_n_pseqs_per_seq('after')
-        if not is_data:
-            fcinfo = collections.OrderedDict([('correct', 0), ('mispaired', 0), ('unpaired', 0), ('multiple', 0)])
         import plotting
         fn = plotting.plot_smatrix(plotdir, 'pseq-matrix', xydicts=(final_seqs_per_seq, initial_seqs_per_seq), n_max_bins=12, xlabel='after', ylabel='before', lfcn=lambda x: 'miss.' if x==-1 else str(x), title='N paired seqs per seq')
         fnames[2].append(fn)
@@ -560,18 +572,9 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             for cluster in cpaths[ltmp].best():
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 final_flcounts.update({u : lgstr(set([u] + pids), for_plot=True) for u, pids in zip(atn['unique_ids'], atn['paired-uids'])})  # have to make sure <u> is included in <pids> (as well as that there's no duplicates)
-                if not is_data:
-                    incr_frac_corr(atn)
         fn = plotting.plot_smatrix(plotdir, 'flcount-matrix', xydicts=(final_flcounts, initial_flcounts), kfcn=len, n_max_bins=15,
                                    lfcn=lambda x: 'miss.' if x==-1 else ('none' if x=='' else str(x)), xlabel='after', ylabel='before', title='pair combo (per seq)', tdbg=2 if debug else False)
         fnames[2].append(fn)
-        if not is_data:
-            fchist = hutils.make_hist_from_dict_of_counts(fcinfo, 'string', 'pair cleaning performance', no_sort=True)
-            fcplname = 'true-pair-performance'
-            fchist.write('%s/%s.csv'%(plotdir, fcplname))
-            fchist.normalize()
-            fn = fchist.fullplot(plotdir, fcplname, pargs={'ignore_overflows' : True}, fargs={'xbounds' : (0.95, 1.05*len(fcinfo)), 'ybounds' : (0., 1.05), 'xticklabelsize' : 15, 'ylabel' : 'fraction of seqs'})
-            fnames.append([fn])
         plotting.make_html(plotdir, fnames=fnames)
     # ----------------------------------------------------------------------------------------
     def getloc(uid):
@@ -815,6 +818,8 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
             clean_with_partition_info(cluster)
 
+    if not is_data:
+        make_fraction_correct_plot()
     if plotdir is not None:
         make_final_plots(initial_seqs_per_seq, initial_flcounts)
 
