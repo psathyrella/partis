@@ -250,6 +250,13 @@ def get_pdirfcn(locus):
     return tmpfcn
 
 # ----------------------------------------------------------------------------------------
+def get_ptntypes(method):
+    ptypes = partition_types
+    if is_single_chain(method):
+        ptypes = [t for t in ptypes if t != 'joint']  # this is probably needlessly general
+    return ptypes
+
+# ----------------------------------------------------------------------------------------
 import random
 random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
@@ -271,7 +278,7 @@ for action in args.actions:
             for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are [selection] metrics, but here they're [clustering] methods
                 for pmetr in args.perf_metrics:
                     utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
-                for ipt, ptntype in enumerate(partition_types):
+                for ipt, ptntype in enumerate(get_ptntypes(method)):
                     for ltmp in plot_loci():
                         for pmetr in args.perf_metrics:
                             if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):

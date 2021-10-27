@@ -87,32 +87,46 @@ def readlog(fname, metric, locus, ptntype):
             return 'loop time:'
         elif metric == 'vsearch-partition':
             return 'vsearch time:'
+        elif metric == 'scoper':
+            return 'scoper time:'
         else:
             assert False
     # ----------------------------------------------------------------------------------------
     with open(fname) as lfile:
         flines = lfile.readlines()
-    lstrs = ['./bin/partis', timestr()] if ptntype=='single' else [timestr()]
-    tlines = []
-    for tln in flines:
-        for lstr in lstrs:
-            if lstr in tln:
-                tlines.append((lstr, tln))
-    if ptntype == 'single':
-        assert len(tlines) == 5
-        tlines = tlines[1:]  # remove the paired cmd
-        tvals = {}
-        for ltmp, itmp in zip(['igh', 'igk'], [0, 2]):
-            lstr, cmdline = tlines[itmp]
-            assert ltmp == utils.get_val_from_arglist(cmdline.split(), '--locus')
-            _, timeline = tlines[itmp + 1]
+    if 'partition' in metric:  # partis methods
+        lstrs = ['./bin/partis', timestr()] if ptntype=='single' else [timestr()]
+        tlines = []
+        for tln in flines:
+            for lstr in lstrs:
+                if lstr in tln:
+                    tlines.append((lstr, tln))
+        if ptntype == 'single':
+            assert len(tlines) == 5
+            tlines = tlines[1:]  # remove the paired cmd
+            tvals = {}
+            for ltmp, itmp in zip(['igh', 'igk'], [0, 2]):
+                lstr, cmdline = tlines[itmp]
+                assert ltmp == utils.get_val_from_arglist(cmdline.split(), '--locus')
+                _, timeline = tlines[itmp + 1]
+                _, _, timestr = timeline.split()
+                tvals[ltmp] = float(timestr)
+            return {'time-reqd' : tvals[locus]}
+        else:
+            _, timeline = utils.get_single_entry(tlines)
             _, _, timestr = timeline.split()
+            return {'time-reqd' : float(timestr)}
+    else:  # other methods
+        assert ptntype == 'single'  # at least for now
+        tlines = [l for l in flines if timestr() in l]
+        if len(tlines) != 2:
+            raise Exception('couldn\'t find exactly two time lines (got %d) in %s' % (len(tlines), fname))
+        tvals = {}
+        for ltmp, tline in zip(['igh', 'igk'], tlines):
+            tltmp, _, _, timestr = tline.split()
+            assert tltmp == ltmp
             tvals[ltmp] = float(timestr)
         return {'time-reqd' : tvals[locus]}
-    else:
-        _, timeline = utils.get_single_entry(tlines)
-        _, _, timestr = timeline.split()
-        return {'time-reqd' : float(timestr)}
 
 # ----------------------------------------------------------------------------------------
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
