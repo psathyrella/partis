@@ -335,11 +335,11 @@ def get_var_info(args, scan_vars, debug=False):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn):
+def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, dbstr=None):
     if n_already_there > 0:
         print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, n_total, single_ofn)
     if len(cmdfos) > 0:
-        print '      %s %d jobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos))
+        print '      %s %d %sjobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos), '' if dbstr is None else dbstr+' ')
         if args.dry:
             print '  first command: %s' % cmdfos[0]['cmd_str']
         else:

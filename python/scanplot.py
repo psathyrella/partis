@@ -87,10 +87,8 @@ def readlog(fname, metric, locus, ptntype):
             return 'loop time:'
         elif metric == 'vsearch-partition':
             return 'vsearch time:'
-        elif metric == 'scoper':
-            return 'scoper time:'
         else:
-            assert False
+            return '%s time:' % metric
     # ----------------------------------------------------------------------------------------
     with open(fname) as lfile:
         flines = lfile.readlines()
@@ -119,12 +117,16 @@ def readlog(fname, metric, locus, ptntype):
     else:  # other methods
         assert ptntype == 'single'  # at least for now
         tlines = [l for l in flines if timestr() in l]
-        if len(tlines) != 2:
-            raise Exception('couldn\'t find exactly two time lines (got %d) in %s' % (len(tlines), fname))
+        tloci = ['igh', 'igk'] if metric=='scoper' else [locus]
+        if len(tlines) != len(tloci):
+            raise Exception('couldn\'t find exactly %d time lines for loci %s (got %d) in %s' % (len(tloci), tloci, len(tlines), fname))
         tvals = {}
-        for ltmp, tline in zip(['igh', 'igk'], tlines):
-            tltmp, _, _, timestr = tline.split()
-            assert tltmp == ltmp
+        for ltmp, tline in zip(tloci, tlines):
+            if metric == 'scoper':
+                tltmp, _, _, timestr = tline.split()
+                assert tltmp == ltmp
+            else:
+                _, _, timestr = tline.split()
             tvals[ltmp] = float(timestr)
         return {'time-reqd' : tvals[locus]}
 

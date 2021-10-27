@@ -19,9 +19,9 @@ import clusterpath
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
-ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9', 'scoper'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9', 'scoper', 'mobille'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 def is_single_chain(action):
-    return 'synth-' in action or 'vjcdr3-' in action or action in ['scoper']
+    return 'synth-' in action or 'vjcdr3-' in action or action in ['scoper', 'mobille']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -110,7 +110,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         locus = 'igk'
     assert locus is not None
     if logfile:
-        ofn = '%s/%s.log' % (outdir, action)
+        ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '',  action)
     elif pcleancsv:
         ofn = '%s/true-pair-clean-performance.csv' % outdir
     elif action == 'cache-parameters':
@@ -139,6 +139,9 @@ def make_synthetic_partition(action, varnames, vstrs):
 def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
     if action == 'scoper':
         cmd = './test/scoper-run.py --indir %s --outdir %s --simdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action), odir(args, varnames, vstrs, 'simu'))
+        return cmd
+    if action == 'mobille':
+        cmd = './test/mobille-run.py --simdir %s --outdir %s --id-str %s --base-imgt-outdir %s' % (odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action), '_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/imgt-output' % (args.base_outdir, args.label))
         return cmd
     actstr = action
     if 'synth-distance-' in action or action == 'vsearch-partition' or action == 'partition-lthresh':
@@ -192,9 +195,6 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             cmd += ' %s' % args.inference_extra_args
 
     return cmd
-
-# scoper install:
-# pip3 install --user python-Levenshtein scikit-bio tqdm palettable
 
 # ----------------------------------------------------------------------------------------
 # TODO combine this also with fcns in cf-tree-metrics.py (and put it in scanplot)
