@@ -2,8 +2,8 @@
 
 bin=./test/cf-paired-loci.py
 
-methods=synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.9:scoper:vsearch-partition:partition
-astr="--actions scoper" #:$methods"
+methods=synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.9:mobille:scoper:vsearch-partition:partition
+astr="--actions mobille" #:$methods"
 # astr="--actions plot --plot-metrics $methods" # --perf-metrics f1"
 # astr="--actions combine-plots --plot-metrics $methods"
 common="--n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir /fh/local/dralph/partis/paired-loci $astr --dry"

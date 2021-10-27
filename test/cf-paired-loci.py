@@ -44,6 +44,7 @@ parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--single-light-locus')
+parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
@@ -142,6 +143,10 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         return cmd
     if action == 'mobille':
         cmd = './test/mobille-run.py --simdir %s --outdir %s --id-str %s --base-imgt-outdir %s' % (odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action), '_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/imgt-output' % (args.base_outdir, args.label))
+        if args.prep:
+            cmd += ' --prep'
+            # then do this by hand, and submit to imgt/high vquest by hand, then download results and put them in the proper dir (run mobille run script to get dir)
+            # tar czf /path/somewhere/to/rsync/imgt-input.tgz /fh/local/dralph/partis/paired-loci/vs-shm/v2/seed-*/scratch-mute-freq-*/mobille/work/*/imgt-input/*.fa
         return cmd
     actstr = action
     if 'synth-distance-' in action or action == 'vsearch-partition' or action == 'partition-lthresh':

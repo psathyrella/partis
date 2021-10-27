@@ -79,7 +79,7 @@ def prep_for_imgt():
     utils.run_scan_cmds(args, cmdfos, 'imgt-input.log', n_total, n_already_there, ofn, dbstr='imgt conversion')
 
 # ----------------------------------------------------------------------------------------
-def run_scoper():
+def run_mobille():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
     for locus in gloci():
         if not os.path.exists(simfn(locus)):
@@ -114,7 +114,6 @@ def run_scoper():
             'workdir' : wkdir(locus),
         }]
     utils.run_scan_cmds(args, cmdfos, 'mobille.log', n_total, n_already_there, ofn, dbstr='mobille run')
-    # utils.run_r(rcmds, wkdir(locus), logfname='%s/scoper.log'%wkdir(locus), print_time='%s scoper'%locus, dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------
 def convert_output():
@@ -139,7 +138,6 @@ def convert_output():
 
 # # ----------------------------------------------------------------------------------------
 # def install():
-# scoper install:
 # pip3 install --user python-Levenshtein scikit-bio tqdm palettable
 
 # install()
@@ -151,11 +149,13 @@ parser.add_argument('--simdir', required=True)
 parser.add_argument('--outdir', required=True)
 parser.add_argument('--id-str', required=True)
 parser.add_argument('--base-imgt-outdir', required=True)
+parser.add_argument('--prep', action='store_true', help='only prep for imgt')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 args = parser.parse_args()
 
 prep_for_imgt()
-run_scoper()
-convert_output()
+if not args.prep:
+    run_mobille()
+    convert_output()
