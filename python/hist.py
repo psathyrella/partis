@@ -142,8 +142,10 @@ class Hist(object):
             self.errors[ibin] = math.sqrt(self.bin_contents[ibin])
 
     # ----------------------------------------------------------------------------------------
-    def find_bin(self, value):
+    def find_bin(self, value, label=None):  # if <label> is set, find ibin corresponding to bin label <label>
         """ find <ibin> corresponding to <value>. NOTE boundary is owned by the upper bin. """
+        if label is not None:
+            return utils.get_single_entry([i for i, l in enumerate(self.bin_labels) if l==label])
         if value < self.low_edges[0]:  # is it below the low edge of the underflow?
             return 0
         elif value >= self.low_edges[self.n_bins + 1]:  # or above the low edge of the overflow?

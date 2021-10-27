@@ -469,6 +469,9 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'mfreq' : 'SHM fraction (nuc)',
            'mfreq-pct' : 'SHM % (nuc)',
            'time-reqd' : 'time required',
+           'pcfrac-corr' : 'frac. correctly paired',
+           'pcfrac-mis' : 'frac. mispaired',
+           'pcfrac-un' : 'frac. unpaired',
            'n-seqs' : 'N seqs',
            }
 

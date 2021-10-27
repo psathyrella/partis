@@ -72,6 +72,12 @@ def cp_val(cpath, ptilestr, yfname):
     return rval
 
 # ----------------------------------------------------------------------------------------
+def readpcsv(fname, ptilestr):
+    blabels = {'pcfrac-corr' : 'correct', 'pcfrac-mis' : 'mispaired', 'pcfrac-un' : 'unpaired'}
+    hist = Hist(fname=fname)
+    return {ptilestr : hist.bin_contents[hist.find_bin(None, label=blabels[ptilestr])]}
+
+# ----------------------------------------------------------------------------------------
 def readlog(fname, metric, locus, ptntype):
     # ----------------------------------------------------------------------------------------
     def timestr():
@@ -347,6 +353,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             try:
                 if ptilestr == 'time-reqd':
                     ytmpfo = readlog(yfname, metric, locus, ptntype)
+                elif 'pcfrac-' in ptilestr:
+                    ytmpfo = readpcsv(yfname, ptilestr)
                 else:
                     _, _, cpath = utils.read_output(yfname, skip_annotations=True)
                     ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
@@ -444,15 +452,15 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             # color = plotting.frozen_pltcolors[imtmp % len(plotting.pltcolors)]
             color = metric_color(mtmp)
         if yerrs is not None:
-            ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, label=legstr(label), color=color, alpha=alpha, linewidth=linewidth, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position))
+            ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, color=color, alpha=alpha, linewidth=linewidth, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position)) #, label=legstr(label)
         else:
-            ax.plot(xticks, diffs_to_perfect, label=legstr(label), color=color, alpha=alpha, linewidth=linewidth)
+            ax.plot(xticks, diffs_to_perfect, color=color, alpha=alpha, linewidth=linewidth)  # , label=legstr(label)
         if add_to_leg:
-            dlabel = mtmp
+            dlabel = mtmp if len(pvk_list) == 1 else label
             if not args.dont_plot_extra_strs and estr != '':
                 dlabel += ' %s' % estr
             # ax.plot([], [], label=legstr(dlabel), alpha=alpha, linewidth=linewidth, linestyle=linestyle, color='grey' if ipv is not None else color, marker='.', markersize=0)
-            leg_entries[legstr(dlabel)] = {'alpha' : alpha, 'linewidth' : linewidth, 'linestyle' : linestyle, 'color' : 'grey' if ipv is not None else color} #, marker='.', markersize=0)
+            leg_entries[legstr(dlabel)] = {'alpha' : alpha, 'linewidth' : linewidth, 'linestyle' : linestyle, 'color' : 'grey' if (ipv is not None and len(pvk_list)==1) else color} #, marker='.', markersize=0)
         for dtp in diffs_to_perfect:  # NOTE can't add all at once bc of namespace issues
             all_yvals.add(dtp)
     # ----------------------------------------------------------------------------------------
@@ -522,7 +530,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             xticklabels = [tickstr(t) for t in xvals]
         elif None in xvals or 'None' in xvals:  # e.g. mean-cells-per-droplet has to handle mixed none/str + float values
             xticks = list(range(len(xvals)))  # arbitrarily put the ticks at integer vals starting with 0
-            xticklabels = [str(t) for t in xvals]  # labels are the actual xvals tho
+            xticklabels = ['n/a' if t=='None' else str(t) for t in xvals]  # labels are the actual xvals tho
         else:
             xticks = [float(x) for x in xvals]  # i guess we can just float() all of them (and ignore svartypes)?
             xticklabels = [str(t) for t in xvals]
@@ -615,7 +623,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             for imtmp, (mkey, pfo) in enumerate(plotfos.items()):
                 mtmp, estr = (mkey, '') if xdelim not in mkey else mkey.split(xdelim)
                 xticks, xticklabels, xlabel = getxticks(pfo[pvkey]['xvals'])
-                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if (imtmp == 0 and len(pvk_list) > 1) else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, add_to_leg=ipv==0, estr=estr)
+                plotcall(pvkey, xticks, pfo[pvkey]['yvals'], pfo[pvkey]['yerrs'], mtmp, label=pvkey if (imtmp == 0 and len(pvk_list) > 1) else None, ipv=ipv if len(pvk_list) > 1 else None, imtmp=imtmp, add_to_leg=ipv==0 or len(pvk_list)>1, estr=estr)
                 all_xtks += [x for x in xticks if x not in all_xtks]
                 all_xtls += [l for l in xticklabels if l not in all_xtls]
         # if ''.join(args.plot_metric_extra_strs) == '':  # no extra strs
@@ -669,7 +677,10 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             if ymax > in_ticks[-1]:  # same for max
                 ymax = yticks[yticks.index(in_ticks[-1]) + 1]
         else:
-            title += ' %s: %s %s' % (locus, ltexts[ptntype], legdict.get(ptilestr, ptilestr))
+            if 'pcfrac-' in ptilestr:
+                title = ''
+            else:
+                title += ' %s: %s %s' % (locus, ltexts[ptntype], legdict.get(ptilestr, ptilestr))
             ymin, ymax = (0, 1.05)
         leg_loc = [0.7, 0.15]
         if args.final_plot_xvar == 'n-leaves' and '--constant-number-of-leaves' in args.simu_extra_args:

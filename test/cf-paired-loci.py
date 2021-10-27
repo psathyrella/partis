@@ -17,7 +17,7 @@ import clusterpath
 
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
-all_perf_metrics = ['precision', 'sensitivity', 'f1', 'cln-frac', 'time-reqd']
+all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9', 'scoper'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 def is_single_chain(action):
@@ -97,7 +97,7 @@ def odir(args, varnames, vstrs, action):
     return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), 'partis' if action in ['cache-parameters', 'partition'] else action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False):
+def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False, pcleancsv=False):
     outdir = odir(args, varnames, vstrs, action)
     if action == 'cache-parameters' and not logfile:
         outdir += '/parameters'
@@ -109,6 +109,8 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     assert locus is not None
     if logfile:
         ofn = '%s/%s.log' % (outdir, action)
+    elif pcleancsv:
+        ofn = '%s/true-pair-clean-performance.csv' % outdir
     elif action == 'cache-parameters':
         ofn = '%s/%s' % (outdir, locus)
         if single_file:
@@ -220,7 +222,7 @@ def run_scan(action):
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         }]
 
-    utils.run_scan_cmds(args, cmdfos, '%s.log'%action if not args.merge_paired_partitions else 'merge-paired-partitions', len(valstrs), n_already_there, ofn)
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%(action if not args.merge_paired_partitions else 'merge-paired-partitions'), len(valstrs), n_already_there, ofn)
 
 # ----------------------------------------------------------------------------------------
 def plot_loci():
@@ -231,7 +233,7 @@ def plot_loci():
 
 # ----------------------------------------------------------------------------------------
 def get_fnfcn(method, locus, ptntype, pmetr):
-    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single', logfile=pmetr=='time-reqd')
+    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single', logfile=pmetr=='time-reqd', pcleancsv='pcfrac-' in pmetr)
     return tmpfcn
 
 # ----------------------------------------------------------------------------------------
@@ -264,6 +266,8 @@ for action in args.actions:
                 for ipt, ptntype in enumerate(partition_types):
                     for ltmp in plot_loci():
                         for pmetr in args.perf_metrics:
+                            if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):
+                                continue
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
                             arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype, pmetr), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}
                             if args.test:
@@ -285,6 +289,8 @@ for action in args.actions:
                 print '    ', pmetr
                 for ptntype in partition_types:
                     for ltmp in plot_loci():
+                        if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):
+                            continue
                         scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[ipm], make_legend=iplot==0, debug=args.debug)
                         iplot += 1
             fnames += [[os.path.dirname(fnames[0][0]) + '/legend.svg']]
