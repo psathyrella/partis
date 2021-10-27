@@ -30,6 +30,7 @@ parser.add_argument('--merge-paired-partitions', action='store_true', help='for 
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
 parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
 parser.add_argument('--n-leaves-list', default='1') #'2:3:4:10') #1 5; do10)
+parser.add_argument('--constant-number-of-leaves-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
@@ -65,10 +66,11 @@ parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while w
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'constant-number-of-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
 for act in ['cache-parameters'] + ptn_actions:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']
+args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
 # NOTE ignoring svartypes atm, which may actually work?
 # args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-sim-events'], 'float' : ['scratch-mute-freq', 'mutation-multiplier']}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
 # and these i think we can't since we want to allow blanks, 'n-genes-per-region' 'n-sim-alleles-per-gene'
@@ -155,8 +157,14 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         if args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         for vname, vstr in zip(varnames, vstrs):
-            vstr_for_cmd = vstr
-            cmd += ' --%s %s' % (vname, vstr_for_cmd)
+            if vname in args.bool_args:  # in cf-tree-metrics this was handled for e.g. context dependence in bcr-phylo-run, but anyway this should probably be moved to scanvar stuff in utils
+                if vstr == '0':
+                    continue
+                elif vstr == '1':
+                    vstr = ''
+                else:
+                    assert False
+            cmd += ' --%s %s' % (vname, vstr)
     else:
         cmd += ' --paired-indir %s' % odir(args, varnames, vstrs, 'simu')
         if action == 'vsearch-partition':
