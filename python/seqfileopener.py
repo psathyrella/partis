@@ -246,7 +246,11 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             new_uid = uid
             iid = 2
             while new_uid in input_info:
-                new_uid = uid + '-' + str(iid)
+                if any('-'+l in uid for l in utils.loci):  # it's nice to insert <iid> before the locus in simulation uids
+                    ltmp = [l for l in utils.loci if '-'+l in uid][0]  # would be nice to use utils.get_single_entry() but i really don't want this to ever crash
+                    new_uid = uid.replace('-'+ltmp, '-%d-%s'%(iid, ltmp))
+                else:
+                    new_uid = uid + '-' + str(iid)
                 iid += 1
             if n_duplicate_uids == 0:
                 print '  %s duplicate uid(s) in input file, so renaming by appending integer string, e.g. \'%s\' --> \'%s\'' % (utils.color('yellow', 'warning'), uid, new_uid)
