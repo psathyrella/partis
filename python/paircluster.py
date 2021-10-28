@@ -533,9 +533,11 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
     def make_fraction_correct_plot():
         # ----------------------------------------------------------------------------------------
         def splid(utmp):
-            ustr, ltmp = utmp.split('-')
-            assert ltmp in utils.loci
-            return ustr
+            # ustr, ltmp = utmp.split('-')
+            # assert ltmp in utils.loci
+            # return ustr
+            ltmp = utils.get_single_entry([l for l in utils.loci if '-'+l in utmp])  # ICK (works also for bcr-phylo)
+            return utmp.replace('-'+ltmp, '-LOCUS')
         # ----------------------------------------------------------------------------------------
         def gpt(uid, pids):
             if len(pids) == 0:

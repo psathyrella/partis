@@ -186,6 +186,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
                     assert False
             cmd += ' --%s %s' % (vname, vstr)
         if args.bcr_phylo:
+            raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
             cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath'
             if args.overwrite:
                 cmd += ' --overwrite'
