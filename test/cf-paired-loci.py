@@ -29,7 +29,8 @@ parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')
 parser.add_argument('--merge-paired-partitions', action='store_true', help='for partis partition actions, don\'t re-partition, just merge paired partitions')
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
 parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
-parser.add_argument('--n-leaves-list', default='1') #'2:3:4:10') #1 5; do10)
+parser.add_argument('--n-leaves-list') #'2:3:4:10') #1 5; do10)
+parser.add_argument('--n-sim-seqs-per-generation-list') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--constant-number-of-leaves-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
@@ -40,12 +41,14 @@ parser.add_argument('--n-genes-per-region-list')
 parser.add_argument('--n-sim-alleles-per-gene-list')
 parser.add_argument('--scratch-mute-freq-list') #, type=float, default=1)
 parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
+parser.add_argument('--obs-times-list')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--single-light-locus')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
+parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutatio simulation, rather than partis (i.e. TreeSim/bpp)')
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
@@ -68,7 +71,7 @@ parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while w
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'constant-number-of-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
 for act in ['cache-parameters'] + ptn_actions:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']
@@ -161,11 +164,14 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         actstr = 'annotate'
     if args.merge_paired_partitions:
         actstr = 'merge-paired-partitions'
-    cmd = './bin/partis %s --paired-loci --paired-outdir %s' % (actstr.replace('simu', 'simulate'), odir(args, varnames, vstrs, action))
+    binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.bcr_phylo and action=='simulate' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
+    cmd = './bin/%s %s --paired-loci --%s-outdir %s' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action))
     if args.n_sub_procs > 1:
         cmd += ' --n-procs %d' % args.n_sub_procs
     if action == 'simu':
-        cmd += ' --simulate-from-scratch --no-per-base-mutation %s' % ' '.join(base_args)
+        if not args.bcr_phylo:
+            cmd += ' --simulate-from-scratch --no-per-base-mutation'
+        cmd += ' %s' % ' '.join(base_args)
         if args.single_light_locus is not None:
             cmd += ' --single-light-locus %s' % args.single_light_locus
         if args.simu_extra_args is not None:
@@ -179,6 +185,10 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
                 else:
                     assert False
             cmd += ' --%s %s' % (vname, vstr)
+        if args.bcr_phylo:
+            cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath'
+            if args.overwrite:
+                cmd += ' --overwrite'
     else:
         cmd += ' --paired-indir %s' % odir(args, varnames, vstrs, 'simu')
         if action == 'vsearch-partition':
@@ -267,8 +277,8 @@ def get_pdirfcn(locus):
 # ----------------------------------------------------------------------------------------
 def get_ptntypes(method):
     ptypes = partition_types
-    if is_single_chain(method):
-        ptypes = [t for t in ptypes if t != 'joint']  # this is probably needlessly general
+    # if is_single_chain(method):
+    #     ptypes = [t for t in ptypes if t != 'joint']  # this is probably needlessly general
     return ptypes
 
 # ----------------------------------------------------------------------------------------

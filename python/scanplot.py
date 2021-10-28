@@ -701,7 +701,9 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 title = ''
             else:
                 title += ' %s: %s %s' % (locus, ltexts[ptntype], legdict.get(ptilestr, ptilestr))
-            ymin, ymax = (0, 1.05)
+            ymin = 0
+            if ptilestr != 'naive-hdist':
+                ymax = 1.05
         leg_loc = [0.7, 0.15]
         if args.final_plot_xvar == 'n-leaves' and '--constant-number-of-leaves' in args.simu_extra_args:
             xlabel += ' (constant)'

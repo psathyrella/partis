@@ -31,7 +31,11 @@ def infdir():
 def evtdir(i):
     return '%s/event-%d' % (simdir(), i)
 def spath(tstr):  # use spath() for building command line args, whereas use simfname() to get [an] inidivudal file e.g. for utils.output_exists(), as well as for passing to fcns in paircluster.py
-    return '%s/%s-simu%s' % (simdir(), tstr, '' if args.paired_loci else '.yaml')
+    if args.mutated_outpath and tstr == 'mutated':
+        opth = args.base_outdir
+    else:
+        opth = '%s/%s-simu' % (simdir(), tstr)
+    return '%s%s' % (opth, '' if args.paired_loci else '.yaml')
 def sfname(tstr, ltmp, lpair=None):
     if ltmp is None: assert not args.paired_loci
     return paircluster.paired_fn(spath(tstr), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath(tstr)
@@ -79,6 +83,8 @@ def rearrange():
     if args.restrict_available_genes:
         assert not args.paired_loci
         cmd += ' --only-genes IGHV1-18*01:IGHJ1*01'
+    if args.single_light_locus is not None:
+        cmd += ' --single-light-locus %s' % args.single_light_locus
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
@@ -443,7 +449,9 @@ parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')
 parser.add_argument('--parameter-variances', help='if set, parameters vary from family to family in one of two ways 1) the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75, or 2) parameters for each family are chosen from a \'..\'-separated list, e.g. obs-times,75..100..150')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--paired-loci', action='store_true')
+parser.add_argument('--single-light-locus')
 parser.add_argument('--dry-run', action='store_true')
+parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
 
 args = parser.parse_args()
 
