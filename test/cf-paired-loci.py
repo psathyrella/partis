@@ -19,7 +19,7 @@ import clusterpath
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
-ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9', 'scoper', 'mobille'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or action in ['scoper', 'mobille']
 
@@ -155,7 +155,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             # tar czf /path/somewhere/to/rsync/imgt-input.tgz /fh/local/dralph/partis/paired-loci/vs-shm/v2/seed-*/scratch-mute-freq-*/mobille/work/*/imgt-input/*.fa
         return cmd
     actstr = action
-    if 'synth-distance-' in action or action == 'vsearch-partition' or action == 'partition-lthresh':
+    if 'synth-distance-' in action or action in ['vsearch-partition', 'partition-lthresh', 'star-partition']:
         actstr = 'partition'
     if 'vjcdr3-' in action:
         actstr = 'annotate'
@@ -190,11 +190,13 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             cmd += ' --annotation-clustering --annotation-clustering-threshold %.2f' % float(action.split('-')[1])
         if action == 'partition-lthresh':
             cmd += ' --paired-naive-hfrac-threshold-type likelihood'
+        if action == 'star-partition':
+            cmd += ' --subcluster-annotation-size None'
         if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
             cmd += ' --is-simu'
         if action != 'cache-parameters':
             cmd += ' --refuse-to-cache-parameters'
-        if 'synth-distance-' in action or 'vjcdr3-' in action or action == 'vsearch-partition' or action == 'partition-lthresh':
+        if 'synth-distance-' in action or 'vjcdr3-' in action or action in ['vsearch-partition', 'partition-lthresh', 'star-partition', 'annotate']:
             cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
         if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots:
             cmd += ' --dont-calculate-annotations'

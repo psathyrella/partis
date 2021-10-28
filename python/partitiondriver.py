@@ -300,7 +300,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def annotate(self):
-        print 'annotating    (with %s)' % self.sub_param_dir
+        print 'annotating    (with %s)%s' % (self.sub_param_dir, ' (and star tree annotation, since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else '')
         if self.sw_info is None:
             self.run_waterer(look_for_cachefile=not self.args.write_sw_cachefile, write_cachefile=self.args.write_sw_cachefile, count_parameters=self.args.count_parameters)
         if self.args.only_smith_waterman:
@@ -892,7 +892,7 @@ class PartitionDriver(object):
         self.current_action = 'annotate'
         clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
-        print 'getting annotations for final partition%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '')
+        print 'getting annotations for final partition%s%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '', ' (with star tree annotation since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else '')
         _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
