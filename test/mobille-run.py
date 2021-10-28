@@ -29,7 +29,7 @@ def imgt_indir(locus):
 def idlstr(locus, imgt=False):
     istr = '%s-%s' % (args.id_str, locus)
     if imgt:
-        istr = istr.replace('-', '_')  # friggin imgt changes - to _
+        istr = istr.replace('-', '_').replace('.', '_')+'_fa'  # friggin imgt changes - and . to _
     return istr
 
 # ----------------------------------------------------------------------------------------

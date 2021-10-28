@@ -148,7 +148,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         cmd = './test/scoper-run.py --indir %s --outdir %s --simdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action), odir(args, varnames, vstrs, 'simu'))
         return cmd
     if action == 'mobille':
-        cmd = './test/mobille-run.py --simdir %s --outdir %s --id-str %s --base-imgt-outdir %s' % (odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action), '_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/imgt-output' % (args.base_outdir, args.label))
+        cmd = './test/mobille-run.py --simdir %s --outdir %s --id-str %s --base-imgt-outdir %s' % (odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action), '_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/%s/imgt-output' % (args.base_outdir, args.label, args.version))
         if args.prep:
             cmd += ' --prep'
             # then do this by hand, and submit to imgt/high vquest by hand, then download results and put them in the proper dir (run mobille run script to get dir)
