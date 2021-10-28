@@ -473,6 +473,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'pcfrac-corr' : 'frac. correctly paired',
            'pcfrac-mis' : 'frac. mispaired',
            'pcfrac-un' : 'frac. unpaired',
+           'naive-hdist' : 'mean N incorrect bases', #'ham. dist. to true naive',  # NOTE duplicates/similar to entries in plotconfig.py
            'n-seqs' : 'N seqs',
            }
 

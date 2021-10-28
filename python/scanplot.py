@@ -72,10 +72,14 @@ def cp_val(cpath, ptilestr, yfname):
     return rval
 
 # ----------------------------------------------------------------------------------------
-def readpcsv(fname, ptilestr):
-    blabels = {'pcfrac-corr' : 'correct', 'pcfrac-mis' : 'mispaired', 'pcfrac-un' : 'unpaired'}
+def read_hist_csv(fname, ptilestr):
     hist = Hist(fname=fname)
-    return {ptilestr : hist.bin_contents[hist.find_bin(None, label=blabels[ptilestr])]}
+    if 'pcfrac-' in ptilestr:
+        blabels = {'pcfrac-corr' : 'correct', 'pcfrac-mis' : 'mispaired', 'pcfrac-un' : 'unpaired'}
+        pval = hist.bin_contents[hist.find_bin(None, label=blabels[ptilestr])]
+    else:
+        pval = hist.get_mean()
+    return {ptilestr : pval}
 
 # ----------------------------------------------------------------------------------------
 def readlog(fname, metric, locus, ptntype):
@@ -369,8 +373,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             try:
                 if ptilestr == 'time-reqd':
                     ytmpfo = readlog(yfname, metric, locus, ptntype)
-                elif 'pcfrac-' in ptilestr:
-                    ytmpfo = readpcsv(yfname, ptilestr)
+                elif 'pcfrac-' in ptilestr or ptilestr == 'naive-hdist':
+                    ytmpfo = read_hist_csv(yfname, ptilestr)
                 else:
                     _, _, cpath = utils.read_output(yfname, skip_annotations=True)
                     ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}

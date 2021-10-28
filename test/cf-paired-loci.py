@@ -17,7 +17,7 @@ import clusterpath
 
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
-all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'vsearch-partition', 'vjcdr3-0.9', 'scoper', 'mobille'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 def is_single_chain(action):
@@ -45,6 +45,7 @@ parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *g
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 parser.add_argument('--single-light-locus')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
+parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
@@ -95,12 +96,15 @@ if args.final_plot_xvar is None:  # set default value based on scan vars
     svars = [v for v in varnames if v != 'seed']
     args.final_plot_xvar = svars[0] if len(svars) > 0 else 'seed'  # if we're not scanning over any vars, i'm not sure what we should use
 
+if args.antn_perf:
+    args.make_plots = True
+
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
     return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), 'partis' if action in ['cache-parameters', 'partition'] else action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False, pcleancsv=False):
+def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False, pcleancsv=False, nhdist=False):
     outdir = odir(args, varnames, vstrs, action)
     if action == 'cache-parameters' and not logfile:
         outdir += '/parameters'
@@ -114,6 +118,8 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '',  action)
     elif pcleancsv:
         ofn = '%s/true-pair-clean-performance.csv' % outdir
+    elif nhdist:
+        ofn = '%s/single-chain/plots/%s/hmm/mutation/hamming_to_true_naive.csv' % (outdir, locus)
     elif action == 'cache-parameters':
         ofn = '%s/%s' % (outdir, locus)
         if single_file:
@@ -196,6 +202,8 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             cmd += ' --plotdir paired-outdir'
             if action in ptn_actions:
                 cmd += ' --no-partition-plots' #--no-mds-plots' #
+            if args.antn_perf:
+                cmd += ' --plot-annotation-performance --only-csv-plots'
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
 
@@ -246,7 +254,7 @@ def plot_loci():
 
 # ----------------------------------------------------------------------------------------
 def get_fnfcn(method, locus, ptntype, pmetr):
-    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single', logfile=pmetr=='time-reqd', pcleancsv='pcfrac-' in pmetr)
+    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single', logfile=pmetr=='time-reqd', pcleancsv='pcfrac-' in pmetr, nhdist=pmetr=='naive-hdist')
     return tmpfcn
 
 # ----------------------------------------------------------------------------------------
@@ -286,7 +294,9 @@ for action in args.actions:
                 for ipt, ptntype in enumerate(get_ptntypes(method)):
                     for ltmp in plot_loci():
                         for pmetr in args.perf_metrics:
-                            if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):
+                            if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):  # only plot pair info cleaning fractions for joint ptntype
+                                continue
+                            if pmetr == 'naive-hdist' and ptntype != 'single':  # only do annotation performance for single chain (at least for now)
                                 continue
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
                             arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype, pmetr), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}
