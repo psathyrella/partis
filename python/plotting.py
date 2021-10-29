@@ -467,6 +467,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'f1' : 'F1 score',
            'cln-frac' : 'collision frac.',
            'n-leaves' : 'N leaves',
+           'constant-number-of-leaves' : '',
            'n-sim-events' : 'N families',
            'scratch-mute-freq' : 'SHM fraction (nuc)',
            'mfreq' : 'SHM fraction (nuc)',
@@ -478,6 +479,18 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'naive-hdist' : 'mean N incorrect bases', #'ham. dist. to true naive',  # NOTE duplicates/similar to entries in plotconfig.py
            'n-seqs' : 'N seqs',
            }
+
+val_cfgs = {
+    'legends' : {
+        'constant-number-of-leaves' : {'0' : 'geom.', '1' : 'const.'},
+    },
+    'colors' : {
+        'n-leaves' : {'3' : '#1f77b4', '10' : '#ff7f0e'},
+    },
+    'linestyles' : {
+        'constant-number-of-leaves' : {'0' : 'solid', '1' : 'dashed'},
+    }
+}
 
 colors = {'true' : '#006600',
           'partition' : '#cc0000',  # 8c001a',

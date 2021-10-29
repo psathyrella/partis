@@ -141,10 +141,22 @@ def readlog(fname, metric, locus, ptntype):
 def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=None, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='',
                locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, make_legend=False, debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
+    def pvl_list():
+        return [l.strip() for l in pvlabel[0].split(';')]
+    # ----------------------------------------------------------------------------------------
     def legstr(label, title=False):
+        # ----------------------------------------------------------------------------------------
+        def ldstr(name, val):  # NOTE i think maybe i only really want to use <legdict> here if <title> is set?
+            if args.use_val_cfgs and not title and name in plotting.val_cfgs['legends']:
+                vstr = plotting.val_cfgs['legends'][name][val]
+            else:
+                vstr = legdict.get(val, val.replace('-', ' '))
+            return vstr
+        # ----------------------------------------------------------------------------------------
         if label is None: return None
         jstr = '\n' if title else '; '
-        tmplist = [legdict.get(l, l.replace('-', ' ')) for l in label.split('; ')]
+        tmplist = [ldstr(n, v) for n, v in zip(pvl_list(), label.split('; '))]
+        tmplist = [l for l in tmplist if l!='']  # remove ones that we purposefully set to empty
         if title and args.pvks_to_plot is not None:  # if we're only plotting specific values, put them in the legend str (typically we're just plotting one value)
             assert isinstance(args.pvks_to_plot, list)  # don't really need this
             for il in range(len(tmplist)):
@@ -459,6 +471,13 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 for tau, meanval, errval in dbgvals:
                     print '     %6s  %5.2f +/- %.1f' % (tau, meanval, errval)
     # ----------------------------------------------------------------------------------------
+    def apply_val_cfgs(label, ctype, cval):
+        if all(n not in plotting.val_cfgs[ctype] for n in pvl_list()):  # if nobody's in there don't do anything
+            return cval
+        for vname, vval in zip(pvl_list(), label.split('; ')):
+            if vname in plotting.val_cfgs[ctype]:  # only looks for the first one it finds
+                return plotting.val_cfgs[ctype][vname][vval]
+    # ----------------------------------------------------------------------------------------
     def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, add_to_leg=False, alpha=0.5, estr=''):
         markersize = 15  # 1 if len(xticks) > 1 else 15
         linestyle = linestyles.get(mtmp, '-')
@@ -471,6 +490,9 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         elif imtmp is not None:  # used to us <imtmp> to directly get color, but now we want to get the same colors no matter the matplotlib version and order on the command line, so now it just indicates that we should add the metric str
             # color = plotting.frozen_pltcolors[imtmp % len(plotting.pltcolors)]
             color = metric_color(mtmp)
+        if label is not None and args.use_val_cfgs:
+            linestyle = apply_val_cfgs(label, 'linestyles', linestyle)
+            color = apply_val_cfgs(label, 'colors', color)
         if yerrs is not None:
             ax.errorbar(xticks, diffs_to_perfect, yerr=yerrs, color=color, alpha=alpha, linewidth=linewidth, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position)) #, label=legstr(label)
         else:
