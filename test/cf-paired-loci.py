@@ -194,7 +194,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd, replacefo=get_replacefo())
         if args.bcr_phylo:
             # raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
-            cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath --min-ustr-len 20 --dont-observe-common-ancestors'
+            cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath --min-ustr-len 20 --dont-observe-common-ancestors'  # NOTE don't increase the mutation rate it makes everything terminate early  --base-mutation-rate 1'  # it's nice to jack up the mutation rate so we get more mutations in less time (higher than this kills off all leaves, not sure why, altho i'm sure it's obvious if i thought about it)
             if args.overwrite:
                 cmd += ' --overwrite'
     else:

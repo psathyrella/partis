@@ -720,7 +720,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 ymax = yticks[yticks.index(in_ticks[-1]) + 1]
         else:
             if 'pcfrac-' in ptilestr:
-                title = ''
+                title = legdict.get(ptilestr, ptilestr).replace('frac. ', '')
             else:
                 title += ' %s: %s %s' % (locus, ltexts[ptntype], legdict.get(ptilestr, ptilestr))
             ymin = 0
