@@ -332,7 +332,7 @@ def simulate():
     cmdfos = []
     if args.n_procs > 1:
         print '    starting %d events' % len(naive_events)
-    uid_str_len = 6 + int(math.log(len(naive_events), 10))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
+    uid_str_len = args.min_ustr_len + int(math.log(len(naive_events), 10))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
     for ievent, outdir in enumerate(outdirs):
         if args.n_sim_events > 1 and args.n_procs == 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
@@ -452,6 +452,7 @@ parser.add_argument('--paired-loci', action='store_true')
 parser.add_argument('--single-light-locus')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
+parser.add_argument('--min-ustr-len', type=int, default=6, help='min length of hashed uid strs (longer makes collisions less likely, but it\'s hard to avoid them entirely since independent bcr-phylo procs choose the uids for each family)')
 
 args = parser.parse_args()
 

@@ -30,7 +30,7 @@ parser.add_argument('--merge-paired-partitions', action='store_true', help='for 
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
 parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
 parser.add_argument('--n-leaves-list') #'2:3:4:10') #1 5; do10)
-parser.add_argument('--n-sim-seqs-per-generation-list') #'2:3:4:10') #1 5; do10)
+parser.add_argument('--n-sim-seqs-per-generation-list')  # only for bcr-phylo
 parser.add_argument('--constant-number-of-leaves-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
@@ -41,7 +41,7 @@ parser.add_argument('--n-genes-per-region-list')
 parser.add_argument('--n-sim-alleles-per-gene-list')
 parser.add_argument('--scratch-mute-freq-list') #, type=float, default=1)
 parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
-parser.add_argument('--obs-times-list')
+parser.add_argument('--obs-times-list')  # only for bcr-phylo
 parser.add_argument('--tree-imbalance-list')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
@@ -76,7 +76,7 @@ args = parser.parse_args()
 args.scan_vars = {'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
 for act in ['cache-parameters'] + ptn_actions:
     args.scan_vars[act] = args.scan_vars['simu']
-args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']
+args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times']
 args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
 # NOTE ignoring svartypes atm, which may actually work?
 # args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-sim-events'], 'float' : ['scratch-mute-freq', 'mutation-multiplier']}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
@@ -178,7 +178,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         actstr = 'annotate'
     if args.merge_paired_partitions:
         actstr = 'merge-paired-partitions'
-    binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.bcr_phylo and action=='simulate' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
+    binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.bcr_phylo and action=='simu' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
     cmd = './bin/%s %s --paired-loci --%s-outdir %s' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action))
     if args.n_sub_procs > 1:
         cmd += ' --n-procs %d' % args.n_sub_procs
@@ -193,8 +193,8 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         for vname, vstr in zip(varnames, vstrs):
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd, replacefo=get_replacefo())
         if args.bcr_phylo:
-            raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
-            cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath'
+            # raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
+            cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath --min-ustr-len 20 --dont-observe-common-ancestors'
             if args.overwrite:
                 cmd += ' --overwrite'
     else:

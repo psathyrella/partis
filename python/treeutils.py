@@ -368,10 +368,12 @@ def get_bio_tree(treestr=None, treefname=None, schema='newick'):  # NOTE don't u
         assert False
 
 # ----------------------------------------------------------------------------------------
-def get_imbalance(tree, treetype='dendropy'):  # tree imbalance as std dev in root-to-tip branch lengths (see here https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008030#pcbi-1008030-g001)
-    depths = get_leaf_depths(tree, treetype=treetype)
+def get_imbalance(dtree, treetype='dendropy'):  # tree imbalance as std dev in root-to-tip branch lengths (see here https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008030#pcbi-1008030-g001)
+    depths = get_leaf_depths(dtree, treetype=treetype)
     imbal = numpy.std(depths.values(), ddof=1)
+    # print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
     # print ' '.join(['%.3f'%v for v in sorted(depths.values())])
+    # print 'imbal', imbal
     return imbal
 
 # ----------------------------------------------------------------------------------------

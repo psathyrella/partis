@@ -213,7 +213,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             else:
                 return strfcn(vval)
         # ----------------------------------------------------------------------------------------
-        pvnames = sorted(set(varnames) - set(['seed', xvar]))
+        pvnames = sorted(set(varnames) - set(['seed', xvar] + ([] if args.zip_vars is None else  args.zip_vars)))
         if args.legend_var is not None:  # pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
             pvnames = [args.legend_var]  # ['obs_frac']
         pvkey = '; '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
@@ -341,7 +341,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     mstr = '%d' % get_n_seqs(vlists, varnames)
                 else:
                     assert False
-                if tuple(tau) not in xleg_vals:
+                if tuple(tau) not in xleg_vals:  # TODO could average here?
                     xleg_vals[tuple(tau)] = mstr
                 else:
                     if mstr != xleg_vals[tuple(tau)]:
