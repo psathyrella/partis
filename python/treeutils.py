@@ -324,7 +324,7 @@ def cycle_through_ascii_conversion(dtree=None, treestr=None, taxon_namespace=Non
         assert False
 
 # ----------------------------------------------------------------------------------------
-def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False, suppress_internal_node_taxa=False, debug=False):  # specify either <treestr> or <treefname>
+def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False, suppress_internal_node_taxa=False, no_warn=False, debug=False):  # specify either <treestr> or <treefname>
     # <ignore_existing_internal_node_labels> is for when you want the internal nodes labeled (which we usually do, since we want to calculate selection metrics for internal nodes), but you also want to ignore the existing internal node labels (e.g. with FastTree output, where they're floats)
     # <suppress_internal_node_taxa> on the other hand is for when you don't want to have taxa for any internal nodes (e.g. when calculating the tree difference metrics, the two trees have to have the same taxon namespace, but since they in general have different internal nodes, the internal nodes can't have taxa)
     assert treestr is None or treefname is None
@@ -338,12 +338,12 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
             print '     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace])
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True, rooting='force-rooted')  # make sure the tree is rooted, to avoid nodes disappearing in remove_dummy_branches() (and proably other places as well)
-    if dtree.seed_node.edge_length > 0:
-        # this would be easy to fix, but i think it only happens from simulation trees from treegenerator
+    if dtree.seed_node.edge_length > 0 and not no_warn:
+        # this would be easy to fix, but i think it only happens from simulation trees from treegenerator UPDATE ok also happens for trees from the linearham paper
         print '  %s seed/root node has non-zero edge length (i.e. there\'s a branch above it)' % utils.color('red', 'warning')
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
 
-    # # uncomment for more verbosity:
+    # # uncomment for more verbosity: NOTE node label check will likely fail if suppress_internal_node_taxa is set
     # check_node_labels(dtree, debug=debug)  # makes sure that for all nodes, node.taxon is not None, and node.label *is* None (i.e. that label_nodes did what it was supposed to, as long as suppress_internal_node_taxa wasn't set)
     # if debug:
     #     print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
@@ -366,6 +366,13 @@ def get_bio_tree(treestr=None, treefname=None, schema='newick'):  # NOTE don't u
             return Phylo.read(treefile, schema)
     else:
         assert False
+
+# ----------------------------------------------------------------------------------------
+def get_imbalance(tree, treetype='dendropy'):  # tree imbalance as std dev in root-to-tip branch lengths (see here https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008030#pcbi-1008030-g001)
+    depths = get_leaf_depths(tree, treetype=treetype)
+    imbal = numpy.std(depths.values(), ddof=1)
+    # print ' '.join(['%.3f'%v for v in sorted(depths.values())])
+    return imbal
 
 # ----------------------------------------------------------------------------------------
 def get_leaf_depths(tree, treetype='dendropy'):  # NOTE structure of dictionary may depend on <treetype>, e.g. whether non-named nodes are included (maybe it doesn't any more? unless you return <clade_keyed_depths> at least)
@@ -446,7 +453,7 @@ def check_node_labels(dtree, debug=False):
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
     for node in dtree.preorder_node_iter():
         if node.taxon is None:
-            raise Exception('taxon is None')
+            raise Exception('taxon is None for node with depth %f' % node.distance_from_root())
         if debug:
             print '    ok: %s' % node.taxon.label
         if node.label is not None:

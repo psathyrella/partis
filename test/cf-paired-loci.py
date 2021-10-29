@@ -42,6 +42,7 @@ parser.add_argument('--n-sim-alleles-per-gene-list')
 parser.add_argument('--scratch-mute-freq-list') #, type=float, default=1)
 parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
 parser.add_argument('--obs-times-list')
+parser.add_argument('--tree-imbalance-list')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
@@ -49,6 +50,7 @@ parser.add_argument('--single-light-locus')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
 parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutatio simulation, rather than partis (i.e. TreeSim/bpp)')
+parser.add_argument('--imbalanced-trees', action='store_true', help='use imbalanced trees for simulation (from the linearham paper)')
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
@@ -71,7 +73,7 @@ parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while w
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
 for act in ['cache-parameters'] + ptn_actions:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene']
@@ -81,7 +83,7 @@ args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svar
 # and these i think we can't since we want to allow blanks, 'n-genes-per-region' 'n-sim-alleles-per-gene'
 # args.float_var_digits = 2  # ick
 
-args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots'] + ptn_actions)
+args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots', 'parse-linearham-trees'] + ptn_actions)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.zip_vars = utils.get_arg_list(args.zip_vars)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
@@ -146,6 +148,15 @@ def make_synthetic_partition(action, varnames, vstrs):
         print '    %s: wrote synthetic partition to %s' % (ltmp, ofn)
 
 # ----------------------------------------------------------------------------------------
+def get_replacefo():  # ick
+    if args.tree_imbalance_list is None:
+        return None
+    rfo = {}
+    for imb in args.tree_imbalance_list:
+        rfo[imb] = ['input-simulation-treefname', imbalfname(imb)]  # NOTE atm this has to be length 2
+    return {'tree-imbalance' : rfo}
+
+# ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
     if action == 'scoper':
         cmd = './test/scoper-run.py --indir %s --outdir %s --simdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action), odir(args, varnames, vstrs, 'simu'))
@@ -177,14 +188,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         if args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         for vname, vstr in zip(varnames, vstrs):
-            if vname in args.bool_args:  # in cf-tree-metrics this was handled for e.g. context dependence in bcr-phylo-run, but anyway this should probably be moved to scanvar stuff in utils
-                if vstr == '0':
-                    continue
-                elif vstr == '1':
-                    vstr = ''
-                else:
-                    assert False
-            cmd += ' --%s %s' % (vname, vstr)
+            cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd, replacefo=get_replacefo())
         if args.bcr_phylo:
             raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
             cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath'
@@ -211,7 +215,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
             cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
         if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots:
             cmd += ' --dont-calculate-annotations'
-        if args.make_plots:
+        if args.make_plots and action != 'cache-parameters':
             cmd += ' --plotdir paired-outdir'
             if action in ptn_actions:
                 cmd += ' --no-partition-plots' #--no-mds-plots' #
@@ -259,6 +263,35 @@ def run_scan(action):
     utils.run_scan_cmds(args, cmdfos, '%s.log'%(action if not args.merge_paired_partitions else 'merge-paired-partitions'), len(valstrs), n_already_there, ofn)
 
 # ----------------------------------------------------------------------------------------
+def imbalfname(ibval):
+    return '%s/linearham-simulation/processed-trees/imbal-%s.trees' % (args.base_outdir, ibval)
+
+# ----------------------------------------------------------------------------------------
+def parse_linearham_trees():
+    # downloaded from here https://zenodo.org/record/3746832, then cat'd together all the trees
+    # here we sort by the imbalance, then put in separated files rounded to second decimal place
+    import treeutils
+    import operator
+    ibtrees, ibvals = {}, []
+    with open('/fh/local/dralph/partis/paired-loci/linearham-simulation/simulation_trees/all.trees') as tfile:
+        for line in tfile:
+            dtr = treeutils.get_dendro_tree(treestr=line.strip(), no_warn=True) #debug=True)
+            imbal = treeutils.get_imbalance(dtr)
+            rval = '%.2f' % imbal #utils.round_to_n_digits(imbal, 1)
+            if rval not in ibtrees:
+                ibtrees[rval] = []
+            ibtrees[rval].append(dtr)
+            ibvals.append(imbal)
+    print ' '.join(['%.3f'%v for v in sorted(ibvals)])
+    utils.mkdir(imbalfname('xxx'), isfile=True)
+    print '    writing trees to %s' % os.path.dirname(imbalfname('xxx'))
+    for ibval, treelist in sorted(ibtrees.items(), key=operator.itemgetter(0)):
+        print '      %3d trees to %s' % (len(treelist), os.path.basename(imbalfname(ibval)))
+        with open(imbalfname(ibval), 'w') as ofile:
+            for dtr in treelist:
+                ofile.write(dtr.as_string(schema='newick'))
+
+# ----------------------------------------------------------------------------------------
 def plot_loci():
     if args.single_light_locus is None:
         return utils.sub_loci('ig')
@@ -290,7 +323,9 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 for action in args.actions:
-    if action in ['simu', 'cache-parameters'] + ptn_actions:
+    if action == 'parse-linearham-trees':
+        parse_linearham_trees()
+    elif action in ['simu', 'cache-parameters'] + ptn_actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots']:
         if args.dry:

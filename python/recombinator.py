@@ -854,7 +854,7 @@ class Recombinator(object):
             self.check_tree_simulation(reco_event)
 
         if self.args.debug:
-            print '  bppseqgen ran on the following tree (mean depth %.3f) in %.2fs:' % (treeutils.get_mean_leaf_height(tree=reco_event.tree), self.validation_values['bpp-times'][-1])
+            print '  bppseqgen ran on the following tree (mean depth %.3f, imbalance %.4f) in %.2fs:' % (treeutils.get_mean_leaf_height(tree=reco_event.tree), treeutils.get_imbalance(reco_event.tree), self.validation_values['bpp-times'][-1])
             print treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      ')
             utils.print_reco_event(reco_event.line, extra_str='    ')
 

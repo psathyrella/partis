@@ -503,7 +503,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             else:
                 utils.insert_in_arglist(clist, ['--locus', ltmp], args.action)
                 if args.action == 'simulate':
-                    clist += ['--choose-trees-in-order', '--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair), '--outfname', getofn(ltmp, lpair=lpair)]
+                    clist += ['--choose-trees-in-order', '--outfname', getofn(ltmp, lpair=lpair)]
+                    if args.input_simulation_treefname is None:
+                        clist += ['--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair)]
                     if args.paired_correlation_values is not None and not utils.has_d_gene(ltmp):
                         clist += ['--heavy-chain-event-fname', getofn('igh', lpair=lpair)]
                     utils.replace_in_arglist(clist, '--n-sim-events', str(get_n_events(lpair[1], args.n_sim_events)), insert_after='--choose-trees-in-order')
@@ -1025,7 +1027,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '%s: simulating %d event%s' % (utils.color('blue', '+'.join(lpair)), get_n_events(l_locus, args.n_sim_events), utils.plural(get_n_events(l_locus, args.n_sim_events)))
             if get_n_events(l_locus, args.n_sim_events) == 0:
                 continue
-            run_step('generate-trees', h_locus, lpair=lpair)
+            if args.input_simulation_treefname is None:
+                run_step('generate-trees', h_locus, lpair=lpair)
+            else:
+                print '    %s drawing input simulation trees from --input-simulation-treefname *in order* for both heavy and light (rather than randomly, as for single chain)' % utils.color('yellow', 'warning')
             for ltmp in lpair:
                 run_step(args.action, ltmp, lpair=lpair)
         if not args.dry_run:
@@ -1223,7 +1228,7 @@ parent_args.append({'name' : '--plot-and-fit-absolutely-everything', 'kwargs' : 
 parent_args.append({'name' : '--cluster-indices', 'kwargs' : {'help' : 'indices of clusters (when sorted largest to smallest) to process for actions that read existing output, e.g. \'view-output\' and \'get-selection-metrics\'. Specified as a colon-separated list, where each item can be either a single integer or a python slice-style range of integers, e.g. 0:3-6:50 --> 0:3:4:5:50'}})
 parent_args.append({'name' : '--partition-index-to-print', 'kwargs' : {'type' : int, 'help' : 'like --cluster-indices, but restricts to the partition with this index (rather than default of printing best partition).'}})
 parent_args.append({'name' : '--min-selection-metric-cluster-size', 'kwargs' : {'type' : int, 'default' : treeutils.default_min_selection_metric_cluster_size, 'help' : 'don\'t calculate selection metrics for clusters smaller than this'}})
-parent_args.append({'name' : '--treefname', 'kwargs' : {'help' : 'newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-selection-metrics).'}})
+parent_args.append({'name' : '--treefname', 'kwargs' : {'help' : 'newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-selection-metrics) (unrelated to --input-simulation-treefname).'}})
 parent_args.append({'name' : '--ignore-internal-node-names', 'kwargs' : {'action' : 'store_true', 'help' : 'When --treefname is set, you may need to set this in order to prevent dendropy from crashing on duplicate or disallowed internal node names (see dendropy docs).'}})
 parent_args.append({'name' : '--selection-metrics-to-calculate', 'kwargs' : {'default' : 'lbi:lbr:aa-lbi:aa-lbr:cons-dist-aa', 'help' : 'colon-separated list of selection metrics to calculate.'}})
 parent_args.append({'name' : '--selection-metric-fname', 'kwargs' : {'help' : 'yaml file to which to write selection metrics. If not set, and if --add-metrics-to-outfname is not set, this defaults to <--outfname>.replace(<suffix>, \'-selection-metrics\' + <suffix>)'}})

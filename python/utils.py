@@ -239,6 +239,19 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, bo
     return arglist
 
 # ----------------------------------------------------------------------------------------
+def add_to_scan_cmd(args, vname, vstr, cmd, replacefo=None):
+    if hasattr(args, 'bool_args') and vname in args.bool_args:  # in cf-tree-metrics this was handled for e.g. context dependence in bcr-phylo-run
+        if vstr == '0':
+            return cmd
+        elif vstr == '1':
+            vstr = ''  # adds extra space, darn it
+        else:
+            assert False
+    if replacefo is not None and vname in replacefo:
+        vname, vstr = replacefo[vname][vstr]
+    return cmd + ' --%s %s' % (vname, vstr)
+
+# ----------------------------------------------------------------------------------------
 def svoutdir(args, varnames, valstrs, svtype):
     assert len(varnames) == len(valstrs)
     outdir = [args.base_outdir, args.label]
