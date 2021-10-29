@@ -341,11 +341,11 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     mstr = '%d' % get_n_seqs(vlists, varnames)
                 else:
                     assert False
-                if mstr not in xleg_vals:
-                    xleg_vals[tau] = mstr
+                if tuple(tau) not in xleg_vals:
+                    xleg_vals[tuple(tau)] = mstr
                 else:
-                    if mstr != xleg_vals[tau]:
-                        print '  %s different values for derived var %s: %s vs %s' % (utils.color('yellow', 'warning'), args.x_legend_var, mstr, xleg_vals[tau])
+                    if mstr != xleg_vals[tuple(tau)]:
+                        print '  %s different values for derived var %s: %s vs %s' % (utils.color('yellow', 'warning'), args.x_legend_var, mstr, xleg_vals[tuple(tau)])
         # ----------------------------------------------------------------------------------------
         def get_iclusts(yamlfo, yfname):
             assert per_x is not None  # just to make clear we don't get here for paired
@@ -533,7 +533,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         l_xvar = xvar
         if args.x_legend_var is not None:
             if action == 'plot':  # if combining plots, we're reading files in which the conversion already happened before writing
-                xvals = [xleg_vals[x] for x in xvals]
+                xvals = [xleg_vals[tuple(x)] for x in xvals]
             l_xvar = args.x_legend_var
         xlabel = legdict.get(l_xvar, l_xvar.replace('-', ' '))
         if l_xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
@@ -622,7 +622,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             # assert xvals == tuple(sorted(xvals))  # this definitely can happen, but maybe not atm? and maybe not a big deal if it does. So maybe should remove this
             yerrs = zip(*errvals[pvkey])[1] if pvkey in errvals else None  # each is pairs tau, err
             if args.x_legend_var is not None:
-                xvals = [xleg_vals[x] for x in xvals]
+                xvals = [xleg_vals[tuple(x)] for x in xvals]
             plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
         with open(get_outfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
