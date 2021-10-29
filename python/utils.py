@@ -248,6 +248,8 @@ def add_to_scan_cmd(args, vname, vstr, cmd, replacefo=None):
         else:
             assert False
     if replacefo is not None and vname in replacefo:
+        if replacefo[vname][vstr] is None:
+            return cmd
         vname, vstr = replacefo[vname][vstr]
     return cmd + ' --%s %s' % (vname, vstr)
 

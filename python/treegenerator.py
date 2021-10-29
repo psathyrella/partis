@@ -38,9 +38,11 @@ class TreeGenerator(object):
 
     #----------------------------------------------------------------------------------------
     def get_mute_hist(self, mtype):
+        # this is the distribution of sequence shm within families x distribution of family means (at least when inferred from data), but we only actually *use* this to choose the mean for each family (since our leaves are all ~same depth because of TreeSim limitations)
+        # see note in choose_full_sequence_branch_length()
         if self.args.mutate_from_scratch:
             mean_mute_val = self.args.scratch_mute_freq
-            if self.args.same_mute_freq_for_all_seqs:
+            if self.args.same_mute_freq_for_all_seqs:  # would maybe be better to call it same_mute_freq_for_all_families_and_seqs
                 hist = Hist(1, mean_mute_val - utils.eps, mean_mute_val + utils.eps)
                 hist.fill(mean_mute_val)
             else:
@@ -111,10 +113,10 @@ class TreeGenerator(object):
 
     #----------------------------------------------------------------------------------------
     def choose_full_sequence_branch_length(self):
-        # NOTE this chooses the age of the tree from the distribution of *sequence* ages, which is wrong, but maybe an ok compromise
-        # The root of the problem is that there's two shm distributions (of seqs within families, and of family means) but only have good options to control the second.
-        # Distribution of seq shm within each family is controlled by the tree shape (and for our treesim trees, is [almost?] just a delta fcn/ultrametric), whereas distribution of family means is controlled by all our actual simulation options
-        # So choosing the family mean from the distribution of sequence shms (as here) to make up for the within-family variation being too small [almost zero?] does a good job of recapitulating the shm distribution of all seqs over all families togther (of course, since this is the distribution we've spent a ton of time checking)
+        # NOTE this chooses the age of the *tree* from the distribution of *sequence* ages, which is wrong, but maybe an ok compromise.
+        # The root of the problem is that there's two shm distributions (of seqs within families, and of family means), but we only have good options to control the second.
+        # Distribution of seq shm within each family is controlled by the tree shape (and for our treesim trees, is [almost?] just a delta fcn/ultrametric), whereas distribution of family means is controlled by all our actual simulation options.
+        # So choosing the family mean from the distribution of sequence shms (as here) to make up for the within-family variation being too small [almost zero?] does a good job of recapitulating the shm distribution of all seqs over all families togther (of course, since this is the distribution we've spent a ton of time checking).
         iprob = numpy.random.uniform(0,1)
         sum_prob = 0.0
         for ibin in range(len(self.branch_lengths['all']['lengths'])):

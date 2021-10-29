@@ -50,7 +50,6 @@ parser.add_argument('--single-light-locus')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
 parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutatio simulation, rather than partis (i.e. TreeSim/bpp)')
-parser.add_argument('--imbalanced-trees', action='store_true', help='use imbalanced trees for simulation (from the linearham paper)')
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
@@ -153,7 +152,10 @@ def get_replacefo():  # ick
         return None
     rfo = {}
     for imb in args.tree_imbalance_list:
-        rfo[imb] = ['input-simulation-treefname', imbalfname(imb)]  # NOTE atm this has to be length 2
+        if imb in ['None', None]:  # use None to leave default/not set
+            rfo[imb] = None
+        else:
+            rfo[imb] = ['input-simulation-treefname', imbalfname(imb)]  # NOTE atm this has to be length 2
     return {'tree-imbalance' : rfo}
 
 # ----------------------------------------------------------------------------------------
