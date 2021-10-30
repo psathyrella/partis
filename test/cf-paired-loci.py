@@ -349,7 +349,7 @@ for action in args.actions:
                                 continue
                             if pmetr == 'naive-hdist' and ptntype != 'single':  # only do annotation performance for single chain (at least for now)
                                 continue
-                            if pmetr == 'time-reqd' and ptntype == 'joint' and is_single_chain(method):
+                            if pmetr == 'time-reqd' and (ptntype == 'joint' and (is_single_chain(method) or method=='vsearch-partition')):
                                 continue
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
                             arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype, pmetr), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}
