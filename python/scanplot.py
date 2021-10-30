@@ -718,6 +718,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 ymin = yticks[yticks.index(in_ticks[0]) - 1]  # don't think there's any reason to add it to in_ticks
             if ymax > in_ticks[-1]:  # same for max
                 ymax = yticks[yticks.index(in_ticks[-1]) + 1]
+            if ptntype == 'joint':
+                xlabel = xlabel.replace('N seqs', 'N seq pairs')
         else:
             if 'pcfrac-' in ptilestr:
                 title = legdict.get(ptilestr, ptilestr).replace('frac. ', '')
