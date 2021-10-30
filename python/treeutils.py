@@ -2298,7 +2298,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return 100 * sumv(mpfo, 'n_mutations') / float(total_len)
     # ----------------------------------------------------------------------------------------
     def read_cfgfo():
-        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'cell-type-key', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids', 'meta-info-print-keys'])
+        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'cell-type-key', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids', 'meta-info-print-keys', 'include_previously_chosen'])
         if debug:
             print '  ab choice cfg:'
             outstr, _ = utils.simplerun('cat %s'%args.ab_choice_cfg, return_out_err=True)
@@ -2368,10 +2368,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def mfseqs(mfo):
         return tuple(getseq(mfo, c, aa=True) for c in 'hl')
     # ----------------------------------------------------------------------------------------
-    def in_chosen_seqs(all_chosen_seqs, mfo):
+    def in_chosen_seqs(all_chosen_seqs, mfo):  # NOTE all_chosen_seqs includes previously chosen ones
         return mfseqs(mfo) in all_chosen_seqs
     # ----------------------------------------------------------------------------------------
-    def too_close_to_chosen_seqs(all_chosen_seqs, mfo, hdist, ttdbg=False):
+    def too_close_to_chosen_seqs(all_chosen_seqs, mfo, hdist, ttdbg=False):  # NOTE all_chosen_seqs includes previously chosen ones
         if len(all_chosen_seqs) == 0:
             return False
         if ttdbg:
@@ -2452,19 +2452,20 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # run through a bunch of options for skipping seqs/families
         if iclust >= cfgfo['n-families']:
             return []
-        chosen_mfos = []  # includes unobs cons seqs plus seqs chosen from all sortvars
+        chosen_mfos = []  # includes unobs cons + naive seqs plus seqs chosen from all sortvars
         if finished():  # return if we weren't supposed to get any from this family
             return chosen_mfos
         if tdbg:
             print '    iclust %d: choosing abs from joint cluster with size %d (marked with %s)' % (iclust, len(metric_pairs), utils.color('green', 'x'))
 
-        all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen
+        all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen (note that this includes previously-chosen ones)
 
         if any('chosens' in mfo[c] for mfo in metric_pairs for c in 'hl'):  # add any previously-chosen seqs
             for mfo in metric_pairs:
                 if any('chosens' in mfo[c] and gsval(mfo, c, 'chosens') for c in 'hl'):
                     assert [gsval(mfo, c, 'chosens') for c in 'hl'].count(True) == 2  # can't choose only one of a pair of abs
-                    chosen_mfos.append(mfo)
+                    if cfgfo.get('include_previously_chosen'):
+                        chosen_mfos.append(mfo)
                     all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                     if tdbg:
                         print '        adding previously-chosen ab: %s' % ' '.join(gsval(mfo, c, 'unique_ids') for c in 'hl')
@@ -2625,7 +2626,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 for ofo in outfos:
                     writer.writerow(ofo)
     # ----------------------------------------------------------------------------------------
-    def print_dbg(metric_pairs, print_nuc_seqs=True):
+    def print_dbg(metric_pairs, iclust_mfos, print_nuc_seqs=True):
         # ----------------------------------------------------------------------------------------
         def init_xtras():
             xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c_gene', ''])]
@@ -2814,7 +2815,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if debug:
                 print '      chose %d total' % len(iclust_mfos)
         if debug:
-            print_dbg(metric_pairs)
+            print_dbg(metric_pairs, iclust_mfos)
         if n_too_small > 0:
             print '    skipped %d clusters smaller than %d' % (n_too_small, min_cluster_size)
         if plotdir is not None:
