@@ -1,5 +1,6 @@
 n-families: 2
 include-unobs-cons-seqs: True
+# include-unobs-naive-seqs: [False, True]  # both this and the -cons- one can either be a single bool (applied to all families) or a list of length equal to n-families
 vars:
   # sort each family by the indicated variable, with direction <sort>, then take the top <n> seqs that haven't already been taken and that pass all other criteria
   aa-cfrac: {sort: low, n: [5, 3]}  # specity either 'n:' here *or* 'n-per-family:' below

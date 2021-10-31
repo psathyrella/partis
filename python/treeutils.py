@@ -2269,7 +2269,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
         if vname in cln:
             # assert vname in utils.linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
-            return cln[vname][iseq]
+            if vname in utils.linekeys['per_family']:
+                return cln[vname]
+            else:
+                return cln[vname][iseq]
         # elif vname == 'cell-types':
         #     assert False  # i think i don't get here?
         #     return None
@@ -2298,7 +2301,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return 100 * sumv(mpfo, 'n_mutations') / float(total_len)
     # ----------------------------------------------------------------------------------------
     def read_cfgfo():
-        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'vars', 'cell-types', 'cell-type-key', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids', 'meta-info-print-keys', 'include_previously_chosen'])
+        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'include-unobs-naive-seqs', 'vars', 'cell-types', 'cell-type-key', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids', 'meta-info-print-keys', 'include_previously_chosen'])
         if debug:
             print '  ab choice cfg:'
             outstr, _ = utils.simplerun('cat %s'%args.ab_choice_cfg, return_out_err=True)
@@ -2310,13 +2313,30 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         for sortvar, vcfg in cfgfo['vars'].items():
             if vcfg['sort'] not in ['low', 'high']:
                 raise Exception('value of sort var \'%s\' must be \'low\' or \'high\' (got \'%s\')' %(sortvar, vcfg['sort']))
+            if 'n' in vcfg and len(vcfg['n']) != cfgfo['n-families']:
+                raise Exception('length of n per family list %d for sort var %s doesn\'t match n-families %d' % (len(vcfg['n']), sortvar, cfgfo['n-families']))
         if 'n-per-family' in cfgfo and any('n' in vcfg for vcfg in cfgfo['vars'].values()):
             raise Exception('\'n-per-family\' was set, but also found key \'n\' in sort var[s] \'%s\' (can only specify number to take in one place)' % (' '.join(v for v, vcfg in cfgfo['vars'].items())))
+        for stype in ['cons', 'naive']:
+            tkey = 'include-unobs-%s-seqs'%stype
+            if tkey not in cfgfo:
+                cfgfo[tkey] = [False for _ in range(cfgfo['n-families'])]
+            else:
+                if cfgfo[tkey] in [True, False]:  # if it's a single value, expand it to the right length
+                    cfgfo[tkey] = [cfgfo[tkey] for _ in range(cfgfo['n-families'])]
+                else:
+                    if len(cfgfo[tkey]) != cfgfo['n-families']:
+                        raise Exception('length of value for %s %d not equal to n-families %d' % (tkey, len(cfgfo[tkey]), cfgfo['n-families']))
+                    if any(v not in [True, False] for v in cfgfo[tkey]):
+                        raise Exception('values for %s must be bools but got: %s' % (tkey, ' '.join(str(v) for v in set(cfgfo[tkey]))))
         return cfgfo
     # ----------------------------------------------------------------------------------------
-    def get_cons_mfo(metric_pairs, tdbg=False):
+    def get_unobs_mfo(stype, metric_pairs, tdbg=False):
+        assert stype in ['cons', 'naive']  # should be checked elsewhere, but not sure if it is
         # ----------------------------------------------------------------------------------------
         def use_iseqs(tch, mtmp, threshold=0.75):  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
+            if stype == 'naive':  # inferred naive should never have indels in it
+                return False
             hsil = mtmp[tch]['has_shm_indels']
             tstr = '(%d / %d = %.2f)' % (hsil.count(True), len(hsil), hsil.count(True) / float(len(hsil)))
             if hsil.count(True) / float(len(hsil)) > threshold:
@@ -2328,23 +2348,33 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 return False
         # ----------------------------------------------------------------------------------------
         def getcseqs(tch, use_input_seqs, aa=False, aa_ref_seq=None):
-            return utils.cons_seq_of_line(mtmp[tch], aa=aa, use_input_seqs=use_input_seqs, codon_len=1 if aa else 3, aa_ref_seq=aa_ref_seq)  # if we're not using input seqs and it's aa (so codon_len is 1) then it *should* be the same as the one that's already in the line
+            if stype == 'cons':
+                return utils.cons_seq_of_line(mtmp[tch], aa=aa, use_input_seqs=use_input_seqs, codon_len=1 if aa else 3, aa_ref_seq=aa_ref_seq)  # if we're not using input seqs and it's aa (so codon_len is 1) then it *should* be the same as the one that's already in the line
+            else:
+                return gsval(mtmp, tch, 'naive_seq'+('_aa' if aa else ''))
+        # ----------------------------------------------------------------------------------------
+        def tcsk(c, aastr):  # shortand for within this fcn
+            return cskey(c, consfo, aastr=='aa')
         # ----------------------------------------------------------------------------------------
         mtmp = metric_pairs[0]
         uis = {c : use_iseqs(c, mtmp) for c in 'hl'}  # if any observed seqs in the family have shm indels, we need to figure out whether the indel should be included in the cons seq
 
         consfo = {c : mtmp[c] for c in 'hl'}
-        consfo.update({'iclust' : iclust, 'seqtype' : 'consensus'})
+        consfo.update({'iclust' : iclust, 'seqtype' : stype})
         consfo.update({c+'_use_input_seqs' : uis[c] for c in 'hl'})
-        consfo.update({c+'_cseq_aa' : getcseqs(c, uis[c], aa=True) for c in 'hl'})
-        consfo.update({c+'_cseq_nuc' : getcseqs(c, uis[c], aa=False, aa_ref_seq=consfo[c+'_cseq_aa']) for c in 'hl'})
+        consfo.update({tcsk(c, 'aa') : getcseqs(c, uis[c], aa=True) for c in 'hl'})
+        consfo.update({tcsk(c, 'nuc') : getcseqs(c, uis[c], aa=False, aa_ref_seq=consfo[tcsk(c, 'aa')]) for c in 'hl'})
 
-        if any(utils.ltranslate(consfo[c+'_cseq_nuc']) != consfo[c+'_cseq_aa'] for c in 'hl'):
-            print '  %s nuc cons seq translation differs from aa cons seq:' % utils.color('yellow', 'warning')
-            print '              aa cons: %s %s' % tuple([consfo[c+'_cseq_aa'] for c in 'hl'])
-            print '      nuc cons trans.: %s %s' % tuple([utils.color_mutants(consfo[c+'_cseq_aa'], utils.ltranslate(consfo[c+'_cseq_nuc']), amino_acid=True) for c in 'hl'])
+        if any(utils.ltranslate(consfo[tcsk(c, 'nuc')]) != consfo[tcsk(c, 'aa')] for c in 'hl'):
+            print '  %s nuc %s seq translation differs from aa %s seq:' % (utils.color('yellow', 'warning'), stype, stype)
+            print '              aa: %s %s' % tuple([consfo[tcsk(c, 'aa')] for c in 'hl'])
+            print '      nuc trans.: %s %s' % tuple([utils.color_mutants(consfo[tcsk(c, 'aa')], utils.ltranslate(consfo[tcsk(c, 'nuc')]), amino_acid=True) for c in 'hl'])
 
         return consfo
+    # ----------------------------------------------------------------------------------------
+    def cskey(c, m, aa=False):
+        assert m['seqtype'] != 'observed'
+        return '%s_%sseq_%s' % (c, m['seqtype'][0], 'aa' if aa else 'nuc')
     # ----------------------------------------------------------------------------------------
     def ctkey():
         return cfgfo.get('cell-type-key', 'cell-types')  # allows multiple versions of cell type to be in annotation
@@ -2353,10 +2383,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if mfo['seqtype'] == 'observed':
             return gsval(mfo, tch, 'input_seqs'+('_aa' if aa else ''))
         else:
-            if mfo['seqtype'] == 'consensus':
-                return mfo[tch+'_cseq_'+('aa' if aa else 'nuc')]
-            else:
-                assert False
+            return mfo[cskey(tch, mfo, aa=aa)]
     # ----------------------------------------------------------------------------------------
     def nambig(mfo, tch, antn=None):
         if mfo['seqtype'] != 'observed':
@@ -2379,41 +2406,42 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '        %d %d %s' % (h_min, l_min, utils.color('red', 'x') if sum([h_min, l_min]) < hdist else '')
         return any(sum(local_hdist_aa(cseq, mseq) for mseq, cseq in zip(mfseqs(mfo), acseqs)) < hdist for acseqs in all_chosen_seqs)
     # ----------------------------------------------------------------------------------------
-    def add_unobs_cseqs(metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=False):
-        # get the consfo: first see if we observed the cons seq (i.e. if there's any observed seqs with zero cdist)
-        zero_cdist_mfos = [m for m in metric_pairs if sumv(m, 'aa-cfrac')==0]
+    def add_unobs_seq(stype, metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=False):
+        # get the consfo: first see if we observed the cons/naive seq (i.e. if there's any observed seqs with zero cdist)
+        def kfcn(m): return sumv(m, 'aa-cfrac')==0 if stype=='cons' else sumv(m, 'n_mutations')==0  # NOTE cons is by aa, but naive is by nuc (since the naive nuc seq is actually really meaningful, and i don't want to have an additional kinda-sorta inferred naive seq floating around)
+        obs_mfos = [m for m in metric_pairs if kfcn(m)]
         if 'max-ambig-positions' in cfgfo:
-            zero_cdist_mfos = [m for m in zero_cdist_mfos if sum(nambig(m, c) for c in 'hl') <= cfgfo['max-ambig-positions']]
-        if len(zero_cdist_mfos) > 0:  # if we observed the cons seq, use [one of] the observed ones
-            zero_cdist_mfos = sorted(zero_cdist_mfos, key=lambda m: sumv(m, 'seq_mtps'), reverse=True)  # sort by mtpy
-            consfo = zero_cdist_mfos[0]  # choose the first one
+            obs_mfos = [m for m in obs_mfos if sum(nambig(m, c) for c in 'hl') <= cfgfo['max-ambig-positions']]
+        if len(obs_mfos) > 0:  # if we observed the cons seq, use [one of] the observed ones
+            obs_mfos = sorted(obs_mfos, key=lambda m: sumv(m, 'seq_mtps'), reverse=True)  # sort by mtpy
+            consfo = obs_mfos[0]  # choose the first one
         else:  # if we didn't observe it (with some criteria),  make consfo from scratch
-            print '            cons seq not observed'
-            consfo = get_cons_mfo(metric_pairs)
+            print '            %s seq not observed' % stype
+            consfo = get_unobs_mfo(stype, metric_pairs)
             n_ambig_bases = sum(nambig(consfo, c, antn=metric_pairs[0][c]) for c in 'hl')
             if 'max-ambig-positions' in cfgfo and n_ambig_bases > cfgfo['max-ambig-positions']:
-                print '          cons seq: too many ambiguous bases in h+l (%d > %d)' % (n_ambig_bases, cfgfo['max-ambig-positions'])
+                print '          %s seq: too many ambiguous bases in h+l (%d > %d)' % (stype, n_ambig_bases, cfgfo['max-ambig-positions'])
                 return
 
         # apply some more criteria
         if in_chosen_seqs(all_chosen_seqs, consfo):
-            print '          cons seq: seq identical to previously-chosen seq'
+            print '          %s seq: seq identical to previously-chosen seq' % stype
             return
         if 'min-hdist-to-already-chosen' in cfgfo and too_close_to_chosen_seqs(all_chosen_seqs, consfo, cfgfo['min-hdist-to-already-chosen']):
-            print '          cons seq: too close to previously-chosen seq'
+            print '          %s seq: too close to previously-chosen seq' % stype
             return
 
         # add to chosen info
         chosen_mfos.append(consfo)
-        all_chosen_seqs.add(tuple(getseq(consfo, c, aa=True) for c in 'hl'))  # consfo[c+'_cseq_aa'] for c in 'hl'))
+        all_chosen_seqs.add(tuple(getseq(consfo, c, aa=True) for c in 'hl'))
         if tdbg:
             indelstr = ''
             if any(consfo.get(c+'_use_input_seqs', False) for c in 'hl'):
                 indelstr = ' (using %s input seq[s] becuase of indels)' % ' '.join(c for c in 'hl' if consfo[c+'_use_input_seqs'])
             zdstr = ''
-            if len(zero_cdist_mfos) > 0:
+            if len(obs_mfos) > 0:
                 zdstr = ' (using observed seqs with aa-cdist zero %s)' % ' '.join(gsval(consfo, c, 'unique_ids') for c in 'hl')
-            print '        %s: added cons seq%s%s' % (utils.color('green', 'x'), indelstr, zdstr)
+            print '        %s: added %s seq%s%s' % (utils.color('green', 'x'), stype, indelstr, zdstr)
     # ----------------------------------------------------------------------------------------
     def local_hdist_aa(s1, s2, defval=None, frac=False):  # ick, this is ugly, but I think makes sense for now
         if len(s1) == len(s2):
@@ -2516,9 +2544,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if finished():
             return chosen_mfos
 
-        # maybe add the unobserved cons seq
-        if 'include-unobs-cons-seqs' in cfgfo and cfgfo['include-unobs-cons-seqs']:
-            add_unobs_cseqs(metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=tdbg)  # well, doesn't necessarily add it, but at least checks to see if we should
+        # maybe add the unobserved cons/naive seqs
+        for stype in ['cons', 'naive']:
+            if cfgfo['include-unobs-%s-seqs'%stype][iclust]:
+                add_unobs_seq(stype, metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=tdbg)  # well, doesn't necessarily add it, but at least checks to see if we should
         if finished():
             return chosen_mfos
 
@@ -2583,11 +2612,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 for kn in ['aa-cfrac', 'shm-aa', 'aa-cdist']:
                     ofo.update([('sum_'+kn, sumv(mfo, kn))])
             else:
-                if mfo['seqtype'] == 'consensus':
-                    def consid(mfo, c): return '%s-cons-%d-%s' % (utils.uidhashstr(mfo[c]['consensus_seq_aa'])[:hash_len], mfo['iclust'], mfo[c]['loci'][0])  # NOTE would be nice to use subj here, but i don't have it added to input meta info (yet)
-                    ofo.update([(c+'_id', consid(mfo, c)) for c in 'hl'])
-                else:
-                    assert False
+                def gid(mfo, c):
+                    hstr = utils.uidhashstr(getseq(mfo, c, aa=True))[:hash_len]
+                    return '%s-%s-%d-%s' % (hstr, mfo['seqtype'], mfo['iclust'], mfo[c]['loci'][0])  # NOTE would be nice to use subj here, but i don't have it added to input meta info (yet)
+                ofo.update([(c+'_id', gid(mfo, c)) for c in 'hl'])
             ofo.update([(c+'_family_size', len(mfo[c]['unique_ids'])) for c in 'hl'])
             ofo.update([(c+'_'+r+'_gene' , mfo[c][r+'_gene']) for r in utils.regions for c in 'hl'])
             ofo.update([(c+'_locus', mfo[c]['loci'][0]) for r in utils.regions for c in 'hl'])
@@ -2598,13 +2626,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 for ok, lk in okeys:
                     ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]))) for c in 'hl'])
             else:
-                if mfo['seqtype'] == 'consensus':
-                    for tch in 'hl':
-                        ofo[tch+'_seq_aa'] = mfo[tch+'_cseq_aa']
-                        ofo[tch+'_seq_nuc'] = mfo[tch+'_cseq_nuc']
-                        ofo[tch+'_has_shm_indels'] = mfo[tch+'_use_input_seqs']
-                else:
-                    assert False
+                for tch in 'hl':
+                    ofo[tch+'_seq_aa'] = getseq(mfo, tch, aa=True)
+                    ofo[tch+'_seq_nuc'] = getseq(mfo, tch, aa=False)
+                    ofo[tch+'_has_shm_indels'] = mfo[tch+'_use_input_seqs']
             if mfo['seqtype'] == 'observed':  # check that the aa seqs are actually translations of the nuc seqs (for unobs cons seqs, we expect them to differ) NOTE i don't know if this is really worthwhile long term, but it makes me feel warm and fuzzy atm that it's here
                 for tch in 'hl':
                     if utils.ltranslate(ofo[tch+'_seq_nuc']) != ofo[tch+'_seq_aa']:
@@ -2705,10 +2730,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         gstrs = ['%s %s' % (utils.color_gene(h_atn[r+'_gene']), utils.color_gene(l_atn[r+'_gene']) if r!='d' else '') for r in utils.regions]
         gstr_len = max(utils.len_excluding_colors(s) for s in gstrs)  # don't really need this as long as it's the last column
         gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
-        if any(m['seqtype']=='consensus' for m in iclust_mfos):  # if the unobserved consensus was added for this cluster, we need to use the cons seq from cons_mfo for either of h/l that had enough shm indels that we used input seqs to calculate the cons seq (i.e. for which h/l_use_input_seqs was set)
-            cons_mfo = utils.get_single_entry([m for m in iclust_mfos if m['seqtype']=='consensus'])
+        if any(m['seqtype']=='cons' for m in iclust_mfos):  # if the unobserved consensus was added for this cluster, we need to use the cons seq from cons_mfo for either of h/l that had enough shm indels that we used input seqs to calculate the cons seq (i.e. for which h/l_use_input_seqs was set)
+            cons_mfo = utils.get_single_entry([m for m in iclust_mfos if m['seqtype']=='cons'])
         else:
-            cons_mfo = get_cons_mfo(metric_pairs)  # if we didn't choose a cons seq, we need to get the cons seqs/info (since both aa and nuc "chosen" cons seqs can differ from the one in the annotation: both if there's lots of shm indels, and the nuc because of codon_len=3
+            cons_mfo = get_unobs_mfo('cons', metric_pairs)  # if we didn't choose a cons seq, we need to get the cons seqs/info (since both aa and nuc "chosen" cons seqs can differ from the one in the annotation: both if there's lots of shm indels, and the nuc because of codon_len=3
         print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s       N     %%shm   N aa mutations     sizes            %s %s %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), cstr('h', aa=True), cstr('l', aa=True), cstr('h'), cstr('l'))
         print ('             sum   h    l       h   l                           h  l   h l  %s  sum  h   l   nuc   cons.     obs.   both   h   l        %s %s %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), nstr('h', aa=True), nstr('l', aa=True), nstr('h'), nstr('l'))
         sorted_mfos = sorted(metric_pairs, key=lambda m: sumv(m, 'seq_mtps'), reverse=True)  # sort by sum of h and l sequence multiplicities
@@ -2790,6 +2815,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
         for ltmp in (h_atn, l_atn):
             utils.add_seqs_aa(ltmp)
+            utils.add_naive_seq_aa(ltmp)
         metric_pairs = []
         for hid, pids in zip(h_atn['unique_ids'], h_atn['paired-uids']):
             if pids is None or len(pids) == 0:  # should only have the latter now (set with .get() call in rewrite_input_metafo())
