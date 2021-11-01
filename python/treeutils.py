@@ -474,6 +474,9 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
     initial_names = set([t.label for t in tns])  # should all be leaf nodes, except the naive sequence (at least for now)
     if debug:
         print '           initial taxon labels: %s' % ' '.join(sorted(initial_names))
+        no_taxon_nodes = [n for n in dendro_tree.preorder_node_iter() if n.taxon is None]
+        if len(no_taxon_nodes) > 0:
+            print '               %d node%s with no taxa and depths: %s' % (len(no_taxon_nodes), utils.plural(len(no_taxon_nodes)), ' '.join('%.4f'%n.distance_from_root() for n in no_taxon_nodes))
     potential_names, used_names = None, None
     new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=initial_length, shuffle=True)
     skipped_dbg, relabeled_dbg = [], []
