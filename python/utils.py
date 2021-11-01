@@ -1439,8 +1439,17 @@ def convert_airr_line(aline, glfo):
     pline['duplicates'] = [[]]
 
     for rgn in regions:
+        # igblast stuff NOTE still doesn't work -- the not calling d genes is just too messed up
+        if ',' in pline[rgn+'_gene']:  # wtf they just put multiple genes, separated by commas
+            pline[rgn+'_gene'] = pline[rgn+'_gene'].split(',')[0]
+        if rgn == 'd' and aline[rgn+'_germline_start'] == '':  # igblast leaves this blank sometimes
+            aline[rgn+'_germline_start'] = int(aline['v_germline_end']) + 1
+            aline[rgn+'_germline_end'] = int(aline['j_germline_start']) - 1
+        if rgn == 'd' and pline[rgn+'_gene'] == '':
+            pline[rgn+'_gene'] = list(glfo['seqs'][rgn].keys())[0]
+
         pline[rgn+'_5p_del'] = int(aline[rgn+'_germline_start']) - 1
-        pline[rgn+'_3p_del'] = len(gseq(glfo,pline[rgn+'_gene'])) - int(aline[rgn+'_germline_end'])
+        pline[rgn+'_3p_del'] = len(gseq(glfo, pline[rgn+'_gene'])) - int(aline[rgn+'_germline_end'])
         cigars = indelutils.split_cigarstrs(aline[rgn+'_cigar'])
         if rgn == 'v':
             ctype, clen = cigars[0]
@@ -1492,11 +1501,16 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None):
     with open(fname) as afile:
         reader = csv.DictReader(afile, delimiter='\t')
         for aline in reader:
-            clone_ids[aline['sequence_id']] = aline['clone_id']
+            if 'clone_id' in reader.fieldnames:
+                # print '  note: no clone ids in airr file %s' % fname
+                clone_ids[aline['sequence_id']] = aline['clone_id']
             if 'sequence' not in aline:
                 continue
             plines.append(convert_airr_line(aline, glfo))
-    partition = group_seqs_by_value(clone_ids.keys(), lambda q: clone_ids[q])
+    if len(clone_ids) > 0:
+        partition = group_seqs_by_value(clone_ids.keys(), lambda q: clone_ids[q])
+    else:
+        partition = [[l['unique_ids'][0]] for l in plines]
     if len(plines) > 0:
         sorted_ids = [l['unique_ids'][0] for l in plines]
         partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster

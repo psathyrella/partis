@@ -56,6 +56,7 @@ parser.add_argument('--seed-unique-id', help='if set, take sequences only from t
 parser.add_argument('--cluster-index', type=int, help='if set, take sequences only from the cluster at this index in the partition, rather than the default of taking all sequences from all clusters. This index is with respect to the cluster order found in the file (which, in contrast to plots made by --plotdir, is *not* sorted by size)')
 parser.add_argument('--indel-reversed-seqs', action='store_true', help='if set, take sequences that have had any shm indels "reversed" (i.e. insertions are reversed, and deletions are replaced with the germline bases) rather than the default of using sequences from the original input file. Indel-reversed sequences can be convenient because they are by definition the same length as and aligned to the naive sequence.')
 parser.add_argument('--glfo-dir', help='Directory with germline info. Only necessary for old-style csv output files. Equivalent to a parameter dir with \'/hmm/germline-sets\' appended.')
+parser.add_argument('--template-glfo-dir', help='use this glfo dir as a template when reading --glfo-dir (only used for airr input atm)')
 parser.add_argument('--locus', default='igh', help='only used for old-style csv output files')
 parser.add_argument('--plotdir', help='if set, plot annotation parameters from infile to --plotdir and exit (you still have to set outfile, sorry, since it\'s nice having it be a positional arg, but it doesn\'t get used for this). To add e.g. per-gene-per-position plots comment/uncomment args in the call below.')
 parser.add_argument('--only-count-correlations', action='store_true', help='instead of counting/plotting all parameters, including correlations, only count and plot correlations (no effect if --plotdir isn\'t set)')
@@ -93,7 +94,12 @@ if args.paired:
     lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs['ig'], getofn)
 else:
     if args.airr_input:
-        glfo, annotation_list, cpath = utils.read_airr_output(args.infile, locus=args.locus, glfo_dir=default_glfo_dir)
+        glfo, glfd = None, args.glfo_dir
+        if args.template_glfo_dir is not None:  # NOTE only handled for airr input at the moment, cause that's what i need it for right now
+            glfo = glutils.read_glfo(args.glfo_dir, args.locus, template_glfo=glutils.read_glfo(args.template_glfo_dir, args.locus))
+            # glutils.write_glfo(args.glfo_dir + '-parsed', glfo, debug=True)
+            glfd = None
+        glfo, annotation_list, cpath = utils.read_airr_output(args.infile, locus=args.locus, glfo=glfo, glfo_dir=glfd)
     else:
         glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
 

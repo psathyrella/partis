@@ -205,9 +205,9 @@ def color_cigar(cigarstr):
 # ----------------------------------------------------------------------------------------
 def split_sub_cigarstr(cstr):
     assert len(cstr) > 0
-    code = cstr[-1]
+    code = cstr[-1].replace('N', 'S')  # igblast uses N, which as far as i can tell is the same as S?
     if code not in 'MIDS':
-        raise Exception('unhandled cigar code %s' % code)
+        raise Exception('unhandled cigar code %s in %s' % (code, cstr))
     lstr = cstr[:-1] if len(cstr) > 1 else '1'  # stupid vsearch doesn't write the 1 (e.g. 'D' instead of '1D')
     return code, int(lstr)
 
