@@ -17,7 +17,7 @@ class PerformancePlotter(object):
     def __init__(self, name):
         self.name = name
         self.values, self.hists = {}, {}  # the dictionary-based approach in <self.values> is nice because you can decide your hist bounds after filling everything
-        self.indel_len_skipped_queries, self.naive_seq_len_truncated_queries = [], []
+        self.indel_len_skipped_queries, self.naive_seq_len_truncated_queries = [], []  # NOTE no longer always truncate inf to the true len, so this name is misleading now
 
         for column in plotconfig.gene_usage_columns:
             self.values[column] = {'right' : 0, 'wrong' : 0}
@@ -67,41 +67,63 @@ class PerformancePlotter(object):
             if debug:
                 print '    tpos to j end %d inf vs %d true, so added %d / %d extra bases to %s naive seq' % (tpos_to_j_end(line), tpos_to_j_end(true_line), min(abs(extra_true_bases), max_diff), abs(extra_true_bases), 'true' if extra_true_bases < 0 else 'inferred')
         if len(true_naive_seq) != len(inferred_naive_seq):
-            # all this stuff gets printed four times, since we're calling this fcn for each region. sigh.
             # utils.print_reco_event(true_line, label='true')
             # utils.print_reco_event(line, label='inf')
 
-            # print '%s different length true and inferred naive seqs for %s, truncating:\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
-            # this is kind of shitty and doesn't really make sense, but whatever
-            min_len = min(len(true_naive_seq), len(inferred_naive_seq))
-            true_naive_seq = true_naive_seq[:min_len]
-            inferred_naive_seq = inferred_naive_seq[:min_len]
-            self.naive_seq_len_truncated_queries.append(':'.join(line['unique_ids']))
+            def trunc_fcn(s1, s2, side):
+                min_len = min(len(s1), len(s2))
+                if side == 'left':
+                    return s1[:min_len], s2[:min_len]
+                else:
+                    return s1[len(s1) - min_len : ], s2[len(s2) - min_len : ]
+            def pad_fcn(s1, s2, side):
+                max_len = max(len(s1), len(s2))
+                if side == 'left':
+                    return [(max_len - len(s)) * 'N' + s for s in (s1, s2)]
+                else:
+                    return [s + (max_len - len(s)) * 'N' for s in (s1, s2)]
+            hdists = []
+            for side in ['left', 'right']:
+                if len(true_naive_seq) > len(inferred_naive_seq):  # if the naive seq is longer, pad the inferred seq so the regional restrictions below are correct
+                    if debug: print '    pad %s' % side
+                    s1, s2, = pad_fcn(true_naive_seq, inferred_naive_seq, side)
+                else:  # otherwise truncate the inferred seq
+                    if debug: print '    trunc %s' % side
+                    s1, s2, = trunc_fcn(true_naive_seq, inferred_naive_seq, side)
+                hdists.append({'hdist' : utils.hamming_distance(s1, s2), 'naive' : s1, 'inf' : s2})
+                if debug:
+                    print '        %s' % s1
+                    print '        %s' % s2
+            sorted_hdists = sorted(hdists, key=lambda x: x['hdist'])
+            if debug:
+                print '    sorted hdists: %s' % ' '.join(str(x['hdist']) for x in sorted_hdists)
+            true_naive_seq, inferred_naive_seq = [sorted_hdists[0][tstr] for tstr in ['naive', 'inf']]
 
-            # if you want to go back to aligning them, which you probably don't:
-            # print '%s different length true and inferred naive seqs for %s, proceeding to align, which is very slow (see above):\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
-            # # I'd rather just give up and skip it at this point, but that involves passing knowledge of the failure through too many functions so it's hard, so... align 'em, which isn't right, but oh well
-            # aligned_true, aligned_inferred = utils.align_seqs(true_naive_seq, inferred_naive_seq)
-            # true_list, inf_list = [], []
-            # for ctrue, cinf in zip(aligned_true, aligned_inferred):  # remove bases corresponding to gaps in true, and replace gaps in inf with Ns (the goal is to end up with aligned seqs that are the same length as the true inferred sequence, so the restrict_to_region stuff still works)
-            #     if ctrue in utils.gap_chars:
-            #         continue
-            #     elif cinf in utils.gap_chars:
-            #         true_list += [ctrue]
-            #         inf_list += [utils.ambig_base]
-            #     else:
-            #         true_list += [ctrue]
-            #         inf_list += [cinf]
-            # assert len(true_list) == len(true_naive_seq)
-            # true_naive_seq = ''.join(true_list)
-            # inferred_naive_seq = ''.join(inf_list)
-            # # utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True)
+            # if they need padding on *both* sides we'll have to actually align
+            if sorted_hdists[0]['hdist'] > 25:
+                # if you want to go back to aligning them, which you probably don't cause it's really slow:
+                print '%s different length true and inferred naive seqs for %s, proceeding to align, which is very slow (see above):\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
+                # I'd rather just give up and skip it at this point, but that involves passing knowledge of the failure through too many functions so it's hard, so... align 'em, which isn't right, but oh well
+                aligned_true, aligned_inferred = utils.align_seqs(true_naive_seq, inferred_naive_seq)
+                true_list, inf_list = [], []
+                for ctrue, cinf in zip(aligned_true, aligned_inferred):  # remove bases corresponding to gaps in true, and replace gaps in inf with Ns (the goal is to end up with aligned seqs that are the same length as the true inferred sequence, so the restrict_to_region stuff still works)
+                    if ctrue in utils.gap_chars:
+                        continue
+                    elif cinf in utils.gap_chars:
+                        true_list += [ctrue]
+                        inf_list += [utils.ambig_base]
+                    else:
+                        true_list += [ctrue]
+                        inf_list += [cinf]
+                assert len(true_list) == len(true_naive_seq)
+                true_naive_seq = ''.join(true_list)
+                inferred_naive_seq = ''.join(inf_list)
+                utils.color_mutants(true_naive_seq, inferred_naive_seq, print_result=True)
 
         return true_naive_seq, inferred_naive_seq
 
     # ----------------------------------------------------------------------------------------
-    def hamming_to_true_naive(self, true_line, line, restrict_to_region=''):
-        true_naive_seq, inferred_naive_seq = self.harmonize_naive_seq_lengths(true_line, line)
+    def hamming_to_true_naive(self, true_naive_seq, inferred_naive_seq, true_line, restrict_to_region=''):
         if restrict_to_region != '':  # NOTE very similar to utils.get_n_muted(), except, we want to use the true bounds for both true and naive sequences
             if restrict_to_region in utils.regions:
                 bounds = true_line['regional_bounds'][restrict_to_region]
@@ -184,8 +206,9 @@ class PerformancePlotter(object):
         for column in plotconfig.int_columns:
             addval(column, true_line[column], inf_line[column])
 
+        true_naive_seq, inferred_naive_seq = self.harmonize_naive_seq_lengths(true_line, inf_line, debug=False)
         for rstr in plotconfig.rstrings:
-            addval(rstr + 'hamming_to_true_naive', 0, self.hamming_to_true_naive(true_line, inf_line, restrict_to_region=rstr.rstrip('_')))
+            addval(rstr + 'hamming_to_true_naive', 0, self.hamming_to_true_naive(true_naive_seq, inferred_naive_seq, true_line, restrict_to_region=rstr.rstrip('_')))
             addval(rstr + 'muted_bases', mutfo['sim']['total'][rstr], mutfo['inf']['total'][rstr])
 
         # if self.hamming_to_true_naive(true_line, inf_line, restrict_to_region='v') > 5:
@@ -213,7 +236,7 @@ class PerformancePlotter(object):
         if len(self.indel_len_skipped_queries) > 0:
             print '\n    %s skipped annotation performance evaluation on %d queries with different true and inferred net shm indel lengths: %s' % (utils.color('yellow', 'warning'), len(self.indel_len_skipped_queries), ' '.join(self.indel_len_skipped_queries))
         if len(self.naive_seq_len_truncated_queries) > 0:
-            print '\n    %s true and inferred naive seqs had different lengths in annotation performance for %d queries, so truncated the longer one: %s' % (utils.color('yellow', 'warning'), len(self.naive_seq_len_truncated_queries), ' '.join(self.naive_seq_len_truncated_queries))
+            print '\n    %s true and inferred naive seqs had different lengths in annotation performance for %d queries, so padded/truncated the the inferred one: %s' % (utils.color('yellow', 'warning'), len(self.naive_seq_len_truncated_queries), ' '.join(self.naive_seq_len_truncated_queries))
 
         for column in self.values:
             if column in plotconfig.gene_usage_columns:
