@@ -368,8 +368,12 @@ class Hist(object):
         return bin_contents_no_zeros
 
     # ----------------------------------------------------------------------------------------
-    def get_mean(self, ignore_overflows=False, absval=False):
-        if ignore_overflows:
+    def get_mean(self, ignore_overflows=False, absval=False, ibounds=None):
+        if ibounds is not None:
+            imin, imax = ibounds
+            if self.integral(False, ibounds=(0, imin)) > 0 or self.integral(False, ibounds=(imax, self.n_bins + 2)) > 0:
+                print '  %s called hist.get_mean() with ibounds %s that exclude bins with nonzero entries:  below %.3f   above %.3f' % (utils.color('yellow', 'warning'), ibounds, self.integral(False, ibounds=(0, imin)), self.integral(False, ibounds=(imax, self.n_bins + 2)))
+        elif ignore_overflows:
             imin, imax = 1, self.n_bins + 1
         else:
             imin, imax = 0, self.n_bins + 2

@@ -1438,15 +1438,20 @@ def convert_airr_line(aline, glfo):
             pline[pky] = [aline[aky]] if pky in linekeys['per_seq'] else aline[aky]  # NOTE/TODO all end up as single-sequence annotations
     pline['duplicates'] = [[]]
 
+    # print aline['v_call'], aline['d_call'], aline['j_call']
+    if aline['d_germline_start'] == '':  # igblast leaves this blank for light chain (and sometimes for heavy)
+        d_start, d_end = [int(aline['v_germline_end']) + 1 for _ in range(2)]
+        if has_d_gene(glfo['locus']):
+            pline['d_gene'] = list(glfo['seqs']['d'])[0]
+            d_end += 1
+        else:
+            pline['d_gene'] = glutils.dummy_d_genes[glfo['locus']]
+        aline['d_germline_start'] = d_start
+        aline['d_germline_end'] = d_end
+
     for rgn in regions:
-        # igblast stuff NOTE still doesn't work -- the not calling d genes is just too messed up
         if ',' in pline[rgn+'_gene']:  # wtf they just put multiple genes, separated by commas
             pline[rgn+'_gene'] = pline[rgn+'_gene'].split(',')[0]
-        if rgn == 'd' and aline[rgn+'_germline_start'] == '':  # igblast leaves this blank sometimes
-            aline[rgn+'_germline_start'] = int(aline['v_germline_end']) + 1
-            aline[rgn+'_germline_end'] = int(aline['j_germline_start']) - 1
-        if rgn == 'd' and pline[rgn+'_gene'] == '':
-            pline[rgn+'_gene'] = list(glfo['seqs'][rgn].keys())[0]
 
         pline[rgn+'_5p_del'] = int(aline[rgn+'_germline_start']) - 1
         pline[rgn+'_3p_del'] = len(gseq(glfo, pline[rgn+'_gene'])) - int(aline[rgn+'_germline_end'])
@@ -1469,7 +1474,10 @@ def convert_airr_line(aline, glfo):
     pline['seqs'] = [''.join(ir_seq)]
     pline['qr_gap_seqs'] = [aline['sequence_alignment']]
     pline['gl_gap_seqs'] = [aline['germline_alignment']]
-    add_implicit_info(glfo, pline)  # NOTE can't set check_line_keys=True since it crashes bc we add 'indelfos'
+    try:
+        add_implicit_info(glfo, pline)  # NOTE can't set check_line_keys=True since it crashes bc we add 'indelfos'
+    except:
+        pline['invalid'] = True
 
     return pline
 
@@ -1497,7 +1505,7 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
 def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None):
     if glfo is None:
         glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
-    clone_ids, plines = {}, []
+    failed_queries, clone_ids, plines = [], {}, []
     with open(fname) as afile:
         reader = csv.DictReader(afile, delimiter='\t')
         for aline in reader:
@@ -1505,6 +1513,9 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None):
                 # print '  note: no clone ids in airr file %s' % fname
                 clone_ids[aline['sequence_id']] = aline['clone_id']
             if 'sequence' not in aline:
+                continue
+            if aline['v_call'] == '' or aline['j_call'] == '':
+                failed_queries.append({'unique_ids' : [aline['sequence_id']], 'input_seqs' : [aline['sequence']], 'invalid' : True})
                 continue
             plines.append(convert_airr_line(aline, glfo))
     if len(clone_ids) > 0:
@@ -1516,12 +1527,15 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None):
         partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster
     antn_list = []
     if len(plines) > 0:
+        antn_dict = get_annotation_dict(plines)
         for iclust, cluster in enumerate(partition):  # may as well sort by length, otherwise order is just random
             cluster = [u for u in sorted_ids if u in cluster]  # it's nice to try to keep them in the same order, and if partis wrote the single-seq lines this'll put them back in the same order
             partition[iclust] = cluster
-            multi_line = synthesize_multi_seq_line_from_reco_info(cluster, get_annotation_dict(plines))
+            multi_line = synthesize_multi_seq_line_from_reco_info(cluster, antn_dict)
             # print_reco_event(multi_line, extra_str='  ')
             antn_list.append(multi_line)
+    for failfo in failed_queries:
+        antn_list.append(failfo)
     return glfo, antn_list, clusterpath.ClusterPath(partition=partition)
 
 # ----------------------------------------------------------------------------------------
@@ -2832,6 +2846,8 @@ def unsanitize_name(name):
 # ----------------------------------------------------------------------------------------
 def get_locus(inputstr):
     """ return locus given gene or gl fname """
+    # if len(inputstr) < 4:
+    #     raise Exception('input str \'%s\' too short for get_locus() (need 4 chars)' % inputstr)
     locus = inputstr[:3].lower()  # only need the .lower() if it's a gene name
     if locus not in loci:
         raise Exception('couldn\'t get locus from input string \'%s\'' % inputstr)
@@ -5989,7 +6005,8 @@ def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=Fal
 # ----------------------------------------------------------------------------------------
 def get_yamlfo_for_output(line, headers, glfo=None):
     yamlfo = {}
-    transfer_indel_info(line, yamlfo)
+    if not line['invalid']:
+        transfer_indel_info(line, yamlfo)
     for key in [k for k in headers if k not in yamlfo]:
         if key in line:
             yamlfo[key] = line[key]

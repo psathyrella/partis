@@ -265,7 +265,9 @@ def check_cigar_len(cigars, qrseq, glseq, uid=None, debug=False):  # check consi
             print '    %s %s %s' % (seqtype, tmpcode, tmpseq)
         cigar_len = sum([length for code, length in cigars if code != tmpcode])
         if cigar_len != len(tmpseq):
-            raise Exception('cigar length %d (without %s) doesn\'t match %s seq length %d%s' % (cigar_len, tmpcode, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
+            # raise Exception('cigar length %d (without %s) doesn\'t match %s seq length %d%s' % (cigar_len, tmpcode, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
+            # print 'cigar length %d (without %s) doesn\'t match %s seq length %d%s' % (cigar_len, tmpcode, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else '')
+            raise IndelfoReconstructionError()  # ok i still don't like this but it happens
 
 # ----------------------------------------------------------------------------------------
 def get_indelfo_from_cigar_and_line(cigarstr, line, iseq, debug=False):
@@ -306,6 +308,7 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
         print '    gl %s' % glseq
 
     check_cigar_len(cigars, qrseq, glseq, uid=uid, debug=debug)
+    # return get_empty_indel()
 
     indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
     if 'I' not in cigarstr and 'D' not in cigarstr:  # has to happen after we've changed from vsearch conventions

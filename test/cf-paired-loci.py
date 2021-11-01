@@ -166,6 +166,8 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
         return cmd
     if action in ['mobille', 'igblast']:
         cmd = './test/mobille-igblast-run.py %s --simdir %s --outdir %s --id-str %s --base-imgt-outdir %s' % (action, odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action), '_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/%s/imgt-output' % (args.base_outdir, args.label, args.version))
+        if args.n_sub_procs > 1:
+            cmd += ' --n-procs %d' % args.n_sub_procs
         if args.prep:
             cmd += ' --prep'
             # then do this by hand, and submit to imgt/high vquest by hand, then download results and put them in the proper dir (run mobille run script to get dir)

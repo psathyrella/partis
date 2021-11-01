@@ -68,7 +68,11 @@ def igbofn(locus):
     return '%s/igblast-out.tsv' % wkdir(locus)
 
 # ----------------------------------------------------------------------------------------
-def convert_file(ifnfcn, ofnfcn, airr_input=True, igbl_gldir=False):
+def antn_plotdir(locus):
+    return '%s/plots/%s/hmm' % (os.path.dirname(getofn(locus)), locus)
+
+# ----------------------------------------------------------------------------------------
+def convert_file(ifnfcn, ofnfcn, airr_input=False, igbl_gldir=False, plot_performance=False):
     ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
     for locus in gloci():
         ofn = ofnfcn(locus)
@@ -81,6 +85,8 @@ def convert_file(ifnfcn, ofnfcn, airr_input=True, igbl_gldir=False):
             cmd += ' --airr-input'
         if igbl_gldir:
             cmd += ' --glfo-dir %s/igbl-db/fasta/partis-format-parsed --locus %s' % (args.igbdir, locus)  #  --template-glfo-dir %s/data/germlines/%s, partis_dir, args.species)  # just ran with the template set once so i could write the parsed glfo dirs
+        if plot_performance:
+            cmd += ' --simfname %s --plotdir %s --only-csv-plots --only-plot-performance' % (simfn(locus), antn_plotdir(locus))
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : ofn,
@@ -245,4 +251,4 @@ if args.action == 'mobille':
     convert_mobille_output()
 elif args.action == 'igblast':
     run_igblast()
-    convert_file(igbofn, getofn, airr_input=True, igbl_gldir=True)
+    convert_file(igbofn, getofn, airr_input=True, igbl_gldir=True, plot_performance=True)

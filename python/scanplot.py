@@ -78,7 +78,7 @@ def read_hist_csv(fname, ptilestr):
         blabels = {'pcfrac-corr' : 'correct', 'pcfrac-mis' : 'mispaired', 'pcfrac-un' : 'unpaired'}
         pval = hist.bin_contents[hist.find_bin(None, label=blabels[ptilestr])]
     else:
-        pval = hist.get_mean()
+        pval = hist.get_mean(ibounds=(0, 25) if ptilestr=='naive-hdist' else None)
     return {ptilestr : pval}
 
 # ----------------------------------------------------------------------------------------
