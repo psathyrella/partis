@@ -811,6 +811,9 @@ def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False): #, prefix=N
                 raise Exception('need 2 instances of separator \'%s\' in \'%s\', but found %d' % (sep, uid, uid.count(sep)))
             did, cstr, cid = uid.split(sep)
             assert cstr == 'contig'
+        elif dtype == 'identical':
+            did = uid
+            cstr, cid = 'XXX', 'XXX'
         elif dtype == 'undetermined':  # well, maybe this will work for you? i just need it for some random data from meghan atm (will eventually need a more generalized way to do it)
             did = uid.split(sep)[0]
             cstr, cid = 'XXX', 'XXX'
@@ -829,10 +832,10 @@ def get_contig_id(uid, dtype='10x', sep='_'):
     return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
 
 # ----------------------------------------------------------------------------------------
-def extract_pairing_info(seqfos, droplet_id_separator='_', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
+def extract_pairing_info(seqfos, droplet_id_separator='_', dtype='10x', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
     droplet_ids = {}
     for sfo in seqfos:
-        did = droplet_id_fcn(sfo['name'], sep=droplet_id_separator)
+        did = droplet_id_fcn(sfo['name'], sep=droplet_id_separator, dtype=dtype)
         if did not in droplet_ids:
             droplet_ids[did] = []
         droplet_ids[did].append(sfo['name'])
@@ -859,12 +862,47 @@ def extract_pairing_info(seqfos, droplet_id_separator='_', input_metafname=None,
     for sfo in seqfos:
         if sfo['name'] in metafos:
             raise Exception('duplicate uid \'%s\' when extracting pairing info' % sfo['name'])
-        metafos[sfo['name']] = {'paired-uids' : [u for u in droplet_ids[droplet_id_fcn(sfo['name'], sep=droplet_id_separator)] if u != sfo['name']]}
+        pids = [u for u in droplet_ids[droplet_id_fcn(sfo['name'], sep=droplet_id_separator, dtype=dtype)] if u != sfo['name']]
+        metafos[sfo['name']] = {'paired-uids' : pids}
         if sfo['name'] in input_metafos:
             assert 'paired-uids' not in input_metafos[sfo['name']]  # don't want to adjudicate between alternative versions here
             metafos[sfo['name']].update(input_metafos[sfo['name']])
 
     return metafos
+
+# ----------------------------------------------------------------------------------------
+def process_gctree_seqfos(seqfos, glfo, metafos, add_dj_seqs=False, drop_zero_abundance_seqs=False, dbgstr=''):  # translate abundance to multiplicity (maybe incrementing), and add d+j seqs if specified
+    n_to_skip, n_abundance_increased = 0, 0
+    for sfo in seqfos:
+        name, abfo_str = sfo['infostrs']
+        assert abfo_str.count('=') == 1
+        abstr, abval = abfo_str.split('=')
+        assert abstr == 'abundance'
+        if int(abval) == 0:
+            if drop_zero_abundance_seqs:
+                n_to_skip += 1
+            else:
+                abval = '1'
+                n_abundance_increased += 1
+        if sfo['name'] not in metafos:
+            metafos[sfo['name']] = {}
+        if 'multiplicity' in metafos[sfo['name']]:
+            raise Exception('multiplicity already in meta info for %s' % sfo['name'])
+        metafos[sfo['name']]['multiplicity'] = int(abval)
+    if n_to_skip > 0:
+        n_before = len(seqfos)
+        seqfos = [s for s in seqfos if metafos[s['name']]['multiplicity'] > 0]
+        print '        skipping %d / %d seqs with zero abundance' % (n_to_skip, n_before)
+        assert n_before == len(seqfos) + n_to_skip
+    if n_abundance_increased > 0:
+        print '      %s increased abundance of %d / %d seqs from 0 to 1 (these are presumably inferred ancestral sequences)' % (dbgstr, n_abundance_increased, len(seqfos))
+
+    if add_dj_seqs and len(seqfos) > 0:
+        tgenes = {r : sorted(glfo['seqs'][r].keys())[0] for r in 'dj'}
+        d_seq, j_seq = [glfo['seqs'][r][tgenes[r]] for r in 'dj']
+        print '        appending d and j gene sequences: %s %s' % (color_gene(tgenes['d']), color_gene(tgenes['j']))
+        for sfo in seqfos:
+            sfo['seq'] = '%s%s%s' % (sfo['seq'], d_seq, j_seq)
 
 # ----------------------------------------------------------------------------------------
 def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotation_dict, use_last=False, debug=False):
