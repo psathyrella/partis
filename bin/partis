@@ -597,12 +597,12 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
                 if args.read_gctree_output and args.treefname is not None:  # have to translate uids (i.e. add locus)
                     dtree = treeutils.get_dendro_tree(treefname=args.treefname)
-                    treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s'%(n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None])
+                    treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s' % (n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None]) #, debug=True)
                     tfn = getofn(ltmp, trees=True, lpair=lpair, gctrees=True)
                     with open(tfn, 'w') as tfile:
                         tfile.write(treeutils.as_str(dtree))
                     utils.replace_in_arglist(clist, '--treefname', tfn)
-                    work_fnames.append(getofn(ltmp, trees=True, lpair=lpair))
+                    work_fnames.append(tfn)
 
             return clist
         # ----------------------------------------------------------------------------------------

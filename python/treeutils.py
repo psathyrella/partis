@@ -1043,7 +1043,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     # if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
     #     compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
 
-    if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
+    if max(get_leaf_depths(dtree).values()) > 1:
         if annotation is None:
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong): found leaf depth greater than 1 (even when less than 1 they can be wrong, but we can be fairly certain that your BCR sequences don\'t have real mutation frequencty greater than 1, so this case we can actually check). If you pass in annotations we can rescale to the observed mutation frequencty.')
         print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
@@ -1673,7 +1673,7 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
                 lbplotting.plot_lb_distributions('cons-dist-aa', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
                 if 'aa-lbi' in metrics_to_calc:
                     lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
-            if 'aa-lbi' in metrics_to_calc:
+            if 'aa-lbi' in metrics_to_calc and 'lbi' in metrics_to_calc:
                 # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which means we didn't have any of the internal nodes):
                 lbplotting.make_lb_scatter_plots('aa-lbi', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
             if 'lbr' in metrics_to_calc:
@@ -1799,6 +1799,11 @@ def check_lb_values(line, lbvals):
 # ----------------------------------------------------------------------------------------
 def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize_lbi=False, extra_str=None, iclust=None, debug=False):  # and add them to <line>
     utils.add_seqs_aa(line)
+    if max(get_leaf_depths(nuc_dtree).values()) > 1:  # not really sure why i have to add this before converting to aa, but it seems necessary to avoid getting a huge branch below root (and for consistency -- if we're calculating also [nuc-]lbi the nuc tree is already rescaled when we get here
+        if line is None:
+            raise Exception('tree needs rescaling in lb calculation (metrics will be wrong): found leaf depth greater than 1 (even when less than 1 they can be wrong, but we can be fairly certain that your BCR sequences don\'t have real mutation frequencty greater than 1, so this case we can actually check). If you pass in annotations we can rescale to the observed mutation frequencty.')
+        print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
+        nuc_dtree.scale_edges(1. / numpy.mean([len(s) for s in line['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
     aa_dtree = get_aa_tree(nuc_dtree, line, extra_str=extra_str, debug=debug)
     aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, only_calc_metric=only_calc_metric, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
     if 'tree-info' not in line:
@@ -2268,7 +2273,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
 # ----------------------------------------------------------------------------------------
 def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False, paired_data_type='10x'):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
-    def gsval(mfo, tch, vname):
+    def gsval(mfo, tch, vname, no_fail=False):
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
         if vname in cln:
             # assert vname in utils.linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
@@ -2290,14 +2295,28 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         elif vname == 'multipy':  # multiplicity
             return utils.get_multiplicity(cln, iseq=iseq)
         else:
-            raise Exception('unsupported var \'%s\' (well, we don\'t know how to get its value)' % vname)
+            if no_fail:
+                return None
+            else:
+                raise Exception('unsupported var \'%s\' (well, we don\'t know how to get its value)' % vname)
+    # ----------------------------------------------------------------------------------------
+    def gsvstr(val, vname):
+        if vname in args.selection_metrics_to_calculate:
+            return '%.1f' % val
+        elif vname == 'affinities':
+            return '%.1f' % val
+        elif type(val) == float:
+            return '%.3f' % val
+        else:
+            return str(val)
     # ----------------------------------------------------------------------------------------
     def sumv(mfo, kstr):
         if kstr == 'seq_mtps':  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
             def vfcn(c): return mtpys[c][gsval(mfo, c, 'input_seqs_aa')]
         else:
             def vfcn(c): return gsval(mfo, c, kstr)
-        return sum(vfcn(c) for c in 'hl')
+        kvals = [vfcn(c) for c in 'hl']
+        return float('nan') if None in kvals else sum(kvals)
     # ----------------------------------------------------------------------------------------
     def sum_nuc_shm_pct(mpfo):
         total_len = sum(len(gsval(mpfo, c, 'seqs')) - gsval(mpfo, c, 'seqs').count(utils.ambig_base) for c in 'hl')
@@ -2657,15 +2676,17 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def print_dbg(metric_pairs, iclust_mfos, print_nuc_seqs=True):
         # ----------------------------------------------------------------------------------------
         def init_xtras():
-            xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c_gene', ''])]
+            xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c_gene', '']), ('affinities', ['affin', 'ity'])]
             if 'meta-info-print-keys' in cfgfo:
                 xtra_heads += [(k, [l, '']) for k, l in cfgfo['meta-info-print-keys']]
+            xtra_heads += [(h, [h, 'sum']) for h in smheads]
             xheads, xtrafo, xlens = [[], []], [], {}
             for xn, xh in xtra_heads:
-                if all(xn not in mpfo[c] for mpfo in metric_pairs for c in 'hl'):
+                # if all(xn not in mpfo[c] and xn not in smheads for mpfo in metric_pairs for c in 'hl'):
+                if all(gsval(mpfo, c, xn, no_fail=True) is None for mpfo in metric_pairs for c in 'hl'):
                     continue
                 xtrafo.append(xn)
-                ctlens = [len(str(gsval(m, c, xn))) for m in metric_pairs for c in 'hl']
+                ctlens = [len(gsvstr(gsval(m, c, xn), xn)) for m in metric_pairs for c in 'hl']
                 xlens[xn] = max([len(h) for h in xh] + ctlens) + 1
                 xheads = [x + [utils.wfmt(s, xlens[xn])] for x, s in zip(xheads, xh)]
             return xtrafo, xheads, xlens
@@ -2678,7 +2699,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if cg > 75: tcol = 'red'
             return utils.color(tcol, cgstr, width=tlen)
         # ----------------------------------------------------------------------------------------
-        def get_xstr(mpfo, xlens):
+        def get_xstr(mpfo):
             xstr = []  # don't try to condense these into a block, they're too different
             if ctkey() in xtrafo:
                 ctval = utils.get_single_entry(list(set(gsval(mpfo, c, ctkey()) for c in 'hl')))
@@ -2689,12 +2710,17 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if 'c_genes' in xtrafo:
                 cg = gsval(mpfo, 'h', 'c_genes')
                 xstr += [utils.wfmt('?' if cg in [None, 'None'] else cg.replace('IGH', ''), xlens['c_genes'])]
+            if 'affinities' in xtrafo:
+                affy = utils.get_single_entry(list(set([gsvstr(gsval(mpfo, c, 'affinities'), 'affinities') for c in 'hl'])))
+                xstr += [utils.wfmt(affy, xlens['affinities'])]
             if 'meta-info-print-keys' in cfgfo:
                 for mk in [k for k, _ in cfgfo['meta-info-print-keys'] if k in xtrafo]:
-                    cg = utils.get_single_entry(list(set([gsval(mpfo, c, mk) for c in 'hl'])))
+                    mv = utils.get_single_entry(list(set([gsval(mpfo, c, mk) for c in 'hl'])))
                     if 'neut-' in mk:  # colors that make sense for % neut values
-                        cg = neut_col(cg, xlens[mk])
-                    xstr += [cg]
+                        mv = neut_col(mv, xlens[mk])
+                    xstr += [mv]
+            for sh in smheads:
+                xstr += [utils.wfmt(gsvstr(sumv(mpfo, sh), sh), xlens[sh])]
             return xstr
         # ----------------------------------------------------------------------------------------
         def get_didstr(dids, mpfo):
@@ -2711,8 +2737,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # ----------------------------------------------------------------------------------------
         def getcdist(mpfo, tch, frac=False):  # can't just use gsval() for cases where we used the "input" (indel'd) cons seq (although note that there's probably some other places where the orginal/indel-reversed version is used)
             defval = gsval(mpfo, tch, 'aa-c'+('frac' if frac else 'dist'))
-            # if cons_mfo is None:
-            #     return defval
             return local_hdist_aa(gsval(mpfo, tch, 'input_seqs_aa'), cons_mfo[tch+'_cseq_aa'], defval=defval, frac=frac)
         # ----------------------------------------------------------------------------------------
         def cstr(c, s2=None, aa=False):
@@ -2724,6 +2748,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             nseq = (h_atn if c=='h' else l_atn)['naive_seq'+('_aa' if aa else '')]
             return cstr(c, s2=nseq, aa=aa)
         # ----------------------------------------------------------------------------------------
+        smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
 
         lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
@@ -2759,7 +2784,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                                                             aa_cdstr if aa_cdstr!=last_cdist_str else ' '*utils.len_excluding_colors(aa_cdstr),
                                                             utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
                                                             get_didstr(dids, mpfo), cids[0], cids[1], indelstr),
-            print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstr(mpfo, xlens)),
+            print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstr(mpfo)),
                                                                      mtpstr if mtpstr != last_mtpy_str else ' '*utils.len_excluding_colors(mtpstr),
                                                                      sum_nuc_shm_pct(mpfo),
                                                                      cshm_str if imp==0 else ' '*len(cshm_str),

@@ -279,7 +279,11 @@ def get_tree_from_line(line, is_true_line):
         return line['tree']
     if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
         return None
-    return line['tree-info']['lb']['tree']
+    if 'tree' in line['tree-info']['lb']:
+        return line['tree-info']['lb']['tree']
+    else:
+        print '  %s using aa-tree for lb scatter plot' % utils.color('yellow', 'warning')
+        return line['tree-info']['lb']['aa-tree']
 
 # ----------------------------------------------------------------------------------------
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
