@@ -961,7 +961,7 @@ def get_non_vj_len(line):
 def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand (for search: iseq)
     if key not in linekeys['per_seq']:
         raise Exception('key \'%s\' not in per-sequence keys' % key)
-    if use_default and key not in line:
+    if use_default and key not in line or uid not in line['unique_ids']:
         return default_val
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
 

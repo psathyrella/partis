@@ -1,4 +1,5 @@
 import __builtin__
+import glob
 import operator
 import string
 import itertools
@@ -50,11 +51,14 @@ legtexts = {
     'affinity-biased' : 'affinity biased',
     'high-affinity' : 'perf. affinity',
     'cons-dist-aa' : 'aa-cdist',
+    'sum-cons-dist-aa' : 'h+l aa-cdist',
     'cons-frac-aa' : 'aa-cfrac',
     'cons-dist-nuc' : 'nuc-cdist',
     'shm' : 'n-shm',
-    'aa-lbi' : 'aa-lbi',
-    'aa-lbr' : 'aa-lbr',
+    'aa-lbi' : 'AA lb index',
+    'aa-lbr' : 'AA lb ratio',
+    'sum-aa-lbi' : 'h+l AA lb index',
+    'sum-aa-lbr' : 'h+l AA lb ratio',
 }
 
 # ----------------------------------------------------------------------------------------
@@ -1674,12 +1678,14 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
                 if 'aa-lbi' in metrics_to_calc:
                     lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
             if 'aa-lbi' in metrics_to_calc and 'lbi' in metrics_to_calc:
-                # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which means we didn't have any of the internal nodes):
+                # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which would mean that we didn't have any of the internal nodes):
                 lbplotting.make_lb_scatter_plots('aa-lbi', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
-            if 'lbr' in metrics_to_calc:
-                lbplotting.plot_lb_distributions('lbr', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
-            if ete_path is not None and any('tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
-                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'lbr', 'cons-dist-aa'] if m in metrics_to_calc], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
+            for mtr in [m for m in ['lbr', 'aa-lbr'] if m in metrics_to_calc]:
+                lbplotting.plot_lb_distributions(mtr, inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
+                if has_affinities:
+                    lbplotting.plot_lb_vs_ancestral_delta_affinity(inf_plotdir + '/' + mtr, inf_lines_to_use, mtr, only_csv=only_csv, fnames=fnames, debug=debug)
+            if ete_path is not None and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
+                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'aa-lbr', 'cons-dist-aa'] if m in metrics_to_calc], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
             subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
             plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs]) # extra_links used to have inf_plotdir in it, but that seemed to not work?
 
@@ -2301,6 +2307,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 raise Exception('unsupported var \'%s\' (well, we don\'t know how to get its value)' % vname)
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
+        if val is None:
+            return str(val)
         if vname in args.selection_metrics_to_calculate:
             return '%.1f' % val
         elif vname == 'affinities':
@@ -2800,21 +2808,33 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def makeplots(metric_pairs, h_atn):
         import plotting
         import lbplotting
-        if is_simu:
+# TODO clean up true/is_simu
+        if True: #is_simu:
             # make performance plots for sum of h+l aa-cdist
-            mm = 'sum-cons-dist-aa'
-            h_atn['tree-info']['lb'][mm] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
-            for mfo in metric_pairs:
-                h_atn['tree-info']['lb'][mm][gsval(mfo, 'h', 'unique_ids')] = -sumv(mfo, 'aa-cdist')
             fnames = []
-            lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], mm, is_true_line=is_simu, fnames=fnames)
-            plotting.make_html(plotdir, fnames=fnames, extra_links=[(mm, '%s/%s/' % (plotdir, mm)),])
+            joint_metrics = ['cons-dist-aa', 'aa-lbi', 'aa-lbr']
+            for b_mtr in [m for m in joint_metrics if m in args.selection_metrics_to_calculate]:
+                sum_mtr = 'sum-%s' % b_mtr
+                h_atn['tree-info']['lb'][sum_mtr] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
+                for mfo in metric_pairs:
+                    h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sumv(mfo, b_mtr) #'aa-cdist')
+
+                lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
+                if b_mtr in treeutils.affy_metrics:
+                    lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], sum_mtr, is_true_line=is_simu, fnames=fnames)
+                if b_mtr in treeutils.delta_affy_metrics:
+                    lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames)
+            if args.ete_path is not None: # and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
+                lbplotting.plot_lb_trees(['sum-'+m for m in joint_metrics if m in args.selection_metrics_to_calculate], plotdir, [h_atn], args.ete_path, args.workdir, is_true_line=is_simu, fnames=fnames) #, queries_to_include=queries_to_include)
+            subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)] #[os.path.basename(d) for d in glob.glob(plotdir+'/*') if os.path.isdir(d)]
+            plotting.make_html(plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(plotdir), subd)) for subd in subdirs], bgcolor='c9c8c8') #[(d, d) for d in subdirs]) #[(sum_mtr, '%s/%s/' % (plotdir, sum_mtr)),])
         iclust_plotvals = {c+'_aa-cfrac' : [gsval(m, c, 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
         if any(vl.count(0)==len(vl) for vl in iclust_plotvals.values()):  # doesn't plot anything useful, and gives a pyplot warning to std err which is annoying
             return
         add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs)  # add uids for the chosen ones
         mstr = legtexts['cons-frac-aa']
         lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
+# TODO add this to html
         # for k in iclust_plotvals:
         #     if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
         #     all_plotvals[k] += iclust_plotvals[k]

@@ -385,7 +385,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             elif persistent_cache:
                 bstr = 'persistent-cache'
                 sfx = 'csv'
-            elif args.action == 'view-output' and not recursed and not os.path.exists(getofn(ltmp, joint=joint, partition_only=partition_only, trees=trees, lpair=lpair, recursed=True)):  # ok this is ugly, but it's nice to have 'view-output' automatically figure out if it's simulation or inference output (and yes it's also nice to have different file names for them (partition-igh.yaml vs igh.yaml))
+            elif args.action in ['view-output', 'get-selection-metrics'] and not recursed and not os.path.exists(getofn(ltmp, joint=joint, partition_only=partition_only, trees=trees, lpair=lpair, recursed=True)):  # ok this is ugly, but it's nice to have 'view-output' automatically figure out if it's simulation or inference output (and yes it's also nice to have different file names for them (partition-igh.yaml vs igh.yaml))
                 bstr = ''
             else:
                 bstr ='partition'
@@ -615,6 +615,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 ifn = getofn(ltmp, lpair=lpair, fasta=True)
             if not os.path.exists(ifn):
                 print sdbgstr('input file missing', ifn)
+                if not args.is_data and '-DUMMY-' in ifn:
+                    print '      maybe need to seed --paired-indir (in addition to --paired-outdir)?'
                 return
             if os.stat(ifn).st_size == 0:
                 print sdbgstr('zero length input file', ifn)

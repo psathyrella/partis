@@ -958,7 +958,7 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
                       xticklabelsize=ltsize(len(xbins)), yticklabelsize=ltsize(len(ybins)))
 
 # ----------------------------------------------------------------------------------------
-def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', new_table_each_row=False, htmlfname=None, extra_links=None):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', bgcolor='000000', new_table_each_row=False, htmlfname=None, extra_links=None):
     if fnames is not None:  # make sure it's formatted properly
         for rowfnames in fnames:
             if not isinstance(rowfnames, list):
@@ -977,7 +977,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
     lines = ['<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN>',
              '<html>',
              '<head><title>' + title + '</title></head>',
-             '<body bgcolor="000000">', 
+             '<body bgcolor="%s">' % bgcolor,
              '<h3 style="text-align:left; color:DD6600;">' + title + '</h3>',
              extra_link_str,
              '<table>',

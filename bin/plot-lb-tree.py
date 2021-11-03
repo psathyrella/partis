@@ -212,7 +212,9 @@ def plot_trees(args):
 
 # ----------------------------------------------------------------------------------------
 affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'aa-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
+affy_metrics += ['sum-'+m for m in affy_metrics]
 delta_affy_metrics = ['lbr', 'aa-lbr']
+delta_affy_metrics += ['sum-'+m for m in delta_affy_metrics]
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--treefname', required=True)
 parser.add_argument('--outfname', required=True)

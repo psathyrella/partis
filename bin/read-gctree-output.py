@@ -20,7 +20,7 @@ from clusterpath import ClusterPath
 helpstr = """
 Run partis selection metrics on gctree output dir https://github.com/matsengrp/gctree/.
 Plots are written to <--outdir>/selection-metrics/plots.
-Log files are written to <--outdir>; get-selection-metrics.log has most of the information you probably want.
+Log files are written to <--outdir>; get-selection-metrics.log has most of the information you probably want (view with less -RS).
 Example usage:
   ./bin/read-gctree-output.py --seqfname <fasta-sequence-file> --treefname <gctree-tree-file> --outdir <dir-for-partis-output>
 """
@@ -35,6 +35,7 @@ parser.add_argument('--paired-loci', action='store_true', help='run on paired he
 parser.add_argument('--locus', default='igh', choices=utils.loci)
 parser.add_argument('--kdfname', help='csv file with kd values')
 parser.add_argument('--kd-file-headers', default='name:kd', help='colon-separated list of two column names in --kdfname, the first for sequence name (which must match node names in --treefname), the second for kd values.')
+parser.add_argument('--dont-invert-kd', action='store_true', help='by default with invert (take 1/kd) to convert to \'affinity\', or at least something monotonically increasing with affinity. This skips that step, e.g. if you\'re passing in affinity.')
 parser.add_argument('--species', default='mouse', choices=('human', 'macaque', 'mouse'))
 parser.add_argument('--add-dj-seqs', action='store_true', help='if input seqs only contain V (up to cdr3), you\'ll need to set this so some dummy D and J bits are appended to the actual input seqs.')
 parser.add_argument('--drop-zero-abundance-seqs', action='store_true', help='By default we increase the abundance of any seqs with 0 abundance (typically inferred ancestors). If you set this, we instead ignore them when running partis annotate (although if they\'re in the tree, they still show up in the selection metrics).')
@@ -79,7 +80,10 @@ if args.kdfname is not None:
         for line in reader:
             base_id = line[args.kd_file_headers['name']]
             for ltmp in utils.sub_loci('ig'):
-                kdvals['%s-%s' % (base_id, ltmp)] = {'affinity' : 1. / float(line[args.kd_file_headers['kd']])}
+                affy = float(line[args.kd_file_headers['kd']])
+                if not args.dont_invert_kd:
+                    affy = 1. / affy
+                kdvals['%s-%s' % (base_id, ltmp)] = {'affinity' : affy}
     with open(metafname(), 'w') as mfile:
         json.dump(kdvals, mfile)
 for action in ['cache-parameters', 'annotate', 'get-selection-metrics']:
