@@ -123,7 +123,7 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
             read_smetrics(ofn, lpfos['antn_lists'][ltmp])
         if add_selection_metrics is not None:
             for smetric in add_selection_metrics:
-                print '    adding selection metrics to annotations read from %s%s' % (ofn_fcn(ltmp, lpair=lpair), '' if plotdir_fcn is None else ' and plotting to %s' % plotdir_fcn(ltmp, lpair=lpair))
+                print '            adding selection metrics to annotations read from %s%s' % (ofn_fcn(ltmp, lpair=lpair), '' if plotdir_fcn is None else ' and plotting to %s' % plotdir_fcn(ltmp, lpair=lpair))
                 treeutils.calculate_individual_tree_metrics(smetric, lpfos['antn_lists'][ltmp], base_plotdir=None if plotdir_fcn is None else plotdir_fcn(ltmp, lpair=lpair))
         parse_pairing_info(ltmp, lpfos['antn_lists'][ltmp])
     if all(lpfos['glfos'][l] is None for l in tmploci):  # if there was no info for *any* of the loci, set Nones one level up (it's just easier to have the Nones there)
@@ -349,7 +349,7 @@ def translate_paired_uids(ploci, init_partitions, antn_lists):
                 raise Exception('multiple paired uids %s for %s sequence %s' % (' '.join(pids), ploci['h'], h_id))
             h_paired_uids[pids[0]] = h_id
     cpath = ClusterPath(partition=init_partitions['l'])
-    l_translations = utils.translate_uids(antn_lists[ploci['l']], h_paired_uids, cpath=cpath, failstr='paired uids')
+    l_translations = utils.translate_uids(antn_lists[ploci['l']], trns=h_paired_uids, cpath=cpath, failstr='paired uids')
     init_partitions['l'] = cpath.best()
     # i'm too chicken to delete the old way:
     # # then go through the light chain annotations + partition swapping names

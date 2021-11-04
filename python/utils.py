@@ -963,17 +963,22 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
 
 # ----------------------------------------------------------------------------------------
 # translate the uids in each line in <antn_list> using translation dict <trns>
-def translate_uids(antn_list, trns, cpath=None, failstr='translation', debug=False):
+# specify *either* <trns> (a dict from old to new uid) or <trfcn> (a fcn from old to new uid)
+def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='translation', no_fail=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def tr_tree(line, treestr, dbgstr):
         dtree = treeutils.get_dendro_tree(treestr=treestr)
-        treeutils.translate_labels(dtree, [(k, v) for k, v in trns.items() if k in line['unique_ids']], dont_fail=True, dbgstr=dbgstr, debug=debug)
+        treeutils.translate_labels(dtree, [(u, trfn(u)) for u in line['unique_ids']], dont_fail=True, dbgstr=dbgstr, debug=debug)
         return treeutils.as_str(dtree)
     # ----------------------------------------------------------------------------------------
     def trfn(uid):
-        if uid in trns:
+        if trfcn is not None:
+            return trfcn(uid)
+        elif uid in trns:
             return trns[uid]
         else:
+            if not no_fail and uid in line['unique_ids']:  # we expect to be missing translations from e.g. inferred nodes in the tree, but not from line['unique_ids']
+                raise Exception('no %s for %s' % (failstr, uid))  # everybody has to have exactly one paired id at this point
             missing_translations.add(uid)  # this is kind of pointless since it'll crash in other places if things are missing, but oh well
             return uid
     # ----------------------------------------------------------------------------------------
@@ -997,13 +1002,12 @@ def translate_uids(antn_list, trns, cpath=None, failstr='translation', debug=Fal
         if 'tree-info' in line and 'lb' in line['tree-info']:
             tr_lb_info(line)
         for iseq, old_id in enumerate(line['unique_ids']):
-            if old_id not in trns:
-                raise Exception('no %s for %s' % (failstr, old_id))  # everybody has to have exactly one paired id at this point
-            line['unique_ids'][iseq] = trns[old_id]
-            revrns[trns[old_id]] = old_id
-    if cpath is not None and len(trns) > 0:
-        if cpath.seed_unique_id is not None and cpath.seed_unique_id in trns:
-            cpath.seed_unique_id = trns[cpath.seed_unique_id]
+            new_id = trfn(old_id)
+            line['unique_ids'][iseq] = new_id
+            revrns[new_id] = old_id
+    if cpath is not None:
+        if cpath.seed_unique_id is not None:
+            cpath.seed_unique_id = trfn(cpath.seed_unique_id)
         for iptn, partition in enumerate(cpath.partitions):
             cpath.partitions[iptn] = [[trfn(u) for u in c] for c in partition]
     if len(missing_translations) > 0:
@@ -1683,6 +1687,9 @@ def len_excluding_colors(seq):  # NOTE this won't work if you inserted a color c
 
 def len_only_letters(seq):  # usually the same as len_excluding_colors(), except it doesn't count gap chars or spaces
     return len(filter((alphabet).__contains__, seq))
+
+def wrnstr():  # adding this very late, so could use it in a *lot* of places
+    return color('yellow', 'warning')
 
 # ----------------------------------------------------------------------------------------
 def color_chars(chars, col, seq):

@@ -14,6 +14,8 @@ class Hist(object):
         self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
         if fname is None:
+            if any(math.isnan(v) for v in [xmin, xmax]):
+                raise Exception('nan value in xmin, xmax: %s %s' % (xmin, xmax))
             if init_int_bins:  # use value_list to initialize integer bins NOTE adding this very late, and i tink there's lots of places where it could be used
                 assert value_list is not None
                 xmin, xmax = min(value_list) - 0.5, max(value_list) + 0.5
@@ -29,6 +31,8 @@ class Hist(object):
             self.file_init(fname)
 
         if value_list is not None:
+            if any(math.isnan(v) for v in value_list):
+                raise Exception('nan value in value_list: %s' % value_list)
             if any(v < xmin or v >= xmax for v in value_list):  # probably because you forgot that xmax is low edge of overflow bin, so it's included in that
                 print '  %s value[s] %s outside bounds [%s, %s] in hist list fill' % (utils.color('yellow', 'warning'), [v for v in value_list if v < xmin or v >= xmax], xmin, xmax)
             self.list_fill(value_list, weight_list=weight_list)
@@ -154,6 +158,8 @@ class Hist(object):
             for ib in range(self.n_bins + 2):  # loop over all the bins (including under/overflow)
                 if value >= self.low_edges[ib] and value < self.low_edges[ib+1]:  # NOTE <ib> never gets to <n_bins> + 1 because we already get all the overflows above (which is good 'cause this'd fail with an IndexError)
                     return ib
+        print self
+        raise Exception('couldn\'t find bin for value %f (see lines above)' % value)
 
     # ----------------------------------------------------------------------------------------
     def fill(self, value, weight=1.0):

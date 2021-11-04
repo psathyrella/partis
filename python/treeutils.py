@@ -1690,9 +1690,9 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
                 if has_affinities:
                     lbplotting.plot_lb_vs_ancestral_delta_affinity(inf_plotdir + '/' + mtr, inf_lines_to_use, mtr, only_csv=only_csv, fnames=fnames, debug=debug)
             if ete_path is not None and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
-                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'aa-lbr', 'cons-dist-aa'] if m in metrics_to_calc], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
+                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'aa-lbr', 'cons-dist-aa'] if m in metrics_to_calc], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include, fnames=fnames)
             subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
-            plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs]) # extra_links used to have inf_plotdir in it, but that seemed to not work?
+            plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs], bgcolor='#FFFFFF') # extra_links used to have inf_plotdir in it, but that seemed to not work?
 
     # true plots
     if true_lines_to_use is not None:
@@ -1724,12 +1724,12 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
             # lbplotting.plot_lb_distributions('lbi', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             # lbplotting.plot_lb_distributions('lbr', true_plotdir, true_lines_to_use, fnames=fnames, is_true_line=True, only_overall=True)
             if ete_path is not None:
-                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'lbr', 'cons-dist-aa'] if m in metrics_to_calc], true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True)
+                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'lbr', 'cons-dist-aa'] if m in metrics_to_calc], true_plotdir, true_lines_to_use, ete_path, workdir, is_true_line=True, fnames=fnames)
             # for tmetric in lb_metrics:
             #     lbplotting.plot_true_vs_inferred_lb(true_plotdir + '/' + tmetric, true_lines_to_use, inf_lines_to_use, tmetric, fnames=fnames)
             # lbplotting.plot_cons_seq_accuracy(true_plotdir, true_lines_to_use, fnames=fnames)
             subdirs = [d for d in os.listdir(true_plotdir) if os.path.isdir(true_plotdir + '/' + d)]
-            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(true_plotdir), subd)) for subd in subdirs])  # extra_links used to have true_plotdir in it, but that seemed not to work?
+            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(true_plotdir), subd)) for subd in subdirs], bgcolor='#FFFFFF')  # extra_links used to have true_plotdir in it, but that seemed not to work?
 
     print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 
@@ -2116,7 +2116,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, lbr_tau_factor=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
                                       dont_normalize_lbi=False, cluster_indices=None, only_look_upwards=False, debug=False):
     # ----------------------------------------------------------------------------------------
-    def get_combo_lbfo(varlist, iclust, line, is_aa_lb=False, add_to_line=False):
+    def get_combo_lbfo(varlist, iclust, line, lb_tau, lbr_tau_factor, is_aa_lb=False): #, add_to_line=False):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
             utils.add_naive_seq_aa(line)
             utils.add_seqs_aa(line)
@@ -2125,6 +2125,9 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             add_cdists_to_lbfo(line, lbfo, mtmp)
         dtree = get_dendro_tree(treestr=line['tree'])
         lbvars = set(varlist) & set(['lbi', 'lbr'])  # although if is_aa_lb is set, we're really calculating aa-lbi/aa-lbr
+        if lb_tau is None or lbr_tau_factor is None:
+            print '  %s using default lb_tau %.3f and lbr_tau_factor %.3f to calculate individual tree metric %s' % (utils.color('yellow', 'warning'), default_lb_tau, default_lbr_tau_factor, metric_method)
+            lb_tau, lbr_tau_factor = default_lb_tau, default_lbr_tau_factor
         tmp_tau, tmp_factor = lb_tau, lbr_tau_factor  # weird/terrible hack (necessary to allow the calculation fcn to enforce that either a) we're calculating both metrics, so we probably want the factor applied or b) we're only calculating one, and we're not normalizing (i.e. we're probably calculating the bounds)
         if len(lbvars) == 2:
             only_calc_metric = None
@@ -2136,25 +2139,36 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         else:
             raise Exception('unexpected combination of variables %s' % varlist)
 
-        if is_aa_lb:
+        if is_aa_lb:  # NOTE this adds the metrics to <line>
             get_aa_lb_metrics(line, dtree, tmp_tau, lbr_tau_factor=tmp_factor, only_calc_metric=only_calc_metric, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
-            lbfo.update(line['tree-info']['lb'])
+            # lbfo.update(line['tree-info']['lb'])
         else:
             tmp_lb_info = calculate_lb_values(dtree, tmp_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=tmp_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             for lbm in [m for m in lb_metrics if m in varlist]:  # this skips the tree, which I guess isn't a big deal
                 lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
-        if add_to_line:
-            line['tree-info'] = {'lb' : lbfo}
+        # if add_to_line:
+        #     line['tree-info'] = {'lb' : lbfo}
         return dtree, lbfo
 
+    # ----------------------------------------------------------------------------------------
+    def add_to_treefo(lbfo):
+        assert metric_method not in lbfo
+        if 'tree-info' in line:
+            wstr = (' %s replacing existing info'%utils.wrnstr()) if metric_method in line['tree-info']['lb'] else ''
+            print '    add %s to existing lb keys:  %s%s' % (metric_method, ' '.join(k for k in line['tree-info']['lb']), wstr)
+            line['tree-info']['lb'][metric_method] = lbfo
+        else:
+            print '    add new metric %s' % metric_method
+            line['tree-info'] = {'lb' : {metric_method : lbfo}}
     # ----------------------------------------------------------------------------------------
     if min_cluster_size is None:
         min_cluster_size = default_min_selection_metric_cluster_size
     n_before = len(annotations)
     annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(annotations)
-    print '      getting non-lb metric %s for %d true cluster%s with size%s: %s' % (metric_method, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
-    print '        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
+    print '      %s getting individual metric for %d true cluster%s with size%s: %s' % (utils.color('blue', metric_method), n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
+    if n_before - n_after > 0:
+        print '        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
 
     pstart = time.time()
     metric_antns = []  # just to keep track of the ones corresponding to <cluster_indices> (if set)
@@ -2162,41 +2176,45 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         if cluster_indices is not None and iclust not in cluster_indices:
             continue
         metric_antns.append(line)
-        assert 'tree-info' not in line  # could handle it, but don't feel like thinking about it a.t.m.
+        if 'tree-info' in line and 'lb' in line['tree-info'] and metric_method in line['tree-info']['lb']:
+            print '    %s already in annotation, not doing anything' % metric_method
         if metric_method == 'shm':
             metric_info = {u : -utils.per_seq_val(line, 'n_mutations', u) for u in line['unique_ids']}
-            line['tree-info'] = {'lb' : {metric_method : metric_info}}
+            add_to_treefo(metric_info)
         elif metric_method == 'fay-wu-h':  # NOTE this isn't actually tree info, but I"m comparing it to things calculated with a tree, so putting it in the same place at least for now
             fwh = -utils.fay_wu_h(line)
-            line['tree-info'] = {'lb' : {metric_method : {u : fwh for i, u in enumerate(line['unique_ids'])}}}  # kind of weird to set it individually for each sequence when they all have the same value (i.e. it's a per-family metric), but I don't want to do actual per-family comparisons any more, and this way we can at least look at it
+            add_to_treefo({u : fwh for i, u in enumerate(line['unique_ids'])}) # kind of weird to set it individually for each sequence when they all have the same value (i.e. it's a per-family metric), but I don't want to do actual per-family comparisons any more, and this way we can at least look at it
         elif metric_method in ['cons-dist-nuc', 'cons-dist-aa']:
             lbfo = {}
             add_cdists_to_lbfo(line, lbfo, metric_method)
-            line['tree-info'] = {'lb' : lbfo}
+            add_to_treefo(lbfo[metric_method])
         elif metric_method == 'delta-lbi':
-            dtree, lbfo = get_combo_lbfo(['lbi'], iclust, line)
+            dtree, lbfo = get_combo_lbfo(['lbi'], iclust, line, lb_tau, lbr_tau_factor)
             delta_lbfo = {}
             for uid in line['unique_ids']:
                 node = dtree.find_node_with_taxon_label(uid)
                 if node is dtree.seed_node:
                     continue  # maybe I should add it as something? not sure
                 delta_lbfo[uid] = lbfo['lbi'][uid] - lbfo['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
-            line['tree-info'] = {'lb' : {metric_method : delta_lbfo}}
+            add_to_treefo(delta_lbfo)
         elif 'aa-lb' in metric_method:  # aa versions of lbi and lbr
-            _, _ = get_combo_lbfo([metric_method.lstrip('aa-')], iclust, line, is_aa_lb=True)  # NOTE i shouldn't have used lstrip() here (i keep forgetting it's character-based, not string-based', but i think it's ok
+            _, lbfo = get_combo_lbfo([metric_method.lstrip('aa-')], iclust, line, lb_tau, lbr_tau_factor, is_aa_lb=True)  # NOTE i shouldn't have used lstrip() here (i keep forgetting it's character-based, not string-based', but i think it's ok
+            # NOTE do *not* call add_to_treefo() since they're already added to <line>
         elif metric_method in ['lbi', 'lbr']:  # last cause i'm adding them last, but would probably be cleaner to handle it differently (i'm just tired of having to run the full (non-individual) tree metric fcn to get them)
-            _, _ = get_combo_lbfo([metric_method], iclust, line, add_to_line=True)
+            _, lbfo = get_combo_lbfo([metric_method], iclust, line, lb_tau, lbr_tau_factor) #, add_to_line=True)
+            add_to_treefo(lbfo[metric_method])
         elif metric_method == 'cons-lbi':  # now uses aa-lbi as a tiebreaker for cons-dist-aa, but used to be old z-score style combination of (nuc-)lbi and cons-dist
             def tiefcn(uid):
                 cdist, aalbi = lbfo['cons-dist-aa'][uid], lbfo['aa-lbi'][uid]
                 return cdist + aalbi / max_aa_lbi
-            _, lbfo = get_combo_lbfo(['cons-dist-aa', 'lbi'], iclust, line, is_aa_lb=True)
+            _, lbfo = get_combo_lbfo(['cons-dist-aa', 'lbi'], iclust, line, lb_tau, lbr_tau_factor, is_aa_lb=True)
             max_aa_lbi = max(lbfo['aa-lbi'].values())
-            line['tree-info'] = {'lb' : {metric_method : {u : tiefcn(u) for u in line['unique_ids']}}}
+            add_to_treefo({u : tiefcn(u) for u in line['unique_ids']})
         else:
             assert False
 
-    print '       tree quantity calculation/prediction time: %.1fs' % (time.time() - pstart)
+    if time.time() - pstart > 60:
+        print '       tree quantity calculation/prediction time: %.1fs' % (time.time() - pstart)
 
     if base_plotdir is not None:
         plstart = time.time()
@@ -2317,7 +2335,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if vname in args.selection_metrics_to_calculate:
             return '%.2f' % val
         elif vname == 'affinities':
-            return '%.1f' % val
+            return ('%.1f' % val) if val > 1 else str(utils.round_to_n_digits(val, 2))  # could probably round for the first case as well
         elif type(val) == float:
             return '%.3f' % val
         else:
@@ -2329,7 +2347,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         else:
             def vfcn(c): return gsval(mfo, c, kstr)
         kvals = [vfcn(c) for c in 'hl']
-        return float('nan') if None in kvals else sum(kvals)
+        return None if None in kvals else sum(kvals)
     # ----------------------------------------------------------------------------------------
     def sum_nuc_shm_pct(mpfo):
         total_len = sum(len(gsval(mpfo, c, 'seqs')) - gsval(mpfo, c, 'seqs').count(utils.ambig_base) for c in 'hl')
@@ -2735,7 +2753,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                         mv = neut_col(mv, xlens[mk])
                     xstr += [mv]
             for sh in smheads:
-                xstr += [utils.wfmt(gsvstr(sumv(mpfo, sh), sh), xlens[sh])]
+                xstr += [utils.wfmt(gsvstr(sumv(mpfo, sh), sh), xlens.get(sh, 7))]
             return xstr
         # ----------------------------------------------------------------------------------------
         def get_didstr(dids, mpfo):
@@ -2818,23 +2836,31 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
 
         fnames = []
         joint_metrics = ['cons-dist-aa', 'aa-lbi', 'aa-lbr']
+        reverse_translations = utils.translate_uids([h_atn], trfcn=lambda u: '-'.join(u.split('-')[:-1]))
         for b_mtr in [m for m in joint_metrics if m in args.selection_metrics_to_calculate]:
+            has_affinities = 'affinities' in h_atn
             sum_mtr = 'sum-%s' % b_mtr
             h_atn['tree-info']['lb'][sum_mtr] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
             for mfo in metric_pairs:
-                h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sumv(mfo, b_mtr) #'aa-cdist')
-
-            lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
-            if b_mtr in ['cons-dist-aa', 'aa-lbi']:
-                lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], sum_mtr, is_true_line=is_simu, fnames=fnames)
-            if b_mtr in ['aa-lbr']:
-                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames)
-        if 'cons-dist-aa' in args.selection_metrics_to_calculate and 'aa-lbi' in args.selection_metrics_to_calculate:
-            lbplotting.make_lb_scatter_plots('sum-cons-dist-aa', plotdir, 'sum-aa-lbi', [h_atn], fnames=fnames, is_true_line=is_simu, colorvar='affinity' if 'affinities' in h_atn else 'edge-dist', add_jitter=True, queries_to_include=args.queries_to_include)
-        if args.ete_path is not None: # and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
+                sum_mval = sumv(mfo, b_mtr)
+                if sum_mval is None:
+                    continue
+                h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sum_mval
+            if not args.only_csv_plots:
+                lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
+            if has_affinities and b_mtr in ['cons-dist-aa', 'aa-lbi']:
+                lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], sum_mtr, is_true_line=is_simu, fnames=fnames, only_csv=args.only_csv_plots)
+            if has_affinities and b_mtr in ['aa-lbr']:
+                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames, is_true_line=is_simu, only_csv=args.only_csv_plots)
+        if not args.only_csv_plots and 'cons-dist-aa' in args.selection_metrics_to_calculate and 'aa-lbi' in args.selection_metrics_to_calculate:
+            lbplotting.make_lb_scatter_plots('sum-cons-dist-aa', plotdir, 'sum-aa-lbi', [h_atn], fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities else None, add_jitter=True, queries_to_include=args.queries_to_include)
+        if not args.only_csv_plots and args.ete_path is not None: # and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
             lbplotting.plot_lb_trees(['sum-'+m for m in joint_metrics if m in args.selection_metrics_to_calculate], plotdir, [h_atn], args.ete_path, args.workdir, is_true_line=is_simu, fnames=fnames, queries_to_include=args.queries_to_include)
-        subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)] #[os.path.basename(d) for d in glob.glob(plotdir+'/*') if os.path.isdir(d)]
-        plotting.make_html(plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(plotdir), subd)) for subd in subdirs], bgcolor='#FFFFFF') #c9c8c8')
+        if not args.only_csv_plots:
+            subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)] #[os.path.basename(d) for d in glob.glob(plotdir+'/*') if os.path.isdir(d)]
+            plotting.make_html(plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(plotdir), subd)) for subd in subdirs], bgcolor='#FFFFFF') #c9c8c8')
+
+        utils.translate_uids([h_atn], trns=reverse_translations)
 
         iclust_plotvals = {c+'_aa-cfrac' : [gsval(m, c, 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
         if any(vl.count(0)==len(vl) for vl in iclust_plotvals.values()):  # doesn't plot anything useful, and gives a pyplot warning to std err which is annoying
@@ -2855,7 +2881,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return mtpys
 
     # ----------------------------------------------------------------------------------------
-    debug = not is_simu or args.debug
+    debug = True #args.debug  # not is_simu or
+    if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
+        print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
     all_chosen_mfos = []
     cfgfo = read_cfgfo()
     antn_pairs = []

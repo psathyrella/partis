@@ -731,10 +731,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
         return true_partitions
     # ----------------------------------------------------------------------------------------
-    def read_true_files(add_selection_metrics=None, debug=False):
+    def read_true_files(add_selection_metrics=None, no_plot=False, debug=False):
         assert args.paired_indir is not None
         def ofn_fcn(ltmp, lpair=None): return paircluster.paired_fn(args.paired_indir, ltmp, lpair=lpair, suffix='.yaml')
-        lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if args.plotdir is None else getplotdir, dont_add_implicit_info=not debug)
+        lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if (args.plotdir is None or no_plot) else getplotdir, dont_add_implicit_info=not debug)
         return lp_infos
     # ----------------------------------------------------------------------------------------
     def print_joint_vs_input(input_cpaths, input_antn_lists, concat_cpaths, debug=False):
@@ -1085,7 +1085,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             _ = read_qti_file(args)  # sets <args.queries_to_include>
             treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/inferred-combo-selection-metrics', args=args)  # NOTE this is kind of weird that we don't set is_simu to true even if it is simu (we instead run again below) but i think it's right(ish)?
             if not args.is_data and args.paired_indir is not None:
-                true_lp_infos = read_true_files(add_selection_metrics=['cons-dist-aa'])  # read true (input) files, and add selection metrics NOTE these will presumably already have been plotted (to the same dir) in the 'get-selection-metrics' call just above, but all the ways i can think of to avoid it are worse (underlying issue is i don't want to rewrite simulation file with selection metrics)
+                true_lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate, no_plot=True)  # read true (input) files, and add selection metrics NOTE these will presumably already have been plotted (to the same dir) in the 'get-selection-metrics' call just above, but all the ways i can think of to avoid it are worse (underlying issue is i don't want to rewrite simulation file with selection metrics)
                 bpltdir = None if args.plotdir is None else getplotdir(None)+'/true-combo-selection-metrics'
                 treeutils.combine_selection_metrics(true_lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=bpltdir, args=args, is_simu=True)
 
