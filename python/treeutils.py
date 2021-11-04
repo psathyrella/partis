@@ -2177,6 +2177,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         metric_antns.append(line)
         if 'tree-info' in line and 'lb' in line['tree-info'] and metric_method in line['tree-info']['lb']:
             print '    %s already in annotation, not doing anything' % metric_method
+            continue
         if metric_method == 'shm':
             metric_info = {u : -utils.per_seq_val(line, 'n_mutations', u) for u in line['unique_ids']}
             add_to_treefo(metric_info)
