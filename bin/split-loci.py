@@ -37,8 +37,6 @@ parser.add_argument('--vsearch-threshold', type=float, default=0.4, help='defaul
 parser.add_argument('--debug', type=int, default=1)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--guess-pairing-info', action='store_true')
-parser.add_argument('--read-gctree-output', action='store_true')
-parser.add_argument('--add-dj-seqs', action='store_true')
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info/meta string of sequence name/uid (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
 parser.add_argument('--input-metafname', help='yaml file with meta information keyed by sequence id. See same argument in main partis help, and https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parser.add_argument('--n-max-queries', type=int)
@@ -135,8 +133,6 @@ def print_pairing_info(outfos, paired_uids):
 
 # ----------------------------------------------------------------------------------------
 args = parser.parse_args()
-if args.read_gctree_output and not args.guess_pairing_info:
-    args.guess_pairing_info = True
 if os.path.dirname(args.fname) == '':
     args.fname = '%s/%s' % (os.getcwd(), args.fname)
 if args.outdir is None:
@@ -197,11 +193,6 @@ if args.guess_pairing_info:
     guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separator='-', dtype='undetermined')
     for uid, mfo in guessed_metafos.items():
         paired_uids[uid] = mfo['paired-uids']
-
-if args.read_gctree_output:
-    print '  processing gctree output:'
-    for locus in outfos:
-        utils.process_gctree_seqfos(outfos[locus], glutils.read_glfo(args.germline_dir, locus), guessed_metafos, add_dj_seqs=args.add_dj_seqs, dbgstr=utils.color('blue', locus))
 
 # remove failed uids from paired_uids
 failed_uids = set(s['name'] for s in failed_seqs)

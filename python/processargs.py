@@ -194,11 +194,6 @@ def process(args):
     delattr(args, 'min_allele_prevalence_fraction')  # delete the non-plural version
     delattr(args, 'typical_genes_per_region_per_subject')  # and we don't need this any more either
 
-    if args.read_gctree_output and not args.paired_loci:
-        raise Exception('not implemented atm')
-    if args.read_gctree_output and not args.guess_pairing_info:
-        args.guess_pairing_info = True
-
     if args.annotation_clustering and args.action != 'annotate':
             raise Exception('action must be \'annotate\' for annotation clustering')
     args.naive_hamming_bounds = utils.get_arg_list(args.naive_hamming_bounds, floatify=True)

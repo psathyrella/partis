@@ -105,13 +105,14 @@ metric_for_target_distance_labels = {
     'aa-sim-blosum' : 'AA BLOSUM',
 }
 cdist_keys = ['cons-dist-'+s for s in ['nuc', 'aa']]
+# cdist_keys += ['sum-'+k for k in cdist_keys]
 
 # ----------------------------------------------------------------------------------------
 def all_clust_str(n_clusters):
     return '%d cluster%s' % (n_clusters, utils.plural(n_clusters))
 
 # ----------------------------------------------------------------------------------------
-def add_fn(fnames, fn=None, init=False, n_per_row=4, new_row=False):
+def add_fn(fnames, fn=None, init=False, n_per_row=3, new_row=False):
     if fnames is None:
         if init:
             fnames = []
@@ -363,7 +364,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             treeutils.add_cons_dists(line, aa='aa-' in xvar)
             tkey = xvar.replace('cons-dist-', 'cons_dists_')
             def xvalfcn(i): return -line[tkey][i]
-        elif xvar in ['aa-lbi', 'aa-lbr']:
+        elif xvar in ['aa-lbi', 'aa-lbr', 'sum-aa-lbi', 'sum-aa-lbr', 'sum-cons-dist-aa']:
             def xvalfcn(i): return line['tree-info']['lb'][xvar].get(line['unique_ids'][i], None)
         elif xvar == 'edge-dist':
             def xvalfcn(i): return treeutils.edge_dist_fcn(dtree, line['unique_ids'][i])
@@ -733,7 +734,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
             dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))  # keeping this here to remind myself how to get the tree if I need it
         if affy_key not in line:
             return plotvals
-        for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None]:
+        for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None and u in line['tree-info']['lb'][lb_metric]]:
             plotvals['affinity'].append(affy)
             if lb_metric in per_seq_metrics:
                 plotvals[lb_metric].append(line['tree-info']['lb'][lb_metric][uid])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
@@ -906,6 +907,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         for uid in line['unique_ids']:
             node = dtree.find_node_with_taxon_label(uid)
             if node is dtree.seed_node:  # root doesn't have any ancestors
+                continue
+            if uid not in line['tree-info']['lb'][lb_metric]:
                 continue
             lbval = line['tree-info']['lb'][lb_metric][uid]  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if 'lbr' in lb_metric and lbval == 0:  # lbr equals 0 should really be treated as None/missing
@@ -1109,8 +1112,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None, queries_to_include=None, fnames=None):
-    if fnames is not None:
-        add_fn(fnames, new_row=True)
+    add_fn(fnames, new_row=True)
     workdir = '%s/ete3-plots' % base_workdir
     plotdir = baseplotdir + '/trees'
     utils.prep_dir(plotdir, wildlings='*.svg')

@@ -871,40 +871,6 @@ def extract_pairing_info(seqfos, droplet_id_separator='_', dtype='10x', input_me
     return metafos
 
 # ----------------------------------------------------------------------------------------
-def process_gctree_seqfos(seqfos, glfo, metafos, add_dj_seqs=False, drop_zero_abundance_seqs=False, dbgstr=''):  # translate abundance to multiplicity (maybe incrementing), and add d+j seqs if specified
-    n_to_skip, n_abundance_increased = 0, 0
-    for sfo in seqfos:
-        name, abfo_str = sfo['infostrs']
-        assert abfo_str.count('=') == 1
-        abstr, abval = abfo_str.split('=')
-        assert abstr == 'abundance'
-        if int(abval) == 0:
-            if drop_zero_abundance_seqs:
-                n_to_skip += 1
-            else:
-                abval = '1'
-                n_abundance_increased += 1
-        if sfo['name'] not in metafos:
-            metafos[sfo['name']] = {}
-        if 'multiplicity' in metafos[sfo['name']]:
-            raise Exception('multiplicity already in meta info for %s' % sfo['name'])
-        metafos[sfo['name']]['multiplicity'] = int(abval)
-    if n_to_skip > 0:
-        n_before = len(seqfos)
-        seqfos = [s for s in seqfos if metafos[s['name']]['multiplicity'] > 0]
-        print '        skipping %d / %d seqs with zero abundance' % (n_to_skip, n_before)
-        assert n_before == len(seqfos) + n_to_skip
-    if n_abundance_increased > 0:
-        print '      %s increased abundance of %d / %d seqs from 0 to 1 (these are presumably inferred ancestral sequences)' % (dbgstr, n_abundance_increased, len(seqfos))
-
-    if add_dj_seqs and len(seqfos) > 0:
-        tgenes = {r : sorted(glfo['seqs'][r].keys())[0] for r in 'dj'}
-        d_seq, j_seq = [glfo['seqs'][r][tgenes[r]] for r in 'dj']
-        print '        appending d and j gene sequences: %s %s' % (color_gene(tgenes['d']), color_gene(tgenes['j']))
-        for sfo in seqfos:
-            sfo['seq'] = '%s%s%s' % (sfo['seq'], d_seq, j_seq)
-
-# ----------------------------------------------------------------------------------------
 def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotation_dict, use_last=False, debug=False):
     if len(cpath.partitions) == 0:
         return
@@ -5719,7 +5685,7 @@ def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwarg
     for sfo in seqlist:
         uid = get_trid(sfo['name'], sfo['seq'])
         if uid in seqdict:
-            raise Exception('can\'t handle multiple entries with both sequence and uid the same')
+            raise Exception('can\'t handle multiple entries with both sequence and uid the same (duplicate: %s)' % uid)
         seqdict[uid] = sfo['seq']
     returnfo = run_vsearch(action, seqdict, workdir, threshold, **kwargs)
     if set(returnfo) != set(['gene-counts', 'annotations', 'failures']):

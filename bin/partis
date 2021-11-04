@@ -444,10 +444,6 @@ def run_all_loci(args, ig_or_tr='ig'):
             cmd += ' --input-metafname %s' % mfname
         if args.guess_pairing_info:
             cmd += ' --guess-pairing-info'
-        if args.read_gctree_output:
-            cmd += ' --read-gctree-output'
-        if args.add_dj_seqs:
-            cmd += ' --add-dj-seqs'
         if args.n_max_queries > 0:
             cmd += ' --n-max-queries %d' % args.n_max_queries
         utils.simplerun(cmd, dryrun=args.dry_run)
@@ -491,8 +487,6 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--random-seed-seq')
             utils.remove_from_arglist(clist, '--dont-calculate-annotations')  # we need the single-chain partition steps to write annotations, although maybe it's just for pairing info so maybe we could write that separately, but whatever
             utils.remove_from_arglist(clist, '--guess-pairing-info')
-            utils.remove_from_arglist(clist, '--read-gctree-output')
-            utils.remove_from_arglist(clist, '--add-dj-seqs')
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
@@ -595,7 +589,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if args.is_data:  # for simulation we still need it
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
-                if args.read_gctree_output and args.treefname is not None:  # have to translate uids (i.e. add locus)
+                if args.guess_pairing_info and args.treefname is not None:  # have to translate uids (i.e. add locus)
                     dtree = treeutils.get_dendro_tree(treefname=args.treefname)
                     treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s' % (n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None]) #, debug=True)
                     tfn = getofn(ltmp, trees=True, lpair=lpair, gctrees=True)
@@ -1184,9 +1178,7 @@ parent_args.append({'name' : '--mimic-data-read-length', 'kwargs' : {'action' : 
 
 parent_args.append({'name' : '--infname', 'kwargs' : {'help' : 'input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)'}})
 parent_args.append({'name' : '--paired-indir', 'kwargs' : {'help' : 'Directory with input files for use with --paired-loci. Must conform to file naming conventions from bin/split-loci.py (really paircluster.paired_dir_fnames()), i.e. the files generated when --infname and --paired-loci are set.'}})
-parent_args.append({'name' : '--guess-pairing-info', 'kwargs' : {'action' : 'store_true', 'help' : 'try to guess pairing info based on paired sequences having the same name. Then appends the locus to each uid. Only has an effect if ./bin/split-loci.py is being run.'}})
-parent_args.append({'name' : '--read-gctree-output', 'kwargs' : {'action' : 'store_true', 'help' : 'process input file from gctree, e.g. moving/translating abundance to multiplicity. Turns on --guess-pairing-info if not already set.'}})
-parent_args.append({'name' : '--add-dj-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'Add (arbitrary) d and j seqs, e.g. if input seqs only have v. Only implemented when splitting single input file with paired loci'}})
+parent_args.append({'name' : '--guess-pairing-info', 'kwargs' : {'action' : 'store_true', 'help' : 'try to guess pairing info based on paired sequences having the same name. Then appends the locus to each uid. Only has an effect if ./bin/split-loci.py is being run, or if --treefname is set (in the latter case we add the locus to each node name).'}})
 parent_args.append({'name' : '--name-column', 'kwargs' : {'help' : 'column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\'). If set to \'fasta-info-index-N\' for an integer N, it will take the Nth (zero-indexed) value from a fasta files uid line.'}})  # for search: includes what used to be --fasta-info-index
 parent_args.append({'name' : '--seq-column', 'kwargs' : {'help' : 'column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')'}})
 parent_args.append({'name' : '--input-metafnames', 'kwargs' : {'help' : 'colon-separated list of yaml/json files, each of which has meta information for the sequences in --infname (and --queries-to-include-fname, although that file can also include its own input meta info), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.'}})

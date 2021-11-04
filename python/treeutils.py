@@ -1170,7 +1170,7 @@ def get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, n
         ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
         if debug:
             ancestor_uid = ancestor_node.taxon.label
-            ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
+            ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid, default_val=float('nan'))
         if ancestor_edge in affy_increasing_edges:
             chosen_edge = ancestor_edge
             break
@@ -1182,7 +1182,7 @@ def get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, n
     if chosen_edge is None:
         return (None, None) if also_return_branch_len else None
     if debug:
-        print '     %12s %5s %12s %2d %8.4f %9.4f%+9.4f' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.per_seq_val(line, 'affinities', chosen_edge.head_node.taxon.label) - ancestor_affinity)  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
+        print '     %12s %5s %12s %2d %8.4f %9.4f%+9.4f' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.per_seq_val(line, 'affinities', chosen_edge.head_node.taxon.label, default_val=float('nan')) - ancestor_affinity)  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
     if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
         return n_steps, branch_len
     else:
@@ -1210,7 +1210,7 @@ def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line,
         for cnode in child_nodes:
             cedge = cnode.edge  # edge to <cnode>'s parent
             if debug:
-                child_affinity = utils.per_seq_val(line, 'affinities', cnode.taxon.label)
+                child_affinity = utils.per_seq_val(line, 'affinities', cnode.taxon.label, default_val=float('nan'))
             if cedge in affy_increasing_edges:
                 chosen_edge = cedge
                 found = True
@@ -1226,7 +1226,7 @@ def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line,
     if chosen_edge is None:
         return (None, None) if also_return_branch_len else None
     if debug:
-        print '     %12s %5s %12s %+2d %8.4f %9.4f%+9.4f' % ('', '', cnode.taxon.label, -n_steps, -branch_len, child_affinity, child_affinity - utils.per_seq_val(line, 'affinities', chosen_edge.tail_node.taxon.label))  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
+        print '     %12s %5s %12s %+2d %8.4f %9.4f%+9.4f' % ('', '', cnode.taxon.label, -n_steps, -branch_len, child_affinity, child_affinity - utils.per_seq_val(line, 'affinities', chosen_edge.tail_node.taxon.label, default_val=float('nan')))  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
     if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
         return n_steps, branch_len
     else:
@@ -2808,33 +2808,34 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def makeplots(metric_pairs, h_atn):
         import plotting
         import lbplotting
-# TODO clean up true/is_simu
-        if True: #is_simu:
-            # make performance plots for sum of h+l aa-cdist
-            fnames = []
-            joint_metrics = ['cons-dist-aa', 'aa-lbi', 'aa-lbr']
-            for b_mtr in [m for m in joint_metrics if m in args.selection_metrics_to_calculate]:
-                sum_mtr = 'sum-%s' % b_mtr
-                h_atn['tree-info']['lb'][sum_mtr] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
-                for mfo in metric_pairs:
-                    h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sumv(mfo, b_mtr) #'aa-cdist')
 
-                lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
-                if b_mtr in treeutils.affy_metrics:
-                    lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], sum_mtr, is_true_line=is_simu, fnames=fnames)
-                if b_mtr in treeutils.delta_affy_metrics:
-                    lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames)
-            if args.ete_path is not None: # and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
-                lbplotting.plot_lb_trees(['sum-'+m for m in joint_metrics if m in args.selection_metrics_to_calculate], plotdir, [h_atn], args.ete_path, args.workdir, is_true_line=is_simu, fnames=fnames) #, queries_to_include=queries_to_include)
-            subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)] #[os.path.basename(d) for d in glob.glob(plotdir+'/*') if os.path.isdir(d)]
-            plotting.make_html(plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(plotdir), subd)) for subd in subdirs], bgcolor='c9c8c8') #[(d, d) for d in subdirs]) #[(sum_mtr, '%s/%s/' % (plotdir, sum_mtr)),])
+        fnames = []
+        joint_metrics = ['cons-dist-aa', 'aa-lbi', 'aa-lbr']
+        for b_mtr in [m for m in joint_metrics if m in args.selection_metrics_to_calculate]:
+            sum_mtr = 'sum-%s' % b_mtr
+            h_atn['tree-info']['lb'][sum_mtr] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
+            for mfo in metric_pairs:
+                h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sumv(mfo, b_mtr) #'aa-cdist')
+
+            lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
+            if b_mtr in ['cons-dist-aa', 'aa-lbi']:
+                lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], sum_mtr, is_true_line=is_simu, fnames=fnames)
+            if b_mtr in ['aa-lbr']:
+                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames)
+        if 'cons-dist-aa' in args.selection_metrics_to_calculate and 'aa-lbi' in args.selection_metrics_to_calculate:
+            lbplotting.make_lb_scatter_plots('sum-cons-dist-aa', plotdir, 'sum-aa-lbi', [h_atn], fnames=fnames, is_true_line=is_simu, colorvar='affinity' if 'affinities' in h_atn else 'edge-dist', add_jitter=True, queries_to_include=args.queries_to_include)
+        if args.ete_path is not None: # and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
+            lbplotting.plot_lb_trees(['sum-'+m for m in joint_metrics if m in args.selection_metrics_to_calculate], plotdir, [h_atn], args.ete_path, args.workdir, is_true_line=is_simu, fnames=fnames, queries_to_include=args.queries_to_include)
+        subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)] #[os.path.basename(d) for d in glob.glob(plotdir+'/*') if os.path.isdir(d)]
+        plotting.make_html(plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(plotdir), subd)) for subd in subdirs], bgcolor='#FFFFFF') #c9c8c8')
+
         iclust_plotvals = {c+'_aa-cfrac' : [gsval(m, c, 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
         if any(vl.count(0)==len(vl) for vl in iclust_plotvals.values()):  # doesn't plot anything useful, and gives a pyplot warning to std err which is annoying
             return
         add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs)  # add uids for the chosen ones
         mstr = legtexts['cons-frac-aa']
+# TODO add this to html or don't make it
         lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
-# TODO add this to html
         # for k in iclust_plotvals:
         #     if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
         #     all_plotvals[k] += iclust_plotvals[k]
