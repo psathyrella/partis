@@ -967,14 +967,14 @@ def translate_uids(antn_list, trns, cpath=None, failstr='translation', debug=Fal
     # ----------------------------------------------------------------------------------------
     def tr_tree(line, treestr, dbgstr):
         dtree = treeutils.get_dendro_tree(treestr=treestr)
-        treeutils.translate_labels(dtree, [(k, v) for k, v in trns.items() if k in line['unique_ids']], dbgstr=dbgstr, debug=debug)
+        treeutils.translate_labels(dtree, [(k, v) for k, v in trns.items() if k in line['unique_ids']], dont_fail=True, dbgstr=dbgstr, debug=debug)
         return treeutils.as_str(dtree)
     # ----------------------------------------------------------------------------------------
     def trfn(uid):
         if uid in trns:
             return trns[uid]
         else:
-            missing_translations.add(uid)
+            missing_translations.add(uid)  # this is kind of pointless since it'll crash in other places if things are missing, but oh well
             return uid
     # ----------------------------------------------------------------------------------------
     def tr_lb_info(line):

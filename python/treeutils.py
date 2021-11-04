@@ -518,14 +518,18 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
         # print utils.pad_lines(get_ascii_tree(dendro_tree))
 
 # ----------------------------------------------------------------------------------------
-def translate_labels(dendro_tree, translation_pairs, dbgstr='', debug=False):
+def translate_labels(dendro_tree, translation_pairs, dbgstr='', dont_fail=False, debug=False):
     if debug:
         print '    translating %stree:' % ('' if dbgstr=='' else dbgstr+' ')
         print get_ascii_tree(dendro_tree=dendro_tree, extra_str='      ')
     for old_label, new_label in translation_pairs:
         taxon = dendro_tree.taxon_namespace.get_taxon(old_label)
         if taxon is None:
-            raise Exception('requested taxon with old name \'%s\' not present in tree (present: %s)' % (old_label, ' '.join(t.label for t in dendro_tree.taxon_namespace)))
+            prstr = 'requested taxon with old name \'%s\' not present in tree (present: %s)' % (old_label, ' '.join(t.label for t in dendro_tree.taxon_namespace))
+            if dont_fail:
+                print prstr
+            else:
+                raise Exception(prstr)
         taxon.label = new_label
         if debug:
             print '    %20s --> %s' % (old_label, new_label)
