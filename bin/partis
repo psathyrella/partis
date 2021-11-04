@@ -473,6 +473,19 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  %s+%s: %d * %.2f = %d events' % (h_locus, l_locus, arg_events, lfrac, n_events)
         return int(n_events)
     # ----------------------------------------------------------------------------------------
+    def translate_locus_names(clist):
+        if args.treefname is not None:  # have to translate uids (i.e. add locus)
+            dtree = treeutils.get_dendro_tree(treefname=args.treefname)
+            treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s' % (n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None]) #, debug=True)
+            tfn = getofn(ltmp, trees=True, lpair=lpair, gctrees=True)
+            with open(tfn, 'w') as tfile:
+                tfile.write(treeutils.as_str(dtree))
+            utils.replace_in_arglist(clist, '--treefname', tfn)
+            work_fnames.append(tfn)
+        # TODO doesn't work yet
+        # if args.queries_to_include_fname is not None and args.infname is not None:
+        #     utils.replace_in_arglist(clist, '--queries-to-include-fname', getofn(ltmp, lpair=lpair, fasta=True))
+    # ----------------------------------------------------------------------------------------
     def run_step(tmpaction, ltmp, auto_cache=False, skip_missing_input=False, skip_missing_output=False, lpair=None, joint=False):
         # ----------------------------------------------------------------------------------------
         def prep_args(ltmp):
@@ -589,14 +602,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if args.is_data:  # for simulation we still need it
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
-                if args.guess_pairing_info and args.treefname is not None:  # have to translate uids (i.e. add locus)
-                    dtree = treeutils.get_dendro_tree(treefname=args.treefname)
-                    treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s' % (n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None]) #, debug=True)
-                    tfn = getofn(ltmp, trees=True, lpair=lpair, gctrees=True)
-                    with open(tfn, 'w') as tfile:
-                        tfile.write(treeutils.as_str(dtree))
-                    utils.replace_in_arglist(clist, '--treefname', tfn)
-                    work_fnames.append(tfn)
+                if args.guess_pairing_info:
+                    translate_locus_names(clist)
+                utils.remove_from_arglist(clist, '--debug', has_arg=True)
 
             return clist
         # ----------------------------------------------------------------------------------------

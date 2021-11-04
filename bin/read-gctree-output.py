@@ -68,7 +68,7 @@ def run_cmd(action):
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
         cmd += ' --treefname %s/%s --plotdir %s --selection-metrics-to-calculate cons-dist-aa:lbi:aa-lbi:lbr:aa-lbr --queries-to-include-fname %s' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir, args.seqfname) #paircluster.paired_fn(args.outdir, 'igh'))
-        cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv' % args.outdir
+        cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv --debug 1' % args.outdir
     utils.simplerun(cmd, logfname='%s/%s.log'%(args.outdir, action), dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------

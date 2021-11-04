@@ -2152,7 +2152,6 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
 
     # ----------------------------------------------------------------------------------------
     def add_to_treefo(lbfo):
-        assert metric_method not in lbfo
         if 'tree-info' in line:
             wstr = (' %s replacing existing info'%utils.wrnstr()) if metric_method in line['tree-info']['lb'] else ''
             print '    add %s to existing lb keys:  %s%s' % (metric_method, ' '.join(k for k in line['tree-info']['lb']), wstr)
