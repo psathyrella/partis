@@ -518,18 +518,19 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
         # print utils.pad_lines(get_ascii_tree(dendro_tree))
 
 # ----------------------------------------------------------------------------------------
-def translate_labels(dendro_tree, translation_pairs, debug=False):
+def translate_labels(dendro_tree, translation_pairs, dbgstr='', debug=False):
     if debug:
-        print get_ascii_tree(dendro_tree=dendro_tree)
+        print '    translating %stree:' % ('' if dbgstr=='' else dbgstr+' ')
+        print get_ascii_tree(dendro_tree=dendro_tree, extra_str='      ')
     for old_label, new_label in translation_pairs:
         taxon = dendro_tree.taxon_namespace.get_taxon(old_label)
         if taxon is None:
-            raise Exception('requested taxon with old name \'%s\' not present in tree' % old_label)
+            raise Exception('requested taxon with old name \'%s\' not present in tree (present: %s)' % (old_label, ' '.join(t.label for t in dendro_tree.taxon_namespace)))
         taxon.label = new_label
         if debug:
-            print '%20s --> %s' % (old_label, new_label)
+            print '    %20s --> %s' % (old_label, new_label)
     if debug:
-        print get_ascii_tree(dendro_tree=dendro_tree)
+        print get_ascii_tree(dendro_tree=dendro_tree, extra_str='      ')
 
 # ----------------------------------------------------------------------------------------
 def get_mean_leaf_height(tree=None, treestr=None):
@@ -1676,7 +1677,7 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
             if 'cons-dist-aa' in metrics_to_calc:
                 lbplotting.plot_lb_distributions('cons-dist-aa', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
                 if 'aa-lbi' in metrics_to_calc:
-                    lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
+                    lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else None, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
             if 'aa-lbi' in metrics_to_calc and 'lbi' in metrics_to_calc:
                 # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which would mean that we didn't have any of the internal nodes):
                 lbplotting.make_lb_scatter_plots('aa-lbi', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
@@ -2308,9 +2309,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
         if val is None:
-            return str(val)
+            return '?' #str(val)
         if vname in args.selection_metrics_to_calculate:
-            return '%.1f' % val
+            return '%.2f' % val
         elif vname == 'affinities':
             return '%.1f' % val
         elif type(val) == float:
@@ -2508,6 +2509,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             return is_finished
         # ----------------------------------------------------------------------------------------
         # run through a bunch of options for skipping seqs/families
+        if args.choose_all_abs:
+            return metric_pairs
         if iclust >= cfgfo['n-families']:
             return []
         chosen_mfos = []  # includes unobs cons + naive seqs plus seqs chosen from all sortvars
@@ -2639,7 +2642,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             ofo = collections.OrderedDict([('iclust', mfo['iclust'])])
             if mfo['seqtype'] == 'observed':
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
-                for kn in ['aa-cfrac', 'shm-aa', 'aa-cdist']:
+                for kn in ['aa-cfrac', 'shm-aa', 'aa-cdist'] + [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']:
                     ofo.update([('sum_'+kn, sumv(mfo, kn))])
             else:
                 def gid(mfo, c):

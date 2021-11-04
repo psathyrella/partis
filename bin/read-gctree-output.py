@@ -29,10 +29,11 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
     pass
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
+parser.add_argument('--actions', default='cache-parameters:annotate:get-selection-metrics')
 parser.add_argument('--seqfname', required=True, help='fasta file with all input sequences (if --paired-loci is set, this should include, separately, all heavy and all light sequences, where the two sequences in a pair have identical uids [at least up to the first \'_\'])')
 parser.add_argument('--gctreedir', required=True, help='gctree output dir (to get --tree-basename and abundances.csv')
 parser.add_argument('--outdir', required=True, help='directory to which to write partis output files')
-parser.add_argument('--paired-loci', action='store_true', help='run on paired heavy/light data. <gctreedir> must contain a subdir for each locus with names among %s' % utils.sub_loci('ig'))
+parser.add_argument('--paired-loci', action='store_true', help='run on paired heavy/light data')
 parser.add_argument('--locus', default='igh', choices=utils.loci)
 parser.add_argument('--kdfname', help='csv file with kd values')
 parser.add_argument('--kd-file-headers', default='name:kd', help='colon-separated list of two column names in --kdfname, the first for sequence name (which must match node names in --treefname), the second for kd values.')
@@ -42,6 +43,7 @@ parser.add_argument('--tree-basename', default='gctree.out.inference.1.nk', help
 parser.add_argument('--abundance-basename', default='abundances.csv', help='basename of tree file to take from --gctreedir')  # .1 is the most likely one (all trees are also in the pickle file as ete trees: gctree.out.inference.parsimony_forest.p
 parser.add_argument('--dry', action='store_true')
 args = parser.parse_args()
+args.actions = utils.get_arg_list(args.actions)
 args.kd_file_headers = utils.get_arg_list(args.kd_file_headers, key_list=['name', 'kd'])
 if not args.paired_loci:
     raise Exception('needs testing')
@@ -53,21 +55,20 @@ def metafname():
 # ----------------------------------------------------------------------------------------
 def run_cmd(action):
     locstr = '--paired-loci' if args.paired_loci else '--locus %s'%args.locus
-    cmd = './bin/partis %s %s --species %s --guess-pairing-info' % (action, locstr, args.species)
+    cmd = './bin/partis %s %s --species %s --guess-pairing-info --input-metafnames %s' % (action, locstr, args.species, metafname())
     if action in ['cache-parameters', 'annotate']:
         cmd += ' --infname %s' % args.seqfname
         if args.paired_loci:
             cmd += ' --paired-outdir %s' % args.outdir
         else:
             cmd += ' --parameter-dir %s/parameters' % args.outdir
-        if args.kdfname is not None:
-            cmd += ' --input-metafnames %s' % metafname()
     if action == 'annotate':
         cmd += ' --all-seqs-simultaneous'
     if action in ['annotate', 'get-selection-metrics'] and '--paired-outdir' not in cmd:
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
-        cmd += ' --treefname %s/%s --plotdir %s --selection-metrics-to-calculate cons-dist-aa:aa-lbi:aa-lbr --queries-to-include-fname %s' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir, paircluster.paired_fn(args.outdir, 'igh'))
+        cmd += ' --treefname %s/%s --plotdir %s --selection-metrics-to-calculate cons-dist-aa:lbi:aa-lbi:lbr:aa-lbr --queries-to-include-fname %s' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir, paircluster.paired_fn(args.outdir, 'igh'))
+        cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv' % args.outdir
     utils.simplerun(cmd, logfname='%s/%s.log'%(args.outdir, action), dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------
@@ -77,7 +78,7 @@ with open('%s/%s'%(args.gctreedir, args.abundance_basename)) as afile:
     reader = csv.DictReader(afile, fieldnames=('name', 'abundance'))
     for line in reader:
         for ltmp in utils.sub_loci('ig'):
-            metafos['%s-%s' % (line['name'], ltmp)] = {'abundance' : max(1, int(line['abundance']))}  # increase 0s (inferred ancestors) to 1
+            metafos['%s-%s' % (line['name'], ltmp)] = {'multiplicity' : max(1, int(line['abundance']))}  # increase 0s (inferred ancestors) to 1
 if args.kdfname is not None:
     with open(args.kdfname) as kfile:
         reader = csv.DictReader(kfile)
@@ -94,5 +95,5 @@ if args.kdfname is not None:
 with open(metafname(), 'w') as mfile:
     json.dump(metafos, mfile)
 
-for action in ['cache-parameters', 'annotate', 'get-selection-metrics']:
+for action in args.actions:
     run_cmd(action)

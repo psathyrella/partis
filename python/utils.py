@@ -962,6 +962,56 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
 # NOTE see get_non_implicit_copy() below (if you're thinking of again trying to add it here)
 
 # ----------------------------------------------------------------------------------------
+# translate the uids in each line in <antn_list> using translation dict <trns>
+def translate_uids(antn_list, trns, cpath=None, failstr='translation', debug=False):
+    # ----------------------------------------------------------------------------------------
+    def tr_tree(line, treestr, dbgstr):
+        dtree = treeutils.get_dendro_tree(treestr=treestr)
+        treeutils.translate_labels(dtree, [(k, v) for k, v in trns.items() if k in line['unique_ids']], dbgstr=dbgstr, debug=debug)
+        return treeutils.as_str(dtree)
+    # ----------------------------------------------------------------------------------------
+    def trfn(uid):
+        if uid in trns:
+            return trns[uid]
+        else:
+            missing_translations.add(uid)
+            return uid
+    # ----------------------------------------------------------------------------------------
+    def tr_lb_info(line):
+        lbfo = line['tree-info']['lb']
+        if debug:
+            print '  translating lb info:'
+        for mtmp, mtfo in lbfo.items():
+            if mtmp in ['tree', 'aa-tree']:
+                lbfo[mtmp] = tr_tree(line, lbfo[mtmp], 'aa inf' if mtmp=='aa-tree' else 'nuc inf')
+            else:
+                lbfo[mtmp] = {trfn(u) : mtfo[u] for u in mtfo}
+    # ----------------------------------------------------------------------------------------
+    missing_translations = set()
+    revrns = {}  # reverse translations
+    for line in antn_list:
+        if debug:
+            print 'translating cluster len %d' % len(line['unique_ids'])
+        if 'tree' in line:  # simulation
+            line['tree'] = tr_tree(line, line['tree'], 'true')
+        if 'tree-info' in line and 'lb' in line['tree-info']:
+            tr_lb_info(line)
+        for iseq, old_id in enumerate(line['unique_ids']):
+            if old_id not in trns:
+                raise Exception('no %s for %s' % (failstr, old_id))  # everybody has to have exactly one paired id at this point
+            line['unique_ids'][iseq] = trns[old_id]
+            revrns[trns[old_id]] = old_id
+    if cpath is not None and len(trns) > 0:
+        if cpath.seed_unique_id is not None and cpath.seed_unique_id in trns:
+            cpath.seed_unique_id = trns[cpath.seed_unique_id]
+        for iptn, partition in enumerate(cpath.partitions):
+            cpath.partitions[iptn] = [[trfn(u) for u in c] for c in partition]
+    if len(missing_translations) > 0:
+        print '    %s missing translations for %d: %s' % (color('yellow', 'warning'), len(missing_translations), ' '.join(missing_translations))
+
+    return revrns
+
+# ----------------------------------------------------------------------------------------
 # NOTE the consensus seqs will (obviously) be *different* afterwards
 def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting dont_deep_copy is obviously *really* *dangerous*
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
