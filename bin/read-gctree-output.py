@@ -67,7 +67,7 @@ def run_cmd(action):
     if action in ['annotate', 'get-selection-metrics'] and '--paired-outdir' not in cmd:
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
-        cmd += ' --treefname %s/%s --plotdir %s/selection-metrics/plots --selection-metrics-to-calculate cons-dist-aa:aa-lbi:aa-lbr --queries-to-include-fname %s' % (args.gctreedir, args.tree_basename, args.outdir, paircluster.paired_fn(args.outdir, 'igh'))
+        cmd += ' --treefname %s/%s --plotdir %s --selection-metrics-to-calculate cons-dist-aa:aa-lbi:aa-lbr --queries-to-include-fname %s' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir, paircluster.paired_fn(args.outdir, 'igh'))
     utils.simplerun(cmd, logfname='%s/%s.log'%(args.outdir, action), dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------
