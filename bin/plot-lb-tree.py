@@ -88,7 +88,8 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
     min_val, max_val = get_scale_min(args.lb_metric, all_vals), max(all_vals)
     if min_val == max_val:
-        return
+        max_val = min_val + (1 if min_val is 0 else 0.1 * min_val)
+        # return  # NOTE you *cannot* return here, since if we don't actually add the stuff then it later (when rendering) crashes with a key error deep within ete due to the <start_column> being wrong/inconsistent
     max_diff = (max_val - min_val) / float(n_entries - 1)
     val_list = list(numpy.arange(min_val, max_val + utils.eps, max_diff))  # first value is exactly <min_val>, last value is exactly <max_val> (eps is to keep it from missing the last one)
     # if add_sign is not None and add_sign == '-':  # for negative changes, we have the cmap using abs() and want to legend order to correspond
@@ -211,7 +212,9 @@ def plot_trees(args):
 
 # ----------------------------------------------------------------------------------------
 affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'aa-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
+affy_metrics += ['sum-'+m for m in affy_metrics]
 delta_affy_metrics = ['lbr', 'aa-lbr']
+delta_affy_metrics += ['sum-'+m for m in delta_affy_metrics]
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--treefname', required=True)
 parser.add_argument('--outfname', required=True)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import json
 import csv
 import os
 import sys
@@ -35,6 +36,7 @@ parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch bi
 parser.add_argument('--vsearch-threshold', type=float, default=0.4, help='default identity threshold for vsearch')
 parser.add_argument('--debug', type=int, default=1)
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--guess-pairing-info', action='store_true')
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info/meta string of sequence name/uid (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
 parser.add_argument('--input-metafname', help='yaml file with meta information keyed by sequence id. See same argument in main partis help, and https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parser.add_argument('--n-max-queries', type=int)
@@ -182,6 +184,16 @@ for sfo in seqfos:
 print 'totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_seqs) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_seqs)))
 assert sum(len(ofo) for ofo in outfos.values()) + len(failed_seqs) == len(seqfos)
 
+if args.guess_pairing_info:
+    if len(paired_uids) > 0:
+        raise Exception('can\'t/shouldn\'t guess pairing info if we already have it from elsewhere')
+    for locus in outfos:
+        for ofo in outfos[locus]:
+            ofo['name'] += '-' + locus
+    guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separator='-', dtype='undetermined')
+    for uid, mfo in guessed_metafos.items():
+        paired_uids[uid] = mfo['paired-uids']
+
 # remove failed uids from paired_uids
 failed_uids = set(s['name'] for s in failed_seqs)
 n_removed = 0
@@ -201,6 +213,10 @@ if len(failed_seqs) > 0:
 
 for locus in outfos:  # first write the single files with all seqs for each locus
     write_locus_file(locus, outfos[locus])
+
+if args.guess_pairing_info:
+    with open('%s/meta.yaml' % args.outdir, 'w') as outfile:  # NOTE file name duplicates code in bin/partis
+        json.dump(guessed_metafos, outfile)
 
 if len(paired_uids) == 0:
     print '  no pairing info'

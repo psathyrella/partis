@@ -811,6 +811,9 @@ def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False): #, prefix=N
                 raise Exception('need 2 instances of separator \'%s\' in \'%s\', but found %d' % (sep, uid, uid.count(sep)))
             did, cstr, cid = uid.split(sep)
             assert cstr == 'contig'
+        elif dtype == 'identical':
+            did = uid
+            cstr, cid = 'XXX', 'XXX'
         elif dtype == 'undetermined':  # well, maybe this will work for you? i just need it for some random data from meghan atm (will eventually need a more generalized way to do it)
             did = uid.split(sep)[0]
             cstr, cid = 'XXX', 'XXX'
@@ -829,10 +832,10 @@ def get_contig_id(uid, dtype='10x', sep='_'):
     return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
 
 # ----------------------------------------------------------------------------------------
-def extract_pairing_info(seqfos, droplet_id_separator='_', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
+def extract_pairing_info(seqfos, droplet_id_separator='_', dtype='10x', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
     droplet_ids = {}
     for sfo in seqfos:
-        did = droplet_id_fcn(sfo['name'], sep=droplet_id_separator)
+        did = droplet_id_fcn(sfo['name'], sep=droplet_id_separator, dtype=dtype)
         if did not in droplet_ids:
             droplet_ids[did] = []
         droplet_ids[did].append(sfo['name'])
@@ -859,7 +862,8 @@ def extract_pairing_info(seqfos, droplet_id_separator='_', input_metafname=None,
     for sfo in seqfos:
         if sfo['name'] in metafos:
             raise Exception('duplicate uid \'%s\' when extracting pairing info' % sfo['name'])
-        metafos[sfo['name']] = {'paired-uids' : [u for u in droplet_ids[droplet_id_fcn(sfo['name'], sep=droplet_id_separator)] if u != sfo['name']]}
+        pids = [u for u in droplet_ids[droplet_id_fcn(sfo['name'], sep=droplet_id_separator, dtype=dtype)] if u != sfo['name']]
+        metafos[sfo['name']] = {'paired-uids' : pids}
         if sfo['name'] in input_metafos:
             assert 'paired-uids' not in input_metafos[sfo['name']]  # don't want to adjudicate between alternative versions here
             metafos[sfo['name']].update(input_metafos[sfo['name']])
@@ -923,7 +927,7 @@ def get_non_vj_len(line):
 def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get value for per-sequence key <key> corresponding to <uid> NOTE now I've written this, I should really go through and use it in all the places where I do it by hand (for search: iseq)
     if key not in linekeys['per_seq']:
         raise Exception('key \'%s\' not in per-sequence keys' % key)
-    if use_default and key not in line:
+    if use_default and key not in line or uid not in line['unique_ids']:
         return default_val
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
 
@@ -5681,7 +5685,7 @@ def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwarg
     for sfo in seqlist:
         uid = get_trid(sfo['name'], sfo['seq'])
         if uid in seqdict:
-            raise Exception('can\'t handle multiple entries with both sequence and uid the same')
+            raise Exception('can\'t handle multiple entries with both sequence and uid the same (duplicate: %s)' % uid)
         seqdict[uid] = sfo['seq']
     returnfo = run_vsearch(action, seqdict, workdir, threshold, **kwargs)
     if set(returnfo) != set(['gene-counts', 'annotations', 'failures']):

@@ -185,8 +185,10 @@ class Hist(object):
         ymin, ymax = None, None
         for ibin in range(ibin_start, ibin_end):
             if ymin is None or self.bin_contents[ibin] < ymin:
-                if not (exclude_empty and self.bin_contents[ibin] == 0):
-                    ymin = self.bin_contents[ibin]
+                if ymin is not None and exclude_empty and self.bin_contents[ibin] == 0:
+                    continue
+                ymin = self.bin_contents[ibin]
+        for ibin in range(ibin_start, ibin_end):
             if ymax is None or self.bin_contents[ibin] > ymax:
                 ymax = self.bin_contents[ibin]
         assert ymin is not None and ymax is not None

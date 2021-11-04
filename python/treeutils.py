@@ -1,4 +1,5 @@
 import __builtin__
+import glob
 import operator
 import string
 import itertools
@@ -50,11 +51,14 @@ legtexts = {
     'affinity-biased' : 'affinity biased',
     'high-affinity' : 'perf. affinity',
     'cons-dist-aa' : 'aa-cdist',
+    'sum-cons-dist-aa' : 'h+l aa-cdist',
     'cons-frac-aa' : 'aa-cfrac',
     'cons-dist-nuc' : 'nuc-cdist',
     'shm' : 'n-shm',
-    'aa-lbi' : 'aa-lbi',
-    'aa-lbr' : 'aa-lbr',
+    'aa-lbi' : 'AA lb index',
+    'aa-lbr' : 'AA lb ratio',
+    'sum-aa-lbi' : 'h+l AA lb index',
+    'sum-aa-lbr' : 'h+l AA lb ratio',
 }
 
 # ----------------------------------------------------------------------------------------
@@ -1043,7 +1047,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     # if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
     #     compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
 
-    if max(get_leaf_depths(dtree).values()) > 1:  # should only happen on old simulation files
+    if max(get_leaf_depths(dtree).values()) > 1:
         if annotation is None:
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong): found leaf depth greater than 1 (even when less than 1 they can be wrong, but we can be fairly certain that your BCR sequences don\'t have real mutation frequencty greater than 1, so this case we can actually check). If you pass in annotations we can rescale to the observed mutation frequencty.')
         print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
@@ -1166,7 +1170,7 @@ def get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, n
         ancestor_node = ancestor_node.parent_node  #  move one more step up the tree
         if debug:
             ancestor_uid = ancestor_node.taxon.label
-            ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid)
+            ancestor_affinity = utils.per_seq_val(line, 'affinities', ancestor_uid, default_val=float('nan'))
         if ancestor_edge in affy_increasing_edges:
             chosen_edge = ancestor_edge
             break
@@ -1178,7 +1182,7 @@ def get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, n
     if chosen_edge is None:
         return (None, None) if also_return_branch_len else None
     if debug:
-        print '     %12s %5s %12s %2d %8.4f %9.4f%+9.4f' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.per_seq_val(line, 'affinities', chosen_edge.head_node.taxon.label) - ancestor_affinity)  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
+        print '     %12s %5s %12s %2d %8.4f %9.4f%+9.4f' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.per_seq_val(line, 'affinities', chosen_edge.head_node.taxon.label, default_val=float('nan')) - ancestor_affinity)  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
     if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
         return n_steps, branch_len
     else:
@@ -1206,7 +1210,7 @@ def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line,
         for cnode in child_nodes:
             cedge = cnode.edge  # edge to <cnode>'s parent
             if debug:
-                child_affinity = utils.per_seq_val(line, 'affinities', cnode.taxon.label)
+                child_affinity = utils.per_seq_val(line, 'affinities', cnode.taxon.label, default_val=float('nan'))
             if cedge in affy_increasing_edges:
                 chosen_edge = cedge
                 found = True
@@ -1222,7 +1226,7 @@ def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line,
     if chosen_edge is None:
         return (None, None) if also_return_branch_len else None
     if debug:
-        print '     %12s %5s %12s %+2d %8.4f %9.4f%+9.4f' % ('', '', cnode.taxon.label, -n_steps, -branch_len, child_affinity, child_affinity - utils.per_seq_val(line, 'affinities', chosen_edge.tail_node.taxon.label))  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
+        print '     %12s %5s %12s %+2d %8.4f %9.4f%+9.4f' % ('', '', cnode.taxon.label, -n_steps, -branch_len, child_affinity, child_affinity - utils.per_seq_val(line, 'affinities', chosen_edge.tail_node.taxon.label, default_val=float('nan')))  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
     if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
         return n_steps, branch_len
     else:
@@ -1673,13 +1677,15 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
                 lbplotting.plot_lb_distributions('cons-dist-aa', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
                 if 'aa-lbi' in metrics_to_calc:
                     lbplotting.make_lb_scatter_plots('cons-dist-aa', inf_plotdir, 'aa-lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, colorvar='affinity' if has_affinities else 'edge-dist', add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include)
-            if 'aa-lbi' in metrics_to_calc:
-                # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which means we didn't have any of the internal nodes):
+            if 'aa-lbi' in metrics_to_calc and 'lbi' in metrics_to_calc:
+                # it's important to have nuc-lbi vs aa-lbi so you can see if they're super correlated (which would mean that we didn't have any of the internal nodes):
                 lbplotting.make_lb_scatter_plots('aa-lbi', inf_plotdir, 'lbi', inf_lines_to_use, fnames=fnames, is_true_line=False, add_jitter=False, iclust_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
-            if 'lbr' in metrics_to_calc:
-                lbplotting.plot_lb_distributions('lbr', inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
-            if ete_path is not None and any('tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
-                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'lbr', 'cons-dist-aa'] if m in metrics_to_calc], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
+            for mtr in [m for m in ['lbr', 'aa-lbr'] if m in metrics_to_calc]:
+                lbplotting.plot_lb_distributions(mtr, inf_plotdir, inf_lines_to_use, fnames=fnames, only_overall=False, iclust_fnames=None if has_affinities else 8)
+                if has_affinities:
+                    lbplotting.plot_lb_vs_ancestral_delta_affinity(inf_plotdir + '/' + mtr, inf_lines_to_use, mtr, only_csv=only_csv, fnames=fnames, debug=debug)
+            if ete_path is not None and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
+                lbplotting.plot_lb_trees([m for m in ['aa-lbi', 'aa-lbr', 'cons-dist-aa'] if m in metrics_to_calc], inf_plotdir, inf_lines_to_use, ete_path, workdir, is_true_line=False, queries_to_include=queries_to_include)
             subdirs = [d for d in os.listdir(inf_plotdir) if os.path.isdir(inf_plotdir + '/' + d)]
             plotting.make_html(inf_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=inf_plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs]) # extra_links used to have inf_plotdir in it, but that seemed to not work?
 
@@ -1799,6 +1805,11 @@ def check_lb_values(line, lbvals):
 # ----------------------------------------------------------------------------------------
 def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize_lbi=False, extra_str=None, iclust=None, debug=False):  # and add them to <line>
     utils.add_seqs_aa(line)
+    if max(get_leaf_depths(nuc_dtree).values()) > 1:  # not really sure why i have to add this before converting to aa, but it seems necessary to avoid getting a huge branch below root (and for consistency -- if we're calculating also [nuc-]lbi the nuc tree is already rescaled when we get here
+        if line is None:
+            raise Exception('tree needs rescaling in lb calculation (metrics will be wrong): found leaf depth greater than 1 (even when less than 1 they can be wrong, but we can be fairly certain that your BCR sequences don\'t have real mutation frequencty greater than 1, so this case we can actually check). If you pass in annotations we can rescale to the observed mutation frequencty.')
+        print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
+        nuc_dtree.scale_edges(1. / numpy.mean([len(s) for s in line['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
     aa_dtree = get_aa_tree(nuc_dtree, line, extra_str=extra_str, debug=debug)
     aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, only_calc_metric=only_calc_metric, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
     if 'tree-info' not in line:
@@ -2268,7 +2279,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
 # ----------------------------------------------------------------------------------------
 def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False, paired_data_type='10x'):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
-    def gsval(mfo, tch, vname):
+    def gsval(mfo, tch, vname, no_fail=False):
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
         if vname in cln:
             # assert vname in utils.linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
@@ -2290,14 +2301,30 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         elif vname == 'multipy':  # multiplicity
             return utils.get_multiplicity(cln, iseq=iseq)
         else:
-            raise Exception('unsupported var \'%s\' (well, we don\'t know how to get its value)' % vname)
+            if no_fail:
+                return None
+            else:
+                raise Exception('unsupported var \'%s\' (well, we don\'t know how to get its value)' % vname)
+    # ----------------------------------------------------------------------------------------
+    def gsvstr(val, vname):
+        if val is None:
+            return str(val)
+        if vname in args.selection_metrics_to_calculate:
+            return '%.1f' % val
+        elif vname == 'affinities':
+            return '%.1f' % val
+        elif type(val) == float:
+            return '%.3f' % val
+        else:
+            return str(val)
     # ----------------------------------------------------------------------------------------
     def sumv(mfo, kstr):
         if kstr == 'seq_mtps':  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
             def vfcn(c): return mtpys[c][gsval(mfo, c, 'input_seqs_aa')]
         else:
             def vfcn(c): return gsval(mfo, c, kstr)
-        return sum(vfcn(c) for c in 'hl')
+        kvals = [vfcn(c) for c in 'hl']
+        return float('nan') if None in kvals else sum(kvals)
     # ----------------------------------------------------------------------------------------
     def sum_nuc_shm_pct(mpfo):
         total_len = sum(len(gsval(mpfo, c, 'seqs')) - gsval(mpfo, c, 'seqs').count(utils.ambig_base) for c in 'hl')
@@ -2657,15 +2684,17 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def print_dbg(metric_pairs, iclust_mfos, print_nuc_seqs=True):
         # ----------------------------------------------------------------------------------------
         def init_xtras():
-            xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c_gene', ''])]
+            xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c_gene', '']), ('affinities', ['affin', 'ity'])]
             if 'meta-info-print-keys' in cfgfo:
                 xtra_heads += [(k, [l, '']) for k, l in cfgfo['meta-info-print-keys']]
+            xtra_heads += [(h, [h, 'sum']) for h in smheads]
             xheads, xtrafo, xlens = [[], []], [], {}
             for xn, xh in xtra_heads:
-                if all(xn not in mpfo[c] for mpfo in metric_pairs for c in 'hl'):
+                # if all(xn not in mpfo[c] and xn not in smheads for mpfo in metric_pairs for c in 'hl'):
+                if all(gsval(mpfo, c, xn, no_fail=True) is None for mpfo in metric_pairs for c in 'hl'):
                     continue
                 xtrafo.append(xn)
-                ctlens = [len(str(gsval(m, c, xn))) for m in metric_pairs for c in 'hl']
+                ctlens = [len(gsvstr(gsval(m, c, xn), xn)) for m in metric_pairs for c in 'hl']
                 xlens[xn] = max([len(h) for h in xh] + ctlens) + 1
                 xheads = [x + [utils.wfmt(s, xlens[xn])] for x, s in zip(xheads, xh)]
             return xtrafo, xheads, xlens
@@ -2678,7 +2707,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if cg > 75: tcol = 'red'
             return utils.color(tcol, cgstr, width=tlen)
         # ----------------------------------------------------------------------------------------
-        def get_xstr(mpfo, xlens):
+        def get_xstr(mpfo):
             xstr = []  # don't try to condense these into a block, they're too different
             if ctkey() in xtrafo:
                 ctval = utils.get_single_entry(list(set(gsval(mpfo, c, ctkey()) for c in 'hl')))
@@ -2689,12 +2718,17 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if 'c_genes' in xtrafo:
                 cg = gsval(mpfo, 'h', 'c_genes')
                 xstr += [utils.wfmt('?' if cg in [None, 'None'] else cg.replace('IGH', ''), xlens['c_genes'])]
+            if 'affinities' in xtrafo:
+                affy = utils.get_single_entry(list(set([gsvstr(gsval(mpfo, c, 'affinities'), 'affinities') for c in 'hl'])))
+                xstr += [utils.wfmt(affy, xlens['affinities'])]
             if 'meta-info-print-keys' in cfgfo:
                 for mk in [k for k, _ in cfgfo['meta-info-print-keys'] if k in xtrafo]:
-                    cg = utils.get_single_entry(list(set([gsval(mpfo, c, mk) for c in 'hl'])))
+                    mv = utils.get_single_entry(list(set([gsval(mpfo, c, mk) for c in 'hl'])))
                     if 'neut-' in mk:  # colors that make sense for % neut values
-                        cg = neut_col(cg, xlens[mk])
-                    xstr += [cg]
+                        mv = neut_col(mv, xlens[mk])
+                    xstr += [mv]
+            for sh in smheads:
+                xstr += [utils.wfmt(gsvstr(sumv(mpfo, sh), sh), xlens[sh])]
             return xstr
         # ----------------------------------------------------------------------------------------
         def get_didstr(dids, mpfo):
@@ -2711,8 +2745,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # ----------------------------------------------------------------------------------------
         def getcdist(mpfo, tch, frac=False):  # can't just use gsval() for cases where we used the "input" (indel'd) cons seq (although note that there's probably some other places where the orginal/indel-reversed version is used)
             defval = gsval(mpfo, tch, 'aa-c'+('frac' if frac else 'dist'))
-            # if cons_mfo is None:
-            #     return defval
             return local_hdist_aa(gsval(mpfo, tch, 'input_seqs_aa'), cons_mfo[tch+'_cseq_aa'], defval=defval, frac=frac)
         # ----------------------------------------------------------------------------------------
         def cstr(c, s2=None, aa=False):
@@ -2724,6 +2756,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             nseq = (h_atn if c=='h' else l_atn)['naive_seq'+('_aa' if aa else '')]
             return cstr(c, s2=nseq, aa=aa)
         # ----------------------------------------------------------------------------------------
+        smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
 
         lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
@@ -2759,7 +2792,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                                                             aa_cdstr if aa_cdstr!=last_cdist_str else ' '*utils.len_excluding_colors(aa_cdstr),
                                                             utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
                                                             get_didstr(dids, mpfo), cids[0], cids[1], indelstr),
-            print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstr(mpfo, xlens)),
+            print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstr(mpfo)),
                                                                      mtpstr if mtpstr != last_mtpy_str else ' '*utils.len_excluding_colors(mtpstr),
                                                                      sum_nuc_shm_pct(mpfo),
                                                                      cshm_str if imp==0 else ' '*len(cshm_str),
@@ -2775,20 +2808,33 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def makeplots(metric_pairs, h_atn):
         import plotting
         import lbplotting
-        if is_simu:
-            # make performance plots for sum of h+l aa-cdist
-            mm = 'sum-cons-dist-aa'
-            h_atn['tree-info']['lb'][mm] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
+
+        fnames = []
+        joint_metrics = ['cons-dist-aa', 'aa-lbi', 'aa-lbr']
+        for b_mtr in [m for m in joint_metrics if m in args.selection_metrics_to_calculate]:
+            sum_mtr = 'sum-%s' % b_mtr
+            h_atn['tree-info']['lb'][sum_mtr] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
             for mfo in metric_pairs:
-                h_atn['tree-info']['lb'][mm][gsval(mfo, 'h', 'unique_ids')] = -sumv(mfo, 'aa-cdist')
-            fnames = []
-            lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], mm, is_true_line=is_simu, fnames=fnames)
-            plotting.make_html(plotdir, fnames=fnames, extra_links=[(mm, '%s/%s/' % (plotdir, mm)),])
+                h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sumv(mfo, b_mtr) #'aa-cdist')
+
+            lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
+            if b_mtr in ['cons-dist-aa', 'aa-lbi']:
+                lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], sum_mtr, is_true_line=is_simu, fnames=fnames)
+            if b_mtr in ['aa-lbr']:
+                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames)
+        if 'cons-dist-aa' in args.selection_metrics_to_calculate and 'aa-lbi' in args.selection_metrics_to_calculate:
+            lbplotting.make_lb_scatter_plots('sum-cons-dist-aa', plotdir, 'sum-aa-lbi', [h_atn], fnames=fnames, is_true_line=is_simu, colorvar='affinity' if 'affinities' in h_atn else 'edge-dist', add_jitter=True, queries_to_include=args.queries_to_include)
+        if args.ete_path is not None: # and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
+            lbplotting.plot_lb_trees(['sum-'+m for m in joint_metrics if m in args.selection_metrics_to_calculate], plotdir, [h_atn], args.ete_path, args.workdir, is_true_line=is_simu, fnames=fnames, queries_to_include=args.queries_to_include)
+        subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)] #[os.path.basename(d) for d in glob.glob(plotdir+'/*') if os.path.isdir(d)]
+        plotting.make_html(plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (os.path.basename(plotdir), subd)) for subd in subdirs], bgcolor='#FFFFFF') #c9c8c8')
+
         iclust_plotvals = {c+'_aa-cfrac' : [gsval(m, c, 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
         if any(vl.count(0)==len(vl) for vl in iclust_plotvals.values()):  # doesn't plot anything useful, and gives a pyplot warning to std err which is annoying
             return
         add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs)  # add uids for the chosen ones
         mstr = legtexts['cons-frac-aa']
+# TODO add this to html or don't make it
         lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
         # for k in iclust_plotvals:
         #     if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'

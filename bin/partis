@@ -369,9 +369,9 @@ def run_all_loci(args, ig_or_tr='ig'):
     def getplotdir(ltmp, lpair=None, single_chain=False, tmpaction=None):
         return '%s/plots%s%s' % (getodir(lpair=lpair, single_chain=single_chain, is_plotting=True), ('/'+ltmp) if ltmp is not None else '', '/parameters' if tmpaction=='cache-parameters' else '')
     # ----------------------------------------------------------------------------------------
-    def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False, fasta=False, persistent_cache=False, recursed=False):  # NOTE <joint> and <lpair> do *not* always have the same effect (e.g. differs with single-chain/)
+    def getofn(ltmp, joint=False, partition_only=False, trees=False, lpair=None, input_meta=False, fasta=False, persistent_cache=False, recursed=False, gctrees=False):  # NOTE <joint> and <lpair> do *not* always have the same effect (e.g. differs with single-chain/)
         if trees:
-            bname = 'trees.nwk'
+            bname = '%strees.nwk' % (ltmp+'-' if gctrees else '')
         elif args.action == 'simulate':
             return paircluster.paired_fn(getodir(), ltmp, lpair=lpair, suffix='.yaml')  # kind of weird that this getodir() call doesn't need any args
         else:
@@ -385,7 +385,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             elif persistent_cache:
                 bstr = 'persistent-cache'
                 sfx = 'csv'
-            elif args.action == 'view-output' and not recursed and not os.path.exists(getofn(ltmp, joint=joint, partition_only=partition_only, trees=trees, lpair=lpair, recursed=True)):  # ok this is ugly, but it's nice to have 'view-output' automatically figure out if it's simulation or inference output (and yes it's also nice to have different file names for them (partition-igh.yaml vs igh.yaml))
+            elif args.action in ['view-output', 'get-selection-metrics'] and not recursed and not os.path.exists(getofn(ltmp, joint=joint, partition_only=partition_only, trees=trees, lpair=lpair, recursed=True)):  # ok this is ugly, but it's nice to have 'view-output' automatically figure out if it's simulation or inference output (and yes it's also nice to have different file names for them (partition-igh.yaml vs igh.yaml))
                 bstr = ''
             else:
                 bstr ='partition'
@@ -427,20 +427,23 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def prep_inputs():
         mfname = getofn(None, joint=True, input_meta=True)
-        cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, mfname)
-        if args.n_max_queries > 0:
-            cmd += ' --n-max-queries %d' % args.n_max_queries
-        try:
-            utils.simplerun(cmd, dryrun=args.dry_run)
-        except:
-            elines = traceback.format_exception(*sys.exc_info())
-            print utils.pad_lines(''.join(elines))
-            print '  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info'
+        if not args.guess_pairing_info:
+            cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, mfname)
+            if args.n_max_queries > 0:
+                cmd += ' --n-max-queries %d' % args.n_max_queries
+            try:
+                utils.simplerun(cmd, dryrun=args.dry_run)
+            except:
+                elines = traceback.format_exception(*sys.exc_info())
+                print utils.pad_lines(''.join(elines))
+                print '  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info'
         cmd = './bin/split-loci.py %s --outdir %s' % (args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
         if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
             cmd += ' --input-metafname %s' % mfname
+        if args.guess_pairing_info:
+            cmd += ' --guess-pairing-info'
         if args.n_max_queries > 0:
             cmd += ' --n-max-queries %d' % args.n_max_queries
         utils.simplerun(cmd, dryrun=args.dry_run)
@@ -483,6 +486,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--seed-loci', has_arg=True)
             utils.remove_from_arglist(clist, '--random-seed-seq')
             utils.remove_from_arglist(clist, '--dont-calculate-annotations')  # we need the single-chain partition steps to write annotations, although maybe it's just for pairing info so maybe we could write that separately, but whatever
+            utils.remove_from_arglist(clist, '--guess-pairing-info')
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
@@ -535,7 +539,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
                 mfnames.append(getofn(None, joint=True, lpair=lpair, input_meta=True))  # NOTE this is *not* the same file as in the if statement
             if len(mfnames) > 0:
-                utils.replace_in_arglist(clist, '--input-metafnames', ':'.join(mfnames))
+                utils.replace_in_arglist(clist, '--input-metafnames', ':'.join(set(mfnames)))  # not sure how i get duplicates, but oh well this gets rid of em
 
             if args.persistent_cachefname is not None:
                 assert args.persistent_cachefname == 'paired-outdir'
@@ -585,6 +589,14 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if args.is_data:  # for simulation we still need it
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
+                if args.guess_pairing_info and args.treefname is not None:  # have to translate uids (i.e. add locus)
+                    dtree = treeutils.get_dendro_tree(treefname=args.treefname)
+                    treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s' % (n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None]) #, debug=True)
+                    tfn = getofn(ltmp, trees=True, lpair=lpair, gctrees=True)
+                    with open(tfn, 'w') as tfile:
+                        tfile.write(treeutils.as_str(dtree))
+                    utils.replace_in_arglist(clist, '--treefname', tfn)
+                    work_fnames.append(tfn)
 
             return clist
         # ----------------------------------------------------------------------------------------
@@ -597,6 +609,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 ifn = getofn(ltmp, lpair=lpair, fasta=True)
             if not os.path.exists(ifn):
                 print sdbgstr('input file missing', ifn)
+                if not args.is_data and '-DUMMY-' in ifn:
+                    print '      maybe need to seed --paired-indir (in addition to --paired-outdir)?'
                 return
             if os.stat(ifn).st_size == 0:
                 print sdbgstr('zero length input file', ifn)
@@ -1164,6 +1178,7 @@ parent_args.append({'name' : '--mimic-data-read-length', 'kwargs' : {'action' : 
 
 parent_args.append({'name' : '--infname', 'kwargs' : {'help' : 'input sequence file in .fa, .fq, .csv, or partis output .yaml (if .csv, specify id string and sequence headers with --name-column and --seq-column)'}})
 parent_args.append({'name' : '--paired-indir', 'kwargs' : {'help' : 'Directory with input files for use with --paired-loci. Must conform to file naming conventions from bin/split-loci.py (really paircluster.paired_dir_fnames()), i.e. the files generated when --infname and --paired-loci are set.'}})
+parent_args.append({'name' : '--guess-pairing-info', 'kwargs' : {'action' : 'store_true', 'help' : 'try to guess pairing info based on paired sequences having the same name. Then appends the locus to each uid. Only has an effect if ./bin/split-loci.py is being run, or if --treefname is set (in the latter case we add the locus to each node name).'}})
 parent_args.append({'name' : '--name-column', 'kwargs' : {'help' : 'column/key name for sequence ids in input csv/yaml file (default: \'unique_ids\'). If set to \'fasta-info-index-N\' for an integer N, it will take the Nth (zero-indexed) value from a fasta files uid line.'}})  # for search: includes what used to be --fasta-info-index
 parent_args.append({'name' : '--seq-column', 'kwargs' : {'help' : 'column/key name for nucleotide sequences in input csv/yaml file (default: \'input_seqs\')'}})
 parent_args.append({'name' : '--input-metafnames', 'kwargs' : {'help' : 'colon-separated list of yaml/json files, each of which has meta information for the sequences in --infname (and --queries-to-include-fname, although that file can also include its own input meta info), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.'}})

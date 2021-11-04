@@ -477,7 +477,7 @@ def process(args):
     if os.path.exists(args.default_initial_germline_dir + '/' + args.species):  # ick that is hackey
         args.default_initial_germline_dir += '/' + args.species
 
-    if args.species != 'human' and not args.allele_cluster:
+    if args.species != 'human' and not args.allele_cluster and args.action == 'cache-parameters':
         print '  non-human species \'%s\', turning on allele clustering' % args.species
         args.allele_cluster = True
 
