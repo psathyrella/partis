@@ -2835,7 +2835,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         import lbplotting
 
         fnames = []
-        joint_metrics = ['cons-dist-aa', 'aa-lbi', 'aa-lbr']
+        joint_metrics = ['cons-dist-aa', 'aa-lbi', 'aa-lbr'] #, 'lbi', 'lbr']
         reverse_translations = utils.translate_uids([h_atn], trfcn=lambda u: '-'.join(u.split('-')[:-1]))
         for b_mtr in [m for m in joint_metrics if m in args.selection_metrics_to_calculate]:
             has_affinities = 'affinities' in h_atn
@@ -2848,9 +2848,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sum_mval
             if not args.only_csv_plots:
                 lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
-            if has_affinities and b_mtr in ['cons-dist-aa', 'aa-lbi']:
+            if has_affinities and b_mtr in ['cons-dist-aa', 'aa-lbi']: #, 'lbi']:
                 lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], sum_mtr, is_true_line=is_simu, fnames=fnames, only_csv=args.only_csv_plots)
-            if has_affinities and b_mtr in ['aa-lbr']:
+            if has_affinities and b_mtr in ['aa-lbr']: #, 'lbr']:
                 lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames, is_true_line=is_simu, only_csv=args.only_csv_plots)
         if not args.only_csv_plots and 'cons-dist-aa' in args.selection_metrics_to_calculate and 'aa-lbi' in args.selection_metrics_to_calculate:
             lbplotting.make_lb_scatter_plots('sum-cons-dist-aa', plotdir, 'sum-aa-lbi', [h_atn], fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities else None, add_jitter=True, queries_to_include=args.queries_to_include)

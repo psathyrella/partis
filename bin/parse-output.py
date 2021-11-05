@@ -88,7 +88,7 @@ parser.add_argument('--airr-input', action='store_true', help='read input in AIR
 parser.add_argument('--airr-output', action='store_true', help='write output in AIRR tsv format')
 parser.add_argument('--simfname', help='simulation file corresponding to input file (i.e. presumably <infile> is inference that was performed on --simfname')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv versions of plots (not svg), which is a lot faster')
-parser.add_argument('--only-plot', action='store_true', help='if --plotdir is set, set this to only do plotting, i.e. don\'t do the usual/default file reading/conversion')
+parser.add_argument('--only-make-plots', action='store_true', help='if --plotdir is set, set this to only do plotting, i.e. don\'t do the usual/default file reading/conversion')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
     print '  note: running deprecated script %s, which currently is just a link pointing to %s' % (os.path.basename(sys.argv[0]), os.path.basename(os.path.realpath( __file__)))
@@ -139,7 +139,7 @@ if args.plotdir is not None:
             count_plot(None, antn_pairs, '%s/%s'%(args.plotdir, '+'.join(lpair)), paired_loci=[l['loci'][0] for l in antn_pairs[0]])
     else:
         count_plot(glfo, annotation_list, args.plotdir)
-    if args.only_plot:
+    if args.only_make_plots:
         sys.exit(0)
 
 assert not args.paired  # only handled for plotting above atm

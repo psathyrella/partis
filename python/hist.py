@@ -14,8 +14,6 @@ class Hist(object):
         self.xtitle, self.ytitle, self.title = xtitle, ytitle, title
 
         if fname is None:
-            if any(math.isnan(v) for v in [xmin, xmax]):
-                raise Exception('nan value in xmin, xmax: %s %s' % (xmin, xmax))
             if init_int_bins:  # use value_list to initialize integer bins NOTE adding this very late, and i tink there's lots of places where it could be used
                 assert value_list is not None
                 xmin, xmax = min(value_list) - 0.5, max(value_list) + 0.5
@@ -381,6 +379,12 @@ class Hist(object):
             imin, imax = ibounds
             if self.integral(False, ibounds=(0, imin)) > 0 or self.integral(False, ibounds=(imax, self.n_bins + 2)) > 0:
                 print '  %s called hist.get_mean() with ibounds %s that exclude bins with nonzero entries:  below %.3f   above %.3f' % (utils.color('yellow', 'warning'), ibounds, self.integral(False, ibounds=(0, imin)), self.integral(False, ibounds=(imax, self.n_bins + 2)))
+            if imin < 0:
+                print '  %s increasing specified imin %d to 0' % (utils.wrnstr(), imin)
+                imin = 0
+            if imax > self.n_bins + 2:
+                print '  %s decreasing specified imax %d to %d' % (utils.wrnstr(), imax, self.n_bins + 2)
+                imax = self.n_bins + 2
         elif ignore_overflows:
             imin, imax = 1, self.n_bins + 1
         else:

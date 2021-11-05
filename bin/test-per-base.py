@@ -70,7 +70,7 @@ simcmd = './bin/partis simulate --n-sim-events 100 --n-procs 8 --only-genes IGHV
 
 for label, xtra_args in cfglist:
     utils.simplerun('%s %s --outfname %s/%s/simu.yaml' % (simcmd, ' '.join(xtra_args), outdir, label)) #, dryrun=True)
-    utils.simplerun('./bin/example-parse-output.py --fname %s/%s/simu.yaml --plotdir %s/%s/plots --only-plot' % (outdir, label, outdir, label))
+    utils.simplerun('./bin/example-parse-output.py --fname %s/%s/simu.yaml --plotdir %s/%s/plots --only-make-plots' % (outdir, label, outdir, label))
     pass
 sys.exit()
 

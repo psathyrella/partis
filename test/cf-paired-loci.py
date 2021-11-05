@@ -19,9 +19,9 @@ import clusterpath
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
-ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 def is_single_chain(action):
-    return 'synth-' in action or 'vjcdr3-' in action or action in ['scoper', 'mobille', 'igblast']
+    return 'synth-' in action or 'vjcdr3-' in action or action in ['scoper', 'mobille', 'igblast', 'linearham']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -160,12 +160,17 @@ def get_replacefo():  # ick
     return {'tree-imbalance' : rfo}
 
 # ----------------------------------------------------------------------------------------
-def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
+def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
     if action == 'scoper':
         cmd = './test/scoper-run.py --indir %s --outdir %s --simdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action), odir(args, varnames, vstrs, 'simu'))
         return cmd
-    if action in ['mobille', 'igblast']:
-        cmd = './test/mobille-igblast-run.py %s --simdir %s --outdir %s --id-str %s --base-imgt-outdir %s' % (action, odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action), '_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/%s/imgt-output' % (args.base_outdir, args.label, args.version))
+    if action in ['mobille', 'igblast', 'linearham']:
+        binstr = ('./test/mobille-igblast-run.py %s' % action) if action in ['mobile', 'igblast'] else './test/%s-run.py'%action
+        cmd = '%s --simdir %s --outdir %s' % (binstr, odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action))
+        if action in ['mobille', 'igblast']:  # i don't think both of them need all these
+            cmd += ' --id-str %s --base-imgt-outdir %s' % ('_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/%s/imgt-output' % (args.base_outdir, args.label, args.version))
+        if action == 'linearham':
+            cmd += ' --partis-outdir %s --n-sim-events %d' % (odir(args, varnames, vstrs, 'partition'), int(utils.vlval(args, vlists, varnames, 'n-sim-events')))
         if args.n_sub_procs > 1:
             cmd += ' --n-procs %d' % args.n_sub_procs
         if args.prep:
@@ -234,7 +239,7 @@ def get_cmd(action, base_args, varnames, vstrs, synth_frac=None):
 # ----------------------------------------------------------------------------------------
 # TODO combine this also with fcns in cf-tree-metrics.py (and put it in scanplot)
 def run_scan(action):
-    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars[action])
+    base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action])
     cmdfos = []
     print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
     if args.debug:
@@ -256,7 +261,7 @@ def run_scan(action):
             make_synthetic_partition(action, varnames, vstrs)
             continue
 
-        cmd = get_cmd(action, base_args, varnames, vstrs)
+        cmd = get_cmd(action, base_args, varnames, val_lists, vstrs)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos += [{
             'cmd_str' : cmd,

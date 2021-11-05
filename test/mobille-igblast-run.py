@@ -148,7 +148,7 @@ def run_igblast():
         shlines[-1] += ' -domain_system imgt -ig_seqtype Ig -organism %s -outfmt 19' % args.species #\'7 std qseq sseq btop\'' % args.species
         shlines[-1] += ' -num_threads %d' % args.n_procs
         shlines[-1] += ' -query ' + imgt_infname(locus) + ' -out ' + ofn
-        bfn = '%s/run.sh' % wkdir(locus)  #  NOTE if i'd used utils.simplerun() i couldn't used its cmdfname arg
+        bfn = '%s/run.sh' % wkdir(locus)  #  NOTE if i'd used utils.simplerun() i couldn've used its cmdfname arg
         with open(bfn, 'w') as bfile:
             for l in shlines:
                 bfile.write('%s\n'%l)
@@ -252,3 +252,5 @@ if args.action == 'mobille':
 elif args.action == 'igblast':
     run_igblast()
     convert_file(igbofn, getofn, airr_input=True, igbl_gldir=True, plot_performance=True)
+else:
+    raise Exception('unsuppored action %s' % args.action)
