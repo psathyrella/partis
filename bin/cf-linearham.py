@@ -26,10 +26,13 @@ args = parser.parse_args()
 # ----------------------------------------------------------------------------------------
 def read_linearham_output():
     lh_info = {}
-    clusterdirs = glob.glob('%s/cluster*' % args.linearham_dir)  # works for old style 'clusterN' and new-style 'cluster-N'
+    clusterdirs = [d for d in (glob.glob('%s/cluster*' % args.linearham_dir)) if os.path.isdir(d)]  # works for old style 'clusterN' and new-style 'cluster-N'
+    if len(clusterdirs) == 0:
+        raise Exception('no linearham cluster subdirs (of form clusterN/ or cluster-N/ found in %s' % args.linearham_dir)
     print '  reading linearham info for %d cluster%s: %s' % (len(clusterdirs), utils.plural(len(clusterdirs)),' '.join(os.path.basename(cd) for cd in clusterdirs))
     for cdir in clusterdirs:
-        input_seqfos = utils.read_fastx('%s/input_seqs.fasta' % cdir)
+        sfname = utils.get_single_entry(glob.glob('%s/*_seqs.fasta' % cdir))  # used to be input_seqs.fasta, now it's cluster_seqs.fasta
+        input_seqfos = utils.read_fastx(sfname)
         input_uids = [sfo['name'] for sfo in input_seqfos if sfo['name'] != 'naive']
         # aa_naive_seqs.fasta:   prob of each aa naive seq
         # aa_naive_seqs.dnamap:  prob of each nuc naive seq contributing to each of those aa naive seqs
@@ -72,7 +75,7 @@ def print_naive_seq_lines(nseq_info, namestr, namecolor, ref_seq=None, amino_aci
         if 1. - total_prob < args.prob_to_ignore:
             breaking = True
             breakstr = 'total: %5.2f (breaking after %.2f)' % (prob+total_prob, 1. - args.prob_to_ignore)
-        print '     %s %s    %5.2f    %s   %s' % (utils.color_mutants(ref_seq, naive_seq, amino_acid=amino_acid), #, align_if_necessary=True),
+        print '     %s %s    %5.2f    %s   %s' % (utils.color_mutants(ref_seq, naive_seq, amino_acid=amino_acid, align_if_necessary=True),
                                                   utils.color(i_aa_color(i_aa_seq), str(i_aa_seq), width=2), prob, utils.color(namecolor, namestr, width=9, padside='right'), breakstr)
         if breaking:
             break
