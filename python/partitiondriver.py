@@ -2292,7 +2292,7 @@ class PartitionDriver(object):
             partition_lines = cpath.get_partition_lines(reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'))
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
-            utils.add_linearham_info(self.sw_info, annotation_list, self.args.min_selection_metric_cluster_size)
+            utils.add_linearham_info(self.sw_info, annotation_list)
 
         headers = utils.sw_cache_headers if write_sw else utils.annotation_headers
         if extra_headers is not None:
