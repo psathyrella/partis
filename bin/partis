@@ -342,12 +342,16 @@ def remove_action_specific_args(clist, argsaction, tmpaction, debug=True):  # re
 # ----------------------------------------------------------------------------------------
 def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
-    def getpdir(ltmp, bpdir=None):  # pass in <ltmp> of '' to get the base dir
-        if bpdir is not None:
-            return '%s/%s' % (bpdir, ltmp)
-        else:
-            # NOTE adding the '/parameters' complication, which I think is right? But only sure it's what i want for calls from test.py
-            return '%s%s/%s' % (utils.non_none([args.parameter_dir, args.paired_outdir, default_parameter_dir(args)]), '/parameters' if args.parameter_dir is None else '', ltmp)  # , args.workdir
+    def getpdir(ltmp, bpdir=None, lpair=None, write=False):  # pass in <ltmp> of '' to get the base dir (note: i'm adding <lpair> late, and i'm not really sure when we should use it -- i think not always?)
+        if bpdir is None:
+            if write and args.parameter_out_dir is not None:
+                base_dir = args.parameter_out_dir
+            else:
+                base_dir = utils.non_none([args.parameter_dir, args.paired_outdir, default_parameter_dir(args)])
+            bpdir = '%s%s' % (base_dir, '/parameters' if args.parameter_dir is None else '')
+        if lpair is not None and (write or os.path.exists('%s/%s'%(bpdir, '+'.join(lpair)))):
+            bpdir = '%s/%s'%(bpdir, '+'.join(lpair))  # NOTE this is pretty similar to utils.parameter_type_subdir(), but i think it's better to have it separate?
+        return '%s/%s' % (bpdir, ltmp)
     # ----------------------------------------------------------------------------------------
     def getifn(ltmp):
         if args.paired_indir is not None:
@@ -509,7 +513,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
-                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr)))  # the trees aren't really associated with the locus if we're generating trees, but we just use it to get the mutation rate (and maybe that doesn't really get used?)  # NOTE this will use the heavy chain parameter dir and ignore the light chain one, which I think is ok (it's just used for tree scaling, and it would be better to eventually have different scaling for light chain, but it should be fine)
+                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))  # the trees aren't really associated with the locus if we're generating trees, but we just use it to get the mutation rate (and maybe that doesn't really get used?)  # NOTE this will use the heavy chain parameter dir and ignore the light chain one, which I think is ok (it's just used for tree scaling, and it would be better to eventually have different scaling for light chain, but it should be fine)
             if tmpaction == 'generate-trees':
                 utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-sim-events', has_arg=True)
@@ -774,8 +778,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.print_reco_event(input_antn_dict[':'.join(tclust)], uid_extra_strs=uid_extra_strs, extra_str='      ', queries_to_emphasize=args.seed_unique_id)
     # ----------------------------------------------------------------------------------------
     def count_parameter_things(lp_infos, lpair):  # NOTE this duplicates a ton of code in partitiondriver.process_annotation_output()
-        # TODO should add perf plotter here as well
-        # TODO maybe also write parameters (+hmms)?
+        # TODO should add perf plotter here as well perfplotter = PerformancePlotter('hmm') if self.args.plot_annotation_performance else None
         lpk = tuple(lpair)
         if lp_infos[lpk]['glfos'] is None:
             return
@@ -786,6 +789,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                     pcounter.increment(tline)
                 if args.plotdir is not None:
                     pcounter.plot(getplotdir(ltmp, lpair=lpair), only_csv=args.only_csv_plots, only_overall=not args.make_per_gene_plots, make_per_base_plots=args.make_per_gene_per_base_plots)
+                if not args.dont_write_parameters:
+                    pcounter.write('%s/hmm'%getpdir(ltmp, lpair=lpair, write=True))  # note: shouldn't need true_pcounter here, we just need it written once somewhere
+                    # self.write_hmms(XXX)  # TODO would require copying a bit from partitiondriver.write_hmms()
         if args.count_correlations:
             ccounter = CorrCounter(paired_loci=lpair)  # count between-locus correlations
             ccounter.incr_cluster_pairs(lp_infos, lpair)

@@ -86,7 +86,7 @@ def get_parameter_type(args, paramdir):
                 ptype = tpt
                 break
     return ptype
-def parameter_type_subdir(args, paramdir):
+def parameter_type_subdir(args, paramdir):  # NOTE this is similar to a bit in getpdir() in the paired locus stuff in bin/partis.py
     if paramdir is None:
         return None
     return '%s/%s' % (paramdir, get_parameter_type(args, paramdir))

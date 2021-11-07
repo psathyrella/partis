@@ -821,6 +821,8 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
 # ----------------------------------------------------------------------------------------
 def get_auto_y_ticks(ymin, ymax, log=''):  # NOTE pretty similar to get_cluster_size_xticks() (for search: log_bins log bins)
     def tstr(y): return (('%.0e'%y) if (y>1000 or y < 1) else '%.0f'%y) if 'y' in log else str(y)
+    if ymin == 0:
+        ymin = 1e-10  # not sure what to use here
     tstart, tstop = math.floor(math.log(ymin, 10)), math.ceil(math.log(ymax, 10))
     n_ticks = tstop - tstart + 1
     if n_ticks == 2:  # i don't think it can be 0 or 1, but not sure

@@ -57,6 +57,7 @@ class PartitionDriver(object):
 
         self.sw_param_dir, self.hmm_param_dir, self.multi_hmm_param_dir = ['%s/%s' % (self.args.parameter_dir, s) for s in ['sw', 'hmm', 'multi-hmm']]
         self.sub_param_dir = utils.parameter_type_subdir(self.args, self.args.parameter_dir)
+        self.final_multi_paramdir = utils.non_none([self.args.parameter_out_dir, self.multi_hmm_param_dir])  # ick
 
         self.hmm_infname = self.args.workdir + '/hmm_input.csv'
         self.hmm_cachefname = self.args.workdir + '/hmm_cached_info.csv'
@@ -308,7 +309,7 @@ class PartitionDriver(object):
                 self.write_output(None, set(), write_sw=True)  # note that if you're auto-parameter caching, this will just be rewriting an sw output file that's already there from parameter caching, but oh, well. If you're setting --only-smith-waterman and not using cache-parameters, you have only yourself to blame
             return
         print 'hmm'
-        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=utils.non_none([self.args.parameter_out_dir, self.multi_hmm_param_dir]), partition=self.input_partition)
+        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, partition=self.input_partition)
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.annotation_clustering:  # VJ CDR3 clustering
@@ -322,7 +323,7 @@ class PartitionDriver(object):
             partplotter = PartitionPlotter(self.args)
             partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, no_mds_plots=self.args.no_mds_plots) #, cpath=cpath) cpath is only used for laplacian spectra
         if self.args.count_parameters and not self.args.dont_write_parameters:
-            self.write_hmms(utils.non_none([self.args.parameter_out_dir, self.multi_hmm_param_dir]))  # note that this modifies <self.glfo>
+            self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
     def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
@@ -893,7 +894,7 @@ class PartitionDriver(object):
         clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print 'getting annotations for final partition%s%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '', ' (with star tree annotation since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else '')
-        _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, count_parameters=self.args.count_parameters, parameter_out_dir=self.multi_hmm_param_dir if self.args.parameter_out_dir is None else self.args.parameter_out_dir, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
+        _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
@@ -909,7 +910,7 @@ class PartitionDriver(object):
             self.write_output(all_annotations.values(), hmm_failures, cpath=cpath)
 
         if self.args.count_parameters and not self.args.dont_write_parameters:  # not sure this is absolutely the most sensible place to put this, but I'm trying to kind of mimic where we write the hmms in self.cache_parameters()
-            self.write_hmms(utils.non_none([self.args.parameter_out_dir, self.multi_hmm_param_dir]))  # note that this modifies <self.glfo>
+            self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
 
         self.current_action = action_cache
 
