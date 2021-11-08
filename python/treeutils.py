@@ -31,6 +31,12 @@ except ImportError:
 
 import utils
 
+# TODO isn't this info somewhere else?
+affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'aa-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
+affy_metrics += ['sum-'+m for m in affy_metrics]
+delta_affy_metrics = ['lbr', 'aa-lbr']
+delta_affy_metrics += ['sum-'+m for m in delta_affy_metrics]
+
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
 selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr']  # I really thought this was somewhere, but can't find it so adding it here
 typical_bcr_seq_len = 400
@@ -51,7 +57,7 @@ legtexts = {
     'affinity-biased' : 'affinity biased',
     'high-affinity' : 'perf. affinity',
     'cons-dist-aa' : 'aa-cdist',
-    'sum-cons-dist-aa' : 'h+l aa-cdist',
+    'sum-cons-dist-aa' : '- AA dist. to cons seq (h+l)',
     'cons-frac-aa' : 'aa-cfrac',
     'cons-dist-nuc' : 'nuc-cdist',
     'shm' : 'n-shm',
@@ -59,6 +65,8 @@ legtexts = {
     'aa-lbr' : 'AA lb ratio',
     'sum-aa-lbi' : 'h+l AA lb index',
     'sum-aa-lbr' : 'h+l AA lb ratio',
+    'sum-lbi' : 'h+l lb index',
+    'sum-lbr' : 'h+l lb ratio',
 }
 
 # ----------------------------------------------------------------------------------------
@@ -1146,7 +1154,7 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
 
 # ----------------------------------------------------------------------------------------
 def find_affy_increases(dtree, line, min_affinity_change=1e-6):
-    affy_increasing_edges = []
+    affy_increasing_edges, affy_changes = [], {}
     for edge in dtree.preorder_edge_iter():
         parent_node = edge.tail_node
         child_node = edge.head_node
@@ -1157,14 +1165,15 @@ def find_affy_increases(dtree, line, min_affinity_change=1e-6):
         if None in [parent_affy, child_affy]:
             continue
         daffy = child_affy - parent_affy
+        affy_changes[child_node.taxon.label] = daffy
         if daffy > min_affinity_change:
             affy_increasing_edges.append(edge)
-    return affy_increasing_edges
+    return affy_increasing_edges, affy_changes
 
 # ----------------------------------------------------------------------------------------
 def get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, n_max_steps=15, also_return_branch_len=False, debug=False):
     if affy_increasing_edges is None:
-        affy_increasing_edges = find_affy_increases(dtree, line)
+        affy_increasing_edges, _ = find_affy_increases(dtree, line)
     ancestor_node = node
     chosen_edge = None
     n_steps, branch_len = 0, 0.
@@ -2835,7 +2844,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         import lbplotting
 
         fnames = []
-        joint_metrics = ['cons-dist-aa', 'aa-lbi', 'aa-lbr'] #, 'lbi', 'lbr']
+        joint_metrics = ['lbi', 'aa-lbi', 'cons-dist-aa', 'lbr', 'aa-lbr']  # for ordering, and if you want to have extra metrics for single chain
         reverse_translations = utils.translate_uids([h_atn], trfcn=lambda u: '-'.join(u.split('-')[:-1]))
         for b_mtr in [m for m in joint_metrics if m in args.selection_metrics_to_calculate]:
             has_affinities = 'affinities' in h_atn
@@ -2846,14 +2855,14 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 if sum_mval is None:
                     continue
                 h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sum_mval
-            if not args.only_csv_plots:
-                lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
-            if has_affinities and b_mtr in ['cons-dist-aa', 'aa-lbi']: #, 'lbi']:
+            # if not args.only_csv_plots:
+            #     lbplotting.plot_lb_distributions(sum_mtr, plotdir, [h_atn], fnames=fnames, is_true_line=is_simu) #, only_overall=False) #, iclust_fnames=None if has_affinities else 8)
+            if has_affinities and b_mtr in ['cons-dist-aa', 'aa-lbi', 'lbi']:
                 lbplotting.plot_lb_vs_affinity(plotdir, [h_atn], sum_mtr, is_true_line=is_simu, fnames=fnames, only_csv=args.only_csv_plots)
-            if has_affinities and b_mtr in ['aa-lbr']: #, 'lbr']:
-                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames, is_true_line=is_simu, only_csv=args.only_csv_plots)
+            if has_affinities and b_mtr in ['aa-lbr', 'lbr']:
+                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + sum_mtr, [h_atn], sum_mtr, fnames=fnames, is_true_line=is_simu, only_csv=args.only_csv_plots) #, only_distr_plots=True)
         if not args.only_csv_plots and 'cons-dist-aa' in args.selection_metrics_to_calculate and 'aa-lbi' in args.selection_metrics_to_calculate:
-            lbplotting.make_lb_scatter_plots('sum-cons-dist-aa', plotdir, 'sum-aa-lbi', [h_atn], fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities else None, add_jitter=True, queries_to_include=args.queries_to_include)
+            lbplotting.make_lb_scatter_plots('sum-cons-dist-aa', plotdir, 'sum-aa-lbi', [h_atn], fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities else None, add_jitter=True, queries_to_include=args.queries_to_include, add_stats='correlation')
         if not args.only_csv_plots and args.ete_path is not None: # and any('tree' in l['tree-info']['lb'] or 'aa-tree' in l['tree-info']['lb'] for l in inf_lines_to_use):
             lbplotting.plot_lb_trees(['sum-'+m for m in joint_metrics if m in args.selection_metrics_to_calculate], plotdir, [h_atn], args.ete_path, args.workdir, is_true_line=is_simu, fnames=fnames, queries_to_include=args.queries_to_include)
         if not args.only_csv_plots:

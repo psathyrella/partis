@@ -81,9 +81,11 @@ def getptvar(xvar): return xvar if xvar == 'affinity' else 'n-ancestor'  # NOTE 
 def ungetptvar(xvar): return xvar if xvar == 'affinity' else 'delta-affinity'  # ok this name sucks, and these two functions are anyway shitty hacks
 def ungetptlabel(xvar): return xvar if xvar == 'affinity' else 'affinity change'
 
-per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'sum-aa-lbi', 'sum-aa-lbr', 'sum-cons-dist-aa', 'delta-lbi', 'cons-lbi'] + treeutils.dtr_metrics
+per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'cons-lbi']
+per_seq_metrics += ['sum-'+m for m in per_seq_metrics]
+per_seq_metrics += treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
-mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'sum-cons-dist-aa' : '- AA dist. to cons seq (h+l)', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
+mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
                            'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'in-family dtr', 'within-families-delta-affinity-dtr' : 'in-family dtr', 'among-families-affinity-dtr' : 'among-families dtr', 'among-families-delta-affinity-dtr' : 'among-families dtr'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'cons-seq-shm-nuc' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
 mtitle_cfg['per-seq'].update(treeutils.legtexts)
@@ -112,7 +114,7 @@ def all_clust_str(n_clusters):
     return '%d cluster%s' % (n_clusters, utils.plural(n_clusters))
 
 # ----------------------------------------------------------------------------------------
-def add_fn(fnames, fn=None, init=False, n_per_row=3, new_row=False):
+def add_fn(fnames, fn=None, init=False, n_per_row=4, new_row=False):
     if fnames is None:
         if init:
             fnames = []
@@ -282,16 +284,13 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
     plotting.make_html(plotdir)
 
 # ----------------------------------------------------------------------------------------
-def get_tree_from_line(line, is_true_line):
+def get_tree_from_line(line, is_true_line, aa=False):
     if is_true_line:
         return line['tree']
     if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
         return None
-    if 'tree' in line['tree-info']['lb']:
-        return line['tree-info']['lb']['tree']
-    else:
-        print '  %s using aa-tree for lb scatter plot' % utils.color('yellow', 'warning')
-        return line['tree-info']['lb']['aa-tree']
+    print '    %s tree' % utils.color('yellow', 'aa' if aa else 'nuc')
+    return line['tree-info']['lb']['%stree'%('aa-' if aa else '')]
 
 # ----------------------------------------------------------------------------------------
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
@@ -351,7 +350,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             if 'ptile' in xvar or 'ptile' in yvar:  # if it's not a ptile, we just don't plot it unless we have a value for both x and y. But for ptiles I don't really want to think through right now how to handle it
                 raise Exception('  %s different uids in <lbfo> and <line>, and xvar or yvar is a ptile: %3d extra uids in lbfo, %3d extra in line, %3d in common. This (the code below) needs to be checked.' % (utils.color('yellow', 'warning'), len(set(lbfo) - set(line['unique_ids'])), len(set(line['unique_ids']) - set(lbfo)), len(set(line['unique_ids']) & set(lbfo))))
         if colorvar in ['is_leaf', 'edge-dist'] or xvar == 'edge-dist':
-            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))
+            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric))
             if dtree is None:
                 continue
 
@@ -731,7 +730,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
         if colorvar is not None and colorvar == 'is_leaf':
-            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))  # keeping this here to remind myself how to get the tree if I need it
+            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric))  # keeping this here to remind myself how to get the tree if I need it
         if affy_key not in line:
             return plotvals
         for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None and u in line['tree-info']['lb'][lb_metric]]:
@@ -893,9 +892,9 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
     # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line, xvar, iclust):
-        plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
-        dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line))
-        affy_increasing_edges = treeutils.find_affy_increases(dtree, line)
+        plotvals = {vt : [] for vt in [lb_metric, xvar, 'daffy']}  # , 'uids']}
+        dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric))
+        affy_increasing_edges, all_affy_changes = treeutils.find_affy_increases(dtree, line)
         if debug and iclust == 0:
             if debug > 1:
                 print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250))
@@ -916,8 +915,11 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             n_steps, branch_len = treeutils.get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=True, lbval=line['tree-info']['lb'][lb_metric][uid], only_look_upwards=only_look_upwards, debug=debug)
             if n_steps is None:
                 continue
+            if all_affy_changes.get(uid) is None:
+                continue
             plotvals[xvar].append(n_steps if xvar == 'n-ancestor' else branch_len)
             plotvals[lb_metric].append(lbval)
+            plotvals['daffy'].append(all_affy_changes.get(uid))
             # plotvals['uids'].append(uid)
         return plotvals
 
@@ -932,7 +934,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         if len(plotvals[xvar]) == 0 or len(plotvals[xvar]) > max_scatter_plot_size:
             return
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
-        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel='%s since affinity increase' % xlabel, log='y' if 'lbr' in lb_metric else '')
+        xlstr = 'affinity change' if xvar=='daffy' else '%s to nearest affinity increase' % xlabel
+        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel=xlstr, log='y' if 'lbr' in lb_metric else '', stats='correlation' if xvar=='daffy' else None)
         add_fn(tfns, fn=fn)
     # ----------------------------------------------------------------------------------------
     def make_distr_plot(plotvals, xvar, iclust=None, tfns=None):
@@ -984,10 +987,10 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
     for xvar, estr in itertools.product(xvar_list, ['', '-ptiles', '-perf-distr']):
         utils.prep_dir(getplotdir(xvar, extrastr=estr), wildlings=['*.svg', '*.yaml'])
     if debug:
-        print 'finding ancestors with most recent affinity increases'
+        print '%s finding ancestors with most recent affinity increases' % utils.color('blue', lb_metric)
     iclust_fnames = add_fn(None, init=True)
     for xvar, xlabel in xvar_list.items():
-        per_seq_plotvals = {vt : [] for vt in [lb_metric, xvar]}  # , 'uids']}
+        per_seq_plotvals = {vt : [] for vt in [lb_metric, xvar, 'daffy']}  # , 'uids']}
         pt_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
         distr_hists = {}
         for iclust, line in enumerate(lines):
@@ -1004,6 +1007,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             distr_hists['iclust-%d'%iclust] = get_distr_hists(iclust_plotvals, xvar, iclust=iclust)
             if not only_csv and iclust < max_iclust_plots:
                 make_distr_plot(iclust_plotvals, xvar, iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
+                make_scatter_plot(iclust_plotvals, 'daffy', iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
                 if not only_distr_plots:
                     make_scatter_plot(iclust_plotvals, xvar, iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
                     make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xlist=iclust_plotvals[xvar],
@@ -1021,6 +1025,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             distr_hists['all-clusters'] = get_distr_hists(per_seq_plotvals, xvar)
             if len(lines) > 1 and not only_csv:
                 make_distr_plot(per_seq_plotvals, xvar, tfns=fnames)
+                make_scatter_plot(per_seq_plotvals, 'daffy', tfns=fnames)
                 if not only_distr_plots:
                     # make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
                     make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
@@ -1122,14 +1127,14 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
     cmdfos = []
     for lb_metric in metric_methods:
         for iclust, line in enumerate(lines):  # note that <min_selection_metric_cluster_size> was already applied in treeutils
-            treestr = get_tree_from_line(line, is_true_line)
+            treestr = get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric)
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
             metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if affy_key in line:  # either 'affinities' or 'relative_affinities'
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
             cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=queries_to_include)]
-            add_fn(fnames, fn=outfname)
+            add_fn(fnames, fn=outfname, n_per_row=3)
 
     if len(cmdfos) > 0:
         start = time.time()
