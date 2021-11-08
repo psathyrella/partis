@@ -2,7 +2,7 @@
 
 bin=./test/cf-paired-loci.py
 
-methods=annotate:star-partition:partition # synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.9:mobille:scoper:vsearch-partition:partition
+methods=annotate:star-partition:partition:linearham # synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.9:mobille:scoper:vsearch-partition:partition
 # astr="--actions $methods"
 # astr="--actions plot --plot-metrics $methods" # --perf-metrics f1"
 astr="--actions combine-plots --plot-metrics $methods"

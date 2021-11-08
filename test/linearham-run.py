@@ -64,12 +64,13 @@ def gloci():  # if no sw file, we probably only made one light locus (or i guess
 
 # ----------------------------------------------------------------------------------------
 def run_linearham():
-    ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
+    ofn, cmdfos, n_already_there, n_total = None, [], 0, 0
     for locus in gloci():
         if not os.path.exists(simfn(locus)):
             continue
 # TODO chown output from root
         for iclust in range(args.n_sim_events):
+            n_total += 1
             ofn = lnhofn(locus, iclust=iclust)
             if utils.output_exists(args, ofn, debug=False): # and not args.dry:  # , offset=8):
                 n_already_there += 1
@@ -99,17 +100,22 @@ def run_linearham():
 
 # ----------------------------------------------------------------------------------------
 def processs_linearham_output():
-    n_missing = 0
+    n_already_there, n_missing_iclusts, n_total_iclusts, n_total_out = 0, 0, 0, 0
     for locus in gloci():
         if not os.path.exists(simfn(locus)):
             continue
         ofn = finalfn(locus)
+        n_total_out += 1
+        if utils.output_exists(args, ofn, debug=False):
+            n_already_there += 1
+            continue
 # TODO don't overwrite by default
         antn_list = []
         for iclust in range(args.n_sim_events):
+            n_total_iclusts += 1
             lhfn = lnhofn(locus, iclust=iclust)
             if not os.path.exists(lhfn):
-                n_missing += 1
+                n_missing_iclusts += 1
                 print '    missing %s' % lhfn
                 continue
             glfo, iclust_antns, _ = utils.read_output(lhfn)
@@ -121,8 +127,10 @@ def processs_linearham_output():
         cmd += ' --only-make-plots --simfname %s --plotdir %s --only-csv-plots --only-plot-performance' % (simfn(locus), antn_plotdir(locus))
         utils.simplerun(cmd, logfname='%s/plot-performance.log'%wkdir(locus)) #, dryrun=args.dry)
 
-    if n_missing > 0:
-        print '  missing %d' % n_missing
+    if n_missing_iclusts > 0:
+        print '  missing %d / %d' % (n_missing_iclusts, n_total_iclusts)
+    if n_already_there > 0:
+        print '  %d / %d final output files already there (e.g. %s' % (n_already_there, n_total_out, ofn)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
