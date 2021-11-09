@@ -619,7 +619,8 @@ def rescale_tree(new_mean_height, dtree=None, treestr=None, debug=False):
             continue
         if debug:
             print '     %5s  %7e  -->  %7e' % (edge.head_node.taxon.label if edge.head_node.taxon is not None else 'None', edge.length, edge.length * new_mean_height / mean_height)
-        edge.length *= new_mean_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
+        if mean_height != 0:  # ok should really probably just return without doing anything if every leaf height is zero, but oh well for now
+            edge.length *= new_mean_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
     if not treestr:  # i'm really pretty sure there's no point in doing this if we're just going to immediately convert to string (and it just caused huge fucking problems because it was missing the suppress unifurcations arg. I'm so *!$@(($@ing tired of that shit this is like the fourth time I've wasted hours chasing down weirdness that stems from that)
         dtree.update_bipartitions(suppress_unifurcations=False)  # probably doesn't really need to be done
     if debug:

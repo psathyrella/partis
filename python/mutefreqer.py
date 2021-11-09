@@ -16,11 +16,13 @@ class MuteFreqer(object):
         self.calculate_uncertainty = calculate_uncertainty
 
         self.counts, self.freqs = {}, {}  # per-gene, per-position counts/rates
-        self.n_bins, self.xmin, self.xmax = 40, 0., 0.4
+        tkeys = ['all', 'cdr3'] + utils.regions
+        self.n_bins, self.xmin, self.xmax = 40, 0., 0.4  # NOTE this bin width is wider than one mutation (at least for v and all), e.g. the zero N mutations get smeared out together with 1 and 2 etc, which can cause issues for super naive samples (i.e., if you really care about the distribution, you need to use the mean_n_muted hists)
         self.mean_rates = {n : Hist(self.n_bins, self.xmin, self.xmax, xtitle='mut freq', ytitle='freq', title='full seq' if n == 'all' else n.upper())
-                           for n in ['all', 'cdr3'] + utils.regions}  # kind of annoying that it's 'all' here, but '' in plotconfig.rstrings (and therefore in performanceplotter) but it's too much trouble to change to '' here
-        nmaxes = {'v' : 55, 'd' : 14, 'j' : 15, 'cdr3' : 20, 'all' : 90}
-        # note that we want the mean rates to go up really high, so there aren't many overflows, but the n-muted we can't get away with having a huge range because there has to be a bin for each n-muted (to avoid aliasing)
+                           for n in tkeys}  # kind of annoying that it's 'all' here, but '' in plotconfig.rstrings (and therefore in performanceplotter) but it's too much trouble to change to '' here
+        nmaxes = {n : int(self.xmax * utils.typical_lengths[n]) for n in tkeys} # {'v' : 55, 'd' : 14, 'j' : 15, 'cdr3' : 20, 'all' : 90}
+        # note that we need both to go up really high so we don't have overflows (since they're used for parameters later)
+        # also note that if the mean_rates ones have bins that're too narrow you'll have aliasing issues (which maybe can be solved by being careful about bin boundaries, but whatever)
         self.mean_n_muted = {n : Hist(nmaxes[n] + 1, -0.5, nmaxes[n] + 0.5, xtitle='n mutated', ytitle='counts', title='full seq' if n == 'all' else n.upper())
                              for n in ['all', 'cdr3'] + utils.regions}
         self.per_gene_mean_rates = {}
@@ -203,14 +205,16 @@ class MuteFreqer(object):
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def write(self, outdir, mean_freq_outfname):
+    def write(self, base_outdir, mfreqdir):
         if not self.finalized:
             self.finalize()
 
         for gene in self.counts:  # don't bother parallelizing this, all the time is spent finalizing
-            self.write_single_gene(gene, outdir + '/' + utils.sanitize_name(gene) + '.csv')
+            self.write_single_gene(gene, mfreqdir + '/' + utils.sanitize_name(gene) + '.csv')
 
-        assert 'REGION' in mean_freq_outfname
-        self.mean_rates['all'].write(mean_freq_outfname.replace('REGION', 'all'))  # hackey hackey hackey replacement... *sigh*
+        def ofcn(mstr, r): return '%s/%s-mean-%s.csv' % (base_outdir, r, mstr)
+        self.mean_rates['all'].write(ofcn('mute-freqs', 'all'))
+        self.mean_n_muted['all'].write(ofcn('n-muted', 'all'))
         for region in utils.regions:
-            self.mean_rates[region].write(mean_freq_outfname.replace('REGION', region))
+            self.mean_rates[region].write(ofcn('mute-freqs', region))
+            self.mean_n_muted[region].write(ofcn('n-muted', region))

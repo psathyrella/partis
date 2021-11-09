@@ -376,6 +376,21 @@ def get_single_entry(tl):  # adding this very late, so there's a lot of places i
     return tl[0]
 
 # ----------------------------------------------------------------------------------------
+# igh lengths (from code above):
+#        mean   min  max
+# v     296.7   293  305 (from germline genes)
+# d      25.7    11   37
+# j      53.6    48   62
+# cdr3   52.2    23   96  (from test/ output)
+# all   378.2   348  420
+typical_lengths = {
+    'v' : 297,
+    'd' : 26,
+    'j' : 54,
+    'cdr3' : 52,
+    'all' : 378,
+}
+# ----------------------------------------------------------------------------------------
 # values used when simulating from scratch (mutation stuff is controlled by command line args, e.g. --scratch-mute-freq)
 scratch_mean_erosion_lengths = {'igh' : {'v_3p' : 1.3, 'd_5p' : 5.6, 'd_3p' : 4.7, 'j_5p' : 5.1},
                                 'igk' : {'v_3p' : 2.8, 'd_5p' : 1.0, 'd_3p' : 0.0, 'j_5p' : 1.5},

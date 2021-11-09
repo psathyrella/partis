@@ -202,7 +202,7 @@ class ParameterCounter(object):
         if self.corrcounter is None and os.path.isdir(base_outdir + '/correlations'):  # but if it is there, we want to rm it
             os.rmdir(base_outdir + '/correlations')
 
-        self.mfreqer.write(base_outdir + '/mute-freqs', mean_freq_outfname=base_outdir + '/REGION-mean-mute-freqs.csv')  # REGION is replace by each region in the three output files)
+        self.mfreqer.write(base_outdir, base_outdir + '/mute-freqs')
         genes_with_counts = [g[0] for r in utils.regions for g in self.counts[r + '_gene'].keys()]
         glutils.write_glfo(base_outdir + '/' + glutils.glfo_dir, self.glfo, only_genes=genes_with_counts, debug=False)
 
