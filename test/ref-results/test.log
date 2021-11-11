@@ -13,7 +13,7 @@ smith-waterman  (new-allele fitting)
       kept 16 (0.320) unproductive
     water time: 0.2  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 45 / 50 v annotations (5 failed) with 22 v genes in 0.0 sec
+  vsearch: 45 / 50 v annotations (5 failed) with 22 v genes in 0.1 sec
     running 10 procs for 46 seqs
     running 11 procs for 1 seq
       info for 46 / 50 = 0.920   (removed: 4 failed)
@@ -28,41 +28,51 @@ hmm
              min-max time:  0.2 - 0.4 sec
     reading output
         read 46 hmm output lines with 46 sequences in 46 events  (0 failures)
-    writing parameters to test/new-results/test/parameters/data/hmm (0.7 sec)
+    writing parameters to test/new-results/test/parameters/data/hmm (0.6 sec)
          infra time: 0.7
       hmm step time: 1.2
   writing hmms (0.1 sec)
       total time: 3.1
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/new-results/test/parameters/data --n-sim-events 10 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --outfname test/new-results/test/simu.yaml --indel-frequency 0.2
 simulating
-      --> proc 1
-    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 1.8
-
-      --> proc 2
-    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 1.8
-
       --> proc 6
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 2 seqs in 0.2s (0.1s of which was running bppseqgen)
-      total time: 1.7
+    made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 1.8
 
       --> proc 4
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
     made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 1.7
 
-      --> proc 8
+      --> proc 2
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 4 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 1.6
+    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 1.7
 
       --> proc 3
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 6 seqs in 0.2s (0.2s of which was running bppseqgen)
+    made 1 event with 6 seqs in 0.2s (0.1s of which was running bppseqgen)
+      total time: 1.7
+
+      --> proc 1
+    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
+    made 1 event with 1 seqs in 0.2s (0.2s of which was running bppseqgen)
+      total time: 1.8
+
+      --> proc 8
+    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
+    made 1 event with 4 seqs in 0.2s (0.2s of which was running bppseqgen)
+      total time: 1.8
+
+      --> proc 9
+    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
+    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 1.7
+
+      --> proc 5
+    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
+    made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 1.8
 
       --> proc 0
@@ -70,20 +80,10 @@ simulating
     made 1 event with 3 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 1.9
 
-      --> proc 9
-    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 1 seqs in 0.2s (0.1s of which was running bppseqgen)
-      total time: 1.6
-
       --> proc 7
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
+    made 1 event with 10 seqs in 0.3s (0.2s of which was running bppseqgen)
       total time: 1.8
-
-      --> proc 5
-    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 10 seqs in 0.3s (0.3s of which was running bppseqgen)
-      total time: 1.9
 
    read 10 events with 40 seqs from 10 .yaml files
       total time: 2.6
@@ -165,7 +165,7 @@ hmm
              min-max time:  0.1 - 0.1 sec
     reading output
         read 18 hmm output lines with 40 sequences in 18 events  (0 failures)
-      hmm step time: 0.2
+      hmm step time: 0.3
     read 18 new subcluster annotations: added hashid 11   whole finished 7   subcl finished 0
     running 10 procs
                     calcd:         vtb  5        fwd  0
@@ -238,7 +238,7 @@ caching all 40 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/341449/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/587373/hmm_cached_info.csv
       hmm step time: 0.1
 13 clusters with 2 procs
        naive hfrac bounds: 0.015 0.082
@@ -313,7 +313,7 @@ hmm
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/688101/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/162790/hmm_cached_info.csv
       hmm step time: 0.1
 6 clusters with 2 procs
   [93mwarning[0m cluster occurs 3 times in the <nsets> we're sending to bcrham: 3360438051638168766:2387425579577174071:3360438051638168762:3360438051638168761:6498440694361053780:4153952915725542605
@@ -323,7 +323,7 @@ hmm
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/688101/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/162790/hmm_cached_info.csv
       hmm step time: 0.1
       removed 10 sequences in unseeded clusters, split 2 seeded clusters into 6 singletons, and merged these into 1 clusters with identical naive seqs (0.0 sec)
         new n_procs 1 (initial seqs/proc: 4.00   new seqs/proc: 1.00
@@ -354,7 +354,7 @@ getting annotations for final partition
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
     subcluster annotation time 0.2
   seed cluster size in best partition: 6, excluding seed seq: 5
-      total time: 0.9
+      total time: 0.8
 [92mvsearch-partition-new-simu[0m       /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --random-seed 1 --n-procs 10 --outfname test/new-results/vsearch-partition-new-simu.yaml
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
@@ -405,4 +405,4 @@ getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 15/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       tree origins: 2 made from cpath
   writing selection metrics to test/new-results/get-selection-metrics-new-simu.yaml
-      total time: 0.2
+      total time: 0.3

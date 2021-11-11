@@ -2,16 +2,15 @@
   --input-metafnames: added meta info for 4 sequences from test/input-meta.yaml: multiplicities
   note: running on a lot of sequences (1412) without setting --outfname. Which is ok, but there will be no persistent record of the results (except the parameter directory).
 caching parameters
-  vsearch: 1268 / 1412 v annotations (144 failed) with 191 v genes in 0.2 sec
+  vsearch: 1268 / 1412 v annotations (144 failed) with 191 v genes in 0.1 sec
     keeping 61 / 220 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 1264 / 1412 v annotations (148 failed) with 61 v genes in 0.2 sec
-  removing old sw cache test/new-results-slow/test/parameters/data/sw-cache.yaml
     running 10 procs for 1412 seqs
     running 13 procs for 71 seqs
       info for 1370 / 1412 = 0.970   (removed: 42 failed)
       kept 437 (0.309) unproductive
-    water time: 2.0  (ig-sw 0.1  processing 0.2)
+    water time: 1.9  (ig-sw 0.1  processing 0.2)
   no queries for allele finding
 smith-waterman  (writing parameters)
   vsearch: 1264 / 1412 v annotations (148 failed) with 61 v genes in 0.2 sec
@@ -21,7 +20,7 @@ smith-waterman  (writing parameters)
       kept 437 (0.309) unproductive
         writing sw results to test/new-results-slow/test/parameters/data/sw-cache.yaml
     writing parameters to test/new-results-slow/test/parameters/data/sw (2.0 sec)
-    water time: 4.7  (ig-sw 2.9  processing 0.2)
+    water time: 4.7  (ig-sw 2.8  processing 0.2)
   writing hmms (0.6 sec)
 hmm
     skipping matches from 4 genes without enough counts: [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m
@@ -33,63 +32,63 @@ hmm
           [91mwarning[0m no valid paths: -5294497590599348090 -1651760806376077044 -3094020580816257316 6182728664197942741 6880877555932742798
     writing parameters to test/new-results-slow/test/parameters/data/hmm (1.7 sec)
          infra time: 2.7
-      hmm step time: 7.7
+      hmm step time: 7.8
   writing hmms (0.7 sec)
-      total time: 16.4
+      total time: 16.3
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/test/simu.yaml --indel-frequency 0.2
 simulating
-      --> proc 2
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 93 seqs in 3.6s (3.2s of which was running bppseqgen)
-      total time: 5.6
-
       --> proc 0
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 68 seqs in 3.8s (3.5s of which was running bppseqgen)
-      total time: 5.8
+    made 20 events with 68 seqs in 3.5s (3.2s of which was running bppseqgen)
+      total time: 5.5
 
-      --> proc 7
+      --> proc 8
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 92 seqs in 3.8s (3.4s of which was running bppseqgen)
+    made 20 events with 100 seqs in 3.6s (3.1s of which was running bppseqgen)
+      total time: 5.5
+
+      --> proc 1
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 107 seqs in 3.7s (3.3s of which was running bppseqgen)
       total time: 5.7
 
       --> proc 4
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 85 seqs in 3.8s (3.4s of which was running bppseqgen)
-      total time: 5.7
-
-      --> proc 8
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 100 seqs in 3.7s (3.3s of which was running bppseqgen)
+    made 20 events with 85 seqs in 3.7s (3.3s of which was running bppseqgen)
       total time: 5.6
 
-      --> proc 1
+      --> proc 7
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 107 seqs in 3.9s (3.4s of which was running bppseqgen)
-      total time: 5.9
-
-      --> proc 3
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 120 seqs in 4.0s (3.7s of which was running bppseqgen)
-      total time: 6.0
-
-      --> proc 6
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 126 seqs in 4.1s (3.6s of which was running bppseqgen)
-      total time: 6.0
+    made 20 events with 92 seqs in 3.7s (3.3s of which was running bppseqgen)
+      total time: 5.5
 
       --> proc 5
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 116 seqs in 4.2s (3.8s of which was running bppseqgen)
-      total time: 6.2
+    made 20 events with 116 seqs in 3.8s (3.3s of which was running bppseqgen)
+      total time: 5.7
+
+      --> proc 2
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 93 seqs in 3.8s (3.4s of which was running bppseqgen)
+      total time: 5.8
+
+      --> proc 3
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 120 seqs in 4.0s (3.6s of which was running bppseqgen)
+      total time: 6.0
 
       --> proc 9
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 119 seqs in 4.2s (3.8s of which was running bppseqgen)
-      total time: 6.0
+    made 20 events with 119 seqs in 4.1s (3.7s of which was running bppseqgen)
+      total time: 5.9
+
+      --> proc 6
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 126 seqs in 4.3s (3.7s of which was running bppseqgen)
+      total time: 6.2
 
    read 200 events with 1026 seqs from 10 .yaml files
-      total time: 7.0
+      total time: 7.1
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --is-simu --random-seed 1 --n-procs 10
   note: running on a lot of sequences (1026) without setting --outfname. Which is ok, but there will be no persistent record of the results (except the parameter directory).
 caching parameters
@@ -97,7 +96,7 @@ caching parameters
     keeping 42 / 220 v genes
     [91mmissing[0m 13 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-24[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69-2[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-43[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-74[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-4[0m[93m07[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-59[0m[93m10[0m 0
 smith-waterman  (new-allele fitting)
-  vsearch: 1020 / 1026 v annotations (6 failed) with 40 v genes in 0.3 sec
+  vsearch: 1020 / 1026 v annotations (6 failed) with 40 v genes in 0.2 sec
   removing old sw cache test/new-results-slow/test/parameters/simu/sw-cache.yaml
     running 10 procs for 1026 seqs
     running 13 procs for 42 seqs
@@ -111,8 +110,8 @@ smith-waterman  (writing parameters)
       info for 1026 / 1026 = 1.000   (removed: 0 failed)
       kept 537 (0.523) unproductive
         writing sw results to test/new-results-slow/test/parameters/simu/sw-cache.yaml
-    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.4 sec)
-    water time: 5.2  (ig-sw 3.1  processing 0.4)
+    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.3 sec)
+    water time: 5.1  (ig-sw 3.0  processing 0.4)
   writing hmms (0.6 sec)
 hmm
     skipping matches from 4 genes without enough counts: [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m
@@ -126,7 +125,7 @@ hmm
          infra time: 5.6
       hmm step time: 8.1
   writing hmms (0.6 sec)
-      total time: 18.3
+      total time: 18.2
 [92mannotate-new-simu[0m                /home/dralph/work/partis/bin/partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results-slow/annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -183,7 +182,7 @@ hmm
     read 133 new subcluster annotations: added hashid 133   whole finished 0   subcl finished 78
     running 10 procs
                     calcd:         vtb   27        fwd    0
-             min-max time:  0.1 - 0.5 sec
+             min-max time:  0.2 - 0.5 sec
     reading output
         read 27 hmm output lines with 55 sequences in 27 events  (0 failures)
       hmm step time: 0.5
@@ -191,8 +190,8 @@ hmm
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 55 queries with different true and inferred net shm indel lengths: 9086515469554672438 8159720382709774155 3625753203227427139 6809697590111520216 9105325135764868271 8201697972975856197 8894213252480166014 0976916498677368600 8215824375067735108 7562156783638537779 1522515594125676519 6839492041497688483 1848013085450820477 7589432830069401533 6713338728501560544 2484462001999330353 8803750601252588862 2121527013792485537 7448468370002596290 5639420556634933212 4874632302098310491 5628485030444212281 3398115883369250832 4933868024530502726 7397143522576250038 5230403026873613408 5615655766527070211 1602529047865123783 8666016032877000850 4184756787619395617 6884289445410691773 7336112427621948265 1137925461521406305 8553704825709842294 3383664373344040167 5391777667979278780 8817983607683948509 5026236207426381005 8298523054188122878 7963175097074064536 5063199490392385006 4009619617697107386 5088722295682942003 5233210627448450540 2909467160575519338 2395980664233293635 8971469379705481647 0699991989219178607 0937418077370628152 6837007039312845531 5965025354205844468 1635447871017408066 1325975432226814999 5353704146034690533 1170854276146327946
 (0.0 sec)
-    subcluster annotation time 5.1
-      total time: 7.0
+    subcluster annotation time 5.0
+      total time: 6.9
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --plotdir test/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -221,7 +220,7 @@ caching all 1026 naive sequences
                     calcd:         vtb  194        fwd  226
                    merged:       hfrac   36     lratio   13
              min-max time:  1.0 - 2.1 sec
-         infra time: 0.2
+         infra time: 0.3
       hmm step time: 2.4
 405 clusters with 7 procs
        naive hfrac bounds: 0.015 0.088
@@ -229,7 +228,7 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1220   logprobs  226
                     calcd:         vtb   60        fwd  172
                    merged:       hfrac   31     lratio   17
-             min-max time:  1.0 - 3.4 sec
+             min-max time:  1.0 - 3.3 sec
          infra time: 0.2
       hmm step time: 3.6
 357 clusters with 5 procs
@@ -248,7 +247,7 @@ caching all 1026 naive sequences
                     calcd:         vtb   43        fwd  105
                    merged:       hfrac   33     lratio    7
              min-max time:  3.2 - 3.4 sec
-         infra time: 0.3
+         infra time: 0.2
       hmm step time: 3.7
 277 clusters with 2 procs
        naive hfrac bounds: 0.015 0.088
@@ -256,7 +255,7 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1372   logprobs  621
                     calcd:         vtb   25        fwd   99
                    merged:       hfrac   21     lratio    2
-             min-max time:  3.2 - 4.7 sec
+             min-max time:  3.2 - 4.8 sec
          infra time: 0.2
       hmm step time: 4.9
 254 clusters with 2 procs
@@ -274,30 +273,22 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1414   logprobs  767
                     calcd:         vtb    4        fwd   33
                    merged:       hfrac    3     lratio    2
-             min-max time:  1.8 - 1.8 sec
-         infra time: 0.1
-      hmm step time: 2.0
-234 clusters with 2 procs
-       naive hfrac bounds: 0.015 0.088
-    running 2 procs
-          read from cache:  naive-seqs 1419   logprobs  800
-                    calcd:         vtb    7        fwd   25
-                   merged:       hfrac    6     lratio    3
-             min-max time:  0.5 - 3.3 sec
+             min-max time:  1.7 - 1.8 sec
          infra time: 0.2
-      hmm step time: 3.5
-225 clusters with 1 proc
+      hmm step time: 2.0
+234 clusters with 1 proc
        naive hfrac bounds: 0.015 0.088
     running 1 proc
-          read from cache:  naive-seqs 1428   logprobs  825
-                    calcd:         vtb    3        fwd  160
-                   merged:       hfrac    3     lratio    0
-                     time:  8.1 sec
-      hmm step time: 8.3
+          read from cache:  naive-seqs 1419   logprobs  800
+                    calcd:         vtb   10        fwd  180
+                   merged:       hfrac    9     lratio    3
+                     time:  9.6 sec
+         infra time: 0.1
+      hmm step time: 9.8
   [93mnote[0m not merging entire cpath history
-      loop time: 34.5
+      loop time: 32.4
 getting annotations for final partition
-  subcluster annotating 225 clusters: 
+  subcluster annotating 222 clusters: 
     running 10 procs
                     calcd:         vtb  440        fwd    0
              min-max time:  1.4 - 1.7 sec
@@ -305,21 +296,22 @@ getting annotations for final partition
         read 440 hmm output lines with 1026 sequences in 440 events  (0 failures)
          infra time: 0.4
       hmm step time: 2.3
-    read 440 new subcluster annotations: added hashid 312   whole finished 128   subcl finished 0
+    read 440 new subcluster annotations: added hashid 315   whole finished 125   subcl finished 0
     running 10 procs
-                    calcd:         vtb  132        fwd    0
-             min-max time:  0.6 - 0.9 sec
+                    calcd:         vtb  133        fwd    0
+             min-max time:  0.7 - 0.9 sec
     reading output
-        read 132 hmm output lines with 312 sequences in 132 events  (0 failures)
+        read 133 hmm output lines with 315 sequences in 133 events  (0 failures)
+         infra time: 0.1
       hmm step time: 1.1
-    read 132 new subcluster annotations: added hashid 132   whole finished 0   subcl finished 70
+    read 133 new subcluster annotations: added hashid 133   whole finished 0   subcl finished 69
     running 10 procs
-                    calcd:         vtb   29        fwd    0
-             min-max time:  0.2 - 0.5 sec
+                    calcd:         vtb   30        fwd    0
+             min-max time:  0.2 - 0.4 sec
     reading output
-        read 29 hmm output lines with 62 sequences in 29 events  (0 failures)
-      hmm step time: 0.6
-    read 29 new subcluster annotations: added hashid 29   whole finished 0   subcl finished 25
+        read 30 hmm output lines with 64 sequences in 30 events  (0 failures)
+      hmm step time: 0.5
+    read 30 new subcluster annotations: added hashid 30   whole finished 0   subcl finished 26
     running 10 procs
                     calcd:         vtb    2        fwd    0
              min-max time:  0.0 - 0.2 sec
@@ -330,8 +322,8 @@ getting annotations for final partition
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 55 queries with different true and inferred net shm indel lengths: 6837007039312845531 9105325135764868271 3398115883369250832 5088722295682942003 3383664373344040167 5233210627448450540 0699991989219178607 0937418077370628152 0976916498677368600 1137925461521406305 1170854276146327946 1325975432226814999 1522515594125676519 1602529047865123783 1635447871017408066 1848013085450820477 2121527013792485537 2395980664233293635 2484462001999330353 2909467160575519338 3625753203227427139 4009619617697107386 4184756787619395617 4874632302098310491 4933868024530502726 5026236207426381005 5063199490392385006 5230403026873613408 5353704146034690533 5391777667979278780 5615655766527070211 5628485030444212281 5639420556634933212 5965025354205844468 6713338728501560544 6809697590111520216 6839492041497688483 6884289445410691773 7336112427621948265 7397143522576250038 7448468370002596290 7562156783638537779 7589432830069401533 7963175097074064536 8159720382709774155 8201697972975856197 8215824375067735108 8298523054188122878 8553704825709842294 8666016032877000850 8803750601252588862 8817983607683948509 8894213252480166014 8971469379705481647 9086515469554672438
 (0.0 sec)
-    subcluster annotation time 5.4
-      total time: 45.7
+    subcluster annotation time 5.3
+      total time: 43.3
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --seed-unique-id 8405685893927664413 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/seed-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -346,7 +338,7 @@ hmm
 69 clusters with 10 procs
        setting naive hfrac bounds: 0.015 0.088
     running 10 procs
-          read from cache:  naive-seqs 1431   logprobs  985
+          read from cache:  naive-seqs 1431   logprobs  980
                     calcd:         vtb   28        fwd   62
                    merged:       hfrac    0     lratio    0
              min-max time:  0.2 - 0.7 sec
@@ -356,30 +348,29 @@ hmm
   [93mwarning[0m cluster occurs 10 times in the <nsets> we're sending to bcrham: 8994802254475630531:8994802254475630533:8994802254475630532:6800390915335415687:2716130266090681658:4336728706278532008:3357996013783057032:8405685893927664409:8405685893927664410:8405685893927664411:8405685893927664412:8405685893927664413:8405685893927664415:0570857315818558924:1518578969219128522
        naive hfrac bounds: 0.015 0.088
     running 7 procs
-          read from cache:  naive-seqs 1450   logprobs 1038
+          read from cache:  naive-seqs 1450   logprobs 1033
                     calcd:         vtb    0        fwd    0
                    merged:       hfrac    0     lratio    0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/995492/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/454915/hmm_cached_info.csv
          infra time: 0.1
       hmm step time: 0.2
 75 clusters with 5 procs
   [93mwarning[0m cluster occurs 7 times in the <nsets> we're sending to bcrham: 8994802254475630531:8994802254475630533:8994802254475630532:6800390915335415687:2716130266090681658:4336728706278532008:3357996013783057032:8405685893927664409:8405685893927664410:8405685893927664411:8405685893927664412:8405685893927664413:8405685893927664415:0570857315818558924:1518578969219128522
        naive hfrac bounds: 0.015 0.088
     running 5 procs
-          read from cache:  naive-seqs 1450   logprobs 1038
+          read from cache:  naive-seqs 1450   logprobs 1033
                     calcd:         vtb    0        fwd    0
                    merged:       hfrac    0     lratio    0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/995492/hmm_cached_info.csv
-         infra time: 0.1
+    nothing to merge into /tmp/dralph/hmms/454915/hmm_cached_info.csv
       hmm step time: 0.2
       removed 168 sequences in unseeded clusters, split 5 seeded clusters into 15 singletons, and merged these into 1 clusters with identical naive seqs (0.0 sec)
         new n_procs 1 (initial seqs/proc: 18.30   new seqs/proc: 1.00
 1 clusters with 1 proc
        naive hfrac bounds: 0.015 0.088
     running 1 proc
-          read from cache:  naive-seqs 1450   logprobs 1038
+          read from cache:  naive-seqs 1450   logprobs 1033
                     calcd:         vtb    0        fwd    1
                    merged:       hfrac    0     lratio    0
                      time:  0.1 sec
@@ -392,7 +383,7 @@ getting annotations for final partition
                      time:  0.1 sec
     reading output
         read 5 hmm output lines with 15 sequences in 5 events  (0 failures)
-      hmm step time: 0.1
+      hmm step time: 0.2
     read 5 new subcluster annotations: added hashid 5   whole finished 0   subcl finished 0
     running 1 proc
                     calcd:         vtb    2        fwd    0
@@ -429,11 +420,11 @@ getting annotations for final partition
   subcluster annotating 245 clusters: 
     running 10 procs
                     calcd:         vtb  455        fwd    0
-             min-max time:  1.4 - 1.8 sec
+             min-max time:  1.3 - 1.8 sec
     reading output
         read 455 hmm output lines with 1026 sequences in 455 events  (0 failures)
          infra time: 0.5
-      hmm step time: 2.4
+      hmm step time: 2.3
     read 455 new subcluster annotations: added hashid 298   whole finished 157   subcl finished 0
     running 10 procs
                     calcd:         vtb  124        fwd    0
@@ -461,36 +452,37 @@ getting annotations for final partition
 [92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml --selection-metric-fname test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml
   note: --parameter-dir not set, so using default: xxx-dummy-xxx
 getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
-    calculating selection metrics for 27 clusters with sizes: 51 39 24 18 17 15 15 15 15 14 13 13 12 12 12 11 11 11 11 11 11 11 10 10 10 10 10
-      skipping 198 smaller than 10
+    calculating selection metrics for 28 clusters with sizes: 51 39 24 18 17 16 15 15 15 15 14 13 13 12 12 12 11 11 11 11 11 11 11 10 10 10 10 10
+      skipping 194 smaller than 10
     inf tree: calculating normalized lb metrics with tau values 0.0025 (lbi) and 0.0025 * 1 = 0.0025 (lbr)
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 70/85 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
     (AA inf tree, iclust 0): calculating normalized lb metrics with tau values 0.0025 (lbi) and 0.0025 * 1 = 0.0025 (lbr)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 65/70 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 66/71 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 43/45 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 10/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 12/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 22/25 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 26/27 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 11/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 23/25 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 21/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 15/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 26/28 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 22/25 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 26/27 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 11/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 23/25 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 21/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 15/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 13): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 12/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 13/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 7/14 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 20): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 21): skipped 11/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 15/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 23): skipped 16/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 24): skipped 6/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 25): skipped 17/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 26): skipped 3/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
-      tree origins: 27 made from cpath
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 14/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 13/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 20): skipped 7/14 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 21): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 11/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 23): skipped 15/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 24): skipped 16/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 25): skipped 6/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 26): skipped 17/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 27): skipped 3/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
+      tree origins: 28 made from cpath
   writing selection metrics to test/new-results-slow/get-selection-metrics-new-simu.yaml
-      total time: 4.5
+      total time: 4.7
