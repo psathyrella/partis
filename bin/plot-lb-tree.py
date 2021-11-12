@@ -86,7 +86,7 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         return
     assert add_sign in [None, '-', '+']
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
-    min_val, max_val = get_scale_min(args.lb_metric, all_vals), max(all_vals)
+    min_val, max_val = get_scale_min(varname, all_vals), max(all_vals)
     if min_val == max_val:
         max_val = min_val + (1 if min_val is 0 else 0.1 * min_val)
         # return  # NOTE you *cannot* return here, since if we don't actually add the stuff then it later (when rendering) crashes with a key error deep within ete due to the <start_column> being wrong/inconsistent
@@ -108,8 +108,17 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         if not no_opacity:
             rface.opacity = opacity
         tstyle.legend.add_face(rface, column=start_column + 1)
-        fstr = '%.1f' if args.lb_metric == 'cons-dist-aa' else '%.2f'
-        tstyle.legend.add_face(ete3.TextFace((('  %s'+fstr) % (add_sign if add_sign is not None else '', math.exp(val) if reverse_log else val)) if key is None else '  missing', fsize=fsize), column=start_column + 2)
+        if reverse_log:
+            val = math.exp(val)
+        def vstr():
+            if varname == 'cons-dist-aa': return '%.1f' % val
+            elif 'affinity' in varname: return '%s' % utils.round_to_n_digits(val, 2)
+            else: return '%.2f' % val
+        if key is None:
+            tfstr = '  %s%s' % (utils.non_none([add_sign, '']), vstr())
+        else:
+            ftstr = '  missing'
+        tstyle.legend.add_face(ete3.TextFace(tfstr, fsize=fsize), column=start_column + 2)
 
 # ----------------------------------------------------------------------------------------
 def set_meta_styles(args, etree, tstyle):

@@ -224,7 +224,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         if 'percentiles' in yamlfo:  # new-style files
             ytmpfo = yamlfo['distr-hists' if distr_hists else 'percentiles']
             if per_x == 'per-seq':
-                ytmpfo = ytmpfo.get('per-seq', ytmpfo)['all-clusters' if iclust is None else 'iclust-%d' % iclust]  # distr-hists don't have 'per-seq'/'per-cluster' level
+                ytmpfo = ytmpfo.get('per-seq', ytmpfo).get('all-clusters' if iclust is None else 'iclust-%d' % iclust)  # distr-hists don't have 'per-seq'/'per-cluster' level
             else:
                 ytmpfo = ytmpfo.get('per-cluster', ytmpfo)[choice_grouping]
         else:  # old-style files
@@ -255,6 +255,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             return htmp
         # ----------------------------------------------------------------------------------------
         ytmpfo = get_ytmpfo(ytmpfo, iclust=iclust)
+        if ytmpfo is None:
+            return 0, 0, 0
         hzero, hother = [gethist(k) for k in ['zero', 'not 0']]
         for tattr in ['n_bins', 'xmin', 'xmax']:
             assert getattr(hzero, tattr) == getattr(hother, tattr)

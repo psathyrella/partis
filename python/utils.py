@@ -370,9 +370,9 @@ def add_lists(list_a, list_b):  # add two lists together, except if one is None 
         return list_a + list_b
 
 # ----------------------------------------------------------------------------------------
-def get_single_entry(tl):  # adding this very late, so there's a lot of places it could be used
+def get_single_entry(tl, errmsg=None):  # adding this very late, so there's a lot of places it could be used
     if len(tl) != 1:
-        raise Exception('length must be 1 in get_single_entry(), but got %d' % len(tl))
+        raise Exception('length must be 1 in get_single_entry(), but got %d%s' % (len(tl), '' if errmsg is None else ': %s'%errmsg))
     return tl[0]
 
 # ----------------------------------------------------------------------------------------

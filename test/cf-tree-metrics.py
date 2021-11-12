@@ -355,6 +355,7 @@ parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while w
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
 parser.add_argument('--distr-hist-limit', default='frac:0.03', help='lower bound type:value to use for new distribution performance hists for delta affinity metrics (aa-lbr/lbr). frac:<f> takes the top 100*<f>\%, N:<n> takes the top <n> seqs, val:<v> takes all seqs with metric value above <v>.')
 parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
+parser.add_argument('--use-val-cfgs', action='store_true', help='use plotting.val_cfgs dict (we can\'t always use it)')
 parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
@@ -384,6 +385,7 @@ parser.add_argument('--sub-slurm', action='store_true', help='run grandchild pro
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--final-plot-xvar', default='lb-tau', help='variable to put on the x axis of the final comparison plots')
 parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
+parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm %] when --final-plot-x-var is scratch-mute-freq)')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
 # specific to get-lb-bounds:
@@ -487,11 +489,13 @@ for action in args.actions:
             utils.prep_dir(scanplot.get_comparison_plotdir(args, 'combined'), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
             cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.single_lbma_cfg_vars(mtmp)])  # I don't think we care about the order
             cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
+            iplot = 0
             for ptvar, ptlabel, use_relative_affy in cfg_list:
                 print ptvar
                 for cgroup in treeutils.cgroups:
                     print '  ', cgroup
-                    scanplot.make_plots(args, args.scan_vars['get-tree-metrics'], action, None, ptvar, ptlabel, args.final_plot_xvar, per_x=pchoice, choice_grouping=cgroup, use_relative_affy=use_relative_affy)
+                    scanplot.make_plots(args, args.scan_vars['get-tree-metrics'], action, None, ptvar, ptlabel, args.final_plot_xvar, per_x=pchoice, choice_grouping=cgroup, use_relative_affy=use_relative_affy, make_legend=iplot==0)
+                    iplot += 1
             plotting.make_html(scanplot.get_comparison_plotdir(args, 'combined', per_x=pchoice), n_columns=2)
         else:
             assert False

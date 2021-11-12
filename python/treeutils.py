@@ -34,7 +34,7 @@ import utils
 # TODO isn't this info somewhere else?
 affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'aa-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
 affy_metrics += ['sum-'+m for m in affy_metrics]
-delta_affy_metrics = ['lbr', 'aa-lbr']
+delta_affy_metrics = ['delta-lbi', 'lbr', 'aa-lbr']
 delta_affy_metrics += ['sum-'+m for m in delta_affy_metrics]
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
@@ -2236,15 +2236,15 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         true_plotdir = base_plotdir + '/true-tree-metrics'
         utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
         fnames = []
-        if metric_method in ['delta-lbi', 'lbr', 'aa-lbr']:
+        if metric_method in delta_affy_metrics:
             lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug, only_look_upwards=only_look_upwards)
         else:
             for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
                 lbplotting.plot_lb_vs_affinity(true_plotdir, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, affy_key=affy_key)
         if ete_path is not None:
-            lbplotting.plot_lb_trees([metric_method], base_plotdir, metric_antns, ete_path, workdir, is_true_line=True)
+            lbplotting.plot_lb_trees([metric_method], true_plotdir, metric_antns, ete_path, workdir, is_true_line=True, fnames=fnames)
         if not only_csv:
-            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(metric_method, '%s/%s/' % (true_plotdir, metric_method)),])
+            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(metric_method, '%s/%s/' % (true_plotdir, metric_method)),], bgcolor='#FFFFFF')
         print '      non-lb metric plotting time %.1fs' % (time.time() - plstart)
 
 # ----------------------------------------------------------------------------------------
