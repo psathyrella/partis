@@ -144,7 +144,7 @@ def make_synthetic_partition(action, varnames, vstrs):
         new_cpath = clusterpath.ClusterPath(partition=new_partition)
         new_cpath.calculate_missing_values(true_partition=true_cpath.best())
         ofn = ofname(args, varnames, vstrs, action, locus=ltmp, single_chain=True)
-        utils.write_annotations(ofn, None, [], utils.annotation_headers, partition_lines=new_cpath.get_partition_lines())
+        utils.write_annotations(ofn, None, [], utils.annotation_headers, partition_lines=new_cpath.get_partition_lines())  # could now use utils.write_only_partition()
         print '    %s: wrote synthetic partition to %s' % (ltmp, ofn)
 
 # ----------------------------------------------------------------------------------------

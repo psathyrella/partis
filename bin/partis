@@ -477,18 +477,33 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  %s+%s: %d * %.2f = %d events' % (h_locus, l_locus, arg_events, lfrac, n_events)
         return int(n_events)
     # ----------------------------------------------------------------------------------------
-    def translate_locus_names(clist):
+    def translate_locus_names(clist, lpair, ltmp):
         if args.treefname is not None:  # have to translate uids (i.e. add locus)
-            dtree = treeutils.get_dendro_tree(treefname=args.treefname)
-            treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s' % (n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None]) #, debug=True)
+            ntrees = []
+            for treestr in treeutils.get_treestrs_from_file(args.treefname):
+                dtree = treeutils.get_dendro_tree(treestr=treestr)
+                treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s' % (n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None]) #, debug=True)
+                ntrees.append(dtree)
             tfn = getofn(ltmp, trees=True, lpair=lpair, gctrees=True)
             with open(tfn, 'w') as tfile:
-                tfile.write(treeutils.as_str(dtree))
+                for dtree in ntrees:
+                    tfile.write(treeutils.as_str(dtree) + '\n')
             utils.replace_in_arglist(clist, '--treefname', tfn)
             work_fnames.append(tfn)
-        # TODO doesn't work yet
-        # if args.queries_to_include_fname is not None and args.infname is not None:
-        #     utils.replace_in_arglist(clist, '--queries-to-include-fname', getofn(ltmp, lpair=lpair, fasta=True))
+        if args.queries_to_include_fname is not None: # NOTE this isn't really right, since the file we read here has uids repeated, once for h and once for l, so when the file we write here gets read, the duplicate uid translator adds "-2", and the seqs are messed up then, but it's actually ok for now since we only need the uids in there
+            seqfos = utils.read_fastx(args.queries_to_include_fname)
+            new_sfos = [{'name' : '%s-%s'%(s['name'], ltmp), 'seq' : s['seq']} for s in seqfos]
+            qfn = utils.insert_before_suffix('-qti', getofn(ltmp, lpair=lpair, fasta=True))
+            utils.write_fasta(qfn, new_sfos)
+            utils.replace_in_arglist(clist, '--queries-to-include-fname', qfn)
+            work_fnames.append(qfn)
+        if args.input_partition_fname is not None:
+            _, _, cpath = utils.read_output(args.input_partition_fname)
+            optn = [['%s-%s'%(u, ltmp) for u in c] for c in cpath.best()]
+            pfn = '%s/input-partitions-%s.yaml' % (getodir(lpair=lpair), ltmp)
+            utils.write_only_partition(pfn, optn)
+            utils.replace_in_arglist(clist, '--input-partition-fname', pfn)
+            work_fnames.append(pfn)
     # ----------------------------------------------------------------------------------------
     def run_step(tmpaction, ltmp, auto_cache=False, skip_missing_input=False, skip_missing_output=False, lpair=None, joint=False):
         # ----------------------------------------------------------------------------------------
@@ -606,9 +621,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if args.is_data:  # for simulation we still need it
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
-                if args.guess_pairing_info:
-                    translate_locus_names(clist)
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)
+            if args.guess_pairing_info and (tmpaction in ['get-selection-metrics', 'view-output'] or tmpaction=='annotate' and not joint):  # maybe should do it for other actions?
+                translate_locus_names(clist, lpair, ltmp)
 
             return clist
         # ----------------------------------------------------------------------------------------

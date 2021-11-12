@@ -318,9 +318,16 @@ def normalize_lb_val(metric, lbval, tau, seq_len=typical_bcr_seq_len):
     return (lbval - lbmin) / (lbmax - lbmin)
 
 # ----------------------------------------------------------------------------------------
-def get_treestr_from_file(treefname):
+def get_treestrs_from_file(treefname, n_expected_trees=None):
     with open(treefname) as treefile:
-        return '\n'.join(treefile.readlines())
+        tlines = treefile.readlines()
+    if n_expected_trees is not None and len(tlines) != n_expected_trees:
+        raise Exception('expected %d tree%s, but read %d tree lines from %s' % (n_expected_trees, utils.plural(n_expected_trees), len(tlines), treefname))
+    return tlines
+
+# ----------------------------------------------------------------------------------------
+def get_treestr_from_file(treefname):
+    return get_treestrs_from_file(treefname, n_expected_trees=1)[0]
 
 # ----------------------------------------------------------------------------------------
 def as_str(dtree):  # just a shortand (adding this very late, so could stand to add this to a lot of paces that use dtree.as_string())
@@ -536,6 +543,7 @@ def translate_labels(dendro_tree, translation_pairs, dbgstr='', dont_fail=False,
             prstr = 'requested taxon with old name \'%s\' not present in tree (present: %s)' % (old_label, ' '.join(t.label for t in dendro_tree.taxon_namespace))
             if dont_fail:
                 print prstr
+                continue
             else:
                 raise Exception(prstr)
         taxon.label = new_label
@@ -1747,11 +1755,17 @@ def plot_tree_metrics(base_plotdir, metrics_to_calc, inf_lines_to_use, true_line
 def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, ignore_existing_internal_node_labels=False, debug=False):
     # figure out how we want to get the inferred tree
     if treefname is not None:
-        dtree = get_dendro_tree(treefname=treefname, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
-        origin = 'treefname'
-        if len(set([n.taxon.label for n in dtree.preorder_node_iter()]) & set(line['unique_ids'])) == 0:  # if no nodes in common between line and tree in file (e.g. you passed in the wrong file or didn't set --cluster-indices)
+        uids_in_common = set()
+        for treestr in get_treestrs_from_file(treefname):
+            dtree = get_dendro_tree(treestr=treestr, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
+            uids_in_common = set([n.taxon.label for n in dtree.preorder_node_iter()]) & set(line['unique_ids'])
+            if len(uids_in_common) > 0:  # take the first one with any in common
+                origin = 'treefname'
+                break
+        if len(uids_in_common) == 0:
             dtree = None
             origin = 'no-uids'
+            print '  %s no uids in common between line and any trees from %s (line ids: %s)' % (utils.wrnstr(), treefname, ' '.join(line['unique_ids']))
     elif False:  # use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
         lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
         dtree = get_dendro_tree(treestr=lonr_info['tree'])

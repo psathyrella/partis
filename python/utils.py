@@ -6044,6 +6044,11 @@ def get_version_info(debug=False):
     return vinfo
 
 # ----------------------------------------------------------------------------------------
+def write_only_partition(fname, partition):
+    cpath = clusterpath.ClusterPath(partition=partition)
+    write_annotations(fname, None, [], None, partition_lines=cpath.get_partition_lines())
+
+# ----------------------------------------------------------------------------------------
 def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):
     if os.path.exists(fname):
         os.remove(fname)
