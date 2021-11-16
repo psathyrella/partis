@@ -2873,7 +2873,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return mtpys
 
     # ----------------------------------------------------------------------------------------
-    debug = True #args.debug  # not is_simu or
+    debug = args.debug  # not is_simu or
     if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
         print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
     all_chosen_mfos = []

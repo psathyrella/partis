@@ -360,7 +360,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         elif xvar == 'affinity':
             def xvalfcn(i): return line['affinities'][i]
         elif xvar in cdist_keys:
-            treeutils.add_cons_dists(line, aa='aa-' in xvar)
+            treeutils.add_cons_dists(line, aa='aa' in xvar)
             tkey = xvar.replace('cons-dist-', 'cons_dists_')
             def xvalfcn(i): return -line[tkey][i]
         elif xvar in ['aa-lbi', 'aa-lbr', 'sum-aa-lbi', 'sum-aa-lbr', 'sum-cons-dist-aa']:
@@ -387,7 +387,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                 lb_ptiles = {u : stats.percentileofscore(lbvals, lbfo[u], kind='weak') for u in line['unique_ids'] if u in lbfo}
             def yvalfcn(i): return lb_ptiles[line['unique_ids'][i]]
         elif yvar in cdist_pt_keys:
-            treeutils.add_cons_dists(line, aa='aa-' in yvar)
+            treeutils.add_cons_dists(line, aa='aa' in yvar)
             tkey = yvar.replace('-ptile', '').replace('cons-dist-', 'cons_dists_')
             cvals = [-v for v in line[tkey]]
             if not choose_among_families:
@@ -592,7 +592,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
             pcorr = numpy.corrcoef(plotvals[xvar], plotvals[yvar])[0, 1]
             if set([xvar, yvar]) == set(['lbi', 'aa-lbi']) and pcorr > 0.85:
                 print '        %s correlation between lbi and aa-lbi is suspiciously high %.3f, which suggests that there weren\'t enough inferred ancestral sequences to rescale the nuc tree to amino acids, i.e. aa-lbi may have in effect basically been calculated on the nuc tree' % (utils.color('yellow', 'warning'), pcorr)
-            sx, sy = (0.2, 0.8) if (colorvar is None or 'cons-dist' in yvar) else (leg_loc[0] + 0.15, leg_loc[1] + 0.28)
+            sx, sy = (0.25, 0.8) if (colorvar is None or 'cons-dist' in yvar) else (leg_loc[0] + 0.15, leg_loc[1] + 0.28)
             fig.text(sx, sy, 'r = %.3f' % pcorr, fontsize=20, fontweight='bold') #, color='red')
     fn = plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc, leg_title=leg_title, leg_prop=leg_prop)
     return fn
@@ -944,7 +944,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             normalize = True
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
         plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
-                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='N steps to\naff. increase', ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
+                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='N steps to\naff. increase', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
         add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
     # ----------------------------------------------------------------------------------------
     def get_distr_hists(plotvals, xvar, max_bin_width=0.2, min_bins=30, extra_hists=False, iclust=None):
