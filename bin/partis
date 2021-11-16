@@ -1110,13 +1110,14 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for lpair in spairs():
                     for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
                         run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
-            lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')  # for --get-selection-metrics we shouldn't need to read any annotations here (could be passed from combine_inf_chains()) but oh well
-            _ = read_qti_file(args)  # sets <args.queries_to_include>
-            treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/inferred-combo-selection-metrics', args=args)  # NOTE this is kind of weird that we don't set is_simu to true even if it is simu (we instead run again below) but i think it's right(ish)?
             if not args.is_data and args.paired_indir is not None:
                 true_lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate, no_plot=True)  # read true (input) files, and add selection metrics NOTE these will presumably already have been plotted (to the same dir) in the 'get-selection-metrics' call just above, but all the ways i can think of to avoid it are worse (underlying issue is i don't want to rewrite simulation file with selection metrics)
                 bpltdir = None if args.plotdir is None else getplotdir(None)+'/true-combo-selection-metrics'
                 treeutils.combine_selection_metrics(true_lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=bpltdir, args=args, is_simu=True)
+            else:
+                lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')  # for --get-selection-metrics we shouldn't need to read any annotations here (could be passed from combine_inf_chains()) but oh well
+                _ = read_qti_file(args)  # sets <args.queries_to_include>
+                treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/inferred-combo-selection-metrics', args=args)  # NOTE this is kind of weird that we don't set is_simu to true even if it is simu (we instead run again below) but i think it's right(ish)?
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         utils.rmdir(args.workdir, fnames=work_fnames)

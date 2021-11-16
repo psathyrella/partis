@@ -85,7 +85,7 @@ per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-dist-nuc', 'co
 per_seq_metrics += ['sum-'+m for m in per_seq_metrics]
 per_seq_metrics += treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
-mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'min root/tip dist',
+mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'root/tip dist',
                            'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'in-family dtr', 'within-families-delta-affinity-dtr' : 'in-family dtr', 'among-families-affinity-dtr' : 'among-families dtr', 'among-families-delta-affinity-dtr' : 'among-families dtr'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'cons-seq-shm-nuc' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
 mtitle_cfg['per-seq'].update(treeutils.legtexts)
@@ -115,6 +115,7 @@ def all_clust_str(n_clusters):
 
 # ----------------------------------------------------------------------------------------
 def add_fn(fnames, fn=None, init=False, n_per_row=4, new_row=False):
+    if init: assert fnames is None  # otherwise there's no effect
     if fnames is None:
         if init:
             fnames = []
@@ -289,12 +290,12 @@ def get_tree_from_line(line, is_true_line, aa=False):
         return line['tree']
     if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
         return None
-    print '    %s tree' % utils.color('yellow', 'aa' if aa else 'nuc')
+    # print '    %s tree' % utils.color('yellow', 'aa' if aa else 'nuc')
     return line['tree-info']['lb']['%stree'%('aa-' if aa else '')]
 
 # ----------------------------------------------------------------------------------------
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
-                          add_jitter=False, min_ptile=80., iclust_fnames=None, use_relative_affy=False, queries_to_include=None, add_stats=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+                          add_jitter=False, min_ptile=80., n_iclust_plot_fnames=None, use_relative_affy=False, queries_to_include=None, add_stats=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
     if only_overall and only_iclust:
         print '  %s only_overall and only_iclust are both set, so not plotting anything' % utils.color('yellow', 'warning')
         return
@@ -303,7 +304,6 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
     cdist_pt_keys = [s+'-ptile' for s in cdist_keys]
     if yvar is None:
         yvar = lb_metric
-    add_fn(fnames, init=True)
 
     choice_str = 'among-families' if choose_among_families else 'within-families'
     xlabel = mtitlestr('per-seq', xvar).replace('- N', 'N')
@@ -432,8 +432,8 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(lbfo))
             tmpplotname = '%s%s-vs-%s%s-iclust-%d' % (rel_affy_str(yvar, use_relative_affy), yvar, rel_affy_str(yvar, use_relative_affy), xvar, iclust)
             fn = plot_2d_scatter(tmpplotname, plotdir, iclust_plotvals, yvar, ylabel, title, **scatter_kwargs)
-            if iclust_fnames is not None and iclust < iclust_fnames:
-                fnames[-1].append(fn)
+            if n_iclust_plot_fnames is not None and iclust < n_iclust_plot_fnames:
+                add_fn(fnames, fn=fn)
         assert len(set([len(plotvals[vt]) for vt in plotvals])) == 1  # make sure all of them are the same length
         for vtype in plotvals:
             plotvals[vtype] += iclust_plotvals[vtype]
@@ -451,15 +451,13 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
     #             new_plotvals[vt].append(plotvals[vt][ival])
     #     plotvals = new_plotvals
 
-    if not only_iclust:
+    if not only_iclust and len(sorted_lines) > 1:
         tmpplotname = '%s%s-vs-%s%s-all-clusters' % (rel_affy_str(yvar, use_relative_affy), yvar, rel_affy_str(xvar, use_relative_affy), xvar)
         fn = plot_2d_scatter(tmpplotname, plotdir, plotvals, yvar, ylabel, '%s (%s)' % (basetitle, all_clust_str(len(sorted_lines))), **scatter_kwargs)
         add_fn(fnames, fn=fn)
-    if iclust_fnames is not None:
-        fnames.append([])
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=False, fnames=None, only_overall=False, affy_key='affinities', iclust_fnames=None):
+def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=False, fnames=None, only_overall=False, affy_key='affinities', n_iclust_plot_fnames=None):
     def make_hist(plotvals, n_total, n_skipped, iclust=None, affinities=None):
         if len(plotvals) == 0:
             return
@@ -474,7 +472,7 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
         leafskipstr = ', skipped %d leaves' % n_skipped if n_skipped > 0 else ''  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
         title = '%s %s: %d entries%s (%s)' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', lb_metric, short=True), n_total, leafskipstr, all_clust_str(len(sorted_lines)) if iclust is None else 'iclust %d'%iclust)
         fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=mtitlestr('per-seq', lb_metric), log='y', ylabel='counts', title=title)
-        if iclust is None or (iclust_fnames is not None and iclust < iclust_fnames):
+        if iclust is None or (n_iclust_plot_fnames is not None and iclust < n_iclust_plot_fnames):
             add_fn(fnames, fn=fn)
 
     sorted_lines = sorted([l for l in lines_to_use if 'tree-info' in l], key=lambda l: len(l['unique_ids']), reverse=True)  # if 'tree-info' is missing, it should be because it's a small cluster we skipped when calculating lb values
@@ -498,7 +496,7 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
         plotvals += iclust_plotvals
         n_total_skipped_leaves += cluster_size - len(iclust_plotvals)
     make_hist(plotvals, len(plotvals) + n_total_skipped_leaves, n_total_skipped_leaves)
-    if iclust_fnames is not None:
+    if n_iclust_plot_fnames is not None:
         fnames.append([])
 
 # ----------------------------------------------------------------------------------------
@@ -510,7 +508,7 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
     repertoire_size = sum([len(c) for c in sorted_clusters])
     max_affinity = max([a for c in sorted_clusters for a in annotation_dict[':'.join(c)]['affinities']])  # it's nice to keep track of the max values over the whole repertoire so all plots can have the same max values
     max_lb_val = max([annotation_dict[':'.join(c)]['tree-info']['lb'][lb_metric][u] for c in sorted_clusters for u in c])  # NOTE don't use all the values in the dict in 'tree-info', since non-sampled sequences (i.e. usually intermediate ancestors) are in there
-    if max_lb_val == 0.:  # at least atm, this means this is lbr on a family with no common ancestor sampling
+    if 'lb' in lb_metric and max_lb_val == 0.:  # at least atm, this means this is lbr on a family with no common ancestor sampling
         return
     # print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
     iclustergroup = 0
@@ -594,7 +592,8 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
             pcorr = numpy.corrcoef(plotvals[xvar], plotvals[yvar])[0, 1]
             if set([xvar, yvar]) == set(['lbi', 'aa-lbi']) and pcorr > 0.85:
                 print '        %s correlation between lbi and aa-lbi is suspiciously high %.3f, which suggests that there weren\'t enough inferred ancestral sequences to rescale the nuc tree to amino acids, i.e. aa-lbi may have in effect basically been calculated on the nuc tree' % (utils.color('yellow', 'warning'), pcorr)
-            fig.text(0.73, 0.22, 'r = %.3f' % pcorr, fontsize=20, fontweight='bold') #, color='red')
+            sx, sy = (0.2, 0.8) if (colorvar is None or 'cons-dist' in yvar) else (leg_loc[0] + 0.15, leg_loc[1] + 0.28)
+            fig.text(sx, sy, 'r = %.3f' % pcorr, fontsize=20, fontweight='bold') #, color='red')
     fn = plotting.mpl_finish(ax, plotdir, plotname, title=title, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=ybounds, log=log, leg_loc=leg_loc, leg_title=leg_title, leg_prop=leg_prop)
     return fn
 
@@ -725,7 +724,8 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
     add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, affy_key='affinities', only_csv=False, fnames=None, add_uids=False, colorvar='is_leaf', max_scatter_plot_size=2500, max_iclust_plots=10, make_distribution_plots=False, debug=False):
+def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, affy_key='affinities', only_csv=False, fnames=None, separate_rows=False, add_uids=False, colorvar='is_leaf', max_scatter_plot_size=2500,
+                        max_iclust_plots=10, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
@@ -778,13 +778,6 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         _, _, _, _, ylabel, _ = tmpstrs(iclust, vspstuff)
         return ylabel
     # ----------------------------------------------------------------------------------------
-    def make_scatter_plot(plotvals, iclust=None, vspstuff=None):
-        lbstr, affystr, clstr, xlabel, ylabel, title = tmpstrs(iclust, vspstuff)
-        plotname = '%s-vs-%s-%s-tree%s' % (lbstr, affystr, true_inf_str, clstr)
-        fn = plot_2d_scatter(plotname, getplotdir(), plotvals, lb_metric, ylabel, title, xlabel=xlabel, colorvar=colorvar if vspstuff is None else None)
-        if iclust is None and vspstuff is None:
-            add_fn(fnames, fn=fn)
-    # ----------------------------------------------------------------------------------------
     def ptile_plotname(iclust=None, vspstuff=None, extra_str=None):
         lbstr, affystr, clstr, _, _, _ = tmpstrs(iclust, vspstuff)
         return '%s-vs-%s-%s-tree-ptiles%s%s' % (lbstr, affystr, true_inf_str, clstr, '' if extra_str is None else '-'+extra_str )
@@ -796,7 +789,11 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         return '-vs-'.join([xstr, ystr])
 
     # ----------------------------------------------------------------------------------------
-    add_fn(fnames, init=True)
+    n_rows = 3
+    scfns, wptfns, aptfns = fnames, fnames, fnames
+    if separate_rows:  # indices of the rows to which to append each type of plot (if not set, all go on the same row [unless row width exceeds the limit, set elsewhere])
+        if len(fnames) < n_rows: fnames += [[] for _ in range(n_rows)]
+        scfns, wptfns, aptfns = [[fnames[i]] for i in range(len(fnames) - n_rows, len(fnames))]  # rows: 1. scatters, 2. within-family ptiles, 3. among-family ptiles
     true_inf_str = 'true' if is_true_line else 'inferred'
     vtypes = get_lbscatteraxes(lb_metric)  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably UPDATE nah i think it's better
     if colorvar is not None:
@@ -804,11 +801,10 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
 
     if not only_csv:
         if sum(len(l['unique_ids']) for l in lines) < max_scatter_plot_size:
-            make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=fnames, is_true_line=is_true_line, colorvar='edge-dist' if is_true_line else None,
-                                  only_overall='among-families' in lb_metric or len(lines)==1, only_iclust='within-families' in lb_metric, add_jitter=is_true_line, use_relative_affy='relative' in affy_key, add_stats='correlation')  # there's some code duplication between these two fcns, but oh well
-            if make_distribution_plots:
-                plot_lb_distributions(lb_metric, baseplotdir, lines, fnames=fnames, is_true_line=is_true_line, only_overall=True)
+            make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=scfns, n_iclust_plot_fnames=1 if len(lines)==1 else None, is_true_line=is_true_line, colorvar='edge-dist' if is_true_line else None,
+                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric or len(lines)==1, add_jitter=is_true_line, use_relative_affy='relative' in affy_key, add_stats='correlation')  # there's some code duplication between these two fcns, but oh well
         else:  # ok this is hackey
+            print '    too many seqs %d >= %d, not making scatter plots' % (sum(len(l['unique_ids']) for l in lines), max_scatter_plot_size)
             utils.prep_dir(getplotdir(), wildlings=['*.svg', '*.yaml'])
     for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
         utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
@@ -845,7 +841,6 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
         # correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes[:2]) : getcorr(*[iclust_plotvals[vt] for vt in vtypes[:2]])}
         if not only_csv and len(iclust_plotvals['affinity']) > 0 and iclust < max_iclust_plots:
-            # make_scatter_plot(iclust_plotvals, iclust=iclust)  # making these with make_lb_scatter_plots() now
             make_ptile_plot(iclust_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=iclust),
                             ylabel=tmpylabel(iclust, None), title=mtitlestr('per-seq', lb_metric, short=True), true_inf_str=true_inf_str, iclust=iclust, affy_key=affy_key)
 
@@ -855,14 +850,13 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         # correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes[:2]) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes[:2]])}
         pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', affy_key=affy_key, debug=debug)  # choosing single cells from from every cell from every cluster together
         if len(lines) > 1 and not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
-            # make_scatter_plot(per_seq_plotvals)  # making these with make_lb_scatter_plots() now
             make_ptile_plot(pt_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(),
-                            ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), affy_key=affy_key)
+                            ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=aptfns, true_inf_str=true_inf_str, n_clusters=len(lines), affy_key=affy_key)
 
     if lb_metric in per_seq_metrics and 'among-families' not in lb_metric and not only_csv:
         pt_vals['per-seq']['within-families-mean'] = get_mean_ptile_vals(len(lines), pt_vals['per-seq'], 'affinity')  # within-family mean
         make_ptile_plot(pt_vals['per-seq']['within-families-mean'], 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=None, extra_str='within-cluster-average'),
-                        ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, affy_key=affy_key)
+                        ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=wptfns, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, affy_key=affy_key)
 
     # turning of the per-cluster plots for now, since it doesn't really make sense to choose families (and the plotting is the only really slow part)
     # # per-cluster plots
@@ -887,7 +881,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         json.dump(yamlfo, yfile)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, max_scatter_plot_size=2500, max_iclust_plots=10,
+def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, separate_rows=False, max_scatter_plot_size=2500, max_iclust_plots=10,
                                         only_look_upwards=False, only_distr_plots=False, debug=False):
     # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
@@ -938,7 +932,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel=xlstr, log='y' if 'lbr' in lb_metric else '', stats='correlation' if xvar=='daffy' else None)
         add_fn(tfns, fn=fn)
     # ----------------------------------------------------------------------------------------
-    def make_distr_plot(plotvals, xvar, iclust=None, tfns=None):
+    def make_perf_distr_plot(plotvals, xvar, iclust=None, tfns=None):
         dhists = get_distr_hists(plotvals, xvar, iclust=iclust, max_bin_width=1) #, extra_hists=True)
         if dhists is None:
             return
@@ -949,8 +943,8 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         if len(dhists) > len(colors):
             normalize = True
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
-        plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle='', log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
-                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='N steps', ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
+        plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
+                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='N steps to\naff. increase', ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
         add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
     # ----------------------------------------------------------------------------------------
     def get_distr_hists(plotvals, xvar, max_bin_width=0.2, min_bins=30, extra_hists=False, iclust=None):
@@ -981,7 +975,11 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         return '%s-vs-%s-%s-tree-ptiles%s%s' % (lb_metric, xvar, true_inf_str, icstr(iclust), '' if extra_str is None else '-'+extra_str)
 
     # ----------------------------------------------------------------------------------------
-    add_fn(fnames, init=True)  # oh, wait, I think this won't accomplish anything if init is actually needed
+    n_rows = 5
+    dhfns, scfns, nsfns, wptfns, aptfns = fnames, fnames, fnames, fnames, fnames
+    if separate_rows:  # indices of the rows to which to append each type of plot (if not set, all go on the same row [unless row width exceeds the limit, set elsewhere])
+        if len(fnames) < n_rows: fnames += [[] for _ in range(n_rows)]
+        dhfns, scfns, nsfns, wptfns, aptfns = [[fnames[i]] for i in range(len(fnames) - n_rows, len(fnames))]
     true_inf_str = 'true' if is_true_line else 'inferred'
     xvar_list = collections.OrderedDict([(xvar, xlabel) for metric, cfglist in lb_metric_axis_cfg('lbr') for xvar, xlabel in cfglist])
     for xvar, estr in itertools.product(xvar_list, ['', '-ptiles', '-perf-distr']):
@@ -1006,35 +1004,34 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
             distr_hists['iclust-%d'%iclust] = get_distr_hists(iclust_plotvals, xvar, iclust=iclust)
             if not only_csv and iclust < max_iclust_plots:
-                make_distr_plot(iclust_plotvals, xvar, iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
-                make_scatter_plot(iclust_plotvals, 'daffy', iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
+                make_perf_distr_plot(iclust_plotvals, xvar, iclust=iclust, tfns=dhfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
+                make_scatter_plot(iclust_plotvals, 'daffy', iclust=iclust, tfns=scfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
                 if not only_distr_plots:
-                    make_scatter_plot(iclust_plotvals, xvar, iclust=iclust, tfns=iclust_fnames if iclust < 3 else None)
+                    make_scatter_plot(iclust_plotvals, xvar, iclust=iclust, tfns=nsfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
                     make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xlist=iclust_plotvals[xvar],
-                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), true_inf_str=true_inf_str, iclust=iclust, fnames=iclust_fnames if len(lines)==1 else None)
-        fnames += iclust_fnames
+                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), true_inf_str=true_inf_str, iclust=iclust, fnames=wptfns if len(lines)==1 else None)  #iclust_fnames if len(lines)==1 else None)
 
         if 'among-families' not in lb_metric and not only_csv:
             pt_vals['per-seq']['within-families-mean'] = get_mean_ptile_vals(len(lines), pt_vals['per-seq'], xvar)
             if len(lines) > 1 and not only_distr_plots:
                 make_ptile_plot(pt_vals['per-seq']['within-families-mean'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None, extra_str='within-cluster-average'),
-                                xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, xlist=per_seq_plotvals[xvar])
+                                xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=wptfns, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, xlist=per_seq_plotvals[xvar])
 
         if 'within-families' not in lb_metric:
             pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
             distr_hists['all-clusters'] = get_distr_hists(per_seq_plotvals, xvar)
             if len(lines) > 1 and not only_csv:
-                make_distr_plot(per_seq_plotvals, xvar, tfns=fnames)
-                make_scatter_plot(per_seq_plotvals, 'daffy', tfns=fnames)
+                make_perf_distr_plot(per_seq_plotvals, xvar, tfns=dhfns)
+                make_scatter_plot(per_seq_plotvals, 'daffy', tfns=scfns)
                 if not only_distr_plots:
                     # make_scatter_plot(per_seq_plotvals, xvar, tfns=fnames)
                     make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
-                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=fnames, true_inf_str=true_inf_str, n_clusters=len(lines))
+                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=aptfns, true_inf_str=true_inf_str, n_clusters=len(lines))
 
         with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
             n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
             if n_missing > 0:
-                print '    %s missing %d / %d h lists for distr hists (probably weren\'t any affinity increases in the tree)' % (utils.color('yellow', 'warning'), n_missing, len(distr_hists))
+                print '        %s missing %d / %d h lists for distr hists on %s tree (probably weren\'t any affinity increases in the tree)' % (utils.color('yellow', 'warning'), n_missing, len(distr_hists), 'true' if is_true_line else 'inf')
             yamlfo = {'percentiles' : pt_vals, 'distr-hists' : {k : {h.title : h.getdict() for h in hlist} for k, hlist in distr_hists.items() if hlist is not None}}
             json.dump(yamlfo, yfile)  # not adding the new correlation keys atm (like in the lb vs affinity fcn)
 
@@ -1126,6 +1123,7 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
         os.makedirs(workdir)
     cmdfos = []
     for lb_metric in metric_methods:
+        fnames += [['header', '%s trees'%lb_metric], []]
         for iclust, line in enumerate(lines):  # note that <min_selection_metric_cluster_size> was already applied in treeutils
             treestr = get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric)
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
@@ -1134,7 +1132,7 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
             cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=queries_to_include)]
-            add_fn(fnames, fn=outfname, n_per_row=3)
+            add_fn(fnames, fn=outfname, n_per_row=4)
 
     if len(cmdfos) > 0:
         start = time.time()

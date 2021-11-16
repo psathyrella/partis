@@ -137,7 +137,7 @@ def set_meta_styles(args, etree, tstyle):
         if args.lb_metric in treeutils.affy_metrics:
             affyvals = affyfo.values()
             affy_smap = plotting.get_normalized_scalar_map([a for a in affyvals if a is not None], 'viridis')
-        elif args.lb_metric in treeutils.delta_affy_metrics:
+        elif args.lb_metric in treeutils.daffy_metrics:
             delta_affyvals = set_delta_affinities(etree, affyfo)
             delta_affy_increase_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v > 0], 'Reds', remove_top_end=True) if len(delta_affyvals) > 0 else None
             delta_affy_decrease_smap = plotting.get_normalized_scalar_map([abs(v) for v in delta_affyvals if v < 0], 'Blues', remove_top_end=True) if len(delta_affyvals) > 0 else None
@@ -159,7 +159,7 @@ def set_meta_styles(args, etree, tstyle):
             else:
                 rfsize = 5
                 bgcolor = plotting.get_smap_color(lb_smap, lbfo, key=node.name)
-        elif args.lb_metric in treeutils.delta_affy_metrics:
+        elif args.lb_metric in treeutils.daffy_metrics:
             node.img_style['vt_line_color'] = plotting.getgrey()  # if they're black, it's too hard to see the large changes in affinity, since they're very dark (at least with current color schemes)
             # rfsize = get_size(lb_min, lb_max, lbfo[node.name]) if node.name in lbfo else 1.5
             rfsize = 5 if node.name in lbfo else 1.5
@@ -190,7 +190,7 @@ def set_meta_styles(args, etree, tstyle):
         else:
             add_legend(tstyle, mleg, lbvals, None, lbfo, 0, n_entries=4)
             add_legend(tstyle, affy_label, [a for a in affyvals if a is not None], affy_smap, affyfo, 3)
-    elif args.lb_metric in treeutils.delta_affy_metrics:
+    elif args.lb_metric in treeutils.daffy_metrics:
         add_legend(tstyle, mleg, lbvals, lb_smap, lbfo, 0, reverse_log=args.log_lbr)
         if affyfo is not None:
             add_legend(tstyle, '%s decrease' % affy_label, [abs(v) for v in delta_affyvals if v < 0], delta_affy_decrease_smap, affyfo, 3, add_sign='-', no_opacity=True)
@@ -224,7 +224,7 @@ def plot_trees(args):
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--treefname', required=True)
 parser.add_argument('--outfname', required=True)
-parser.add_argument('--lb-metric', default='lbi') #, choices=treeutils.affy_metrics+treeutils.delta_affy_metrics)
+parser.add_argument('--lb-metric', default='lbi') #, choices=treeutils.affy_metrics+treeutils.daffy_metrics)
 parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'relative_affinity'])
 # parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--metafname')

@@ -987,12 +987,15 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
              '<table>',
              '<tr>']
 
-    def add_newline(lines):
+    def add_newline(lines, header=None):
         if new_table_each_row:
-            newlines = ['</tr>', '</table>', '<table>', '<tr>']
+            endlines, startlines = ['</tr>', '</table>'], ['<table>', '<tr>']
         else:
-            newlines = ['</tr>', '<tr>']
-        lines += newlines
+            endlines, startlines = ['</tr>'], ['<tr>']
+        lines += endlines
+        if header is not None:
+            lines += ['<h3 style="text-align:left; color:DD6600;">' + header + '</h3>']
+        lines += startlines
     def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
         fname = fullfname.replace(plotdir, '').lstrip('/')
         if htmlfname is None:  # dirname screws it up if we're specifying htmlfname explicitly, since then the files are in a variety of different subdirs
@@ -1031,6 +1034,10 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
 
     # write the meat of the html
     for rowlist in fnames:
+        if 'header' in rowlist:
+            assert len(rowlist) == 2
+            add_newline(lines, header=rowlist[1])
+            continue
         for fn in rowlist:
             add_fname(lines, fn)
         add_newline(lines)
@@ -1166,7 +1173,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, global_max_vals=None, make_legend=False, debug=False):
     import lbplotting
-    all_metrics = treeutils.lb_metrics.keys() + treeutils.dtr_metrics
+    smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
     # ----------------------------------------------------------------------------------------
     def offcolor(offset):
@@ -1179,14 +1186,14 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # ----------------------------------------------------------------------------------------
     def get_xval_list(cluster, xkey):  # NOTE this *has* to return values in the same order they're in line['unique_ids']
         line = annotations[':'.join(cluster)]
-        if xkey in all_metrics:
+        if xkey in smetrics:
             return [line['tree-info']['lb'][xkey][u] for u in line['unique_ids']]  # we can't use .values() because there's lb values in the dict in 'tree-info' that don't correspond to uids in 'unique_ids' (and we don't want to include those values) (plus the order wouldn't be right)
         else:
             return line[xkey]
     # ----------------------------------------------------------------------------------------
     def get_xval_dict(uids, xkey):
         line = annotations[':'.join(cluster)]
-        if xkey in all_metrics:
+        if xkey in smetrics:
             return {u : line['tree-info']['lb'][xkey][u] for u in uids}
         else:
             return {u : utils.per_seq_val(line, xkey, u) for u in uids}
@@ -1201,7 +1208,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return bounds
     # ----------------------------------------------------------------------------------------
     def uselog(xkey):  # the low end (zero bin) of these distributions always dominates, but we're actually interested in the upper tail, so logify it
-        return xkey in all_metrics or xkey == 'affinities'
+        return xkey in smetrics or xkey == 'affinities'
     # ----------------------------------------------------------------------------------------
     def add_hist(xkey, sorted_xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
         qti_x_vals = {}
@@ -1242,7 +1249,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             nbins = sorted_xvals[-1] - sorted_xvals[0] + 1
             hist = Hist(nbins, sorted_xvals[0] - 0.5, sorted_xvals[-1] + 0.5)
         else:
-            nbins = 30 if xkey in all_metrics else 15
+            nbins = 30 if xkey in smetrics else 15
             hist = Hist(nbins, *bexpand(xbounds[xkey], fuzz=0.01))
         hist.list_fill(sorted_xvals)
         if uselog(xkey):
