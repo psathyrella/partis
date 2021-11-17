@@ -78,19 +78,22 @@ def set_delta_affinities(etree, affyfo):  # set change in affinity from parent f
 
 # ----------------------------------------------------------------------------------------
 def get_size(vmin, vmax, val):
+    if vmin == vmax:
+        return 0
     return min_size + (val - vmin) * (max_size - min_size) / (vmax - vmin)
 
 # ----------------------------------------------------------------------------------------
 def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):  # NOTE very similar to add_smap_legend() in plot_2d_scatter() in python/lbplotting.py
     if len(all_vals) == 0:
-        return
+        all_vals = [-1, 1]  # um, maybe this is ok?
+        # return  # NOTE same as below, you can't return here
     assert add_sign in [None, '-', '+']
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
     min_val, max_val = get_scale_min(varname, all_vals), max(all_vals)
     if min_val == max_val:
         max_val = min_val + (1 if min_val is 0 else 0.1 * min_val)
         # return  # NOTE you *cannot* return here, since if we don't actually add the stuff then it later (when rendering) crashes with a key error deep within ete due to the <start_column> being wrong/inconsistent
-    max_diff = (max_val - min_val) / float(n_entries - 1)
+    max_diff = max(utils.eps, (max_val - min_val) / float(n_entries - 1))
     val_list = list(numpy.arange(min_val, max_val + utils.eps, max_diff))  # first value is exactly <min_val>, last value is exactly <max_val> (eps is to keep it from missing the last one)
     # if add_sign is not None and add_sign == '-':  # for negative changes, we have the cmap using abs() and want to legend order to correspond
     #     val_list = reversed(val_list)  # arg, this breaks something deep in the legend maker, not sure what
@@ -175,7 +178,7 @@ def set_meta_styles(args, etree, tstyle):
                     node.img_style['hz_line_width'] = 1.2
                 else:
                     node.img_style['hz_line_color'] = plotting.getgrey()
-        if args.queries_to_include is not None and node.name in args.queries_to_include:
+        if args.label_all_nodes or args.queries_to_include is not None and node.name in args.queries_to_include:
             tface = ete3.TextFace(node.name, fsize=3, fgcolor='red')
             node.add_face(tface, column=0)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
@@ -229,6 +232,7 @@ parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'rela
 # parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--metafname')
 parser.add_argument('--queries-to-include')
+parser.add_argument('--label-all-nodes', action='store_true')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
 parser.add_argument('--partis-dir', default=os.path.dirname(os.path.realpath(__file__)).replace('/bin', ''), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')

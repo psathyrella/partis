@@ -30,7 +30,6 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
 parser.add_argument('--actions', default='cache-parameters:annotate:get-selection-metrics')
-# TODO handle single chain without setting --seqfname
 parser.add_argument('--seqfname', required=True, help='fasta file with all input sequences (if --paired-loci is set, this should include, separately, all heavy and all light sequences, where the two sequences in a pair have identical uids [at least up to the first \'_\']). If single chain, this can just be the fasta corresponding to')
 parser.add_argument('--gctreedir', required=True, help='gctree output dir (to get --tree-basename and abundances.csv')
 parser.add_argument('--outdir', required=True, help='directory to which to write partis output files')
@@ -46,6 +45,8 @@ parser.add_argument('--species', default='mouse', choices=('human', 'macaque', '
 parser.add_argument('--tree-basename', default='gctree.out.inference.1.nk', help='basename of tree file to take from --gctreedir')  # .1 is the most likely one (all trees are also in the pickle file as ete trees: gctree.out.inference.parsimony_forest.p
 parser.add_argument('--abundance-basename', default='abundances.csv', help='basename of tree file to take from --gctreedir. Not used if multiplicities are read from kdfname')  # .1 is the most likely one (all trees are also in the pickle file as ete trees: gctree.out.inference.parsimony_forest.p
 parser.add_argument('--dry', action='store_true')
+parser.add_argument('--no-tree-plots', action='store_true')
+parser.add_argument('--n-procs', type=int)
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 args.kd_columns = utils.get_arg_list(args.kd_columns)
@@ -74,9 +75,12 @@ def run_cmd(action):
     if action in ['annotate', 'get-selection-metrics'] and '--paired-outdir' not in cmd:
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
-        cmd += ' --treefname %s/%s --plotdir %s --selection-metrics-to-calculate cons-dist-aa:lbi:aa-lbi:lbr:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
-        cmd += ' --queries-to-include-fname %s' % args.seqfname #  NOTE gets replaced in bin/partis  #paired-outdir' # % paircluster.paired_fn(args.outdir, 'igh')) #args.seqfname #
+        cmd += ' --min-selection-metric-cluster-size 3 --label-tree-nodes --treefname %s/%s --plotdir %s --selection-metrics-to-calculate cons-dist-aa:lbi:aa-lbi:lbr:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
         cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv --debug 1' % args.outdir
+        if args.no_tree_plots:
+            cmd += ' --ete-path None'
+    if args.n_procs is not None:
+        cmd += ' --n-procs %d' % args.n_procs
     utils.simplerun(cmd, logfname='%s/%s.log'%(args.outdir, action), dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------
@@ -94,12 +98,11 @@ if args.kdfname is not None:
         reader = csv.DictReader(kfile)
         for line in reader:
             uid = line[args.name_column]
-            kdval = 0
-            for kdc in args.kd_columns:
-                kdval += float(line[kdc])
             if uid not in metafos:
                 metafos[uid] = {}
-            metafos[uid]['affinity'] = kdval if args.dont_invert_kd else 1. / kdval
+            if all(line[k] not in ['None', None, ''] for k in args.kd_columns):
+                kdval = sum(float(line[k]) for k in args.kd_columns)
+                metafos[uid]['affinity'] = kdval if args.dont_invert_kd else 1. / kdval
             if args.multiplicity_column is not None:
                 metafos[uid]['multiplicity'] = int(line[args.multiplicity_column])
 

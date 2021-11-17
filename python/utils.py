@@ -5471,7 +5471,7 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
     return seqfos
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None):
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False):
     if ftype is None:
         suffix = getsuffix(fname)
         if suffix == '.fa' or suffix == '.fasta':
@@ -5580,6 +5580,29 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             print '  %s asked for n_random_queries %d from file with only %d entries, so just taking all of them (%s)' % (color('yellow', 'warning'), n_random_queries, len(finfo), fname)
             n_random_queries = len(finfo)
         finfo = numpy.random.choice(finfo, n_random_queries, replace=False)
+
+    if look_for_tuples:  # this is really dumb
+        new_sfos, n_found = [], 0
+        for sfo in finfo:
+            headline = ' '.join(sfo['infostrs'])
+            if any(c not in headline for c in '()'):
+                new_sfos.append(sfo)
+                continue
+            istart, istop = [headline.find(c) for c in '()']
+            try:
+                nids = eval(headline[istart : istop + 1])
+                n_found += 1
+                print '         look_for_tuples: found %d uids in headline %s: %s' % (len(nids), headline, ' '.join(nids))
+                for uid in nids:
+                    nsfo = copy.deepcopy(sfo)
+                    nsfo['name'] = uid
+                    new_sfos.append(nsfo)
+            except:
+                print '    %s failed parsing tuple from fasta line \'%s\' from %s' % (wrnstr(), headline, fname)
+                new_sfos.append(sfo)
+        if n_found > 0:
+            print '      found %d seqfos with tuple headers (added %d net total seqs) in %s' % (n_found, len(new_sfos) - len(finfo), fname)
+        finfo = new_sfos
 
     return finfo
 

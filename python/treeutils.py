@@ -1677,7 +1677,8 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
     return inf_lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, queries_to_include=None, plot_true_vs_inf_metrics=False, debug=False):
+def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, queries_to_include=None,
+                      plot_true_vs_inf_metrics=False, label_tree_nodes=False, debug=False):
     assert not include_relative_affy_plots  # would need updating
     import plotting
     import lbplotting
@@ -1718,7 +1719,7 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
         for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi'), ('sum-cons-dist-aa', 'sum-aa-lbi'), ('sum-aa-lbi', 'sum-lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
             lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
         if ete_path is not None and has_trees:
-            lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=queries_to_include, fnames=fnames)
+            lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=queries_to_include, fnames=fnames, label_all_nodes=label_tree_nodes)
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
         plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs], bgcolor='#FFFFFF', title='all plots:')
 
@@ -1830,7 +1831,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_me
 def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
                            dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False,
-                           cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, ignore_existing_internal_node_labels=False, debug=False):
+                           cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, label_tree_nodes=False, ignore_existing_internal_node_labels=False, debug=False):
     print 'getting selection metrics: %s' % ' '.join(metrics_to_calc)
     if reco_info is not None:
         if not use_true_clusters:
@@ -1963,7 +1964,7 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
         else:
             plstr, antn_list, is_simu, inf_annotations = 'true', true_lines_to_use, True, inf_lines_to_use
         plot_tree_metrics('%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir,
-                          include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, queries_to_include=queries_to_include, debug=debug)  # plot_true_vs_inf_metrics=True
+                          include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, queries_to_include=queries_to_include, label_tree_nodes=label_tree_nodes, debug=debug)  # plot_true_vs_inf_metrics=True
 
     if outfname is not None:
         print '  writing selection metrics to %s' % outfname
@@ -2924,7 +2925,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if plotdir is not None:
             add_sum_metrics(metric_pairs, h_atn)
     if plotdir is not None:
-        plot_tree_metrics(plotdir, args.selection_metrics_to_calculate, [h_atn for h_atn, _ in antn_pairs], is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include)
+        plot_tree_metrics(plotdir, args.selection_metrics_to_calculate, [h_atn for h_atn, _ in antn_pairs], is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include, label_tree_nodes=args.label_tree_nodes)
     for (h_atn, _), rtns in zip(antn_pairs, rtns_list):
         untranslate(h_atn, rtns)
     if args.chosen_ab_fname is not None:
