@@ -18,40 +18,53 @@ import paircluster
 import glutils
 from clusterpath import ClusterPath
 
+gctree_outstr = 'gctree.out.inference.1'
+
 helpstr = """
 Run partis selection metrics on gctree output dir (gctree docs: https://github.com/matsengrp/gctree/).
 Plots are written to <--outdir>/selection-metrics/plots.
 Log files are written to <--outdir>; get-selection-metrics.log has most of the interesting information (view with less -RS).
 Example usage:
-  ./bin/read-gctree-output.py --seqfname <fasta-input-file> --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
+  single chain:
+    ./bin/read-gctree-output.py --paired-loci --seqfname <fasta-input-file> --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
+  paired:
+    ./bin/read-gctree-output.py --locus igh --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
 parser.add_argument('--actions', default='cache-parameters:annotate:get-selection-metrics')
-parser.add_argument('--seqfname', required=True, help='fasta file with all input sequences (if --paired-loci is set, this should include, separately, all heavy and all light sequences, where the two sequences in a pair have identical uids [at least up to the first \'_\']). If single chain, this can just be the fasta corresponding to')
-parser.add_argument('--gctreedir', required=True, help='gctree output dir (to get --tree-basename and abundances.csv')
+parser.add_argument('--seqfname', help='Fasta file with input sequences. If single chain, this defaults to the standard location in --gctreedir. If --paired-loci is set, this should include, separately, all heavy and all light sequences, where the two sequences in a pair have identical uids (at least up to the first \'_\').')
+parser.add_argument('--gctreedir', required=True, help='gctree output dir (to get --tree-basename, and maybe abundances.csv, --seqfname).')
 parser.add_argument('--outdir', required=True, help='directory to which to write partis output files')
 parser.add_argument('--input-partition-fname', help='partis style yaml file with a partition grouping seqs into clonal families; if set, input data is assumed to contain many families (if not set, we assume it\'s only one fmaily).')
 parser.add_argument('--paired-loci', action='store_true', help='run on paired heavy/light data')
-parser.add_argument('--locus', default='igh', choices=utils.loci)
+parser.add_argument('--locus', choices=utils.loci, help='locus of sequences (required for single chain).')
 parser.add_argument('--kdfname', help='csv file with kd values (and, optionally, multiplicities), with header names as specified in subsequent args.')
 parser.add_argument('--name-column', default='name', help='column name in --kdfname from which to take sequence name')
 parser.add_argument('--kd-columns', default='kd', help='colon-separated list of column name[s] in --kdfname from which to take kd values. If more than one, the values are added.')
-parser.add_argument('--multiplicity-column', help='If set, column name in --kdfname from which to take multiplicity value. If not set, abundances are read from --gctreedir and converted to multiplicities.')
+parser.add_argument('--multiplicity-column', help='If set, column name in --kdfname from which to take multiplicity value (which must be >0, i.e. inferred ancestors should have multiplicity 1). If not set, abundances are read from --abundance-basename in --gctreedir and converted to multiplicities.')
 parser.add_argument('--dont-invert-kd', action='store_true', help='by default we invert (take 1/kd) to convert to \'affinity\' (after adding multiple kd columns, if specified), or at least something monotonically increasing with affinity. This skips that step, e.g. if you\'re passing in affinity.')
 parser.add_argument('--species', default='mouse', choices=('human', 'macaque', 'mouse'))
-parser.add_argument('--tree-basename', default='gctree.out.inference.1.nk', help='basename of tree file to take from --gctreedir')  # .1 is the most likely one (all trees are also in the pickle file as ete trees: gctree.out.inference.parsimony_forest.p
-parser.add_argument('--abundance-basename', default='abundances.csv', help='basename of tree file to take from --gctreedir. Not used if multiplicities are read from kdfname')  # .1 is the most likely one (all trees are also in the pickle file as ete trees: gctree.out.inference.parsimony_forest.p
+parser.add_argument('--tree-basename', default='%s.nk'%gctree_outstr, help='basename of tree file to take from --gctreedir')  # .1 is the most likely one (all trees are also in the pickle file as ete trees: gctree.out.inference.parsimony_forest.p
+parser.add_argument('--abundance-basename', default='abundances.csv', help='basename of abundance file in --gctreedir. Abundance of 0 (inferred ancestor) is converted to multiplicity of 1. Not used if multiplicities are read from kdfname')  # .1 is the most likely one (all trees are also in the pickle file as ete trees: gctree.out.inference.parsimony_forest.p
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--no-tree-plots', action='store_true')
 parser.add_argument('--n-procs', type=int)
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions)
 args.kd_columns = utils.get_arg_list(args.kd_columns)
-if not args.paired_loci:
-    raise Exception('needs testing')
+if args.multiplicity_column is not None and args.kdfname is None:
+    raise Exception('have to set --kdfname if --multiplicity-column is set')
+if args.paired_loci:
+    assert args.seqfname is not None
+else:
+    if args.seqfname is None:
+        args.seqfname = '%s/%s.fasta' % (args.gctreedir, gctree_outstr)
+        print '    set --seqfname to default location in --gctreedir: %s' % args.seqfname
+    if args.locus is None:
+        raise Exception('have to set --locus for single chain')
 
 # ----------------------------------------------------------------------------------------
 def metafname():
@@ -87,13 +100,16 @@ def run_cmd(action):
 utils.mkdir(args.outdir)
 metafos = {}
 if args.multiplicity_column is None:  # if not set, read abundances from args.abundance_basename
-    with open('%s/%s'%(args.gctreedir, args.abundance_basename)) as afile:
+    abfn = '%s/%s' % (args.gctreedir, args.abundance_basename)
+    print '    reading abundance info from %s' % abfn
+    with open(abfn) as afile:
         reader = csv.DictReader(afile, fieldnames=('name', 'abundance'))
         for line in reader:
             if line['name'] not in metafos:
-                line['name'] = {}
+                metafos[line['name']] = {}
             metafos[line['name']]['multiplicity'] = max(1, int(line['abundance']))  # increase 0s (inferred ancestors) to 1
 if args.kdfname is not None:
+    print '    reading kd info%s from %s' % ('' if args.multiplicity_column is None else ' and multiplicity info', args.kdfname)
     with open(args.kdfname) as kfile:
         reader = csv.DictReader(kfile)
         for line in reader:
@@ -113,6 +129,7 @@ for base_id in metafos.keys():
         metafos[new_id] = metafos[base_id]
     del metafos[base_id]
 # and write to json/yaml
+print '    writing input meta info to %s' % metafname()
 with open(metafname(), 'w') as mfile:
     json.dump(metafos, mfile)
 

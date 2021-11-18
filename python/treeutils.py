@@ -1772,9 +1772,9 @@ def check_lb_values(line, lbvals):
             # raise Exception('uids in annotation not the same as lb info keys\n    missing: %s\n    extra: %s' % (' '.join(set(line['unique_ids']) - set(lbvals[metric])), ' '.join(set(lbvals[metric]) - set(line['unique_ids']))))
             extra = set(lbvals[metric]) - set(line['unique_ids'])
             common = set(line['unique_ids']) & set(lbvals[metric])
-            print '    %s uids in annotation not the same as lb info keys for \'%s\':  %d missing  %d extra  (%d in common)'  % (utils.color('red', 'error'), metric, len(missing), len(extra), len(common))
+            print '    %s uids in annotation not the same as lb info keys for \'%s\':  %d missing from lb info  %d extra in lb info  (%d in common)'  % (utils.color('red', 'error'), metric, len(missing), len(extra), len(common))
             if len(missing) + len(extra) < 35:
-                print '      missing: %s\n      extra: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common))
+                print '      missing from lb info: %s\n      extra in lb info: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common))
 
 # NOTE this is not tested, but might be worth using in the future
 # # ----------------------------------------------------------------------------------------
