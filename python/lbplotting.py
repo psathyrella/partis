@@ -502,12 +502,14 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
 # ----------------------------------------------------------------------------------------
 def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters_per_joy_plot=25, n_max_joy_plots=25, n_plots_per_row=4):
     partition = utils.get_partition_from_annotation_list(lines)
-    annotation_dict = {':'.join(l['unique_ids']) : l for l in lines}
-    sorted_clusters = sorted(partition, key=lambda c: mean_of_top_quintile(annotation_dict[':'.join(c)]['affinities']), reverse=True)
+    annotation_dict = utils.get_annotation_dict(lines)
+    affy_lists = {k : [a for a in l['affinities'] if a is not None] for k, l in annotation_dict.items()}  # just skip None-type affinites, which i think is what we want? (note that the single joyplot fcn gets these lists separately -- these are just used for max vals over all clusters)
+    sorted_clusters = sorted(partition, key=lambda c: mean_of_top_quintile(affy_lists[':'.join(c)]), reverse=True)
     sorted_cluster_groups = [sorted_clusters[i : i + n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), n_clusters_per_joy_plot)]
     repertoire_size = sum([len(c) for c in sorted_clusters])
-    max_affinity = max([a for c in sorted_clusters for a in annotation_dict[':'.join(c)]['affinities']])  # it's nice to keep track of the max values over the whole repertoire so all plots can have the same max values
-    max_lb_val = max([annotation_dict[':'.join(c)]['tree-info']['lb'][lb_metric][u] for c in sorted_clusters for u in c])  # NOTE don't use all the values in the dict in 'tree-info', since non-sampled sequences (i.e. usually intermediate ancestors) are in there
+    max_affinity = max([a for alist in affy_lists.values() for a in alist])  # it's nice to keep track of the max values over the whole repertoire so all plots can have the same max values
+    def lbv(c, u): return annotation_dict[':'.join(c)]['tree-info']['lb'][lb_metric].get(u)  # see note about affy_lists
+    max_lb_val = max([lbv(c, u) for c in sorted_clusters for u in c if lbv(c, u) is not None])  # NOTE don't use all the values in the dict in 'tree-info', since non-sampled sequences (i.e. usually intermediate ancestors) are in there
     if 'lb' in lb_metric and max_lb_val == 0.:  # at least atm, this means this is lbr on a family with no common ancestor sampling
         return
     # print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
@@ -517,7 +519,7 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
             continue
         title = 'affinity and %s (%d / %d)' % (mtitlestr('per-seq', lb_metric), iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
         fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=mtitlestr('per-seq', lb_metric),
-                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title)  # note that we can't really add <cluster_indices> like we do in partitionplotter.py, since (i think?) the only place there's per-cluster plots we'd want to correspond to is in the bcr phylo simulation dir, which has indices unrelated to anything we're sorting by here, and which we can't reconstruct
+                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title, remove_none_vals=True)  # note that we can't really add <cluster_indices> like we do in partitionplotter.py, since (i think?) the only place there's per-cluster plots we'd want to correspond to is in the bcr phylo simulation dir, which has indices unrelated to anything we're sorting by here, and which we can't reconstruct
         add_fn(fnames, fn=fn)
         iclustergroup += 1
 

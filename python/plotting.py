@@ -1171,7 +1171,8 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # ----------------------------------------------------------------------------------------
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
-                        cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, global_max_vals=None, make_legend=False, debug=False):
+                        cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, global_max_vals=None,
+                        make_legend=False, remove_none_vals=False, debug=False):
     import lbplotting
     smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
@@ -1199,7 +1200,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             return {u : utils.per_seq_val(line, xkey, u) for u in uids}
     # ----------------------------------------------------------------------------------------
     def getbounds(xkey):
-        all_xvals = [x for c in sorted_clusters for x in get_xval_list(c, xkey)]
+        all_xvals = [x for c in sorted_clusters for x in get_xval_list(c, xkey) if x is not None]  # NOTE can't ignore/skip None vals in the list/dict getter fcn above, since order has to match line['unique_ids']
         if len(all_xvals) == 0:
             return None
         bounds = [f(all_xvals) for f in [min, max]]
@@ -1211,6 +1212,11 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return xkey in smetrics or xkey == 'affinities'
     # ----------------------------------------------------------------------------------------
     def add_hist(xkey, sorted_xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
+        if None in sorted_xvals:
+            if remove_none_vals:
+                sorted_xvals = [v for v in sorted_xvals if v is not None]
+            else:
+                raise Exception('None type value[s] for %s: %s' % (xkey, sorted_xvals))
         qti_x_vals = {}
         tqtis = []  # queries to emphasize in this cluster, as pairs of (uid, label)
         if queries_to_include is not None:
