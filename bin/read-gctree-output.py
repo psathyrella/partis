@@ -22,13 +22,13 @@ gctree_outstr = 'gctree.out.inference.1'
 
 helpstr = """
 Run partis selection metrics on gctree output dir (gctree docs: https://github.com/matsengrp/gctree/).
-Plots are written to <--outdir>/selection-metrics/plots.
-Log files are written to <--outdir>; get-selection-metrics.log has most of the interesting information (view with less -RS).
+Plots are written to --outdir; it is probably best to start by looking at the summary html with a browser, e.g.: firefox <--outdir>/selection-metrics/plots/inferred-tree-metrics/overview.html.
+Log files are written to <--outdir>/*.log; get-selection-metrics.log has most of the interesting information (view with less -RS).
 Example usage:
   single chain:
-    ./bin/read-gctree-output.py --paired-loci --seqfname <fasta-input-file> --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
-  paired:
     ./bin/read-gctree-output.py --locus igh --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
+  paired:
+    ./bin/read-gctree-output.py --paired-loci --seqfname <fasta-input-file> --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass
