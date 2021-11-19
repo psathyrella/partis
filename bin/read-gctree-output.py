@@ -88,7 +88,7 @@ def run_cmd(action):
     if action in ['annotate', 'get-selection-metrics'] and '--paired-outdir' not in cmd:
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
-        cmd += ' --min-selection-metric-cluster-size 3 --label-tree-nodes --treefname %s/%s --plotdir %s --selection-metrics-to-calculate cons-dist-aa:lbi:aa-lbi:lbr:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
+        cmd += ' --min-selection-metric-cluster-size 3 --label-tree-nodes --treefname %s/%s --plotdir %s --selection-metrics-to-calculate lbi:aa-lbi:cons-dist-aa:lbr:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
         cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv --debug 1' % args.outdir
         if args.no_tree_plots:
             cmd += ' --ete-path None'

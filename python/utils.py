@@ -5471,7 +5471,7 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
     return seqfos
 
 # ----------------------------------------------------------------------------------------
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False):
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False, tuple_info=None):
     if ftype is None:
         suffix = getsuffix(fname)
         if suffix == '.fa' or suffix == '.fasta':
@@ -5591,6 +5591,8 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             istart, istop = [headline.find(c) for c in '()']
             try:
                 nids = eval(headline[istart : istop + 1])
+                if tuple_info is not None:
+                    tuple_info.append(nids)
                 n_found += 1
                 print '         look_for_tuples: found %d uids in headline %s: %s' % (len(nids), headline, ' '.join(nids))
                 for uid in nids:

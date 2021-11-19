@@ -1172,7 +1172,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, global_max_vals=None,
-                        make_legend=False, remove_none_vals=False, debug=False):
+                        make_legend=False, remove_none_vals=False, sortlabel='?', debug=False):
     import lbplotting
     smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
@@ -1356,7 +1356,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         repfracstr = utils.get_repfracstr(csize, repertoire_size)
         for iclust, cluster in enumerate(cluster_group):
             x1vals = sorted(get_xval_list(cluster, x1key))
-            median_x1 = numpy.median(x1vals)  # maybe should use mean instead of median?
+            median_x1 = numpy.median([v for v in x1vals if v is not None])  # maybe should use mean instead of median?
 
             if high_x_val is not None and median_x1 > high_x_val and not plot_high_x:  # if <high_x_val> is not set, we don't skip any clusters
                 high_x_clusters.append(cluster)
@@ -1374,7 +1374,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
             fixed_xmax = add_hist(x1key, x1vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset=None if x2key is None else 'up')
             if x2key is not None:
-                tmpval = lbplotting.mean_of_top_quintile(x1vals)
+                tmpval = lbplotting.mean_of_top_quintile([v for v in x1vals if v is not None])  # NOTE presumably this needs to match sortlabel
                 ax.plot([tmpval, tmpval], [yval, yval + 1./4], linewidth=2.5, alpha=0.55, color='green')
                 x2vals = sorted(get_xval_list(cluster, x2key))
                 fixed_xmax = add_hist(x2key, x2vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset='down')
@@ -1402,10 +1402,10 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         xlabel = x2label
         xticks = [x for x in numpy.arange(xbounds[x1key][0], xbounds[x1key][1], (xbounds[x1key][1] - xbounds[x1key][0]) / (n_x_ticks-1))] + [xbounds[x1key][1]]
         xticklabels = ['%.1f' % utils.intexterpolate(xbounds[x1key][0], xbounds[x2key][0], xbounds[x1key][1], xbounds[x2key][1], x) for x in xticks]  # translate x1 tick positions to x2 tick labels
-        fig.text(0.13, 0.08, '%.3f'%xbounds[x1key][0], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
-        fig.text(0.89, 0.08, '%.3f'%xbounds[x1key][1], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
+        fig.text(0.13, 0.07, '%.3f'%xbounds[x1key][0], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
+        fig.text(0.89, 0.07, '%.3f'%xbounds[x1key][1], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
         fig.text(0.52, 0.03, x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
-        fig.text(0.05, 0.9, 'sorted by\nmax %s'%x1label, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
+        fig.text(0.05, 0.9, 'sorted by\n%s'%sortlabel, color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
     n_y_ticks = 5
     if x2key is None and len(yticks) > n_y_ticks:
         yticks = [yticks[i] for i in range(0, len(yticks), int(len(yticks) / float(n_y_ticks - 1)))]

@@ -61,7 +61,7 @@ def rel_affy_str(var, use_relative_affy):
 def meanmaxfcns(): return (('mean', lambda line, plotvals: numpy.mean(plotvals)), ('max', lambda line, plotvals: max(plotvals)))
 def mean_of_top_quintile(vals):  # yeah, yeah could name it xtile and have another parameter, but maybe I won't actually need to change it
     frac = 0.2  # i.e. top quintile
-    n_to_take = int(frac * len(vals))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which causes bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
+    n_to_take = max(1, int(frac * len(vals)))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which causes bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
     return numpy.mean(sorted(vals)[len(vals) - n_to_take:])
 mean_max_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-lbi']
 mean_max_metrics += ['sum-%s'%m for m in mean_max_metrics]
@@ -519,7 +519,7 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
             continue
         title = 'affinity and %s (%d / %d)' % (mtitlestr('per-seq', lb_metric), iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
         fn = plotting.make_single_joyplot(subclusters, annotation_dict, repertoire_size, plotdir, '%s-affinity-joyplot-%d' % (lb_metric, iclustergroup), x1key='affinities', x1label='affinity', x2key=lb_metric, x2label=mtitlestr('per-seq', lb_metric),
-                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title, remove_none_vals=True)  # note that we can't really add <cluster_indices> like we do in partitionplotter.py, since (i think?) the only place there's per-cluster plots we'd want to correspond to is in the bcr phylo simulation dir, which has indices unrelated to anything we're sorting by here, and which we can't reconstruct
+                                          global_max_vals={'affinities' : max_affinity, lb_metric : max_lb_val}, title=title, remove_none_vals=True, sortlabel='mean top quintile aff.')  # note that we can't really add <cluster_indices> like we do in partitionplotter.py, since (i think?) the only place there's per-cluster plots we'd want to correspond to is in the bcr phylo simulation dir, which has indices unrelated to anything we're sorting by here, and which we can't reconstruct
         add_fn(fnames, fn=fn)
         iclustergroup += 1
 

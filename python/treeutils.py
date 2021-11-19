@@ -1698,15 +1698,15 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
 
     if has_affinities:
         affy_fnames = []
-        for mtr in set(affy_metrics) & set(metrics_to_calc):
+        for mtr in [m for m in metrics_to_calc if m in affy_metrics]:
             lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=only_csv, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
         fnames += [['header', 'affinity metrics']] + affy_fnames
         if not only_csv:
             fnames.append([])
-            for mtr in set(affy_metrics) & set(metrics_to_calc):
+            for mtr in metrics_to_calc:
                 lbplotting.make_lb_affinity_joyplots(plotdir + '/joyplots', antn_list, mtr, fnames=fnames)
         daffy_fnames = []
-        for mtr in set(daffy_metrics) & set(metrics_to_calc):
+        for mtr in [m for m in metrics_to_calc if m in daffy_metrics]:
             lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + mtr, antn_list, mtr, is_true_line=is_simu, only_csv=only_csv, fnames=daffy_fnames, separate_rows=True, debug=debug)
         fnames += [['header', 'delta-affinity metrics']] + daffy_fnames
     else:
@@ -1725,7 +1725,7 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
 
     if is_simu and not only_csv and plot_true_vs_inf_metrics:
         assert inf_annotations is not None
-        for mtr in set(lb_metrics) & set(metrics_to_calc):
+        for mtr in [m for m in metrics_to_calc if m in lb_metrics]:
             lbplotting.plot_true_vs_inferred_lb(plotdir + '/' + mtr, antn_list, inf_annotations, mtr, fnames=fnames)
         lbplotting.plot_cons_seq_accuracy(plotdir, antn_list, fnames=fnames)
 
