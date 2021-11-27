@@ -69,7 +69,6 @@ def ifname(stype, ltmp='igh'):  # path/files for utils.output_exists()
 # ----------------------------------------------------------------------------------------
 def lpairs():
     return utils.locus_pairs[ig_or_tr]
-
 # ----------------------------------------------------------------------------------------
 def rearrange():
     if utils.output_exists(args, naive_fname('igh'), outlabel='naive simu', offset=4):  # just look for the merged igh file, since it's about the last to be written (and both paired subdirs may not be there)
@@ -142,8 +141,16 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
         cmd += ' --obs_times %s' % ' '.join(['%d' % get_vpar_val('obs-times', t) for t in args.obs_times])
         cmd += ' --n_to_sample %s' % ' '.join('%d' % get_vpar_val('n-sim-seqs-per-generation', n) for n in args.n_sim_seqs_per_generation)
         cmd += ' --metric_for_target_dist %s' % args.metric_for_target_distance
-        if args.paratope_positions is not None:
-            cmd += ' --paratope_positions %s' % args.paratope_positions
+        if args.aa_paratope_positions is not None:
+            cmd += ' --aa_paratope_positions %s' % args.aa_paratope_positions
+        if args.aa_struct_positions is not None:
+            cmd += ' --aa_struct_positions %s' % args.aa_struct_positions
+        if args.dont_mutate_struct_positions:
+            cmd += ' --dont_mutate_struct_positions'
+        if args.skip_stops:
+            cmd += ' --skip_stops_when_mutating'
+        if args.allow_stops:
+            cmd += ' --allow_stops_in_functional_seqs'
         cmd += ' --target_dist %d' % args.target_distance
         cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % get_vpar_val('carry-cap', args.carry_cap)
@@ -337,8 +344,8 @@ def simulate():
         if args.n_sim_events > 1 and args.n_procs == 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
         if args.paired_loci:
-            hline, lline = naive_events[ievent]
-            naive_seq = utils.pad_nuc_seq(hline['naive_seq']) + lline['naive_seq']
+            hnseq, lnseq = [l['naive_seq'] for l in naive_events[ievent]]
+            naive_seq = utils.pad_nuc_seq(hnseq) + lnseq
         else:
             naive_seq = naive_events[ievent]['naive_seq']
         cfo = run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=uid_str_len)  # if n_procs > 1, doesn't run, just returns cfo
@@ -441,7 +448,11 @@ parser.add_argument('--branching-parameter', type=float, default=2., help='see b
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--context-depend', type=int, default=0, choices=[0, 1])  # i wish this could be a boolean, but having it int makes it much much easier to interface with the scan infrastructure in cf-tree-metrics.py
-parser.add_argument('--paratope-positions', help='see bcr-phylo docs')
+parser.add_argument('--aa-paratope-positions', help='see bcr-phylo docs')
+parser.add_argument('--aa-struct-positions', help='see bcr-phylo docs')
+parser.add_argument('--dont-mutate-struct-positions', action='store_true', help='see bcr-phylo docs')
+parser.add_argument('--skip-stops', action='store_true', help='see bcr-phylo docs')
+parser.add_argument('--allow-stops', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--restrict-available-genes', action='store_true', help='restrict v and j gene choice to one each (so context dependence is easier to plot)')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')

@@ -341,6 +341,7 @@ parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200',
 parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearrangement events to simulate in each process (default is set in bin/bcr-phylo-run.py)')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
+parser.add_argument('--target-distance-list')
 parser.add_argument('--metric-for-target-distance-list', default='aa')  # it would be nice to not set defaults here, since it clutters up the bcr-phylo simulator.py calls, but this insulates us against the defaults in bcr-phylo simulator.py changing at some point
 parser.add_argument('--leaf-sampling-scheme-list', default='uniform-random')
 parser.add_argument('--target-count-list', default='1')
