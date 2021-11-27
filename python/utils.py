@@ -2880,6 +2880,8 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
                 vlist = [treeutils.lb_cons_dist(line, i, aa=True, frac=True) for i in range(len(line['unique_ids']))]  # probably has to recalculate cons seqs
             else:
                 vlist = treeutils.smvals(line, ekey, nullval='?')  # don't really want to try to recalculate if they're not there, since for some we'd need trees, and yadda yadda
+        elif ekey == 'shm-aa':  # ok there's probably a better way to do this
+            vlist = [shm_aa(line, iseq=i) for i in range(len(line['unique_ids']))]
         else:
             if ekey in line and ekey in linekeys['per_seq']:
                 vlist = line[ekey]
@@ -3641,7 +3643,7 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
             print '%s in add_seqs_aa() one has an indel, input_seqs_aa debug needs to be implemented' % color('red', 'error')
 
 # ----------------------------------------------------------------------------------------
-def shm_aa(line, iseq=None, uid=None):  # it's kind of weird to have this fcn separate, whereas the non-aa one we don't, but it only really exists so it can add the aa seqs
+def shm_aa(line, iseq=None, uid=None):  # it's kind of weird to have this fcn separate, whereas the non-aa one we don't, but it only really exists so it can add the aa seqs UPDATE ok using it elsewhere now
     if iseq is None:  # have to specify either iseq or uid (no i don't care if you specified both and they're inconsistent
         iseq = line['unique_ids'].index(uid)
     add_naive_seq_aa(line)

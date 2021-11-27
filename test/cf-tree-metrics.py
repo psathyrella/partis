@@ -396,7 +396,7 @@ parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lb
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
-args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'context-depend', 'paratope-positions', 'parameter-variances'],}
+args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'target-distance', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'context-depend', 'paratope-positions', 'parameter-variances'],}
 args.scan_vars['get-tree-metrics'] = args.scan_vars['simu'] + ['lb-tau']
 args.str_list_vars = ['n-sim-seqs-per-gen', 'obs-times', 'context-depend', 'n-sim-seqs-per-gen', 'obs-times', 'context-depend']
 
@@ -419,6 +419,7 @@ args.carry_cap_list = utils.get_arg_list(args.carry_cap_list, intify=True, forbi
 args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'n-sim-seqs-per-gen' not in args.zip_vars)
 args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'obs-times' not in args.zip_vars)
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
+args.target_distance_list = utils.get_arg_list(args.target_distance_list, intify=True)
 args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target_distance_list, forbid_duplicates=True, choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'])
 args.leaf_sampling_scheme_list = utils.get_arg_list(args.leaf_sampling_scheme_list, forbid_duplicates=True, choices=['uniform-random', 'affinity-biased', 'high-affinity'])  # WARNING 'high-affinity' gets called 'perfect' in the legends and 'affinity-biased' gets called 'high affinity'
 args.target_count_list = utils.get_arg_list(args.target_count_list, forbid_duplicates=True)
@@ -459,7 +460,11 @@ for action in args.actions:
     elif action == 'bcr-phylo':
         run_bcr_phylo(args)
     elif action == 'get-tree-metrics':
-        get_tree_metrics(args)
+        assert args.metric_method is None  # don't use it the old way (requires running multiple times on the command line
+        for metric in args.plot_metrics:
+            args.metric_method = metric  # NOTE this is hackey, but it's probably better not to try to rewrie the functions to take the metric as an argument, since e.g. get_all_tm_fnames() needs it -- basically lots of code assumes that setting --metric-method means something, so leave it that way)
+            get_tree_metrics(args)
+        args.metric_method = None
     elif action in ['plot', 'combine-plots'] and not args.dry:
         assert args.extra_plotstr == ''  # only use --extra-plotstr for get-tree-metrics, for this use --plot-metric-extra-strs (because we in general have multiple --plot-metrics when we're here)
         assert args.metric_method is None  # when plotting, you should only be using --plot-metrics
