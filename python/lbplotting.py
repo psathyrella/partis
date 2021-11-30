@@ -21,6 +21,8 @@ import utils
 from hist import Hist
 import treeutils
 import plotting
+import hutils
+import scanplot
 
 # ----------------------------------------------------------------------------------------
 # this name is terrible, but it's complicated and I can't think of a better one
@@ -504,6 +506,8 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
     partition = utils.get_partition_from_annotation_list(lines)
     annotation_dict = utils.get_annotation_dict(lines)
     affy_lists = {k : [a for a in l['affinities'] if a is not None] for k, l in annotation_dict.items()}  # just skip None-type affinites, which i think is what we want? (note that the single joyplot fcn gets these lists separately -- these are just used for max vals over all clusters)
+    if sum(len(l) for l in affy_lists.values()) == 0:
+        return
     sorted_clusters = sorted(partition, key=lambda c: mean_of_top_quintile(affy_lists[':'.join(c)]), reverse=True)
     sorted_cluster_groups = [sorted_clusters[i : i + n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), n_clusters_per_joy_plot)]
     repertoire_size = sum([len(c) for c in sorted_clusters])
@@ -611,9 +615,9 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
     if len(plotvals[xvar]) == 0:
         return tmp_ptvals
     if debug:
-        print '    getting ptile vals%s' % ('' if dbgstr is None else (' for %s' % utils.color('blue', dbgstr)))
-        print '            %-12s N      mean     %s   |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
-        print '    ptile   threshold  taken    %s%-s %s|  N taken  mean %s'  % (utils.color('red', 'rel-') if xia and 'relative' in affy_key else '', 'affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
+        print '              getting ptile vals%s' % ('' if dbgstr is None else (' for %s' % utils.color('blue', dbgstr)))
+        print '                      %-12s N      mean     %s   |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
+        print '              ptile   threshold  taken    %s%-s %s|  N taken  mean %s'  % (utils.color('red', 'rel-') if xia and 'relative' in affy_key else '', 'affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
     max_lb_val = max(plotvals[lb_metric])
     sorted_xvals = sorted(plotvals[xvar], reverse=xia)
     if xia:
@@ -637,7 +641,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
             v1str = ('%8.4f' % numpy.mean(corr_xvals if xia else final_xvar_vals)) if xia else ''
             f1str = '5.0f' if xia else '6.2f'
             f2str = '5.0f' if xia else ('8.2f' if xvar == 'n-ancestor' else '8.6f')
-            print ('   %5.0f   %6.2f     %4d   %s  %'+f1str+'       |  %4d      %-'+f2str) % (percentile, lb_ptile_val, len(final_xvar_vals), v1str, tmp_ptvals[xkey][-1], n_to_take, tmp_ptvals['perfect_vals'][-1])
+            print ('             %5.0f   %6.2f     %4d   %s  %'+f1str+'       |  %4d      %-'+f2str) % (percentile, lb_ptile_val, len(final_xvar_vals), v1str, tmp_ptvals[xkey][-1], n_to_take, tmp_ptvals['perfect_vals'][-1])
         # old way of adding a 'no correlation' line:
         # # add a horizontal line at 50 to show what it'd look like if there was no correlation (this is really wasteful... although it does have a satisfying wiggle to it. Now using a plain flat line [below])
         # shuffled_lb_vals = copy.deepcopy(plotvals[lb_metric])
@@ -726,14 +730,97 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
     add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, affy_key='affinities', only_csv=False, fnames=None, separate_rows=False, add_uids=False, colorvar='is_leaf', max_scatter_plot_size=3000,
-                        max_iclust_plots=10, debug=False):
+def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, debug=False):
+    debug = True
+    # ----------------------------------------------------------------------------------------
+    def modify_lines(slvar, slbounds):
+        # ----------------------------------------------------------------------------------------
+        def null_affy(line, iseq):
+            slval = utils.antnval(line, slvar, iseq) #utils.shm_aa(line, iseq=iseq) if slvar=='shm-aa' else treeutils.smvals(line, slvar, iseq=iseq)
+            return slval < slbounds[0] or slval >= slbounds[1]  # include lower bound, exclude upper (for non-null) to match python slice conventions
+        # ----------------------------------------------------------------------------------------
+        def affy_val(line, iseq):
+            if line['affinities'][iseq] is None or null_affy(line, iseq):
+                return None
+            return line['affinities'][iseq]
+        # ----------------------------------------------------------------------------------------
+        for antn in lines:
+            antn['affinities'] = [affy_val(antn, iseq) for iseq in range(len(antn['unique_ids']))]
+    # ----------------------------------------------------------------------------------------
+    def slice_var(slvar, n_bins=5):
+        # ----------------------------------------------------------------------------------------
+        def add_plot_vals(ix):
+            ymfo = plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=is_true_line, no_plot=True, debug=False) #only_csv=only_csv, fnames=fnames, separate_rows=separate_rows, debug=debug)
+            if ymfo is None:
+                return
+            icvals = []
+            for iclust in range(len(lines)):
+                if all(a is None for a in lines[iclust]['affinities']):
+                    imissing[ix].append(iclust)
+                    continue
+                if len(set(lines[iclust]['affinities']) - set([None])) == 1:  # if all the affinity values are the same we can't (well, shouldn't, and don't any more) make the ptile plots
+                    isame[ix].append(iclust)
+                    continue
+                diff_vals = scanplot.get_ptile_diff_vals(ymfo, iclust=iclust)
+                if len(diff_vals) > 0:
+                    icvals.append(numpy.mean(diff_vals))  # average over top 25% of ptiles (well, default is 25%)
+                else:
+                    imissing[ix].append(iclust)
+            xvals.append(0.5 * (xbins[ix] + xbins[ix+1]))
+            mean_vals.append(numpy.mean(icvals))  # average over clusters (compare to 'for pvkey, ofvals in plotvals.items():' and 'for tau in tvd_keys:' bit in scaplot.make_plots())
+            err_vals.append(numpy.std(icvals, ddof=1) / math.sqrt(len(icvals)))  # standard error on mean (for standard deviation, comment out denominator)
+        # ----------------------------------------------------------------------------------------
+        def nonnullcnt():  # NOTE 'affinities' in <lines> are constantly getting modified
+            return len([a for l in lines for a in l['affinities'] if a is not None])
+        # ----------------------------------------------------------------------------------------
+        all_vals = sorted(utils.antnval(l, slvar, i) for l in lines for i in range(len(l['unique_ids'])))
+        xbins = hutils.autobins(all_vals, n_bins)  # note that this fcn pads a bit to avoid over/underflows
+        if debug:
+            n_tot, n_non_null_cnt = sum(len(l['affinities']) for l in lines), 0
+            initial_n_null = n_tot - nonnullcnt()
+            print '  slicing %s with %d bins from %.4f to %.4f (%d/%d initial null affinities)' % (utils.color('blue', slvar), n_bins, xbins[0], xbins[-1], initial_n_null, n_tot)
+            print '    %s   xmin    xmax  N not null' % utils.color('purple', 'slice')
+        xvals, mean_vals, err_vals = [], [], []
+        imissing, isame = [[] for _ in range(n_bins)], [[] for _ in range(n_bins)]
+        for ix in range(n_bins):  # NOTE len(xbins) is one more than n_bins, for the low edge of the overflow bin
+            modify_lines(slvar, (xbins[ix], xbins[ix+1]))
+            affy_val_set = set(a for l in lines for a in l['affinities']) - set([None])
+            if debug:
+                def fstr(a): return (('%6.4f'%a) if a is not None else utils.color('blue', '   -  '))
+                print '    %s    %7.4f  %7.4f  %5d%s' % (utils.color('purple', str(ix), width=2), xbins[ix], xbins[ix+1], nonnullcnt(), '' if len(affy_val_set)>1 else utils.color('red', '   all affinities the same')) #, '  '.join(fstr(a) for l in lines for a in l['affinities']))
+                n_non_null_cnt += nonnullcnt()
+            if len(affy_val_set) > 1:  # any(a is not None for l in lines for a in l['affinities']) and len(:
+                add_plot_vals(ix)
+            for antn, o_affies in zip(lines, original_affinities):  # gotta reset them each time
+                antn['affinities'] = o_affies
+        if debug:
+            # print '      found %d / %d set to non-null' % (n_non_null_cnt, n_tot)
+            assert n_non_null_cnt == n_tot - initial_n_null  # make sure everyone was set to non null exactly once
+            assert initial_n_null == n_tot - nonnullcnt()  # and that we properly reset everybody to their initial values
+        for ix in range(n_bins):
+            if len(imissing[ix]) > 0:
+                print '        slice %d: missing %d / %d iclusts: %s' % (ix, len(imissing[ix]), len(lines), ' '.join(str(i) for i in imissing[ix]))
+            if len(isame[ix]) > 0:
+                print '        slice %d: all affinity values the same for %d / %d iclusts: %s' % (ix, len(isame[ix]), len(lines), ' '.join(str(i) for i in isame[ix]))
+    
+        fig, ax = plotting.mpl_init()
+        ax.errorbar(xvals, mean_vals, yerr=err_vals) #, color=color, alpha=alpha, linewidth=linewidth, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position)) #, label=legstr(label)
+        fn = plotting.mpl_finish(ax, baseplotdir, slvar)
+    # ----------------------------------------------------------------------------------------
+    original_affinities = [l['affinities'] for l in lines]
+    for slvar in ['affinities', 'n_mutations', 'shm-aa']: #'affinities'
+        slice_var(slvar)
+
+# ----------------------------------------------------------------------------------------
+def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, affy_key='affinities', only_csv=False, no_plot=False, fnames=None, separate_rows=False, add_uids=False,
+                        colorvar='is_leaf', max_scatter_plot_size=3000, max_iclust_plots=10, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
         if colorvar is not None and colorvar == 'is_leaf':
             dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric))  # keeping this here to remind myself how to get the tree if I need it
         if affy_key not in line:
+            if debug: print '  no affy key'
             return plotvals
         for uid, affy in [(u, a) for u, a in zip(line['unique_ids'], line[affy_key]) if a is not None and u in line['tree-info']['lb'][lb_metric]]:
             plotvals['affinity'].append(affy)
@@ -744,6 +831,14 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
             if colorvar is not None and colorvar == 'is_leaf':
                 node = dtree.find_node_with_taxon_label(uid)
                 plotvals['is_leaf'].append(node.is_leaf() if node is not None else None)
+        if debug:  # this is a little confusing cause the min/max here look similar to the top-quintile/max whatever from per-cluster stuff, but i might remove the latter at some point
+            mstrs = ['', '']
+            if len(plotvals['affinity']) > 0:
+                mvals = [mfcn(plotvals['affinity']) for mfcn in (min, max)]
+                mstrs = ['%6.3f'%v for v in mvals]
+                if len(set(mvals)) == 1:
+                    mstrs = [utils.color('red', s) for s in mstrs]
+            print '    %3d   %s %s' % (len(plotvals['affinity']), mstrs[0], mstrs[1]),
         return plotvals
     # ----------------------------------------------------------------------------------------
     def getplotdir(extrastr=''):
@@ -791,6 +886,8 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         return '-vs-'.join([xstr, ystr])
 
     # ----------------------------------------------------------------------------------------
+    if no_plot:
+        only_csv = True
     n_rows = 3
     scfns, wptfns, aptfns = fnames, fnames, fnames
     if separate_rows:  # indices of the rows to which to append each type of plot (if not set, all go on the same row [unless row width exceeds the limit, set elsewhere])
@@ -808,22 +905,24 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         else:  # ok this is hackey
             print '    too many seqs %d >= %d, not making scatter plots' % (sum(len(l['unique_ids']) for l in lines), max_scatter_plot_size)
             utils.prep_dir(getplotdir(), wildlings=['*.svg', '*.yaml'])
-    for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
-        utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
+    if not no_plot:
+        for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
+            utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 
     per_seq_plotvals = {vt : [] for vt in vtypes}  # plot values for choosing single seqs/cells (only among all clusters, since the iclust ones don't need to kept outside the cluster loop)
     per_clust_plotvals = {vt : {sn : [] for sn, _ in cluster_summary_cfg[vt]} for vt in vtypes}  # each cluster plotted as one point using a summary over its cells (e.g. max, mean) for affinity and lb
     pt_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
     # correlation_vals = {'per-seq' : {}, 'per-cluster' : {}}
     if debug:
-        print '                 %s   ' % ''.join([('  %-12s'%vt) for vt in vtypes[:2] for _ in cluster_summary_cfg[vt]])
-        print '  iclust   size %s' % ''.join(('  %-12s'%st) for vt in vtypes[:2] for st, _ in cluster_summary_cfg[vt])
+        print '                     N with    affinity      %s   ' % ''.join([('  %-12s'%vt) for vt in vtypes[:2] for _ in cluster_summary_cfg[vt]])
+        print '      %s   size   affy    min    max    %s' % (utils.color('blue', 'iclust'), ''.join(('  %-12s'%st) for vt in vtypes[:2] for st, _ in cluster_summary_cfg[vt]))
     for iclust, line in enumerate(lines):
         if debug:
-            print '  %3d    %4d' % (iclust, len(line['unique_ids'])),
+            print '      %s    %4d' % (utils.color('blue', str(iclust), width=3), len(line['unique_ids'])),
         iclust_plotvals = get_plotvals(line)  # if it's not in <per_seq_metrics> we still need the affinity values
         if lb_metric in per_seq_metrics:
-            if iclust_plotvals[lb_metric].count(0.) == len(iclust_plotvals[lb_metric]):  # i.e. (atm) lbr on family that's only leaves (it would be nice to have a more sensible way to do this, but I guess it's not really a big deal since I think we're done sampling only leaves)
+            n_zero, n_tot = iclust_plotvals[lb_metric].count(0.), len(iclust_plotvals[lb_metric])
+            if n_zero == n_tot or min(iclust_plotvals['affinity']) == max(iclust_plotvals['affinity']):  # i.e. (atm) lbr on family that's only leaves (it would be nice to have a more sensible way to do this, but I guess it's not really a big deal since I think we're done sampling only leaves)
                 if debug: print ''
                 continue
             for vt in vtypes:
@@ -850,15 +949,16 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         if per_seq_plotvals[lb_metric].count(0.) == len(per_seq_plotvals[lb_metric]):
             return
         # correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes[:2]) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes[:2]])}
-        pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', affy_key=affy_key, debug=debug)  # choosing single cells from from every cell from every cluster together
+        pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', dbgstr='all clusters together', affy_key=affy_key, debug=debug)  # choosing single cells from among all cells with all clusters together
         if len(lines) > 1 and not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
             make_ptile_plot(pt_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(),
                             ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=aptfns, true_inf_str=true_inf_str, n_clusters=len(lines), affy_key=affy_key)
 
-    if lb_metric in per_seq_metrics and 'among-families' not in lb_metric and not only_csv:
+    if lb_metric in per_seq_metrics and 'among-families' not in lb_metric:
         pt_vals['per-seq']['within-families-mean'] = get_mean_ptile_vals(len(lines), pt_vals['per-seq'], 'affinity')  # within-family mean
-        make_ptile_plot(pt_vals['per-seq']['within-families-mean'], 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=None, extra_str='within-cluster-average'),
-                        ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=wptfns, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, affy_key=affy_key)
+        if not only_csv:
+            make_ptile_plot(pt_vals['per-seq']['within-families-mean'], 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=None, extra_str='within-cluster-average'),
+                            ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=wptfns, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, affy_key=affy_key)
 
     # turning of the per-cluster plots for now, since it doesn't really make sense to choose families (and the plotting is the only really slow part)
     # # per-cluster plots
@@ -878,9 +978,12 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     #                 make_ptile_plot(tmp_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(vspstuff=vspdict),
     #                                 xlabel=tmpxlabel(None, vspdict), ylabel=tmpylabel(None, vspdict), title=mtitlestr('per-cluster', lb_metric, short=True), true_inf_str=true_inf_str, affy_key=affy_key)
 
-    with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), 'w') as yfile:
-        yamlfo = {'percentiles' : pt_vals} #, 'correlations' : correlation_vals}
-        json.dump(yamlfo, yfile)
+    yamlfo = {'percentiles' : pt_vals} #, 'correlations' : correlation_vals}
+    if not no_plot:
+        with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), 'w') as yfile:
+            json.dump(yamlfo, yfile)
+
+    return yamlfo
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, separate_rows=False, max_scatter_plot_size=3000, max_iclust_plots=10,

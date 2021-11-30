@@ -213,6 +213,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
                     'relative_kd' : float(line['relative_kd']),
                     'lambda' : line.get('lambda', None),
                     'target_index' : int(line['target_index']),
+                    'target_distance' : float(line['target_distance']),
                 }
         return nodefo
     # ----------------------------------------------------------------------------------------
@@ -268,6 +269,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
         final_line['relative_affinities'] = [1. / nodefo[u]['relative_kd'] for u in final_line['unique_ids']]
         final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
         final_line['nearest_target_indices'] = [nodefo[u]['target_index'] for u in final_line['unique_ids']]
+        final_line['min_target_distances'] = [nodefo[u]['target_distance'] for u in final_line['unique_ids']]
         ftree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))
         if args.debug:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ftree), padwidth=12)

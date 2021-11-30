@@ -3,10 +3,10 @@ import math
 from hist import Hist
 
 # ----------------------------------------------------------------------------------------
-def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fcn/signature is weird because it mimics an old root fcn (for search: log_bins log bins)
+def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fcn/signature is weird because it mimics an old root fcn (for search: log_bins log bins) UPDATE see autobins() fcn below
     assert len(values) > 0
     values = sorted(values)
-    if is_log_x:
+    if is_log_x:  # NOTE similarity to get_auto_y_ticks() and get_cluster_size_xticks()
         log_xmin = math.log(pow(10.0, math.floor(math.log10(values[0]))))  # round down to the nearest power of 10 from the first entry
         log_xmax = math.log(pow(10.0, math.ceil(math.log10(values[-1]))))  # round up to the nearest power of 10 from the last entry
         log_dx = (log_xmax - log_xmin) / float(n_bins)
@@ -30,6 +30,12 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fc
         dx = float(xmax - xmin) / n_bins  # then recalculate dx
         for ib in range(n_bins+1):
             xbins[ib] = xmin + ib*dx
+
+# ----------------------------------------------------------------------------------------
+def autobins(values, n_bins, is_log=False, var_type='float'):  # just making a better interface for set_bins()
+    xbins = [0. for _ in range(n_bins+1)]  # the +1 is for the lower edge of the overflow bin (hist.scratch_init() adds low edge of underflow)
+    set_bins(values, n_bins, is_log, xbins, var_type=var_type)
+    return xbins
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_list_of_values(vlist, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False):
@@ -59,7 +65,7 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
         n_bins = bin_labels[-1] - bin_labels[0] + 1 if not is_log_x else default_n_bins
 
     hist = None
-    xbins = [0. for _ in range(n_bins+1)]  # NOTE the +1 is 'cause you need the lower edge of the overflow bin
+    xbins = [0. for _ in range(n_bins+1)]  # NOTE the +1 is 'cause you need the lower edge of the overflow bin (hist.scratch_init() adds low edge of underflow)
     if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work out what they should be
         if var_type == 'string':
             set_bins(bin_labels, n_bins, is_log_x, xbins, var_type)

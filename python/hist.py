@@ -8,6 +8,7 @@ import utils
 # ----------------------------------------------------------------------------------------
 class Hist(object):
     """ a simple histogram """
+    # NOTE see autobins() or set_bins() in hutils.py for log/str binning (don't need them for linear/uniform float bins)
     def __init__(self, n_bins=None, xmin=None, xmax=None, sumw2=False, xbins=None, template_hist=None, fname=None, value_list=None, weight_list=None, init_int_bins=False, xtitle='', ytitle='counts', title=''):  # if <sumw2>, keep track of errors with <sum_weights_squared>
         # <xbins>: low edge of all non-under/overflow bins, plus low edge of overflow bin (i.e. low edge of every bin except underflow). Weird, but it's root conventions and it's fine
         self.low_edges, self.bin_contents, self.bin_labels = [], [], []

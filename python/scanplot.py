@@ -135,10 +135,35 @@ def readlog(fname, metric, locus, ptntype):
         return {'time-reqd' : tvals[locus]}
 
 # ----------------------------------------------------------------------------------------
+def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
+    # ----------------------------------------------------------------------------------------
+    def yval_key(subfo):
+        if ptilestr == 'affinity' and 'mean_affy_ptiles' in subfo:  # old-style files used shortened version
+            return 'mean_affy_ptiles'
+        else:
+            return 'mean_%s_ptiles' % ptilestr
+    # ----------------------------------------------------------------------------------------
+    if 'percentiles' in yamlfo:  # new-style files (note that 'percentiles' will still be in there even if we didn't make the ptile plots)
+        subfo = yamlfo['percentiles'] #['distr-hists' if distr_hists else 'percentiles']
+        if per_x == 'per-seq':
+            subfo = subfo['per-seq'].get('all-clusters' if iclust is None else 'iclust-%d' % iclust)  # old: .get(xxx, subfo) distr-hists don't have 'per-seq'/'per-cluster' level
+        else:
+            subfo = subfo['per-cluster'][choice_grouping]
+    else:  # old-style files
+        subfo = yamlfo
+        if iclust is not None:
+            if 'iclust-%d' % iclust not in subfo:
+                print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')  # I think it's just going to crash on the next line anyway
+            subfo = subfo['iclust-%d' % iclust]
+    if subfo is None:  # i think this usually happens when there's no values for a particular cluster
+        return []
+    return [abs(pafp - afp) for lbp, afp, pafp in zip(subfo['lb_ptiles'], subfo[yval_key(subfo)], subfo['perfect_vals']) if lbp > min_ptile_to_plot]
+
+# ----------------------------------------------------------------------------------------
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
-def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=None, per_x=None, choice_grouping=None, min_ptile_to_plot=75., use_relative_affy=False, metric_extra_str='',
+def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=None, per_x=None, choice_grouping=None, use_relative_affy=False, metric_extra_str='',
                locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, make_legend=False, debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def pvl_list():
@@ -220,31 +245,6 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
         pvlabel[0] = '; '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey
     # ----------------------------------------------------------------------------------------
-    def get_ytmpfo(yamlfo, iclust=None):
-        if 'percentiles' in yamlfo:  # new-style files
-            ytmpfo = yamlfo['distr-hists' if distr_hists else 'percentiles']
-            if per_x == 'per-seq':
-                ytmpfo = ytmpfo.get('per-seq', ytmpfo).get('all-clusters' if iclust is None else 'iclust-%d' % iclust)  # distr-hists don't have 'per-seq'/'per-cluster' level
-            else:
-                ytmpfo = ytmpfo.get('per-cluster', ytmpfo)[choice_grouping]
-        else:  # old-style files
-            ytmpfo = yamlfo
-            if iclust is not None:
-                if 'iclust-%d' % iclust not in ytmpfo:
-                    print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')  # I think it's just going to crash on the next line anyway
-                ytmpfo = ytmpfo['iclust-%d' % iclust]
-        return ytmpfo
-    # ----------------------------------------------------------------------------------------
-    def yval_key(ytmpfo):
-        if ptilestr == 'affinity' and 'mean_affy_ptiles' in ytmpfo:  # old-style files used shortened version
-            return 'mean_affy_ptiles'
-        else:
-            return 'mean_%s_ptiles' % ptilestr
-    # ----------------------------------------------------------------------------------------
-    def get_ptile_diff_vals(ytmpfo, iclust=None):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
-        ytmpfo = get_ytmpfo(ytmpfo, iclust=iclust)
-        return [abs(pafp - afp) for lbp, afp, pafp in zip(ytmpfo['lb_ptiles'], ytmpfo[yval_key(ytmpfo)], ytmpfo['perfect_vals']) if lbp > min_ptile_to_plot]
-    # ----------------------------------------------------------------------------------------
     def get_dhist_vals(ytmpfo, iclust=None):  # specify args.distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
         # ----------------------------------------------------------------------------------------
         def gethist(tkey):
@@ -320,7 +320,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     nd = str(0 if lo_edge >= 10. else 1)
                     print '%s%d/%d=%.2f (%s)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, fval, ('%3.'+nd+'f')%lo_edge),
             else:
-                diff_vals = get_ptile_diff_vals(ytmpfo, iclust=iclust)
+                diff_vals = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, per_x=per_x, choice_grouping=choice_grouping)
                 if len(diff_vals) == 0:
                     missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
                     return

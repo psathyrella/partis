@@ -2313,30 +2313,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname, no_fail=False):
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
-        if vname in cln:
-            # assert vname in utils.linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
-            if vname in utils.linekeys['per_family']:
-                return cln[vname]
-            else:
-                return cln[vname][iseq]
-        # elif vname == 'cell-types':
-        #     assert False  # i think i don't get here?
-        #     return None
-        elif vname == 'aa-cfrac':
-            return lb_cons_dist(cln, iseq, aa=True, frac=True)
-        elif vname == 'shm-aa':
-            return utils.shm_aa(cln, iseq=iseq)
-        elif vname == 'aa-cdist':
-            return -smvals(cln, 'cons-dist-aa', iseq=iseq)
-        elif vname in selection_metrics:
-            return smvals(cln, vname, iseq=iseq)
-        elif vname == 'multipy':  # multiplicity
-            return utils.get_multiplicity(cln, iseq=iseq)
-        else:
-            if no_fail:
-                return None
-            else:
-                raise Exception('unsupported var \'%s\' (well, we don\'t know how to get its value)' % vname)
+        return utils.antnval(cln, vname, iseq=iseq, no_fail=no_fail)
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
         if val is None:

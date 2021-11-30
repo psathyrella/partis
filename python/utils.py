@@ -618,7 +618,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices'] + \
+                       'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices', 'min_target_distances'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -945,6 +945,30 @@ def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get val
     if use_default and key not in line or uid not in line['unique_ids']:
         return default_val
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
+
+# ----------------------------------------------------------------------------------------
+def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
+    if key in antn:
+        # assert key in linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
+        if key in linekeys['per_family']:
+            return antn[key]
+        else:
+            return antn[key][iseq]
+    elif key in ['aa-cfrac', 'cons-frac-aa']:  # NOTE this doesn't check to see if it's there (i think because we don't store it), it just calculates it
+        return treeutils.lb_cons_dist(antn, iseq, aa=True, frac=True)
+    elif key == 'shm-aa':  # NOTE this doesn't either, which [also] may be worth fixing eventually
+        return shm_aa(antn, iseq=iseq)
+    elif key == 'aa-cdist':
+        return -treeutils.smvals(antn, 'cons-dist-aa', iseq=iseq)
+    elif key in treeutils.selection_metrics:
+        return treeutils.smvals(antn, key, iseq=iseq)
+    elif key == 'multipy':  # multiplicity
+        return get_multiplicity(antn, iseq=iseq)
+    else:
+        if use_default:
+            return default_val
+        else:
+            raise Exception('key \'%s\' not found in line' % key)
 
 # ----------------------------------------------------------------------------------------
 def n_dups(line):  # number of duplicate sequences summed over all iseqs (note: duplicates do not include the actual uids/sequences in the annotation) UPDATE: they also don't include 'multiplicities'
@@ -2875,18 +2899,7 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
     if uid_extra_str_label is None:
         uid_extra_str_label = ''
     for ekey in extra_print_keys:
-        if ekey in treeutils.selection_metrics:
-            if ekey == 'cons-frac-aa':  # arg this sucks (this is because we don't store/use the frac anywhere, which maybe is wrong, or maybe we shouldn't be messing with non full length sequences). Either way, I'm not going to start storing both of them.
-                vlist = [treeutils.lb_cons_dist(line, i, aa=True, frac=True) for i in range(len(line['unique_ids']))]  # probably has to recalculate cons seqs
-            else:
-                vlist = treeutils.smvals(line, ekey, nullval='?')  # don't really want to try to recalculate if they're not there, since for some we'd need trees, and yadda yadda
-        elif ekey == 'shm-aa':  # ok there's probably a better way to do this
-            vlist = [shm_aa(line, iseq=i) for i in range(len(line['unique_ids']))]
-        else:
-            if ekey in line and ekey in linekeys['per_seq']:
-                vlist = line[ekey]
-            else:
-                vlist = [line.get(ekey, color('blue', '-')) for _ in line['unique_ids']]
+        vlist = [antnval(line, ekey, i, use_default=True, default_val=color('blue', '-')) for i in range(len(line['unique_ids']))]
         # tw = str(max(len(ekey), max(len(vstr(v)) for v in vlist)))  # maybe include len of ekey in width?
         tw = max([len(vstr(v)) for v in vlist] + [len(ekey)])
         uid_extra_str_label += '  ' + wfmt(ekey, tw, jfmt='-')
