@@ -89,7 +89,8 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         # return  # NOTE you *cannot* return here, since if we don't actually add the stuff then it later (when rendering) crashes with a key error deep within ete due to the <start_column> being wrong/inconsistent
     assert add_sign in [None, '-', '+']
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
-    val_list = plotting.get_leg_entries(n_entries=n_entries, vals=all_vals, min_val=get_scale_min(varname, all_vals))
+    min_val, max_val = get_scale_min(varname, all_vals), max(all_vals)
+    val_list = plotting.get_leg_entries(n_entries=n_entries, min_val=min_val, max_val=max_val)
     # if add_sign is not None and add_sign == '-':  # for negative changes, we have the cmap using abs() and want to legend order to correspond
     #     val_list = reversed(val_list)  # arg, this breaks something deep in the legend maker, not sure what
     key_list = [None for _ in val_list]

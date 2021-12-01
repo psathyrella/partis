@@ -799,7 +799,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
     def slice_var(slvar, n_bins=5):
         # ----------------------------------------------------------------------------------------
         def add_plot_vals(ix):
-            ymfo = plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=is_true_line, no_plot=True, debug=False) #only_csv=only_csv, fnames=fnames, separate_rows=separate_rows, debug=debug)
+            ymfo = plot_lb_vs_affinity(None, lines, lb_metric, is_true_line=is_true_line, no_plot=True, debug=False) #only_csv=only_csv, fnames=fnames, separate_rows=separate_rows, debug=debug)
             if ymfo is None:
                 return
             icvals = []
@@ -853,12 +853,17 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
                 print '        slice %d: all affinity values the same for %d / %d iclusts: %s' % (ix, len(isame[ix]), len(lines), ' '.join(str(i) for i in isame[ix]))
     
         fig, ax = plotting.mpl_init()
-        ax.errorbar(xvals, mean_vals, yerr=err_vals) #, color=color, alpha=alpha, linewidth=linewidth, markersize=markersize, marker='.', linestyle=linestyle)  #, title='position ' + str(position)) #, label=legstr(label)
-        fn = plotting.mpl_finish(ax, baseplotdir, slvar)
+        ax.errorbar(xvals, mean_vals, yerr=err_vals, linewidth=2, markersize=15, marker='.')  #, title='position ' + str(position)) #, label=legstr(label)
+        plotname = '%s-%s-slice' % (lb_metric, slvar)
+        fn = plotting.mpl_finish(ax, baseplotdir + '/slices', plotname, xlabel=mtitlestr('per-seq', slvar), ylabel='quantile to perfect')
+        add_fn(fnames, fn=fn)
     # ----------------------------------------------------------------------------------------
+    add_fn(fnames, new_row=True)
     original_affinities = [l['affinities'] for l in lines]
-    for slvar in ['affinities', 'n_mutations', 'shm-aa']: #'affinities'
+    for slvar in ['affinities', 'n_mutations', 'shm-aa', 'min_target_distances']: #'affinities'
+    # for slvar in ['min_target_distances']:
         slice_var(slvar)
+    add_fn(fnames, new_row=True)
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, affy_key='affinities', only_csv=False, no_plot=False, fnames=None, separate_rows=False, add_uids=False,

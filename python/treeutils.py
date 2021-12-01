@@ -1697,10 +1697,12 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
     fnames = lbplotting.add_fn(None, init=True)
 
     if has_affinities:
-        affy_fnames = []
+        affy_fnames, slice_fnames = [], []
         for mtr in [m for m in metrics_to_calc if m in affy_metrics]:
             lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=only_csv, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
-        fnames += [['header', 'affinity metrics']] + affy_fnames
+            lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=only_csv, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
+            # lbplotting.make_lb_scatter_plots('affinity-ptile', plotdir, mtr, antn_list, yvar=mtr+'-ptile', fnames=fnames, is_true_line=is_simu)
+        fnames += [['header', 'affinity metrics']] + affy_fnames + slice_fnames
         if not only_csv:
             fnames.append([])
             for mtr in metrics_to_calc:

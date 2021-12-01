@@ -624,7 +624,7 @@ linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_
                       functional_columns
 linekeys['hmm'] = ['logprob', 'errors', 'tree-info', 'alternative-annotations'] + [r + '_per_gene_support' for r in regions]
 linekeys['sw'] = ['k_v', 'k_d', 'all_matches', 'padlefts', 'padrights']
-linekeys['simu'] = ['reco_id', 'affinities', 'relative_affinities', 'lambdas', 'tree', 'target_seqs', 'nearest_target_indices', 'heavy-chain-correlation-info']
+linekeys['simu'] = ['reco_id', 'affinities', 'relative_affinities', 'lambdas', 'tree', 'target_seqs', 'nearest_target_indices', 'min_target_distances', 'heavy-chain-correlation-info']
 
 # keys that are required to specify a naive rearrangement event
 minimal_linekeys = [r+'_gene' for r in regions] + [b+'_insertion' for b in boundaries] + [e+'_del' for e in real_erosions]

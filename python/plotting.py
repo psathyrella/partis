@@ -132,11 +132,11 @@ def get_leg_entries(n_entries=5, vals=None, min_val=None, max_val=None, colorfcn
     if min_val == max_val:
         max_val = min_val + (1 if min_val is 0 else 0.1 * min_val)
     max_diff = max(utils.eps, (max_val - min_val) / float(n_entries - 1))
-    val_list = list(numpy.arange(min_val, max_val + utils.eps, max_diff))  # first value is exactly <min_val>, last value is exactly <max_val> (eps is to keep it from missing the last one)
+    leg_vals = list(numpy.arange(min_val, max_val + utils.eps, max_diff))  # first value is exactly <min_val>, last value is exactly <max_val> (eps is to keep it from missing the last one)
     if colorfcn is None:  # just return the values, let the calling fcn work out the colors
-        return val_list
+        return leg_vals
     else:
-        leg_entries = [(v, {'color' : colorfcn(v)}) for v in val_list]
+        leg_entries = [(v, {'color' : colorfcn(v)}) for v in leg_vals]
         return collections.OrderedDict(leg_entries)
 
 # ----------------------------------------------------------------------------------------
