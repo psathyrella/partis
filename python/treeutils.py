@@ -1852,7 +1852,7 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
         inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, only_use_best_partition=only_use_best_partition, glfo=glfo)  # NOTE these continue to be modified (by removing clusters we don't want) further down, and then they get passed to the plotting functions
 
     # get tree and calculate metrics for inferred lines
-    if inf_lines_to_use is not None:
+    if inf_lines_to_use is not None and true_lines_to_use is None:  # eh, maybe i can get away with not running inferred stuff on true lines?
         n_before = len(inf_lines_to_use)
         inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_after = len(inf_lines_to_use)  # after removing the small ones
