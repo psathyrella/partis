@@ -86,15 +86,10 @@ def get_size(vmin, vmax, val):
 def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):  # NOTE very similar to add_smap_legend() in plot_2d_scatter() in python/lbplotting.py
     if len(all_vals) == 0:
         all_vals = [-1, 1]  # um, maybe this is ok?
-        # return  # NOTE same as below, you can't return here
+        # return  # NOTE you *cannot* return here, since if we don't actually add the stuff then it later (when rendering) crashes with a key error deep within ete due to the <start_column> being wrong/inconsistent
     assert add_sign in [None, '-', '+']
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
-    min_val, max_val = get_scale_min(varname, all_vals), max(all_vals)
-    if min_val == max_val:
-        max_val = min_val + (1 if min_val is 0 else 0.1 * min_val)
-        # return  # NOTE you *cannot* return here, since if we don't actually add the stuff then it later (when rendering) crashes with a key error deep within ete due to the <start_column> being wrong/inconsistent
-    max_diff = max(utils.eps, (max_val - min_val) / float(n_entries - 1))
-    val_list = list(numpy.arange(min_val, max_val + utils.eps, max_diff))  # first value is exactly <min_val>, last value is exactly <max_val> (eps is to keep it from missing the last one)
+    val_list = plotting.get_leg_entries(n_entries=n_entries, vals=all_vals, min_val=get_scale_min(varname, all_vals))
     # if add_sign is not None and add_sign == '-':  # for negative changes, we have the cmap using abs() and want to legend order to correspond
     #     val_list = reversed(val_list)  # arg, this breaks something deep in the legend maker, not sure what
     key_list = [None for _ in val_list]

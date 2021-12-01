@@ -23,6 +23,7 @@ import treeutils
 import plotting
 import hutils
 import scanplot
+import mds
 
 # ----------------------------------------------------------------------------------------
 # this name is terrible, but it's complicated and I can't think of a better one
@@ -277,8 +278,39 @@ def plot_bcr_phylo_target_attraction(plotdir, event, legstr='', fnames=None):  #
     add_fn(fnames, fn=fn) #, new_row=True)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_target_distance_label, lpair=None):
-    utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+def plot_bcr_phylo_mds(plotdir, line, legstr='', fnames=None):
+    # labels = {u : i for u, i in zip(line['unique_ids'], line['nearest_target_indices'])}
+    labels = {u : int(i) for u, i in zip(line['unique_ids'], line['min_target_distances'])}  # NOTE truncating to int here
+    color_scale_vals = {u : i for u, i in zip(line['unique_ids'], line['min_target_distances'])}
+    seqfos = utils.seqfos_from_line(line, aa=True)
+    qtis = {}
+    for itg, tseq in enumerate(line['target_seqs']):
+        tid = 'target-%d'%itg
+        seqfos.append({'name' : tid, 'seq' : utils.ltranslate(tseq)})
+        qtis[tid] = tid
+        # color_scale_vals[tid] = 0  # it's better to just not have it there since it often screws up the scale (e.g. if it's far from the other seqs)
+        # labels[tid] = 0
+    plotname = 'mds'
+    if legstr != '':
+        plotname += '-' + legstr
+    # color_scale_vals = None
+    labels = None
+    leg_title = 'target dist.'
+    mds.run_bios2mds(2, None, seqfos, plotdir + '/work', 1, aligned=True, remove_duplicates=True, plotdir=plotdir, plotname=plotname, queries_to_include=qtis, title='', leg_title=leg_title, cmapstr='viridis', color_scale_vals=color_scale_vals, labels=labels)
+    os.rmdir(plotdir + '/work')
+    add_fn(fnames, fn='%s/%s.svg'%(plotdir, plotname), new_row=True)
+    add_fn(fnames, fn='%s/mds-legend.svg'%plotdir)
+
+# ----------------------------------------------------------------------------------------
+def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_target_distance_label, lpair=None, plot_mds=False):
+    # ----------------------------------------------------------------------------------------
+    def pltevt(evt, legstr=''):
+        plot_bcr_phylo_kd_vals(plotdir, evt, legstr=legstr, tdlabel=metric_for_target_distance_label, fnames=fnames)
+        plot_bcr_phylo_target_attraction(plotdir, evt, legstr=legstr, fnames=fnames)
+        if plot_mds:
+            plot_bcr_phylo_mds(plotdir, evt, fnames=fnames)  # eh, doesn't really show anything useful (e.g. distance in plot doesn't relate well at all to target distance)
+    # ----------------------------------------------------------------------------------------
+    utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'], subdirs=['work'] if plot_mds else None)
     fnames = add_fn(None, init=True)
 
     legstr = '' if lpair is None else '+'.join(lpair)+' '
@@ -289,15 +321,11 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
 
     if lpair is None:
         assert len(events) == 1
-        plot_bcr_phylo_kd_vals(plotdir, events[0], tdlabel=metric_for_target_distance_label, fnames=fnames)
-        plot_bcr_phylo_target_attraction(plotdir, events[0], fnames=fnames)
+        pltevt(events[0])
     else:
         assert len(events) == 2
         for ltmp, evt in zip(lpair, events):
-            plot_bcr_phylo_kd_vals(plotdir, evt, legstr=ltmp, tdlabel=metric_for_target_distance_label, fnames=fnames)
-            plot_bcr_phylo_target_attraction(plotdir, evt, legstr=ltmp, fnames=fnames)
-
-    add_fn(fnames, new_row=True)
+            pltevt(evt, legstr=ltmp)
 
     plotting.make_html(plotdir, fnames=fnames)
 
@@ -311,6 +339,7 @@ def get_tree_from_line(line, is_true_line, aa=False):
     return line['tree-info']['lb']['%stree'%('aa-' if aa else '')]
 
 # ----------------------------------------------------------------------------------------
+# NOTE that this isn't symmetric wrt x/y vars -- some combos require one var to be x, and the other y (otherwise it'll crash cause it can't figure out how to calculate the values)
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
                           add_jitter=False, min_ptile=80., n_iclust_plot_fnames=None, use_relative_affy=False, queries_to_include=None, add_stats=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
     if only_overall and only_iclust:
@@ -415,8 +444,8 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
 
         for iseq, uid in enumerate(line['unique_ids']):
             xval = xvalfcn(iseq)
-            if xvar == 'affinity-ptile' and '-ptile' in yvar and xvalfcn(iseq) < min_ptile:  # and yvalfcn(iseq) < min_ptile:  the number of cells with high lbi but low affinity (last, commented criterion) is just too small to bother plotting -- all our errors come from the other direction
-                continue
+            # if xvar == 'affinity-ptile' and '-ptile' in yvar and xvalfcn(iseq) < min_ptile:  # and yvalfcn(iseq) < min_ptile:  the number of cells with high lbi but low affinity (last, commented criterion) is just too small to bother plotting -- all our errors come from the other direction
+            #     continue
             yval = yvalfcn(iseq)
             if 'lbr' in yvar and yval == 0:
                 continue

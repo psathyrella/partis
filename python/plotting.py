@@ -14,6 +14,7 @@ import csv
 import numpy
 import operator
 import itertools
+import collections
 
 import utils
 import plotconfig
@@ -121,6 +122,22 @@ def get_smap_color(smap, info, key=None, val=None):  # specify *either* <key> or
         val = info[key]
     rgb_code = smap.to_rgba(val)[:3]
     return rgb_to_hex(rgb_code)
+
+# ----------------------------------------------------------------------------------------
+def get_leg_entries(n_entries=5, vals=None, min_val=None, max_val=None, colorfcn=None):
+    if min_val is None:
+        min_val = min(vals)
+    if max_val is None:
+        max_val = max(vals)
+    if min_val == max_val:
+        max_val = min_val + (1 if min_val is 0 else 0.1 * min_val)
+    max_diff = max(utils.eps, (max_val - min_val) / float(n_entries - 1))
+    val_list = list(numpy.arange(min_val, max_val + utils.eps, max_diff))  # first value is exactly <min_val>, last value is exactly <max_val> (eps is to keep it from missing the last one)
+    if colorfcn is None:  # just return the values, let the calling fcn work out the colors
+        return val_list
+    else:
+        leg_entries = [(v, {'color' : colorfcn(v)}) for v in val_list]
+        return collections.OrderedDict(leg_entries)
 
 # ----------------------------------------------------------------------------------------
 # returns modified copy of input list
@@ -746,7 +763,7 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
     plt.close()
 
 # ----------------------------------------------------------------------------------------
-def plot_legend_only(leg_entries, plotdir, plotname, title=None):
+def plot_legend_only(leg_entries, plotdir, plotname, title=None, n_digits=None):
     if len(leg_entries) == 0:
         return
     fig = plt.figure()
@@ -754,6 +771,8 @@ def plot_legend_only(leg_entries, plotdir, plotname, title=None):
     figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(leg_entries) / 4.))
     ax = fig.add_subplot(111)
     for tlab, lfo in leg_entries.items():
+        if n_digits is not None and tlab is not None:
+            tlab = utils.round_to_n_digits(tlab, 2)
         ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
     handles, labels = ax.get_legend_handles_labels()
     figlegend.legend(handles, labels, 'center', title=title)

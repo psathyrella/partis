@@ -6,6 +6,7 @@ import scipy
 import numpy
 import itertools
 import subprocess
+import collections
 
 import utils
 from clusterpath import ClusterPath
@@ -99,7 +100,7 @@ def read_component_file(mdsfname, n_components, seqfos):
     return pcvals
 
 # ----------------------------------------------------------------------------------------
-def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_scale_vals=None, hexbin=False, title=None):
+def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_scale_vals=None, hexbin=False, title=None, leg_title=None, cmapstr='Blues'):
     import plotting
     # TODO switch to mpl_init/mpl_finalize
     import matplotlib
@@ -132,6 +133,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
             # plt.title(title, fontweight='bold')  # wtf, doesn't work
             fig.text(0.4, 0.9, title, fontsize=15)  # , color='red'
 
+        # plt.colorbar()
         plt.savefig(svgfname)
         plt.close()
 
@@ -145,15 +147,21 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
         assert color_scale_vals is None
         if partition is None:
             def keyfunc(q):  # should really integrate this with utils.collapse_naive_seqs()/utils.split_partition_with_criterion()
-                return labels[q]
-            partition = [list(group) for _, group in itertools.groupby(sorted(pcvals, key=keyfunc), key=keyfunc)]
+                return labels.get(q)
+            leg_entries, partition = collections.OrderedDict(), []
+            for igroup, (gval, group) in enumerate(itertools.groupby(sorted(pcvals, key=keyfunc), key=keyfunc)):
+                leg_entries[gval] = {'color' : colors[igroup%len(colors)], 'alpha' : 0.4}
+                partition.append(list(group))
         if len(partition) > len(colors):
-            raise Exception('more clusters/labels %d than colors %d' % (len(partition), len(colors)))
-        color_map = {uid : colors[iclust] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
+            print '  %s more clusters/labels %d than colors %d' % (utils.wrnstr(), len(partition), len(colors))
+        color_map = {uid : colors[iclust%len(colors)] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
     elif color_scale_vals is not None:  # map with a number for each sequence (e.g. number of mutations) that we use to make a new color scale
-        cmap = plt.cm.Blues  # 'Blues'
-        norm = plotting.get_color_norm([v for k, v in color_scale_vals.items() if k != '_naive'])
-        color_map = {uid : cmap(norm(color_scale_vals[uid])) for uid in pcvals}
+        cmap = plt.cm.get_cmap(cmapstr) #'Blues') #viridis plt.cm.Blues  # 'Blues'
+        all_vals = [v for k, v in color_scale_vals.items() if k != '_naive']
+        norm = plotting.get_color_norm(all_vals)
+        color_map = {uid : cmap(norm(color_scale_vals[uid])) for uid in pcvals if uid in color_scale_vals}
+        leg_entries = plotting.get_leg_entries(vals=all_vals, colorfcn=lambda x: cmap(norm(x)))
+    plotting.plot_legend_only(leg_entries, plotdir, 'mds-legend', n_digits=2, title=leg_title)
 
     for ipair in range(0, n_components - 1, 2):
         pcstr = '' if n_components == 2 else ('-pc-%d-vs-%d' % (ipair, ipair + 1))
@@ -162,7 +170,7 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
 # ----------------------------------------------------------------------------------------
 def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=False, reco_info=None, region=None,
                  max_runs=100, max_iterations=1000, method='euclidean',
-                 plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, labels=None, title=None, remove_duplicates=False, debug=False):
+                 plotdir=None, plotname='mds', queries_to_include=None, color_scale_vals=None, labels=None, title=None, leg_title=None, remove_duplicates=False, cmapstr='Blues', debug=False):
     workdir = base_workdir + '/mds'
     msafname = workdir + '/msa.fa'
     mdsfname = workdir + '/components.txt'
@@ -235,10 +243,10 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
     plotstart = time.time()
     if plotdir is not None:
         # utils.prep_dir(plotdir, wildlings=['*.svg'])
-        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title)
+        plot_mds(n_components, pcvals, plotdir, plotname, partition=partition if n_clusters is not None else None, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, labels=labels, title=title, leg_title=leg_title, cmapstr=cmapstr)
         if reco_info is not None:
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
-            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title)
+            plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title, leg_title=leg_title, cmapstr=cmapstr)
     if not debug:  # this isn't a great way to do this, but I don't want to deal with finding all the calling functions, I just want to add some debug printing to this fcn
         print '    %5.1f  %5.1f' % (rstop - rstart, time.time() - plotstart),
 

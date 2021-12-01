@@ -1946,7 +1946,7 @@ def old_bio_cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=F
     return cons_seq
 
 # ----------------------------------------------------------------------------------------
-def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False):
+def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False):  # for search: get_seqfos()
     tstr = '_aa' if aa else ''
     skey = 'input_seqs' if use_input_seqs else 'seqs'
     seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m if m is not None else 1} for u, s, m in zip(line['unique_ids'], line[skey+tstr], get_multiplicities(line))]
