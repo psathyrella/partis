@@ -130,7 +130,7 @@ def add_fn(fnames, fn=None, init=False, n_per_row=4, new_row=False):
     return fnames
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=7, title='', xlabel=''):
+def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=7, title='', xlabel='', fnames=None):
     import joypy
     # ----------------------------------------------------------------------------------------
     def plot_this_time(otime, numpyhists):
@@ -194,18 +194,41 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
     pre_fig, pre_ax = plotting.mpl_init()  # not sure to what extent these really get used after joypy is done with things
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')  # i don't know why it has to warn me that it's clearing the fig/ax I'm passing in, and I don't know how else to stop it
-        fig, axes = joypy.joyplot(jpdata, labels=all_ylabels, fade=True, hist=True, overlap=0.5, ax=pre_ax, x_range=(xmin_filled, xmax_filled), bins=int(xmax_filled - xmin_filled), xlabelsize=15) #, ylabelsize=15)
+        fig, axes = joypy.joyplot(jpdata, labels=all_ylabels, fade=True, hist=True, overlap=1., ax=pre_ax, x_range=(xmin_filled, xmax_filled), bins=int(xmax_filled - xmin_filled), xlabelsize=15) #, ylabelsize=15)
     # xtextpos = 0.85 * (xmax_filled - xmin_filled) + xmin_filled  # this is from before I found transform=ax.transAxes, but I don't want to remove it yet
     fsize = 15
     for ax, lab in zip(axes, all_xtralabels):
         ax.text(0.85, 0.2, lab, fontsize=fsize, transform=ax.transAxes)
     fig.text(0.03, 0.9, 'generation', fontsize=fsize)
-    fig.text(0.8, 0.87, '(mean, N cells)', fontsize=fsize)
+    fig.text(0.77, 0.9, '(mean, N cells)', fontsize=fsize)
     # NOTE do *not* set your own x ticks/labels in the next line, since they'll be in the wrong place (i.e. not the same as where joypy puts them) (also note, the stupid y labels don't work, but setting them on the joyplot axes also doesn't work)
-    plotting.mpl_finish(pre_ax, plotdir, plotname, title=title, xlabel=xlabel) #, ylabel='generation') #, leg_loc=(0.7, 0.45)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    fn = plotting.mpl_finish(pre_ax, plotdir, plotname, title=title, xlabel=xlabel) #, ylabel='generation') #, leg_loc=(0.7, 0.45)) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_kd_vals(plotdir, event, legstr=''):
+def plot_bcr_phylo_kd_vals(plotdir, event, legstr='', tdlabel='', fnames=None):
+    # ----------------------------------------------------------------------------------------
+    def scatter_plot(xvar, xlabel, yvar='affinity', ylabel='1/Kd', jitter=''):
+        # # new_cmap = plotting.truncate_colormap(plt.cm.Blues, 0, 1)
+        # # ax.hexbin(kd_changes, shms, gridsize=25, cmap=plt.cm.Blues) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
+        plotname = '%s-vs-%s' % (xvar, yvar)
+        if legstr != '':
+            plotname += '-' + legstr
+        fn = plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, '%s sampled cells'%legstr, xvar=xvar, xlabel=xlabel, jitter=jitter, jitter_fracs={v : 0.05 if 'aa' in v else 0.01 for v in (xvar, yvar)})
+        add_fn(fnames, fn=fn)
+    # ----------------------------------------------------------------------------------------
+    # scatter plot of kd/affinity vs shm
+    plotvals = {'shm-nuc' : [], 'shm-aa' : [], 'target-distance' : [], 'affinity' : []}
+    for iseq, uid in enumerate(event['unique_ids']):
+        plotvals['shm-nuc'].append(event['n_mutations'][iseq])
+        plotvals['shm-aa'].append(utils.antnval(event, 'shm-aa', iseq))
+        plotvals['target-distance'].append(utils.antnval(event, 'min_target_distances', iseq))
+        plotvals['affinity'].append(event['affinities'][iseq])
+    scatter_plot('shm-nuc', 'N nuc mutations', jitter='x')
+    scatter_plot('shm-aa', 'N AA mutations', jitter='x')
+    scatter_plot('target-distance', '%s distance to nearest target seq' % tdlabel) #, jitter=True)
+    scatter_plot('target-distance', '%s distance to nearest target seq' % tdlabel, yvar='shm-aa', ylabel='N AA mutations', jitter='xy')
+
     # make kd changes histogram
     kd_changes = []
     dtree = treeutils.get_dendro_tree(treestr=event['tree'])
@@ -229,24 +252,11 @@ def plot_bcr_phylo_kd_vals(plotdir, event, legstr=''):
         plotname = 'kd-changes'
         if legstr != '':
             plotname += '-' + legstr
-        plotting.mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches', log='y', title=legstr) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
-
-    # scatter plot of kd vs shm
-    plotvals = {'shm' : [], 'kd_vals' : []}
-    for iseq, uid in enumerate(event['unique_ids']):
-        plotvals['shm'].append(event['n_mutations'][iseq])
-        plotvals['kd_vals'].append(1. / event['affinities'][iseq])
-    # new_cmap = plotting.truncate_colormap(plt.cm.Blues, 0, 1)
-    # ax.hexbin(kd_changes, shms, gridsize=25, cmap=plt.cm.Blues) #, info['ccf_under'][meth], label='clonal fraction', color='#cc0000', linewidth=4)
-    fig, ax = plotting.mpl_init()
-    ax.scatter(plotvals['kd_vals'], plotvals['shm'], alpha=0.4)
-    plotname = 'kd-vs-shm'
-    if legstr != '':
-        plotname += '-' + legstr
-    plotting.mpl_finish(ax, plotdir, plotname, xlabel='Kd', ylabel='N mutations', title=legstr) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+        fn = plotting.mpl_finish(ax, plotdir,  plotname, xlabel='parent-child kd change', ylabel='branches', log='y', title='%s sampled cells'%legstr) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+        add_fn(fnames, fn=fn, new_row=True)
 
 # ----------------------------------------------------------------------------------------
-def plot_bcr_phylo_target_attraction(plotdir, event, legstr=''):  # plots of which sequences are going toward which targets
+def plot_bcr_phylo_target_attraction(plotdir, event, legstr='', fnames=None):  # plots of which sequences are going toward which targets
     fig, ax = plotting.mpl_init()
 
     # affinity vs stuff:
@@ -263,28 +273,33 @@ def plot_bcr_phylo_target_attraction(plotdir, event, legstr=''):  # plots of whi
     plotname = 'nearest-target-identities'
     if legstr != '':
         plotname += '-' + legstr
-    plotting.mpl_finish(ax, plotdir, plotname, xlabel='index (identity) of nearest target sequence', ylabel='counts', title=legstr) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel='index (identity) of nearest target sequence', ylabel='counts', title=legstr) #, xbounds=(minfrac*xmin, maxfrac*xmax), ybounds=(-0.05, 1.05), log='x', xticks=xticks, xticklabels=[('%d' % x) for x in xticks], leg_loc=(0.8, 0.55 + 0.05*(4 - len(plotvals))), leg_title=leg_title, title=title)
+    add_fn(fnames, fn=fn) #, new_row=True)
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_target_distance_label, lpair=None):
     utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+    fnames = add_fn(None, init=True)
+
+    legstr = '' if lpair is None else '+'.join(lpair)+' '
+    plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), plotdir, 'n-mutated-nuc-all-cells', title=legstr+'nuc SHM all cells', xlabel='N nucleotide mutations to naive', fnames=fnames)
+    plot_bcr_phylo_selection_hists('%s/%s_n_mutated_aa_hdists.p' % (outdir, extrastr), plotdir, 'n-mutated-aa-all-cells', title=legstr+'AA SHM all cells', xlabel='N AA mutations to naive', fnames=fnames)
+    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-all-cells', title=legstr+'target dist. all cells', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label, fnames=fnames)
+    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-sampled-cells', plot_all=True, title=legstr+'target dist. sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label, fnames=fnames)
 
     if lpair is None:
         assert len(events) == 1
-        plot_bcr_phylo_kd_vals(plotdir, events[0])
-        plot_bcr_phylo_target_attraction(plotdir, events[0])
+        plot_bcr_phylo_kd_vals(plotdir, events[0], tdlabel=metric_for_target_distance_label, fnames=fnames)
+        plot_bcr_phylo_target_attraction(plotdir, events[0], fnames=fnames)
     else:
         assert len(events) == 2
         for ltmp, evt in zip(lpair, events):
-            plot_bcr_phylo_kd_vals(plotdir, evt, legstr=ltmp)
-            plot_bcr_phylo_target_attraction(plotdir, evt, legstr=ltmp)
+            plot_bcr_phylo_kd_vals(plotdir, evt, legstr=ltmp, tdlabel=metric_for_target_distance_label, fnames=fnames)
+            plot_bcr_phylo_target_attraction(plotdir, evt, legstr=ltmp, fnames=fnames)
 
-    legstr = '' if lpair is None else '+'.join(lpair)+' '
-    plot_bcr_phylo_selection_hists('%s/%s_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-all-cells', title=legstr+'all cells', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
-    plot_bcr_phylo_selection_hists('%s/%s_sampled_min_aa_target_hdists.p' % (outdir, extrastr), plotdir, 'min-aa-target-sampled-cells', plot_all=True, title=legstr+'sampled cells (excluding ancestor sampling)', xlabel='%s distance to nearest target seq' % metric_for_target_distance_label)
-    plot_bcr_phylo_selection_hists('%s/%s_n_mutated_nuc_hdists.p' % (outdir, extrastr), plotdir, 'n-mutated-nuc-all-cells', title=legstr+'SHM all cells', xlabel='N nucleotide mutations to naive')
+    add_fn(fnames, new_row=True)
 
-    plotting.make_html(plotdir)
+    plotting.make_html(plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
 def get_tree_from_line(line, is_true_line, aa=False):
@@ -423,11 +438,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             if add_uids:
                 iclust_plotvals['uids'].append(uid if queries_to_include is None or uid in queries_to_include else None)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
         if add_jitter: #xvar == 'affinity-ptile' and '-ptile' in yvar:
-            def jitter(frac=0.02):
-                # delta = max(3, max(iclust_plotvals[xvar]) - min(iclust_plotvals[xvar]))
-                delta = 100. - min_ptile if '-ptile' in xvar else max(iclust_plotvals[xvar]) - min(iclust_plotvals[xvar])
-                return numpy.random.uniform(-frac * delta, frac * delta)
-            iclust_plotvals[xvar] = [x + jitter() for x in iclust_plotvals[xvar]]
+            iclust_plotvals[xvar] = plotting.add_jitter(iclust_plotvals[xvar], delta=100. - min_ptile if '-ptile' in xvar else None, frac=0.02)
             if 'jitter' not in scatter_kwargs['xlabel']:
                 scatter_kwargs['xlabel'] += ' (+jitter)'
         if not only_overall:
@@ -528,16 +539,25 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
         iclustergroup += 1
 
 # ----------------------------------------------------------------------------------------
-def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', colorvar=None, log='', leg_loc=None, warn_text=None, markersize=15, stats=None):
+def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affinity', xlabel='affinity', colorvar=None, log='', leg_loc=None, warn_text=None, markersize=15, stats=None, jitter='', jitter_fracs=None):
     leafcolors = {'leaf' : '#006600', 'internal' : '#2b65ec'}  # green, blue
     chosecolors = {'chosen' : '#990012', 'nope' : '#006600'}  # red, green
     if len(plotvals[xvar]) == 0:
         # print '    no %s vs affy info' % yvar
         return '%s/%s.svg' % (plotdir, plotname)
+    xvals, yvals = [plotvals[v] for v in (xvar, yvar)]
+    if jitter_fracs is None:
+        jitter_fracs = {}
+    if 'x' in jitter:
+        xvals = plotting.add_jitter(xvals, frac=jitter_fracs.get(xvar))
+        xlabel += ' (+jitter)'
+    if 'y' in jitter:
+        yvals = plotting.add_jitter(yvals, frac=jitter_fracs.get(xvar))
+        ylabel += ' (+jitter)'
     fig, ax = plotting.mpl_init()
     alpha = 0.4
     if colorvar is None:
-        ax.scatter(plotvals[xvar], plotvals[yvar], alpha=0.4)
+        ax.scatter(xvals, yvals, alpha=0.4)
     else:
         if colorvar == 'is_leaf':
             colorfcn = lambda x: leafcolors['leaf' if x else 'internal']
@@ -547,10 +567,10 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
             smap = plotting.get_normalized_scalar_map([v for v in plotvals[colorvar] if v is not None], 'viridis')
             colorfcn = lambda x: 'grey' if x is None else plotting.get_smap_color(smap, None, val=x)
             alpha = 0.65
-        for x, y, cval in zip(plotvals[xvar], plotvals[yvar], plotvals[colorvar]):  # we used to do the leaf/internal plots as two scatter() calls, which might be faster? but I think what really takes the time is writing the svgs, so whatever
+        for x, y, cval in zip(xvals, yvals, plotvals[colorvar]):  # we used to do the leaf/internal plots as two scatter() calls, which might be faster? but I think what really takes the time is writing the svgs, so whatever
             ax.plot([x], [y], color=colorfcn(cval), marker='.', markersize=markersize, alpha=alpha)
     if 'uids' in plotvals:
-        for xval, yval, uid in zip(plotvals[xvar], plotvals[yvar], plotvals['uids']):  # note: two ways to signal not to do this: sometimes we have 'uids' in the dict, but don't fill it (so the zip() gives an empty list), but sometimes we populate 'uids' with None values
+        for xval, yval, uid in zip(xvals, yvals, plotvals['uids']):  # note: two ways to signal not to do this: sometimes we have 'uids' in the dict, but don't fill it (so the zip() gives an empty list), but sometimes we populate 'uids' with None values
             if uid is None:
                 continue
             # ax.plot([xval], [yval], color='red', marker='.', markersize=markersize)
@@ -558,8 +578,8 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 
     if warn_text is not None:
         ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], warn_text, fontsize=30, fontweight='bold', color='red')
-    xmin, xmax = [mfcn(plotvals[xvar]) for mfcn in [min, max]]
-    ymin, ymax = [mfcn(plotvals[yvar]) for mfcn in [min, max]]
+    xmin, xmax = [mfcn(xvals) for mfcn in [min, max]]
+    ymin, ymax = [mfcn(yvals) for mfcn in [min, max]]
     # if xvar == 'cons-dist-aa':
     #     xmin = max(-15, xmin)
     xbounds = xmin - 0.02 * (xmax - xmin), xmax + 0.02 * (xmax - xmin)
@@ -595,7 +615,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 
     if stats is not None:
         if stats == 'correlation':
-            pcorr = numpy.corrcoef(plotvals[xvar], plotvals[yvar])[0, 1]
+            pcorr = numpy.corrcoef(xvals, yvals)[0, 1]
             if set([xvar, yvar]) == set(['lbi', 'aa-lbi']) and pcorr > 0.85:
                 print '        %s correlation between lbi and aa-lbi is suspiciously high %.3f, which suggests that there weren\'t enough inferred ancestral sequences to rescale the nuc tree to amino acids, i.e. aa-lbi may have in effect basically been calculated on the nuc tree' % (utils.color('yellow', 'warning'), pcorr)
             sx, sy = (0.25, 0.8) if (colorvar is None or 'cons-dist' in yvar) else (leg_loc[0] + 0.15, leg_loc[1] + 0.28)
@@ -779,7 +799,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
             n_tot, n_non_null_cnt = sum(len(l['affinities']) for l in lines), 0
             initial_n_null = n_tot - nonnullcnt()
             print '  slicing %s with %d bins from %.4f to %.4f (%d/%d initial null affinities)' % (utils.color('blue', slvar), n_bins, xbins[0], xbins[-1], initial_n_null, n_tot)
-            print '    %s   xmin    xmax  N not null' % utils.color('purple', 'slice')
+            print '    %s   xmin    xmax    N not null' % utils.color('purple', 'slice')
         xvals, mean_vals, err_vals = [], [], []
         imissing, isame = [[] for _ in range(n_bins)], [[] for _ in range(n_bins)]
         for ix in range(n_bins):  # NOTE len(xbins) is one more than n_bins, for the low edge of the overflow bin

@@ -123,6 +123,15 @@ def get_smap_color(smap, info, key=None, val=None):  # specify *either* <key> or
     return rgb_to_hex(rgb_code)
 
 # ----------------------------------------------------------------------------------------
+# returns modified copy of input list
+def add_jitter(xvals, delta=None, frac=0.02):
+    if delta is None:
+        delta =  max(xvals) - min(xvals)
+    jvals = numpy.random.uniform(-frac * delta, frac * delta, size=len(xvals))
+    # jvals = [j for j in numpy.arange(-frac * delta, frac * delta, 2 * delta / float(len(xvals) - 1))]  # doesn't work yet, but maybe it'd make more sense to make it actual uniform, rather than uniform random?
+    return [x + j for x, j in zip(xvals, jvals)]
+
+# ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
     if 'fraction_uncertainty' not in sys.modules:
