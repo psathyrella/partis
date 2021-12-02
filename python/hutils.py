@@ -1,6 +1,20 @@
 import math
+import sys
 
 from hist import Hist
+
+# ----------------------------------------------------------------------------------------
+def get_expanded_bounds(values, dxmin, dxmax=None):
+    values = sorted(values)  # should already be sorted, but this is the only way to enforce it
+    if dxmax is None:
+        dxmax = dxmin
+    if dxmin == 0:  # hackey, but effective
+        dxmin = max(1e-5, values[0])
+    if dxmax == 0:  # hackey, but effective
+        dxmax = max(1e-5, values[0])
+    xmin = values[0] - 0.1*dxmin  # expand a little to avoid underflows
+    xmax = values[-1] + 0.1*dxmax  # and overflows
+    return xmin, xmax
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fcn/signature is weird because it mimics an old root fcn (for search: log_bins log bins) UPDATE see autobins() fcn below
@@ -17,16 +31,12 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fc
             low_edge = math.exp(log_xmin + ib*log_dx)
             xbins[ib] = low_edge
     else:
-        dx, xmin, xmax = 0, 0, 0
+        xmin, xmax = 0, 0
         if var_type == 'string':
             xmin = 0.5
             xmax = n_bins + 0.5
         else:
-            dx = float(values[-1] - values[0]) / n_bins
-            if dx == 0:  # hackey, but effective
-                dx = max(1e-5, values[0])
-            xmin = values[0] - 0.1*dx  # expand a little to avoid underflows
-            xmax = values[-1] + 0.1*dx  # and overflows
+            xmin, xmax = get_expanded_bounds(values, float(values[-1] - values[0]) / n_bins)
         dx = float(xmax - xmin) / n_bins  # then recalculate dx
         for ib in range(n_bins+1):
             xbins[ib] = xmin + ib*dx
@@ -35,6 +45,27 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fc
 def autobins(values, n_bins, is_log=False, var_type='float'):  # just making a better interface for set_bins()
     xbins = [0. for _ in range(n_bins+1)]  # the +1 is for the lower edge of the overflow bin (hist.scratch_init() adds low edge of underflow)
     set_bins(values, n_bins, is_log, xbins, var_type=var_type)
+    return xbins
+
+# ----------------------------------------------------------------------------------------
+def auto_volume_bins(values, n_bins, int_bins=False, debug=False):
+    n_per_bin = int(len(values) / float(n_bins))
+    values = sorted(values)
+    ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]
+    if int_bins:
+        if len(set(values)) < n_bins:
+            print '    reduced n_bins %d to the number of different values %d' % (n_bins, len(set(values)))
+            n_bins = len(set(values))
+        xbins = [values[i] - 0.5 for i in ibins]  # put each boundary at half-integer values
+        xbins[-1] += 1  # and expand the last one to double size
+    else:
+        xbins = [values[i] for i in ibins]
+        dxmin, dxmax = [abs(float(xbins[ist+1] - xbins[ist])) for ist in (0, len(xbins) - 2)]  # width of (first, last) bin [not under/overflows]
+        xbins[0], xbins[-1] = get_expanded_bounds(values, dxmin, dxmax=dxmax)
+    if debug:
+        print '    chose %d bins (%d bin low edges, including low edge of overflow) using %d values with min/max %f %f' % (n_bins, len(xbins), len(values), min(values), max(values))
+        print '      %s' % ' '.join('%8d'%(i+1) for i in range(len(xbins)))  # start at 1, to match hist.py/root convention that 0 is underflow (whose low edge is added in hist scratch init fcn, since its value has no effect)
+        print '      %s' % ' '.join('%8.4f'%x for x in xbins)
     return xbins
 
 # ----------------------------------------------------------------------------------------

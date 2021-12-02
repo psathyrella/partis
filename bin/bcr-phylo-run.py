@@ -163,6 +163,8 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
         # cmd += ' --target_cluster_distance 1'
         if args.min_target_distance is not None:
             cmd += ' --min_target_distance %d' % args.min_target_distance
+        if args.min_effective_kd is not None:
+            cmd += ' --min_effective_kd %d' % args.min_effective_kd
     else:
         assert False
 
@@ -211,7 +213,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
                 nodefo[line['uid']] = {
                     'kd' : float(line['kd']),
                     'relative_kd' : float(line['relative_kd']),
-                    'lambda' : line.get('lambda', None),
+                    'lambda' : float(line['lambda']) if line['lambda'] != '' else None,  # bcr-phylo used to not run the lambda update fcn after last iteratio, which resulted in empty lambda values, but it shouldn't happen any more (but leaving here for backwards compatibility)
                     'target_index' : int(line['target_index']),
                     'target_distance' : float(line['target_distance']),
                 }
@@ -446,6 +448,7 @@ parser.add_argument('--metric-for-target-distance', default='aa', choices=['aa',
 parser.add_argument('--target-count', type=int, default=1, help='Number of target sequences to generate.')
 parser.add_argument('--n-target-clusters', type=int, help='number of cluster into which to divide the --target-count target seqs (see bcr-phylo docs)')
 parser.add_argument('--min-target-distance', type=int, help='see bcr-phylo docs')
+parser.add_argument('--min-effective-kd', type=float, help='see bcr-phylo docs')
 parser.add_argument('--branching-parameter', type=float, default=2., help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
@@ -465,7 +468,7 @@ parser.add_argument('--paired-loci', action='store_true')
 parser.add_argument('--single-light-locus', help='set to igk or igl if you want only that one; otherwise each event is chosen at random (see partis help)')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
-parser.add_argument('--min-ustr-len', type=int, default=6, help='min length of hashed uid strs (longer makes collisions less likely, but it\'s hard to avoid them entirely since independent bcr-phylo procs choose the uids for each family)')
+parser.add_argument('--min-ustr-len', type=int, default=10, help='min length of hashed uid strs (longer makes collisions less likely, but it\'s hard to avoid them entirely since independent bcr-phylo procs choose the uids for each family)')
 
 args = parser.parse_args()
 

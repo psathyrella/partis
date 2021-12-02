@@ -219,16 +219,18 @@ def plot_bcr_phylo_kd_vals(plotdir, event, legstr='', tdlabel='', fnames=None):
         add_fn(fnames, fn=fn)
     # ----------------------------------------------------------------------------------------
     # scatter plot of kd/affinity vs shm
-    plotvals = {'shm-nuc' : [], 'shm-aa' : [], 'target-distance' : [], 'affinity' : []}
+    plotvals = {'shm-nuc' : [], 'shm-aa' : [], 'target-distance' : [], 'lambda' : [], 'affinity' : []}
     for iseq, uid in enumerate(event['unique_ids']):
         plotvals['shm-nuc'].append(event['n_mutations'][iseq])
         plotvals['shm-aa'].append(utils.antnval(event, 'shm-aa', iseq))
         plotvals['target-distance'].append(utils.antnval(event, 'min_target_distances', iseq))
+        plotvals['lambda'].append(utils.antnval(event, 'lambdas', iseq))
         plotvals['affinity'].append(event['affinities'][iseq])
     scatter_plot('shm-nuc', 'N nuc mutations', jitter='x')
     scatter_plot('shm-aa', 'N AA mutations', jitter='x')
     scatter_plot('target-distance', '%s distance to nearest target seq' % tdlabel) #, jitter=True)
     scatter_plot('target-distance', '%s distance to nearest target seq' % tdlabel, yvar='shm-aa', ylabel='N AA mutations', jitter='xy')
+    scatter_plot('lambda', 'lambda')
 
     # make kd changes histogram
     kd_changes = []
@@ -466,6 +468,8 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                 iclust_plotvals[colorvar].append(colorval)  # I think any uid in <line> should be in the tree, but may as well handle the case where it isn't
             if add_uids:
                 iclust_plotvals['uids'].append(uid if queries_to_include is None or uid in queries_to_include else None)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
+        if len(iclust_plotvals[xvar]) == 0:
+            continue
         if add_jitter: #xvar == 'affinity-ptile' and '-ptile' in yvar:
             iclust_plotvals[xvar] = plotting.add_jitter(iclust_plotvals[xvar], delta=100. - min_ptile if '-ptile' in xvar else None, frac=0.02)
             if 'jitter' not in scatter_kwargs['xlabel']:
@@ -779,8 +783,13 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
     add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, debug=False):
+def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, use_quantile=False, debug=False):
     debug = True
+    # ----------------------------------------------------------------------------------------
+    def spec_corr(mdiff):
+        # if mdiff < 0 or mdiff > 50:
+        #     print '    %s mdiff outside bounds %f' % (utils.wrnstr(), mdiff)
+        return - (1. / 50) * mdiff + 1
     # ----------------------------------------------------------------------------------------
     def modify_lines(slvar, slbounds):
         # ----------------------------------------------------------------------------------------
@@ -796,12 +805,13 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
         for antn in lines:
             antn['affinities'] = [affy_val(antn, iseq) for iseq in range(len(antn['unique_ids']))]
     # ----------------------------------------------------------------------------------------
-    def slice_var(slvar, n_bins=5):
+    def slice_var(slvar, n_bins, int_bins):
         # ----------------------------------------------------------------------------------------
-        def add_plot_vals(ix):
-            ymfo = plot_lb_vs_affinity(None, lines, lb_metric, is_true_line=is_true_line, no_plot=True, debug=False) #only_csv=only_csv, fnames=fnames, separate_rows=separate_rows, debug=debug)
+        def get_plot_vals(ix):
+            slpd = None # '%s/%s-%s-slice-%d' % (baseplotdir, lb_metric, slvar, ix)
+            ymfo = plot_lb_vs_affinity(slpd, lines, lb_metric, is_true_line=is_true_line, no_plot=True, debug=False) #only_csv=only_csv, fnames=fnames, separate_rows=separate_rows, debug=debug)
             if ymfo is None:
-                return
+                return None, None
             icvals = []
             for iclust in range(len(lines)):
                 if all(a is None for a in lines[iclust]['affinities']):
@@ -812,34 +822,55 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
                     continue
                 diff_vals = scanplot.get_ptile_diff_vals(ymfo, iclust=iclust)
                 if len(diff_vals) > 0:
-                    icvals.append(numpy.mean(diff_vals))  # average over top 25% of ptiles (well, default is 25%)
+                    mdiff = numpy.mean(diff_vals)  # average over top 25% of ptiles (well, default is 25%)
+                    icvals.append(mdiff if use_quantile else spec_corr(mdiff))
                 else:
                     imissing[ix].append(iclust)
-            xvals.append(0.5 * (xbins[ix] + xbins[ix+1]))
-            mean_vals.append(numpy.mean(icvals))  # average over clusters (compare to 'for pvkey, ofvals in plotvals.items():' and 'for tau in tvd_keys:' bit in scaplot.make_plots())
-            err_vals.append(numpy.std(icvals, ddof=1) / math.sqrt(len(icvals)))  # standard error on mean (for standard deviation, comment out denominator)
+            # mean: average over clusters (compare to 'for pvkey, ofvals in plotvals.items():' and 'for tau in tvd_keys:' bit in scaplot.make_plots())
+            # err: standard error on mean (for standard deviation, comment out denominator)
+            return numpy.mean(icvals), numpy.std(icvals, ddof=1) / math.sqrt(len(icvals))
         # ----------------------------------------------------------------------------------------
         def nonnullcnt():  # NOTE 'affinities' in <lines> are constantly getting modified
             return len([a for l in lines for a in l['affinities'] if a is not None])
         # ----------------------------------------------------------------------------------------
+        def print_dbg(xv, mval, err, n_non_now):
+            # def fstr(a, w=7): return (utils.wfmt(utils.round_to_n_digits(a, 2), w, fmt='s') if a is not None else utils.color('blue', '-', width=w))
+            # astr = '' #'     ' + '  '.join(fstr(a) for a in sorted(set(a for l in lines for a in l['affinities'])))
+            astr = '' #'     ' + '  '.join(fstr(a) for l in lines for a in l['affinities'])
+            def vstr(v, e=False):
+                w = 3 if use_quantile else 4
+                if v is None:
+                    return w * ' '
+                nd = 1 if use_quantile else 2
+                if e: nd -= 1
+                return utils.wfmt(v, w, fmt='.%df'%nd)
+            print '    %s   %s  %s  %s   %7.4f  %7.4f  %s%s%s' % (utils.color('purple', str(ix), width=2), ('%7d' if int_bins else '%7.4f')%xv, vstr(mval), vstr(err, e=True), xbins[ix], xbins[ix+1], utils.color('red' if n_non_now==0 else None, str(n_non_now), width=5), '' if len(affy_val_set)>1 or len(affy_val_set)==0 else utils.color('red', '   all affinities the same'), astr)
+        # ----------------------------------------------------------------------------------------
         all_vals = sorted(utils.antnval(l, slvar, i) for l in lines for i in range(len(l['unique_ids'])))
-        xbins = hutils.autobins(all_vals, n_bins)  # note that this fcn pads a bit to avoid over/underflows
+        # xbins = hutils.autobins(all_vals, n_bins)  # note that this fcn pads a bit to avoid over/underflows
+        xbins = hutils.auto_volume_bins(all_vals, n_bins, int_bins)
         if debug:
             n_tot, n_non_null_cnt = sum(len(l['affinities']) for l in lines), 0
             initial_n_null = n_tot - nonnullcnt()
             print '  slicing %s with %d bins from %.4f to %.4f (%d/%d initial null affinities)' % (utils.color('blue', slvar), n_bins, xbins[0], xbins[-1], initial_n_null, n_tot)
-            print '    %s   xmin    xmax    N not null' % utils.color('purple', 'slice')
+            hstr = 'qtp' if use_quantile else 's-corr'
+            print '    %s   x     %s (+/-)    xmin    xmax    N not null' % (utils.color('purple', 'slice'), hstr)
         xvals, mean_vals, err_vals = [], [], []
         imissing, isame = [[] for _ in range(n_bins)], [[] for _ in range(n_bins)]
         for ix in range(n_bins):  # NOTE len(xbins) is one more than n_bins, for the low edge of the overflow bin
             modify_lines(slvar, (xbins[ix], xbins[ix+1]))
+            xv, mval, err = 0.5 * (xbins[ix] + xbins[ix+1]), None, None
             affy_val_set = set(a for l in lines for a in l['affinities']) - set([None])
-            if debug:
-                def fstr(a): return (('%6.4f'%a) if a is not None else utils.color('blue', '   -  '))
-                print '    %s    %7.4f  %7.4f  %5d%s' % (utils.color('purple', str(ix), width=2), xbins[ix], xbins[ix+1], nonnullcnt(), '' if len(affy_val_set)>1 else utils.color('red', '   all affinities the same')) #, '  '.join(fstr(a) for l in lines for a in l['affinities']))
-                n_non_null_cnt += nonnullcnt()
             if len(affy_val_set) > 1:  # any(a is not None for l in lines for a in l['affinities']) and len(:
-                add_plot_vals(ix)
+                mval, err = get_plot_vals(ix)
+                if mval is not None:
+                    xvals.append(xv)
+                    mean_vals.append(mval)
+                    err_vals.append(err)
+            if debug:
+                n_non_now = nonnullcnt()
+                print_dbg(xv, mval, err, n_non_now)
+                n_non_null_cnt += n_non_now
             for antn, o_affies in zip(lines, original_affinities):  # gotta reset them each time
                 antn['affinities'] = o_affies
         if debug:
@@ -855,14 +886,19 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
         fig, ax = plotting.mpl_init()
         ax.errorbar(xvals, mean_vals, yerr=err_vals, linewidth=2, markersize=15, marker='.')  #, title='position ' + str(position)) #, label=legstr(label)
         plotname = '%s-%s-slice' % (lb_metric, slvar)
-        fn = plotting.mpl_finish(ax, baseplotdir + '/slices', plotname, xlabel=mtitlestr('per-seq', slvar), ylabel='quantile to perfect')
+        legdict = plotting.legends
+        legdict.update(treeutils.legtexts)
+        ybounds = (0, 50) if use_quantile else (0, 1)
+        fn = plotting.mpl_finish(ax, baseplotdir + '/slices', plotname, ybounds=ybounds, title=mtitlestr('per-seq', lb_metric), xlabel=legdict.get(slvar, slvar), ylabel='quantile to perfect' if use_quantile else 'specificity correlation')
         add_fn(fnames, fn=fn)
     # ----------------------------------------------------------------------------------------
     add_fn(fnames, new_row=True)
     original_affinities = [l['affinities'] for l in lines]
-    for slvar in ['affinities', 'n_mutations', 'shm-aa', 'min_target_distances']: #'affinities'
-    # for slvar in ['min_target_distances']:
-        slice_var(slvar)
+    n_bin_cfg = {}
+    int_vars = ['n_mutations', 'shm-aa']
+    for slvar in ['affinities', 'n_mutations', 'shm-aa', 'min_target_distances']:
+    # for slvar in ['shm-aa']:
+        slice_var(slvar, n_bin_cfg.get(slvar, 5), slvar in int_vars)
     add_fn(fnames, new_row=True)
 
 # ----------------------------------------------------------------------------------------

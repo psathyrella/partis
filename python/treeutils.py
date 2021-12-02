@@ -961,7 +961,8 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
     very_different_frac = 0.5
     if debug:
         print '    converting nuc tree (mean depth %.3f) to aa' % get_mean_leaf_height(dtree)
-        # print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
+        if debug > 1:
+            print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
         changes = {}
 
     aa_dtree = copy.deepcopy(dtree)
@@ -1005,7 +1006,8 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
         for edge in sorted(changes, key=lambda k: changes[k][1] - changes[k][0])[:n_to_print]:
             nuc_n_muts, aa_n_muts = changes[edge]
             print '         %3d    %3d     %-15s %s' % (nuc_n_muts, aa_n_muts, edge.tail_node.taxon.label, edge.head_node.taxon.label)
-        # print utils.pad_lines(get_ascii_tree(dendro_tree=aa_dtree, width=400))
+        if debug > 1:
+            print utils.pad_lines(get_ascii_tree(dendro_tree=aa_dtree, width=400))
 
     return aa_dtree
 
