@@ -251,7 +251,7 @@ class HmmWriter(object):
         }
         self.n_conserved_codon_erosion_transitions = 0
 
-        self.erosion_pseudocount_length = 10  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
+        self.erosion_pseudocount_length = min(10, len(self.germline_seq))  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
 
         self.outdir = outdir
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there

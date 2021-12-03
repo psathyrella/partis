@@ -2204,6 +2204,12 @@ class PartitionDriver(object):
 
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
+                if self.args.no_insertions_or_deletions:
+                    ends = ['v_3p', 'j_5p'] if utils.has_d_gene(self.args.locus) else utils.real_erosions  # need 1-base d erosion for light chain
+                    for end in ends:
+                        padded_line[end+'_del'] = 0
+                    for bound in utils.boundaries:
+                        padded_line[bound+'_insertion'] = ''
 
                 # if self.args.correct_multi_hmm_boundaries and len(padded_line['unique_ids']) > 1:  # lots of details/bkg here: https://github.com/psathyrella/partis/issues/308 (tldr: no point in this any more since we have subcluster annotation)
                 #     self.correct_multi_hmm_boundaries(padded_line, first_line=len(eroded_annotations)+len(padded_annotations)==0)
