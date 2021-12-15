@@ -1210,7 +1210,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return offcolors[offset]
     # ----------------------------------------------------------------------------------------
     def bexpand(bpair, fuzz=0.02):
-        diff = bpair[-1] - bpair[0]
+        diff = max(fuzz, bpair[-1] - bpair[0])  # if max and min are the same, use <fuzz> for <diff>
         return [bpair[0] - fuzz * diff, bpair[1] + fuzz * diff]
     # ----------------------------------------------------------------------------------------
     def get_xval_list(cluster, xkey):  # NOTE this *has* to return values in the same order they're in line['unique_ids']

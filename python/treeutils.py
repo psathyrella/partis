@@ -39,6 +39,10 @@ daffy_metrics += ['sum-'+m for m in daffy_metrics]
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
 selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr']  # I really thought this was somewhere, but can't find it so adding it here
+# ----------------------------------------------------------------------------------------
+# TODO
+selection_metrics += ['sum-n_mutations', 'sum-shm-aa']
+# ----------------------------------------------------------------------------------------
 typical_bcr_seq_len = 400
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 1
@@ -67,6 +71,8 @@ legtexts = {
     'sum-aa-lbr' : 'h+l AA lb ratio',
     'sum-lbi' : 'h+l lb index',
     'sum-lbr' : 'h+l lb ratio',
+    'sum-n_mutations' : 'h+l nuc mutations',
+    'sum-shm-aa' : 'h+l AA mutations',
 }
 
 # ----------------------------------------------------------------------------------------
@@ -1680,7 +1686,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, queries_to_include=None,
-                      plot_true_vs_inf_metrics=False, label_tree_nodes=False, debug=False):
+                      plot_true_vs_inf_metrics=False, label_tree_nodes=False, paired=False, debug=False):
     assert not include_relative_affy_plots  # would need updating
     import plotting
     import lbplotting
@@ -1702,7 +1708,7 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
         affy_fnames, slice_fnames = [], []
         for mtr in [m for m in metrics_to_calc if m in affy_metrics]:
             lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=only_csv, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
-            lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=only_csv, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
+            lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=only_csv, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, paired=paired, debug=debug)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', plotdir, mtr, antn_list, yvar=mtr+'-ptile', fnames=fnames, is_true_line=is_simu)
         fnames += [['header', 'affinity metrics']] + affy_fnames + slice_fnames
         if not only_csv:
@@ -2823,7 +2829,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def add_sum_metrics(metric_pairs, h_atn):
         reverse_translations = utils.translate_uids([h_atn], trfcn=lambda u: '-'.join(u.split('-')[:-1]))
         rtns_list.append(reverse_translations)
-        for b_mtr in args.selection_metrics_to_calculate:
+# TODO remove h specific stuff from line here?
+#   - nah, better to just rewrite the fcns to not need <line>s
+        for b_mtr in args.selection_metrics_to_calculate + ['n_mutations', 'shm-aa']:
             sum_mtr = 'sum-%s' % b_mtr
             h_atn['tree-info']['lb'][sum_mtr] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
             for mfo in metric_pairs:
@@ -2906,7 +2914,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if plotdir is not None:
             add_sum_metrics(metric_pairs, h_atn)
     if plotdir is not None:
-        plot_tree_metrics(plotdir, args.selection_metrics_to_calculate, [h_atn for h_atn, _ in antn_pairs], is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include, label_tree_nodes=args.label_tree_nodes)
+# TODO arg wtf args.selection_metrics_to_calculate is single-chain metrics
+        mtc = ['sum-'+m for m in args.selection_metrics_to_calculate]
+        plot_tree_metrics(plotdir, mtc, [h_atn for h_atn, _ in antn_pairs], is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include, label_tree_nodes=args.label_tree_nodes, paired=True)
     for (h_atn, _), rtns in zip(antn_pairs, rtns_list):
         untranslate(h_atn, rtns)
     if args.chosen_ab_fname is not None:
