@@ -557,8 +557,10 @@ def make_lb_affinity_joyplots(plotdir, lines, lb_metric, fnames=None, n_clusters
     repertoire_size = sum([len(c) for c in sorted_clusters])
     max_affinity = max([a for alist in affy_lists.values() for a in alist])  # it's nice to keep track of the max values over the whole repertoire so all plots can have the same max values
     def lbv(c, u): return annotation_dict[':'.join(c)]['tree-info']['lb'][lb_metric].get(u)  # see note about affy_lists
-    max_lb_val = max([lbv(c, u) for c in sorted_clusters for u in c if lbv(c, u) is not None])  # NOTE don't use all the values in the dict in 'tree-info', since non-sampled sequences (i.e. usually intermediate ancestors) are in there
-    if 'lb' in lb_metric and max_lb_val == 0.:  # at least atm, this means this is lbr on a family with no common ancestor sampling
+    all_lb_vals = [lbv(c, u) for c in sorted_clusters for u in c if lbv(c, u) is not None]  # NOTE don't use all the values in the dict in 'tree-info', since non-sampled sequences (i.e. usually intermediate ancestors) are in there
+    if 'lb' in lb_metric and max(all_lb_vals) == 0.:  # at least atm, this means this is lbr on a family with no common ancestor sampling
+        return
+    if len(set(all_lb_vals)) == 1:
         return
     # print 'divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
     iclustergroup = 0
