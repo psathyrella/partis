@@ -2317,7 +2317,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname, no_fail=False):
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
-        return utils.antnval(cln, vname, iseq=iseq, no_fail=no_fail)
+        return utils.antnval(cln, vname, iseq=iseq, use_default=no_fail)
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
         if val is None:
