@@ -2,6 +2,7 @@ import math
 import sys
 
 from hist import Hist
+import utils
 
 # ----------------------------------------------------------------------------------------
 def get_expanded_bounds(values, dxmin, dxmax=None):
@@ -54,10 +55,11 @@ def auto_volume_bins(values, n_bins, int_bins=False, debug=False):
     ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]
     if int_bins:
         if len(set(values)) < n_bins:
-            print '    reduced n_bins %d to the number of different values %d' % (n_bins, len(set(values)))
-            n_bins = len(set(values))
-        xbins = [values[i] - 0.5 for i in ibins]  # put each boundary at half-integer values
-        xbins[-1] += 1  # and expand the last one to double size
+            print '    %s SHOULD PROBABLY MAYBE reduce n_bins %d to the number of different values %d' % (utils.wrnstr(), n_bins, len(set(values)))
+# TODO
+            # n_bins = len(set(values))
+        xbins = [values[i] - 0.5 for i in ibins]  # put each boundary at half-integer values (note that ties above result in zero-width bins, but it's ok for the moment since the only place i'm using it doesn't mind)
+        xbins[-1] = values[-1] + 0.5  # and expand the last one to double size
     else:
         xbins = [values[i] for i in ibins]
         dxmin, dxmax = [abs(float(xbins[ist+1] - xbins[ist])) for ist in (0, len(xbins) - 2)]  # width of (first, last) bin [not under/overflows]
@@ -66,6 +68,7 @@ def auto_volume_bins(values, n_bins, int_bins=False, debug=False):
         print '    chose %d bins (%d bin low edges, including low edge of overflow) using %d values with min/max %f %f' % (n_bins, len(xbins), len(values), min(values), max(values))
         print '      %s' % ' '.join('%8d'%(i+1) for i in range(len(xbins)))  # start at 1, to match hist.py/root convention that 0 is underflow (whose low edge is added in hist scratch init fcn, since its value has no effect)
         print '      %s' % ' '.join('%8.4f'%x for x in xbins)
+    assert len(xbins) == n_bins + 1  # will cause the n bin reduction to crash
     return xbins
 
 # ----------------------------------------------------------------------------------------
