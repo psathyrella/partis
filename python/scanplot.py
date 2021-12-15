@@ -135,7 +135,7 @@ def readlog(fname, metric, locus, ptntype):
         return {'time-reqd' : tvals[locus]}
 
 # ----------------------------------------------------------------------------------------
-def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
+def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None, single_value=False):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
     # ----------------------------------------------------------------------------------------
     def yval_key(subfo):
         if ptilestr == 'affinity' and 'mean_affy_ptiles' in subfo:  # old-style files used shortened version
@@ -157,7 +157,12 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
             subfo = subfo['iclust-%d' % iclust]
     if subfo is None:  # i think this usually happens when there's no values for a particular cluster
         return []
-    return [abs(pafp - afp) for lbp, afp, pafp in zip(subfo['lb_ptiles'], subfo[yval_key(subfo)], subfo['perfect_vals']) if lbp > min_ptile_to_plot]
+    if single_value:
+        pt_val = sorted(subfo['lb_ptiles'], key=lambda x: abs(x - min_ptile_to_plot))[0]
+        def tfcn(p): return p == pt_val
+    else:
+        def tfcn(p): return p > min_ptile_to_plot
+    return [abs(pafp - afp) for lbp, afp, pafp in zip(subfo['lb_ptiles'], subfo[yval_key(subfo)], subfo['perfect_vals']) if tfcn(lbp)]
 
 # ----------------------------------------------------------------------------------------
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
