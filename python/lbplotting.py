@@ -820,7 +820,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
                 if len(set(lines[iclust]['affinities']) - set([None])) == 1:  # if all the affinity values are the same we can't (well, shouldn't, and don't any more) make the ptile plots
                     isame[ix].append(iclust)
                     continue
-                diff_vals = scanplot.get_ptile_diff_vals(ymfo, iclust=iclust)
+                diff_vals = scanplot.get_ptile_diff_vals(ymfo, iclust=iclust) #, single_value=True)
                 if len(diff_vals) > 0:
                     mdiff = numpy.mean(diff_vals)  # average over top 25% of ptiles (well, default is 25%)
                     icvals.append(mdiff if use_quantile else spec_corr(mdiff))
@@ -828,15 +828,15 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
                     imissing[ix].append(iclust)
             # mean: average over clusters (compare to 'for pvkey, ofvals in plotvals.items():' and 'for tau in tvd_keys:' bit in scaplot.make_plots())
             # err: standard error on mean (for standard deviation, comment out denominator)
-            return numpy.mean(icvals), numpy.std(icvals, ddof=1) / math.sqrt(len(icvals))
+            return numpy.mean(icvals), float('nan') if len(icvals)==1 else numpy.std(icvals, ddof=1) / math.sqrt(len(icvals))
         # ----------------------------------------------------------------------------------------
         def nonnullcnt():  # NOTE 'affinities' in <lines> are constantly getting modified
             return len([a for l in lines for a in l['affinities'] if a is not None])
         # ----------------------------------------------------------------------------------------
         def print_dbg(xv, mval, err, n_non_now):
-            # def fstr(a, w=7): return (utils.wfmt(utils.round_to_n_digits(a, 2), w, fmt='s') if a is not None else utils.color('blue', '-', width=w))
-            # astr = '' #'     ' + '  '.join(fstr(a) for a in sorted(set(a for l in lines for a in l['affinities'])))
-            astr = '' #'     ' + '  '.join(fstr(a) for l in lines for a in l['affinities'])
+            def fstr(a, w=7): return (utils.wfmt(utils.round_to_n_digits(a, 2), w, fmt='s') if a is not None else utils.color('blue', '-', width=w))
+            astr = '     ' + '  '.join(fstr(a) for a in sorted(set(a for l in lines for a in l['affinities'])))
+            # astr = '' #'     ' + '  '.join(fstr(a) for l in lines for a in l['affinities'])
             def vstr(v, e=False):
                 w = 3 if use_quantile else 4
                 if v is None:
