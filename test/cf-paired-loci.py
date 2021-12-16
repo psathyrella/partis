@@ -20,8 +20,9 @@ partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+plot_actions = ['single-chain-partis']
 def is_single_chain(action):
-    return 'synth-' in action or 'vjcdr3-' in action or action in ['scoper', 'mobille', 'igblast', 'linearham']
+    return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['scoper', 'mobille', 'igblast', 'linearham']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -74,7 +75,7 @@ parser.add_argument('--combo-extra-str', help='extra label for combine-plots act
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
-for act in ['cache-parameters'] + ptn_actions:
+for act in ['cache-parameters'] + ptn_actions + plot_actions:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times']
 args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
@@ -83,7 +84,7 @@ args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svar
 # and these i think we can't since we want to allow blanks, 'n-genes-per-region' 'n-sim-alleles-per-gene'
 # args.float_var_digits = 2  # ick
 
-args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots', 'parse-linearham-trees'] + ptn_actions)
+args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots', 'parse-linearham-trees'] + ptn_actions + plot_actions)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.zip_vars = utils.get_arg_list(args.zip_vars)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
@@ -106,7 +107,7 @@ if args.antn_perf:
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
-    return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), 'partis' if action in ['cache-parameters', 'partition'] else action)
+    return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), 'partis' if action in ['cache-parameters', 'partition', 'single-chain-partis'] else action)
 
 # ----------------------------------------------------------------------------------------
 def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False, pcleancsv=False, nhdist=False):
@@ -358,6 +359,8 @@ for action in args.actions:
                                 continue
                             if pmetr == 'time-reqd' and (ptntype == 'joint' and (is_single_chain(method) or method=='vsearch-partition')):
                                 continue
+                            if method == 'single-chain-partis' and ptntype != 'joint':  # this is just a hackey way to get the single chain line on the joint plot, we don't actually want it [twice] on the single chain plot
+                                continue
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
                             arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype, pmetr), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}
                             if args.test:
@@ -381,9 +384,9 @@ for action in args.actions:
                     for ltmp in plot_loci():
                         if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):
                             continue
-                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[ipm], make_legend=iplot==0, debug=args.debug)
-                        iplot += 1
-            fnames += [[os.path.dirname(fnames[0][0]) + '/legend.svg']]
+                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, plotting.legends.get(pmetr, pmetr), args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[ipm], make_legend=ltmp=='igh', leg_label='-'+ptntype, debug=args.debug)
+                        # iplot += 1
+            fnames += [[os.path.dirname(fnames[0][0]) + '/legend-%s.svg'%ptntype] for ptntype in partition_types]
             plotting.make_html(cfpdir, n_columns=3 if len(plot_loci())==3 else 4, fnames=fnames)
         else:
             raise Exception('unsupported action %s' % action)

@@ -169,7 +169,7 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
 def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=None, per_x=None, choice_grouping=None, use_relative_affy=False, metric_extra_str='',
-               locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, make_legend=False, debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
+               locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, make_legend=False, leg_label='', debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def pvl_list():
         return [l.strip() for l in pvlabel[0].split(';')]
@@ -774,6 +774,6 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     )
     if make_legend:
         leg_entries = collections.OrderedDict(reversed(list(leg_entries.items())))  # the last things to be *plotted* cover earlier things, but we also want them to be at the top of the legend
-        plotting.plot_legend_only(leg_entries, plotdir, 'legend', title=legstr(pvlabel[0], title=True))  #[(l, leg_entries['color']) for l, lfo in leg_entries], )
+        plotting.plot_legend_only(leg_entries, plotdir, 'legend%s'%leg_label, title=legstr(pvlabel[0], title=True))  #[(l, leg_entries['color']) for l, lfo in leg_entries], )
     if fnames is not None:
         fnames.append(ffn)
