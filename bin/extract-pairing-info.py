@@ -29,7 +29,7 @@ if utils.output_exists(args, args.outfname, offset=4, debug=False):
     sys.exit(0)
 
 seqfos = utils.read_fastx(args.infname, n_max_queries=args.n_max_queries)
-metafos = utils.extract_pairing_info(seqfos, droplet_id_separator=args.droplet_id_separator, input_metafname=args.input_metafname)
+metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separator, input_metafname=args.input_metafname)
 
 utils.mkdir(args.outfname, isfile=True)
 with open(args.outfname, 'w') as outfile:

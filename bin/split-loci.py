@@ -37,6 +37,8 @@ parser.add_argument('--vsearch-threshold', type=float, default=0.4, help='defaul
 parser.add_argument('--debug', type=int, default=1)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--guess-pairing-info', action='store_true')
+parser.add_argument('--droplet-id-separators', default='-', help='separating characters in uid string for finding droplet id when --guess-pairing-info is set (with --droplet-id-index), i.e. calls <uid>.split(<--droplet-id-separator>)[--droplet-id-index] (recursively, if there\'s more than one character)')
+parser.add_argument('--droplet-id-index', type=int, default=0, help='zero-based index used with --droplet-id-separator (see that arg\'s help)')
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info/meta string of sequence name/uid (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
 parser.add_argument('--input-metafname', help='yaml file with meta information keyed by sequence id. See same argument in main partis help, and https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parser.add_argument('--n-max-queries', type=int)
@@ -190,7 +192,7 @@ if args.guess_pairing_info:
     for locus in outfos:
         for ofo in outfos[locus]:
             ofo['name'] += '-' + locus
-    guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separator='-', dtype='undetermined')
+    guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separators, droplet_id_index=args.droplet_id_index, dtype='undetermined')
     for uid, mfo in guessed_metafos.items():
         paired_uids[uid] = mfo['paired-uids']
 

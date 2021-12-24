@@ -813,14 +813,16 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
     return fstr
 
 # ----------------------------------------------------------------------------------------
-def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False): #, prefix=None):
-    if uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation
+# sep: string consisting of characters with which to split (i.e. if '_.-' we'll split on all three of them) (only used for 'undetermined' <dtype>)
+# did_index: zero-based index (using <sep>) of droplet id NOTE only used for 'undetermined' <dtype>
+def get_droplet_id(uid, dtype='10x', sep='_', did_index=0, return_contigs=False):
+    if dtype != 'undetermined' and uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation TODO this method of determining if it's simulation sucks and will probably need to be changed
         ulist = uid.split('-')
         did, locus = '-'.join(ulist[:-1]), ulist[-1]
         cid = locus[2]
     else:
-        if sep not in uid:
-            raise Exception(' sep \'%s\' not in uid \'%s\'' % (sep, uid))
+        if all(s not in uid for s in sep):
+            raise Exception('no separators from \'%s\' are in uid \'%s\'' % (sep, uid))
         if dtype == '10x':
             if uid.count(sep) != 2:
                 raise Exception('need 2 instances of separator \'%s\' in \'%s\', but found %d' % (sep, uid, uid.count(sep)))
@@ -830,13 +832,13 @@ def get_droplet_id(uid, dtype='10x', sep='_', return_contigs=False): #, prefix=N
             did = uid
             cstr, cid = 'XXX', 'XXX'
         elif dtype == 'undetermined':  # well, maybe this will work for you? i just need it for some random data from meghan atm (will eventually need a more generalized way to do it)
-            did = uid.split(sep)[0]
+            ulist = [uid]
+            for ts in sep:
+                ulist = [s for u in ulist for s in u.split(ts)]
+            did = ulist[did_index]
             cstr, cid = 'XXX', 'XXX'
         else:
             assert False
-    # if prefix is not None:
-    #     assert False  # this is wrong, i always forget lstrip() is character-based
-    #     did = did.lstrip(prefix)
     if return_contigs:
         return did, cid  # NOTE returning cid as string
     else:
@@ -847,10 +849,14 @@ def get_contig_id(uid, dtype='10x', sep='_'):
     return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
 
 # ----------------------------------------------------------------------------------------
-def extract_pairing_info(seqfos, droplet_id_separator='_', dtype='10x', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
+def extract_pairing_info(seqfos, droplet_id_separators='_', droplet_id_index=0, dtype='10x', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
+    # ----------------------------------------------------------------------------------------
+    def did_fcn(uid):  # shorthand that only requires uid
+        return droplet_id_fcn(uid, sep=droplet_id_separators, did_index=droplet_id_index, dtype=dtype)
+    # ----------------------------------------------------------------------------------------
     droplet_ids = {}
     for sfo in seqfos:
-        did = droplet_id_fcn(sfo['name'], sep=droplet_id_separator, dtype=dtype)
+        did = did_fcn(sfo['name'])
         if did not in droplet_ids:
             droplet_ids[did] = []
         droplet_ids[did].append(sfo['name'])
@@ -877,7 +883,7 @@ def extract_pairing_info(seqfos, droplet_id_separator='_', dtype='10x', input_me
     for sfo in seqfos:
         if sfo['name'] in metafos:
             raise Exception('duplicate uid \'%s\' when extracting pairing info' % sfo['name'])
-        pids = [u for u in droplet_ids[droplet_id_fcn(sfo['name'], sep=droplet_id_separator, dtype=dtype)] if u != sfo['name']]
+        pids = [u for u in droplet_ids[did_fcn(sfo['name'])] if u != sfo['name']]
         metafos[sfo['name']] = {'paired-uids' : pids}
         if sfo['name'] in input_metafos:
             assert 'paired-uids' not in input_metafos[sfo['name']]  # don't want to adjudicate between alternative versions here
