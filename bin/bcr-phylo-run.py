@@ -25,9 +25,9 @@ ig_or_tr = 'ig'
 
 # ----------------------------------------------------------------------------------------
 def simdir():
-    return '%s/%s/simu' % (args.base_outdir, args.stype)
+    return '%s/selection/simu' % args.base_outdir
 def infdir():
-    return '%s/%s/partis' % (args.base_outdir, args.stype)
+    return '%s/selection/partis' % args.base_outdir
 def evtdir(i):
     return '%s/event-%d' % (simdir(), i)
 def spath(tstr):  # use spath() for building command line args, whereas use simfname() to get [an] inidivudal file e.g. for utils.output_exists(), as well as for passing to fcns in paircluster.py
@@ -129,13 +129,7 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
     cmd = '%s/bin/simulator.py' % bcr_phylo_path
     if args.run_help:
         cmd += ' --help'
-    elif args.stype == 'neutral':
-        assert False  # needs updating (well, maybe not, but I'm not thinking about it when I move the selection parameters to command line args)
-        cmd += ' --lambda %f --lambda0 %f' % (1.5, 0.365)
-        cmd += ' --n_final_seqs %d' % args.n_sim_seqs_per_generation
-    elif args.stype == 'selection':
-        cmd += ' --selection'
-        cmd += ' --lambda %f' % args.branching_parameter
+    else:
         cmd += ' --lambda0 %f' % args.base_mutation_rate
         cmd += ' --selection_strength %f' % get_vpar_val('selection-strength', args.selection_strength)
         cmd += ' --obs_times %s' % ' '.join(['%d' % get_vpar_val('obs-times', t) for t in args.obs_times])
@@ -151,6 +145,8 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
             cmd += ' --skip_stops_when_mutating'
         if args.allow_stops:
             cmd += ' --allow_stops_in_functional_seqs'
+        if args.no_selection:
+            cmd += ' --no_selection'
         cmd += ' --target_dist %d' % args.target_distance
         cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % get_vpar_val('carry-cap', args.carry_cap)
@@ -161,12 +157,14 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
         if args.n_target_clusters is not None:
             cmd += ' --n_target_clusters %d' % args.n_target_clusters
         # cmd += ' --target_cluster_distance 1'
+        if args.tdist_scale is not None:
+            cmd += ' --tdist_scale %d' % args.tdist_scale
+        if args.tdist_weights is not None:
+            cmd += ' --tdist_weights %s' % args.tdist_weights
         if args.min_target_distance is not None:
             cmd += ' --min_target_distance %d' % args.min_target_distance
         if args.min_effective_kd is not None:
             cmd += ' --min_effective_kd %d' % args.min_effective_kd
-    else:
-        assert False
 
     cmd += ' --debug %d' % args.debug
     cmd += ' --n_tries 1000'
@@ -283,7 +281,6 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
         return final_line
 
     # ----------------------------------------------------------------------------------------
-    assert args.stype == 'selection'  # i don't know that non-'selection' is possible or has any point at this point (can just set selection strength to zero)
     kdfname, nwkfname = '%s/kd-vals.csv' % outdir, '%s/simu.nwk' % outdir
     if not utils.output_exists(args, kdfname, outlabel='kd/nwk conversion', offset=4):  # eh, don't really need to check for both kd and nwk file, chances of only one being missing are really small, and it'll just crash when it looks for it a couple lines later
         cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s --newick-tree-file %s' % (outdir, args.extrastr, kdfname, nwkfname)
@@ -343,7 +340,7 @@ def simulate():
     cmdfos = []
     if args.n_procs > 1:
         print '    starting %d events' % len(naive_events)
-    uid_str_len = args.min_ustr_len + int(math.log(len(naive_events), 10))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates
+    uid_str_len = args.min_ustr_len + int(math.log(len(naive_events), 7))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates (note that this starts getting pretty slow if it's bigger than 7 or so)
     for ievent, outdir in enumerate(outdirs):
         if args.n_sim_events > 1 and args.n_procs == 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
@@ -427,7 +424,6 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
     pass
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter)
-parser.add_argument('--stype', default='selection', choices=('selection', 'neutral'), help='type of simulation')
 parser.add_argument('--actions', default=':'.join(all_actions), help='which actions to run')
 parser.add_argument('--base-outdir', default='%s/partis/bcr-phylo/test' % os.getenv('fs', default=os.getenv('HOME')), help='base output dir')
 parser.add_argument('--debug', type=int, default=0, choices=[0, 1, 2])
@@ -444,12 +440,13 @@ parser.add_argument('--n-max-queries', type=int, help='during parameter caching 
 parser.add_argument('--obs-times', default='100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
+parser.add_argument('--tdist-scale', type=int, help='see bcr-phylo docs')
+parser.add_argument('--tdist-weights', help='see bcr-phylo docs')
 parser.add_argument('--metric-for-target-distance', default='aa', choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'], help='see bcr-phylo docs')
 parser.add_argument('--target-count', type=int, default=1, help='Number of target sequences to generate.')
 parser.add_argument('--n-target-clusters', type=int, help='number of cluster into which to divide the --target-count target seqs (see bcr-phylo docs)')
 parser.add_argument('--min-target-distance', type=int, help='see bcr-phylo docs')
 parser.add_argument('--min-effective-kd', type=float, help='see bcr-phylo docs')
-parser.add_argument('--branching-parameter', type=float, default=2., help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--context-depend', type=int, default=0, choices=[0, 1])  # i wish this could be a boolean, but having it int makes it much much easier to interface with the scan infrastructure in cf-tree-metrics.py
@@ -458,6 +455,7 @@ parser.add_argument('--aa-struct-positions', help='see bcr-phylo docs')
 parser.add_argument('--dont-mutate-struct-positions', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--skip-stops', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--allow-stops', action='store_true', help='see bcr-phylo docs')
+parser.add_argument('--no-selection', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--restrict-available-genes', action='store_true', help='restrict v and j gene choice to one each (so context dependence is easier to plot)')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
