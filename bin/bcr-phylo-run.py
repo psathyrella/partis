@@ -165,6 +165,8 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
             cmd += ' --min_target_distance %d' % args.min_target_distance
         if args.min_effective_kd is not None:
             cmd += ' --min_effective_kd %d' % args.min_effective_kd
+        if args.n_initial_seqs is not None:
+            cmd += ' --n_initial_seqs %d' % args.n_initial_seqs
 
     cmd += ' --debug %d' % args.debug
     cmd += ' --n_tries 1000'
@@ -184,7 +186,7 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
 
     cfo = None
     if args.n_procs == 1:
-        utils.run_ete_script(cmd, ete_path, dryrun=args.dry_run)  # NOTE kind of hard to add a --dry-run option, since we have to loop over the events we made in rearrange()
+        utils.run_ete_script(cmd, ete_path, dryrun=args.dry_run)
     else:
         cmd, _ = utils.run_ete_script(cmd, ete_path, return_for_cmdfos=True, tmpdir=outdir, dryrun=args.dry_run)
         cfo = {'cmd_str' : cmd, 'workdir' : outdir, 'outfname' : bcr_phylo_fasta_fname(outdir)}
@@ -257,9 +259,6 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
                 assert len(pids) == 1 and pids[0].find(bstr) == 0 and pids[0].count('-') == 1 and pids[0].split('-')[1] in utils.loci  # if uid is xxx-igh, paired id shoud be e.g. xxx-igk
                 final_line['paired-uids'][iseq] = [p.replace(bstr, sfo['name']) for p in pids]
 
-        if args.debug:
-            utils.print_reco_event(final_line)
-
         # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
         if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
             print '        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(nodefo) - set(final_line['unique_ids']))
@@ -274,6 +273,8 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
         if args.debug:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ftree), padwidth=12)
         final_line['tree'] = ftree.as_string(schema='newick')
+        if args.debug:
+            utils.print_reco_event(final_line) #, extra_print_keys=['lambdas'])
 
         tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
         tmp_event.set_reco_id(final_line, irandom=ievent)  # not sure that setting <irandom> here actually does anything
@@ -447,6 +448,7 @@ parser.add_argument('--target-count', type=int, default=1, help='Number of targe
 parser.add_argument('--n-target-clusters', type=int, help='number of cluster into which to divide the --target-count target seqs (see bcr-phylo docs)')
 parser.add_argument('--min-target-distance', type=int, help='see bcr-phylo docs')
 parser.add_argument('--min-effective-kd', type=float, help='see bcr-phylo docs')
+parser.add_argument('--n-initial-seqs', type=int, help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--context-depend', type=int, default=0, choices=[0, 1])  # i wish this could be a boolean, but having it int makes it much much easier to interface with the scan infrastructure in cf-tree-metrics.py
