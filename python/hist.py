@@ -490,10 +490,13 @@ class Hist(object):
                 return ax.plot(xvals, yvals, **kwargs)  #, fmt='-o')
 
     # ----------------------------------------------------------------------------------------
-    def fullplot(self, plotdir, plotname, pargs={}, fargs={}): #**kwargs):  # i.e. full plotting process, not just the ax.plot type stuff above
+    def fullplot(self, plotdir, plotname, pargs={}, fargs={}, texts=None): #**kwargs):  # i.e. full plotting process, not just the ax.plot type stuff above
         import plotting
         fig, ax = plotting.mpl_init()  # this'll need to be updated when i want to use a kwarg for this fcn
         self.mpl_plot(ax, **pargs)
+        if texts is not None:
+            for xv, yv, tx in texts:
+                fig.text(xv, yv, tx, fontsize=15)
         self.write('%s/%s.csv'%(plotdir, plotname))
         if 'xticks' not in fargs and any(l != '' for l in self.bin_labels):
             fargs['xticks'] = self.get_bin_centers()

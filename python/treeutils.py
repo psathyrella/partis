@@ -1730,7 +1730,7 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
             fnames += [['header', 'delta-affinity metrics']] + daffy_fnames
     if ('distr' in plot_cfg or not has_affinities) and not only_csv:
         for mtr in metrics_to_calc:
-            lbplotting.plot_lb_distributions(mtr, plotdir, antn_list, is_true_line=is_simu, fnames=fnames, only_overall=False, n_iclust_plot_fnames=None if has_affinities else 8)
+            lbplotting.plot_lb_distributions(mtr, plotdir, antn_list, is_true_line=is_simu, fnames=fnames, only_overall=False, n_iclust_plot_fnames=None if has_affinities else 8) #, stats='mean:max')
     lbplotting.add_fn(fnames, new_row=True)
 
     if not only_csv:  # all the various scatter plots are really slow

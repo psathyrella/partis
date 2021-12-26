@@ -503,21 +503,20 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=False, fnames=None, only_overall=False, affy_key='affinities', n_iclust_plot_fnames=None):
-    def make_hist(plotvals, n_total, n_skipped, iclust=None, affinities=None):
+def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=False, fnames=None, only_overall=False, n_iclust_plot_fnames=None, stats=''):
+    def make_hist(plotvals, n_total, n_skipped, iclust=None):
         if len(plotvals) == 0:
             return
         hist = Hist(30, min(plotvals), max(plotvals) + 0.01*(max(plotvals) - min(plotvals)), value_list=plotvals)
-        fig, ax = plotting.mpl_init()
-        hist.mpl_plot(ax) #, square_bins=True, errors=False)
-        # fig.text(0.7, 0.8, 'mean %.3f' % numpy.mean(plotvals), fontsize=15)
-        # fig.text(0.7, 0.75, 'max %.3f' % max(plotvals), fontsize=15)
-        # if affinities is not None:
-        #     fig.text(0.38, 0.88, 'mean/max affinity: %.4f/%.4f' % (numpy.mean(affinities), max(affinities)), fontsize=15)
+        texts = []
+        if 'mean' in stats:
+            texts.append((0.7, 0.8, 'mean %.3f' % numpy.mean(plotvals)))
+        if 'max' in stats:
+            texts.append((0.7, 0.75, 'max %.3f' % max(plotvals)))
         plotname = '%s-%s' % (lb_metric, str(iclust) if iclust is not None else 'all-clusters')
         leafskipstr = ', skipped %d leaves' % n_skipped if n_skipped > 0 else ''  # ok they're not necessarily leaves, but almost all of them are leaves (and not really sure how a non-leaf could get zero, but some of them seem to)
         title = '%s %s: %d entries%s (%s)' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', lb_metric, short=True), n_total, leafskipstr, all_clust_str(len(sorted_lines)) if iclust is None else 'iclust %d'%iclust)
-        fn = plotting.mpl_finish(ax, plotdir, plotname, xlabel=mtitlestr('per-seq', lb_metric), log='y', ylabel='counts', title=title)
+        fn = hist.fullplot(plotdir, plotname, fargs={'xlabel' : mtitlestr('per-seq', lb_metric), 'log' : 'y', 'ylabel' : 'counts', 'title' : title}, texts=texts)
         if iclust is None or (n_iclust_plot_fnames is not None and iclust < n_iclust_plot_fnames):
             add_fn(fnames, fn=fn)
 
@@ -526,7 +525,7 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
     plotvals = []
     n_total_skipped_leaves = 0
     plotdir = '%s/%s/distributions' % (baseplotdir, lb_metric)
-    utils.prep_dir(plotdir, wildlings=['*.svg'])
+    utils.prep_dir(plotdir, wildlings=['*.svg', '*.csv'])
     for iclust, line in enumerate(sorted_lines):
         lbfo = line['tree-info']['lb'][lb_metric]  # NOTE this contains any ancestor nodes that the phylogenetic program has in the tree, but that aren't in <line['unique_ids']>
         if is_true_line:
@@ -537,8 +536,7 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
         if 'lbr' in lb_metric:
             iclust_plotvals = [v for v in iclust_plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable
         if not only_overall and len(sorted_lines) > 1:
-            affinities = line[affy_key] if affy_key in line else None
-            make_hist(iclust_plotvals, cluster_size, cluster_size - len(iclust_plotvals), iclust=iclust, affinities=affinities)
+            make_hist(iclust_plotvals, cluster_size, cluster_size - len(iclust_plotvals), iclust=iclust)
         plotvals += iclust_plotvals
         n_total_skipped_leaves += cluster_size - len(iclust_plotvals)
     make_hist(plotvals, len(plotvals) + n_total_skipped_leaves, n_total_skipped_leaves)
