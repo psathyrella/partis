@@ -1238,7 +1238,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             return None
         bounds = [f(all_xvals) for f in [min, max]]
         if bounds[0] == bounds[1]:  # if min and max are the same (i.e. all vals are the same), just use the value +/- 10%
-            bounds = [bounds[0] + d for d in [-0.1 * bounds[0], 0.1 * bounds[0]]]
+            bounds = [(1 + s * 0.1) * bounds[0] for s in [-1, 1]]
         if global_max_vals is not None and xkey in global_max_vals:
             bounds[1] = global_max_vals[xkey]
         return bounds
