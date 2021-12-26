@@ -415,6 +415,8 @@ def partition():
         cmd += ' --batch-system slurm'
     if args.n_max_queries is not None:
         cmd += ' --n-max-queries %d' % args.n_max_queries
+    if args.distr_hists:
+        cmd += ' --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + ['distr'])
     utils.simplerun(cmd, debug=True, dryrun=args.dry_run)
     # cmd = './bin/partis get-selection-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
@@ -468,6 +470,7 @@ parser.add_argument('--paired-loci', action='store_true')
 parser.add_argument('--single-light-locus', help='set to igk or igl if you want only that one; otherwise each event is chosen at random (see partis help)')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
+parser.add_argument('--distr-hists', action='store_true', help='include lb distribution hists in plotting')
 parser.add_argument('--min-ustr-len', type=int, default=10, help='min length of hashed uid strs (longer makes collisions less likely, but it\'s hard to avoid them entirely since independent bcr-phylo procs choose the uids for each family)')
 
 args = parser.parse_args()

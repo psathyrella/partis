@@ -1067,7 +1067,8 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
     # write the meat of the html
     for rowlist in fnames:
         if 'header' in rowlist:
-            assert len(rowlist) == 2
+            if len(rowlist) != 2:
+                raise Exception('malformed header row list in fnames (should be len 2 but got %d): %s' % (len(rowlist), rowlist))
             add_newline(lines, header=rowlist[1])
             continue
         for fn in rowlist:
@@ -1236,6 +1237,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         if len(all_xvals) == 0:
             return None
         bounds = [f(all_xvals) for f in [min, max]]
+        if bounds[0] == bounds[1]:  # if min and max are the same (i.e. all vals are the same), just use the value +/- 10%
+            bounds = [bounds[0] + d for d in [-0.1 * bounds[0], 0.1 * bounds[0]]]
         if global_max_vals is not None and xkey in global_max_vals:
             bounds[1] = global_max_vals[xkey]
         return bounds

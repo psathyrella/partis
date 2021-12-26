@@ -76,6 +76,10 @@ legtexts = {
 }
 
 # ----------------------------------------------------------------------------------------
+all_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree', 'distr', 'true-vs-inf-metrics']
+default_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree']
+
+# ----------------------------------------------------------------------------------------
 def smetric_fname(fname):
     return utils.insert_before_suffix('-selection-metrics', fname)
 
@@ -1686,7 +1690,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, queries_to_include=None,
-                      plot_true_vs_inf_metrics=False, label_tree_nodes=False, paired=False, debug=False):
+                      label_tree_nodes=False, paired=False, plot_cfg=None, debug=False):
     assert not include_relative_affy_plots  # would need updating
     import plotting
     import lbplotting
@@ -1695,6 +1699,8 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
     if inf_annotations is not None:
         assert is_simu
 
+    if plot_cfg is None:
+        plot_cfg = utils.get_arg_list(plot_cfg, choices=all_plot_cfg)
     has_affinities = any('affinities' in l for l in antn_list)
     has_trees = is_simu or any(tk in l['tree-info']['lb'] for l in antn_list for tk in ['tree', 'aa-tree'])
     if is_simu and (not has_affinities or all(affy is None for affy in antn_list[0]['affinities'])):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
@@ -1705,35 +1711,38 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
     fnames = lbplotting.add_fn(None, init=True)
 
     if has_affinities:
-        affy_fnames, slice_fnames = [], []
+        affy_fnames, slice_fnames = [[]], [[]]
         for mtr in [m for m in metrics_to_calc if m in affy_metrics]:
-            lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=only_csv, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
-            lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=only_csv, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, paired=paired, debug=debug)
+            if 'lb-vs-affy' in plot_cfg:
+                lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=only_csv, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
+            if 'slice' in plot_cfg:
+                lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=only_csv, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, paired=paired, debug=debug)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', plotdir, mtr, antn_list, yvar=mtr+'-ptile', fnames=fnames, is_true_line=is_simu)
         fnames += [['header', 'affinity metrics']] + affy_fnames + slice_fnames
-        if not only_csv:
+        if 'joy' in plot_cfg and not only_csv:
             fnames.append([])
             for mtr in metrics_to_calc:
                 lbplotting.make_lb_affinity_joyplots(plotdir + '/joyplots', antn_list, mtr, fnames=fnames)
-        daffy_fnames = []
-        for mtr in [m for m in metrics_to_calc if m in daffy_metrics]:
-            lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + mtr, antn_list, mtr, is_true_line=is_simu, only_csv=only_csv, fnames=daffy_fnames, separate_rows=True, debug=debug)
-        fnames += [['header', 'delta-affinity metrics']] + daffy_fnames
-    else:
-        if not only_csv:
-            for mtr in metrics_to_calc:
-                lbplotting.plot_lb_distributions(mtr, plotdir, antn_list, is_true_line=is_simu, fnames=fnames, only_overall=False, n_iclust_plot_fnames=None if has_affinities else 8)
+        if 'lb-vs-daffy' in plot_cfg:
+            daffy_fnames = [[]]
+            for mtr in [m for m in metrics_to_calc if m in daffy_metrics]:
+                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + mtr, antn_list, mtr, is_true_line=is_simu, only_csv=only_csv, fnames=daffy_fnames, separate_rows=True, debug=debug)
+            fnames += [['header', 'delta-affinity metrics']] + daffy_fnames
+    if ('distr' in plot_cfg or not has_affinities) and not only_csv:
+        for mtr in metrics_to_calc:
+            lbplotting.plot_lb_distributions(mtr, plotdir, antn_list, is_true_line=is_simu, fnames=fnames, only_overall=False, n_iclust_plot_fnames=None if has_affinities else 8)
     lbplotting.add_fn(fnames, new_row=True)
 
     if not only_csv:  # all the various scatter plots are really slow
-        for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi'), ('sum-cons-dist-aa', 'sum-aa-lbi'), ('sum-aa-lbi', 'sum-lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
-            lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
-        if ete_path is not None and has_trees:
+        if 'lb-scatter' in plot_cfg:
+            for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi'), ('sum-cons-dist-aa', 'sum-aa-lbi'), ('sum-aa-lbi', 'sum-lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
+                lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
+        if ete_path is not None and has_trees and 'tree' in plot_cfg:
             lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=queries_to_include, fnames=fnames, label_all_nodes=label_tree_nodes)
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
         plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs], bgcolor='#FFFFFF', title='all plots:')
 
-    if is_simu and not only_csv and plot_true_vs_inf_metrics:
+    if is_simu and not only_csv and 'true-vs-inf-metrics' in plot_cfg:
         assert inf_annotations is not None
         for mtr in [m for m in metrics_to_calc if m in lb_metrics]:
             lbplotting.plot_true_vs_inferred_lb(plotdir + '/' + mtr, antn_list, inf_annotations, mtr, fnames=fnames)
@@ -1840,7 +1849,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_me
 # ----------------------------------------------------------------------------------------
 def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                            ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False,
+                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False, plot_cfg=None,
                            cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, label_tree_nodes=False, ignore_existing_internal_node_labels=False, debug=False):
     print 'getting selection metrics: %s' % ' '.join(metrics_to_calc)
     if reco_info is not None:
@@ -1974,7 +1983,8 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
         else:
             plstr, antn_list, is_simu, inf_annotations = 'true', true_lines_to_use, True, inf_lines_to_use
         plot_tree_metrics('%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir,
-                          include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, queries_to_include=queries_to_include, label_tree_nodes=label_tree_nodes, debug=debug)  # plot_true_vs_inf_metrics=True
+                          include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, queries_to_include=queries_to_include, label_tree_nodes=label_tree_nodes, plot_cfg=plot_cfg,
+                          debug=debug)
 
     if outfname is not None:
         print '  writing selection metrics to %s' % outfname
@@ -2916,7 +2926,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     if plotdir is not None:
 # TODO arg wtf args.selection_metrics_to_calculate is single-chain metrics
         mtc = ['sum-'+m for m in args.selection_metrics_to_calculate]
-        plot_tree_metrics(plotdir, mtc, [h_atn for h_atn, _ in antn_pairs], is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include, label_tree_nodes=args.label_tree_nodes, paired=True)
+        plot_tree_metrics(plotdir, mtc, [h_atn for h_atn, _ in antn_pairs], is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include,
+                          label_tree_nodes=args.label_tree_nodes, paired=True, plot_cfg=args.selection_metric_plot_cfg)
     for (h_atn, _), rtns in zip(antn_pairs, rtns_list):
         untranslate(h_atn, rtns)
     if args.chosen_ab_fname is not None:
