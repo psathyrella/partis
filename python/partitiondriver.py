@@ -2205,7 +2205,7 @@ class PartitionDriver(object):
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
                 if self.args.no_insertions_or_deletions:
-                    ends = ['v_3p', 'j_5p'] if utils.has_d_gene(self.args.locus) else utils.real_erosions  # need 1-base d erosion for light chain
+                    ends = ['v_3p', 'j_5p'] if not utils.has_d_gene(self.args.locus) else utils.real_erosions  # need 1-base d erosion for light chain
                     for end in ends:
                         padded_line[end+'_del'] = 0
                     for bound in utils.boundaries:
