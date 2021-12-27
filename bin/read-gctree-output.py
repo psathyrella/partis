@@ -52,6 +52,7 @@ parser.add_argument('--tree-basename', default='%s.nk'%gctree_outstr, help='base
 parser.add_argument('--abundance-basename', default='abundances.csv', help='basename of abundance file in --gctreedir. Abundance of 0 (inferred ancestor) is converted to multiplicity of 1. Not used if multiplicities are read from kdfname')  # .1 is the most likely one (all trees are also in the pickle file as ete trees: gctree.out.inference.parsimony_forest.p
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--no-tree-plots', action='store_true')
+parser.add_argument('--parameter-plots', action='store_true')
 parser.add_argument('--no-insertions-or-deletions', action='store_true', help='see partis help')
 parser.add_argument('--n-procs', type=int)
 parser.add_argument('--initial-germline-dir', help='see partis help')
@@ -88,6 +89,8 @@ def run_cmd(action):
     if action == 'cache-parameters':
         if args.initial_germline_dir is not None:
             cmd += ' --initial-germline-dir %s' % args.initial_germline_dir
+        if args.parameter_plots:
+            cmd += ' --plotdir %s' % args.outdir
     if action == 'annotate':
         if args.input_partition_fname is None:  # one gc at a time
             cmd += ' --all-seqs-simultaneous'
