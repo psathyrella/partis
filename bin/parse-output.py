@@ -86,6 +86,7 @@ parser.add_argument('--fasta-info-separator', default=' ', help='character to us
 parser.add_argument('--debug', type=int, default=0)
 parser.add_argument('--airr-input', action='store_true', help='read input in AIRR tsv format, and if output file suffix is .yaml write partis output.')
 parser.add_argument('--airr-output', action='store_true', help='write output in AIRR tsv format')
+parser.add_argument('--skip-columns', help='don\'t write these columns to output (atm only implemented for airr output, since we need to remove the clone_id column so scoper doesn\'t crash)')
 parser.add_argument('--simfname', help='simulation file corresponding to input file (i.e. presumably <infile> is inference that was performed on --simfname')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv versions of plots (not svg), which is a lot faster')
 parser.add_argument('--only-make-plots', action='store_true', help='if --plotdir is set, set this to only do plotting, i.e. don\'t do the usual/default file reading/conversion')
@@ -166,7 +167,7 @@ if not os.path.exists(os.path.dirname(os.path.abspath(args.outfile))):
 
 if args.airr_output:
     print '  writing %d sequences to %s' % (len(annotation_list), args.outfile)
-    utils.write_airr_output(args.outfile, annotation_list, cpath=cpath, extra_columns=args.extra_columns)
+    utils.write_airr_output(args.outfile, annotation_list, cpath=cpath, extra_columns=args.extra_columns, skip_columns=args.skip_columns)
     sys.exit(0)
 
 # condense partis info into <seqfos> for fasta/csv output

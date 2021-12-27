@@ -1356,6 +1356,7 @@ airr_headers = OrderedDict([  # enforce this ordering so the output files are ea
     ('duplicate_count', None),
     ('cdr3_start', None),
     ('cdr3_end', None),
+    ('cell_id', None),
 ])
 for rtmp in regions:
     airr_headers[rtmp+'_support'] = None      # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
@@ -1454,7 +1455,7 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
     return cigarstr
 
 # ----------------------------------------------------------------------------------------
-def get_airr_line(pline, iseq, partition=None, extra_columns=None, debug=False):
+def get_airr_line(pline, iseq, partition=None, extra_columns=None, skip_columns=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def getrgn(tk):  # get region from key name
         rgn = tk.split('_')[0]
@@ -1469,6 +1470,8 @@ def get_airr_line(pline, iseq, partition=None, extra_columns=None, debug=False):
 
     aline = {}
     for akey, pkey in airr_headers.items():
+        if skip_columns is not None and akey in skip_columns:
+            continue
         if pkey is not None:  # if there's a direct correspondence to a partis key
             aline[akey] = pline[pkey][iseq] if pkey in linekeys['per_seq'] else pline[pkey]
         elif akey == 'rev_comp':
@@ -1496,7 +1499,7 @@ def get_airr_line(pline, iseq, partition=None, extra_columns=None, debug=False):
                 print '  %s sequence \'%s\' occurs multiple times (%d) in partition' % (color('red', 'warning'), pline['unique_ids'][iseq], len(iclusts))
             aline[akey] = str(iclusts[0])
         elif akey == 'locus':
-            aline[akey] = get_locus(pline['v_gene'])
+            aline[akey] = get_locus(pline['v_gene']).upper()  # scoper at least requires upper case
         elif '_support' in akey and akey[0] in regions:  # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
             pkey = akey[0] + '_per_gene_support'
             gcall = pline[akey[0] + '_gene']
@@ -1519,6 +1522,8 @@ def get_airr_line(pline, iseq, partition=None, extra_columns=None, debug=False):
             aline[akey] = pline['codon_positions']['v'] + 3 + 1
         elif akey == 'cdr3_end':
             aline[akey] = pline['codon_positions']['j']
+        elif akey == 'cell_id':
+            aline[akey] = get_droplet_id(pline['unique_ids'][iseq])
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
 
@@ -1585,17 +1590,20 @@ def convert_airr_line(aline, glfo):
     return pline
 
 # ----------------------------------------------------------------------------------------
-def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
+def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, skip_columns=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
     if extra_columns is None:
         extra_columns = []
     print '   writing airr annotations to %s' % outfname
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
     with open(outfname, 'w') as outfile:
-        writer = csv.DictWriter(outfile, airr_headers.keys() + extra_columns, delimiter='\t')
+        oheads = airr_headers.keys() + extra_columns
+        if skip_columns is not None:
+            oheads = [h for h in oheads if h not in skip_columns]
+        writer = csv.DictWriter(outfile, oheads, delimiter='\t')
         writer.writeheader()
         for line in annotation_list:
             for iseq in range(len(line['unique_ids'])):
-                aline = get_airr_line(line, iseq, partition=None if cpath is None else cpath.partitions[cpath.i_best], extra_columns=extra_columns, debug=debug)
+                aline = get_airr_line(line, iseq, partition=None if cpath is None else cpath.partitions[cpath.i_best], extra_columns=extra_columns, skip_columns=skip_columns, debug=debug)
                 writer.writerow(aline)
 
         # and write empty lines for seqs that failed either in sw or the hmm

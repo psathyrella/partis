@@ -25,16 +25,16 @@ def getifn(locus):
     return '%s/input.tsv' % wkdir(locus)
 
 # ----------------------------------------------------------------------------------------
-def scofn(locus):
-    return '%s/partition.tsv' % wkdir(locus)
+def scofn(locus, joint=False):
+    return '%s/%spartition.tsv' % (wkdir(locus), 'joint-' if joint else '')
 
 # ----------------------------------------------------------------------------------------
 def simfn(locus):
     return paircluster.paired_fn(args.simdir, locus, suffix='.yaml')
 
 # ----------------------------------------------------------------------------------------
-def getofn(locus):
-    return paircluster.paired_fn(args.outdir, locus, single_chain=True, actstr='partition', suffix='.yaml')
+def getofn(locus, joint=False):
+    return paircluster.paired_fn(args.outdir, locus, single_chain=not joint, actstr='partition', suffix='.yaml')
 
 # ----------------------------------------------------------------------------------------
 def swfn(locus):
@@ -53,14 +53,14 @@ def get_alignments():
             n_already_there += 1
             continue
         utils.mkdir(wkdir(locus))
-        cmd = './bin/parse-output.py %s %s --airr-output' % (swfn(locus), ofn)
+        cmd = './bin/parse-output.py %s %s --airr-output --skip-columns clone_id' % (swfn(locus), ofn)
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : ofn,
             'logdir' : wkdir(locus),
             'workdir' : wkdir(locus),
         }]
-    utils.run_scan_cmds(args, cmdfos, 'airr-convert.log', n_total, n_already_there, ofn)  # not really much point in parallelizing this since the scoper step isn't parallelized but oh well
+    utils.run_scan_cmds(args, cmdfos, 'airr-convert.log', n_total, n_already_there, ofn)
 
 # ----------------------------------------------------------------------------------------
 def run_scoper():
@@ -74,7 +74,7 @@ def run_scoper():
 
         rcmds = ['library(scoper)']
         rcmds += ['db <- read.csv("%s", sep="\t")' % getifn(locus)]
-        rcmds += ['db <- db[ , !(names(db) %in% c("clone_id"))]']  # it crashes if clone_id is already there
+        rcmds += ['db <- db[ , !(names(db) %in% c("clone_id"))]']  # it crashes if clone_id is already there UPDATE don't need this any more since i'm removing clone_id column above
         rcmds += ['results <- spectralClones(db)']  # , method="novj", germline="germline_alignment_d_mask"
         rcmds += ['df <- as.data.frame(results)']
         rcmds += ['write.table(df[c("sequence_id", "clone_id")], "%s", sep="\t", quote=FALSE, row.names=FALSE)' % ofn]
@@ -82,15 +82,34 @@ def run_scoper():
         utils.run_r(rcmds, wkdir(locus), logfname='%s/scoper.log'%wkdir(locus), print_time='%s scoper'%locus, dryrun=args.dry)
 
 # ----------------------------------------------------------------------------------------
-def convert_output():
+def run_joint_scoper():
+    ofn, cmdfos, n_already_there, n_total = None, [], 0, 0
+    for locus in gloci():
+        if not os.path.exists('%s/%s/sw-cache.yaml' % (args.indir, locus)):
+            continue
+        ofn = scofn(locus, joint=True)
+        if utils.output_exists(args, ofn): # and not args.dry:  # , offset=8):
+            continue
+
+        cmd = 'Rscript packages/joint-scoper/scoperClones.R %s %s spectral HL vj 10' % (getifn(locus), ofn)
+        cmdfos += [{
+            'cmd_str' : cmd,
+            'outfname' : ofn,
+            'logdir' : wkdir(locus),
+            'workdir' : wkdir(locus),
+        }]
+    utils.run_scan_cmds(args, cmdfos, 'joint-scoper.log', n_total, n_already_there, ofn)
+
+# ----------------------------------------------------------------------------------------
+def convert_output(joint=False):
     ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
     for locus in gloci():
-        pfn = getofn(locus)
+        pfn = getofn(locus, joint=joint)
         if utils.output_exists(args, pfn, debug=False):
             n_already_there += 1
             continue
         utils.mkdir(pfn, isfile=True)
-        cmd = './bin/parse-output.py %s %s --airr-input --simfname %s' % (scofn(locus), pfn, simfn(locus))
+        cmd = './bin/parse-output.py %s %s --airr-input --simfname %s' % (scofn(locus, joint=joint), pfn, simfn(locus))
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : pfn,
@@ -115,6 +134,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--indir', required=True)
 parser.add_argument('--outdir', required=True)
 parser.add_argument('--simdir', required=True)
+parser.add_argument('--joint', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
@@ -123,3 +143,5 @@ args = parser.parse_args()
 get_alignments()
 run_scoper()
 convert_output()
+run_joint_scoper()
+convert_output(joint=True)
