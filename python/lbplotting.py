@@ -507,7 +507,8 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
     def make_hist(plotvals, n_total, n_skipped, iclust=None):
         if len(plotvals) == 0:
             return
-        hist = Hist(30, min(plotvals), max(plotvals) + 0.01*(max(plotvals) - min(plotvals)), value_list=plotvals)
+        xmin, xmax = hutils.get_expanded_bounds([min(plotvals), max(plotvals)], 0)
+        hist = Hist(30, xmin, xmax, value_list=plotvals)
         texts = []
         if 'mean' in stats:
             texts.append((0.7, 0.8, 'mean %.3f' % numpy.mean(plotvals)))

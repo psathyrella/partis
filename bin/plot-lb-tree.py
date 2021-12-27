@@ -90,6 +90,8 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
     assert add_sign in [None, '-', '+']
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
     min_val, max_val = get_scale_min(varname, all_vals), max(all_vals)
+    if min_val == max_val:
+        min_val, max_val = plotting.expand_bounds([min_val, max_val])
     val_list = plotting.get_leg_entries(n_entries=n_entries, min_val=min_val, max_val=max_val)
     # if add_sign is not None and add_sign == '-':  # for negative changes, we have the cmap using abs() and want to legend order to correspond
     #     val_list = reversed(val_list)  # arg, this breaks something deep in the legend maker, not sure what

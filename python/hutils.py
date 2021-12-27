@@ -5,14 +5,15 @@ from hist import Hist
 import utils
 
 # ----------------------------------------------------------------------------------------
-def get_expanded_bounds(values, dxmin, dxmax=None):
+def get_expanded_bounds(values, dxmin, dxmax=None):  # NOTE see also plotting.expand_bounds()
+    def dfcn(): return max(1e-5, abs(values[0]))  # hackey, but effective
     values = sorted(values)  # should already be sorted, but this is the only way to enforce it
     if dxmax is None:
         dxmax = dxmin
-    if dxmin == 0:  # hackey, but effective
-        dxmin = max(1e-5, values[0])
-    if dxmax == 0:  # hackey, but effective
-        dxmax = max(1e-5, values[0])
+    if dxmin == 0:
+        dxmin = dfcn()
+    if dxmax == 0:
+        dxmax = dfcn()
     xmin = values[0] - 0.1*dxmin  # expand a little to avoid underflows
     xmax = values[-1] + 0.1*dxmax  # and overflows
     return xmin, xmax

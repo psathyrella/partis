@@ -20,6 +20,7 @@ import utils
 import plotconfig
 from hist import Hist
 import treeutils
+import hutils
 
 #                   green    dark red  light blue  light red  sky blue  pink/purple   grey
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
@@ -138,6 +139,11 @@ def get_leg_entries(n_entries=5, vals=None, min_val=None, max_val=None, colorfcn
     else:
         leg_entries = [(v, {'color' : colorfcn(v)}) for v in leg_vals]
         return collections.OrderedDict(leg_entries)
+
+# ----------------------------------------------------------------------------------------
+def expand_bounds(bounds):
+    assert len(bounds) == 2
+    return hutils.get_expanded_bounds(bounds, abs(bounds[1] - bounds[0]))
 
 # ----------------------------------------------------------------------------------------
 # returns modified copy of input list
@@ -1235,7 +1241,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             return None
         bounds = [f(all_xvals) for f in [min, max]]
         if bounds[0] == bounds[1]:  # if min and max are the same (i.e. all vals are the same), just use the value +/- 10%
-            bounds = [(1 + s * 0.1) * bounds[0] for s in [-1, 1]]
+            bounds = expand_bounds(bounds)  # NOTE old version doesn't work e.g. for negative vals: [(1 + s * 0.1) * bounds[0] for s in [-1, 1]]
         if global_max_vals is not None and xkey in global_max_vals:
             bounds[1] = global_max_vals[xkey]
         return bounds
