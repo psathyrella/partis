@@ -151,6 +151,8 @@ def lb_cons_seq_shm(line, aa=False):
 # ----------------------------------------------------------------------------------------
 def edge_dist_fcn(dtree, uid):  # duplicates fcn in lbplotting.make_lb_scatter_plots()
     node = dtree.find_node_with_taxon_label(uid)
+    if node is None:
+        return None
     return min(node.distance_from_tip(), node.distance_from_root())  # NOTE the tip one gives the *maximum* distance to a leaf, but I think that's ok
 
 # ----------------------------------------------------------------------------------------

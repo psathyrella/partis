@@ -17,6 +17,7 @@ import utils
 import paircluster
 import glutils
 from clusterpath import ClusterPath
+import treeutils
 
 gctree_outstr = 'gctree.out.inference.1'
 
@@ -34,7 +35,7 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
     pass
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
-parser.add_argument('--actions', default='cache-parameters:annotate:get-selection-metrics')
+parser.add_argument('--actions', default='cache-parameters:annotate:get-selection-metrics', help='colon-separated list of actions to run')
 parser.add_argument('--seqfname', help='Fasta file with input sequences. If single chain, this defaults to the standard location in --gctreedir. If --paired-loci is set, this should include, separately, all heavy and all light sequences, where the two sequences in a pair have identical uids (at least up to the first \'_\').')
 parser.add_argument('--gctreedir', required=True, help='gctree output dir (to get --tree-basename, and maybe abundances.csv, --seqfname).')
 parser.add_argument('--outdir', required=True, help='directory to which to write partis output files')
@@ -96,6 +97,7 @@ def run_cmd(action):
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
         cmd += ' --min-selection-metric-cluster-size 3 --label-tree-nodes --treefname %s/%s --plotdir %s --selection-metrics-to-calculate lbi:aa-lbi:cons-dist-aa:lbr:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
+        cmd += ' --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + ['distr'])
         cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv --debug 1' % args.outdir
         if args.no_tree_plots:
             cmd += ' --ete-path None'

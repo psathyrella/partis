@@ -1220,10 +1220,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # ----------------------------------------------------------------------------------------
     def get_xval_list(cluster, xkey):  # NOTE this *has* to return values in the same order they're in line['unique_ids']
         line = annotations[':'.join(cluster)]
-        if xkey in smetrics:
-            return [line['tree-info']['lb'][xkey][u] for u in line['unique_ids']]  # we can't use .values() because there's lb values in the dict in 'tree-info' that don't correspond to uids in 'unique_ids' (and we don't want to include those values) (plus the order wouldn't be right)
-        else:
-            return line[xkey]
+        return treeutils.smvals(line, xkey)
     # ----------------------------------------------------------------------------------------
     def get_xval_dict(uids, xkey):
         line = annotations[':'.join(cluster)]

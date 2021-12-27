@@ -389,6 +389,8 @@ def cache_parameters():
     cmd = './bin/partis cache-parameters --random-seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
     fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else ' --infname %s --parameter-dir %s'
     cmd += fstr % (spath('mutated'), ipath('params'))
+    if args.parameter_plots:
+        cmd += ' --plotdir %s' % ('paired-outdir' if args.paired_loci else ipath('plots'))
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
@@ -467,6 +469,7 @@ parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')
 parser.add_argument('--parameter-variances', help='if set, parameters vary from family to family in one of two ways 1) the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75, or 2) parameters for each family are chosen from a \'..\'-separated list, e.g. obs-times,75..100..150')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--paired-loci', action='store_true')
+parser.add_argument('--parameter-plots', action='store_true')
 parser.add_argument('--single-light-locus', help='set to igk or igl if you want only that one; otherwise each event is chosen at random (see partis help)')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
