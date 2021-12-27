@@ -1218,7 +1218,7 @@ class Waterer(object):
         k_d_max += 1
 
         if not utils.has_d_gene(self.args.locus):
-            k_v_min -= 2  # i'm not really sure why this can't be -1, but i think it has to do with coming up against the conserved tryp in j (whose erosion we now absolutely forbid) [this is getting fixed long after the k d modifications, i'm not sure why it didn't cause problems before]
+            k_v_min -= 3  # i'm not really sure why this can't be -1, but i think it has to do with coming up against the conserved tryp in j (whose erosion we now absolutely forbid) [this is getting fixed long after the k d modifications, i'm not sure why it didn't cause problems before]
             best_k_d = 1
             k_d_min = 1
             k_d_max = 2
