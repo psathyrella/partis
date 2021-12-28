@@ -333,6 +333,10 @@ def simulate():
     rearrange()
 
     glfos, naive_events = read_rearrangements()
+    if args.dry_run:
+        for ievent in range(args.n_sim_events):
+            _ = run_bcr_phylo('<NAIVE_SEQ>', evtdir(ievent), ievent)
+        return
     assert len(naive_events) == args.n_sim_events
 
     outdirs = [evtdir(i) for i in range(len(naive_events))]

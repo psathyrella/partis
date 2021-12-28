@@ -4142,12 +4142,12 @@ def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None, dryr
     cmd = 'export TMPDIR=%s' % tmpdir
     cmd += ' && export PATH=%s:$PATH' % ete_path
     cmd += ' && %s/bin/xvfb-run -a python%s %s' % (get_partis_dir(), prof_cmds, sub_cmd)
+    if debug or dryrun:
+        itmp = cmd.rfind('&&')
+        print '%s%s %s' % (extra_str, color('red', 'run'), '%s \\\n%s     %s' % (cmd[:itmp + 2], extra_str, cmd[itmp + 2:]))
     if return_for_cmdfos:
         return cmd, tmpdir
     else:
-        if debug:
-            itmp = cmd.rfind('&&')
-            print '%s%s %s' % (extra_str, color('red', 'run'), '%s \\\n%s     %s' % (cmd[:itmp + 2], extra_str, cmd[itmp + 2:]))
         simplerun(cmd, shell=True, dryrun=dryrun, debug=False)
         os.rmdir(tmpdir)
 
