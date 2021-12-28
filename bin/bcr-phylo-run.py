@@ -82,6 +82,8 @@ def rearrange():
     if args.restrict_available_genes:
         assert not args.paired_loci
         cmd += ' --only-genes IGHV1-18*01:IGHJ1*01'
+    if args.rearr_extra_args is not None:
+        cmd += ' %s' % args.rearr_extra_args
     if args.single_light_locus is not None:
         cmd += ' --single-light-locus %s' % args.single_light_locus
     if args.n_procs > 1:
@@ -475,6 +477,7 @@ parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--paired-loci', action='store_true')
 parser.add_argument('--parameter-plots', action='store_true')
 parser.add_argument('--single-light-locus', help='set to igk or igl if you want only that one; otherwise each event is chosen at random (see partis help)')
+parser.add_argument('--rearr-extra-args', help='')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
 parser.add_argument('--distr-hists', action='store_true', help='include lb distribution hists in plotting')

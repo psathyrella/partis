@@ -304,6 +304,26 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def try_scratch_erode_insert(self, tmpline, corr_vals=None, allowed_vals=None, parent_line=None, debug=False):  # non-None corr_vals determines if we're applying correlations
+        # ----------------------------------------------------------------------------------------
+        def get_heavy_del(region, erosion, gene_length):
+            if self.args.no_insertions_or_deletions:
+                return 0
+            max_erosion = max(0, gene_length/2 - 2)  # heuristic
+            if region in utils.conserved_codons[self.args.locus]:  # make sure not to erode a conserved codon
+                codon_pos = utils.cdn_pos(self.glfo, region, tmpline[region + '_gene'])
+                if '3p' in erosion:
+                    n_bases_to_codon = gene_length - codon_pos - 3
+                elif '5p' in erosion:
+                    n_bases_to_codon = codon_pos
+                max_erosion = min(max_erosion, n_bases_to_codon)
+            mean_len = utils.scratch_mean_erosion_lengths[self.args.locus][erosion]
+            if corr_vals is None and allowed_vals is None:  # the case where they're different is heavy chain for paired correlation, when corr_vals is None so we don't apply any correlations, but allowed_vals is *not* None so we can keep track of allowed values
+                e_len = min(max_erosion, len_fcn(1. / mean_len) - 1)
+            else:
+                lens, probs = self.handle_options_for_correlation(erosion+'_del', None, corr_vals, allowed_vals, parent_line, mean_max=(mean_len, max_erosion))
+                e_len = numpy.random.choice(lens, p=probs)
+            return e_len
+        # ----------------------------------------------------------------------------------------
         len_fcn = numpy.random.geometric  # has to match scipy.stats.geom above NOTE also the -1 in several places
         utils.remove_all_implicit_info(tmpline)
         for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
@@ -313,24 +333,10 @@ class Recombinator(object):
                 assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.locus]
                 tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0
             else:
-                max_erosion = max(0, gene_length/2 - 2)  # heuristic
-                if region in utils.conserved_codons[self.args.locus]:  # make sure not to erode a conserved codon
-                    codon_pos = utils.cdn_pos(self.glfo, region, tmpline[region + '_gene'])
-                    if '3p' in erosion:
-                        n_bases_to_codon = gene_length - codon_pos - 3
-                    elif '5p' in erosion:
-                        n_bases_to_codon = codon_pos
-                    max_erosion = min(max_erosion, n_bases_to_codon)
-                mean_len = utils.scratch_mean_erosion_lengths[self.args.locus][erosion]
-                if corr_vals is None and allowed_vals is None:  # the case where they're different is heavy chain for paired correlation, when corr_vals is None so we don't apply any correlations, but allowed_vals is *not* None so we can keep track of allowed values
-                    e_len = min(max_erosion, len_fcn(1. / mean_len) - 1)
-                else:
-                    lens, probs = self.handle_options_for_correlation(erosion+'_del', None, corr_vals, allowed_vals, parent_line, mean_max=(mean_len, max_erosion))
-                    e_len = numpy.random.choice(lens, p=probs)
-                tmpline[erosion + '_del'] = e_len
+                tmpline[erosion + '_del'] = get_heavy_del(region, erosion, gene_length)
         for bound in utils.boundaries:
             mean_len = utils.scratch_mean_insertion_lengths[self.args.locus][bound]
-            if mean_len == 0:
+            if mean_len == 0 or self.args.no_insertions_or_deletions:
                 i_len = 0  # mean_len if 0 means it *needs* to be zero, e.g. vd insertion for light chain
             else:
                 if corr_vals is None and allowed_vals is None:
