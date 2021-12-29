@@ -6,11 +6,12 @@ import os
 from hist import Hist
 import utils
 import glutils
+import hutils
 # import paramutils
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
-    def __init__(self, glfo, exclusions, calculate_uncertainty=True):
+    def __init__(self, glfo, exclusions, calculate_uncertainty=True, tree_stats=False):
         self.glfo = glfo
         self.exclusions = exclusions
         self.calculate_uncertainty = calculate_uncertainty
@@ -27,6 +28,8 @@ class MuteFreqer(object):
                              for n in ['all', 'cdr3'] + utils.regions}
         self.per_gene_mean_rates = {}
 
+        self.unique_seqs, self.unique_muts = ({}, {}) if tree_stats else (None, None)
+
         self.finalized = False
         self.n_cached, self.n_not_cached = 0, 0
 
@@ -41,6 +44,17 @@ class MuteFreqer(object):
         freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region='cdr3')
         self.mean_rates['cdr3'].fill(freq)
         self.mean_n_muted['cdr3'].fill(n_muted)
+
+        if self.unique_seqs is not None:
+            tmpseq = info['seqs'][iseq]
+            if tmpseq not in self.unique_seqs:
+                self.unique_seqs[tmpseq] = 0
+            self.unique_seqs[tmpseq] += 1
+            umuts = utils.get_mut_codes(info['naive_seq'], tmpseq) #, amino_acid=False
+            for mcd in umuts:
+                if mcd['str'] not in self.unique_muts:
+                    self.unique_muts[mcd['str']] = 0
+                self.unique_muts[mcd['str']] += 1
 
         for region in utils.regions:
             # first do mean freqs
@@ -92,6 +106,15 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def finalize(self):
+        # ----------------------------------------------------------------------------------------
+        def distr_from_uniq_counts(ucounts, ulabel):
+            udistr = {}
+            for scount in ucounts.values():
+                if scount not in udistr:
+                    udistr[scount] = 0
+                udistr[scount] += 1
+            return hutils.make_hist_from_dict_of_counts(udistr, 'int', ulabel)
+        # ----------------------------------------------------------------------------------------
         """ convert from counts to mut freqs """
         assert not self.finalized
 
@@ -117,6 +140,10 @@ class MuteFreqer(object):
             hist.normalize()
         for hist in self.per_gene_mean_rates.values():
             hist.normalize()
+
+        if self.unique_seqs is not None:
+            self.hunique_seqs = distr_from_uniq_counts(self.unique_seqs, 'useq_distr')
+            self.hunique_muts = distr_from_uniq_counts(self.unique_muts, 'umut_distr')
 
         self.finalized = True
 
@@ -180,6 +207,10 @@ class MuteFreqer(object):
                 bounds = (0.0, 0.6 if rstr == 'd' else 0.4)
             plotting.draw_no_root(self.mean_rates[rstr], plotname=rstr+'_mean-freq', plotdir=overall_plotdir, stats='mean', bounds=bounds, write_csv=True, only_csv=only_csv, shift_overflows=True)
             plotting.draw_no_root(self.mean_n_muted[rstr], plotname=rstr+'_mean-n-muted', plotdir=overall_plotdir, stats='mean', write_csv=True, only_csv=only_csv, shift_overflows=True)
+
+        if self.unique_seqs is not None:
+            self.hunique_seqs.fullplot(overall_plotdir, 'useq_distr', pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N obs', 'ylabel' : 'counts', 'title' : 'N seq obs distr'}, texts=[(0.7, 0.8, 'N gtypes %d'%len(self.unique_seqs))])
+            self.hunique_muts.fullplot(overall_plotdir, 'umut_distr', pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N obs', 'ylabel' : 'counts', 'title' : 'N mut obs distr'}, texts=[(0.7, 0.8, 'N uniq muts %d'%len(self.unique_muts))])
 
         if not only_csv:  # write html file and fix permissiions
             for substr in self.subplotdirs:

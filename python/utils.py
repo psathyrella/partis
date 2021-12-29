@@ -3341,6 +3341,21 @@ def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False, a
         return fraction
 
 # ----------------------------------------------------------------------------------------
+def get_mut_codes(naive_seq, obs_seq, amino_acid=False, debug=False):  # return list of mutation "events" e.g. [{'pos' : 3, 'initial' : 'A', 'final' : 'C', 'str' : 'A3C'}, ]
+    hdist, mutated_positions = hamming_distance(naive_seq, obs_seq, return_mutated_positions=True, amino_acid=amino_acid)
+    mcodes = []
+    for ipos in mutated_positions:
+        mcd = {'pos' : ipos, 'initial' : naive_seq[ipos], 'final' : obs_seq[ipos]}
+        mcd['str'] = '%s%d%s' % (mcd['initial'], mcd['pos'], mcd['final'])
+        mcodes.append(mcd)
+
+    if debug:
+        color_mutants(naive_seq, obs_seq, print_result=True, amino_acid=amino_acid)
+        print ''.join(color('red', 'x') if i in mutated_positions else ' ' for i in range(len(naive_seq)))
+        print '  '.join('%s-->%s'%(c['initial'], c['final']) for c in mcodes)
+    return mcodes
+
+# ----------------------------------------------------------------------------------------
 def mean_pairwise_hfrac(seqlist):
     if len(seqlist) < 2:
         return 0.
