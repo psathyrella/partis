@@ -1061,6 +1061,22 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
     return revrns
 
 # ----------------------------------------------------------------------------------------
+def choose_non_dup_id(uid, n_duplicate_uids, input_info):  # NOTE calling fcn has to add the new id to <input_info> (which must be some sort of iterable)
+    new_uid = uid
+    iid = 2
+    while new_uid in input_info:
+        if any('-'+l in uid for l in loci):  # it's nice to insert <iid> before the locus in simulation uids
+            ltmp = [l for l in loci if '-'+l in uid][0]  # would be nice to use get_single_entry() but i really don't want this to ever crash
+            new_uid = uid.replace('-'+ltmp, '-%d-%s'%(iid, ltmp))
+        else:
+            new_uid = uid + '-' + str(iid)
+        iid += 1
+    if n_duplicate_uids == 0:
+        print '  %s duplicate uid(s) in input file, so renaming by appending integer string, e.g. \'%s\' --> \'%s\'' % (color('yellow', 'warning'), uid, new_uid)
+    n_duplicate_uids += 1
+    return new_uid, n_duplicate_uids  # if you decide you want to change it also in <reco_info>, don't forget to also modify the tree (and maybe other stuff, hence why I don't want to do it)
+
+# ----------------------------------------------------------------------------------------
 # NOTE the consensus seqs will (obviously) be *different* afterwards
 def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting dont_deep_copy is obviously *really* *dangerous*
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """

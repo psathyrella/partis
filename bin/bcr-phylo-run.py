@@ -195,7 +195,7 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
     return cfo
 
 # ----------------------------------------------------------------------------------------
-def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
+def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
     # ----------------------------------------------------------------------------------------
     def split_seqfos(seqfos):
         hline, lline = naive_events[ievent]
@@ -260,6 +260,19 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent):
                 pids = final_line['paired-uids'][iseq]
                 assert len(pids) == 1 and pids[0].find(bstr) == 0 and pids[0].count('-') == 1 and pids[0].split('-')[1] in utils.loci  # if uid is xxx-igh, paired id shoud be e.g. xxx-igk
                 final_line['paired-uids'][iseq] = [p.replace(bstr, sfo['name']) for p in pids]
+
+        dup_translations = {}
+        for iu, old_id in enumerate(final_line['unique_ids']):
+            if old_id in uid_info['all_uids']:
+                new_id, uid_info['n_duplicate_uids'] = utils.choose_non_dup_id(old_id, uid_info['n_duplicate_uids'], uid_info['all_uids'])
+                dup_translations[old_id] = new_id
+                final_line['unique_ids'][iu] = new_id
+            uid_info['all_uids'].add(final_line['unique_ids'][iu])
+        if len(dup_translations) > 0:
+            for old_id, new_id in dup_translations.items():
+                nodefo[new_id] = nodefo[old_id]
+                del nodefo[old_id]
+            treeutils.translate_labels(ftree, [(o, n) for o, n in dup_translations.items()])
 
         # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
         if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
@@ -347,7 +360,7 @@ def simulate():
     cmdfos = []
     if args.n_procs > 1:
         print '    starting %d events' % len(naive_events)
-    uid_str_len = args.min_ustr_len + int(math.log(len(naive_events), 7))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates (note that this starts getting pretty slow if it's bigger than 7 or so)
+    uid_str_len = args.min_ustr_len  # UPDATE don't need to increase this any more since I'm handling duplicates when above + int(math.log(len(naive_events), 7))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates (note that this starts getting pretty slow if it's bigger than 7 or so)
     for ievent, outdir in enumerate(outdirs):
         if args.n_sim_events > 1 and args.n_procs == 1:
             print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
@@ -368,9 +381,12 @@ def simulate():
         return
 
     start = time.time()
+    uid_info = {'all_uids' : set(), 'n_duplicate_uids' : 0}  # stuff just for dealing with duplicate uids
     mutated_events = []
     for ievent, outdir in enumerate(outdirs):
-        mutated_events.append(parse_bcr_phylo_output(glfos, naive_events, outdir, ievent))
+        mutated_events.append(parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info))
+    if uid_info['n_duplicate_uids'] > 0:
+        print '  %s renamed %d duplicate uids from %d bcr-phylo events' % (utils.color('yellow', 'warning'), uid_info['n_duplicate_uids'], len(mutated_events))
     print '  parsing time: %.1fs' % (time.time() - start)
 
     print '  writing annotations to %s' % spath('mutated')
@@ -397,6 +413,8 @@ def cache_parameters():
     cmd += fstr % (spath('mutated'), ipath('params'))
     if args.parameter_plots:
         cmd += ' --plotdir %s' % ('paired-outdir' if args.paired_loci else ipath('plots'))
+    if args.inf_extra_args is not None:
+        cmd += ' %s' % args.inf_extra_args
     if args.n_procs > 1:
         cmd += ' --n-procs %d' % args.n_procs
     if args.slurm:
@@ -415,6 +433,8 @@ def partition():
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
     if not args.dont_get_tree_metrics:
         cmd += ' --get-selection-metrics --plotdir %s --no-partition-plots' % ('paired-outdir' if args.paired_loci else ipath('plots'))
+    if args.inf_extra_args is not None:
+        cmd += ' %s' % args.inf_extra_args
     if args.lb_tau is not None:
         cmd += ' --lb-tau %f' % args.lb_tau
     if args.n_procs > 1:
@@ -478,6 +498,7 @@ parser.add_argument('--paired-loci', action='store_true')
 parser.add_argument('--parameter-plots', action='store_true')
 parser.add_argument('--single-light-locus', help='set to igk or igl if you want only that one; otherwise each event is chosen at random (see partis help)')
 parser.add_argument('--rearr-extra-args', help='')
+parser.add_argument('--inf-extra-args', help='')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
 parser.add_argument('--distr-hists', action='store_true', help='include lb distribution hists in plotting')

@@ -90,7 +90,7 @@ def run_cmd(action):
         if args.initial_germline_dir is not None:
             cmd += ' --initial-germline-dir %s' % args.initial_germline_dir
         if args.parameter_plots:
-            cmd += ' --plotdir %s' % args.outdir
+            cmd += ' --plot-tree-mut-stats --plotdir %s' % args.outdir
     if action == 'annotate':
         if args.input_partition_fname is None:  # one gc at a time
             cmd += ' --all-seqs-simultaneous'

@@ -243,19 +243,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             raise Exception('can\'t yet handle multi-seq csv input files')
         uid = line['unique_ids'][0]
         if uid in input_info:
-            new_uid = uid
-            iid = 2
-            while new_uid in input_info:
-                if any('-'+l in uid for l in utils.loci):  # it's nice to insert <iid> before the locus in simulation uids
-                    ltmp = [l for l in utils.loci if '-'+l in uid][0]  # would be nice to use utils.get_single_entry() but i really don't want this to ever crash
-                    new_uid = uid.replace('-'+ltmp, '-%d-%s'%(iid, ltmp))
-                else:
-                    new_uid = uid + '-' + str(iid)
-                iid += 1
-            if n_duplicate_uids == 0:
-                print '  %s duplicate uid(s) in input file, so renaming by appending integer string, e.g. \'%s\' --> \'%s\'' % (utils.color('yellow', 'warning'), uid, new_uid)
-            n_duplicate_uids += 1
-            uid = new_uid  # if you decide you want to change it also in <reco_info>, don't forget to also modify the tree (and maybe other stuff, hence why I don't want to do it)
+            uid, n_duplicate_uids = utils.choose_non_dup_id(uid, n_duplicate_uids, input_info)
         inseq = line['input_seqs'][0]
 
         # # it would be nice to check here for forbidden characters (in addition to in the .fa code above), but it's hard because we won't have read the csv properly above if it has them
