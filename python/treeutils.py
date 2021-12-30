@@ -1753,7 +1753,7 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
     print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 
 # ----------------------------------------------------------------------------------------
-def get_tree_for_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, ignore_existing_internal_node_labels=False, debug=False):
+def get_tree_for_inf_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, ignore_existing_internal_node_labels=False, debug=False):
     # figure out how we want to get the inferred tree
     if treefname is not None:
         uids_in_common = set()
@@ -1822,7 +1822,7 @@ def check_lb_values(line, lbvals):
 #             if debug:
 #                 print '       %s overwriting tree that was already in <line>' % utils.color('yellow', 'warning')
 #             n_already_there += 1
-#         treefo = get_tree_for_line(line, cpath=cpath, annotations=annotations, debug=debug)
+#         treefo = get_tree_for_inf_line(line, cpath=cpath, annotations=annotations, debug=debug)
 #         if treefo is None:
 #             continue
 #         tree_origin_counts[treefo['origin']]['count'] += 1
@@ -1900,7 +1900,7 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
 
             # get the tree if any of the requested metrics need it
             if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):
-                treefo = get_tree_for_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
+                treefo = get_tree_for_inf_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
                 if treefo['tree'] is None and treefo['origin'] == 'no-uids':
                     n_skipped_uid += 1
                     continue

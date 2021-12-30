@@ -411,7 +411,7 @@ class PartitionPlotter(object):
             if 'tree-info' in annotation and 'lb' in annotation['tree-info']:
                 treestr = annotation['tree-info']['lb']['tree']
             else:  # if this is simulation, and calculate_tree_metrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partition
-                treefo = treeutils.get_tree_for_line(annotation, cpath=cpath, annotations=annotations, debug=debug)
+                treefo = treeutils.get_tree_for_inf_line(annotation, cpath=cpath, annotations=annotations, debug=debug)
                 print '  %s no tree in annotation, so getting new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
                 treestr = treefo['tree'].as_string(schema='newick').strip()
             treeutils.run_laplacian_spectra(treestr, plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))

@@ -35,7 +35,8 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
     pass
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
-parser.add_argument('--actions', default='cache-parameters:annotate:get-selection-metrics', help='colon-separated list of actions to run')
+all_actions = ['cache-parameters', 'annotate', 'get-selection-metrics']
+parser.add_argument('--actions', default=':'.join(all_actions), help='colon-separated list of actions to run')
 parser.add_argument('--seqfname', help='Fasta file with input sequences. If single chain, this defaults to the standard location in --gctreedir. If --paired-loci is set, this should include, separately, all heavy and all light sequences, where the two sequences in a pair have identical uids (at least up to the first \'_\').')
 parser.add_argument('--gctreedir', required=True, help='gctree output dir (to get --tree-basename, and maybe abundances.csv, --seqfname).')
 parser.add_argument('--outdir', required=True, help='directory to which to write partis output files')
@@ -57,7 +58,7 @@ parser.add_argument('--no-insertions-or-deletions', action='store_true', help='s
 parser.add_argument('--n-procs', type=int)
 parser.add_argument('--initial-germline-dir', help='see partis help')
 args = parser.parse_args()
-args.actions = utils.get_arg_list(args.actions)
+args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 args.kd_columns = utils.get_arg_list(args.kd_columns)
 if args.multiplicity_column is not None and args.kdfname is None:
     raise Exception('have to set --kdfname if --multiplicity-column is set')
@@ -86,16 +87,15 @@ def run_cmd(action):
             cmd += ' --paired-outdir %s' % args.outdir
         else:
             cmd += ' --parameter-dir %s/parameters' % args.outdir
+        if args.input_partition_fname is None:  # one gc at a time
+            cmd += ' --all-seqs-simultaneous'
+        else:  # many gcs together
+            cmd += ' --input-partition-fname %s' % args.input_partition_fname
     if action == 'cache-parameters':
         if args.initial_germline_dir is not None:
             cmd += ' --initial-germline-dir %s' % args.initial_germline_dir
         if args.parameter_plots:
             cmd += ' --plot-tree-mut-stats --plotdir %s' % args.outdir
-    if action == 'annotate':
-        if args.input_partition_fname is None:  # one gc at a time
-            cmd += ' --all-seqs-simultaneous'
-        else:  # many gcs together
-            cmd += ' --input-partition-fname %s' % args.input_partition_fname
     if action in ['annotate', 'get-selection-metrics'] and '--paired-outdir' not in cmd:
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
