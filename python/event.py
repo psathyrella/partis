@@ -87,31 +87,21 @@ class RecombinationEvent(object):
         self.cdr3_length = self.post_erosion_codon_positions['j'] - self.post_erosion_codon_positions['v'] + 3
 
     # ----------------------------------------------------------------------------------------
+    def randstr(self, irandom):
+        return str(numpy.random.uniform() if irandom is None else irandom)
+
+    # ----------------------------------------------------------------------------------------
     def set_reco_id(self, line, irandom=None):
-        # NOTE maybe this rant is deprecated?
-        """ 
-        NOTE/RANT so, in calculating each sequence's unique id, we need to hash more than the information about the rearrangement
-            event and mutation, because if we create identical events and sequences in independent recombinator threads, we *need* them
-            to have different unique ids (otherwise all hell will break loose when you try to analyze them). The easy way to avoid this is
-            to add a random number to the information before you hash it... but then you have no way to reproduce that random number when 
-            you want to run again with a set random seed to get identical output. The FIX for this at the moment is to pass in <irandom>, i.e.
-            the calling proc tells write_event() that we're writing the <irandom>th event that that calling event is working on. Which effectively
-            means we (drastically) reduce the period of our random number generator for hashing in exchange for reproducibility. Should be ok...
-        """
         reco_id_columns = [r + '_gene' for r in utils.regions] + [b + '_insertion' for b in utils.boundaries] + [e + '_del' for e in utils.all_erosions]
-        def randstr():  # gah, duplicated in set_unique_ids()
-            return str(numpy.random.uniform() if irandom is None else irandom)
-        reco_id_str = ''.join([str(line[c]) for c in reco_id_columns])
-        line['reco_id'] = utils.uidhashstr(reco_id_str)  # note that this gives the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event NOTE I'm not sure why this isn't cast to str, but I'm too chicken to change it atm
-        return reco_id_str  # this is pretty hackey, but I want to split up the reco and unique id setting so I can call only the former from bin/bcr-phylo-run.py (UPDATE: but then I had to start changing the uids as well, so, oh, well)
+        reco_id_str = ''.join([str(line[c]) for c in reco_id_columns]) + self.randstr(irandom)  # NOTE this used to give the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event (until we added the randstr() call)
+        line['reco_id'] = utils.uidhashstr(reco_id_str)
+        return reco_id_str
 
     # ----------------------------------------------------------------------------------------
     def set_unique_ids(self, line, reco_id_str, irandom=None):
         unique_id_columns = ['seqs', 'input_seqs']
-        def randstr():  # gah, duplicated in set_reco_id()
-            return str(numpy.random.uniform() if irandom is None else irandom)
         uidstrs = [''.join([str(line[c][iseq]) for c in unique_id_columns]) for iseq in range(len(line['input_seqs']))]
-        uidstrs = [reco_id_str + uidstrs[iseq] + randstr() + str(iseq) for iseq in range(len(uidstrs))]  # NOTE i'm not sure I really like having the str(iseq), but it mimics the way things used to be by accident/bug (i.e. identical sequences in the same simulated rearrangement event get different uids), so I'm leaving it in for the moment to ease transition after a rewrite
+        uidstrs = [reco_id_str + uidstrs[iseq] + self.randstr(irandom) + str(iseq) for iseq in range(len(uidstrs))]  # NOTE i'm not sure I really like having the str(iseq), but it mimics the way things used to be by accident/bug (i.e. identical sequences in the same simulated rearrangement event get different uids), so I'm leaving it in for the moment to ease transition after a rewrite
         line['unique_ids'] = [utils.uidhashstr(ustr) for ustr in uidstrs]
 
     # ----------------------------------------------------------------------------------------

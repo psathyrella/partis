@@ -608,7 +608,7 @@ def get_list_of_str_list(strlist):
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 linekeys = {}
 # I think 'per_family' is pretty incomplete at this point, but I also think it isn't being used
-linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds'] + \
+linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'reco_id'] + \
                          ['invalid', 'tree', 'consensus_seq', 'consensus_seq_aa', 'naive_seq_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                          [r + '_gene' for r in regions] + \
                          [e + '_del' for e in all_erosions] + \
