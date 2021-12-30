@@ -647,6 +647,57 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
                  bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend)
 
 # ----------------------------------------------------------------------------------------
+def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False):
+    # ----------------------------------------------------------------------------------------
+    def add_to_distr_dict(ucounts, udistr):
+        for scount in ucounts.values():
+            if scount not in udistr:
+                udistr[scount] = 0
+            udistr[scount] += 1
+    # ----------------------------------------------------------------------------------------
+    def add_antn(line):
+        if only_leaves:
+            dtree = treeutils.get_dendro_tree(treestr=lbplotting.get_tree_from_line(line, is_simu)) #, aa='aa-lb' in lb_metric))
+            if dtree is None:
+                raise Exception('plot_tree_mut_stats(): only_leaves was set, so we need the tree, but we couldn\'t get it from the annotation')
+        else:  # default: include everybody
+            dtree = None
+        unique_seqs, unique_muts = {}, {}
+        for uid, mseq in zip(line['unique_ids'], line['seqs']):
+            if only_leaves:
+                node = dtree.find_node_with_taxon_label(uid)
+                if not node.is_leaf():
+                    continue
+            if mseq not in unique_seqs:
+                unique_seqs[mseq] = 0
+            unique_seqs[mseq] += 1
+            umuts = utils.get_mut_codes(line['naive_seq'], mseq) #, amino_acid=False debug=True
+            for mcd in umuts:
+                if mcd['str'] not in unique_muts:
+                    unique_muts[mcd['str']] = 0
+                unique_muts[mcd['str']] += 1
+            n_muts = utils.per_seq_val(line, 'n_mutations', uid)
+            if n_muts not in n_mut_dict:
+                n_mut_dict[n_muts] = 0
+            n_mut_dict[n_muts] += 1
+        add_to_distr_dict(unique_seqs, useq_distr)
+        add_to_distr_dict(unique_muts, umut_distr)
+    # ----------------------------------------------------------------------------------------
+    def finalize(udistr, plotname, title):
+        hist = hutils.make_hist_from_dict_of_counts(udistr, 'int', '')
+        hist.fullplot(plotdir, plotname, pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N observations', 'ylabel' : 'counts', 'title' : title, 'log' : 'xy'}) #, texts=[(0.7, 0.8, 'N gtypes %d'%len(unique_seqs))])
+    # ----------------------------------------------------------------------------------------
+    import lbplotting
+    utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+    useq_distr, umut_distr, n_mut_dict = {}, {}, {}
+    for line in antn_list:
+        add_antn(line)
+    for ulabel, udistr in zip(['seq', 'mut'], (useq_distr, umut_distr)):
+        finalize(udistr, 'u%s_distr'%ulabel, 'unique %s distr'%ulabel)
+    finalize(n_mut_dict, 'n_muts', 'distance to root')
+    make_html(plotdir)
+
+# ----------------------------------------------------------------------------------------
 def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title):
     fig, ax = mpl_init()
     if 'adj_mi' in info and meth in info['adj_mi']:

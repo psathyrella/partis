@@ -19,7 +19,7 @@ class ParameterCounter(object):
     def __init__(self, glfo, args, count_correlations=False):
         self.glfo = glfo
         self.args = args
-        self.mfreqer = MuteFreqer(self.glfo, exclusions=args.region_end_exclusions, tree_stats=args.plot_tree_mut_stats)
+        self.mfreqer = MuteFreqer(self.glfo, exclusions=args.region_end_exclusions)
         self.corrcounter = CorrCounter() if count_correlations else None  # NOTE if you want paired h/l correlations you have to use corr counter outside of the parameter counter
         self.reco_total = 0  # total number of recombination events
         self.mute_total = 0  # total number of sequences
