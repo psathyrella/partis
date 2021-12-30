@@ -408,7 +408,7 @@ def simulate():
 def cache_parameters():
     if utils.output_exists(args, ifname('params'), outlabel='parameters', offset=4):
         return
-    cmd = './bin/partis cache-parameters --random-seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
+    cmd = './bin/partis cache-parameters --simultaneous-true-clonal-seqs --is-simu --random-seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
     fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else ' --infname %s --parameter-dir %s'
     cmd += fstr % (spath('mutated'), ipath('params'))
     if args.parameter_plots:

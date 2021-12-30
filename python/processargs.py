@@ -371,6 +371,9 @@ def process(args):
     if args.action == 'annotate' and args.plot_partitions and args.input_partition_fname is None:  # could set this up to use e.g. --simultaneous-true-clonal-seqs as well, but it can't atm
         print '  %s running annotate with --plot-partitions, but --input-partition-fname is not set, which likely means the partitions will be trivial/singleton partitions' % utils.color('yellow', 'warning')
 
+    if args.plot_tree_mut_stats and args.plotdir is None:
+        raise Exception('setting --plot-tree-mut-stats will have no effect unless you also set --plotdir')
+
     if args.make_per_gene_per_base_plots and not args.make_per_gene_plots:  # the former doesn't do anything unless the latter is turned on
         args.make_per_gene_plots = True
 
