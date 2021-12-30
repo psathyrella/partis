@@ -20,26 +20,26 @@ smith-waterman  (writing parameters)
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
         writing sw results to test/paired/new-results/test/parameters/data/igh/sw-cache.yaml
-    writing parameters to test/paired/new-results/test/parameters/data/igh/sw (1.8 sec)
-    water time: 2.2  (ig-sw 2.0  processing 0.2)
-  writing hmms (0.2 sec)
+    writing parameters to test/paired/new-results/test/parameters/data/igh/sw (2.0 sec)
+    water time: 2.2  (ig-sw 2.1  processing 0.2)
+  writing hmms (0.3 sec)
 hmm
     running 10 procs
                     calcd:         vtb 48        fwd  0
-             min-max time:  0.2 - 0.3 sec
+             min-max time:  0.2 - 0.4 sec
     reading output
         read 48 hmm output lines with 48 sequences in 48 events  (0 failures)
-    writing parameters to test/paired/new-results/test/parameters/data/igh/hmm (1.6 sec)
-         infra time: 1.7
-      hmm step time: 2.1
+    writing parameters to test/paired/new-results/test/parameters/data/igh/hmm (1.7 sec)
+         infra time: 1.8
+      hmm step time: 2.3
   writing hmms (0.2 sec)
-      total time: 5.4
+      total time: 5.7
 [44mcache-parameters[0m [94migk[0m:
   note: adding input metafname from default location (test/paired-data/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igk --n-max-queries 50 --random-seed 1 --n-procs 10 --infname test/paired-data/igk.fa --sw-cachefname test/paired/new-results/test/parameters/data/igk/sw-cache.yaml --input-metafnames test/paired-data/meta.yaml
   --input-metafnames: added meta info for 37 sequences from test/paired-data/meta.yaml: paired-uids
 caching parameters
-  vsearch: 37 / 37 v annotations (0 failed) with 17 v genes in 0.1 sec
+  vsearch: 37 / 37 v annotations (0 failed) with 17 v genes in 0.0 sec
     keeping 16 / 58 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
@@ -49,13 +49,13 @@ smith-waterman  (new-allele fitting)
       kept 1 (0.027) unproductive
     water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.0 sec
+  vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
     running 10 procs for 37 seqs
       info for 37 / 37 = 1.000   (removed: 0 failed)
       kept 1 (0.027) unproductive
         writing sw results to test/paired/new-results/test/parameters/data/igk/sw-cache.yaml
-    writing parameters to test/paired/new-results/test/parameters/data/igk/sw (1.3 sec)
-    water time: 1.5  (ig-sw 1.4  processing 0.1)
+    writing parameters to test/paired/new-results/test/parameters/data/igk/sw (1.4 sec)
+    water time: 1.6  (ig-sw 1.5  processing 0.1)
   writing hmms (0.1 sec)
 hmm
     running 10 procs
@@ -63,11 +63,11 @@ hmm
              min-max time:  0.1 - 0.2 sec
     reading output
         read 37 hmm output lines with 37 sequences in 37 events  (0 failures)
-    writing parameters to test/paired/new-results/test/parameters/data/igk/hmm (1.1 sec)
-         infra time: 1.2
-      hmm step time: 1.4
+    writing parameters to test/paired/new-results/test/parameters/data/igk/hmm (1.2 sec)
+         infra time: 1.3
+      hmm step time: 1.5
   writing hmms (0.1 sec)
-      total time: 3.7
+      total time: 4.0
 [44mcache-parameters[0m [94migl[0m:
   note: adding input metafname from default location (test/paired-data/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igl --n-max-queries 50 --random-seed 1 --n-procs 10 --infname test/paired-data/igl.fa --sw-cachefname test/paired/new-results/test/parameters/data/igl/sw-cache.yaml --input-metafnames test/paired-data/meta.yaml
@@ -86,21 +86,21 @@ smith-waterman  (writing parameters)
     running 10 procs for 15 seqs
       info for 15 / 15 = 1.000   (removed: 0 failed)
         writing sw results to test/paired/new-results/test/parameters/data/igl/sw-cache.yaml
-    writing parameters to test/paired/new-results/test/parameters/data/igl/sw (0.9 sec)
-    water time: 1.1  (ig-sw 1.0  processing 0.1)
+    writing parameters to test/paired/new-results/test/parameters/data/igl/sw (1.0 sec)
+    water time: 1.2  (ig-sw 1.0  processing 0.1)
   writing hmms (0.1 sec)
 hmm
     running 10 procs
                     calcd:         vtb 15        fwd  0
-             min-max time:  0.1 - 0.1 sec
+             min-max time:  0.0 - 0.1 sec
     reading output
         read 15 hmm output lines with 15 sequences in 15 events  (0 failures)
     writing parameters to test/paired/new-results/test/parameters/data/igl/hmm (0.7 sec)
-         infra time: 0.7
-      hmm step time: 0.9
+         infra time: 0.8
+      hmm step time: 1.0
   writing hmms (0.1 sec)
-      total time: 2.5
-      total time: 12.5
+      total time: 2.7
+      total time: 13.3
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --paired-loci --parameter-dir test/paired/new-results/test/parameters/data --n-sim-events 10 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/test/simu --indel-frequency 0.2
     cleaning paired files in test/paired/new-results/test/simu/
 [94migh+igk[0m: simulating 7 events
@@ -110,100 +110,100 @@ hmm
   generating 7 trees, n-leaves from geometric distribution with parameter 5.0
     mean over 7 trees:   depth 0.04044   leaves 8.29
     writing trees to test/paired/new-results/test/simu/igh+igk/trees.nwk
-      total time: 1.2
+      total time: 1.3
 [44msimulate[0m [94migh+igk[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 177687104 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igk/igh.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igk/trees.nwk
   note: reducing --n-procs to 7 (was 10) so it isn't bigger than --n-sim-events
 simulating
+      --> proc 6
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/822101/trees-sub-6.nwk
+    made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 0.4
+
       --> proc 4
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/34557/trees-sub-4.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/822101/trees-sub-4.nwk
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.4
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/34557/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/822101/trees-sub-1.nwk
     made 1 event with 4 seqs in 0.2s (0.1s of which was running bppseqgen)
-      total time: 0.5
-
-      --> proc 6
-    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/34557/trees-sub-6.nwk
-    made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
-      total time: 0.4
-
-      --> proc 2
-    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/34557/trees-sub-2.nwk
-    made 1 event with 14 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 3
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/34557/trees-sub-3.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/822101/trees-sub-3.nwk
     made 1 event with 6 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.5
 
-      --> proc 0
+      --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/34557/trees-sub-0.nwk
-    made 1 event with 20 seqs in 0.3s (0.3s of which was running bppseqgen)
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/822101/trees-sub-2.nwk
+    made 1 event with 14 seqs in 0.3s (0.2s of which was running bppseqgen)
       total time: 0.6
 
       --> proc 5
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/34557/trees-sub-5.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/822101/trees-sub-5.nwk
     made 1 event with 10 seqs in 0.3s (0.2s of which was running bppseqgen)
       total time: 0.6
 
+      --> proc 0
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/822101/trees-sub-0.nwk
+    made 1 event with 20 seqs in 0.3s (0.3s of which was running bppseqgen)
+      total time: 0.6
+
    read 7 events with 58 seqs from 7 .yaml files
-      total time: 1.2
+      total time: 1.3
 [44msimulate[0m [94migh+igk[0m:[94m igk[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igk --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 298017927 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igk/igk.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igk/trees.nwk
   note: reducing --n-procs to 7 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 4
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/78593/trees-sub-4.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/810865/trees-sub-4.nwk
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.4
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/78593/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/810865/trees-sub-1.nwk
     made 1 event with 4 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 3
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/78593/trees-sub-3.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/810865/trees-sub-3.nwk
     made 1 event with 6 seqs in 0.2s (0.1s of which was running bppseqgen)
-      total time: 0.5
-
-      --> proc 5
-    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/78593/trees-sub-5.nwk
-    made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 6
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/78593/trees-sub-6.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/810865/trees-sub-6.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.4
 
-      --> proc 2
+      --> proc 5
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/78593/trees-sub-2.nwk
-    made 1 event with 14 seqs in 0.2s (0.2s of which was running bppseqgen)
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/810865/trees-sub-5.nwk
+    made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/78593/trees-sub-0.nwk
-    made 1 event with 20 seqs in 0.3s (0.3s of which was running bppseqgen)
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/810865/trees-sub-0.nwk
+    made 1 event with 20 seqs in 0.3s (0.2s of which was running bppseqgen)
       total time: 0.6
+
+      --> proc 2
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/810865/trees-sub-2.nwk
+    made 1 event with 14 seqs in 0.2s (0.2s of which was running bppseqgen)
+      total time: 0.5
 
    read 7 events with 58 seqs from 7 .yaml files
       total time: 1.2
@@ -214,50 +214,50 @@ simulating
   generating 3 trees, n-leaves from geometric distribution with parameter 5.0
     mean over 3 trees:   depth 0.00000   leaves 1.67
     writing trees to test/paired/new-results/test/simu/igh+igl/trees.nwk
-      total time: 1.2
+      total time: 1.3
 [44msimulate[0m [94migh+igl[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 172687121 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igl/igh.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igl/trees.nwk
   note: reducing --n-procs to 3 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/494954/trees-sub-0.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/565675/trees-sub-0.nwk
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.4
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/494954/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/565675/trees-sub-2.nwk
     made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.4
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/494954/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/565675/trees-sub-1.nwk
     made 1 event with 2 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.4
 
    read 3 events with 5 seqs from 3 .yaml files
-      total time: 0.9
+      total time: 1.0
 [44msimulate[0m [94migh+igl[0m:[94m igl[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igl --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 1456246501 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igl/igl.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igl/trees.nwk
   note: reducing --n-procs to 3 (was 10) so it isn't bigger than --n-sim-events
 simulating
-      --> proc 0
-    reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/438838/trees-sub-0.nwk
-    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.4
-
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/438838/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/932712/trees-sub-2.nwk
     made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 0.3
+
+      --> proc 0
+    reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/932712/trees-sub-0.nwk
+    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.4
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/438838/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/932712/trees-sub-1.nwk
     made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.4
 
@@ -267,7 +267,7 @@ simulating
 [94migh+igl[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results/test/simu/igh+igl/
 [91mrun[0m cd test/paired/new-results/test/simu && ln -sf igh+igk/igk.yaml igk.yaml
 [91mrun[0m cd test/paired/new-results/test/simu && ln -sf igh+igl/igl.yaml igl.yaml
-      total time: 8.4
+      total time: 8.8
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
 [44mcache-parameters[0m [94migh[0m:
@@ -284,14 +284,14 @@ smith-waterman  (new-allele fitting)
     running 10 procs for 63 seqs
       info for 63 / 63 = 1.000   (removed: 0 failed)
       kept 18 (0.286) unproductive
-    water time: 0.1  (ig-sw 0.1  processing 0.1)
+    water time: 0.2  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 63 / 63 v annotations (0 failed) with 7 v genes in 0.1 sec
     running 10 procs for 63 seqs
       info for 63 / 63 = 1.000   (removed: 0 failed)
       kept 18 (0.286) unproductive
         writing sw results to test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
-    writing parameters to test/paired/new-results/test/parameters/simu/igh/sw (0.7 sec)
+    writing parameters to test/paired/new-results/test/parameters/simu/igh/sw (0.8 sec)
     water time: 1.0  (ig-sw 0.9  processing 0.1)
   writing hmms (0.1 sec)
 hmm
@@ -305,7 +305,7 @@ hmm
          infra time: 1.2
       hmm step time: 1.5
   writing hmms (0.1 sec)
-      total time: 3.1
+      total time: 3.3
 [44mcache-parameters[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results/test/simu/igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
@@ -329,8 +329,8 @@ smith-waterman  (writing parameters)
       info for 58 / 58 = 1.000   (removed: 0 failed)
       kept 16 (0.276) unproductive
         writing sw results to test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
-    writing parameters to test/paired/new-results/test/parameters/simu/igk/sw (0.7 sec)
-    water time: 1.0  (ig-sw 0.8  processing 0.1)
+    writing parameters to test/paired/new-results/test/parameters/simu/igk/sw (0.8 sec)
+    water time: 1.1  (ig-sw 0.8  processing 0.1)
   writing hmms (0.1 sec)
 hmm
     running 10 procs
@@ -340,10 +340,10 @@ hmm
         read 58 hmm output lines with 58 sequences in 58 events  (0 failures)
     writing parameters to test/paired/new-results/test/parameters/simu/igk/hmm (0.5 sec)
     writing parameters to test/paired/new-results/test/parameters/simu/igk/true (0.5 sec)
-         infra time: 1.1
-      hmm step time: 1.3
+         infra time: 1.2
+      hmm step time: 1.4
   writing hmms (0.1 sec)
-      total time: 3.1
+      total time: 3.3
 [44mcache-parameters[0m [94migl[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results/test/simu/igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
@@ -359,12 +359,12 @@ smith-waterman  (new-allele fitting)
       info for 5 / 5 = 1.000   (removed: 0 failed)
     water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 5 / 5 v annotations (0 failed) with 2 v genes in 0.0 sec
+  vsearch: 5 / 5 v annotations (0 failed) with 2 v genes in 0.1 sec
     running 10 procs for 5 seqs
       info for 5 / 5 = 1.000   (removed: 0 failed)
         writing sw results to test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
     writing parameters to test/paired/new-results/test/parameters/simu/igl/sw (0.4 sec)
-    water time: 0.5  (ig-sw 0.4  processing 0.1)
+    water time: 0.5  (ig-sw 0.5  processing 0.1)
   writing hmms (0.1 sec)
 hmm
     running 10 procs
@@ -372,13 +372,13 @@ hmm
              min-max time:  0.0 - 0.1 sec
     reading output
         read 5 hmm output lines with 5 sequences in 5 events  (0 failures)
-    writing parameters to test/paired/new-results/test/parameters/simu/igl/hmm (0.1 sec)
-    writing parameters to test/paired/new-results/test/parameters/simu/igl/true (0.1 sec)
-         infra time: 0.3
-      hmm step time: 0.4
+    writing parameters to test/paired/new-results/test/parameters/simu/igl/hmm (0.2 sec)
+    writing parameters to test/paired/new-results/test/parameters/simu/igl/true (0.2 sec)
+         infra time: 0.4
+      hmm step time: 0.5
   writing hmms (0.1 sec)
-      total time: 1.3
-      total time: 8.4
+      total time: 1.5
+      total time: 9.1
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --plot-annotation-performance --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/partition-new-simu
 [44mpartition[0m [94migh[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
@@ -391,7 +391,7 @@ smith-waterman
       info for 63 / 63 = 1.000   (removed: 0 failed, 0 duplicates)
       kept 18 (0.286) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 2296349642595746117-igh
+    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 2140354615523209257-igh
 (0.0 sec)
         water time: 0.4
 hmm
@@ -416,30 +416,31 @@ caching all 63 naive sequences
        naive hfrac bounds: 0.015 0.063
     running 7 procs
           read from cache:  naive-seqs 65   logprobs  3
-                    calcd:         vtb  5        fwd  2
+                    calcd:         vtb  6        fwd  5
                    merged:       hfrac  1     lratio  1
              min-max time:  0.0 - 0.1 sec
-      hmm step time: 0.2
+         infra time: 0.1
+      hmm step time: 0.3
 17 clusters with 5 procs
        naive hfrac bounds: 0.015 0.063
     running 5 procs
-          read from cache:  naive-seqs 70   logprobs  5
-                    calcd:         vtb  4        fwd  3
-                   merged:       hfrac  1     lratio  1
-             min-max time:  0.0 - 0.1 sec
-      hmm step time: 0.2
-15 clusters with 3 procs
+          read from cache:  naive-seqs 71   logprobs  8
+                    calcd:         vtb  6        fwd  7
+                   merged:       hfrac  1     lratio  2
+             min-max time:  0.0 - 0.2 sec
+      hmm step time: 0.3
+14 clusters with 3 procs
        naive hfrac bounds: 0.015 0.063
     running 3 procs
-          read from cache:  naive-seqs 74   logprobs  8
-                    calcd:         vtb  4        fwd  4
-                   merged:       hfrac  1     lratio  1
-             min-max time:  0.1 - 0.1 sec
-      hmm step time: 0.2
+          read from cache:  naive-seqs 77   logprobs 15
+                    calcd:         vtb  2        fwd  5
+                   merged:       hfrac  0     lratio  1
+             min-max time:  0.0 - 0.2 sec
+      hmm step time: 0.3
 13 clusters with 2 procs
        naive hfrac bounds: 0.015 0.063
     running 2 procs
-          read from cache:  naive-seqs 78   logprobs 12
+          read from cache:  naive-seqs 79   logprobs 20
                     calcd:         vtb  1        fwd  2
                    merged:       hfrac  1     lratio  0
              min-max time:  0.0 - 0.1 sec
@@ -447,12 +448,12 @@ caching all 63 naive sequences
 12 clusters with 1 proc
        naive hfrac bounds: 0.015 0.063
     running 1 proc
-          read from cache:  naive-seqs 79   logprobs 14
-                    calcd:         vtb  2        fwd 13
-                   merged:       hfrac  0     lratio  1
+          read from cache:  naive-seqs 80   logprobs 22
+                    calcd:         vtb  1        fwd 10
+                   merged:       hfrac  1     lratio  0
                      time:  0.4 sec
-      hmm step time: 0.5
-      loop time: 1.7
+      hmm step time: 0.4
+      loop time: 1.8
 getting annotations for final partition
   subcluster annotating 11 clusters: 
     running 10 procs
@@ -477,10 +478,10 @@ getting annotations for final partition
       hmm step time: 0.1
     read 3 new subcluster annotations: added hashid 3   whole finished 0   subcl finished 3
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 2296349642595746117-igh
+    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 2140354615523209257-igh
 (0.0 sec)
     subcluster annotation time 0.8
-      total time: 3.3
+      total time: 3.5
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --plot-annotation-performance --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igk --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igk.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
@@ -492,7 +493,7 @@ smith-waterman
       info for 58 / 58 = 1.000   (removed: 0 failed, 0 duplicates)
       kept 16 (0.276) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 3 queries with different true and inferred net shm indel lengths: 2880756350730894229-igk 8870840036726156247-igk 2296349642595746117-igk
+    [93mwarning[0m skipped annotation performance evaluation on 3 queries with different true and inferred net shm indel lengths: 2298849017709047818-igk 6750634952083250793-igk 2140354615523209257-igk
 (0.0 sec)
         water time: 0.4
 hmm
@@ -512,7 +513,7 @@ caching all 58 naive sequences
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/434685/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/886249/hmm_cached_info.csv
          infra time: 0.1
       hmm step time: 0.2
 9 clusters with 6 procs
@@ -522,41 +523,42 @@ caching all 58 naive sequences
                     calcd:         vtb  1        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.1 sec
+         infra time: 0.1
       hmm step time: 0.2
 9 clusters with 4 procs
        naive hfrac bounds: 0.015 0.063
     running 4 procs
           read from cache:  naive-seqs 59   logprobs  0
-                    calcd:         vtb  4        fwd  0
-                   merged:       hfrac  1     lratio  0
+                    calcd:         vtb  2        fwd  0
+                   merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.1 sec
       hmm step time: 0.2
-8 clusters with 3 procs
+9 clusters with 3 procs
        naive hfrac bounds: 0.015 0.063
     running 3 procs
-          read from cache:  naive-seqs 63   logprobs  0
-                    calcd:         vtb  1        fwd  0
+          read from cache:  naive-seqs 61   logprobs  0
+                    calcd:         vtb  2        fwd  0
                    merged:       hfrac  1     lratio  0
              min-max time:  0.0 - 0.1 sec
       hmm step time: 0.2
-7 clusters with 2 procs
+8 clusters with 2 procs
        naive hfrac bounds: 0.015 0.063
     running 2 procs
-          read from cache:  naive-seqs 64   logprobs  0
+          read from cache:  naive-seqs 63   logprobs  0
                     calcd:         vtb  0        fwd  0
                    merged:       hfrac  0     lratio  0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/434685/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/886249/hmm_cached_info.csv
       hmm step time: 0.1
-7 clusters with 1 proc
+8 clusters with 1 proc
        naive hfrac bounds: 0.015 0.063
     running 1 proc
-          read from cache:  naive-seqs 64   logprobs  0
-                    calcd:         vtb  0        fwd  7
-                   merged:       hfrac  0     lratio  0
+          read from cache:  naive-seqs 63   logprobs  0
+                    calcd:         vtb  1        fwd  9
+                   merged:       hfrac  1     lratio  0
                      time:  0.3 sec
       hmm step time: 0.3
-      loop time: 1.1
+      loop time: 1.3
 getting annotations for final partition
   subcluster annotating 7 clusters: 
     running 7 procs
@@ -564,6 +566,7 @@ getting annotations for final partition
              min-max time:  0.1 - 0.2 sec
     reading output
         read 22 hmm output lines with 58 sequences in 22 events  (0 failures)
+         infra time: 0.1
       hmm step time: 0.3
     read 22 new subcluster annotations: added hashid 20   whole finished 2   subcl finished 0
     running 7 procs
@@ -571,7 +574,7 @@ getting annotations for final partition
              min-max time:  0.1 - 0.1 sec
     reading output
         read 9 hmm output lines with 20 sequences in 9 events  (0 failures)
-      hmm step time: 0.2
+      hmm step time: 0.1
     read 9 new subcluster annotations: added hashid 9   whole finished 0   subcl finished 2
     running 7 procs
                     calcd:         vtb  3        fwd  0
@@ -581,10 +584,10 @@ getting annotations for final partition
       hmm step time: 0.1
     read 3 new subcluster annotations: added hashid 3   whole finished 0   subcl finished 3
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 3 queries with different true and inferred net shm indel lengths: 2296349642595746117-igk 8870840036726156247-igk 2880756350730894229-igk
+    [93mwarning[0m skipped annotation performance evaluation on 3 queries with different true and inferred net shm indel lengths: 2298849017709047818-igk 6750634952083250793-igk 2140354615523209257-igk
 (0.0 sec)
     subcluster annotation time 0.7
-      total time: 2.6
+      total time: 2.8
 [44mpartition[0m [94migl[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --plot-annotation-performance --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igl --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igl.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
@@ -596,7 +599,7 @@ smith-waterman
       info for 5 / 5 = 1.000   (removed: 0 failed, 0 duplicates)
   plotting performance WARNING no values for sw-shm_indel_length in make_hist
 (0.0 sec)
-        water time: 0.3
+        water time: 0.4
 hmm
 caching all 5 naive sequences
     running 10 procs
@@ -614,7 +617,7 @@ caching all 5 naive sequences
                     calcd:         vtb 0        fwd 0
                    merged:       hfrac 0     lratio 0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/763000/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/44758/hmm_cached_info.csv
       hmm step time: 0.1
 3 clusters with 2 procs
        naive hfrac bounds: 0.015 0.059
@@ -623,7 +626,7 @@ caching all 5 naive sequences
                     calcd:         vtb 0        fwd 0
                    merged:       hfrac 0     lratio 0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/763000/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/44758/hmm_cached_info.csv
       hmm step time: 0.1
 3 clusters with 1 proc
        naive hfrac bounds: 0.015 0.059
@@ -697,7 +700,7 @@ hmm
     read 3 new subcluster annotations: added hashid 3   whole finished 0   subcl finished 3
     subcluster annotation time 0.6
       total time: 0.7
-  need to get annotations for 9/10 joint igk clusters
+  need to get annotations for 8/10 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igk/meta-igk.yaml --input-partition-fname test/paired/new-results/partition-new-simu/igh+igk/partition-igk-only-partition.yaml
@@ -724,7 +727,7 @@ hmm
              min-max time:  0.0 - 0.1 sec
     reading output
         read 9 hmm output lines with 20 sequences in 9 events  (0 failures)
-      hmm step time: 0.1
+      hmm step time: 0.2
     read 9 new subcluster annotations: added hashid 9   whole finished 0   subcl finished 2
     running 10 procs
                     calcd:         vtb  3        fwd  0
@@ -734,7 +737,7 @@ hmm
       hmm step time: 0.1
     read 3 new subcluster annotations: added hashid 3   whole finished 0   subcl finished 3
     subcluster annotation time 0.5
-      total time: 0.6
+      total time: 0.7
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
   intersection and complement both ok
    N clusters without bad/unpaired seqs:
@@ -748,6 +751,7 @@ hmm
       single   0.733  1.000
        joint   1.000  1.000
   merge time 0.0
+  need to get annotations for 2/3 joint igh clusters
 [44mannotate[0m [94migh+igl[0m:[94m igh[0m
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igl/input-seqs-igh.fa --outfname test/paired/new-results/partition-new-simu/igh+igl/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igl/meta-igh.yaml --input-partition-fname test/paired/new-results/partition-new-simu/igh+igl/partition-igh-only-partition.yaml
@@ -768,7 +772,7 @@ hmm
         read 3 hmm output lines with 5 sequences in 3 events  (0 failures)
       hmm step time: 0.1
       total time: 0.2
-  need to get annotations for 2/3 joint igl clusters
+  need to get annotations for 3/3 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igl/input-seqs-igl.fa --outfname test/paired/new-results/partition-new-simu/igh+igl/partition-igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igl/meta-igl.yaml --input-partition-fname test/paired/new-results/partition-new-simu/igh+igl/partition-igl-only-partition.yaml
@@ -776,7 +780,7 @@ hmm
   --input-partition-fname: read best partition with 5 sequences in 3 clusters from test/paired/new-results/partition-new-simu/igh+igl/partition-igl-only-partition.yaml
 annotating    (with test/paired/new-results/test/parameters/simu/igl/hmm)
 smith-waterman
-  vsearch: 5 / 5 v annotations (0 failed) with 2 v genes in 0.1 sec
+  vsearch: 5 / 5 v annotations (0 failed) with 2 v genes in 0.0 sec
         reading sw results from test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
       info for 5 / 5 = 1.000   (removed: 0 failed, 0 duplicates)
         water time: 0.0
@@ -816,8 +820,8 @@ hmm
       purity:       3.7 / 5 = 0.733
       completeness: 5.0 / 5 = 1.000
   [93mwarning[0m ignoring --plot-annotation-performance for paired clustering since it's going to be a bit fiddly to implement
-      total time: 12.0
-[92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --seed-unique-id 5210550571946078562-igh:5210550571946078562-igk --seed-loci igh:igk --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/seed-partition-new-simu
+      total time: 13.0
+[92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --seed-unique-id 4353653356901731430-igh:4353653356901731430-igk --seed-loci igh:igk --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/seed-partition-new-simu
    removing seqs very different from seed seq
                            wrong/no     removed      singly         kept   missing
            locus  before   pairing    cdr3  hfrac    added   after  frac   true ids
@@ -825,11 +829,11 @@ hmm
              [95mk[0m       58        0        52     0        0       6   0.103    [92m-[0m
 [44mpartition[0m [94migh[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/single-chain/input-seqs-igh.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+[91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/single-chain/input-seqs-igh.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
   --input-metafnames: added meta info for 6 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
 partitioning     (with test/paired/new-results/test/parameters/simu/igh/hmm)
 smith-waterman
-  vsearch: 6 / 6 v annotations (0 failed) with 1 v gene in 0.1 sec
+  vsearch: 6 / 6 v annotations (0 failed) with 1 v gene in 0.0 sec
         reading sw results from test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
       info for 6 / 6 = 1.000   (removed: 0 failed, 0 duplicates)
       kept 5 (0.833) unproductive
@@ -851,7 +855,7 @@ caching all 6 naive sequences
                     calcd:         vtb 0        fwd 0
                    merged:       hfrac 0     lratio 0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/479652/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/788181/hmm_cached_info.csv
       hmm step time: 0.1
 6 clusters with 4 procs
        naive hfrac bounds: 0.015 0.063
@@ -884,7 +888,7 @@ caching all 6 naive sequences
                     calcd:         vtb 1        fwd 3
                    merged:       hfrac 1     lratio 0
                      time:  0.1 sec
-      hmm step time: 0.2
+      hmm step time: 0.1
       loop time: 0.8
 getting annotations for final partition
   subcluster annotating 1 cluster: 
@@ -906,7 +910,7 @@ getting annotations for final partition
       total time: 1.2
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/single-chain/input-seqs-igk.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+[91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/single-chain/input-seqs-igk.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
   --input-metafnames: added meta info for 6 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
 partitioning     (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
@@ -945,14 +949,14 @@ getting annotations for final partition
     read 2 new subcluster annotations: added hashid 2   whole finished 0   subcl finished 0
     running 1 proc
                     calcd:         vtb 1        fwd 0
-                     time:  0.1 sec
+                     time:  0.0 sec
     reading output
         read 1 hmm output lines with 2 sequences in 1 events  (0 failures)
       hmm step time: 0.1
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
     subcluster annotation time 0.2
       total time: 0.5
-[94migl[0m: input file missing, skipping partition (test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/single-chain/input-seqs-igl.fa)
+[94migl[0m: input file missing, skipping partition (test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/single-chain/input-seqs-igl.fa)
     [93mwarning[0m zero length annotation list in check_concordance_of_cpath_and_annotations()
 [94migh+igk[0m: synchronizing heavy and light chain cluster paths
   intersection and complement both ok
@@ -971,11 +975,11 @@ getting annotations for final partition
   need to get annotations for 1/1 joint igh clusters
   seed cluster size in best joint partition: 6, excluding seed seq: 5
 [44mannotate[0m [94migh+igk[0m:[94m igh[0m
-    removed 2 arg strs that were specific to action 'partition': --seed-unique-id 5210550571946078562-igh:5210550571946078562-igk
+    removed 2 arg strs that were specific to action 'partition': --seed-unique-id 4353653356901731430-igh:4353653356901731430-igk
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/meta-igh.yaml --input-partition-fname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/partition-igh-only-partition.yaml
-  --input-metafnames: added meta info for 6 sequences from test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/meta-igh.yaml: paired-uids loci
-  --input-partition-fname: read best partition with 6 sequences in 1 clusters from test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/partition-igh-only-partition.yaml
+[91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/meta-igh.yaml --input-partition-fname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/partition-igh-only-partition.yaml
+  --input-metafnames: added meta info for 6 sequences from test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/meta-igh.yaml: paired-uids loci
+  --input-partition-fname: read best partition with 6 sequences in 1 clusters from test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results/test/parameters/simu/igh/hmm)
 smith-waterman
   vsearch: 6 / 6 v annotations (0 failed) with 1 v gene in 0.1 sec
@@ -1005,11 +1009,11 @@ hmm
   need to get annotations for 1/1 joint igk clusters
   seed cluster size in best joint partition: 6, excluding seed seq: 5
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
-    removed 2 arg strs that were specific to action 'partition': --seed-unique-id 5210550571946078562-igh:5210550571946078562-igk
+    removed 2 arg strs that were specific to action 'partition': --seed-unique-id 4353653356901731430-igh:4353653356901731430-igk
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/meta-igk.yaml --input-partition-fname test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/partition-igk-only-partition.yaml
-  --input-metafnames: added meta info for 6 sequences from test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/meta-igk.yaml: paired-uids loci
-  --input-partition-fname: read best partition with 6 sequences in 1 clusters from test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk/igh+igk/partition-igk-only-partition.yaml
+[91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/meta-igk.yaml --input-partition-fname test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/partition-igk-only-partition.yaml
+  --input-metafnames: added meta info for 6 sequences from test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/meta-igk.yaml: paired-uids loci
+  --input-partition-fname: read best partition with 6 sequences in 1 clusters from test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk/igh+igk/partition-igk-only-partition.yaml
 annotating    (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
   vsearch: 6 / 6 v annotations (0 failed) with 1 v gene in 0.1 sec
@@ -1037,7 +1041,7 @@ hmm
       total time: 0.3
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
     no single chain output
-[91mrun[0m cd test/paired/new-results/seed-partition-new-simu/seeds/5210550571946078562-igh+5210550571946078562-igk && ln -sf igh+igk/partition-igk.yaml partition-igk.yaml
+[91mrun[0m cd test/paired/new-results/seed-partition-new-simu/seeds/4353653356901731430-igh+4353653356901731430-igk && ln -sf igh+igk/partition-igk.yaml partition-igk.yaml
    N clusters with all seqs:
         [94mh[0m    1 --> 1   
         [95mk[0m    1 --> 1   
@@ -1055,7 +1059,7 @@ hmm
            1      6  single
       purity:       6.0 / 6 = 1.000
       completeness: 6.0 / 6 = 1.000
-      total time: 3.6
+      total time: 3.8
 [92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --paired-loci --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/partition-new-simu --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
 [44mget-selection-metrics[0m [94migh+igk[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igh.yaml
@@ -1068,7 +1072,7 @@ getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 17/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       tree origins: 3 made from cpath
   writing selection metrics to test/paired/new-results/partition-new-simu/igh+igk/partition-igh-selection-metrics.yaml
-      total time: 0.2
+      total time: 0.3
 [44mget-selection-metrics[0m [94migh+igk[0m:[94m igk[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igk --dont-write-git-info --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igk.yaml
   note: --parameter-dir not set, so using default: xxx-dummy-xxx
@@ -1082,7 +1086,7 @@ getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 15/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       tree origins: 3 made from cpath
   writing selection metrics to test/paired/new-results/partition-new-simu/igh+igk/partition-igk-selection-metrics.yaml
-      total time: 0.3
+      total time: 0.4
 [44mget-selection-metrics[0m [94migh+igl[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igl/partition-igh.yaml
   note: --parameter-dir not set, so using default: xxx-dummy-xxx
@@ -1101,104 +1105,19 @@ getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
       tree origins: 
   writing selection metrics to test/paired/new-results/partition-new-simu/igh+igl/partition-igl-selection-metrics.yaml
       total time: 0.0
-  ab choice cfg:
-[91mrun[0m cat /home/dralph/work/partis/data/selection-metrics/ab-choice.yaml
-        n-families: 2
-        include-unobs-cons-seqs: True
-        # include-unobs-naive-seqs: [False, True]  # both this and the -cons- one can either be a single bool (applied to all families) or a list of length equal to n-families
-        vars:
-          # sort each family by the indicated variable, with direction <sort>, then take the top <n> seqs that haven't already been taken and that pass all other criteria
-          aa-cfrac: {sort: low, n: [5, 3]}  # specity either 'n:' here *or* 'n-per-family:' below
-          # shm-aa: {sort: high, n: [3, 3, 3, 3, 3, 2, 2, 2, 2, 2]}
-        # cell-types: [pb]  # allow only cells of type 'pb'
-        # cell-type-key: v0-cell-types  # use this key for cell type rather than 'cell-types' (allows to have multiple versions of cell type info in the annotations)
-        max-ambig-positions: 2  # summed over h+l amino acid seqs
-        # min-umis: 1000
-        # n-per-family: [3, 2]  # specify either this *or* 'n:' for each of the 'vars:'
-        # min-median-nuc-shm-%: 2
-        min-hdist-to-already-chosen: 3  # only choose abs whose h/l seqs are at least this far from previously-chosen seqs (in amino acid hamming distance, summed over h+l)
-        # droplet-ids: [TGACGGCGTCACCCAG-1, AGACGTTTCAACCAAC-1]  # choose specific droplet ids, before applying other criteria
-        # meta-info-print-keys: [[neut-DENV1s, denv-1], [neut-DENV2s, denv-2]]  # list of [key-name, key label] pairs of extra keys to print as columns in the ascii output
-        
     igh+igk: 7 unpaired light clusters after finding h/l cluster pairs
     igh+igk: skipped 7 annotations missing required keys: tree-info: 7
     igh+igl: 3 unpaired light clusters after finding h/l cluster pairs
     igh+igl: skipped 3 annotations missing required keys: tree-info: 3
-    3 h/l pairs: 19 19,  13 13,  10 10
-      key: [91mqueries-to-include[0m [44mpreviously chosen[0m [91m[44mboth[0m[0m (empty/blank numbers are same as previous line)
-    iclust 0: choosing abs from joint cluster with size 19 (marked with [92mx[0m)
-        [92mx[0m: added cons seq (using observed seqs with aa-cdist zero 8785578741586605074-igh 8785578741586605074-igk)
-          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 7268010741183681370-igh 7268010741183681370-igk
-          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 7839413933002422117-igh 7839413933002422117-igk
-          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 1510407943504124660-igh 1510407943504124660-igk
-          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 8874368609921835969-igh 8874368609921835969-igk
-          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 3355486247406882928-igh 3355486247406882928-igk
+          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 7931537106327195402-igh 7931537106327195402-igk
+          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 8728341398695971580-igh 8728341398695971580-igk
+          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 5799141418317739090-igh 5799141418317739090-igk
+          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 6017246502209720874-igh 6017246502209720874-igk
+          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 4027451380298081898-igh 4027451380298081898-igk
         finished: 5 newly chosen >= 5
-        aa-cfrac: chose 5 (1 were in common with a previous var) (9 had seqs identical to previously-chosen ones)
-      chose 6 total
-        less than 0.75 (2 / 19 = 0.11) of h seqs have indels, so not using input seqs for cons seq
-        less than 0.75 (7 / 19 = 0.37) of l seqs have indels, so not using input seqs for cons seq
-             aa-cfrac (%)      aa-cdist         droplet        contig indels   lbi   lbr  aa-lbi  aa-lbr       N     %shm   N aa mutations     sizes                genes    cons: [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-             sum   h    l       h   l                           h  l   h l     sum   sum     sum     sum  sum  h   l   nuc   cons.     obs.   both   h   l                  naive: [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-       [94mh[0m [95mk[0m   0.0  0.0  0.0      0   0   [92mx[0m  8785578741586605074  h  k          0.00  0.00    0.00    0.00  29  17  12  0.0    0  0   0  0  0    19   19  19    [95mh[0m[91mv[0m[95m4[0m[95m-59[0m[93mi02[0m [95mk[0m[91mv[0m[95m1[0m[95m-12[0m[93m02[0m   [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           8538134496243824949  h  k          0.00  0.00    0.00    0.00              0.0                                     [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m             [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           7381133167027105779  h  k          0.00  0.00    0.00    0.00              0.0                                     [95mh[0m[91mj[0m[95m4[0m[93m02[0m [95mk[0m[91mj[0m[95m3[0m[93m01[0m          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           9201020303560931487  h  k          0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           0145543924580709511  h  k          0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           2326752541289535530  h  k          0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           5893635018208371086  h  k          0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           0256992232507729827  h  k          0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           2809740269078009959  h  k          0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           9159934821543516743  h  k          0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                        [92mx[0m  7268010741183681370  h  k     [91my[0m    0.00  0.00    0.00    0.00  18  17   1  0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASV[94mH[0m[94mH[0m[94mL[0m[94mS[0mG[91mE[0m[91mS[0m[94mG[0m[94mY[0m[94mQ[0m[94mL[0m[94mV[0m[94mS[0m[94mL[0mV[91mS[0m[91mA[0m[91mE[0m[91mT[0mR[91mE[0mS[91mP[0m[91mA[0m[94mP[0m[94mD[0m[94mL[0m[94mC[0m[94mC[0m[94mI[0m[94mQ[0m[91mF[0m[91mA[0m[91mK[0mW[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mG[0mP[91mI[0mK[91mV[0m[91mQ[0m[91mR[0m[91mQ[0m[91mW[0mI[91mW[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mD[0mRF[91mH[0m[91mS[0m[91mH[0m[91mH[0m[91mQ[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mQP[94m-[0m[94m-[0m[94m-[0mA[91mA[0m[91mR[0m[91mF[0mC[94mN[0m[94mL[0m[94mL[0m[94mL[0m[94mF[0mQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGT[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mCCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGT[94mT[0m[94mC[0mCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                        [92mx[0m  7839413933002422117  h  k     [91my[0m    0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQP[91mK[0m[91mI[0m[91mL[0m[91mQ[0m[94mL[0mT[91mI[0m[91mV[0m[91mN[0m[91mR[0m[91mL[0m[91mT[0m[91mV[0mS[91mL[0m[91mS[0m[91mL[0m[91mS[0m[94m-[0m[94m-[0m[94m-[0m[91mA[0m[91mR[0mK[91mW[0mD[91mQ[0m[91mS[0m[94mG[0m[94mY[0m[94mQ[0m[94mT[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCT[94m-[0mAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCC[94mG[0m[94mG[0m[94mA[0m[94mA[0m[94mA[0mTGGGACCAAAGTGGATATCAAAC
-                                        [92mx[0m  1510407943504124660  h  k     [91my[0m    0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAP[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mS[0mSS[91mM[0m[91mL[0m[91mH[0m[91mP[0mV[91mC[0m[91mK[0m[91mV[0m[91mG[0mS[91mH[0m[91mQ[0mGS[91mA[0m[91mA[0m[94mV[0m[94mD[0m[94mL[0m[94mG[0m[91mQ[0m[91mI[0m[91mS[0mL[91mS[0m[91mP[0mS[91mA[0m[91mA[0m[91mC[0m[91mS[0m[91mL[0m[91mK[0m[91mI[0mATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCC[94m-[0mAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGA[94m-[0m[94m-[0mTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                        [92mx[0m  8874368609921835969  h  k     [91my[0m    0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPED[91mN[0m[91mL[0m[91mL[0m[91mL[0m[91mS[0m[91mT[0m[91mG[0mQ[94m-[0m[94m-[0m[94m-[0mFPF[91mH[0mF[91mR[0mP[91mW[0m[91mD[0m[91mQ[0m[91mS[0m[91mG[0m[91mY[0m[91mQ[0m[94mT[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGAT[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                        [92mx[0m  3355486247406882928  h  k     [91my[0m    0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAA[91mT[0mSLQ[94mF[0m[94mA[0m[94mK[0m[94mW[0m[94mG[0m[94mP[0m[94mI[0m[94mK[0m[94mV[0m[94mQ[0m[94mR[0m[94mQ[0m[94mW[0m[94mI[0m[94mR[0m[94mL[0m[94mG[0m[94mQ[0m[94mI[0mS[91mL[0m[91mS[0mPS[94mA[0m[94mA[0m[94mC[0m[94mS[0m[94mL[0m[94mK[0m[94mI[0m[94mL[0m[94mQ[0m[94mL[0m[94mT[0m[94mI[0m[94mV[0m[94mN[0mR[91mL[0m[91mT[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mV[0m[91mS[0mL[91mS[0m[91mL[0mS[91mA[0mL[91mG[0mP[91mK[0m[91mW[0m[91mI[0m[91mS[0m[91mN[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCA[94mA[0m[94mC[0m[94mA[0m[94mA[0m[94mG[0m[94mC[0m[94mC[0mTCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGAT[94mC[0m[94mT[0m[94mA[0m[94mA[0m[94mA[0m[94mG[0m[94mG[0mCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           2846183601857377190  h  k   [91my[0m      0.00  0.00    0.00    0.00  13   1  12  0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAA[91mT[0m[94mR[0m[94mP[0m[94mC[0m[94mI[0m[94mT[0m[94mV[0m[94mR[0m[94mE[0m[94mR[0m[94mH[0m[94mG[0m[94mA[0m[94mP[0m[94mV[0m[94mG[0m[94mA[0m[94mL[0mT[91mT[0m[91mL[0m[91mT[0m[91mT[0m[91mG[0mAR[91mE[0mP[91mW[0m[91mS[0mP[91mS[0m[91mP[0m[91mQ[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGC[94m-[0mGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-                                           8277670280759341704  h  k   [91my[0m      0.00  0.00    0.00    0.00              0.0                                                          [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGG[94m-[0m[91mF[0mSS[91mI[0m[91mH[0m[91mQ[0mS[91mL[0m[91mL[0m[91mE[0m[91mL[0m[91mD[0mP[94mA[0m[94mA[0m[94mP[0m[94mR[0m[94mE[0mG[91mT[0mG[91mV[0m[91mD[0mW[91mV[0m[91mY[0m[91mL[0m[91mL[0m[91mQ[0m[91mW[0m[91mE[0m[91mH[0m[91mQ[0m[91mL[0m[91mQ[0m[91mP[0m[91mL[0mP[91mQ[0m[91mE[0m[91mS[0mS[91mH[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mH[0m[91mI[0mS[91mR[0m[91mH[0m[91mV[0m[91mQ[0m[91mE[0m[91mP[0m[91mV[0mL[91mP[0m[91mE[0m[91mA[0m[91mE[0m[91mL[0m[91mC[0mD[91mR[0m[91mC[0m[94mG[0m[94mH[0m[94mG[0m[94mR[0mV[91mL[0m[91mL[0mC[91mE[0m[91mS[0mA[94mT[0m[94mG[0mPR[94mW[0m[94mE[0m[94mH[0m[94mS[0m[94mL[0m[94mL[0m[94mL[0m[94mL[0mGPG[91mN[0m[91mP[0m[91mG[0mH[91mR[0m[91mL[0m[91mL[0m[94mX[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSGSGTDFTLTISSLQPEDFATYYCQQANSFPFTFGPGTKVDIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGC[94mT[0m[94mT[0m[94mT[0m[94mT[0m[94mC[0m[94mT[0m[94mA[0m[94mG[0m[94mT[0m[94mA[0mTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-             0.9  0.0  0.9      0   1      2880756350730894229  h  k     [91my[0m    0.05  0.00    0.05    0.00  18  17   1  0.7           1  0  1                                        [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0m[91mH[0mQMTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPG[91mS[0m[91mS[0m[91mS[0m[94mM[0m[94mL[0m[94mH[0m[94mP[0m[94mV[0m[94mC[0m[94mK[0m[94mV[0m[94mG[0m[94mS[0m[94mH[0m[94mQ[0m[94mG[0m[94mS[0m[94mA[0m[94mA[0m[94mV[0m[94mD[0m[94mL[0m[94mG[0m[94mQ[0m[94mI[0m[91mS[0mL[91mS[0m[91mP[0m[91mS[0mAA[91mC[0mS[94mL[0m[94mK[0m[94mI[0mLQ[91mL[0m[91mT[0m[91mI[0m[91mV[0m[91mN[0mR[91mL[0m[91mT[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mV[0m[91mS[0mL[91mS[0m[91mL[0mS[91mA[0mL[91mG[0mP[91mK[0m[91mW[0m[91mI[0m[91mS[0m[91mN[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACAT[94m-[0mCAGATGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGG[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-             3.7  0.0  3.7      0   4      8870840036726156247  h  k     [91my[0m    0.00  0.00    0.00    0.00              1.2           4  0  4                                        [94mX[0m[94mX[0m[94mX[0mQVQLQESGPGLVKPSETLSLTCTVSGGSISSHYWSWIRQPPGKGLEWIGYIYYSGSTNYNPSLKSRVTISVDTSKNQFSLKLSSVTAADTAVYYCARAPRGPGGSTHYFDYWGQGTLVTVSS[94mX[0m [94m-[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mIQM[94mV[0mTQSPSSVSASVGDRVTITCRASQGISSWLAWYQQKPGKAPKLLIYAASSLQSGVPSRFSGSG[91mR[0m[91mI[0m[91mW[0mD[94m-[0m[91mR[0m[91mF[0m[91mH[0m[91mS[0m[91mH[0m[91mH[0m[91mQ[0mQP[94m-[0m[94m-[0m[94m-[0mA[91mA[0m[91mR[0m[91mF[0mC[91mN[0m[94mL[0m[94mL[0m[94mL[0m[91mS[0m[91mT[0m[91mG[0m[91mQ[0mFPF[91mH[0mF[91mR[0mP[91mW[0m[91mD[0m[91mQ[0m[91mS[0m[91mG[0m[91mY[0m[91mQ[0m[94mT[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGTAGTCACTACTGGAGCTGGATCCGGCAGCCCCCAGGGAAGGGACTGGAGTGGATTGGGTATATCTATTACAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCTGCGGACACGGCCGTGTATTACTGTGCGAGAGCGCCACGGGGCCCCGGTGGGAGCACTCACTACTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94m-[0m[94m-[0m[94m-[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mATCCAGA[94mT[0m[94mG[0m[94mG[0mTGACCCAGTCTCCATCTTCCGTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGTCGGGCGAGTCAGGGTATTAGCAGCTGGTTAGCCTGGTATCAGCAGAAACCAGGGAAAGCCCCTAAGCTCCTGATCTATGCTGCATCCAGTTTGCAAAGTGGGGTCCCATCAAGGTTCAGCGGCAGTGG[94mT[0m[94mC[0m[94mG[0m[94mC[0mATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCCTGAAGATTTTGCAACTTACTATTGTCAACAGGCTAACAGTTTCCCTTTCACTTTCGGCCCTGGGACCAAAGTGGATATCAAAC
-
-    iclust 1: choosing abs from joint cluster with size 13 (marked with [92mx[0m)
             cons seq not observed
         less than 0.75 (3 / 13 = 0.23) of h seqs have indels, so not using input seqs for cons seq
         less than 0.75 (3 / 13 = 0.23) of l seqs have indels, so not using input seqs for cons seq
-        [92mx[0m: added cons seq
-          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 2944804271686936349-igh 2944804271686936349-igk
+          [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 3032125491579114553-igh 3032125491579114553-igk
         finished: 3 newly chosen >= 3
-        aa-cfrac: chose 3
-      chose 4 total
-             aa-cfrac (%)      aa-cdist         droplet        contig indels  lbi   lbr  aa-lbi  aa-lbr       N     %shm   N aa mutations     sizes              genes    cons: [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCARDTLHDSSGYYSVYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQGISNYLAWYQQKPGKVPKLLIYGASTLQSGVPSRFSGSGSGTDFTLTISSLQREDVATYYCQKYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGATACCCTCCATGATAGTAGTGGTTATTACTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGGCGAGTCAGGGCATTAGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCTGATCTATGGTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCGTGAAGATGTTGCAACTTATTACTGTCAAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAAC
-             sum   h    l       h   l                           h  l   h l    sum   sum     sum     sum  sum  h   l   nuc   cons.     obs.   both   h   l                naive: [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCARDTLHDSSGYY[91mF[0m[91mD[0mYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQGISNYLAWYQQKPGKVPKLLIY[91mA[0mASTLQSGVPSRFSGSGSGTDFTLTISSLQ[91mP[0mEDVATYYCQKYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGATACCCTCCATGATAGTAGTGGTTATTACT[91mT[0mTG[91mA[0mCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGGCGAGTCAGGGCATTAGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCTGATCTATG[91mC[0mTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGC[91mC[0mTGAAGATGTTGCAACTTATTACTGTCAAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAAC
-       [94mh[0m [95mk[0m   4.3  2.5  1.9      3   2   [92mx[0m  2007715807482511940  h  k         0.16  0.89    0.17    0.95   2   1   1  1.6    2  2   9  5  4    13   13  13    [95mh[0m[91mv[0m[95m1[0m[95m-2[0m[93m02[0m [95mk[0m[91mv[0m[95m1[0m[95m-27[0m[93m01[0m   [94mX[0m[94mX[0mQVQLVQS[91mW[0mAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCARDTLHDSS[91mD[0mY[91m*[0mSVYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCR[91mG[0mSQGISNYLAWYQQKPGKVP[91mE[0mLLIYGASTLQSGVPSRFSGSGSGTDFTLTISSLQREDVATYYCQKYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCT[91mT[0mGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGATACCCT[91mA[0mCATGATAGTAGTG[91mA[0mTTATTA[91mG[0mTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGG[91mG[0mGAGTCAGGGCATTAGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCT[91mG[0mAGCTCCTGATCTATGGTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGG[91mC[0mTCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCGTGAAGATGTTGCAACTTATTACTGTCAAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAAC
-             4.4  1.6  2.8      2   3   [92mx[0m  2944804271686936349  h  k   [91my[0m     0.12  0.63    0.17    0.90              1.7           9  4  5                   [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m           [94mX[0m[94mX[0mQVQLVQS[91mW[0mAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLE[94m-[0m[94m-[0mGW[94m-[0m[94m-[0m[91mD[0m[91mG[0mS[91mT[0m[91mL[0mT[91mV[0m[91mV[0mAQ[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mTM[91mH[0mR[94m-[0m[94m-[0mS[91mF[0m[91mR[0m[91mA[0m[91mG[0m[91mS[0m[91mP[0m[91mP[0m[91mG[0m[91mT[0mR[91mP[0m[91mS[0m[91mA[0m[91mQ[0m[91mP[0mT[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mW[91mS[0m[91mA[0mG[91mD[0mL[94mT[0m[94mT[0m[94mR[0m[94mP[0m[94mC[0m[91mI[0mTV[91mR[0m[91mE[0m[94mI[0m[94mP[0m[94mY[0m[94mM[0m[94mI[0m[94mV[0m[94mV[0m[94mV[0m[94mI[0m[94mS[0m[94mL[0m[94mS[0m[94mT[0m[94mG[0m[94mA[0m[94mR[0m[94mE[0m[94mP[0m[94mW[0m[94mS[0m[94mP[0m[94mS[0m[94mP[0m[94mQ[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTIT[91mF[0mR[91mG[0mSQGISNYLAWYQQKPGKVP[91mE[0mLLIYGASTLQSGVPSRFSGSGSGTDFTLTISSLQREDVATYYCQKYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCT[91mT[0mGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAG[94m-[0mGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGATACCCT[91mA[0mCATGATAGTAGTGGTTATTA[91mG[0mTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGT[91mT[0mGGAGACAGAGTCACCATCACTT[91mT[0mCCGGG[91mG[0mGAGTCAGGGCATTAGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCT[91mG[0mAGCTCCTGATCTATGGTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGG[91mC[0mTCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCGTGAAGATGTTGCAACTTATTACTGTCAAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAAC
-             5.5  0.8  4.7      1   5   [92mx[0m  5923236594083130954  h  k         0.40  1.11    0.40    1.11   3   2   1  1.9          10  3  7                   [95mh[0m[91mj[0m[95m4[0m[93m02[0m [95mk[0m[91mj[0m[95m1[0m[93m01[0m        [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVY[91mH[0mCARDTLHDSSGYYSVYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMT[91mE[0mSPSSLSASVGDRVTITCRASQGI[91mG[0mNYLAWYQQKPGKVPKLLIYGASTLQSGVPSRFSGSGSGTDFTLTISSLQREDVAT[91mH[0mYC[91mL[0mKYNSAPWTFGQGTK[91mE[0mEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTAT[91mC[0mACTGTGCGAGAGATACCCTCCATGATAGTAGTGGTTATTA[91mT[0mTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACC[91mG[0mAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGGCGAGTCAGGGCATT[91mG[0mGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCT[91mA[0mATCTATGGTGCATCCACTTTGCAATCAGGGGTCCCATCT[91mA[0mGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCGTGAAGATGTTGCAACT[91mC[0mATTACTGTC[91mT[0mAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGG[91mA[0mGGAAATCAAAC
-             6.4  0.8  5.6      1   6      0722450993464403190  h  k         0.14  0.00    0.14    0.00   2   1   1  1.5           8  3  5                                      [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCARDTLHDSS[91mS[0mYYSVYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDI[91mK[0mM[91mA[0mQSPSSLSASVGDRVTIT[91mW[0mRASQGISNYLAWYQQKPGK[91mI[0mPKLLIY[91mA[0mASTLQSGVPSRFSGSGSGTDFTLTISSLQ[91mA[0mEDVATYYCQKYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAG[91mT[0mAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGATACCCTCCATGATAGTAGT[91mA[0mGTTATTACTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATC[91mA[0mAGATG[91mG[0mCCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTG[91mG[0mCGGGCGAGTCAGGGCATTAGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAA[91mA[0mTTCCTAAGCTCCTGATCTATG[91mC[0mTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAG[91mG[0m[91mC[0mTGAAGATGTTGCAACTTATTACTGTCAAAAGTATAACAGTGCCCCGTGGAC[91mA[0mTTCGGCCAAGGGACCAAGGTGGAAATCAAAC
-                                           8360622539805327459  h  k     [91my[0m   0.04  0.00    0.04    0.00              1.7                                                        [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCARDTL[91mN[0mDSSGYYSVYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDI[91mK[0mM[91mA[0mQSPSSLSASVGDRVTITCRASQGISNYLAWYQQKP[94mV[0m[94mR[0m[94mP[0m[94mA[0m[94mE[0m[91mN[0m[91mS[0m[91mA[0mP[91mD[0mL[94mC[0m[94mC[0m[94mI[0m[94mH[0m[94mF[0m[91mA[0mI[91mR[0mG[91mP[0m[91mI[0m[91mS[0m[91mV[0mQ[94mW[0m[91mQ[0m[91mW[0m[91mI[0m[91mW[0m[91mD[0mRF[91mH[0m[91mS[0m[94mH[0m[94mH[0m[94mH[0m[91mQ[0m[91mP[0m[91mA[0mG[91mR[0m[91mC[0m[91mC[0m[91mN[0mL[91mL[0m[91mL[0mS[91mK[0m[91mV[0mQ[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mC[0m[91mP[0mV[91mD[0mI[91mR[0m[94mP[0m[94mR[0m[94mP[0m[94mR[0m[94mW[0m[94mK[0m[94mS[0m[94mN[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAG[91mT[0mAGGCTGAGATCTGACGACACGGCCGTGTA[91mC[0mTACTGTGCGAGAGATACCCTC[91mA[0mATGATAGTAGTGGTTATTACTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATC[91mA[0mAGATG[91mG[0mCCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCAC[91mG[0mATCACTTGCCGGGCGAGTCAGGGCATTAGCAATTATTTAGCCTGGTATCAGCAGAAACCAG[94mT[0m[94mG[0m[94mC[0m[94mG[0m[94mG[0m[94mC[0m[94mC[0m[94mT[0m[94mG[0m[94mC[0mGGAAA[91mA[0mTTCCTAAGCTCCTGATCTATG[91mC[0mTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCA[91mC[0mCAGCCTGCAG[91mG[0m[91mC[0mTGAAGATGTTGCAACTTATTACTGTCAAAAGTATAACAGTGCCCCGTGGAC[91mA[0mTTCGGCCAAGG[94m-[0m[94m-[0mCCAAGGTGGAAATCAAAC
-             6.9  4.1  2.8      5   3      8434928701685410072  h  k     [91my[0m   0.21  0.91    0.21    0.94              1.5           8  7  1                                      [94mX[0m[94mX[0mQVQLV[91mP[0mSGAEVKKPGASVKVSCKASGYTFTGYYMH[91m*[0mVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMT[91mS[0mDTSISTAYMELSRLRSDDTAVYYCARDTLH[91mY[0mSSGYYSVYWGQG[91mA[0mLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQGI[91mR[0m[91mT[0m[91mI[0m[91mI[0m[91mP[0m[91mG[0m[91mI[0m[91mS[0m[91mR[0m[91mN[0m[91mQ[0mGK[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mF[0m[91mL[0m[91mS[0m[91mS[0mS[91mM[0mL[91mH[0m[91mP[0m[94mL[0m[91mC[0mVPSRFSGSGSGTDFTLTISSLQ[91mP[0mEDVATYYCQ[91mN[0mYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGC[91mC[0mGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACT[91mA[0mGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAG[91mT[0mGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGATACCCTCCAT[91mT[0mATAGTAGTGGTTATTACTCTGTCTACTGGGGCCAGGGA[91mG[0mCCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGGCGAGTCAGGGCATTAG[94mG[0m[94mA[0mCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCTGATCTATG[91mC[0mTGCATCCACTTTGC[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGC[91mC[0m[91mG[0mGAAGATGTTGCAACTTATTACTGTCAAAA[91mT[0mTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAA[91mA[0m
-             7.4  0.8  6.5      1   7      3619044900169338730  h  k         0.03  0.00    0.03    0.00   3   2   1  2.3          12  3  9                                      [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVY[91mH[0mCARDTLHDSSGYYSVYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGD[91m*[0mVTITCRAS[91mL[0mGI[91mG[0mNYLAWYQQKPGKVPKLLIYGASTLQSGVPSRFSG[91mT[0mGSGTDFTLTISSLQREDVAT[91mH[0mYC[91mL[0mKYNSAPWTFGQGTK[91mE[0mEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCT[91mA[0mGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTAT[91mC[0mACTGTGCGAGAGATACCCTCCATGATAGTAGTGG[91mG[0mTATTA[91mT[0mTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGAC[91mT[0mGAGTCACCATCACTTGCCGGGCGAGTC[91mT[0mGGGCATT[91mG[0mGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCT[91mA[0mATCTATGGTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCA[91mC[0mTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGCGTGAAGATGTTGCAACT[91mC[0mATTACTGTC[91mT[0mAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGG[91mA[0mGGAAATCAAAC
-             8.0  3.3  4.7      4   5      4221353576825034543  h  k         0.02  0.00    0.02    0.00   2   1   1  1.3           9  6  3                                      [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYT[91mL[0mTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMEL[91mR[0mRLRSDDTAVYYCARDTLH[91mE[0mSSG[91mS[0mYSVYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0m[91mG[0mIQMTQSPSSLSASVGDRVT[91mL[0mTCRASQGISNYLAWYQQKPGKVPKLL[91mV[0mY[91mA[0mASTLQSGVPSRFSGSGSGTDFTLTISSLQ[91mP[0mEDVATYYCQKYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTT[91mA[0mACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTG[91mC[0mGCAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGATACCCTCCATGA[91mA[0mAGTAGTGGTT[91mC[0mTTACTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mG[91mG[0mCATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACC[91mC[0mTCACTTGCCGGGCGAGTCAGGGCATTAGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCTG[91mG[0mTCTATG[91mC[0mTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGC[91mC[0mTGAAGATGTTGCAACTTATTACTGTCAAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAAC
-             8.8  4.1  4.7      5   5      2825113187366259584  h  k   [91my[0m     0.04  0.00    0.04    0.00              1.9          10  7  3                                      [94mX[0m[94mX[0mQVQLV[91mP[0mSGAEVKKPGASVKVSCKASGYTFTGYYMH[94m-[0mVRQAPGQGLEWMGWINPNSGGTNYA[94mP[0mQKFQGRVTMT[91mS[0mDTSISTAYMELSRLRSDDT[94mA[0mAVYYCARDTLHDSS[91mS[0mYYSVYWGQG[91mA[0mLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTIT[91mR[0mRASQGISNYLAWYQ[91mL[0mKPGKVPKLLIY[91mA[0mASTLQSGVPSRFSGSGSGTDFTLTISSLQ[91mP[0mEDVATYYCQ[91mN[0mYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGC[91mC[0mGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACT[91mA[0mGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATG[94mC[0m[94mC[0m[94mC[0mCACAGAAGTTTCAGGGCAGGGTCACCATGACCAG[91mT[0mGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACG[94mG[0m[94mC[0m[94mA[0mGCCGTGTATTACTGTGCGAGAGATACCCTCCATGATAGTAGT[91mA[0mGTTATTACTCTGTCTACTGGGGCCAGGGA[91mG[0mCCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATC[91mC[0mGTAGGAGACAGAGTCACCATCACT[91mC[0mGCCGGGCGAGTCAGGGCATTAGCAATTATTTAGCCTGGTATCAGC[91mT[0mGAAACCAGGGAAAGTTCCTAAGCTCCTGATCTATG[91mC[0mTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGC[91mC[0m[91mG[0mGAAGATGTTGCAACTTATTACTGTCAAAA[91mT[0mTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGGTGGAAATCAAA[91mA[0m
-             9.7  4.1  5.6      5   6      2848498477745880412  h  k         0.18  0.62    0.22    0.86   4   2   2  2.5          15  7  8                                      [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQ[91mV[0mLEWMGWINPNSGGT[91mK[0mYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVY[91mH[0mCARDTL[91mQ[0mDSSGYYSV[91mF[0mWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQGI[91mG[0mNYLAWYQQKPGKVPKLLIYGASTLQSGVPSRFSGSGSGTDFT[91mR[0mTISSLQREDVA[91mP[0m[91mH[0mYC[91mL[0mKYNSAPWTFGQGTK[91mE[0mEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAG[91mT[0mGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAA[91mA[0mTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTAT[91mC[0mACTGTGCGAGAGATACCCTCCA[91mA[0mGATAGTAGTGGTTATTA[91mT[0mTCTGTCT[91mT[0mCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGGCGAGTCAGGGCATT[91mG[0mGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCT[91mA[0mATCTATGGTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTC[91mG[0mCACCATCAGCAGCCTGCAGCGTGAAGATGTTGCA[91mC[0mCT[91mC[0mATTACTGTC[91mT[0mAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGG[91mA[0mGGAAATCAAAC
-                                           0243969890498271220  h  k         0.18  0.00    0.22    0.00              2.5                                                        [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQ[91mV[0mLEWMGWINPNSGGT[91mK[0mYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVY[91mH[0mCARDTL[91mQ[0mDSSGYYSV[91mF[0mWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQGI[91mG[0mNYLAWYQQKPGKVPKLLIYGASTLQSGVPSRFSGSGSGTDFT[91mR[0mTISSLQREDVA[91mP[0m[91mH[0mYC[91mL[0mKYNSAPWTFGQGTK[91mE[0mEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAG[91mT[0mGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAA[91mA[0mTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTAT[91mC[0mACTGTGCGAGAGATACCCTCCA[91mA[0mGATAGTAGTGGTTATTA[91mT[0mTCTGTCT[91mT[0mCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGGCGAGTCAGGGCATT[91mG[0mGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCT[91mA[0mATCTATGGTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTC[91mG[0mCACCATCAGCAGCCTGCAGCGTGAAGATGTTGCA[91mC[0mCT[91mC[0mATTACTGTC[91mT[0mAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGG[91mA[0mGGAAATCAAAC
-            10.6  4.1  6.5      5   7      1976067069863510267  h  k         0.05  0.00    0.04    0.00   2   1   1  2.6          16  7  9                                      [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQ[91mV[0mLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVY[91mH[0mCARDTL[91mQ[0mDS[91mG[0mGYYSV[91mF[0mWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mDIQMTQSPSSLSASVGDRVTITCRASQGI[91mG[0mNYLAWYQQKPGKVPKLLI[91mH[0mGASTLQSGVPSRFSGSGSGTDFT[91mR[0mTISSLQREDVA[91mP[0m[91mH[0mYC[91mL[0mKYNSAPWTFGQGTK[91mE[0mEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAG[91mT[0mGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTGAGCAGGCTGAGATCTGACGACACGGCCGTGTAT[91mC[0mACTGTGCGAGAGATACCCTCCA[91mA[0mGATAGT[91mG[0mGTGGTTATTA[91mT[0mTCTGTCT[91mT[0mCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACATCCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCTGTAGGAGACAGAGTCACCATCACTTGCCGGGCGAGTCAGGGCATT[91mG[0mGCAATTATTTAGCCTGGTATCAGCAGAAACCAGGGAAAGTTCCTAAGCTCCT[91mA[0mATC[91mC[0mATGGTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAGTGGATCTGGGACAGATTTCACTC[91mG[0mCACCATCAGCAGCCTGCAGCGTGAAGATGTTGCA[91mC[0mCT[91mC[0mATTACTGTC[91mT[0mAAAGTATAACAGTGCCCCGTGGACGTTCGGCCAAGGGACCAAGG[91mA[0mGGAAATCAAAC
-            36.9 30.3  6.5     37   7      4259371196738496649  h  k   [91my[0m [91my[0m   0.68  0.00    0.68    0.00              1.5           8  2  6                                      [94mX[0m[94mX[0mQVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMEL[91mQ[0m[91mQ[0m[91mA[0m[91mE[0m[91mI[0m[91m*[0m[91mR[0m[91mH[0m[91mG[0m[91mR[0m[91mV[0m[91mL[0m[91mL[0m[91mC[0m[91mE[0m[91mR[0m[91mY[0m[91mP[0m[91mP[0m[91m*[0m[91m*[0m[91m*[0m[91mW[0m[91mL[0m[91mL[0m[91mL[0m[91mC[0m[91mL[0m[91mL[0mG[91mP[0mG[91mN[0m[91mP[0m[91mG[0m[91mH[0m[91mR[0m[91mL[0m[91mL[0m[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mD[91mM[0mQMTQSPSSLSAS[94m-[0mGD[91mI[0mVTITCRASQGISNYLA[91mS[0mYQQKPGK[91mI[0m[91mT[0mKLLIY[91mS[0mASTLQSGVPSRFSGS[94mR[0m[94mR[0m[94mY[0mGSGTDFTLTISSLQ[91mP[0mEDVATYYCQKYNSAPWTFGQGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATACACCTTCACCGGCTACTATATGCACTGGGTGCGACAGGCCCCTGGACAAGGGCTTGAGTGGATGGGATGGATCAACCCTAACAGTGGTGGCACAAACTATGCACAGAAGTTTCAGGGCAGGGTCACCATGACCAGGGACACGTCCATCAGCACAGCCTACATGGAGCTG[94mC[0mAGCAGGCTGAGATCTGACGACACGGCCGTGTATTACTGTGCGAGAGATACCCTCCATGATAGTAGTGGTTATTACTCTGTCTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGACAT[91mG[0mCAGATGACCCAGTCTCCATCCTCCCTGTCTGCATCT[94m-[0m[94m-[0m[94m-[0mGGAGACA[91mT[0mAGTCACCATCACTTGCCGGGCGAGTCAGGGCATTAGCAA[91mC[0mTATTTAGCCT[91mC[0mGTATCAGCAGAAACCAGGGAAA[91mA[0mTT[91mA[0mCTAAGCTCCTGATCTAT[91mT[0m[91mC[0mTGCATCCACTTTGCAATCAGGGGTCCCATCTCGGTTCAGTGGCAG[94mT[0m[94mA[0m[94mG[0m[94mA[0m[94mA[0m[94mG[0m[94mA[0m[94mT[0m[94mA[0mTGGATCTGGGACAGATTTCACTCTCACCATCAGCAGCCTGCAGC[91mC[0mTGAAGATGTTGCAACTTATTACTGTCAAAAGTATAACAGTGCCCCGTGGAC[91mA[0mTTCGGCCAAGGGACCAAGGTGGAAATCAAAC
-
-        less than 0.75 (1 / 10 = 0.10) of h seqs have indels, so not using input seqs for cons seq
-        less than 0.75 (1 / 10 = 0.10) of l seqs have indels, so not using input seqs for cons seq
-             aa-cfrac (%)      aa-cdist         droplet        contig indels   lbi   lbr  aa-lbi  aa-lbr       N     %shm   N aa mutations     sizes               genes    cons: [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQSPATLSVSPGERATLSCRASQSVSSNLAWYQQKPGQAPRLLIYGASTRATGIPARFSGSGSGTEFTLTISSLQSEDFAVYYCQQYNNWPLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAGTCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAGCAGCAACTTAGCCTGGTACCAGCAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCAGTGGCAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGGCCTCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-             sum   h    l       h   l                           h  l   h l     sum   sum     sum     sum  sum  h   l   nuc   cons.     obs.   both   h   l                 naive: [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYY[91mY[0mVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQSPATLSVSPGERATLSCRASQSVSSNLAWYQQKPGQAPRLLIYGASTRATGIPARFSGSGSGTEFTLTISSLQSEDFAVYYCQQYNNWPLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACT[91mA[0mCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAGTCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAGCAGCAACTTAGCCTGGTACCAGCAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCAGTGGCAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGGCC[91mA[0mCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-       [94mh[0m [95mk[0m   1.9  0.0  1.9      0   2      4787808009036185517  h  k          0.02  0.00    0.02    0.00  11   9   2  0.7    1  0   3  1  2    10   10  10    [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m01[0m [95mk[0m[91mv[0m[95m3[0m[95m-15[0m[93m01[0m   [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQ[91mP[0mPATLSVSPGERATLSCRASQSVSSNLAWYQQ[91mQ[0mPGQAPRLLIYGASTRATGIPARFSGSGSGTEFTLTISSLQSEDFAVYYCQQYNNWPLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAG[91mC[0mCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAGCAGCAACTTAGCCTGGTACCAGCAG[91mC[0mAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCAGTGGCAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAG[91mT[0mCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGGCCTCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-                                           9132595207489017808  h  k          0.02  0.00    0.02    0.00              0.7                                     [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m            [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQ[91mP[0mPATLSVSPGERATLSCRASQSVSSNLAWYQQ[91mQ[0mPGQAPRLLIYGASTRATGIPARFSGSGSGTEFTLTISSLQSEDFAVYYCQQYNNWPLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAG[91mC[0mCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAGCAGCAACTTAGCCTGGTACCAGCAG[91mC[0mAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCAGTGGCAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAG[91mT[0mCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGGCCTCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-             3.7  0.0  3.7      0   4      8209684309524878686  h  k          0.08  0.00    0.08    0.00  10   9   1  1.3           5  1  4                   [95mh[0m[91mj[0m[95m4[0m[93m02[0m [95mk[0m[91mj[0m[95m4[0m[93m01[0m         [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQSPATLSVSPGERATLSC[91mT[0mASQSVSSNL[91mV[0m[91m*[0mYQQKPGQAPRLLIYGASTRATGIPARFSGSGSGTEFTLTISSLQSEDFAVYYC[91mH[0mQYNNWPLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAGTCTCCAGCCACCCTGTCTGT[91mC[0mTCTCCAGGGGAAAGAGCCACCCTCTCCTGCA[91mC[0mGGCCAGTCAGAGTGTTAGCAGCAACTTAG[91mT[0mCTG[91mA[0mTACCAGCAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTAT[91mA[0mCCAGCCAGGTTCAGTGG[91mG[0mAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCA[91mC[0mCAGTATAATAACTGGCCTCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-                                           2046949842373912228  h  k   [91my[0m      0.01  0.00    0.01    0.00   2   1   1  0.8                                                         [94mX[0mQVTLR[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mV[0m[91mW[0m[91mS[0mC[91mA[0m[91mG[0m[91mE[0m[91mT[0m[91mH[0m[91mT[0m[91mD[0m[91mP[0m[91mH[0m[91mT[0m[91mD[0m[91mL[0m[91mH[0m[91mL[0m[91mL[0mW[91mV[0m[94mL[0m[94mT[0m[94mQ[0m[94mH[0m[94mW[0m[94mN[0m[94mV[0m[94mC[0m[94mE[0m[94mL[0m[94mD[0m[94mP[0m[94mS[0m[94mA[0m[94mP[0mR[91mE[0m[91mG[0mPG[91mV[0mA[91mC[0m[91mT[0m[91mH[0mL[91mG[0m[91mI[0m[94mL[0m[94mQ[0m[94mH[0mI[91mS[0m[91mE[0mD[91mQ[0m[91mA[0m[91mH[0m[91mH[0m[91mL[0m[91mQ[0m[91mG[0m[91mH[0mL[91mQ[0m[94mK[0m[94mP[0m[94mG[0m[94mG[0m[94mP[0m[94mY[0m[94mN[0m[94mD[0m[94mQ[0m[94mH[0m[94mG[0m[94mP[0m[94mC[0m[94mG[0m[94mH[0m[91mS[0m[91mH[0m[91mV[0m[91mL[0m[91mL[0m[91mC[0m[91mT[0mDT[94m-[0m[94m-[0m[94m-[0m[94m-[0m[91mM[0mVL[91mL[0m[91mW[0m[91mL[0m[91mL[0m[91mL[0m[91mR[0mP[91mC[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mF[91mL[0m[91mL[0m[91mG[0m[91mP[0m[91mG[0m[91mN[0m[91mP[0mG[91mH[0m[91mR[0m[91mL[0mL[94mX[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQ[91mP[0mPATLSVSPGERATLSCRASQSVS[91mR[0mNLAWYQ[91mE[0mKPGQAPRLLIYGASTRATGIPARFSGSGSGTEFTLTISSLQSEDFAVYYCQQYNNWPLTFGGGTK[91mL[0mEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGA[94m-[0m[94m-[0mGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAG[91mC[0mCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAGC[91mC[0mGCAACTTAGCCTGGTACCAG[91mG[0mAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCAGTGGCAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGGCCTCTCACTTTCGGCGGAGGGACCAAG[91mT[0mTGGAGATCAAAC
-             4.7  0.0  4.7      0   5      3725163093132154995  h  k          0.00  0.00    0.00    0.00  10   9   1  1.3           6  1  5                                       [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEI[91mL[0mMTQSPATLSVSPGE[91mT[0mATLSCRASQSV[91mR[0mSNLAWYQQKPGQAPRLLIY[91mS[0mASTRATGIPARFSGSGSGTEFTLTISSLQSEDFAVYYCQQYNNW[91mT[0mLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATA[91mT[0mTGATGACGCAGTCTCCAGCCACCCTGTCTGTGTC[91mA[0mCCAGGGGAAA[91mC[0mAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAG[91mG[0mAGCAACTTAGCCTGGTACCAGCAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTAT[91mA[0mGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCAGTGGCAGTGGGTCTGGGACAGA[91mA[0mTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGG[91mA[0mCTCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-                                           1398863348113582189  h  k          0.00  0.00    0.00    0.00              1.8                                                         [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQSPATLSVSPGERATLSC[91mT[0mASQSVSSNL[91mV[0mWYQQKPGQAPRLLIYGASTRATGIPARFSGSGSGTE[91mC[0mTLTISSLQSED[91mV[0mAVYYC[91mH[0mQYNNWPLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAGTCTCCAGCCAC[91mT[0mCTGTCTGT[91mC[0mTCTCCAGGGGAAAGAGCCAC[91mG[0mCTCTCCTGCA[91mC[0mGGCCAGTCAGAGTGTTAGCAGCAACTTAG[91mT[0mCTGGTACCAGCAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTAT[91mA[0mCCAGCCAGGTT[91mT[0mAGTGG[91mG[0mAGTGGGTCTGGGACAGAGT[91mG[0mCACTCTCACCATCAGCAGCCTGCAGTCTGAAGAT[91mG[0mTTGCAGTTTATTACTGTCA[91mC[0mCAGTATAATAACTGGCCTCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-                                           6375953357290344918  h  k     [91my[0m    0.00  0.00    0.00    0.00              1.3                                                         [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEI[91mL[0mMTQSPATLSVSPGERATLSCRASQSV[91mR[0mSNLAWYQQKPGQAPRLLIYGASTRATGIPARFSGS[91mV[0mSGTEFTLTISSLQS[91mG[0m[91mN[0m[91mL[0m[91mL[0m[91mL[0m[91mS[0m[91mA[0m[91mV[0m[91mL[0m[91mD[0m[91mT[0m[91mH[0m[91mF[0m[91mR[0m[91mR[0m[91mR[0m[91mD[0m[91mQ[0mGG[91mD[0m[91mQ[0m[91mT[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATA[91mT[0mTGATGACGCAGTCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAG[91mG[0mAGCAACTTAGCCTGGTACCAGCAGAAACCTGG[91mG[0mCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCAGTGGCAGTG[91mT[0mGTCTGGGACAGA[91mA[0mTTCACTCTCAC[91mG[0mATCAGCAGCCTGCAGTCTG[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0m[94m-[0mGCA[91mA[0mTTTATTACTGTCAGCAGTATAATAACTGG[91mA[0mC[91mA[0mCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-                                           6684762569759998656  h  k          0.02  0.00    0.02    0.00              1.4                                                         [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQSPATL[91mA[0mVSPGERATLSC[91mT[0mASQSVSSNL[91mV[0mWYQQKPGQAPRLLIYGASTRATGIPARFS[91mV[0mSGSGTEFTLTISSLQSEDFAVYYC[91mH[0mQYNNWPLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAGTCTCCAGCCACCCTG[91mG[0mCTGT[91mC[0mTCTCCAGGGGAAAGAGCCACCCTCTCCTGCA[91mC[0mGGCCAGTCAGAGTGTTAGCAGCAACTTAG[91mT[0mCTGGTACCAGCAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTAT[91mA[0mCCAGCCAGGTTCAGTG[91mT[0m[91mG[0mAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCA[91mC[0mCAGTATAATAACTGGCCTCTCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-             5.6  0.0  5.6      0   6      1633732798805984768  h  k          0.00  0.00    0.00    0.00              1.4           7  1  6                                       [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEI[91mL[0mMTQSPA[91mA[0mLSVSPGERATLSCRASQSV[91mT[0mSNLAWYQQKPGQAPRLLIYGAS[91mS[0mRATGIP[91mD[0mRFSGSGSGTEFTLTISSLQSEDFAVYYCQQYNNW[91mT[0mLTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATA[91mT[0mTGATGACGCAGTCTCCAGCC[91mG[0mCCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTA[91mC[0m[91mG[0mAGCAACTTAGCCTGGTACCAGCAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCC[91mT[0mCCAGGGCCACTGGTATCCCAG[91mA[0mCAGGTTCAGTGGCAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGG[91mA[0mCTCTCAC[91mA[0mTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-             7.5  0.0  7.5      0   8      8111003094759328213  h  k         -0.00  0.00   -0.00    0.00              1.7           9  1  8                                       [94mX[0mQVTLRESGPALVKPTQTLTLTCTFSGFSLSTSGMCVSWIRQPPGKALEWLALIDWDDDKYYSTSLKTRLTISKDTSKNQVVLTMTNMDPVDTATYYCARIPWYYYDSSGYYFVRAFDYWGQGTLVTVSS[94mX[0m [94mX[0m[94mX[0m[94mX[0m[94mX[0m[94mX[0mEIVMTQSPATLSVSPGERATLSC[91mG[0mASQ[91mN[0mVSSNLAWYQQKPG[91mK[0mA[91mF[0mRLLIYGASTRATGIPARF[91mI[0mGS[91mA[0mSGTEFTLTISSLQSEDFAVYYCQQYNNW[91mH[0m[91mP[0mTFGGGTKVEIK[94mX[0m [94mN[0m[94mN[0m[94mN[0mCAGGTCACCTTGAGGGAGTCTGGTCCTGCGCTGGTGAAACCCACACAGACCCTCACACTGACCTGCACCTTCTCTGGGTTCTCACTCAGCACTAGTGGAATGTGTGTGAGCTGGATCCGTCAGCCCCCAGGGAAGGCCCTGGAGTGGCTTGCACTCATTGATTGGGATGATGATAAATACTACAGCACATCTCTGAAGACCAGGCTCACCATCTCCAAGGACACCTCCAAAAACCAGGTGGTCCTTACAATGACCAACATGGACCCTGTGGACACAGCCACGTATTACTGTGCACGGATACCATGGTATTACTATGATAGTAGTGGTTATTACTTCGTCCGTGCTTTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGAAATAGTGATGACGCAGTCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTG[91mT[0m[91mG[0mGGGCCAGTCAGA[91mA[0mTGTTAGCAGCAACTTAGCCTGGTACCAGCAGAAACCTGGC[91mA[0mAGGCT[91mT[0m[91mT[0mCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCA[91mT[0mTGGCAGTG[91mC[0mGTCTGGGACAGAGTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGGC[91mA[0mTC[91mC[0mCACTTTCGGCGGAGGGACCAAGGTGGAGATCAAAC
-
-      writing 10 chosen abs to test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
-      total time: 7.7
+      total time: 1.9
