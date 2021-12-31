@@ -1751,7 +1751,7 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
         lbplotting.plot_cons_seq_accuracy(plotdir, antn_list, fnames=fnames)
 
     if 'tree-mut-stats' in plot_cfg:
-        plotting.plot_tree_mut_stats(plotdir + '/hmm/tree-mut-stats', antn_list, is_simu)
+        plotting.plot_tree_mut_stats(plotdir + '/hmm/tree-mut-stats', antn_list, is_simu)  # only_leaves=True
 
     print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 

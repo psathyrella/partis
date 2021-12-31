@@ -133,7 +133,10 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
         cmd += ' --help'
     else:
         cmd += ' --lambda0 %f' % args.base_mutation_rate
-        cmd += ' --selection_strength %f' % get_vpar_val('selection-strength', args.selection_strength)
+        if args.no_selection:
+            cmd += ' --no_selection'
+        else:
+            cmd += ' --selection_strength %f' % get_vpar_val('selection-strength', args.selection_strength)
         cmd += ' --obs_times %s' % ' '.join(['%d' % get_vpar_val('obs-times', t) for t in args.obs_times])
         cmd += ' --n_to_sample %s' % ' '.join('%d' % get_vpar_val('n-sim-seqs-per-generation', n) for n in args.n_sim_seqs_per_generation)
         cmd += ' --metric_for_target_dist %s' % args.metric_for_target_distance
@@ -147,8 +150,6 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
             cmd += ' --skip_stops_when_mutating'
         if args.allow_stops:
             cmd += ' --allow_stops_in_functional_seqs'
-        if args.no_selection:
-            cmd += ' --no_selection'
         cmd += ' --target_dist %d' % args.target_distance
         cmd += ' --target_count %d' % args.target_count
         cmd += ' --carry_cap %d' % get_vpar_val('carry-cap', args.carry_cap)
@@ -443,8 +444,8 @@ def partition():
         cmd += ' --batch-system slurm'
     if args.n_max_queries is not None:
         cmd += ' --n-max-queries %d' % args.n_max_queries
-    if args.distr_hists:
-        cmd += ' --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + ['distr'])
+    if args.extra_smetric_plots is not None:
+        cmd += ' --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + args.extra_smetric_plots)
     utils.simplerun(cmd, debug=True, dryrun=args.dry_run)
     # cmd = './bin/partis get-selection-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
@@ -501,7 +502,7 @@ parser.add_argument('--rearr-extra-args', help='')
 parser.add_argument('--inf-extra-args', help='')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
-parser.add_argument('--distr-hists', action='store_true', help='include lb distribution hists in plotting')
+parser.add_argument('--extra-smetric-plots', default=':'.join(treeutils.default_plot_cfg))
 parser.add_argument('--min-ustr-len', type=int, default=10, help='min length of hashed uid strs (longer makes collisions less likely, but it\'s hard to avoid them entirely since independent bcr-phylo procs choose the uids for each family)')
 
 args = parser.parse_args()
@@ -512,6 +513,7 @@ args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
 args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generation, intify=True)
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap', 'metric-for-target-distance'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
+args.extra_smetric_plots = utils.get_arg_list(args.extra_smetric_plots, choices=treeutils.all_plot_cfg)
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 
