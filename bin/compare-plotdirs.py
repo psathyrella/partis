@@ -15,12 +15,21 @@ import plotting
 import utils
 import glutils
 from hist import Hist
+import treeutils
+
+xtitledict = plotting.legends
+xtitledict.update(plotconfig.xtitles)
+xtitledict.update(treeutils.legtexts)
+
+ptitledict = plotting.legends
+ptitledict.update(plotconfig.plot_titles)
+ptitledict.update(treeutils.legtexts)
 
 # ----------------------------------------------------------------------------------------
 def get_hists_from_dir(dirname, histname, string_to_ignore=None):
     hists = {}
-    for fname in glob.glob(dirname + '/*.csv'):
-        varname = os.path.basename(fname).replace('.csv', '')
+    for fname in glob.glob('%s/%s' % (dirname, args.file_glob_str)):
+        varname = os.path.basename(fname).replace(args.file_replace_str, '')
         if string_to_ignore is not None:
             varname = varname.replace(string_to_ignore, '')
         hists[varname] = Hist(fname=fname, title=histname)
@@ -62,7 +71,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         xtitle = None
     if '-mean-bins' in varname:
         raise Exception('darn, I was hoping I wasn\'t making these plots any more')
-    plottitle = plotconfig.plot_titles[varname] if varname in plotconfig.plot_titles else varname
+    plottitle = ptitledict.get(varname, varname)
 
     ytitle = 'frequency' if args.normalize else 'counts'
 
@@ -137,7 +146,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if varname in ['func-per-drop', 'nonfunc-per-drop']:
         bounds = (-0.5, 15.5)
     if xtitle is None:
-        xtitle = plotconfig.xtitles.get(varname)
+        xtitle = xtitledict.get(varname)
 
     if args.add_to_title is not None:
         plottitle += args.add_to_title
@@ -186,6 +195,8 @@ parser.add_argument('--translegend', help='colon-separated list of x, y values w
 parser.add_argument('--log', default='', help='Display these axes on a log scale, set to either \'x\', \'y\', or \'xy\'')
 parser.add_argument('--make-parent-html', action='store_true', help='after doing everything within subdirs, make a single html in the main/parent dir with all plots from subdirs')
 parser.add_argument('--add-to-title', help='string to append to existing title (use @ as space)')
+parser.add_argument('--file-glob-str', default='*.csv', help='shell glob style regex for matching plot files')
+parser.add_argument('--file-replace-str', default='.csv', help='string to remove frome file base name to get variable name')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)

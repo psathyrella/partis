@@ -814,8 +814,8 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
 
 # ----------------------------------------------------------------------------------------
 # sep: string consisting of characters with which to split (i.e. if '_.-' we'll split on all three of them) (only used for 'undetermined' <dtype>)
-# did_index: zero-based index (using <sep>) of droplet id NOTE only used for 'undetermined' <dtype>
-def get_droplet_id(uid, dtype='10x', sep='_', did_index=0, return_contigs=False):
+# did_indices: zero-based index (using <sep>) of droplet id NOTE only used for 'undetermined' <dtype>
+def get_droplet_id(uid, dtype='10x', sep='_', did_indices=[0], return_contigs=False):
     if dtype != 'undetermined' and uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation TODO this method of determining if it's simulation sucks and will probably need to be changed
         ulist = uid.split('-')
         did, locus = '-'.join(ulist[:-1]), ulist[-1]
@@ -835,7 +835,7 @@ def get_droplet_id(uid, dtype='10x', sep='_', did_index=0, return_contigs=False)
             ulist = [uid]
             for ts in sep:
                 ulist = [s for u in ulist for s in u.split(ts)]
-            did = ulist[did_index]
+            did = sep[0].join(ulist[i] for i in did_indices)  # rejoin with just the first sep (if there was more than one)
             cstr, cid = 'XXX', 'XXX'
         else:
             assert False
@@ -849,10 +849,10 @@ def get_contig_id(uid, dtype='10x', sep='_'):
     return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
 
 # ----------------------------------------------------------------------------------------
-def extract_pairing_info(seqfos, droplet_id_separators='_', droplet_id_index=0, dtype='10x', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
+def extract_pairing_info(seqfos, droplet_id_separators='_', droplet_id_indices=[0], dtype='10x', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
     # ----------------------------------------------------------------------------------------
     def did_fcn(uid):  # shorthand that only requires uid
-        return droplet_id_fcn(uid, sep=droplet_id_separators, did_index=droplet_id_index, dtype=dtype)
+        return droplet_id_fcn(uid, sep=droplet_id_separators, did_indices=droplet_id_indices, dtype=dtype)
     # ----------------------------------------------------------------------------------------
     droplet_ids = {}
     for sfo in seqfos:

@@ -76,7 +76,7 @@ legtexts = {
 }
 
 # ----------------------------------------------------------------------------------------
-all_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree', 'distr', 'true-vs-inf-metrics']
+all_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree', 'distr', 'true-vs-inf-metrics', 'tree-mut-stats']
 default_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree']
 
 # ----------------------------------------------------------------------------------------
@@ -1749,6 +1749,9 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
         for mtr in [m for m in metrics_to_calc if m in lb_metrics]:
             lbplotting.plot_true_vs_inferred_lb(plotdir + '/' + mtr, antn_list, inf_annotations, mtr, fnames=fnames)
         lbplotting.plot_cons_seq_accuracy(plotdir, antn_list, fnames=fnames)
+
+    if 'tree-mut-stats' in plot_cfg:
+        plotting.plot_tree_mut_stats(plotdir + '/hmm/tree-mut-stats', antn_list, is_simu)
 
     print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 

@@ -647,7 +647,7 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
                  bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend)
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False):
+def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefname=None):
     # ----------------------------------------------------------------------------------------
     def add_to_distr_dict(ucounts, udistr):
         for scount in ucounts.values():
@@ -657,7 +657,14 @@ def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False):
     # ----------------------------------------------------------------------------------------
     def add_antn(line):
         if only_leaves:
-            dtree = treeutils.get_dendro_tree(treestr=lbplotting.get_tree_from_line(line, is_simu)) #, aa='aa-lb' in lb_metric))
+            if is_simu:
+                dtree = treeutils.get_dendro_tree(treestr=lbplotting.get_tree_from_line(line, is_simu)) #, aa='aa-lb' in lb_metric))
+            else:
+                if 'tree-info' in line:
+                    print '    getting tree from existing lb info'
+                    dtree = treeutils.get_dendro_tree(treestr=line['tree-info']['lb']['tree'])
+                else:
+                    dtree = treeutils.get_tree_for_inf_line(line, treefname=treefname, debug=True)['tree']
             if dtree is None:
                 raise Exception('plot_tree_mut_stats(): only_leaves was set, so we need the tree, but we couldn\'t get it from the annotation')
         else:  # default: include everybody
@@ -687,6 +694,7 @@ def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False):
         hist = hutils.make_hist_from_dict_of_counts(udistr, 'int', '')
         hist.fullplot(plotdir, plotname, pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N observations', 'ylabel' : 'counts', 'title' : title, 'log' : 'xy'}) #, texts=[(0.7, 0.8, 'N gtypes %d'%len(unique_seqs))])
     # ----------------------------------------------------------------------------------------
+    print '    plotting tree mutation stats %s' % ('using only leaves' if only_leaves else 'with all seqs')
     import lbplotting
     utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
     useq_distr, umut_distr, n_mut_dict = {}, {}, {}

@@ -78,7 +78,7 @@ def metafname():
 # ----------------------------------------------------------------------------------------
 def run_cmd(action):
     locstr = '--paired-loci' if args.paired_loci else '--locus %s'%args.locus
-    cmd = './bin/partis %s %s --species %s --guess-pairing-info --input-metafnames %s' % (action, locstr, args.species, metafname())
+    cmd = './bin/partis %s %s --species %s --guess-pairing-info --droplet-id-indices 0:1 --input-metafnames %s' % (action, locstr, args.species, metafname())
     if args.no_insertions_or_deletions:
         cmd += ' --no-insertions-or-deletions'
     if action in ['cache-parameters', 'annotate']:
@@ -95,12 +95,12 @@ def run_cmd(action):
         if args.initial_germline_dir is not None:
             cmd += ' --initial-germline-dir %s' % args.initial_germline_dir
         if args.parameter_plots:
-            cmd += ' --plot-tree-mut-stats --plotdir %s' % args.outdir
+            cmd += ' --plotdir %s' % args.outdir
     if action in ['annotate', 'get-selection-metrics'] and '--paired-outdir' not in cmd:
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
         cmd += ' --min-selection-metric-cluster-size 3 --label-tree-nodes --treefname %s/%s --plotdir %s --selection-metrics-to-calculate lbi:aa-lbi:cons-dist-aa:lbr:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
-        cmd += ' --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + ['distr'])
+        cmd += ' --add-selection-metrics-to-outfname --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + ['distr', 'tree-mut-stats'])
         cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv --debug 1' % args.outdir
         if args.no_tree_plots:
             cmd += ' --ete-path None'

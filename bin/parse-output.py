@@ -19,7 +19,7 @@ def count_plot(tglfo, tlist, plotdir, paired_loci=None):
         return
     if args.plot_tree_mut_stats:
         import plotting
-        plotting.plot_tree_mut_stats(plotdir, tlist, args.is_simu, only_leaves=args.only_plot_leaves)
+        plotting.plot_tree_mut_stats(plotdir, tlist, args.is_simu, only_leaves=args.only_plot_leaves, treefname=args.treefname)
         return
     if args.only_count_correlations:
         from corrcounter import CorrCounter
@@ -95,8 +95,9 @@ parser.add_argument('--simfname', help='simulation file corresponding to input f
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv versions of plots (not svg), which is a lot faster')
 parser.add_argument('--only-make-plots', action='store_true', help='if --plotdir is set, set this to only do plotting, i.e. don\'t do the usual/default file reading/conversion')
 parser.add_argument('--plot-tree-mut-stats', action='store_true', help='plot tree mutation stats and exit')
-parser.add_argument('--only-plot-leaves', action='store_true', help='only has affects --plot-tree-mut-stats')
-parser.add_argument('--is-simu', action='store_true', help='only has affects --plot-tree-mut-stats')
+parser.add_argument('--only-plot-leaves', action='store_true', help='only affects --plot-tree-mut-stats')
+parser.add_argument('--is-simu', action='store_true', help='only affects --plot-tree-mut-stats')
+parser.add_argument('--treefname', help='only affects --plot-tree-mut-stats')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
     print '  note: running deprecated script %s, which currently is just a link pointing to %s' % (os.path.basename(sys.argv[0]), os.path.basename(os.path.realpath( __file__)))
