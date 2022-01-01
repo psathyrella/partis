@@ -603,7 +603,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             lgstrs = ['%d%s'%(c, l) for l, c in lcounts]
         return ' '.join(lgstrs)
     # ----------------------------------------------------------------------------------------
-    def choose_seqs_to_remove(chain_ids, tdbg=False):  # choose one of <chain_ids> to eliminate (based on identical/similar seq collapse and productivity)
+    def choose_seqs_to_remove(chain_ids, remove_unproductive=False, tdbg=False):  # choose one of <chain_ids> to eliminate (based on identical/similar seq collapse and productivity)
         ids_to_remove = set(u for u in chain_ids if getloc(u)=='?')  # remove any with missing annotations
         if tdbg and len(ids_to_remove) > 0:  # i think this actually can't happen a.t.m.
             print '      removed %d with missing annotations' % len(ids_to_remove)
@@ -627,17 +627,17 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             print '        %d pair%s equivalent with hdists %s' % (n_equivalent, utils.plural(n_equivalent), ' '.join(dbgstr))
 
         # remove unproductive (only on real data, since simulation usually has lots of stop codons)
-        dbgstr = []
-        unproductive_ids = []
-        for uid in chain_ids:
-            if is_data and not utils.is_functional(all_antns[uid], all_antns[uid]['unique_ids'].index(uid)):
-                unproductive_ids.append(uid)
-                if tdbg:
-                    dbgstr.append(utils.is_functional_dbg_str(all_antns[uid], all_antns[uid]['unique_ids'].index(uid), sep='+'))
-        # unproductive_ids = [u for u in chain_ids if not utils.is_functional(all_antns[u], all_antns[u]['unique_ids'].index(u))]  # this way is only one line, which may or may not be nicer
-        if tdbg and len(unproductive_ids) > 0:
-            print '        %d unproductive  %s' % (len(unproductive_ids), ',  '.join(dbgstr))
+        if is_data and remove_unproductive:
+            dbgstr = []
+            unproductive_ids = []
+            for uid in chain_ids:
+                if not utils.is_functional(all_antns[uid], all_antns[uid]['unique_ids'].index(uid)):
+                    unproductive_ids.append(uid)
+                    if tdbg:
+                        dbgstr.append(utils.is_functional_dbg_str(all_antns[uid], all_antns[uid]['unique_ids'].index(uid), sep='+'))
             ids_to_remove |= set(unproductive_ids)
+            if tdbg and len(unproductive_ids) > 0:
+                print '        %d unproductive  %s' % (len(unproductive_ids), ',  '.join(dbgstr))
 
         return ids_to_remove
 
@@ -725,10 +725,10 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
     all_uids = set(u for p in cpaths.values() for c in p.best() for u in c)  # all uids that occur in a partition (should I think be the same as the ones for which we have valid/non-failed annotations)
 
-    # first make a map from each uid (for all loci) to its annotation
+    # first collect some information for later use
     pid_groups = []  # list of pid groups, i.e. each element is the uids from a single droplet (for 10x)
     pid_ids = {}  # map from each uid to the index of its pid group
-    all_antns = {}
+    all_antns = {}  # map from each individual uid to its annotation
     n_missing = 0
     if debug:
         print '  %s consolidating info for %d loci with family/sequence counts: %s' % (utils.color('blue', '+'.join(sorted(cpaths))), len(cpaths), '  '.join('%s: %d/%d'%(l, len(cpaths[l].best()), sum(len(c) for c in cpaths[l].best())) for l in sorted(cpaths)))
@@ -745,7 +745,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                 n_missing += len(missing_ids)
                 pset = set([uid] + pids) - missing_ids
                 found = False
-                for ipg, pgroup in enumerate(pid_groups):
+                for ipg, pgroup in enumerate(pid_groups):  # look for an existing pid group with some overlap
                     if any(p in pgroup for p in pset):  # could maybe check for consistency if some of them are already in there (i.e. from reciprocal info in another chain)?
                         found = True
                         pgroup |= pset
