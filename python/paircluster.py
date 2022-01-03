@@ -683,15 +683,15 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             raise Exception('one of unique ids %s not in its own pid group' % cline['unique_ids'])
         cline['paired-uids'] = [[p for p in pid_groups[pid_ids[u]] if p != u] for u in cline['unique_ids']]
 
-        pfamilies = get_pfamily_dict(cline, extra_str='before:')
+        pfamilies = get_pfamily_dict(cline, extra_str='before:')  # map from each potential paired family to the number of uids in <cluster> that are potentially paired with it (i.e. the number of uids that are voting for it)
 
         def pfkey(p): return ':'.join(all_antns[p]['unique_ids'])  # keystr for the family of paired id <p>
         old_pids = copy.deepcopy(cline['paired-uids'])  # just for dbg
 
-        # for each uid, choose the pid that's of opposite chain, and has the most other uids voting for it
+        # for each uid, choose the pid that's of opposite chain, and has the most other uids voting for it (as long as some criteria are met)
         for iseq, (uid, pids) in enumerate(zip(cline['unique_ids'], cline['paired-uids'])):
             pid_to_keep = None
-            ochain_pidfcs = [(p, pfamilies[pfkey(p)]['count']) for p in pids if not utils.samechain(getloc(p), getloc(uid))]
+            ochain_pidfcs = [(p, pfamilies[pfkey(p)]['count']) for p in pids if not utils.samechain(getloc(p), getloc(uid))]  # (pid, pcount) for all opposite-chain pids, where <pcount> is the number of votes for <pid>'s family
             if len(ochain_pidfcs) > 0:
                 sorted_pids, sorted_pfcs = zip(*sorted(ochain_pidfcs, key=operator.itemgetter(1), reverse=True))
                 # note that even if there's only one ochain choice, there can be other same-chain ones that we still want to drop (hence the <2 below)
