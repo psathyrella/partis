@@ -441,7 +441,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None, performance_outdir=None, paired_data_type='10x', debug=False):
+def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance_outdir=None, paired_data_type='10x', collapse_similar_paired_seqs=False, max_hdist=4, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
         if not is_data:
@@ -467,7 +467,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                 print '  %25s    %s   %-8s   %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q) for q in dqlist)),
                                                     utils.color('red', ostr if not found else ''))
         if n_not_found > 0:
-            print '  %s droplet id group check failed for %d groups (maybe pairing info is messed up or missing?)' % (utils.color('red', 'error'), n_not_found)
+            print '  %s droplet id group check failed for %d groups, i.e. droplet ids parsed from uids don\'t match pair info: either pairing info is messed up or missing, or this is simulation and you didn\'t set --is-simu (if the latter, ignore this)' % (utils.color('red', 'error'), n_not_found)
         return True
     # ----------------------------------------------------------------------------------------
     def plot_uids_before(plotdir, pid_groups, all_antns):
@@ -608,25 +608,26 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         if tdbg and len(ids_to_remove) > 0:  # i think this actually can't happen a.t.m.
             print '      removed %d with missing annotations' % len(ids_to_remove)
 
-        # among any pairs of sequences that are [almost] identical at all non-ambiguous position, keep only the longest one
-        dbgstr = []
-        n_equivalent = 0
-        for tpair in itertools.combinations(chain_ids, 2):
-            if len(set(getloc(u) for u in tpair)) > 1:  # can't be equivalent if they have different loci
-                continue
-            if len(set(len(gval(u, 'seqs')) for u in tpair)) > 1:  # or if their (N-padded) sequences are different lengths
-                continue
-            hdist = utils.hamming_distance(*[gval(u, 'seqs') for u in tpair])
-            if tdbg:
-                dbgstr.append(utils.color('blue' if hdist==0 else 'yellow', '%d'%hdist))
-            if hdist <= max_hdist:  # it would be nice to be able to combine their sequences (since they should have coverage only over different parts of vdj), but I think propagating the resulting annotation modifications would be hard
-                better_id, worse_id = sorted(tpair, key=lambda q: utils.ambig_frac(gval(q, 'seqs')))  # if we're tossing one with hdist > 0, it might make more sense to keep the lower-shm one if they're the same length, but I don't think it really matters (in the end we're still just guessing which is the right pairing)
-                ids_to_remove.add(worse_id)
-                n_equivalent += 1
-        if tdbg and len(dbgstr) > 0:
-            print '        %d pair%s equivalent with hdists %s' % (n_equivalent, utils.plural(n_equivalent), ' '.join(dbgstr))
+        # among any pairs of sequences that are [almost] identical at all non-ambiguous position, keep only the longest one (note that this is really preprocessing/error correction, so probably shouldn't really be here)
+        if collapse_similar_paired_seqs:
+            dbgstr = []
+            n_equivalent = 0
+            for tpair in itertools.combinations(chain_ids, 2):
+                if len(set(getloc(u) for u in tpair)) > 1:  # can't be equivalent if they have different loci
+                    continue
+                if len(set(len(gval(u, 'seqs')) for u in tpair)) > 1:  # or if their (N-padded) sequences are different lengths
+                    continue
+                hdist = utils.hamming_distance(*[gval(u, 'seqs') for u in tpair])
+                if tdbg:
+                    dbgstr.append(utils.color('blue' if hdist==0 else 'yellow', '%d'%hdist))
+                if hdist <= max_hdist:  # it would be nice to be able to combine their sequences (since they should have coverage only over different parts of vdj), but I think propagating the resulting annotation modifications would be hard
+                    better_id, worse_id = sorted(tpair, key=lambda q: utils.ambig_frac(gval(q, 'seqs')))  # if we're tossing one with hdist > 0, it might make more sense to keep the lower-shm one if they're the same length, but I don't think it really matters (in the end we're still just guessing which is the right pairing)
+                    ids_to_remove.add(worse_id)
+                    n_equivalent += 1
+            if tdbg and len(dbgstr) > 0:
+                print '        %d pair%s equivalent with hdists %s' % (n_equivalent, utils.plural(n_equivalent), ' '.join(dbgstr))
 
-        # remove unproductive (only on real data, since simulation usually has lots of stop codons)
+        # if specified, remove unproductive (only on real data, since simulation usually has lots of stop codons)
         if is_data and remove_unproductive:
             dbgstr = []
             unproductive_ids = []
@@ -656,6 +657,40 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
     # ----------------------------------------------------------------------------------------
     def clean_with_partition_info(cluster):  # use information from the [clonal family] partitions to decide which of several potential paired uids is the correct one
         # ----------------------------------------------------------------------------------------
+        def get_pfamily_dict(cline, extra_str='', old_pfam_dict=None):  # see what others in its family are paired with
+            pfdict = {}  # counts how many different uids in <cline> had paired ids from each potential paired family (well, how many pids total, but i think they'll always be the same)
+            fid_counter = 0  # give a unique id to each family, for dbg printing purposes
+            for uid, pids in zip(cline['unique_ids'], cline['paired-uids']):
+                for pid in pids:
+                    fline = all_antns[pid]  # family for this paired id
+                    fkey = ':'.join(fline['unique_ids'])
+                    if fkey not in pfdict:
+                        pfdict[fkey] = {'locus' : gval(pid, 'loci'), 'count' : 0, 'vids' : [], 'id' : fid_counter if old_pfam_dict is None else old_pfam_dict[fkey]['id']}
+                        fid_counter += 1
+                    pfdict[fkey]['count'] += 1
+                    pfdict[fkey]['vids'].append(pid)  # NOTE that if two cells from this family are in the same droplet, we can see the same pid here more than once (i.e. *don't* make this a set)
+            if debug and len(cline['unique_ids']) > 1:
+                print '    %7s votes size  id  cdr3' % extra_str
+                for fkey, fdict in sorted(pfdict.items(), key=lambda x: x[1]['count'], reverse=True):
+                    print '       %s    %3d   %3d  %2d %s  %3d' % (utils.locstr(fdict['locus']), fdict['count'], len(antn_dicts[fdict['locus']][fkey]['unique_ids']), fdict['id'], fidstr(fdict['id']), antn_dicts[fdict['locus']][fkey]['cdr3_length'])
+
+            return pfdict
+        # ----------------------------------------------------------------------------------------
+        def update_pid_info(cpids, tdbg=False):  # remove the two ids <cpids> from everybody's paired ids, since we've just decided they're properly paired (note that you do *not* want to modify <pfamilies> here -- that would be destroying the info you need to decided who's paired with who)
+            if tdbg:
+                print '  upd: %s' % ' '.join(cpids)
+            for cid in cpids:
+                for iseq, uid in enumerate(cline['unique_ids']):  # remove <cid> from all paired uid lists (except the other one in <cpids>)
+                    if cid not in cline['paired-uids'][iseq]:
+                        continue
+                    if uid in cpids:
+                        continue
+                    if tdbg:
+                        print '    %s %3d --> %3d   %s' % (uid, len(cline['paired-uids'][iseq]), len([p for p in cline['paired-uids'][iseq] if p != cid]), ' '.join(utils.color('red' if p==cid else None, p) for p in cline['paired-uids'][iseq]))  # ok i know it should always just decrease by one, but maybe something else could break and you get duplicates?
+                    cline['paired-uids'][iseq] = [p for p in cline['paired-uids'][iseq] if p != cid]
+                    # if len(cline['paired-uids'][iseq]) == 0:
+                    #     raise Exception('removed all paired ids')
+        # ----------------------------------------------------------------------------------------
         def lcstr(pids, pfcs, pfids=None):  # returns string summarizing the families of the paired uids for a uid, e.g. 'k 51  l 3  h 1' if the uid has three potential pids, one from k with which 50 other uids in <cline> are paired, etc.
             if len(pids) == 0: return ''
             if pfids is None:
@@ -667,59 +702,43 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             return '  '.join('%s %s %s'%(lg, '%1d'%sp if pfids is None else '%2d'%sp, fidstr(fid)) for lg, sp, fid in zip(lgstr(spids, dont_sort=True).split(' '), spfcs, spfids))
         # ----------------------------------------------------------------------------------------
         def print_dbg():
-            new_pfamilies = get_pfamily_dict(cline, extra_str='after:')
-            pfcounts = [[new_pfamilies[pfkey(p)]['count'] for p in pids] for pids in cline['paired-uids']]
-            pfids = [[new_pfamilies[pfkey(p)]['id'] for p in pids] for pids in cline['paired-uids']]
+            new_pfams = get_pfamily_dict(cline, extra_str='after:', old_pfam_dict=old_pfams)
+            pfcounts = [[new_pfams[pfkey(p)]['count'] for p in pids] for pids in cline['paired-uids']]
+            pfids = [[new_pfams[pfkey(p)]['id'] for p in pids] for pids in cline['paired-uids']]
             uid_extra_strs = ['%s: %s'%(utils.locstr(l), lcstr(pids, pfcs, pfids)) for l, pids, pfcs, pfids in zip(cline['loci'], cline['paired-uids'], pfcounts, pfids)]
-            old_pfcounts = [[pfamilies[pfkey(p)]['count'] for p in pids] for pids in old_pids]
+            old_pfcounts = [[old_pfams[pfkey(p)]['count'] for p in pids] for pids in old_pids]
             old_estrs = ['%s: %s'%(utils.locstr(l), lcstr(pids, pfcs)) for l, pids, pfcs in zip(cline['loci'], old_pids, old_pfcounts)]
             for istr, (oldstr, newstr) in enumerate(zip(old_estrs, uid_extra_strs)):
                 if newstr != oldstr:
                     uid_extra_strs[istr] = '%s%s (%s)' % (newstr, ' '*(12 - utils.len_excluding_colors(newstr)), oldstr)
             utils.print_reco_event(cline, uid_extra_strs=uid_extra_strs, extra_str='      ')
+            print ''
+        # ----------------------------------------------------------------------------------------
+        def pfkey(p): return ':'.join(all_antns[p]['unique_ids'])  # keystr for the family of paired id <p>
         # ----------------------------------------------------------------------------------------
         cline = antn_dicts[ltmp][':'.join(cluster)]
         if any(u not in pid_groups[pid_ids[u]] for u in cline['unique_ids']):  # shouldn't be able to happen any more, but that was a really bad/dumb bug
             raise Exception('one of unique ids %s not in its own pid group' % cline['unique_ids'])
-        cline['paired-uids'] = [[p for p in pid_groups[pid_ids[u]] if p != u] for u in cline['unique_ids']]
+        cline['paired-uids'] = [[p for p in pid_groups[pid_ids[u]] if p != u] for u in cline['unique_ids']]  # re-set 'paired-uids' key in <cline> to the pid group (which was modified in the previous cleaning steps)
 
-        pfamilies = get_pfamily_dict(cline, extra_str='before:')  # map from each potential paired family to the number of uids in <cluster> that are potentially paired with it (i.e. the number of uids that are voting for it)
-
-        def pfkey(p): return ':'.join(all_antns[p]['unique_ids'])  # keystr for the family of paired id <p>
-        old_pids = copy.deepcopy(cline['paired-uids'])  # just for dbg
+        if debug:
+            old_pids = copy.deepcopy(cline['paired-uids'])
+        old_pfams = get_pfamily_dict(cline, extra_str='before:')  # map from each potential paired family to the number of uids in <cluster> that are potentially paired with it (i.e. the number of uids that are voting for it)
 
         # for each uid, choose the pid that's of opposite chain, and has the most other uids voting for it (as long as some criteria are met)
-        for iseq, (uid, pids) in enumerate(zip(cline['unique_ids'], cline['paired-uids'])):
+        for iseq, uid in enumerate(cline['unique_ids']):
             pid_to_keep = None
-            ochain_pidfcs = [(p, pfamilies[pfkey(p)]['count']) for p in pids if not utils.samechain(getloc(p), getloc(uid))]  # (pid, pcount) for all opposite-chain pids, where <pcount> is the number of votes for <pid>'s family
+            ochain_pidfcs = [(p, old_pfams[pfkey(p)]['count']) for p in cline['paired-uids'][iseq] if not utils.samechain(getloc(p), getloc(uid))]  # (pid, pcount) for all opposite-chain pids, where <pcount> is the number of votes for <pid>'s family (note that the 'paired-uids' get modified as we go through the loop)
             if len(ochain_pidfcs) > 0:
                 sorted_pids, sorted_pfcs = zip(*sorted(ochain_pidfcs, key=operator.itemgetter(1), reverse=True))
                 # note that even if there's only one ochain choice, there can be other same-chain ones that we still want to drop (hence the <2 below)
                 if len(sorted_pfcs) < 2 or sorted_pfcs[0] > sorted_pfcs[1] or pfkey(sorted_pids[0]) == pfkey(sorted_pids[1]):  # in order to drop the later ones, the first one either has to have more counts, or at least the second one has to be from the same family (in the latter case we still don't know which is the right one, but for the purposes of clustering resolution we just need to know what the family is)
                     pid_to_keep = sorted_pids[0]
+                    update_pid_info([uid, pid_to_keep])
             cline['paired-uids'][iseq] = [pid_to_keep] if pid_to_keep is not None else []  # if we didn't decide on an opposite-chain pid, remove all pairing info
 
         if debug: # and len(cline['unique_ids']) > 1:  # NOTE it's annoying printing the singletons, but it's way worse when they're just missing and you can't figure out where a sequence went
             print_dbg()
-
-    # ----------------------------------------------------------------------------------------
-    def get_pfamily_dict(cline, extra_str=''):  # see what others in its family are paired with
-        pfamilies = {}  # counts how many different uids in <cline> had paired ids from each potential paired family (well, how many pids total, but i think they'll always be the same)
-        fid_counter = 0  # give a unique id to each family, for dbg printing purposes
-        for uid, pids in zip(cline['unique_ids'], cline['paired-uids']):
-            for pid in pids:
-                fline = all_antns[pid]  # family for this paired id
-                fkey = ':'.join(fline['unique_ids'])
-                if fkey not in pfamilies:
-                    pfamilies[fkey] = {'locus' : gval(pid, 'loci'), 'count' : 0, 'id' : fid_counter}
-                    fid_counter += 1
-                pfamilies[fkey]['count'] += 1
-        if debug and len(cline['unique_ids']) > 1:
-            print '    %7s N  size  id  cdr3' % extra_str
-            for fkey, fdict in sorted(pfamilies.items(), key=lambda x: x[1]['count'], reverse=True):
-                print '       %s  %3d  %3d  %2d %s  %3d' % (utils.locstr(fdict['locus']), fdict['count'], len(antn_dicts[fdict['locus']][fkey]['unique_ids']), fdict['id'], fidstr(fdict['id']), antn_dicts[fdict['locus']][fkey]['cdr3_length'])
-
-        return pfamilies
 
     # ----------------------------------------------------------------------------------------
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
@@ -778,7 +797,7 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
             if lgstr(pgroup) not in cdict:
                 cdict[lgstr(pgroup)] = 0
             cdict[lgstr(pgroup)] += 1
-    ok_groups, tried_to_fix_groups = {}, {}
+    ok_groups, tried_to_fix_groups, id_removed_groups = {}, {}, {}
     for ipg, pgroup in enumerate(pid_groups):
         pgroup = [u for u in pgroup if getloc(u) != '?']  # maybe need to figure out something different to do with missing ones?
         hids = [u for u in pgroup if utils.has_d_gene(getloc(u))]
@@ -794,14 +813,16 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
                 continue
             if debug > 1:
                 print '\n      too many %s chains: %s' % (chain, lgstr(idlist))
-            ids_to_remove = choose_seqs_to_remove(idlist)
+            ids_to_remove = choose_seqs_to_remove(idlist, tdbg=debug>1)
+            if debug and len(ids_to_remove) > 0:
+                tmpincr(pgroup, id_removed_groups)
             for rid in ids_to_remove:
                 pgroup.remove(rid)
                 idlist.remove(rid)
                 pid_groups.append(set([rid]))  # add the removed id to a new pid group of its own at the end (so it'll show up as unpaired)
                 pid_ids[rid] = len(pid_groups) - 1
             if debug > 1:
-                print '      %s: removed %d, leaving %d' % (utils.color('green', 'fixed') if len(idlist)==1 else utils.color('red', 'nope'), len(ids_to_remove), len(idlist))
+                print '      %s: removed %d, leaving %d%s' % (utils.color('green', 'fixed') if len(idlist)==1 else utils.color('red', 'still too many'), len(ids_to_remove), len(idlist), ':' if len(idlist)>1 else '')
                 if len(idlist) > 1:
                     for uid in idlist:
                         prutils.print_seq_in_reco_event(all_antns[uid], all_antns[uid]['unique_ids'].index(uid), one_line=True, extra_str='        ', uid_extra_str=utils.locstr(getloc(uid)))
@@ -810,12 +831,13 @@ def clean_pair_info(cpaths, antn_lists, max_hdist=4, is_data=False, plotdir=None
         if debug: tmpincr(pgroup, tried_to_fix_groups)
 
     if debug:
-        print '    ok to start with:'
-        for lstr, count in sorted(ok_groups.items(), key=operator.itemgetter(1), reverse=True):
-            print '      %3d  %s' % (count, lstr)
-        print '    tried to fix (afterwards):'
-        for lstr, count in sorted(tried_to_fix_groups.items(), key=operator.itemgetter(1), reverse=True):
-            print '      %3d  %s' % (count, lstr)
+        def prcgrps(cdict, prestr):
+            print '    %s' % prestr
+            for lstr, count in sorted(cdict.items(), key=operator.itemgetter(1), reverse=True):
+                print '      %3d  %s' % (count, lstr)
+        prcgrps(ok_groups, 'ok to start with:')
+        prcgrps(id_removed_groups, 'removed ids from:')
+        prcgrps(tried_to_fix_groups, 'after tring to fix:')
 
     # then go through again using cluster/family information to try to cut everyone down to one paired id (and if we can't get down to one, we remove all of them) NOTE also re-sets the actual 'paired-uids' keys
     for ltmp in sorted(cpaths):

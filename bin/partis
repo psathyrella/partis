@@ -982,8 +982,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  no paired uids in any annotations, not merging single chain partitions'
             return None
         true_partitions = get_true_partitions(debug=args.debug_paired_clustering)
-        paircluster.clean_pair_info(single_outfos['cpaths'], single_outfos['antn_lists'], is_data=args.is_data, paired_data_type=args.paired_data_type,
-                                    plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), debug=args.debug_paired_clustering) #, max_hdist=4
+        paircluster.clean_pair_info(single_outfos['cpaths'], single_outfos['antn_lists'], is_data=args.is_data, paired_data_type=args.paired_data_type, collapse_similar_paired_seqs=args.collapse_similar_paired_seqs, #, max_hdist=4
+                                    plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), debug=args.debug_paired_clustering)
         lp_infos = {}
         for lpair in spairs():
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
@@ -1297,6 +1297,7 @@ parent_args.append({'name' : '--label-tree-nodes', 'kwargs' : {'action' : 'store
 parent_args.append({'name' : '--no-sw-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'By default, we get preliminary V annotations from vsearch that we pass to sw. This improves accuracy because the vsearch shm rate estimates let us separate sequences into groups by optimal sw match/mismatch scores, and improves speed by letting us reverse shm V indels before running sw (so fewer sw iterations; also vsearch is faster than sw). Setting this option skips the preliminary vsearch step (although if caching parameters, we still use vsearch to remove less-likely genes; but no vsearch info is passed to sw)'}})
 
 parent_args.append({'name' : '--paired-data-type', 'kwargs' : {'default' : '10x', 'choices' : ['10x', 'undetermined'], 'help' : 'determines the convention for extracting the droplet id (i.e. who\'s clonal to who) from each sequence id (\'undetermined\' may potentially work if the default is giving you issues, but it\'s really only for weird special cases and shouldn\'t be used generally).'}})
+parent_args.append({'name' : '--collapse-similar-paired-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'if set, when cleaning heavy/light pair info we collapse highly similar sequences within droplets (i.e. extra seqs that likely result from sequencing error).'}})
 
 # ----------------------------------------------------------------------------------------
 subconfig = collections.OrderedDict((
