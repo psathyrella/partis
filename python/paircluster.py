@@ -665,10 +665,9 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
                     fline = all_antns[pid]  # family for this paired id
                     fkey = ':'.join(fline['unique_ids'])
                     if fkey not in pfdict:
-                        pfdict[fkey] = {'locus' : gval(pid, 'loci'), 'count' : 0, 'vids' : [], 'id' : fid_counter if old_pfam_dict is None else old_pfam_dict[fkey]['id']}
+                        pfdict[fkey] = {'locus' : gval(pid, 'loci'), 'count' : 0, 'id' : fid_counter if old_pfam_dict is None else old_pfam_dict[fkey]['id']}
                         fid_counter += 1
-                    pfdict[fkey]['count'] += 1
-                    pfdict[fkey]['vids'].append(pid)  # NOTE that if two cells from this family are in the same droplet, we can see the same pid here more than once (i.e. *don't* make this a set)
+                    pfdict[fkey]['count'] += 1  # NOTE that if two cells from this family are in the same droplet, we can see the same pid here more than once (i.e. two counts here can be from the same uid)
             if debug and len(cline['unique_ids']) > 1:
                 print '    %7s votes size  id  cdr3' % extra_str
                 for fkey, fdict in sorted(pfdict.items(), key=lambda x: x[1]['count'], reverse=True):
