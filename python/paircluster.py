@@ -656,6 +656,7 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
 
     # ----------------------------------------------------------------------------------------
     def clean_with_partition_info(cluster):  # use information from the [clonal family] partitions to decide which of several potential paired uids is the correct one
+        # NOTE it would probably be better to structure this so that within a droplet, we first do seqs that we think we'll be able to correctly pair (e.g. the ones without ties). Maybe just keep looping over iseqs until we don't add any new pair info?
         # ----------------------------------------------------------------------------------------
         def get_pfamily_dict(cline, extra_str='', old_pfam_dict=None):  # see what others in its family are paired with
             pfdict = {}  # counts how many different uids in <cline> had paired ids from each potential paired family (well, how many pids total, but i think they'll always be the same)
