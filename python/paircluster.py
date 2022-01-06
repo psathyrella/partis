@@ -382,7 +382,7 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_p
         antn_dict[ch] = utils.get_annotation_dict(antn_lists[ploci[ch]])
 
 # ----------------------------------------------------------------------------------------
-def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired with the wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
+def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired with the other/wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
     # ----------------------------------------------------------------------------------------
     def add_unpaired(cline, iseq, uid):
         sorted_hdists = sorted([(u, utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i, u in enumerate(cline['unique_ids']) if i != iseq], key=operator.itemgetter(1))
@@ -392,33 +392,33 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     cpaths, antn_lists, glfos = [outfos[k] for k in ['cpaths', 'antn_lists', 'glfos']]
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
     all_loci = {u : l for l, ants in antn_lists.items() for antn in ants for u in antn['unique_ids']}  # this includes the heavy ones, which we don't need, but oh well
-    all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this
+    all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # uid : pid for all uid's that have a single unique pid (which should be all of them, since we just ran pair cleaning -- otherwise we crash below) (I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this)
     unpaired_seqs = {l : {} for l in ploci.values()}  # map for each locus from the uid of each seq with no (or non-reciprocal) pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
     lp_cpaths, lp_antn_lists = {}, {}
     if debug:
         print '  removing bad/un-paired seqs'
-        print '          N       N      no   wrong  non-'
+        print '          N       N      no   other  non-'
         print '        before removed  info  light recip'
     for tch in sorted(ploci):
         new_partition, new_antn_list = [], []
         for iclust, cluster in enumerate(cpaths[ploci[tch]].best()):
             cline = antn_dicts[ploci[tch]][':'.join(cluster)]
             iseqs_to_remove = []
-            n_no_info, n_bad_paired, n_non_reciprocal = 0, 0, 0  # just for dbg NOTE n_bad_paired are the only ones we *really* want to remove, since we know they're paired with the long light chain, whereas the other two categories we eventually want to re-add since we're not sure who they're paired with
+            n_no_info, n_other_light, n_non_reciprocal = 0, 0, 0  # just for dbg NOTE n_other_light are the only ones we *really* want to remove, since they're h seqs paired with the other light chain, whereas the other two categories we eventually want to re-add since we're not sure who they're paired with
             for iseq, uid in enumerate(cline['unique_ids']):
                 pids = cline['paired-uids'][iseq]
                 if len(pids) == 0:  # no pairing info
                     iseqs_to_remove.append(iseq)
                     add_unpaired(cline, iseq, uid)
                     n_no_info += 1
-                elif len(pids) > 1:
+                elif len(pids) > 1:  # shouldn've all been removed by pair info cleaning
                     raise Exception('multiple paired uids for \'%s\': %s' % (uid, pids))
                 else:
                     if tch == 'h' and all_loci[utils.get_single_entry(pids)] != ploci['l']:  # if it's the other light chain
                         iseqs_to_remove.append(iseq)
-                        n_bad_paired += 1
-                    else:
-                        if all_pids[uid] not in all_pids or all_pids[all_pids[uid]] != uid:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in clean_pair_info(), but atm i think we can't look at both chains at once in that fcn
+                        n_other_light += 1
+                    else:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in clean_pair_info(), but atm i think we can't look at both chains at once in that fcn
+                        if all_pids[uid] not in all_pids or all_pids[all_pids[uid]] != uid:  # if uid's pid isn't in all_pids, or if it is but it's a different uid
                             iseqs_to_remove.append(iseq)
                             add_unpaired(cline, iseq, uid)
                             n_non_reciprocal += 1
@@ -430,7 +430,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
                 new_antn_list.append(new_cline)
             if debug:
                 def fstr(v): return '' if v==0 else '%d'%v
-                print '    %s   %3d    %3s     %3s   %3s    %3s' % (utils.locstr(ploci[tch]) if iclust==0 else ' ', len(cline['unique_ids']), fstr(len(iseqs_to_remove)), fstr(n_no_info), fstr(n_bad_paired), fstr(n_non_reciprocal))
+                print '    %s   %3d    %3s     %3s   %3s    %3s' % (utils.locstr(ploci[tch]) if iclust==0 else ' ', len(cline['unique_ids']), fstr(len(iseqs_to_remove)), fstr(n_no_info), fstr(n_other_light), fstr(n_non_reciprocal))
         lp_cpaths[ploci[tch]] = ClusterPath(seed_unique_id=cpaths[ploci[tch]].seed_unique_id, partition=new_partition)
         lp_antn_lists[ploci[tch]] = new_antn_list
 
@@ -845,6 +845,23 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
             name_dict, name_ids = {'potential' : None, 'used' : None}, {}
         for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
             clean_with_partition_info(cluster)
+
+    # partially synchronize info from different loci: for any uid with a single pid for which that pid has no pair info, set the latter to [uid]
+    n_fixed = {l : 0 for l in cpaths}
+    for ltmp in sorted(cpaths):
+        for iclust, cluster in enumerate(cpaths[ltmp].best()):
+            cline = antn_dicts[ltmp][':'.join(cluster)]
+            for iseq, uid in enumerate(cline['unique_ids']):
+                pids = cline['paired-uids'][iseq]
+                if len(pids) != 1:  # only look at cases where <uid> has a single unique pid
+                    continue
+                pantn = all_antns[pids[0]]
+                ipid = pantn['unique_ids'].index(pids[0])
+                if len(pantn['paired-uids'][ipid]) == 0:
+                    pantn['paired-uids'][ipid] = [uid]
+                    n_fixed[getloc(pids[0])] += 1
+    if n_fixed > 0:
+        print '     synchronized/fixed %d pairs where one had no pair info after cleaning: %s' % (sum(n for n in n_fixed.values()), '  '.join('%s %d'%(utils.locstr(l), n_fixed[l]) for l in sorted(n_fixed)))
 
     if not is_data and (performance_outdir is not None or plotdir is not None):
         make_fraction_correct_plot()
