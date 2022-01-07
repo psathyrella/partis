@@ -1092,10 +1092,15 @@ def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting don
 # <reco_info> just needs to be an annotation dict with single-sequence annotations
 def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you already added all the implicit info
     assert len(uids) > 0
-    multifo = copy.deepcopy(reco_info[uids[0]])
+    invalid = False
+    if any(reco_info[u]['invalid'] for u in uids):
+        print '    %s invalid events in synthesize_multi_seq_line_from_reco_info()' % wrnstr()
+        invalid = True
+    multifo = copy.deepcopy(reco_info[uids[0]])  # should really do something better, but whatever
     for col in [c for c in linekeys['per_seq'] if c in multifo]:
-        assert [len(reco_info[uid][col]) for uid in uids].count(1) == len(uids)  # make sure every uid's info for this column is of length 1
-        multifo[col] = [copy.deepcopy(reco_info[uid][col][0]) for uid in uids]
+        if not invalid:
+            assert [len(reco_info[u][col]) for u in uids].count(1) == len(uids)  # make sure every uid's info for this column is of length 1
+        multifo[col] = [copy.deepcopy(reco_info[uid].get(col, [None])[0]) for uid in uids]
     return multifo
 
 # ----------------------------------------------------------------------------------------
@@ -1601,6 +1606,9 @@ def convert_airr_line(aline, glfo):
     try:
         add_implicit_info(glfo, pline)  # NOTE can't set check_line_keys=True since it crashes bc we add 'indelfos'
     except:
+        elines = traceback.format_exception(*sys.exc_info())
+        print pad_lines(''.join(elines))
+        print '      convert_airr_line(): implicit info adding failed for %s (see above)' % pline['unique_ids']
         pline['invalid'] = True
 
     return pline
@@ -1629,10 +1637,10 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
                 writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
-def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None):
+def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False):
     if glfo is None:
         glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
-    failed_queries, clone_ids, plines = [], {}, []
+    failed_queries, clone_ids, plines, other_locus_ids = [], {}, [], []
     with open(fname) as afile:
         reader = csv.DictReader(afile, delimiter='\t')
         for aline in reader:
@@ -1644,11 +1652,16 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None):
             if aline['v_call'] == '' or aline['j_call'] == '':
                 failed_queries.append({'unique_ids' : [aline['sequence_id']], 'input_seqs' : [aline['sequence']], 'invalid' : True})
                 continue
+            if skip_other_locus and get_locus(aline['v_call']) != glfo['locus']:
+                other_locus_ids.append(aline['sequence_id'])
+                continue
             plines.append(convert_airr_line(aline, glfo))
     if len(clone_ids) > 0:
         partition = group_seqs_by_value(clone_ids.keys(), lambda q: clone_ids[q])
     else:
         partition = [[l['unique_ids'][0]] for l in plines]
+    if skip_other_locus:
+        partition = [[u for u in c if u not in other_locus_ids] for c in partition]
     if len(plines) > 0:
         sorted_ids = [l['unique_ids'][0] for l in plines]
         partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster
@@ -3830,9 +3843,9 @@ def get_line_for_output(headers, info, glfo=None):
 # ----------------------------------------------------------------------------------------
 def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_expected=None, n_per_proc_expected=None, use_pyyaml=False, dont_write_git_info=False):
     if getsuffix(outfname) == '.csv':  # old way
-        n_event_list, n_seq_list = merge_csvs(outfname, file_list)
+        n_event_list, n_seq_list = merge_csvs(outfname, file_list, old_simulation=True, cleanup=True)
     elif getsuffix(outfname) == '.yaml':  # new way
-        n_event_list, n_seq_list = merge_yamls(outfname, file_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
+        n_event_list, n_seq_list = merge_yamls(outfname, file_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, cleanup=True)
     else:
         raise Exception('unhandled annotation file suffix %s' % args.outfname)
 
@@ -3848,43 +3861,45 @@ def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_e
             print '  %s expected %d total events but read %d (per-file couts: %s)' % (color('yellow', 'warning'), n_total_expected, sum(n_event_list), ' '.join([str(n) for n in n_event_list]))
 
 # ----------------------------------------------------------------------------------------
-def merge_csvs(outfname, csv_list, cleanup=True):
-    """ NOTE copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
+def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
     header = None
     outfo = []
-    n_event_list, n_seq_list = [], []
+    if old_simulation:
+        n_event_list, n_seq_list = [], []
     for infname in csv_list:
-        if getsuffix(infname) != '.csv':
-            raise Exception('unhandled suffix, expected .csv: %s' % infname)
-        with open(infname, 'r') as sub_outfile:
-            reader = csv.DictReader(sub_outfile)
+        if getsuffix(infname) not in ['.csv', '.tsv']:
+            raise Exception('unhandled suffix, expected .csv or .tsv: %s' % infname)
+        delimiter = ',' if getsuffix(infname) == '.csv' else '\t'
+        with open(infname) as sub_outfile:
+            reader = csv.DictReader(sub_outfile, delimiter=delimiter)
             header = reader.fieldnames
-            n_event_list.append(0)
-            n_seq_list.append(0)
-            last_reco_id = None
+            if old_simulation:
+                n_event_list.append(0)
+                n_seq_list.append(0)
+                last_reco_id = None
             for line in reader:
                 outfo.append(line)
-                n_seq_list[-1] += 1
-                if last_reco_id is None or line['reco_id'] != last_reco_id:
-                    last_reco_id = line['reco_id']
-                    n_event_list[-1] += 1
+                if old_simulation:
+                    n_seq_list[-1] += 1
+                    if last_reco_id is None or line['reco_id'] != last_reco_id:
+                        last_reco_id = line['reco_id']
+                        n_event_list[-1] += 1
         if cleanup:
             os.remove(infname)
             os.rmdir(os.path.dirname(infname))
 
-    outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
-    mkdir(outdir)
+    mkdir(outfname, isfile=True)
     with open(outfname, 'w') as outfile:
-        writer = csv.DictWriter(outfile, header)
+        writer = csv.DictWriter(outfile, header, delimiter=delimiter)
         writer.writeheader()
         for line in outfo:
             writer.writerow(line)
 
-    return n_event_list, n_seq_list
+    if old_simulation:
+        return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=True, use_pyyaml=False, dont_write_git_info=False):
-    """ NOTE copy of merge_csvs(), which is (apparently) a copy of merge_hmm_outputs in partitiondriver, I should really combine the two functions """
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False):
     merged_annotation_list = []
     merged_cpath = None
     ref_glfo = None

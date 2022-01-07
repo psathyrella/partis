@@ -25,8 +25,12 @@ def getifn(locus):
     return '%s/input.tsv' % wkdir(locus)
 
 # ----------------------------------------------------------------------------------------
-def scofn(locus, joint=False):
-    return '%s/%spartition.tsv' % (wkdir(locus), 'joint-' if joint else '')
+def scofn(locus):
+    return '%s/partition.tsv' % wkdir(locus)
+
+# ----------------------------------------------------------------------------------------
+def glfd(locus):
+    return '%s/germlines' % wkdir(locus)
 
 # ----------------------------------------------------------------------------------------
 def simfn(locus):
@@ -53,6 +57,10 @@ def get_alignments():
             n_already_there += 1
             continue
         utils.mkdir(wkdir(locus))
+
+        glfo, _, _ = utils.read_output(swfn(locus), skip_annotations=True)
+        glutils.write_glfo(glfd(locus), glfo, debug=True)
+
         cmd = './bin/parse-output.py %s %s --airr-output --skip-columns clone_id' % (swfn(locus), ofn)
         cmdfos += [{
             'cmd_str' : cmd,
@@ -66,8 +74,6 @@ def get_alignments():
 def run_scoper():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, 0
     for locus in gloci():
-        if not os.path.exists('%s/%s/sw-cache.yaml' % (args.indir, locus)):
-            continue
         ofn = scofn(locus)
         if utils.output_exists(args, ofn): # and not args.dry:  # , offset=8):
             continue
@@ -84,20 +90,18 @@ def run_scoper():
 # ----------------------------------------------------------------------------------------
 def run_joint_scoper():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, 0
-    for locus in gloci():
-        if not os.path.exists('%s/%s/sw-cache.yaml' % (args.indir, locus)):
-            continue
-        ofn = scofn(locus, joint=True)
-        if utils.output_exists(args, ofn): # and not args.dry:  # , offset=8):
-            continue
 
-        cmd = 'Rscript packages/joint-scoper/scoperClones.R %s %s spectral HL vj 10' % (getifn(locus), ofn)
-        cmdfos += [{
-            'cmd_str' : cmd,
-            'outfname' : ofn,
-            'logdir' : wkdir(locus),
-            'workdir' : wkdir(locus),
-        }]
+    ofn = scofn('joint')
+    if utils.output_exists(args, ofn): # and not args.dry:  # , offset=8):
+        return
+    utils.merge_csvs(getifn('joint'), [getifn(l) for l in gloci()])
+    cmd = 'Rscript packages/joint-scoper/scoperClones.R %s %s spectral HL vj 10' % (getifn('joint'), ofn)
+    cmdfos += [{
+        'cmd_str' : cmd,
+        'outfname' : ofn,
+        'logdir' : wkdir('joint'),
+        'workdir' : wkdir('joint'),
+    }]
     utils.run_scan_cmds(args, cmdfos, 'joint-scoper.log', n_total, n_already_there, ofn)
 
 # ----------------------------------------------------------------------------------------
@@ -109,7 +113,9 @@ def convert_output(joint=False):
             n_already_there += 1
             continue
         utils.mkdir(pfn, isfile=True)
-        cmd = './bin/parse-output.py %s %s --airr-input --simfname %s' % (scofn(locus, joint=joint), pfn, simfn(locus))
+        cmd = './bin/parse-output.py %s %s --airr-input --simfname %s' % (scofn('joint' if joint else locus), pfn, simfn(locus))
+        if joint:
+            cmd += ' --skip-other-locus --locus %s --glfo-dir %s' % (locus, glfd(locus))
         cmdfos += [{
             'cmd_str' : cmd,
             'outfname' : pfn,
