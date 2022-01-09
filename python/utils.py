@@ -1662,6 +1662,7 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
         partition = [[l['unique_ids'][0]] for l in plines]
     if skip_other_locus:
         partition = [[u for u in c if u not in other_locus_ids] for c in partition]
+        partition = [c for c in partition if len(c) > 0]
     if len(plines) > 0:
         sorted_ids = [l['unique_ids'][0] for l in plines]
         partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster

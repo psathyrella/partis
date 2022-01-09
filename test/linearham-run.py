@@ -59,8 +59,7 @@ def antn_plotdir(locus):
     return '%s/plots/%s/hmm' % (os.path.dirname(finalfn(locus)), locus)
 # ----------------------------------------------------------------------------------------
 def gloci():  # if no sw file, we probably only made one light locus (or i guess all input is missing, oh well)
-# TODO fix igk or something
-    return ['igh'] #[l for l in utils.sub_loci(ig_or_tr) if os.path.exists(simfn(l))]
+    return [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(simfn(l))]
 
 # ----------------------------------------------------------------------------------------
 def run_linearham():
@@ -68,6 +67,9 @@ def run_linearham():
     for locus in gloci():
         if not os.path.exists(simfn(locus)):
             continue
+        if not os.path.exists(ptnfn(locus)):
+            raise Exception('partition file doesn\'t exist (maybe forgot to run partis \'partition\' action first?) %s' % ptnfn(locus))
+# ----------------------------------------------------------------------------------------
 # TODO chown output from root
         for iclust in range(args.n_sim_events):
             n_total += 1

@@ -22,7 +22,7 @@ synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singl
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 plot_actions = ['single-chain-partis']
 def is_single_chain(action):
-    return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['scoper', 'mobille', 'igblast', 'linearham']
+    return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -171,6 +171,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         if action in ['mobille', 'igblast']:  # i don't think both of them need all these
             cmd += ' --id-str %s --base-imgt-outdir %s' % ('_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/%s/imgt-output' % (args.base_outdir, args.label, args.version))
         if action == 'linearham':
+            if not args.antn_perf:
+                raise Exception('running linearham action without --antn-perf set, which means you likely also didn\'t set it for the partition action (although it has on direct effect on the linearham action)')
             cmd += ' --partis-outdir %s --n-sim-events %d' % (odir(args, varnames, vstrs, 'partition'), int(utils.vlval(args, vlists, varnames, 'n-sim-events')))
         if args.n_sub_procs > 1:
             cmd += ' --n-procs %d' % args.n_sub_procs
@@ -224,7 +226,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --refuse-to-cache-parameters'
         if 'synth-distance-' in action or 'vjcdr3-' in action or action in ['vsearch-partition', 'partition-lthresh', 'star-partition', 'annotate']:
             cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
-        if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots:
+        if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots and not args.antn_perf:
             cmd += ' --dont-calculate-annotations'
         if args.make_plots and action != 'cache-parameters':
             cmd += ' --plotdir paired-outdir'
