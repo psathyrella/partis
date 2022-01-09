@@ -790,6 +790,13 @@ for region in regions:
 conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
+def nullval(key):  # adding this very late, so could probably stand to be used in lots of other places
+    if key == 'indelfos':
+        return indelutils.get_empty_indel()
+    else:
+        return None
+
+# ----------------------------------------------------------------------------------------
 def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, clusters_to_emph=None, short=False):  # NOTE doesn't need to be a partition, i.e. can have duplicate clusters
     def cl_str(c):
         rstr = str(len(c))
@@ -1100,7 +1107,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you al
     for col in [c for c in linekeys['per_seq'] if c in multifo]:
         if not invalid:
             assert [len(reco_info[u][col]) for u in uids].count(1) == len(uids)  # make sure every uid's info for this column is of length 1
-        multifo[col] = [copy.deepcopy(reco_info[uid].get(col, [None])[0]) for uid in uids]
+        multifo[col] = [copy.deepcopy(reco_info[uid].get(col, [nullval(col)])[0]) for uid in uids]
     return multifo
 
 # ----------------------------------------------------------------------------------------

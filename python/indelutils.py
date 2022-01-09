@@ -27,8 +27,6 @@ def has_indels_line(line, iseq):  # arg it sucks that these fcns both exist, but
 
 # ----------------------------------------------------------------------------------------
 def has_indels(indelfo):
-    if indelfo is None:
-        return False
     if 'unique_ids' in indelfo:
         raise Exception('call this on line[\'indelfos\'][iseq], not on the whole line')
     return len(indelfo['indels']) > 0
