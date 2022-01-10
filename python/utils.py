@@ -1419,6 +1419,7 @@ linearham_headers = OrderedDict((
     ('J5pDel', 'j_5p_del'),
     ('J3pDel', 'j_3p_del'),
     ('JFwkInsertion', 'jf_insertion'),
+    ('VJInsertion', 'dj_insertion'),  # NOTE this has to get handled specially
 ))
 
 
@@ -1687,9 +1688,31 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
     return glfo, antn_list, clusterpath.ClusterPath(partition=partition)
 
 # ----------------------------------------------------------------------------------------
-def process_input_linearham_line(lh_line):
+def fix_linearham_insertion(lh_line, partis_line):
+    v_end = partis_line['regional_bounds']['v'][1]
+    j_start = partis_line['regional_bounds']['j'][0]
+    for dln in ['v_3p_del', 'j_5p_del']:
+        xtra_del = lh_line[dln] - partis_line[dln]
+        if xtra_del > 0:  # if linearham made the deletion larger
+            if 'v_3p' in dln:
+                v_end -= xtra_del
+            elif 'j_5p' in dln:
+                j_start += xtra_del
+            else:
+                assert False
+    if j_start > v_end:
+        seq = partis_line['seqs'][0]
+        print '    %s read boolean for VJInsertion in linearham output file, so resetting light chain insertion by hand: \'%s\' --> \'%s\'' % (color('yellow', 'warning'), lh_line['dj_insertion'], seq[v_end : j_start])
+        print '      %s' % (seq[ : v_end] + color('red', seq[v_end : j_start]) + seq[j_start : ])
+        # print_reco_event(partis_line)
+        lh_line['dj_insertion'] = seq[v_end : j_start]
+
+# ----------------------------------------------------------------------------------------
+def process_input_linearham_line(lh_line, partis_line, glfo):
     """ convert <lh_line> (see linearham_headers). Modifies <lh_line>. """
     for lhk in set(lh_line): # set() used because keys are removed from the dict while iterating
+        if not has_d_gene(glfo['locus']) and lh_line['dj_insertion'] == 'TRUE':  # not sure why it writes a boolean for light chain insertion rather than the actual inserted str, but we have to go and work it out since otherwise it's an invalid event
+            fix_linearham_insertion(lh_line, partis_line)
         if lhk not in linearham_headers or linearham_headers[lhk] is None: # limit to the ones with a direct partis correspondence
             del lh_line[lhk] #remove keys not in linearham_headers
             continue
