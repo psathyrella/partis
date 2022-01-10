@@ -3,11 +3,8 @@
 echo -e "\n--> running $0"
 set -eu
 
-if [ -f /.dockerenv ]; then  # if we're in docker TODO this file may go away in the future, so it'd probably be better to switch to the "grep docker /proc/1/cgroup" method
-    basedir=/partis
-else
-    basedir=$PWD
-fi
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+basedir=`dirname $SCRIPT_DIR`  # go up one level
 
 echo -e "\n--> building ig-sw"
 cd $basedir/packages/ig-sw/src/ig_align/ && scons
