@@ -1692,7 +1692,7 @@ def fix_linearham_insertion(lh_line, partis_line):
     v_end = partis_line['regional_bounds']['v'][1]
     j_start = partis_line['regional_bounds']['j'][0]
     for dln in ['v_3p_del', 'j_5p_del']:
-        xtra_del = lh_line[dln] - partis_line[dln]
+        xtra_del = int(lh_line[dln]) - partis_line[dln]
         if xtra_del > 0:  # if linearham made the deletion larger
             if 'v_3p' in dln:
                 v_end -= xtra_del
@@ -1711,13 +1711,13 @@ def fix_linearham_insertion(lh_line, partis_line):
 def process_input_linearham_line(lh_line, partis_line, glfo):
     """ convert <lh_line> (see linearham_headers). Modifies <lh_line>. """
     for lhk in set(lh_line): # set() used because keys are removed from the dict while iterating
-        if not has_d_gene(glfo['locus']) and lh_line['dj_insertion'] == 'TRUE':  # not sure why it writes a boolean for light chain insertion rather than the actual inserted str, but we have to go and work it out since otherwise it's an invalid event
-            fix_linearham_insertion(lh_line, partis_line)
         if lhk not in linearham_headers or linearham_headers[lhk] is None: # limit to the ones with a direct partis correspondence
             del lh_line[lhk] #remove keys not in linearham_headers
             continue
         lh_line[linearham_headers[lhk]] = lh_line[lhk]
         del lh_line[lhk] #remove lh_line keys once corresponding linearham_headers key added
+    if not has_d_gene(glfo['locus']) and lh_line['dj_insertion'] == 'TRUE':  # not sure why it writes a boolean for light chain insertion rather than the actual inserted str, but we have to go and work it out since otherwise it's an invalid event
+        fix_linearham_insertion(lh_line, partis_line)
     process_input_line(lh_line)
 
 # ----------------------------------------------------------------------------------------
