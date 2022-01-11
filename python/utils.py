@@ -3808,6 +3808,8 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
             return  # only here to remind you that nothing happens
     elif key in input_metafile_keys.values():  # uh, not really sure what's the best thing to do, but this only gets called on deprecated csv files, so oh well
         outfo[key] = [None for _ in info['unique_ids']]
+    elif key == 'has_shm_indels':
+        outfo[key] = [indelutils.has_indels_line(info, i) for i in range(len(info['unique_ids']))]
     else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
         raise Exception('column \'%s\' missing from annotation' % key)
 
