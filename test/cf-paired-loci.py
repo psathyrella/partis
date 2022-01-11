@@ -174,6 +174,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             if not args.antn_perf:
                 raise Exception('running linearham action without --antn-perf set, which means you likely also didn\'t set it for the partition action (although it has on direct effect on the linearham action)')
             cmd += ' --partis-outdir %s --n-sim-events %d' % (odir(args, varnames, vstrs, 'partition'), int(utils.vlval(args, vlists, varnames, 'n-sim-events')))
+            cmd += ' --docker --local-docker-image'
         if args.n_sub_procs > 1:
             cmd += ' --n-procs %d' % args.n_sub_procs
         if args.prep:

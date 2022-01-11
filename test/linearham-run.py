@@ -8,6 +8,7 @@ import argparse
 import subprocess
 import sys
 import os
+import pwd
 
 # sys.path.insert(1, './python')
 # if you move this script, you'll need to change this method of getting the imports
@@ -36,9 +37,10 @@ def wkdir(locus, iclust=None):
     return '%s/work/%s%s' % (args.outdir, locus, '' if iclust is None else '/iclust-%d'%iclust)
 # ----------------------------------------------------------------------------------------
 def lhodir(locus, iclust=None):
-    flist = glob.glob('%s/cluster-%d/mcmc*/burnin*' % (wkdir(locus, iclust=iclust), iclust))
+    glstr = '%s/cluster-%d/mcmc*/burnin*' % (wkdir(locus, iclust=iclust), iclust)
+    flist = glob.glob(glstr)
     if len(flist) == 0:
-        return '/x/y/z'
+        return glstr
     return utils.get_single_entry(flist)
 # ----------------------------------------------------------------------------------------
 def lnhofn(locus, iclust=None):
@@ -52,6 +54,8 @@ def prmd(locus):
     return '%s/parameters/%s' % (args.partis_outdir, locus)
 # ----------------------------------------------------------------------------------------
 def dckr_trns(inpath):  # translate <inpath> to path within docker
+    if not args.docker:
+        return inpath
     assert basedir() in inpath
     return inpath.replace(basedir(), docker_path)
 # ----------------------------------------------------------------------------------------
@@ -69,8 +73,6 @@ def run_linearham():
             continue
         if not os.path.exists(ptnfn(locus)):
             raise Exception('partition file doesn\'t exist (maybe forgot to run partis \'partition\' action first?) %s' % ptnfn(locus))
-# ----------------------------------------------------------------------------------------
-# TODO chown output from root
         for iclust in range(args.n_sim_events):
             n_total += 1
             ofn = lnhofn(locus, iclust=iclust)
@@ -82,16 +84,17 @@ def run_linearham():
             utils.mkdir(wkdir(locus, iclust=iclust))
             shlines = ['#!/bin/bash']
             # shlines += ['ls -ltrh %s %s' % (dckr_trns(ptnfn(locus)), dckr_trns(prmd(locus)))]
-            shlines += ['grep get-linearham-info SConstruct']
-            shlines += ['sed -i \'s/get-linearham-info/get-linearham-info --min-tree-metric-cluster-size 3/\' SConstruct']
-            shlines += ['grep get-linearham-info SConstruct']
+            # it would be nice to also have an option to run on my local linearham install, which works fine, except that it requires the output dir to be a subdir of the linearham code dir, which would require some linking shenanigans or something so not doing it atm
             shlines += ['scons --run-linearham --partis-yaml-file=%s --parameter-dir=%s --cluster-index=%d --outdir=%s' % (dckr_trns(ptnfn(locus)), dckr_trns(prmd(locus)), iclust, dckr_trns(wkdir(locus, iclust=iclust)))]
             bfn = '%s/run.sh' % wkdir(locus, iclust=iclust)  #  NOTE if i'd used utils.simplerun() i couldn've used its cmdfname arg
             with open(bfn, 'w') as bfile:
                 for l in shlines:
                     bfile.write('%s\n'%l)
             utils.simplerun('chmod +x %s' % bfn, debug=False)
-            cmd = 'sudo docker run -it --rm -v%s:%s quay.io/matsengrp/linearham %s' % (basedir(), docker_path, dckr_trns(bfn))
+            if args.docker:
+                cmd = 'sudo docker run -it --rm -v%s:%s %s %s' % (basedir(), docker_path, 'linearham-local' if args.local_docker_image else 'quay.io/matsengrp/linearham', dckr_trns(bfn))
+            else:
+                cmd = bfn
             cmdfos += [{
                 'cmd_str' : cmd,
                 'outfname' : ofn,
@@ -102,35 +105,46 @@ def run_linearham():
 
 # ----------------------------------------------------------------------------------------
 def processs_linearham_output():
-    n_already_there, n_missing_iclusts, n_total_iclusts, n_total_out = 0, 0, 0, 0
+    n_already_there, missing_iclusts, n_total_iclusts, n_total_out = 0, [], 0, 0
+    missing_icpaths = []
     for locus in gloci():
         if not os.path.exists(simfn(locus)):
             continue
+
+        pwstruct = pwd.getpwuid(os.getuid())
+        utils.simplerun('sudo chown -R %s:%d %s' % (pwstruct.pw_name, pwstruct.pw_gid, wkdir(locus)), dryrun=args.dry)  # NOTE not really the right group
+
         ofn = finalfn(locus)
         n_total_out += 1
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
+            n_total_iclusts += args.n_sim_events
             continue
-# TODO don't overwrite by default
+
         antn_list = []
         for iclust in range(args.n_sim_events):
             n_total_iclusts += 1
             lhfn = lnhofn(locus, iclust=iclust)
             if not os.path.exists(lhfn):
-                n_missing_iclusts += 1
-                print '    missing %s' % lhfn
+                missing_iclusts.append(iclust)
+                missing_icpaths.append(lhfn)
+                continue
+            if args.dry:
+                antn_list.append(None)  # just to print the right length
                 continue
             glfo, iclust_antns, _ = utils.read_output(lhfn)
             antn_list += iclust_antns
-        print '    writing %d clusters to %s' % (len(antn_list), ofn)
-        utils.write_annotations(ofn, glfo, antn_list, utils.annotation_headers)
+
+        print '    %s %d clusters to %s' % ('would write' if args.dry else 'writing', len(antn_list), ofn)
+        if not args.dry:
+            utils.write_annotations(ofn, glfo, antn_list, utils.annotation_headers)
 
         cmd = './bin/parse-output.py %s %s/x.fa' % (ofn, wkdir(locus))
         cmd += ' --only-make-plots --simfname %s --plotdir %s --only-csv-plots --only-plot-performance' % (simfn(locus), antn_plotdir(locus))
-        utils.simplerun(cmd, logfname='%s/plot-performance.log'%wkdir(locus)) #, dryrun=args.dry)
+        utils.simplerun(cmd, logfname='%s/plot-performance.log'%wkdir(locus), dryrun=args.dry)
 
-    if n_missing_iclusts > 0:
-        print '  missing %d / %d' % (n_missing_iclusts, n_total_iclusts)
+    if len(missing_iclusts) > 0:
+        print '  missing %d / %d: iclusts %s (e.g. %s)' % (len(missing_iclusts), n_total_iclusts, ' '.join(str(i) for i in missing_iclusts), missing_icpaths[0])
     if n_already_there > 0:
         print '  %d / %d final output files already there (e.g. %s' % (n_already_there, n_total_out, ofn)
 
@@ -142,9 +156,13 @@ parser.add_argument('--partis-outdir', required=True)
 parser.add_argument('--n-sim-events', type=int, required=True)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry', action='store_true')
+parser.add_argument('--docker', action='store_true')
+parser.add_argument('--local-docker-image', action='store_true')
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 parser.add_argument('--n-procs', default=1, type=int)
 args = parser.parse_args()
+if not args.docker:
+    raise Exception('will crash cause linearham needs output dir as subdir of code dir')
 
 run_linearham()
 processs_linearham_output()
