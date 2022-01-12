@@ -20,7 +20,7 @@ partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
-plot_actions = ['single-chain-partis']
+plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
 
@@ -107,7 +107,12 @@ if args.antn_perf:
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
-    return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), 'partis' if action in ['cache-parameters', 'partition', 'single-chain-partis'] else action)
+    actstr = action
+    if action in ['cache-parameters', 'partition', 'single-chain-partis']:
+        actstr = 'partis'
+    elif action == 'single-chain-scoper':
+        actstr = 'scoper'
+    return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), actstr)
 
 # ----------------------------------------------------------------------------------------
 def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False, pcleancsv=False, nhdist=False):

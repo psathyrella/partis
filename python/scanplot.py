@@ -732,6 +732,8 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 title = legdict.get(ptilestr, ptilestr).replace('frac. ', '')
             else:
                 title += ' %s: %s %s' % (locus, ltexts[ptntype], legdict.get(ptilestr, ptilestr))
+            if any('single-chain-' in m for m in args.plot_metrics):  # better not to call it the 'joint' f1 score or whatever if we're plotting the single chain partition on it
+                title = title.replace(ltexts[ptntype], '')
             ymin = 0
             if ptilestr != 'naive-hdist':
                 ymax = 1.05
