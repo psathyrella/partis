@@ -222,7 +222,9 @@ def run_bcr_phylo(args):  # also caches parameters
             vstr_for_cmd = vstr
             if vname == 'parameter-variances':
                 vstr_for_cmd = vstr_for_cmd.replace('_c_', ':')  # necessary so we can have multiple different parameters with variances for each bcr-phylo-run.py cmd
-            cmd += ' --%s %s' % (vname, vstr_for_cmd)
+                cmd += ' --%s %s' % (vname, vstr_for_cmd)
+            else:
+                cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
             if 'context' in vname:
                 cmd += ' --restrict-available-genes'
         if args.no_scan_parameter_variances is not None:
@@ -241,6 +243,8 @@ def run_bcr_phylo(args):  # also caches parameters
             cmd += ' --n-procs %d' % args.n_sub_procs
         if args.sub_slurm:
             cmd += ' --slurm'
+        if args.simu_extra_args is not None:
+            cmd += ' %s' % args.simu_extra_args
         # cmd += ' --debug 2'
         cmdfos += [{
             'cmd_str' : cmd,
@@ -342,12 +346,13 @@ parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearran
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
 parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--target-distance-list')
-parser.add_argument('--metric-for-target-distance-list', default='aa')  # it would be nice to not set defaults here, since it clutters up the bcr-phylo simulator.py calls, but this insulates us against the defaults in bcr-phylo simulator.py changing at some point
-parser.add_argument('--leaf-sampling-scheme-list', default='uniform-random')
-parser.add_argument('--target-count-list', default='1')
+parser.add_argument('--metric-for-target-distance-list') #, default='aa')  # it would be nice to not set defaults here, since it clutters up the bcr-phylo simulator.py calls, but this insulates us against the defaults in bcr-phylo simulator.py changing at some point
+parser.add_argument('--leaf-sampling-scheme-list') #, default='uniform-random')
+parser.add_argument('--target-count-list') #, default='1')
 parser.add_argument('--n-target-clusters-list')  # NOTE do *not* set a default here, since in bcr-phylo simulator.py the default is None
 parser.add_argument('--min-target-distance-list')
 parser.add_argument('--context-depend-list')
+parser.add_argument('--multifurcating-tree-list')
 parser.add_argument('--paratope-positions-list')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi', 'aa-lbi', 'lbr', 'aa-lbr', 'dtr', 'cons-lbi'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics. UPDATE can now run this way also for plain/nuc lbi and lbr.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
@@ -360,10 +365,11 @@ parser.add_argument('--use-val-cfgs', action='store_true', help='use plotting.va
 parser.add_argument('--train-dtr', action='store_true')
 parser.add_argument('--dtr-path', help='Path from which to read decision tree regression training data. If not set (and --metric-method is dtr), we use a default (see --train-dtr).')
 parser.add_argument('--dtr-cfg', help='yaml file with dtr training parameters (read by treeutils.calculate_non_lb_tree_metrics()). If not set, default parameters are taken from treeutils.py')
-parser.add_argument('--selection-strength-list', default='1.0')
+parser.add_argument('--selection-strength-list') #, default='1.0')
 parser.add_argument('--no-scan-parameter-variances', help='Configures parameter variance among families (see bcr-phylo-run.py help for details). Use this version if you only want *one* combination, i.e. if you\'re not scanning across variable combinations: all the different variances go into one bcr-phylo-run.py run (this could be subsumed into the next arg, but for backwards compatibility/cmd line readability it\'s nice to keep it).')
 parser.add_argument('--parameter-variances-list', help='Configures parameter variance among families (see bcr-phylo-run.py help for details). Use this version for scanning several combinations. Colons \':\' separate different bcr-phylo-run.py runs, while \'_c_\' separate parameter-variances for multiple variables within each bcr-phylo-run.py run.')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
+parser.add_argument('--simu-extra-args')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--seq-len', default=400, type=int)
 parser.add_argument('--n-replicates', default=1, type=int)
@@ -397,9 +403,10 @@ parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lb
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
-args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'target-distance', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'context-depend', 'paratope-positions', 'parameter-variances'],}
+args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'target-distance', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'context-depend', 'paratope-positions', 'parameter-variances', 'multifurcating-tree'],}
 args.scan_vars['get-tree-metrics'] = args.scan_vars['simu'] + ['lb-tau']
 args.str_list_vars = ['n-sim-seqs-per-gen', 'obs-times', 'context-depend', 'n-sim-seqs-per-gen', 'obs-times', 'context-depend']
+args.bool_args = ['multifurcating-tree']
 
 sys.path.insert(1, args.partis_dir + '/python')
 try:
@@ -427,6 +434,7 @@ args.target_count_list = utils.get_arg_list(args.target_count_list, forbid_dupli
 args.n_target_clusters_list = utils.get_arg_list(args.n_target_clusters_list, forbid_duplicates=True)
 args.min_target_distance_list = utils.get_arg_list(args.min_target_distance_list, forbid_duplicates=True)
 args.context_depend_list = utils.get_arg_list(args.context_depend_list, forbid_duplicates=True)
+args.multifurcating_tree_list = utils.get_arg_list(args.multifurcating_tree_list, forbid_duplicates=True)
 args.paratope_positions_list = utils.get_arg_list(args.paratope_positions_list, forbid_duplicates=True, choices=['all', 'cdrs'])
 args.parameter_variances_list = utils.get_arg_list(args.parameter_variances_list, forbid_duplicates=True)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)

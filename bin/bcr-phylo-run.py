@@ -517,6 +517,10 @@ args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generati
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap', 'metric-for-target-distance'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
 args.extra_smetric_plots = utils.get_arg_list(args.extra_smetric_plots, choices=treeutils.all_plot_cfg)
+if args.rearr_extra_args is not None:
+    args.rearr_extra_args = args.rearr_extra_args.replace('@', ' ')  # ick this sucks
+if args.inf_extra_args is not None:
+    args.inf_extra_args = args.inf_extra_args.replace('@', ' ')  # ick this sucks
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 
