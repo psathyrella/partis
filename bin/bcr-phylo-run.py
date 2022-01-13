@@ -140,6 +140,8 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
         cmd += ' --obs_times %s' % ' '.join(['%d' % get_vpar_val('obs-times', t) for t in args.obs_times])
         cmd += ' --n_to_sample %s' % ' '.join('%d' % get_vpar_val('n-sim-seqs-per-generation', n) for n in args.n_sim_seqs_per_generation)
         cmd += ' --metric_for_target_dist %s' % args.metric_for_target_distance
+        if args.multifurcating_tree:
+            cmd += ' --multifurcating_tree'
         if args.aa_paratope_positions is not None:
             cmd += ' --aa_paratope_positions %s' % args.aa_paratope_positions
         if args.aa_struct_positions is not None:
@@ -489,6 +491,7 @@ parser.add_argument('--dont-mutate-struct-positions', action='store_true', help=
 parser.add_argument('--skip-stops', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--allow-stops', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--no-selection', action='store_true', help='see bcr-phylo docs')
+parser.add_argument('--multifurcating-tree', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--restrict-available-genes', action='store_true', help='restrict v and j gene choice to one each (so context dependence is easier to plot)')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
@@ -503,7 +506,7 @@ parser.add_argument('--inf-extra-args', help='')
 parser.add_argument('--dry-run', action='store_true')
 parser.add_argument('--mutated-outpath', action='store_true', help='write final (mutated) output file[s] to --base-outdir, rather than the default of burying them in subdirs with intermediate files')
 parser.add_argument('--extra-smetric-plots', default=':'.join(treeutils.default_plot_cfg))
-parser.add_argument('--min-ustr-len', type=int, default=10, help='min length of hashed uid strs (longer makes collisions less likely, but it\'s hard to avoid them entirely since independent bcr-phylo procs choose the uids for each family)')
+parser.add_argument('--min-ustr-len', type=int, default=5, help='min length of hashed uid strs (longer makes collisions less likely, but it\'s hard to avoid them entirely since independent bcr-phylo procs choose the uids for each family)')
 
 args = parser.parse_args()
 

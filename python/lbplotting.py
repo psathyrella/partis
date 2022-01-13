@@ -612,8 +612,8 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 
     if warn_text is not None:
         ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], warn_text, fontsize=30, fontweight='bold', color='red')
-    xmin, xmax = [mfcn(xvals) for mfcn in [min, max]]
-    ymin, ymax = [mfcn(yvals) for mfcn in [min, max]]
+    xmin, xmax = [mfcn([x for x in xvals if x is not None]) for mfcn in [min, max]]
+    ymin, ymax = [mfcn([y for y in yvals if y is not None]) for mfcn in [min, max]]
     # if xvar == 'cons-dist-aa':
     #     xmin = max(-15, xmin)
     xbounds = xmin - 0.02 * (xmax - xmin), xmax + 0.02 * (xmax - xmin)
