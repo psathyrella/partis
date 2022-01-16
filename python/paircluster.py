@@ -531,7 +531,8 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 pidlengths.update({u : len(set(pids) - set([u])) for u, pids in zip(atn['unique_ids'], atn['paired-uids'])})
         ahist = Hist(value_list=pidlengths.values(), init_int_bins=True)
-        fn = ahist.fullplot(plotdir, 'paired-seqs-per-seq-%s'%pstr, pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N paired seqs per seq', 'ylabel' : 'counts', 'title' : pstr, 'xbounds' : (-0.05, 1.05*ahist.xmax), 'xticks' : [i for i in range(0, int(ahist.xmax+1), 1 if 'after' in pstr else 2)]})
+        xvar = 'paired-seqs-per-seq'
+        fn = ahist.fullplot(plotdir, '%s-%s'%(xvar, pstr), pargs={'remove_empty_bins' : True}, fargs={'xlabel' : plotconfig.xtitles.get(xvar), 'ylabel' : 'counts', 'title' : pstr, 'xbounds' : (-0.05, 1.05*ahist.xmax), 'xticks' : [i for i in range(0, int(ahist.xmax+1), 1 if 'after' in pstr else 2)]})
         fnames[1].append(fn)
         return pidlengths
     # ----------------------------------------------------------------------------------------

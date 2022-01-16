@@ -245,7 +245,7 @@ def shift_hist_overflows(hists, xmin, xmax):
 
 # ----------------------------------------------------------------------------------------
 # NOTE now you should set <hist> to None if you have more than one hist
-def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None,
+def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, scale_errors=None, normalize=False, bounds=None, ybounds=None,
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
@@ -277,6 +277,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
 
     if bounds is not None:
         xmin, xmax = bounds
+    if ybounds is not None:  # ugly, but adding it long after the rest of the fcn
+        ymin, ymax = ybounds
 
     if shift_overflows:
         if '_vs_per_gene_support' in plotname or '_fraction_correct_vs_mute_freq' in plotname or plotname in [r + '_gene' for r in utils.regions]:

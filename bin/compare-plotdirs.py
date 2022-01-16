@@ -5,6 +5,7 @@ import os
 import glob
 import sys
 import colored_traceback.always
+import copy
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 if not os.path.exists(current_script_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
@@ -17,11 +18,11 @@ import glutils
 from hist import Hist
 import treeutils
 
-xtitledict = plotting.legends
+xtitledict = copy.deepcopy(plotting.legends)
 xtitledict.update(plotconfig.xtitles)
 xtitledict.update(treeutils.legtexts)
 
-ptitledict = plotting.legends
+ptitledict = copy.deepcopy(plotting.legends)
 ptitledict.update(plotconfig.plot_titles)
 ptitledict.update(treeutils.legtexts)
 
@@ -66,7 +67,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     stats = args.extra_stats
     translegend = [0.0, -0.2]
     xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
-    xticks, xticklabels = None, None
+    bounds, xticks, xticklabels = args.xbounds, args.xticks, None
     if xtitle == '':  # arg, plotting.py thinks default should be None, hist.py thinks it's ''
         xtitle = None
     if '-mean-bins' in varname:
@@ -105,7 +106,8 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             xtitle = 'inferred - true'
         bounds = plotconfig.true_vs_inferred_hard_bounds.setdefault(varname, None)
     else:
-        bounds = plotconfig.default_hard_bounds.setdefault(varname, None)
+        if bounds is None:
+            bounds = plotconfig.default_hard_bounds.setdefault(varname, None)
         if bounds is None and 'insertion' in varname:
             bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
         if varname in plotconfig.gene_usage_columns:
@@ -115,7 +117,8 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             line_width_override = 1
         elif 'per-gene-per-position/v' in pathnameclues:
             figsize = (20, 5)
-            bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname), None)
+            if bounds is None:
+                bounds = plotconfig.default_hard_bounds.setdefault(utils.unsanitize_name(varname), None)
 
     if 'IG' in varname or 'TR' in varname:
         if 'mute-freqs' in pathnameclues:
@@ -166,7 +169,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
     alphas = [0.6 for _ in range(len(hlist))]
     shift_overflows = os.path.basename(outdir) != 'gene-call' and 'func-per-drop' not in varname
-    plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds,
+    plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds, ybounds=args.ybounds,
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, alphas=alphas, errors=True, remove_empty_bins='y' in args.log,
@@ -197,6 +200,9 @@ parser.add_argument('--make-parent-html', action='store_true', help='after doing
 parser.add_argument('--add-to-title', help='string to append to existing title (use @ as space)')
 parser.add_argument('--file-glob-str', default='*.csv', help='shell glob style regex for matching plot files')
 parser.add_argument('--file-replace-str', default='.csv', help='string to remove frome file base name to get variable name')
+parser.add_argument('--xbounds')
+parser.add_argument('--ybounds')
+parser.add_argument('--xticks')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -205,6 +211,9 @@ args.colors = utils.get_arg_list(args.colors)
 args.linewidths = utils.get_arg_list(args.linewidths, intify=True)
 args.gldirs = utils.get_arg_list(args.gldirs)
 args.translegend = utils.get_arg_list(args.translegend, floatify=True)
+args.xbounds = utils.get_arg_list(args.xbounds, floatify=True)
+args.ybounds = utils.get_arg_list(args.ybounds, floatify=True)
+args.xticks = utils.get_arg_list(args.xticks, floatify=True)
 for iname in range(len(args.names)):
     args.names[iname] = args.names[iname].replace('@', ' ')
 if args.add_to_title is not None:

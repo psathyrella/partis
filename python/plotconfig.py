@@ -44,9 +44,11 @@ xtitles = {
     'umut_distr' : 'N observations',
     'useq_distr' : 'N observations',
     'n_muts' : 'N observations',
+    'paired-seqs-per-seq' : 'N paired seqs per seq',
 }
 for rstr in [r + '_' for r in utils.regions] + ['', ]:
     xtitles[rstr + 'hamming_to_true_naive'] = 'hamming distance'
+
 
 plot_titles = {
     'v_gene' : 'V gene',
@@ -92,6 +94,7 @@ plot_titles = {
     'umut_distr' : 'unique mut distr',
     'useq_distr' : 'unique seq distr',
     'n_muts' : 'distance to root',
+    'paired-seqs-per-seq' : '',
 }
 for region in utils.regions:
     for end in ['5', '3']:
