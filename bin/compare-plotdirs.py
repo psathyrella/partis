@@ -172,7 +172,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds, ybounds=args.ybounds,
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                          linewidths=linewidths, alphas=alphas, errors=True, remove_empty_bins='y' in args.log,
+                          linewidths=linewidths, alphas=alphas, errors=True, remove_empty_bins=True, #='y' in args.log,
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels)
 
 # ----------------------------------------------------------------------------------------

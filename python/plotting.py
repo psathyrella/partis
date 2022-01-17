@@ -271,9 +271,9 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         if ymax is None or htmp.get_maximum(xbounds=bounds) > ymax:
             ymax = htmp.get_maximum(xbounds=bounds)
         if xmin is None or htmp.xmin < xmin:  # overridden by <bounds> below
-            xmin = htmp.xmin
+            xmin = htmp.get_filled_bin_xbounds()[0] #.xmin
         if xmax is None or htmp.xmax > xmax:
-            xmax = htmp.xmax
+            xmax = htmp.get_filled_bin_xbounds()[1] #.xmax
 
     if bounds is not None:
         xmin, xmax = bounds

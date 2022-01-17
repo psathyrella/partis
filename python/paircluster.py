@@ -525,6 +525,7 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
         return per_seq_flcounts
     # ----------------------------------------------------------------------------------------
     def plot_n_pseqs_per_seq(pstr):
+        import plotconfig
         pidlengths = {}
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
