@@ -441,7 +441,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance_outdir=None, paired_data_type='10x', collapse_similar_paired_seqs=False, max_hdist=4, debug=False):
+def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance_outdir=None, collapse_similar_paired_seqs=False, max_hdist=4, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
         if not is_data:
@@ -455,7 +455,7 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
         n_not_found = 0
         if tdbg:
             print '              found?   drop id           contigs     overlaps (with any non-identical groups)'
-        def kfcn(u): return utils.get_droplet_id(u, dtype=paired_data_type)
+        def kfcn(u): return utils.get_droplet_id(u)
         for dropid, drop_queries in itertools.groupby(sorted(all_uids, key=kfcn), key=kfcn):  # group all queries into droplets (assuming they conform to 10x convention for droplet ids)
             dqlist = list(drop_queries)
             found = ':'.join(sorted(dqlist)) in pgroup_strs  # was this exact combination of queries in pid_groups?

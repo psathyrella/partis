@@ -2334,7 +2334,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
 
 # ----------------------------------------------------------------------------------------
-def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False, paired_data_type='10x'):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
+def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname, no_fail=False):
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
@@ -2565,7 +2565,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                         print '        adding previously-chosen ab: %s' % ' '.join(gsval(mfo, c, 'unique_ids') for c in 'hl')
         if 'droplet-ids' in cfgfo:  # add some specific seqs
             for mfo in metric_pairs:
-                did = utils.get_single_entry(list(set([utils.get_droplet_id(gsval(mfo, c, 'unique_ids'), dtype=paired_data_type) for c in 'hl'])))
+                did = utils.get_single_entry(list(set([utils.get_droplet_id(gsval(mfo, c, 'unique_ids'), args.droplet_id_separators, args.droplet_id_indices) for c in 'hl'])))
                 if did in cfgfo['droplet-ids']:
                     chosen_mfos.append(mfo)
                     all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
@@ -2812,7 +2812,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         last_cdist_str, last_mtpy_str, last_aa_shmstr = None, None, None
         for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(getcdist(x, c, frac=True) for c in 'hl'))):  # would be nice to use sumv()
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
-            dids, cids = zip(*[utils.get_droplet_id(u, return_contigs=True, dtype=paired_data_type) for u in (hid, lid)])
+            dids, cids = zip(*[utils.get_droplet_id(u, args.droplet_id_separators, args.droplet_id_indices, return_contigs=True) for u in (hid, lid)])
             indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
             h_seq, l_seq = [utils.color_mutants(cons_mfo[c+'_cseq_aa'], utils.per_seq_val(l, 'input_seqs_aa', u), amino_acid=True, align_if_necessary=True) for c, u, l in zip('hl', (hid, lid), (h_atn, l_atn))]
             h_nuc_seq, l_nuc_seq = '', ''
@@ -2878,7 +2878,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return mtpys
 
     # ----------------------------------------------------------------------------------------
-    debug = args.debug  # not is_simu or
+    debug = args.debug or args.debug_paired_clustering  # not is_simu or
     if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
         print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
     all_chosen_mfos = []

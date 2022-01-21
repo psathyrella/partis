@@ -30,7 +30,6 @@ def addseq(ltmp, tline, uid, iclust):
         'locus' : ltmp,
         'igh_iclust' : iclust,
         'aa-cdist' : treeutils.smvals(tline, 'cons-dist-aa', uid=uid)
-        # , 'droplet_id' : utils.get_droplet_id(uid, prefix=args.paired_sample_prefix, dtype=XXX)
     })
 
 # ----------------------------------------------------------------------------------------

@@ -820,46 +820,55 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
     return fstr
 
 # ----------------------------------------------------------------------------------------
-# sep: string consisting of characters with which to split (i.e. if '_.-' we'll split on all three of them) (only used for 'undetermined' <dtype>)
-# did_indices: zero-based index (using <sep>) of droplet id NOTE only used for 'undetermined' <dtype>
-def get_droplet_id(uid, dtype='10x', sep='_', did_indices=[0], return_contigs=False):
-    if dtype != 'undetermined' and uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation TODO this method of determining if it's simulation sucks and will probably need to be changed
-        ulist = uid.split('-')
-        did, locus = '-'.join(ulist[:-1]), ulist[-1]
-        cid = locus[2]
-    else:
-        if all(s not in uid for s in sep):
-            raise Exception('no separators from \'%s\' are in uid \'%s\'' % (sep, uid))
-        if dtype == '10x':
-            if uid.count(sep) != 2:
-                raise Exception('need 2 instances of separator \'%s\' in \'%s\', but found %d' % (sep, uid, uid.count(sep)))
-            did, cstr, cid = uid.split(sep)
-            assert cstr == 'contig'
-        elif dtype == 'identical':
-            did = uid
-            cstr, cid = 'XXX', 'XXX'
-        elif dtype == 'undetermined':  # well, maybe this will work for you? i just need it for some random data from meghan atm (will eventually need a more generalized way to do it)
-            ulist = [uid]
-            for ts in sep:
-                ulist = [s for u in ulist for s in u.split(ts)]
-            did = sep[0].join(ulist[i] for i in did_indices)  # rejoin with just the first sep (if there was more than one)
-            cstr, cid = 'XXX', 'XXX'
-        else:
-            assert False
+def set_did_vals(uid):
+    if uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation, e.g. 7842229920653554932-igl
+        return '-', [0]
+    elif '_contig_' in uid:  # 10x data
+        return '_', [0]
+    else:  # default (same as 10x atm)
+        return '_', [0]
+
+# ----------------------------------------------------------------------------------------
+did_help = {
+    'guess' : 'Try to guess pairing info based on paired sequences having the same name, then append the locus to each uid (so e.g. \'2834\' --> \'2834-igh\', \'2834-igk\'). If set, this *must* be set both when split-loci.py is run (e.g. caching parameters) *and* during later inference (since e.g. --treefname or --input-partition-fname must be modified).',
+    'seps' : 'String consisting of characters that should be used to find the droplet id in each uid string (with --droplet-id-index), i.e. calls <uid>.split(<--droplet-id-separators>)[--droplet-id-index] (recursively, if there\'s more than one character). For example \'-._\' would split on each instance of \'-\', \'.\', or \'_\'. Default is set in utils.set_did_vals(), and should work for 10x data and partis simulation (e.g. the 10x uid AAACGGGCAAGCGAGT-1_contig_2 has a droplet id of AAACGGGCAAGCGAGT-1, and the simulation uid of 7842229920653554932-igl has a droplet id of 7842229920653554932).',
+    'indices' : 'Colon-separated list of zero-based indices used with --droplet-id-separators (see that arg\'s help). Default is set in utils.set_did_vals(), and should work for 10x data and partis simulation.',
+}
+
+# ----------------------------------------------------------------------------------------
+# did_seps: string consisting of characters with which to split (i.e. if '_.-' we'll split on all three of them)
+# did_indices: list of zero-based indices (using <did_seps>) of droplet id
+def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, debug=False):
+    auto_set = False
+    if did_seps is None or did_indices is None:
+        if did_seps is not None or did_indices is not None:
+            print '  %s only one of did_seps/did_indices was set, so still need to guess both of them: %s %s' % (wrnstr(), did_seps, did_indices)
+        did_seps, did_indices = set_did_vals(uid)
+        auto_set = True
+    ulist = [uid]
+    for sep in did_seps:  # recursively split by each sep character
+        ulist = [s for u in ulist for s in u.split(sep)]
+    if any(i > len(ulist) - 1 for i in did_indices):
+        raise Exception('droplet id indices %s (out of %s) greater than len (%d) of list %s after splitting by separators \'%s\' for uid \'%s\'' % ([i for i in did_indices if i > len(ulist) - 1], did_indices, len(ulist), ulist, did_seps, uid))
+    did = did_seps[0].join(ulist[i] for i in did_indices)  # rejoin with just the first sep (if there was more than one), since doing otherwise would be complicated and i don't think it matters
+    cid = ulist[-1]  # just set the contig id to the last element, which is correct for [current] 10x data, and we don't care about it otherwise
+    if debug:
+        print '    droplet id separators%s: %s  indices: %s' % (' (set automatically)' if auto_set else '', did_seps, did_indices)
+        print '       e.g. uid \'%s\' --> droplet id \'%s\' contig id \'%s\'' % (uid, did, cid)
     if return_contigs:
         return did, cid  # NOTE returning cid as string
     else:
         return did
 
 # ----------------------------------------------------------------------------------------
-def get_contig_id(uid, dtype='10x', sep='_'):
-    return get_droplet_id(uid, dtype=dtype, sep=sep, return_contigs=True)[1]
+def get_contig_id(uid, did_seps='_'):
+    return get_droplet_id(uid, did_seps=did_seps, return_contigs=True)[1]
 
 # ----------------------------------------------------------------------------------------
-def extract_pairing_info(seqfos, droplet_id_separators='_', droplet_id_indices=[0], dtype='10x', input_metafname=None, droplet_id_fcn=get_droplet_id):  # NOTE if you're specifying droplet_id_fcn you probably shouldn't need to set dtype
+def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=None, input_metafname=None, droplet_id_fcn=get_droplet_id, debug=True):
     # ----------------------------------------------------------------------------------------
-    def did_fcn(uid):  # shorthand that only requires uid
-        return droplet_id_fcn(uid, sep=droplet_id_separators, did_indices=droplet_id_indices, dtype=dtype)
+    def did_fcn(uid, debug=False):  # shorthand that only requires uid
+        return droplet_id_fcn(uid, did_seps=droplet_id_separators, did_indices=droplet_id_indices, debug=debug)
     # ----------------------------------------------------------------------------------------
     droplet_ids = {}
     for sfo in seqfos:
@@ -868,7 +877,9 @@ def extract_pairing_info(seqfos, droplet_id_separators='_', droplet_id_indices=[
             droplet_ids[did] = []
         droplet_ids[did].append(sfo['name'])
 
-    print '  read %d sequences with %d droplet ids' % (len(seqfos), len(droplet_ids))
+    print '  extract_pairing_info(): read %d sequences with %d droplet ids' % (len(seqfos), len(droplet_ids))
+    if debug:
+        did_fcn(seqfos[0]['name'], debug=True)
     count_info = {}
     for dlist in droplet_ids.values():
         if len(dlist) not in count_info:

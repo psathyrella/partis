@@ -136,6 +136,7 @@ def process(args):
                 raise Exception('--single-light-chain-locus must be among: %s (got \'%s\')' % (utils.light_loci(args.ig_or_tr), args.single_light_locus))
             for ltmp in utils.light_loci(args.ig_or_tr):
                 args.light_chain_fractions[ltmp] = 1. if ltmp == args.single_light_locus else 0.
+        args.droplet_id_indices = utils.get_arg_list(args.droplet_id_indices, intify=True)
     else:
         if args.paired_indir is not None:
             raise Exception('need to set --paired-loci if --paired-indir is set')
