@@ -612,7 +612,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.plot_partitions or tmpaction == 'plot-partitions':  # partitiondriver turns on partition plots if plotdir and input partition fname are both specified, so setting --plot-partitions isn't necessary... but they result in potentially different plotdirs, which is potentially important if you want plots to go somewhere specific
                 if tmpaction != 'annotate':  # don't need it
                     utils.remove_from_arglist(clist, '--plot-partitions')
-                if args.is_data:  # for simulation we still need it
+                if tmpaction == 'plot-partitions' and args.is_data:  # for simulation we still need it
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 if '--plotdir' not in clist:
                     clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
