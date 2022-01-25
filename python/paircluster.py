@@ -417,7 +417,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
                     if tch == 'h' and all_loci[utils.get_single_entry(pids)] != ploci['l']:  # if it's the other light chain
                         iseqs_to_remove.append(iseq)
                         n_other_light += 1
-                    else:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in clean_pair_info(), but atm i think we can't look at both chains at once in that fcn
+                    else:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in pair info cleaning, but atm i think we can't look at both chains at once in that fcn
                         if all_pids[uid] not in all_pids or all_pids[all_pids[uid]] != uid:  # if uid's pid isn't in all_pids, or if it is but it's a different uid
                             iseqs_to_remove.append(iseq)
                             add_unpaired(cline, iseq, uid)
@@ -441,10 +441,10 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance_outdir=None, collapse_similar_paired_seqs=False, max_hdist=4, debug=False):
+def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=None, max_hdist=4, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
-        if not is_data:
+        if not args.is_data:
             # print '  note: couldn\'t get droplet id from \'%s\', so assuming this isn\'t 10x data' % next(iter(all_uids))  # NOTE i'm not sure that this gives the same one as the previous line
             return False
         if len(set(len(g) for g in pid_groups)) == 1:
@@ -455,7 +455,7 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
         n_not_found = 0
         if tdbg:
             print '              found?   drop id           contigs     overlaps (with any non-identical groups)'
-        def kfcn(u): return utils.get_droplet_id(u)
+        def kfcn(u): return utils.get_droplet_id(u, args.droplet_id_separators, args.droplet_id_indices)
         for dropid, drop_queries in itertools.groupby(sorted(all_uids, key=kfcn), key=kfcn):  # group all queries into droplets (assuming they conform to 10x convention for droplet ids)
             dqlist = list(drop_queries)
             found = ':'.join(sorted(dqlist)) in pgroup_strs  # was this exact combination of queries in pid_groups?
@@ -463,8 +463,8 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
                 overlaps = [g for g in pgroup_strs if dropid in g]  # this should essentially always be length 1, except when we're missing pairing info in simulation (in which case i know we don't even want to be running this simulation, but whatever I'm testing edge cases)
                 n_not_found += 1
             if tdbg or not found:
-                ostr = ' '.join(sorted(utils.get_contig_id(q) for q in overlaps[0].split(':'))) if len(overlaps)==1 else 'multiple'
-                print '  %25s    %s   %-8s   %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q) for q in dqlist)),
+                ostr = ' '.join(sorted(utils.get_contig_id(q, args.droplet_id_separators, args.droplet_id_indices) for q in overlaps[0].split(':'))) if len(overlaps)==1 else 'multiple'
+                print '  %25s    %s   %-8s   %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q, args.droplet_id_separators, args.droplet_id_indices) for q in dqlist)),
                                                     utils.color('red', ostr if not found else ''))
         if n_not_found > 0:
             print '  %s droplet id group check failed for %d groups, i.e. droplet ids parsed from uids don\'t match pair info: either pairing info is messed up or missing, or this is simulation and you didn\'t set --is-simu (if the latter, ignore this)' % (utils.color('red', 'error'), n_not_found)
@@ -611,7 +611,7 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
             print '      removed %d with missing annotations' % len(ids_to_remove)
 
         # among any pairs of sequences that are [almost] identical at all non-ambiguous position, keep only the longest one (note that this is really preprocessing/error correction, so probably shouldn't really be here)
-        if collapse_similar_paired_seqs:
+        if args.collapse_similar_paired_seqs:
             dbgstr = []
             n_equivalent = 0
             for tpair in itertools.combinations(chain_ids, 2):
@@ -630,7 +630,7 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
                 print '        %d pair%s equivalent with hdists %s' % (n_equivalent, utils.plural(n_equivalent), ' '.join(dbgstr))
 
         # if specified, remove unproductive (only on real data, since simulation usually has lots of stop codons)
-        if is_data and remove_unproductive:
+        if args.is_data and remove_unproductive:
             dbgstr = []
             unproductive_ids = []
             for uid in chain_ids:
@@ -866,7 +866,7 @@ def clean_pair_info(cpaths, antn_lists, is_data=False, plotdir=None, performance
     if n_fixed > 0:
         print '     synchronized/fixed %d pairs where one had no pair info after cleaning: %s' % (sum(n for n in n_fixed.values()), '  '.join('%s %d'%(utils.locstr(l), n_fixed[l]) for l in sorted(n_fixed)))
 
-    if not is_data and (performance_outdir is not None or plotdir is not None):
+    if not args.is_data and (performance_outdir is not None or plotdir is not None):
         make_fraction_correct_plot()
     if plotdir is not None:
         make_final_plots(initial_seqs_per_seq, initial_flcounts)

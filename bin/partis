@@ -982,7 +982,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  no paired uids in any annotations, not merging single chain partitions'
             return None
         true_partitions = get_true_partitions(debug=args.debug_paired_clustering)
-        paircluster.clean_pair_info(single_outfos['cpaths'], single_outfos['antn_lists'], is_data=args.is_data, collapse_similar_paired_seqs=args.collapse_similar_paired_seqs, #, max_hdist=4
+        paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], #, max_hdist=4
                                     plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), debug=args.debug_paired_clustering)
         lp_infos = {}
         for lpair in spairs():

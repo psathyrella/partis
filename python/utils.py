@@ -856,13 +856,13 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, debug=False
         print '    droplet id separators%s: %s  indices: %s' % (' (set automatically)' if auto_set else '', did_seps, did_indices)
         print '       e.g. uid \'%s\' --> droplet id \'%s\' contig id \'%s\'' % (uid, did, cid)
     if return_contigs:
-        return did, cid  # NOTE returning cid as string
+        return did, cid  # NOTE returning cid as string (rather than int)
     else:
         return did
 
 # ----------------------------------------------------------------------------------------
-def get_contig_id(uid, did_seps='_'):
-    return get_droplet_id(uid, did_seps=did_seps, return_contigs=True)[1]
+def get_contig_id(uid, did_seps, did_indices):
+    return get_droplet_id(uid, did_seps=did_seps, did_indices=did_indices, _contigs=True)[1]
 
 # ----------------------------------------------------------------------------------------
 def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=None, input_metafname=None, droplet_id_fcn=get_droplet_id, debug=True):
