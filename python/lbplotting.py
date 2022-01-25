@@ -706,7 +706,8 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
     return tmp_ptvals
 
 # ----------------------------------------------------------------------------------------
-def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind of duplicates code in cf-tree-metrics.py (well except there we're averaging the *difference* between us and perfect
+# take a dict <ptile_vals> with a list of values for each cluster (e.g. 'lb_ptiles', 'perfect_vals' and 'mean_affinity_ptiles' where each list is over percentile values e.g. from 50 to 100), and return the same length list for each variable but averaged over clusters
+def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind of duplicates code in scanplot.py (well except there we're averaging the *difference* between us and perfect
     non_empty_iclusts = [iclust for iclust in range(n_clusters) if 'iclust-%d'%iclust in ptile_vals and len(ptile_vals['iclust-%d'%iclust]['lb_ptiles']) > 0]
     if len(non_empty_iclusts) == 0:
         return {}  # not really sure this is right, adding it long after writing this
@@ -718,14 +719,15 @@ def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind
         for iclust in non_empty_iclusts:
             print '    %3d   %s' % (iclust, '  '.join([fstr%v for v in ptile_vals['iclust-%d'%iclust][print_var]]))
     outvals = {k : [] for k in ptile_vals['iclust-%d'%non_empty_iclusts[0]]}
-    for ival in range(len(ptile_vals['iclust-%d'%non_empty_iclusts[0]]['lb_ptiles'])):
+    n_vals = len(ptile_vals['iclust-%d'%non_empty_iclusts[0]]['lb_ptiles'])
+    for ival in range(n_vals):
         for tkey in outvals:
-            tmpvals = [ptile_vals['iclust-%d'%iclust][tkey][ival] for iclust in non_empty_iclusts]
-            if tkey == 'lb_ptiles':  # they should all be the same
+            tmpvals = [ptile_vals['iclust-%d'%iclust][tkey][ival] for iclust in non_empty_iclusts]  # list of values for variable <tkey>, one for each non-empty cluster
+            if tkey == 'lb_ptiles':  # they should all be the same since it's the actual percentile value
                 assert len(set(tmpvals)) == 1
                 oval = tmpvals[0]
             else:
-                oval = numpy.mean(tmpvals)
+                oval = numpy.mean(tmpvals)  # average over non-empty iclusts
             outvals[tkey].append(oval)
     if debug:
         print '      --> %s' % '  '.join([fstr%v for v in outvals[print_var]])

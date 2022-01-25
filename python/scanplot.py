@@ -135,6 +135,7 @@ def readlog(fname, metric, locus, ptntype):
         return {'time-reqd' : tvals[locus]}
 
 # ----------------------------------------------------------------------------------------
+# NOTE in some sense averaging over the ptiles from 75 to 100 is double counting (since e.g. the value at 75 is summing to 100), so it might make more sense to just take the value at 75 without averaging. But I think I like that it effectively over-weights the higher ptile values (since e.g. 100 occurs in every single one), plus this is used in a lot of places (e.g. in the paper) and i don't want to change it unless it's really wrong
 def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None, single_value=False):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
     # ----------------------------------------------------------------------------------------
     def yval_key(subfo):
@@ -325,7 +326,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     nd = str(0 if lo_edge >= 10. else 1)
                     print '%s%d/%d=%.2f (%s)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, fval, ('%3.'+nd+'f')%lo_edge),
             else:
-                diff_vals = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, per_x=per_x, choice_grouping=choice_grouping)
+                diff_vals = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, per_x=per_x, choice_grouping=choice_grouping)  # kind of duplicates lbplotting.get_mean_ptile_vals() (although there we're averaging over the actual values, not the difference to perfect)
                 if len(diff_vals) == 0:
                     missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
                     return
