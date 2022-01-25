@@ -861,8 +861,8 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, debug=False
         return did
 
 # ----------------------------------------------------------------------------------------
-def get_contig_id(uid, did_seps, did_indices):
-    return get_droplet_id(uid, did_seps=did_seps, did_indices=did_indices, _contigs=True)[1]
+def get_contig_id(uid, did_seps, did_indices, debug=False):
+    return get_droplet_id(uid, did_seps, did_indices, return_contigs=True, debug=debug)[1]
 
 # ----------------------------------------------------------------------------------------
 def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=None, input_metafname=None, droplet_id_fcn=get_droplet_id, debug=True):

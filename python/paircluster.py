@@ -460,9 +460,9 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             dqlist = list(drop_queries)
             found = ':'.join(sorted(dqlist)) in pgroup_strs  # was this exact combination of queries in pid_groups?
             if not found:  # if not, see if any pid groups have some of these queries
-                overlaps = [g for g in pgroup_strs if dropid in g]  # this should essentially always be length 1, except when we're missing pairing info in simulation (in which case i know we don't even want to be running this simulation, but whatever I'm testing edge cases)
                 n_not_found += 1
             if tdbg or not found:
+                overlaps = [g for g in pgroup_strs if dropid in g]  # this should essentially always be length 1, except when we're missing pairing info in simulation (in which case i know we don't even want to be running this simulation, but whatever I'm testing edge cases)
                 ostr = ' '.join(sorted(utils.get_contig_id(q, args.droplet_id_separators, args.droplet_id_indices) for q in overlaps[0].split(':'))) if len(overlaps)==1 else 'multiple'
                 print '  %25s    %s   %-8s   %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q, args.droplet_id_separators, args.droplet_id_indices) for q in dqlist)),
                                                     utils.color('red', ostr if not found else ''))
