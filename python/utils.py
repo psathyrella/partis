@@ -1495,7 +1495,7 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
     return cigarstr
 
 # ----------------------------------------------------------------------------------------
-def get_airr_line(pline, iseq, partition=None, extra_columns=None, skip_columns=None, debug=False):
+def get_airr_line(pline, iseq, partition=None, extra_columns=None, skip_columns=None, args=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def getrgn(tk):  # get region from key name
         rgn = tk.split('_')[0]
@@ -1563,7 +1563,8 @@ def get_airr_line(pline, iseq, partition=None, extra_columns=None, skip_columns=
         elif akey == 'cdr3_end':
             aline[akey] = pline['codon_positions']['j']
         elif akey == 'cell_id':
-            aline[akey] = get_droplet_id(pline['unique_ids'][iseq])
+            did_seps, did_indices = (None, None) if args is None else (args.droplet_id_separators, args.droplet_id_indices)
+            aline[akey] = get_droplet_id(pline['unique_ids'][iseq], did_seps, did_indices)
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
 
@@ -1633,7 +1634,7 @@ def convert_airr_line(aline, glfo):
     return pline
 
 # ----------------------------------------------------------------------------------------
-def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, skip_columns=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
+def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, skip_columns=None, args=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
     if extra_columns is None:
         extra_columns = []
     print '   writing airr annotations to %s' % outfname
@@ -1646,7 +1647,7 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
         writer.writeheader()
         for line in annotation_list:
             for iseq in range(len(line['unique_ids'])):
-                aline = get_airr_line(line, iseq, partition=None if cpath is None else cpath.partitions[cpath.i_best], extra_columns=extra_columns, skip_columns=skip_columns, debug=debug)
+                aline = get_airr_line(line, iseq, partition=None if cpath is None else cpath.partitions[cpath.i_best], extra_columns=extra_columns, skip_columns=skip_columns, args=args, debug=debug)
                 writer.writerow(aline)
 
         # and write empty lines for seqs that failed either in sw or the hmm
