@@ -2206,6 +2206,12 @@ class PartitionDriver(object):
                     self.process_dummy_d_hack(padded_line)
                 if self.args.no_insertions_or_deletions:
                     ends = ['v_3p', 'j_5p'] if not utils.has_d_gene(self.args.locus) else utils.real_erosions  # need 1-base d erosion for light chain
+                    del_lens = [padded_line[e+'_del'] for e in ends]
+                    ins_lens = [len(padded_line[b+'_insertion']) for b in utils.boundaries]
+                    if sum(ins_lens) != sum(del_lens):  # if the total insertion and deletion lengths aren't equal, there's no possible annotation without insertions or deletions
+                        print '  --no-insertions-or-deletions: total insertion len %d (%s) not equal to total del len %d (%s) so set annotation to failed for %s' % (sum(ins_lens), ins_lens, sum(del_lens), del_lens, padded_line['unique_ids'])
+                        hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
+                        continue
                     for end in ends:
                         padded_line[end+'_del'] = 0
                     for bound in utils.boundaries:
