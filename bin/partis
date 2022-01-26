@@ -308,6 +308,9 @@ def run_partitiondriver(args):
             raise Exception('if setting --seed-unique-id for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
 
     input_info, reco_info, glfo, simglfo = read_inputs(args, actions)
+    if input_info is not None and len(input_info) < args.n_procs:
+        print '  note: reducing N procs to the number of seqs %d --> %d' % (args.n_procs, len(input_info))
+        args.n_procs = len(input_info)
     parter = PartitionDriver(args, glfo, input_info, simglfo, reco_info)
     parter.run(actions)
     if not runs_on_existing_output(args.action):  # mostly wanted to avoid rewriting the persistent hmm cache file
