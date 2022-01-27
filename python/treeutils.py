@@ -1704,6 +1704,9 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
     if plot_cfg is None:
         plot_cfg = utils.get_arg_list(plot_cfg, choices=all_plot_cfg)
     has_affinities = any('affinities' in l for l in antn_list)
+    if has_affinities and any('affinities' not in l for l in antn_list):  # if at least one has them, but not all of them do, add null values (this is kind of hackey, but it's way way better than handling some, but not all, of the lines missing affinities in all the differeing plotting fcns)
+        for atn in [l for l in antn_list if 'affinities' not in l]:
+            atn['affinities'] = [None for _ in atn['unique_ids']]
     has_trees = is_simu or any(tk in l['tree-info']['lb'] for l in antn_list for tk in ['tree', 'aa-tree'])
     if is_simu and (not has_affinities or all(affy is None for affy in antn_list[0]['affinities'])):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
         print '      %s no affinity information in this simulation, so can\'t plot lb/affinity' % utils.color('yellow', 'note')
