@@ -16,7 +16,7 @@ def get_expanded_bounds(values, dxmin, dxmax=None):  # NOTE see also plotting.ex
         dxmax = dfcn()
     xmin = values[0] - 0.1*dxmin  # expand a little to avoid underflows
     xmax = values[-1] + 0.1*dxmax  # and overflows
-    return xmin, xmax
+    return [xmin, xmax]
 
 # ----------------------------------------------------------------------------------------
 def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fcn/signature is weird because it mimics an old root fcn (for search: log_bins log bins) UPDATE see autobins() fcn below

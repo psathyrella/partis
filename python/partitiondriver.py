@@ -1151,7 +1151,7 @@ class PartitionDriver(object):
         # return n_seqs >= 2 * self.args.subcluster_annotation_size  # used to do it this way, and there's pluses and minuses to both, but it turns out it's better to split smaller clusters
 
     # ----------------------------------------------------------------------------------------
-    def run_subcluster_annotate(self, init_partition, parameter_in_dir, n_procs, count_parameters=False, parameter_out_dir='', dont_print_annotations=False, debug=False):  # NOTE nothing to do with subcluster naive seqs above
+    def run_subcluster_annotate(self, init_partition, parameter_in_dir, count_parameters=False, parameter_out_dir='', dont_print_annotations=False, debug=False):  # NOTE nothing to do with subcluster naive seqs above
         # ----------------------------------------------------------------------------------------
         def skey(c):
             return ':'.join(c)
@@ -1270,7 +1270,7 @@ class PartitionDriver(object):
                         mphfracs = [utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in c]) for c in subclusters]
                         mean_weighted_pw_hfrac = numpy.average(mphfracs, weights=[len(c) / float(len(tclust)) for c in subclusters])
                         print '       %4d      %s      %s      %3d      %4.2f      %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), mean_weighted_pw_hfrac, ' '.join(str(len(c)) for c in subclusters))
-            _, step_antns, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, n_procs=n_procs, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
+            _, step_antns, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
             if istep == 0 and self.args.calculate_alternative_annotations:  # could do this in one of the loops below, but it's nice to have it separate since it doesn't really have anything to do with subcluster annotation
                 for tline in step_antns.values():
                     final_annotations[skey(tline['unique_ids'])] = tline
@@ -1354,13 +1354,16 @@ class PartitionDriver(object):
             print '  %s no input queries for hmm' % utils.color('red', 'warning')
             return
 
+        nsets = self.get_nsets(algorithm, partition)
         if n_procs is None:
             n_procs = self.args.n_procs
+            if len(nsets) < n_procs:
+                # print '  note: reducing N procs to the number of nsets %d --> %d' % (n_procs, len(nsets))
+                n_procs = len(nsets)
 
-        nsets = self.get_nsets(algorithm, partition)
         if self.args.subcluster_annotation_size is not None and algorithm == 'viterbi' and not is_subcluster_recursed and not precache_all_naive_seqs and any(self.subcl_split(len(c)) for c in nsets):
             assert not shuffle_input
-            return self.run_subcluster_annotate(nsets, parameter_in_dir, n_procs, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, dont_print_annotations=dont_print_annotations, debug=self.args.debug)
+            return self.run_subcluster_annotate(nsets, parameter_in_dir, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, dont_print_annotations=dont_print_annotations, debug=self.args.debug)
 
         self.write_to_single_input_file(self.hmm_infname, nsets, parameter_in_dir, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
         glutils.write_glfo(self.my_gldir, self.glfo)
