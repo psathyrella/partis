@@ -822,7 +822,7 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
 # ----------------------------------------------------------------------------------------
 def set_did_vals(uid):
     if uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation, e.g. 7842229920653554932-igl
-        return '-', [0]
+        return '-', list(range(uid.count('-')))  # make the last bit the contig id, and keep everything else as the droplet id (kind of arbitrary)
     elif '_contig_' in uid:  # 10x data
         return '_', [0]
     else:  # default (same as 10x atm)
