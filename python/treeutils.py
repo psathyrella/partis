@@ -2762,6 +2762,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     mv = utils.get_single_entry(list(set([gsval(mpfo, c, mk) for c in 'hl'])))
                     if 'neut-' in mk:  # colors that make sense for % neut values
                         mv = neut_col(mv, xlens[mk])
+                    elif mk == 'alternate-uids':
+                        mv = utils.wfmt('' if mv is None else mv, xlens[mk])
                     xstr += [mv]
             for sh in smheads:
                 xstr += [utils.wfmt(gsvstr(sumv(mpfo, sh), sh), xlens.get(sh, 7))]
@@ -2813,6 +2815,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(getcdist(x, c, frac=True) for c in 'hl'))):  # would be nice to use sumv()
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
             dids, cids = zip(*[utils.get_droplet_id(u, args.droplet_id_separators, args.droplet_id_indices, return_contigs=True) for u in (hid, lid)])
+            cids = ['-' if c in utils.loci else c for c in cids]  # previously chosen unobserved cons seqs just have e.g. igh as the contig id, which we don't want to look at in the output
             indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
             h_seq, l_seq = [utils.color_mutants(cons_mfo[c+'_cseq_aa'], utils.per_seq_val(l, 'input_seqs_aa', u), amino_acid=True, align_if_necessary=True) for c, u, l in zip('hl', (hid, lid), (h_atn, l_atn))]
             h_nuc_seq, l_nuc_seq = '', ''

@@ -52,7 +52,7 @@ def autobins(values, n_bins, is_log=False, var_type='float'):  # just making a b
 # ----------------------------------------------------------------------------------------
 def auto_volume_bins(values, n_bins, int_bins=False, debug=False):
     n_per_bin = int(len(values) / float(n_bins))
-    values = sorted(values)
+    values = sorted([v for v in values if v is not None])
     ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]
     if int_bins:
         if len(set(values)) < n_bins:

@@ -983,7 +983,8 @@ def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalize
     elif key == 'shm-aa':  # NOTE this doesn't either, which [also] may be worth fixing eventually
         return shm_aa(antn, iseq=iseq)
     elif key == 'aa-cdist':
-        return -treeutils.smvals(antn, 'cons-dist-aa', iseq=iseq)
+        cd = treeutils.smvals(antn, 'cons-dist-aa', iseq=iseq)
+        return cd if cd is None else -cd
     elif key in treeutils.selection_metrics:
         return treeutils.smvals(antn, key, iseq=iseq)
     elif key == 'multipy':  # multiplicity
