@@ -905,11 +905,9 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
     original_affinities = [l['affinities'] for l in lines]
     int_vars = ['n_mutations', 'shm-aa', 'sum-n_mutations', 'sum-shm-aa']
 
-# TODO need to have a better/bombproof way to determine whether it's paired or not (i.e. sum- or non- variables)
-    slvars = ['affinities'] + (['sum-n_mutations', 'sum-shm-aa'] if paired else ['n_mutations', 'shm-aa'])
+    slvars = ['affinities'] + ['%s%s'%('sum-' if paired else '', k) for k in ['n_mutations', 'shm-aa']]
     if is_true_line:
         slvars.append('min_target_distances')
-    # slvars = ['sum-shm-aa']
     for slvar in slvars:
         slice_var(slvar, n_bin_cfg.get(slvar, default_n_bins), slvar in int_vars)
 

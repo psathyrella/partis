@@ -2955,7 +2955,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if n_too_small > 0:
             print '    skipped %d clusters smaller than %d' % (n_too_small, min_cluster_size)
     if plotdir is not None:
-# TODO arg wtf args.selection_metrics_to_calculate is single-chain metrics
         mtc = ['sum-'+m for m in args.selection_metrics_to_calculate]
         plot_tree_metrics(plotdir, mtc, plot_antns, is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include,
                           label_tree_nodes=args.label_tree_nodes, paired=True, plot_cfg=args.selection_metric_plot_cfg)
