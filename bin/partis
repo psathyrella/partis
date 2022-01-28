@@ -356,9 +356,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             bpdir = '%s/%s'%(bpdir, '+'.join(lpair))  # NOTE this is pretty similar to utils.parameter_type_subdir(), but i think it's better to have it separate?
         return '%s/%s' % (bpdir, ltmp)
     # ----------------------------------------------------------------------------------------
-    def getifn(ltmp):
+    def getifn(ltmp, lpair=None):
         if args.paired_indir is not None:
-            yfn, ffn = [paircluster.paired_fn(args.paired_indir, ltmp, suffix=sx) for sx in ['.yaml', '.fa']]
+            yfn, ffn = [paircluster.paired_fn(args.paired_indir, ltmp, lpair=lpair, suffix=sx) for sx in ['.yaml', '.fa']]
             if [os.path.exists(f) for f in [yfn, ffn]].count(True) == 2:
                 raise Exception('both %s and %s exist, not sure which to use' % (yfn, ffn))
             return yfn if os.path.exists(yfn) else ffn
@@ -566,7 +566,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if auto_cache or tmpaction in ['annotate', 'plot-partitions', 'view-output']:
                         remove_action_specific_args(clist, args.action, tmpaction)
                     if tmpaction != 'view-output' or not args.is_data:
-                        utils.replace_in_arglist(clist, '--infname', getifn(ltmp))  # NOTE this is in some cases replaced below
+                        utils.replace_in_arglist(clist, '--infname', getifn(ltmp, lpair=lpair))  # NOTE this is in some cases replaced below
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
                     if args.seed_unique_id is not None and tmpaction in ['plot-partitions', 'view-output', 'get-selection-metrics']:  # 'partition',   # for 'partition' we no longer want to run with seed unique id set, since we're now dropping unseeded clusters beforehand, and don't want the single-chain procs to drop them (since that leaves us with seemingly-unpaired seqs later on)
                         utils.replace_in_arglist(clist, '--seed-unique-id', seedid(ltmp))
