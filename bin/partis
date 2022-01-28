@@ -589,7 +589,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 assert args.persistent_cachefname == 'paired-outdir'
                 utils.replace_in_arglist(clist, '--persistent-cachefname', getofn(ltmp, lpair=lpair, persistent_cache=True))
 
-            if args.plot_partitions or joint and tmpaction in ['annotate', 'view-output', 'get-selection-metrics', 'plot-partitions']:
+            if joint and tmpaction in ['annotate', 'view-output', 'get-selection-metrics', 'plot-partitions']:  # used to have: 'args.plot_partitions or' which I'm pretty sure was wrong but too chicken to remove completely
                 clist[clist.index(args.action)] = tmpaction
                 utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
