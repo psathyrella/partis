@@ -33,6 +33,7 @@ parser.add_argument('--make-tree-plots', action='store_true')
 parser.add_argument('--only-look-upwards', action='store_true')
 args = parser.parse_args()
 args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)
+args.selection_metric_plot_cfg, args.slice_bin_fname, args.queries_to_include, args.label_tree_nodes = None, None, None, None  # just for consistency with other calls
 ete_path, workdir = None, None
 if args.make_tree_plots:
     ete_path = '/home/%s/anaconda_ete/bin' % os.getenv('USER')
@@ -50,10 +51,9 @@ if args.max_family_size is not None:
 
 if args.metric_method == 'dtr':
     raise Exception('I think the [new] first arg here (metrics_to_calc) isn\'t right, but don\'t want to test cause i don\'t care about dtr')
-    treeutils.calculate_tree_metrics(['lbi', 'lbr', 'dtr'], None, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, base_plotdir=args.base_plotdir, only_csv=args.only_csv_plots, min_cluster_size=args.min_selection_metric_cluster_size,
-                                     dtr_path=args.dtr_path, train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, include_relative_affy_plots=args.include_relative_affy_plots,
-                                     dont_normalize_lbi=args.dont_normalize_lbi, ete_path=ete_path, workdir=workdir, cluster_indices=args.cluster_indices)
+    treeutils.calculate_tree_metrics(args, ['lbi', 'lbr', 'dtr'], None, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, base_plotdir=args.base_plotdir,
+                                     train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, ete_path=ete_path, workdir=workdir)
 else:
-    treeutils.calculate_individual_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, only_csv=args.only_csv_plots,
-                                                min_cluster_size=args.min_selection_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots,
-                                                dont_normalize_lbi=args.dont_normalize_lbi, ete_path=ete_path, workdir=workdir, cluster_indices=args.cluster_indices, only_look_upwards=args.only_look_upwards) #, debug=True)
+    treeutils.calculate_individual_tree_metrics(args, args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, lbr_tau_factor=args.lbr_tau_factor
+                                                ete_path=ete_path, workdir=workdir, only_look_upwards=args.only_look_upwards) #, debug=True)
+

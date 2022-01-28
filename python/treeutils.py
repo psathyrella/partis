@@ -1639,6 +1639,8 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
         assert reco_info is not None
         true_partition = utils.get_partition_from_reco_info(reco_info)
         print '    using %d true clusters to calculate inferred selection metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True)))
+        if len(annotations) != len(true_partition):
+            print '  %s different length true %d and inferred %d partitions when trying to match up clusters for use_true_clusters' % (utils.wrnstr(), len(true_partition), len(annotations))
         if debug:
             print '      choosing    N        N       N         frac       (N chosen)'
             print '       from     true  & chosen = in common  in common   (w/out duplicates)'
@@ -1691,8 +1693,8 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
     return inf_lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, only_csv=False, queries_to_include=None,
-                      label_tree_nodes=False, paired=False, plot_cfg=None, debug=False):
+def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, queries_to_include=None,
+                      paired=False, debug=False):
     assert not include_relative_affy_plots  # would need updating
     import plotting
     import lbplotting
@@ -1701,8 +1703,9 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
     if inf_annotations is not None:
         assert is_simu
 
+    plot_cfg = args.selection_metric_plot_cfg
     if plot_cfg is None:
-        plot_cfg = utils.get_arg_list(plot_cfg, choices=all_plot_cfg)
+        plot_cfg = all_plot_cfg
     has_affinities = any('affinities' in l for l in antn_list)
     if has_affinities and any('affinities' not in l for l in antn_list):  # if at least one has them, but not all of them do, add null values (this is kind of hackey, but it's way way better than handling some, but not all, of the lines missing affinities in all the differeing plotting fcns)
         for atn in [l for l in antn_list if 'affinities' not in l]:
@@ -1719,35 +1722,35 @@ def plot_tree_metrics(plotdir, metrics_to_calc, antn_list, is_simu=False, inf_an
         affy_fnames, slice_fnames = [[]], [[]]
         for mtr in [m for m in metrics_to_calc if m in affy_metrics]:
             if 'lb-vs-affy' in plot_cfg:
-                lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=only_csv, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
+                lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
             if 'slice' in plot_cfg:
-                lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=only_csv, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, paired=paired, debug=debug)
+                lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, paired=paired, n_bin_cfg_fname=args.slice_bin_fname, debug=debug)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', plotdir, mtr, antn_list, yvar=mtr+'-ptile', fnames=fnames, is_true_line=is_simu)
         fnames += [['header', 'affinity metrics']] + affy_fnames + slice_fnames
-        if 'joy' in plot_cfg and not only_csv:
+        if 'joy' in plot_cfg and not args.only_csv_plots:
             fnames.append([])
             for mtr in metrics_to_calc:
                 lbplotting.make_lb_affinity_joyplots(plotdir + '/joyplots', antn_list, mtr, fnames=fnames)
         if 'lb-vs-daffy' in plot_cfg:
             daffy_fnames = [[]]
             for mtr in [m for m in metrics_to_calc if m in daffy_metrics]:
-                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + mtr, antn_list, mtr, is_true_line=is_simu, only_csv=only_csv, fnames=daffy_fnames, separate_rows=True, debug=debug)
+                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + mtr, antn_list, mtr, is_true_line=is_simu, only_csv=args.only_csv_plots, fnames=daffy_fnames, separate_rows=True, debug=debug)
             fnames += [['header', 'delta-affinity metrics']] + daffy_fnames
-    if ('distr' in plot_cfg or not has_affinities) and not only_csv:
+    if ('distr' in plot_cfg or not has_affinities) and not args.only_csv_plots:
         for mtr in metrics_to_calc:
             lbplotting.plot_lb_distributions(mtr, plotdir, antn_list, is_true_line=is_simu, fnames=fnames, only_overall=False, n_iclust_plot_fnames=None if has_affinities else 8) #, stats='mean:max')
     lbplotting.add_fn(fnames, new_row=True)
 
-    if not only_csv:  # all the various scatter plots are really slow
+    if not args.only_csv_plots:  # all the various scatter plots are really slow
         if 'lb-scatter' in plot_cfg:
             for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi'), ('sum-cons-dist-aa', 'sum-aa-lbi'), ('sum-aa-lbi', 'sum-lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
-                lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=queries_to_include, add_stats='correlation')
+                lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include, add_stats='correlation')
         if ete_path is not None and has_trees and 'tree' in plot_cfg:
-            lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=queries_to_include, fnames=fnames, label_all_nodes=label_tree_nodes)
+            lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=args.queries_to_include, fnames=fnames, label_all_nodes=args.label_tree_nodes)
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
         plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs], bgcolor='#FFFFFF', title='all plots:')
 
-    if is_simu and not only_csv and 'true-vs-inf-metrics' in plot_cfg:
+    if is_simu and not args.only_csv_plots and 'true-vs-inf-metrics' in plot_cfg:
         assert inf_annotations is not None
         for mtr in [m for m in metrics_to_calc if m in lb_metrics]:
             lbplotting.plot_true_vs_inferred_lb(plotdir + '/' + mtr, antn_list, inf_annotations, mtr, fnames=fnames)
@@ -1855,10 +1858,9 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_me
         line['tree-info']['lb']['aa-'+nuc_metric] = aa_lb_info[nuc_metric]
 
 # ----------------------------------------------------------------------------------------
-def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           ete_path=None, workdir=None, dont_normalize_lbi=False, only_csv=False, min_cluster_size=default_min_selection_metric_cluster_size,
-                           dtr_path=None, train_dtr=False, dtr_cfg=None, true_lines_to_use=None, include_relative_affy_plots=False, plot_cfg=None,
-                           cluster_indices=None, outfname=None, only_use_best_partition=False, glfo=None, queries_to_include=None, label_tree_nodes=False, ignore_existing_internal_node_labels=False, debug=False):
+def calculate_tree_metrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
+                           train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, only_use_best_partition=False, glfo=None, debug=False):
+    min_cluster_size = args.min_selection_metric_cluster_size  # default_min_selection_metric_cluster_size
     print 'getting selection metrics: %s' % ' '.join(metrics_to_calc)
     if reco_info is not None:
         if not use_true_clusters:
@@ -1866,9 +1868,9 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
 
-    if dtr_path is not None:
-        assert not dont_normalize_lbi  # it's trained on normalized lbi, so results are garbage if you don't normalize
-        dtr_cfgvals, trainfo, skmodels, pmml_models, missing_models = init_dtr(train_dtr, dtr_path, cfg_fname=dtr_cfg)
+    if args.dtr_path is not None:
+        assert not args.dont_normalize_lbi  # it's trained on normalized lbi, so results are garbage if you don't normalize
+        dtr_cfgvals, trainfo, skmodels, pmml_models, missing_models = init_dtr(train_dtr, args.dtr_path, cfg_fname=dtr_cfg)
 
     if true_lines_to_use is not None:  # i.e. being called by bin/dtr-run.py
         assert reco_info is None
@@ -1884,14 +1886,14 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
         tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
         print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
-        if cluster_indices is not None:
-            if min(cluster_indices) < 0 or max(cluster_indices) >= len(inf_lines_to_use):
-                raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, len(inf_lines_to_use)))
-            print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
+        if args.cluster_indices is not None:
+            if min(args.cluster_indices) < 0 or max(args.cluster_indices) >= len(inf_lines_to_use):
+                raise Exception('invalid cluster indices %s for partition with %d clusters' % (args.cluster_indices, len(inf_lines_to_use)))
+            print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in args.cluster_indices), utils.plural(len(args.cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in args.cluster_indices))
         n_already_there, n_skipped_uid = 0, 0
         final_inf_lines = []
         for iclust, line in enumerate(inf_lines_to_use):
-            if cluster_indices is not None and iclust not in cluster_indices:
+            if args.cluster_indices is not None and iclust not in args.cluster_indices:
                 continue
             if debug:
                 print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
@@ -1906,19 +1908,19 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
 
             # get the tree if any of the requested metrics need it
             if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):
-                treefo = get_tree_for_inf_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
+                treefo = get_tree_for_inf_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
                 if treefo['tree'] is None and treefo['origin'] == 'no-uids':
                     n_skipped_uid += 1
                     continue
                 tree_origin_counts[treefo['origin']]['count'] += 1
                 if any(m in metrics_to_calc for m in ['lbi', 'lbr']):  # have to (or at least easier to) calc both even if we only need one (although i think this is only because of the lbr_tau_factor shenanigans, which maybe we don't need any more?)
-                    lbfo = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
+                    lbfo = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
                     check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
                     line['tree-info']['lb'].update(lbfo)
                 if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
-                    get_aa_lb_metrics(line, treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
+                    get_aa_lb_metrics(line, treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
 
-            if dtr_path is not None and not train_dtr:  # don't want to train on data (NOTE this would probably also need all the lb metrics calculated, but i don't care atm)
+            if args.dtr_path is not None and not train_dtr:  # don't want to train on data (NOTE this would probably also need all the lb metrics calculated, but i don't care atm)
                 calc_dtr(False, line, line['tree-info']['lb'], treefo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
 
             final_inf_lines.append(line)
@@ -1939,29 +1941,29 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
         print '      skipping %d smaller than %d' % (n_true_before - n_true_after, min_cluster_size)
         final_true_lines = []
         for iclust, true_line in enumerate(true_lines_to_use):
-            if cluster_indices is not None and iclust not in cluster_indices:
+            if args.cluster_indices is not None and iclust not in args.cluster_indices:
                 continue
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
+            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=args.dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
             if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
-                get_aa_lb_metrics(true_line, true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
+                get_aa_lb_metrics(true_line, true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
             if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above
-            if dtr_path is not None:
+            if args.dtr_path is not None:
                 calc_dtr(train_dtr, true_line, true_lb_info, true_dtree, trainfo, pmml_models, dtr_cfgvals)  # either adds training values to trainfo, or adds predicted dtr values to lbfo
             final_true_lines.append(true_line)
         true_lines_to_use = final_true_lines  # replace it with a new list that only has the clusters we really want
 
-    if dtr_path is not None:  # it would be nice to eventually merge these two blocks, i.e. use the same code to plot dtr and lbi/lbr
+    if args.dtr_path is not None:  # it would be nice to eventually merge these two blocks, i.e. use the same code to plot dtr and lbi/lbr
         if train_dtr:
-            print '  training decision trees into %s' % dtr_path
+            print '  training decision trees into %s' % args.dtr_path
             if dtr_cfgvals['n_train_per_family'] is not None:
                 print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
             for cg in cgroups:
                 for tvar in dtr_targets[cg]:
-                    train_dtr_model(trainfo[cg][tvar], dtr_path, dtr_cfgvals, cg, tvar)
+                    train_dtr_model(trainfo[cg][tvar], args.dtr_path, dtr_cfgvals, cg, tvar)
         elif base_plotdir is not None:
             assert true_lines_to_use is not None
             plstart = time.time()
@@ -1977,11 +1979,11 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
             fnames = []
             for lbm in lbmlist:
                 if 'delta-affinity' in lbm:
-                    lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, true_lines_to_use, lbm, is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug)
+                    lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, true_lines_to_use, lbm, is_true_line=True, only_csv=args.only_csv_plots, fnames=fnames, debug=debug)
                 else:
-                    for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
-                        lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, lbm, is_true_line=True, only_csv=only_csv, fnames=fnames, affy_key=affy_key)
-            if not only_csv:
+                    for affy_key in (['affinities', 'relative_affinities'] if args.include_relative_affy_plots else ['affinities']):
+                        lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, lbm, is_true_line=True, only_csv=args.only_csv_plots, fnames=fnames, affy_key=affy_key)
+            if not args.only_csv_plots:
                 plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
             print '      dtr plotting time %.1fs' % (time.time() - plstart)
     elif base_plotdir is not None:
@@ -1990,9 +1992,7 @@ def calculate_tree_metrics(metrics_to_calc, annotations, lb_tau, lbr_tau_factor=
             plstr, antn_list, is_simu, inf_annotations = 'inferred', inf_lines_to_use, False, None
         else:
             plstr, antn_list, is_simu, inf_annotations = 'true', true_lines_to_use, True, inf_lines_to_use
-        plot_tree_metrics('%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir,
-                          include_relative_affy_plots=include_relative_affy_plots, only_csv=only_csv, queries_to_include=queries_to_include, label_tree_nodes=label_tree_nodes, plot_cfg=plot_cfg,
-                          debug=debug)
+        plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir, debug=debug)
 
     if outfname is not None:
         print '  writing selection metrics to %s' % outfname
@@ -2956,8 +2956,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '    skipped %d clusters smaller than %d' % (n_too_small, min_cluster_size)
     if plotdir is not None:
         mtc = ['sum-'+m for m in args.selection_metrics_to_calculate]
-        plot_tree_metrics(plotdir, mtc, plot_antns, is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include,
-                          label_tree_nodes=args.label_tree_nodes, paired=True, plot_cfg=args.selection_metric_plot_cfg)
+        plot_tree_metrics(args, plotdir, mtc, plot_antns, is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, paired=True)
     if args.chosen_ab_fname is not None:
         write_chosen_file(all_chosen_mfos)
     # if plotdir is not None:  # eh, maybe there isn't a big reason for an overall one

@@ -786,11 +786,12 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
     add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, use_quantile=False, paired=False, debug=False):
+def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, use_quantile=False, paired=False, n_bin_cfg_fname=None, debug=False):
     debug = True
-    default_n_bins = 5
-# TODO better bin control
-    n_bin_cfg = {'affinities' : 5}
+    n_bin_cfg = {'default' : 5}
+    if n_bin_cfg_fname is not None:
+        with open(n_bin_cfg_fname) as cfile:
+            n_bin_cfg = yaml.load(cfile, Loader=yaml.CLoader)
     # ----------------------------------------------------------------------------------------
     def spec_corr(mdiff):
         # if mdiff < 0 or mdiff > 50:
@@ -909,7 +910,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
     if is_true_line:
         slvars.append('min_target_distances')
     for slvar in slvars:
-        slice_var(slvar, n_bin_cfg.get(slvar, default_n_bins), slvar in int_vars)
+        slice_var(slvar, n_bin_cfg.get(slvar, n_bin_cfg['default']), slvar in int_vars)
 
     add_fn(fnames, new_row=True)
 
