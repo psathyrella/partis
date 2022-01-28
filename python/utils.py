@@ -1037,7 +1037,10 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
     # ----------------------------------------------------------------------------------------
     def trfn(uid):
         if trfcn is not None:
-            return trfcn(uid)
+            tid = trfcn(uid)
+            if tid in revrns:
+                print '    %s translated uid %s (for %s) already in translations dict for %s' % (wrnstr(), tid, uid, revrns[tid])
+            return tid
         elif uid in trns:
             return trns[uid]
         else:

@@ -2847,22 +2847,40 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
     # ----------------------------------------------------------------------------------------
-    def add_sum_metrics(metric_pairs, h_atn):
-        reverse_translations = utils.translate_uids([h_atn], trfcn=lambda u: '-'.join(u.split('-')[:-1]))
-        rtns_list.append(reverse_translations)
-# TODO remove h specific stuff from line here?
-#   - nah, better to just rewrite the fcns to not need <line>s
+    def get_sum_metrics(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
+        # ----------------------------------------------------------------------------------------
+        def trfn(mfo, i=None):
+            # hid, lid = [gsval(mfo, c, 'unique_ids').replace(gsval(mfo, c, 'loci'), '').rstrip('-') for c in 'hl']  # strip off any loci and associated dashes on the right
+            # tid = ''.join([hc for hc, lc in zip(hid, lid) if hc == lc])  # keep only the bits that are in common (maybe would be better to use the droplet id?
+            htid, ltid = [utils.get_droplet_id(gsval(mfo, c, 'unique_ids'), args.droplet_id_separators, args.droplet_id_indices) for c in 'hl']
+            if htid != ltid:
+                print '  %s h and l droplet ids don\'t match: %s %s' % (utils.wrnstr(), htid, ltid)
+            tid = htid
+            if i is not None:
+                tid = '%s-DUPL-%d' % (tid, i)
+            return tid
+        # ----------------------------------------------------------------------------------------
+        p_atn = {k : copy.deepcopy(h_atn[k]) for k in ['unique_ids', 'affinities', 'tree', 'min_target_distances'] if k in h_atn}
+        trns, reverse_translations = {}, {}
+        for mfo in metric_pairs:  # translate uid to the droplet id, which ends up being a god damn clusterfuck because droplet ids can be repeated but we don't want duplicate ids
+            idup = None
+            while trfn(mfo, i=idup) in reverse_translations:  # add an integer plus some crap to try to make it obvious that we hit a duplicate (yeah this solution sucks, but i think it's the best available atm)
+                if idup is None: idup = 0
+                idup += 1
+            trns[gsval(mfo, 'h', 'unique_ids')] = trfn(mfo, i=idup)
+            reverse_translations[trfn(mfo, i=idup)] = gsval(mfo, 'h', 'unique_ids')
+        utils.translate_uids([p_atn], trns=trns)
+        p_atn['tree-info'] = {'lb' : {}}
         for b_mtr in args.selection_metrics_to_calculate + ['n_mutations', 'shm-aa']:
             sum_mtr = 'sum-%s' % b_mtr
-            h_atn['tree-info']['lb'][sum_mtr] = {}  # NOTE it's kind of hackey to only add it to the heavy annotation, but i'm not doing anything with it after plotting right here, anyway
+            p_atn['tree-info']['lb'][sum_mtr] = {}
             for mfo in metric_pairs:
                 sum_mval = sumv(mfo, b_mtr)
                 if sum_mval is None:
                     continue
-                h_atn['tree-info']['lb'][sum_mtr][gsval(mfo, 'h', 'unique_ids')] = sum_mval
-    # ----------------------------------------------------------------------------------------
-    def untranslate(h_atn, reverse_translations):  # ick
-        utils.translate_uids([h_atn], trns=reverse_translations)
+                pid = p_atn['unique_ids'][mfo['h_iseq']]
+                p_atn['tree-info']['lb'][sum_mtr][pid] = sum_mval
+        return p_atn
     # # ----------------------------------------------------------------------------------------
     # def makeplots(sum_antns):
     #     # h vs l aa-cdist scatter plots:
@@ -2897,6 +2915,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)
     # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
     n_too_small = 0
+    plot_antns = []
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
         print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
@@ -2920,6 +2939,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 mpfo[tch] = ltmp
                 mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
             metric_pairs.append(mpfo)
+        p_atn = get_sum_metrics(metric_pairs, h_atn)
+        if plotdir is not None:
+            plot_antns.append(p_atn)
         if len(metric_pairs) == 0:
             continue
         mtpys = get_mtpys(metric_pairs)
@@ -2932,15 +2954,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print_dbg(metric_pairs, iclust_mfos)
         if n_too_small > 0:
             print '    skipped %d clusters smaller than %d' % (n_too_small, min_cluster_size)
-        if plotdir is not None:
-            add_sum_metrics(metric_pairs, h_atn)
     if plotdir is not None:
 # TODO arg wtf args.selection_metrics_to_calculate is single-chain metrics
         mtc = ['sum-'+m for m in args.selection_metrics_to_calculate]
-        plot_tree_metrics(plotdir, mtc, [h_atn for h_atn, _ in antn_pairs], is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include,
+        plot_tree_metrics(plotdir, mtc, plot_antns, is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, only_csv=args.only_csv_plots, queries_to_include=args.queries_to_include,
                           label_tree_nodes=args.label_tree_nodes, paired=True, plot_cfg=args.selection_metric_plot_cfg)
-    for (h_atn, _), rtns in zip(antn_pairs, rtns_list):
-        untranslate(h_atn, rtns)
     if args.chosen_ab_fname is not None:
         write_chosen_file(all_chosen_mfos)
     # if plotdir is not None:  # eh, maybe there isn't a big reason for an overall one
