@@ -2849,26 +2849,21 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def get_sum_metrics(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
         # ----------------------------------------------------------------------------------------
-        def trfn(mfo, i=None):
-            # hid, lid = [gsval(mfo, c, 'unique_ids').replace(gsval(mfo, c, 'loci'), '').rstrip('-') for c in 'hl']  # strip off any loci and associated dashes on the right
-            # tid = ''.join([hc for hc, lc in zip(hid, lid) if hc == lc])  # keep only the bits that are in common (maybe would be better to use the droplet id?
-            htid, ltid = [utils.get_droplet_id(gsval(mfo, c, 'unique_ids'), args.droplet_id_separators, args.droplet_id_indices) for c in 'hl']
-            if htid != ltid:
-                print '  %s h and l droplet ids don\'t match: %s %s' % (utils.wrnstr(), htid, ltid)
-            tid = htid
-            if i is not None:
-                tid = '%s-DUPL-%d' % (tid, i)
+        def trfn(uid, idup=None):
+            tid = utils.get_droplet_id(uid, args.droplet_id_separators, args.droplet_id_indices)
+            if idup is not None:
+                tid = '%s-DUPL-%d' % (tid, idup)
             return tid
         # ----------------------------------------------------------------------------------------
         p_atn = {k : copy.deepcopy(h_atn[k]) for k in ['unique_ids', 'affinities', 'tree', 'min_target_distances'] if k in h_atn}
         trns, reverse_translations = {}, {}
-        for mfo in metric_pairs:  # translate uid to the droplet id, which ends up being a god damn clusterfuck because droplet ids can be repeated but we don't want duplicate ids
+        for uid in h_atn['unique_ids']:  # translate uid to the droplet id, which ends up being a god damn clusterfuck because droplet ids can be repeated but we don't want duplicate ids
             idup = None
-            while trfn(mfo, i=idup) in reverse_translations:  # add an integer plus some crap to try to make it obvious that we hit a duplicate (yeah this solution sucks, but i think it's the best available atm)
+            while trfn(uid, idup=idup) in reverse_translations:  # add an integer plus some crap to try to make it obvious that we hit a duplicate (yeah this solution sucks, but i think it's the best available atm)
                 if idup is None: idup = 0
                 idup += 1
-            trns[gsval(mfo, 'h', 'unique_ids')] = trfn(mfo, i=idup)
-            reverse_translations[trfn(mfo, i=idup)] = gsval(mfo, 'h', 'unique_ids')
+            trns[uid] = trfn(uid, idup=idup)
+            reverse_translations[trfn(uid, idup=idup)] = uid
         utils.translate_uids([p_atn], trns=trns)
         p_atn['tree-info'] = {'lb' : {}}
         for b_mtr in args.selection_metrics_to_calculate + ['n_mutations', 'shm-aa']:
