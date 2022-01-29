@@ -583,7 +583,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
                 mfnames.append(getofn(None, joint=True, lpair=lpair, input_meta=True))  # NOTE this is *not* the same file as in the if statement
             if len(mfnames) > 0:
-                utils.replace_in_arglist(clist, '--input-metafnames', ':'.join(set(mfnames)))  # not sure how i get duplicates, but oh well this gets rid of em
+                utils.replace_in_arglist(clist, '--input-metafnames', ':'.join(sorted(set(mfnames), key=mfnames.index)))  # not sure how i get duplicates, but oh well this gets rid of em
 
             if args.persistent_cachefname is not None:
                 assert args.persistent_cachefname == 'paired-outdir'
@@ -1046,26 +1046,26 @@ def run_all_loci(args, ig_or_tr='ig'):
             import plotting
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
     # ----------------------------------------------------------------------------------------
-    def plot_combined_partitions():
-        for lpair in spairs():  # plots for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
+    def process_all_outputs(tmpaction):
+        for lpair in spairs():  # run plots/meta update for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
             for ltmp in lpair:
-                run_step('plot-partitions', ltmp, lpair=lpair, joint=True, skip_missing_output=True)
+                run_step(tmpaction, ltmp, lpair=lpair, joint=True, skip_missing_output=True)
         cfpdir = '%s/cf-plots' % getodir(is_plotting=True)
         for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
-            if utils.has_d_gene(ltmp):  # light chain in the paired subdirs is the same, so just link the results
-                run_step('plot-partitions', ltmp, joint=True)
+            if utils.has_d_gene(ltmp):
+                run_step(tmpaction, ltmp, joint=True)
             else:
-                if os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):
+                if tmpaction == 'plot-partitions' and os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):  # light chain in the paired subdirs is the same, so for plotting just link the results
                     utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
-            if args.plotdir is not None and not args.no_partition_plots:
+            if tmpaction == 'plot-partitions' and args.plotdir is not None and not args.no_partition_plots:
                 run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
-        if args.plotdir is not None and os.path.exists(cfpdir):
+        if tmpaction == 'plot-partitions' and args.plotdir is not None and os.path.exists(cfpdir):
             fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
             import plotting
             fnlist = sorted(fnoutstr.strip().split('\n'))
             plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
     # ----------------------------------------------------------------------------------------
-    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate']
+    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate', 'update-meta-info']
     if args.action not in paired_loci_actions:
         raise Exception('action %s not supported for paired loci (choose from %s)' % (args.action, paired_loci_actions))
     if args.paired_outdir is None:
@@ -1112,8 +1112,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             ccfs = combine_inf_chains()
         if args.plot_annotation_performance:
             print '  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning')
-        if args.action == 'plot-partitions' or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None and not args.no_partition_plots) or args.plot_partitions:
-            plot_combined_partitions()
+        ptnplot = args.action == 'plot-partitions' or args.plot_partitions or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None and not args.no_partition_plots)  # ick
+        if ptnplot or args.action == 'update-meta-info':
+            process_all_outputs('plot-partitions' if ptnplot else args.action)
         if args.action == 'view-output' or args.debug_paired_clustering or args.debug:
             for ltmp in sloci():
                 run_step('view-output', ltmp, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
@@ -1320,6 +1321,7 @@ subconfig = collections.OrderedDict((
     ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
     ('get-selection-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate selection metrics using existing output.'}),
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
+    ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -1328,7 +1330,7 @@ subconfig = collections.OrderedDict((
 ))
 
 def runs_on_existing_output(actionstr):
-    return actionstr.split('-')[0] in ['view', 'plot', 'get', 'merge']
+    return actionstr.split('-')[0] in ['view', 'plot', 'get', 'merge', 'update']
 
 subargs = {subname : [] for subname in subconfig}
 

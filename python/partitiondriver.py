@@ -91,6 +91,7 @@ class PartitionDriver(object):
             'plot-partitions'              : self.read_existing_output,
             'get-selection-metrics'        : self.read_existing_output,
             'get-linearham-info'           : self.read_existing_output,
+            'update-meta-info'             : self.read_existing_output,
             'view-alternative-annotations'  : self.view_alternative_annotations,
         }
 
@@ -499,7 +500,7 @@ class PartitionDriver(object):
             print 'zero annotations to print, exiting'
             return
         annotation_dict = utils.get_annotation_dict(annotation_list)  # returns none type if there's duplicate annotations
-        extra_headers = [h for h in annotation_list[0].keys() if h not in utils.annotation_headers]
+        extra_headers = list(set([h for l in annotation_list for h in l.keys() if h not in utils.annotation_headers]))
 
         if tmpact == 'get-linearham-info':
             self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotation_list for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok (note that the order won't be the same as it would've been before)
@@ -515,9 +516,11 @@ class PartitionDriver(object):
 
         if tmpact == 'get-selection-metrics':
             self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list, cpath=cpath)  # adds tree metrics to <annotations>
-            if self.args.add_selection_metrics_to_outfname:
-                print '  rewriting output file with newly-calculated selection metrics: %s' % outfname
-                self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
+        if tmpact == 'update-meta-info':
+            seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities', 'paired-uids'])  # these keys are modified by sw (multiplicities) or paired clustering (paired-uids), so if you want to update them with this action here you're out of luck
+        if tmpact == 'update-meta-info' or (tmpact == 'get-selection-metrics' and self.args.add_selection_metrics_to_outfname):
+            print '  rewriting output file with %s: %s' % ('newly-calculated selection metrics' if tmpact=='get-selection-metrics' else 'updated input meta info', outfname)
+            self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args)
