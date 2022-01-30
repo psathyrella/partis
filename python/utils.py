@@ -24,6 +24,7 @@ import types
 import collections
 import operator
 import yaml
+import Levenshtein
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -3436,6 +3437,42 @@ def mean_pairwise_hfrac(seqlist):
     if len(seqlist) < 2:
         return 0.
     return numpy.mean([hamming_fraction(s1, s2) for s1, s2 in itertools.combinations(seqlist, 2)])
+
+# ----------------------------------------------------------------------------------------
+def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters correctly (also NOTE <aa> has no effect
+    return Levenshtein.distance(s1, s2)
+
+# ----------------------------------------------------------------------------------------
+# return list of families in <antn_list> sorted by their nearness to <line> by either 'lev' (levenshtein) or 'ham' (hamming) distance between naive sequences (automatically skips <line> if it's in <antn_list>)
+def non_clonal_clusters(line, antn_list, dtype='lev', aa=False, max_print_dist=8, extra_str='', labelstr='', debug=True):
+    # ----------------------------------------------------------------------------------------
+    def nseq(atn):
+        ns = atn['naive_seq']
+        if aa:
+            ns = ltranslate(ns)
+        return ns
+    # ----------------------------------------------------------------------------------------
+    assert dtype in ['lev', 'ham']
+    dfcn = lev_dist if dtype == 'lev' else hamming_distance
+    distances = []
+    for iclust, atn in enumerate(antn_list):
+        if atn['unique_ids'] == line['unique_ids']:
+            continue
+        distances.append({'i' : iclust, 'uids' : atn['unique_ids'], 'dist' : dfcn(nseq(atn), nseq(line))})
+    sdists = sorted(distances, key=lambda d: d['dist']) #operator.itemgetter(2))
+    if debug:
+        nearest = sdists[0]
+        near_dfos = [d for d in sdists if d['dist'] <= max_print_dist]
+        if labelstr!='':
+            labelstr = ' %s ' % labelstr
+        print '%s%snearest: %d edit%s (%d cluster%s less than %d)' % (extra_str, labelstr, nearest['dist'], plural(nearest['dist']), len(near_dfos), plural(len(near_dfos)), max_print_dist)
+        color_mutants(nseq(line), nseq(antn_list[nearest['i']]), amino_acid=aa, print_result=True, extra_str=extra_str+'  ', align_if_necessary=True)
+        if len(near_dfos) > 0:
+            print '   %s %s' % (extra_str, dtype)
+            print '   %sdist  iclust   uids' % extra_str
+            for dfo in near_dfos:
+                print '   %s%3d    %3d      %s' % (extra_str, dfo['dist'], dfo['i'], ' '.join(dfo['uids']))
+    return sdists
 
 # ----------------------------------------------------------------------------------------
 def subset_sequences(line, restrict_to_region=None, exclusion_3p=None, iseq=None):

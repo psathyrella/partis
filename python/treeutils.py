@@ -2203,6 +2203,8 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
     annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(annotations)
     print '      %s getting individual metric for %d true cluster%s with size%s: %s' % (utils.color('blue', metric_method), n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
+# ----------------------------------------------------------------------------------------
+# TODO damnit clean this whole thing up (e.g. warning about adding metrics on paired metrics
     if n_before - n_after > 0:
         print '        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
 
@@ -2799,6 +2801,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # ----------------------------------------------------------------------------------------
         smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
+
+        utils.non_clonal_clusters(h_atn, [hl for hl, _ in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(h_atn['loci'][0]), extra_str='              ')
+        utils.non_clonal_clusters(l_atn, [ll for _, ll in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(l_atn['loci'][0]), extra_str='              ')
 
         lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
         h_cshm, l_cshm = [lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
