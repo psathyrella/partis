@@ -1711,7 +1711,10 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     if plot_cfg is None:
         plot_cfg = all_plot_cfg
     if args.affinity_key is not None:
-        for atn in [l for l in antn_list if args.affinity_key in l]:
+        tmplines = [l for l in antn_list if args.affinity_key in l]
+        if len(tmplines) == 0:
+            print '  %s --affinity-key \'%s\' doesn\'t occur in any of the %d annotations' % (utils.wrnstr(), args.affinity_key, len(antn_list))
+        for atn in tmplines:
             atn['affinities'] = atn[args.affinity_key]
     has_affinities = any('affinities' in l for l in antn_list)
     if has_affinities and any('affinities' not in l for l in antn_list):  # if at least one has them, but not all of them do, add null values (this is kind of hackey, but it's way way better than handling some, but not all, of the lines missing affinities in all the differeing plotting fcns)

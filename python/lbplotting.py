@@ -344,6 +344,8 @@ def get_tree_from_line(line, is_true_line, aa=False):
 # NOTE that this isn't symmetric wrt x/y vars -- some combos require one var to be x, and the other y (otherwise it'll crash cause it can't figure out how to calculate the values)
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
                           add_jitter=False, min_ptile=80., n_iclust_plot_fnames=None, use_relative_affy=False, queries_to_include=None, add_stats=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+    if colorvar in [xvar, yvar]:
+        raise Exception('colorvar \'%s\' can\'t be one of xvar, yvar (%s %s)' % (colorvar, xvar, yvar))
     if only_overall and only_iclust:
         print '  %s only_overall and only_iclust are both set, so not plotting anything' % utils.color('yellow', 'warning')
         return
@@ -455,7 +457,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                 continue
             iclust_plotvals[xvar].append(xval)
             iclust_plotvals[yvar].append(yval)
-            if colorvar is not None:
+            if colorvar is not None: # and colorvar not in [xvar, yvar]:  # if its one of [xval, yval] we don't need to do anything
                 if colorvar == 'is_leaf':
                     node = dtree.find_node_with_taxon_label(uid)
                     colorval = node.is_leaf() if node is not None else None
