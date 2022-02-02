@@ -1695,6 +1695,10 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
 # ----------------------------------------------------------------------------------------
 def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, queries_to_include=None,
                       paired=False, debug=False):
+    reqd_args = [('selection_metric_plot_cfg', None), ('slice_bin_fname', None), ('queries_to_include', None), ('label_tree_nodes', False), ('affinity_key', None)]
+    for marg, dval in [a for a, _ in reqd_args if not hasattr(args, a)]:  # "required" args, just so when i add an arg to bin/partis i don't also have to add it to dtr-run.py
+        setattr(args, marg, dval)  # NOTE i can't actually test this atm since the individual tree metric fcn doesn't use this fcn for plotting (but it should)
+
     assert not include_relative_affy_plots  # would need updating
     import plotting
     import lbplotting
@@ -1706,6 +1710,9 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     plot_cfg = args.selection_metric_plot_cfg
     if plot_cfg is None:
         plot_cfg = all_plot_cfg
+    if args.affinity_key is not None:
+        for atn in [l for l in antn_list if args.affinity_key in l]:
+            atn['affinities'] = atn[args.affinity_key]
     has_affinities = any('affinities' in l for l in antn_list)
     if has_affinities and any('affinities' not in l for l in antn_list):  # if at least one has them, but not all of them do, add null values (this is kind of hackey, but it's way way better than handling some, but not all, of the lines missing affinities in all the differeing plotting fcns)
         for atn in [l for l in antn_list if 'affinities' not in l]:
