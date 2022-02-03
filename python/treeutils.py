@@ -2578,7 +2578,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         def handle_drople_sim_choice(refid, n_take, rmfo):
             def sfcn(m): return sum(utils.hamming_distance(gsval(m, c, 'seqs_aa'), gsval(rmfo, c, 'seqs_aa'), amino_acid=True) for c in 'hl')  # note: *not* input seqs, since they aren't in general all the same length
             if tdbg:
-                print '      nearest to %s:' % refid
+                altid = gsval(rmfo, 'h', 'alternate-uids', no_fail=True)
+                print '      nearest to %s%s:' % (refid, ' (%s)'%altid if altid is not None else '')
                 print '               hdist                          contig'
                 print '             sum  h  l         droplet         h  l'
             n_chsn = 0
