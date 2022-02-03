@@ -2379,8 +2379,27 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         total_len = sum(len(gsval(mpfo, c, 'seqs')) - gsval(mpfo, c, 'seqs').count(utils.ambig_base) for c in 'hl')
         return 100 * sumv(mpfo, 'n_mutations') / float(total_len)
     # ----------------------------------------------------------------------------------------
+    def get_did(uid, return_contigs=False):
+        return utils.get_droplet_id(uid, args.droplet_id_separators, args.droplet_id_indices, return_contigs=return_contigs)
+    # ----------------------------------------------------------------------------------------
+    def get_joint_did(mfo):
+        return utils.get_single_entry(list(set([get_did(gsval(mfo, c, 'unique_ids')) for c in 'hl'])))
+    # ----------------------------------------------------------------------------------------
+    def get_didstr(dids, cids, mpfo):
+        if len(set(dids)) == 1:  # make sure they're from the same droplet
+            didstr = dids[0]
+            if any('chosens' in mpfo[c] and gsval(mpfo, c, 'chosens') for c in 'hl'):
+                didstr = utils.color('blue_bkg', didstr, width=20)
+            if args.queries_to_include is not None and any(u in args.queries_to_include for u in (hid, lid)):
+                didstr = utils.color('red', didstr, width=20)
+        else:
+            print '  %s paired seqs %s %s have different droplet ids (i.e. they were probably mis-paired) %s' % (utils.color('red', 'error'), hid, lid, dids)
+            didstr = 'see error'
+        cids = ['-' if c in utils.loci else c for c in cids]  # previously chosen unobserved cons seqs just have e.g. igh as the contig id, which we don't want to look at in the output
+        return didstr, cids
+    # ----------------------------------------------------------------------------------------
     def read_cfgfo():
-        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'include-unobs-naive-seqs', 'vars', 'cell-types', 'cell-type-key', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids', 'meta-info-print-keys', 'include_previously_chosen'])
+        allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'include-unobs-naive-seqs', 'vars', 'cell-types', 'cell-type-key', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids', 'similar-to-droplet-ids', 'meta-info-print-keys', 'include_previously_chosen'])
         if debug:
             print '  ab choice cfg:'
             outstr, _ = utils.simplerun('cat %s'%args.ab_choice_cfg, return_out_err=True)
@@ -2556,6 +2575,35 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '        finished: %s' % ('n-per-family not specified' if get_n_choose(cfgfo, 'n-per-family') is None else '%d per family >= %d' % (len(chosen_mfos), get_n_choose(cfgfo, 'n-per-family')))
             return is_finished
         # ----------------------------------------------------------------------------------------
+        def handle_drople_sim_choice(refid, n_take, rmfo):
+            def sfcn(m): return sum(utils.hamming_distance(gsval(m, c, 'seqs_aa'), gsval(rmfo, c, 'seqs_aa'), amino_acid=True) for c in 'hl')  # note: *not* input seqs, since they aren't in general all the same length
+            if tdbg:
+                print '      nearest to %s:' % refid
+                print '               hdist                          contig'
+                print '             sum  h  l         droplet         h  l'
+            n_chsn = 0
+            for simfo in sorted(metric_pairs, key=sfcn):
+                if n_chsn >= n_take:
+                    break
+                chsnstr = ' '
+                if sfcn(simfo) > 0 and not in_chosen_seqs(all_chosen_seqs, simfo):
+                    chosen_mfos.append(simfo)
+                    all_chosen_seqs.add(tuple(gsval(simfo, c, 'input_seqs_aa') for c in 'hl'))
+                    n_chsn += 1
+                    chsnstr = utils.color('green', 'x')
+                if tdbg:
+                    dids, cids = zip(*[get_did(gsval(simfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
+                    didstr, cids = get_didstr(dids, cids, simfo)
+                    print '              %2d %2d %2d %s %20s  %s  %s  %s %s' % (sfcn(simfo),
+                                                                                utils.hamming_distance(gsval(rmfo, 'h', 'seqs_aa'), gsval(simfo, 'h', 'seqs_aa'), amino_acid=True),
+                                                                                utils.hamming_distance(gsval(rmfo, 'l', 'seqs_aa'), gsval(simfo, 'l', 'seqs_aa'), amino_acid=True),
+                                                                                chsnstr, didstr, cids[0], cids[1],
+                                                                                utils.color_mutants(gsval(rmfo, 'h', 'seqs_aa'), gsval(simfo, 'h', 'seqs_aa'), amino_acid=True),
+                                                                                utils.color_mutants(gsval(rmfo, 'l', 'seqs_aa'), gsval(simfo, 'l', 'seqs_aa'), amino_acid=True)
+                    )
+            if tdbg:
+                print '        chose %d abs similar to droplet id %s' % (n_chsn, refid)
+        # ----------------------------------------------------------------------------------------
         # run through a bunch of options for skipping seqs/families
         if args.choose_all_abs:
             return metric_pairs
@@ -2580,12 +2628,17 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                         print '        adding previously-chosen ab: %s' % ' '.join(gsval(mfo, c, 'unique_ids') for c in 'hl')
         if 'droplet-ids' in cfgfo:  # add some specific seqs
             for mfo in metric_pairs:
-                did = utils.get_single_entry(list(set([utils.get_droplet_id(gsval(mfo, c, 'unique_ids'), args.droplet_id_separators, args.droplet_id_indices) for c in 'hl'])))
+                did = get_joint_did(mfo)
                 if did in cfgfo['droplet-ids']:
                     chosen_mfos.append(mfo)
                     all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                     if tdbg:
                         print '        chose ab with droplet id %s' % did
+        if 'similar-to-droplet-ids' in cfgfo:  # add seqs similar to some specific seqs
+            for refid, n_take in cfgfo['similar-to-droplet-ids']:
+                rmfos = [m for m in metric_pairs if get_joint_did(m)==refid]
+                if len(rmfos) > 0:  # if <refid> is in the family
+                    handle_drople_sim_choice(refid, n_take, utils.get_single_entry(rmfos))
         for ctk, ntk in [('cell-types', ctkey()), ('min-umis', 'umis')]:
             if len(metric_pairs) > 0 and ctk in cfgfo and ntk not in metric_pairs[0]['h']:
                 print '  %s \'%s\' in cfgfo but \'%s\' info not in annotation' % (utils.color('yellow', 'warning'), ctk, ntk)
@@ -2784,18 +2837,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 xstr += [utils.wfmt(gsvstr(sumv(mpfo, sh), sh), xlens.get(sh, 7))]
             return xstr
         # ----------------------------------------------------------------------------------------
-        def get_didstr(dids, mpfo):
-            if len(set(dids)) == 1:  # make sure they're from the same droplet
-                didstr = dids[0]
-                if any('chosens' in mpfo[c] and gsval(mpfo, c, 'chosens') for c in 'hl'):
-                    didstr = utils.color('blue_bkg', didstr, width=20)
-                if args.queries_to_include is not None and any(u in args.queries_to_include for u in (hid, lid)):
-                    didstr = utils.color('red', didstr, width=20)
-            else:
-                print '  %s paired seqs %s %s have different droplet ids (i.e. they were probably mis-paired) %s' % (utils.color('red', 'error'), hid, lid, dids)
-                didstr = 'see error'
-            return didstr
-        # ----------------------------------------------------------------------------------------
         def getcdist(mpfo, tch, frac=False):  # can't just use gsval() for cases where we used the "input" (indel'd) cons seq (although note that there's probably some other places where the orginal/indel-reversed version is used)
             defval = gsval(mpfo, tch, 'aa-c'+('frac' if frac else 'dist'))
             return local_hdist_aa(gsval(mpfo, tch, 'input_seqs_aa'), cons_mfo[tch+'_cseq_aa'], defval=defval, frac=frac)
@@ -2832,8 +2873,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         last_cdist_str, last_mtpy_str, last_aa_shmstr = None, None, None
         for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(getcdist(x, c, frac=True) for c in 'hl'))):  # would be nice to use sumv()
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
-            dids, cids = zip(*[utils.get_droplet_id(u, args.droplet_id_separators, args.droplet_id_indices, return_contigs=True) for u in (hid, lid)])
-            cids = ['-' if c in utils.loci else c for c in cids]  # previously chosen unobserved cons seqs just have e.g. igh as the contig id, which we don't want to look at in the output
+            dids, cids = zip(*[get_did(u, return_contigs=True) for u in (hid, lid)])
+            didstr, cids = get_didstr(dids, cids, mpfo)
             indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
             h_seq, l_seq = [utils.color_mutants(cons_mfo[c+'_cseq_aa'], utils.per_seq_val(l, 'input_seqs_aa', u), amino_acid=True, align_if_necessary=True) for c, u, l in zip('hl', (hid, lid), (h_atn, l_atn))]
             h_nuc_seq, l_nuc_seq = '', ''
@@ -2848,7 +2889,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '       %s  %s   %s %20s  %s  %s   %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
                                                             aa_cdstr if aa_cdstr!=last_cdist_str else ' '*utils.len_excluding_colors(aa_cdstr),
                                                             utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
-                                                            get_didstr(dids, mpfo), cids[0], cids[1], indelstr),
+                                                            didstr, cids[0], cids[1], indelstr),
             print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstr(mpfo)),
                                                                      mtpstr if mtpstr != last_mtpy_str else ' '*utils.len_excluding_colors(mtpstr),
                                                                      sum_nuc_shm_pct(mpfo),
@@ -2865,7 +2906,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def get_sum_metrics(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
         # ----------------------------------------------------------------------------------------
         def trfn(uid, idup=None):
-            tid = utils.get_droplet_id(uid, args.droplet_id_separators, args.droplet_id_indices)
+            tid = get_did(uid)
             if idup is not None:
                 tid = '%s-DUPL-%d' % (tid, idup)
             return tid

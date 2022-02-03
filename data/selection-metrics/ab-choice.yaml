@@ -13,4 +13,5 @@ max-ambig-positions: 2  # summed over h+l amino acid seqs
 # min-median-nuc-shm-%: 2
 min-hdist-to-already-chosen: 3  # only choose abs whose h/l seqs are at least this far from previously-chosen seqs (in amino acid hamming distance, summed over h+l)
 # droplet-ids: [TGACGGCGTCACCCAG-1, AGACGTTTCAACCAAC-1]  # choose specific droplet ids, before applying other criteria
+# similar-to-droplet-ids: [[ATAACGCTCGCAGGCT-1, 5], [TGGGCGTTCCCTAATT-1, 3], ]  # choose the N abs that are nearest to these droplet ids (in aa hamming distance summed over h+l)
 # meta-info-print-keys: [[neut-DENV1s, denv-1], [neut-DENV2s, denv-2]]  # list of [key-name, key label] pairs of extra keys to print as columns in the ascii output
