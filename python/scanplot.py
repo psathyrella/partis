@@ -244,7 +244,10 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             else:
                 return strfcn(vval)
         # ----------------------------------------------------------------------------------------
-        pvnames = sorted(set(varnames) - set(['seed', xvar] + ([] if args.zip_vars is None else  args.zip_vars)))
+        pvnames = set(varnames) - set(['seed', xvar])  # these are the variables that we want as keys determining points in different lines in the plot (i.e. the variables that we *don't* average over, e.g. we always average over 'seed', so it's always removed)
+        if args.zip_vars is not None and args.final_plot_xvar in args.zip_vars:
+            pvnames -= set(args.zip_vars)  # if the x var is in zip vars, we don't want either zip var in pvnames (i.e. the zip is along the x axis), but otherwise we do (the zip vars are different lines)
+        pvnames = sorted(pvnames)
         if args.legend_var is not None:  # pvnames == ['n-sim-seqs-per-gen']:  # if this is the only thing that's different between different runs (except for the x variable and seed/replicate) then we want to use obs_frac
             pvnames = [args.legend_var]  # ['obs_frac']
         pvkey = '; '.join(valstr(vn) for vn in pvnames)  # key identifying each line of a different color
@@ -484,7 +487,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             return cval
         for vname, vval in zip(pvl_list(), label.split('; ')):
             if vname in plotting.val_cfgs[ctype]:  # only looks for the first one it finds
-                return plotting.val_cfgs[ctype][vname][vval]
+                return plotting.val_cfgs[ctype][vname].get(vval, plotting.val_cfgs[ctype]['default'])
     # ----------------------------------------------------------------------------------------
     def plotcall(pvkey, xticks, diffs_to_perfect, yerrs, mtmp, ipv=None, imtmp=None, label=None, add_to_leg=False, alpha=0.5, estr=''):
         markersize = 15  # 1 if len(xticks) > 1 else 15
@@ -739,7 +742,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             if ptilestr != 'naive-hdist':
                 ymax = 1.05
         leg_loc = [0.7, 0.15]
-        if args.final_plot_xvar == 'n-leaves' and '--constant-number-of-leaves' in args.simu_extra_args:
+        if args.final_plot_xvar == 'n-leaves' and args.simu_extra_args is not None and '--constant-number-of-leaves' in args.simu_extra_args:
             xlabel += ' (constant)'
     else:
         # dy = (ymax - ymin) / float(n_ticks - 1)
