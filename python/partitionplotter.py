@@ -468,6 +468,7 @@ class PartitionPlotter(object):
         # is_log_x = len(cslist) > 100 # and len([s for s in cslist if s>50]) > 30
         csize_hists = {'best' : hutils.make_hist_from_list_of_values(cslist, 'int', fname, is_log_x=True)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want UPDATE ok now sometimes using log bins, for aesthetic plotting reasons, but maybe also ok for sampling?
         self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists)
+        csize_hists['best'].write('%s/%s.csv' % (plotdir, fname))
         fnlist = [subd + '/' + fname + '.svg']
         ytitle = None
         if self.args.meta_info_key_to_color is not None:  # plot mean fraction of cluster that's X for each cluster size
