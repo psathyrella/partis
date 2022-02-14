@@ -519,12 +519,15 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
 
 val_cfgs = {
     'legends' : {
+        'default' : {},
         'constant-number-of-leaves' : {'0' : 'geom.', '1' : 'const.'},
     },
     'colors' : {
-        'n-leaves' : {'3' : '#1f77b4', '10' : '#ff7f0e'},
+        'default' : 'black',
+        'n-leaves' : {'hist' : 'darkred', '1' : 'black', '2' : '#006600', '3' : '#1f77b4', '10' : '#ff7f0e'},
     },
     'linestyles' : {
+        'default' : '-',
         'constant-number-of-leaves' : {'0' : 'solid', '1' : 'dashed'},
     }
 }

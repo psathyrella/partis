@@ -17,7 +17,8 @@ import clusterpath
 
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
-all_perf_metrics = ['precision', 'sensitivity', 'f1', 'pcfrac-corr', 'pcfrac-mis', 'pcfrac-un', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+all_perf_metrics += ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['corr', 'mis', 'un']]
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
@@ -115,7 +116,7 @@ def odir(args, varnames, vstrs, action):
     return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), actstr)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False, pcleancsv=False, nhdist=False):
+def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single_file=False, logfile=False, pmetr=None):
     outdir = odir(args, varnames, vstrs, action)
     if action == 'cache-parameters' and not logfile:
         outdir += '/parameters'
@@ -127,9 +128,9 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     assert locus is not None
     if logfile:
         ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '',  action)
-    elif pcleancsv:
-        ofn = '%s/true-pair-clean-performance.csv' % outdir
-    elif nhdist:
+    elif pmetr is not None and 'pcfrac-' in pmetr:
+        ofn = '%s/true-pair-clean-performance%s.csv' % (outdir, '-non-singleton' if pmetr.split('-')[-1]=='ns' else '')
+    elif pmetr is not None and pmetr == 'naive-hdist':
         ofn = '%s/single-chain/plots/%s/hmm/mutation/hamming_to_true_naive.csv' % (outdir, locus)
     elif action == 'cache-parameters':
         ofn = '%s/%s' % (outdir, locus)
@@ -319,7 +320,7 @@ def plot_loci():
 
 # ----------------------------------------------------------------------------------------
 def get_fnfcn(method, locus, ptntype, pmetr):
-    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single', logfile=pmetr=='time-reqd', pcleancsv='pcfrac-' in pmetr, nhdist=pmetr=='naive-hdist')
+    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_chain=ptntype=='single', logfile=pmetr=='time-reqd', pmetr=pmetr)
     return tmpfcn
 
 # ----------------------------------------------------------------------------------------
@@ -380,8 +381,8 @@ for action in args.actions:
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
                     pmcdir = scanplot.get_comparison_plotdir(args, method) + '/' + pmetr
-                    fnames[method][pmetr] = [[f.replace(pmcdir, '') for f in flist] for flist in fnames[method][pmetr]]
-                    plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])  # this doesn't work unless --test is set, and i'm not sure why, but whatever, just run combine-plots
+                    fnames[method][pmetr] = [[f.replace(pmcdir+'/', '') for f in flist] for flist in fnames[method][pmetr]]
+                    plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])  # this doesn't work unless --test is set since multiprocessing uses copies of <fnames>, but whatever, just run combine-plots
         elif action == 'combine-plots':
             cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])

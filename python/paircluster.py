@@ -556,20 +556,25 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             else:
                 return 'mispaired'
         # ----------------------------------------------------------------------------------------
-        fcinfo = collections.OrderedDict([('correct', 0), ('mispaired', 0), ('unpaired', 0), ('multiple', 0)])
+        ctypes = ['all', 'non-singleton']
+        fcinfo = {ct : collections.OrderedDict([('correct', 0), ('mispaired', 0), ('unpaired', 0), ('multiple', 0)]) for ct in ctypes}
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
-                    fcinfo[gpt(uid, pids)] += 1
-        fchist = hutils.make_hist_from_dict_of_counts(fcinfo, 'string', 'pair cleaning performance', no_sort=True)
-        fchist.normalize()
-        fcplname = 'true-pair-clean-performance'
-        if performance_outdir is not None:
-            fchist.write('%s/%s.csv'%(performance_outdir, fcplname))
-        if plotdir is not None:
-            fn = fchist.fullplot(plotdir, fcplname, pargs={'ignore_overflows' : True}, fargs={'xbounds' : (0.95, 1.05*len(fcinfo)), 'ybounds' : (0., 1.05), 'xticklabelsize' : 15, 'ylabel' : 'fraction of seqs'})
-            fnames.append([fn])
+                    for ctp in ctypes:
+                        if len(atn['unique_ids']) == 1 and ctp == 'non-singleton':
+                            continue
+                        fcinfo[ctp][gpt(uid, pids)] += 1
+        for ctp in ctypes:
+            fchist = hutils.make_hist_from_dict_of_counts(fcinfo[ctp], 'string', 'pair cleaning performance', no_sort=True)
+            fchist.normalize()
+            fcplname = 'true-pair-clean-performance%s' % ('' if ctp=='all' else '-'+ctp)
+            if performance_outdir is not None:
+                fchist.write('%s/%s.csv'%(performance_outdir, fcplname))
+            if plotdir is not None:
+                fn = fchist.fullplot(plotdir, fcplname, pargs={'ignore_overflows' : True}, fargs={'xbounds' : (0.95, 1.05*len(fcinfo)), 'ybounds' : (0., 1.05), 'xticklabelsize' : 15, 'ylabel' : 'fraction of seqs'})
+                fnames.append([fn])
     # ----------------------------------------------------------------------------------------
     def make_final_plots(initial_seqs_per_seq, initial_flcounts):
         final_seqs_per_seq = plot_n_pseqs_per_seq('after')

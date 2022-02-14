@@ -76,7 +76,7 @@ def read_hist_csv(fname, ptilestr):
     hist = Hist(fname=fname)
     if 'pcfrac-' in ptilestr:
         blabels = {'pcfrac-corr' : 'correct', 'pcfrac-mis' : 'mispaired', 'pcfrac-un' : 'unpaired'}
-        pval = hist.bin_contents[hist.find_bin(None, label=blabels[ptilestr])]
+        pval = hist.bin_contents[hist.find_bin(None, label=blabels[ptilestr.replace('-ns', '')])]
     else:
         pval = hist.get_mean(ibounds=(0, 25) if ptilestr=='naive-hdist' else None)  # ok this sucks, but i can't figure out how to get igblast to give reasonable results for all seqs, so whatever just give it a pass on some of them
     return {ptilestr : pval}

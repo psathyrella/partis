@@ -160,18 +160,18 @@ default_hard_bounds = {
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
     'j_hamming_to_true_naive' : (-0.5, 12.5),
-    'd_3p_del' : (-1, 15),
-    'd_5p_del' : (-1, 18),
-    'dj_insertion' : (-1, 13),
+    'd_3p_del' : (-1, 18),
+    'd_5p_del' : (-1, 20),
+    'dj_insertion' : (-1, 22),
     'jf_insertion' : (-1, 13),
     'fv_insertion' : (-1, 13),
-    'j_5p_del' : (-1, 15),
+    'j_5p_del' : (-1, 17),
     'all-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
     'v-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
     'd-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
     'j-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
     'v_3p_del' : (-1, 6),
-    'vd_insertion' : (-1, 15),
+    'vd_insertion' : (-1, 18),
     'all_insertions' : (-0.5, 20),
     'IGHJ6*02' : (-0.5, 39.5),
     'IGHJ3*02' : (-0.5, 26),
