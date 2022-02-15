@@ -539,33 +539,47 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
     # ----------------------------------------------------------------------------------------
     def make_fraction_correct_plot():
         # ----------------------------------------------------------------------------------------
-        def splid(utmp):
-            # ustr, ltmp = utmp.split('-')
-            # assert ltmp in utils.loci
-            # return ustr
-            ltmp = utils.get_single_entry([l for l in utils.loci if '-'+l in utmp])  # ICK (works also for bcr-phylo)
-            return utmp.replace('-'+ltmp, '-LOCUS')
-        # ----------------------------------------------------------------------------------------
-        def gpt(uid, pids):
+        def gpt(uid, pids):  # these are all mutually exclusive (as opposed to 'correct-family')
             if len(pids) == 0:
                 return 'unpaired'
             elif len(pids) > 1:
                 return 'multiple'
-            elif splid(uid) == splid(pids[0]):
+            elif utils.is_correctly_paired(uid, pids[0]):
                 return 'correct'
             else:
                 return 'mispaired'
         # ----------------------------------------------------------------------------------------
+        def crct_fam(uid, pids, tdbg=False):  # not mutually exclusive to the others (it kind of sucks to have this separate, but i think it's better)
+            if len(pids) != 1:
+                if tdbg:
+                    print '    %s len(pids) != 1' % uid
+                return False
+            if utils.is_correctly_paired(uid, pids[0]):
+                if tdbg:
+                    print '    %s correct' % uid
+                return True
+            plocus = pids[0].split('-')[-1]
+            assert plocus in utils.loci
+            pntn = utils.get_single_entry([l for l in antn_dicts[plocus].values() if pids[0] in l['unique_ids']])  # paired annotation
+            is_corr_fam = any(utils.is_correctly_paired(uid, u) for u in pntn['unique_ids'])  # true if the correct paired id is in the paired annotation (i.e. we just got the wrong family member)
+            if tdbg:
+                print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(pntn['unique_ids']))
+            return is_corr_fam
+        # ----------------------------------------------------------------------------------------
         ctypes = ['all', 'non-singleton']
-        fcinfo = {ct : collections.OrderedDict([('correct', 0), ('mispaired', 0), ('unpaired', 0), ('multiple', 0)]) for ct in ctypes}
+        fcinfo = {ct : collections.OrderedDict([('correct', 0), ('mispaired', 0), ('unpaired', 0), ('multiple', 0), ('correct-family', 0)]) for ct in ctypes}
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
+                    rcode = gpt(uid, pids)  # mutually exclusive result code
+                    cfam = crct_fam(uid, pids)  # correct family
                     for ctp in ctypes:
-                        if len(atn['unique_ids']) == 1 and ctp == 'non-singleton':
+                        if ctp == 'non-singleton' and len(atn['unique_ids']) == 1:
                             continue
-                        fcinfo[ctp][gpt(uid, pids)] += 1
+                        fcinfo[ctp][rcode] += 1
+                        if cfam:
+                            fcinfo[ctp]['correct-family'] += 1
         for ctp in ctypes:
             fchist = hutils.make_hist_from_dict_of_counts(fcinfo[ctp], 'string', 'pair cleaning performance', no_sort=True)
             fchist.normalize()

@@ -866,6 +866,14 @@ def get_contig_id(uid, did_seps, did_indices, debug=False):
     return get_droplet_id(uid, did_seps, did_indices, return_contigs=True, debug=debug)[1]
 
 # ----------------------------------------------------------------------------------------
+def is_correctly_paired(uid, pid):  # return true if <pid> is actually the correct partner for <uid> (i.e. this is simulation)
+    # could use the droplet id fcn, but if you accidentally ran on data it'd cause havoc so i like this better
+    def rmlocus(utmp):
+        ltmp = get_single_entry([l for l in loci if '-'+l in utmp])
+        return utmp.replace('-'+ltmp, '')
+    return rmlocus(uid) == rmlocus(pid)  # true if everything except '-'+(any locus string) is the same
+
+# ----------------------------------------------------------------------------------------
 def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=None, input_metafname=None, droplet_id_fcn=get_droplet_id, debug=True):
     # ----------------------------------------------------------------------------------------
     def did_fcn(uid, debug=False):  # shorthand that only requires uid

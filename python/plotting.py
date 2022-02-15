@@ -471,6 +471,7 @@ def interpolate_values(xvals, yvals):
 timeticks = [0.1, 1, 10, 60, 600, 3600, 36000, 86400, 604800]  # seconds
 timeticklabels = ['0.1 sec', '1 sec', '10 sec', '1 min', '10 min', '1 hour', '10 hours', '1 day', '1 week']
 
+# would be nicer to call this 'titles' or something now that i'm adding a separate one for axes, but i don't want to change it
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'vjcdr3-0.9' : 'VJ CDR3 0.9',
            # 'partition partis' : 'full partis',
@@ -510,12 +511,28 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'mfreq' : 'SHM fraction (nuc)',
            'mfreq-pct' : 'SHM % (nuc)',
            'time-reqd' : 'time required',
-           'pcfrac-corr' : 'frac. correctly paired',
-           'pcfrac-mis' : 'frac. mispaired',
-           'pcfrac-un' : 'frac. unpaired',
+           'pcfrac-corr' : 'correctly paired',
+           'pcfrac-mis' : 'mispaired',
+           'pcfrac-un' : 'unpaired',
+           'pcfrac-corrfam' : 'paired with correct family',
+           'pcfrac-corr-ns' : 'correctly paired (non-singleton)',
+           'pcfrac-mis-ns' : 'mispaired (non-singleton)',
+           'pcfrac-un-ns' : 'unpaired (non-singleton)',
+           'pcfrac-corrfam-ns' : 'paired with correct family (non-singleton)',
            'naive-hdist' : 'mean N incorrect bases', #'ham. dist. to true naive',  # NOTE duplicates/similar to entries in plotconfig.py
            'n-seqs' : 'N seqs',
            }
+
+axis_labels = {
+    'pcfrac-corr' : 'frac. correctly paired',
+    'pcfrac-mis' : 'frac. mispaired',
+    'pcfrac-un' : 'frac. unpaired',
+    'pcfrac-corrfam' : 'frac. paired with correct family',
+    'pcfrac-corr-ns' : 'frac. correctly paired',
+    'pcfrac-mis-ns' : 'frac. mispaired',
+    'pcfrac-un-ns' : 'frac. unpaired',
+    'pcfrac-corrfam-ns' : 'frac. paired with correct family',
+}
 
 val_cfgs = {
     'legends' : {

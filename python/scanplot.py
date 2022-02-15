@@ -75,7 +75,7 @@ def cp_val(cpath, ptilestr, yfname):
 def read_hist_csv(fname, ptilestr):
     hist = Hist(fname=fname)
     if 'pcfrac-' in ptilestr:
-        blabels = {'pcfrac-corr' : 'correct', 'pcfrac-mis' : 'mispaired', 'pcfrac-un' : 'unpaired'}
+        blabels = {'pcfrac-corr' : 'correct', 'pcfrac-mis' : 'mispaired', 'pcfrac-un' : 'unpaired', 'pcfrac-corrfam' : 'correct-family'}
         pval = hist.bin_contents[hist.find_bin(None, label=blabels[ptilestr.replace('-ns', '')])]
     else:
         pval = hist.get_mean(ibounds=(0, 25) if ptilestr=='naive-hdist' else None)  # ok this sucks, but i can't figure out how to get igblast to give reasonable results for all seqs, so whatever just give it a pass on some of them
@@ -169,11 +169,16 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
-def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=None, per_x=None, choice_grouping=None, use_relative_affy=False, metric_extra_str='',
+def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnfcn=None, per_x=None, choice_grouping=None, use_relative_affy=False, metric_extra_str='',
                locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, make_legend=False, leg_label='', debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def pvl_list():
         return [l.strip() for l in pvlabel[0].split(';')]
+    # ----------------------------------------------------------------------------------------
+    def ldfcn(name, axis=False):
+        if axis and name in axdict:
+            return axdict[name]
+        return legdict.get(name, name.replace('-', ' '))
     # ----------------------------------------------------------------------------------------
     def legstr(label, title=False):
         # ----------------------------------------------------------------------------------------
@@ -181,7 +186,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             if args.use_val_cfgs and not title and name in plotting.val_cfgs['legends']:
                 vstr = plotting.val_cfgs['legends'][name][val]
             else:
-                vstr = legdict.get(val, val.replace('-', ' '))
+                vstr = ldfcn(val) #legdict.get(val, val.replace('-', ' '))
             return vstr
         # ----------------------------------------------------------------------------------------
         if label is None: return None
@@ -192,7 +197,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             assert isinstance(args.pvks_to_plot, list)  # don't really need this
             for il in range(len(tmplist)):
                 subpvks = [pvk.split('; ')[il] for pvk in args.pvks_to_plot]
-                tmplist[il] += ': %s' % ' '.join(legdict.get(spvk, spvk) for spvk in subpvks)
+                tmplist[il] += ': %s' % ' '.join(ldfcn(spvk) for spvk in subpvks) # legdict.get(spvk, spvk)
         lstr = jstr.join(tmplist)
         # if per_x is None and ptntype is not None and label in args.plot_metrics:  # need to add single/joint to the method
         #     lstr += ' %s' % ltexts[ptntype]
@@ -546,7 +551,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             if action == 'plot':  # if combining plots, we're reading files in which the conversion already happened before writing
                 xvals = [xleg_vals[tuple(x)] for x in xvals]
             l_xvar = args.x_legend_var
-        xlabel = legdict.get(l_xvar, l_xvar.replace('-', ' '))
+        xlabel = ldfcn(l_xvar, axis=True) #legdict.get(l_xvar, l_xvar.replace('-', ' '))
         if l_xvar == 'parameter-variances':  # special case cause we don't parse this into lists and whatnot here
             xticks, xticklabels = [], []
             global_pv_vars = None
@@ -572,7 +577,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                     global_pv_vars = pv_vars
                 if pv_vars != global_pv_vars:
                     raise Exception('each bcr-phylo run has to have the same variables with parameter variances, but got %s and %s' % (global_pv_vars, pv_vars))
-            xlabel = ', '.join(legdict.get(p, p.replace('-', ' ')) for p in global_pv_vars)
+            xlabel = ', '.join(ldfcn(p, axis=True) for p in global_pv_vars)  # legdict.get(p, p.replace('-', ' '))
         elif isinstance(xvals[0], tuple) or isinstance(xvals[0], list):  # if it's a tuple/list (not sure why it's sometimes one vs other times the other), use (more or less arbitrary) integer x axis values
             def tickstr(t):
                 if len(t) < 4:
@@ -599,7 +604,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     if per_x is None:  # paired clustering
         assert hasattr(args, 'n_sim_events_list') and not hasattr(args, 'n_sim_events_per_proc')
         distr_hists, affy_key_str, treat_clusters_together = False, '', True  # it's important that treat_clusters_together is True, but the others i think aren't used for paired clustering
-        legdict = plotting.legends
+        legdict, axdict = plotting.legends, plotting.axis_labels
         if args.x_legend_var is not None:
             xleg_vals = {}
     else:  # tree metrics
@@ -611,7 +616,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
             return
         affy_key_str = 'relative-' if (use_relative_affy and ptilestr=='affinity') else ''  # NOTE somewhat duplicates lbplotting.rel_affy_str()
         treat_clusters_together = nsimevts() is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
-        legdict = treeutils.legtexts
+        legdict, axdict = treeutils.legtexts, treeutils.legtexts
         legdict.update(lbplotting.metric_for_target_distance_labels)
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     _, varnames, val_lists, valstrs = utils.get_var_info(args, svars)
@@ -715,7 +720,7 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
     n_ticks = 4
     ylabel, leg_loc, yticks, yticklabels = '', None, None, None
     if per_x is None:
-        ylabel = ptilelabel
+        ylabel = ldfcn(ptilestr, axis=True) if ptilelabel is None else ptilelabel
         if ptilestr == 'time-reqd':
             if ltexts[ptntype] == 'joint':
                 title += 'joint merge time'
@@ -733,9 +738,9 @@ def make_plots(args, svars, action, metric, ptilestr, ptilelabel, xvar, fnfcn=No
                 xlabel = xlabel.replace('N seqs', 'N seq pairs')
         else:
             if 'pcfrac-' in ptilestr:
-                title = legdict.get(ptilestr, ptilestr).replace('frac. ', '')
+                title = ldfcn(ptilestr)  #legdict.get(ptilestr, ptilestr).replace('frac. ', '')
             else:
-                title += ' %s: %s %s' % (locus, ltexts[ptntype], legdict.get(ptilestr, ptilestr))
+                title += ' %s: %s %s' % (locus, ltexts[ptntype], ldfcn(ptilestr)) #legdict.get(ptilestr, ptilestr))
             if any('single-chain-' in m for m in args.plot_metrics):  # better not to call it the 'joint' f1 score or whatever if we're plotting the single chain partition on it
                 title = title.replace(ltexts[ptntype], '')
             ymin = 0
