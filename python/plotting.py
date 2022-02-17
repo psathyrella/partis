@@ -527,11 +527,11 @@ axis_labels = {
     'pcfrac-corr' : 'frac. correctly paired',
     'pcfrac-mis' : 'frac. mispaired',
     'pcfrac-un' : 'frac. unpaired',
-    'pcfrac-corrfam' : 'frac. paired with correct family',
+    'pcfrac-corrfam' : 'frac. correct family',
     'pcfrac-corr-ns' : 'frac. correctly paired',
     'pcfrac-mis-ns' : 'frac. mispaired',
     'pcfrac-un-ns' : 'frac. unpaired',
-    'pcfrac-corrfam-ns' : 'frac. paired with correct family',
+    'pcfrac-corrfam-ns' : 'frac. correct family',
 }
 
 val_cfgs = {

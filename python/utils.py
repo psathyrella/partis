@@ -3452,7 +3452,7 @@ def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters c
 
 # ----------------------------------------------------------------------------------------
 # return list of families in <antn_list> sorted by their nearness to <line> by either 'lev' (levenshtein) or 'ham' (hamming) distance between naive sequences (automatically skips <line> if it's in <antn_list>)
-def non_clonal_clusters(line, antn_list, dtype='lev', aa=False, max_print_dist=8, extra_str='', labelstr='', debug=True):
+def non_clonal_clusters(refline, antn_list, dtype='lev', aa=False, max_print_dist=8, extra_str='', labelstr='', debug=True):
     # ----------------------------------------------------------------------------------------
     def nseq(atn):
         ns = atn['naive_seq']
@@ -3464,9 +3464,9 @@ def non_clonal_clusters(line, antn_list, dtype='lev', aa=False, max_print_dist=8
     dfcn = lev_dist if dtype == 'lev' else hamming_distance
     distances = []
     for iclust, atn in enumerate(antn_list):
-        if atn['unique_ids'] == line['unique_ids']:
+        if atn['unique_ids'] == refline['unique_ids']:
             continue
-        distances.append({'i' : iclust, 'uids' : atn['unique_ids'], 'dist' : dfcn(nseq(atn), nseq(line))})
+        distances.append({'i' : iclust, 'uids' : atn['unique_ids'], 'dist' : dfcn(nseq(atn), nseq(refline))})
     sdists = sorted(distances, key=lambda d: d['dist']) #operator.itemgetter(2))
     if debug:
         nearest = sdists[0]
@@ -3474,12 +3474,13 @@ def non_clonal_clusters(line, antn_list, dtype='lev', aa=False, max_print_dist=8
         if labelstr!='':
             labelstr = ' %s ' % labelstr
         print '%s%snearest: %d edit%s (%d cluster%s less than %d)' % (extra_str, labelstr, nearest['dist'], plural(nearest['dist']), len(near_dfos), plural(len(near_dfos)), max_print_dist)
-        color_mutants(nseq(line), nseq(antn_list[nearest['i']]), amino_acid=aa, print_result=True, extra_str=extra_str+'  ', align_if_necessary=True)
+        # color_mutants(nseq(refline), nseq(antn_list[nearest['i']]), amino_acid=aa, print_result=True, extra_str=extra_str+'  ', align_if_necessary=True)
         if len(near_dfos) > 0:
-            print '   %s %s' % (extra_str, dtype)
-            print '   %sdist  iclust   uids' % extra_str
+            # print '   %s %s' % (extra_str, dtype)
+            print '   %s%s dist  iclust  N uids' % (extra_str, dtype)
             for dfo in near_dfos:
-                print '   %s%3d    %3d      %s' % (extra_str, dfo['dist'], dfo['i'], ' '.join(dfo['uids']))
+                print '   %s   %3d    %3d       %3d    %s' % (extra_str, dfo['dist'], dfo['i'], len(dfo['uids']), color_mutants(nseq(refline), nseq(antn_list[dfo['i']]), amino_acid=aa, align_if_necessary=True))
+
     return sdists
 
 # ----------------------------------------------------------------------------------------

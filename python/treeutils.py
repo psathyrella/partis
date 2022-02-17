@@ -2399,6 +2399,14 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return didstr, cids
     # ----------------------------------------------------------------------------------------
     def read_cfgfo():
+        def iconvert(tcfg, vname):
+            imax = max(tcfg.keys() + [cfgfo.get('n-families', 0) - 1])
+            def_val = False if tcfg.values()[0] is True else 0
+            nvals = [tcfg.get(i, def_val) for i in range(imax+1)]
+            # if 'n-families' in cfgfo and cfgfo['n-families'] != imax + 1:  # i tried setting n-families automatically, but in practice it just tends to break things if you make it guess
+            #     print '  %s \'n-families\' not equal to imax + 1 for %s' % (utils.wrnstr(), vname)
+            # cfgfo['n-families'] = max(imax + 1, cfgfo['n-families'])
+            return nvals
         allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'include-unobs-naive-seqs', 'vars', 'cell-types', 'cell-type-key', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids', 'similar-to-droplet-ids', 'meta-info-print-keys', 'include_previously_chosen'])
         if debug:
             print '  ab choice cfg:'
@@ -2411,6 +2419,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         for sortvar, vcfg in cfgfo['vars'].items():
             if vcfg['sort'] not in ['low', 'high']:
                 raise Exception('value of sort var \'%s\' must be \'low\' or \'high\' (got \'%s\')' %(sortvar, vcfg['sort']))
+            if 'i' in vcfg:
+                vcfg['n'] = iconvert(vcfg['i'], sortvar)
             if 'n' in vcfg and len(vcfg['n']) != cfgfo['n-families']:
                 raise Exception('length of n per family list %d for sort var %s doesn\'t match n-families %d' % (len(vcfg['n']), sortvar, cfgfo['n-families']))
         if 'n-per-family' in cfgfo and any('n' in vcfg for vcfg in cfgfo['vars'].values()):
@@ -2420,6 +2430,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if tkey not in cfgfo:
                 cfgfo[tkey] = [False for _ in range(cfgfo['n-families'])]
             else:
+                if hasattr(cfgfo[tkey], 'keys'):  # if it's a dict like {i: N}
+                    cfgfo[tkey] = iconvert(cfgfo[tkey], tkey)
                 if cfgfo[tkey] in [True, False]:  # if it's a single value, expand it to the right length
                     cfgfo[tkey] = [cfgfo[tkey] for _ in range(cfgfo['n-families'])]
                 else:
@@ -2614,7 +2626,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if finished():  # return if we weren't supposed to get any from this family
             return chosen_mfos
         if tdbg:
-            print '    iclust %d: choosing abs from joint cluster with size %d (marked with %s)' % (iclust, len(metric_pairs), utils.color('green', 'x'))
+            print '    %s: choosing abs from joint cluster with size %d (marked with %s)' % (utils.color('green', 'iclust %d'%iclust), len(metric_pairs), utils.color('green', 'x'))
 
         all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen (note that this includes previously-chosen ones)
 

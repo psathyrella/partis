@@ -1,9 +1,10 @@
 n-families: 2
 include-unobs-cons-seqs: True
-# include-unobs-naive-seqs: [False, True]  # both this and the -cons- one can either be a single bool (applied to all families) or a list of length equal to n-families
+# include-unobs-naive-seqs: [False, True]  # both this and the -cons- one can either be a single bool (applied to all families) or a list of length equal to n-families (can also be like {0: True, 3: True}
 vars:
   # sort each family by the indicated variable, with direction <sort>, then take the top <n> seqs that haven't already been taken and that pass all other criteria
-  aa-cfrac: {sort: low, n: [5, 3]}  # specity either 'n:' here *or* 'n-per-family:' below
+  # aa-cfrac: {sort: low, n: [5, 3]}  # specity either 'n:' (list of N to take for each family, e.g. n: [5, 3]) or 'i:' (index : N to take, e.g. i: {0: 5, 3: 3}) here *or* 'n-per-family:' below
+  aa-cfrac: {sort: low, i: {0: 5, 9: 3}}  # specity either 'n:' (list of N to take for each family, e.g. n: [5, 3]) or 'i:' (index : N to take, e.g. i: {0: 5, 3: 3}) here *or* 'n-per-family:' below
   # shm-aa: {sort: high, n: [3, 3, 3, 3, 3, 2, 2, 2, 2, 2]}
 # cell-types: [pb]  # allow only cells of type 'pb'
 # cell-type-key: v0-cell-types  # use this key for cell type rather than 'cell-types' (allows to have multiple versions of cell type info in the annotations)

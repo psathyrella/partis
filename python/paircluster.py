@@ -452,6 +452,23 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
 # ----------------------------------------------------------------------------------------
 def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=None, max_hdist=4, debug=False):
     # ----------------------------------------------------------------------------------------
+    def crct_fam(uid, pids, tdbg=False):  # not mutually exclusive to the others (it kind of sucks to have this separate, but i think it's better)
+        if len(pids) != 1:
+            if tdbg:
+                print '    %s N pids %d' % (uid, len(pids))
+            return False
+        if utils.is_correctly_paired(uid, pids[0]):
+            if tdbg:
+                print '    %s correct' % uid
+            return True
+        plocus = pids[0].split('-')[-1]
+        assert plocus in utils.loci
+        pntn = utils.get_single_entry([l for l in antn_dicts[plocus].values() if pids[0] in l['unique_ids']])  # paired annotation
+        is_corr_fam = any(utils.is_correctly_paired(uid, u) for u in pntn['unique_ids'])  # true if the correct paired id is in the paired annotation (i.e. we just got the wrong family member)
+        if tdbg:
+            print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(pntn['unique_ids']))
+        return is_corr_fam
+    # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
         if not args.is_data:
             # print '  note: couldn\'t get droplet id from \'%s\', so assuming this isn\'t 10x data' % next(iter(all_uids))  # NOTE i'm not sure that this gives the same one as the previous line
@@ -558,45 +575,34 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             else:
                 return 'mispaired'
         # ----------------------------------------------------------------------------------------
-        def crct_fam(uid, pids, tdbg=False):  # not mutually exclusive to the others (it kind of sucks to have this separate, but i think it's better)
-            if len(pids) != 1:
-                if tdbg:
-                    print '    %s len(pids) != 1' % uid
-                return False
-            if utils.is_correctly_paired(uid, pids[0]):
-                if tdbg:
-                    print '    %s correct' % uid
-                return True
-            plocus = pids[0].split('-')[-1]
-            assert plocus in utils.loci
-            pntn = utils.get_single_entry([l for l in antn_dicts[plocus].values() if pids[0] in l['unique_ids']])  # paired annotation
-            is_corr_fam = any(utils.is_correctly_paired(uid, u) for u in pntn['unique_ids'])  # true if the correct paired id is in the paired annotation (i.e. we just got the wrong family member)
-            if tdbg:
-                print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(pntn['unique_ids']))
-            return is_corr_fam
-        # ----------------------------------------------------------------------------------------
-        ctypes = ['all', 'non-singleton']
-        fcinfo = {ct : collections.OrderedDict([('correct', 0), ('mispaired', 0), ('unpaired', 0), ('multiple', 0), ('correct-family', 0)]) for ct in ctypes}
+        kcodes = ['correct', 'mispaired', 'unpaired', 'multiple', 'correct-family', 'total']
+        fcinfo = {k : {} for k in kcodes}
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
                 atn = antn_dicts[ltmp][':'.join(cluster)]
                 for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
                     rcode = gpt(uid, pids)  # mutually exclusive result code
                     cfam = crct_fam(uid, pids)  # correct family
-                    for ctp in ctypes:
-                        if ctp == 'non-singleton' and len(atn['unique_ids']) == 1:
-                            continue
-                        fcinfo[ctp][rcode] += 1
-                        if cfam:
-                            fcinfo[ctp]['correct-family'] += 1
-        for ctp in ctypes:
-            fchist = hutils.make_hist_from_dict_of_counts(fcinfo[ctp], 'string', 'pair cleaning performance', no_sort=True)
-            fchist.normalize()
-            fcplname = 'true-pair-clean-performance%s' % ('' if ctp=='all' else '-'+ctp)
-            if performance_outdir is not None:
+                    fsize = len(atn['unique_ids'])
+                    if fsize not in fcinfo['total']:
+                        for k in kcodes:  # add it to all of them so they all have the same bins
+                            fcinfo[k][fsize] = 0
+                    if fsize not in fcinfo[rcode]:
+                        fcinfo[rcode][fsize] = 0
+                    fcinfo['total'][fsize] += 1
+                    fcinfo[rcode][fsize] += 1
+                    if cfam:
+                        fcinfo['correct-family'][fsize] += 1
+        for kcd in kcodes:
+            if kcd != 'total':
+                for fsize in fcinfo[kcd]:
+                    fcinfo[kcd][fsize] = fcinfo[kcd][fsize] / float(fcinfo['total'][fsize])
+            fchist = hutils.make_hist_from_dict_of_counts(fcinfo[kcd], 'int', 'pair cleaning performance') #, no_sort=True)
+            fcplname = 'true-pair-clean-performance-%s' % kcd
+            if performance_outdir is not None:  # need to write it here so you have it even if you're not plotting
                 fchist.write('%s/%s.csv'%(performance_outdir, fcplname))
             if plotdir is not None:
-                fn = fchist.fullplot(plotdir, fcplname, pargs={'ignore_overflows' : True}, fargs={'xbounds' : (0.95, 1.05*len(fcinfo)), 'ybounds' : (0., 1.05), 'xticklabelsize' : 15, 'ylabel' : 'fraction of seqs'})
+                fn = fchist.fullplot(plotdir, fcplname, pargs={'label' : kcd, 'ignore_overflows' : True}, fargs={'xticklabelsize' : 15, 'ylabel' : 'number of seqs'})  # , 'ybounds' : (0., 1.05)'xbounds' : (0.95, 1.05*len(fcinfo)), 
                 fnames.append([fn])
     # ----------------------------------------------------------------------------------------
     def make_final_plots(initial_seqs_per_seq, initial_flcounts):
@@ -732,10 +738,16 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             return '  '.join('%s %s %s'%(lg, '%1d'%sp if pfids is None else '%2d'%sp, fidstr(fid)) for lg, sp, fid in zip(lgstr(spids, dont_sort=True).split(' '), spfcs, spfids))
         # ----------------------------------------------------------------------------------------
         def print_dbg():
+            def truestr(uid, pids):
+                if uid is None or args.is_data:
+                    return ''
+                is_correct = len(pids)==1 and utils.is_correctly_paired(uid, pids[0])
+                cfam = crct_fam(uid, pids)
+                return '%s ' % (utils.color('green', 'y') if is_correct else (utils.color('yellow', '*') if cfam else utils.color('red', 'n')))
             new_pfams = get_pfamily_dict(cline, extra_str='after:', old_pfam_dict=old_pfams)
             pfcounts = [[new_pfams[pfkey(p)]['count'] for p in pids] for pids in cline['paired-uids']]
             pfids = [[new_pfams[pfkey(p)]['id'] for p in pids] for pids in cline['paired-uids']]
-            uid_extra_strs = ['%s: %s'%(utils.locstr(l), lcstr(pids, pfcs, pfids)) for l, pids, pfcs, pfids in zip(cline['loci'], cline['paired-uids'], pfcounts, pfids)]
+            uid_extra_strs = ['%s%s: %s'%(truestr(u, pids), utils.locstr(l), lcstr(pids, pfcs, pfids)) for l, u, pids, pfcs, pfids in zip(cline['loci'], cline['unique_ids'], cline['paired-uids'], pfcounts, pfids)]
             old_pfcounts = [[old_pfams[pfkey(p)]['count'] for p in pids] for pids in old_pids]
             old_estrs = ['%s: %s'%(utils.locstr(l), lcstr(pids, pfcs)) for l, pids, pfcs in zip(cline['loci'], old_pids, old_pfcounts)]
             for istr, (oldstr, newstr) in enumerate(zip(old_estrs, uid_extra_strs)):

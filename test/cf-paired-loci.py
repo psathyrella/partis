@@ -18,7 +18,8 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-all_perf_metrics += ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['corr', 'mis', 'un', 'corrfam']]
+pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['corr', 'mis', 'un', 'corrfam']]
+all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
@@ -34,6 +35,7 @@ parser.add_argument('--n-sim-events-list', default='10', help='N sim events in e
 parser.add_argument('--n-leaves-list') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--n-sim-seqs-per-generation-list')  # only for bcr-phylo
 parser.add_argument('--constant-number-of-leaves-list')
+parser.add_argument('--n-leaf-distribution-list', help='NOTE can use either this or \'n-leaves\' for \'hist\' n leaf distr')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
@@ -51,7 +53,8 @@ parser.add_argument('--random-seed', default=0, type=int, help='note that if --n
 parser.add_argument('--single-light-locus')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
-parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutatio simulation, rather than partis (i.e. TreeSim/bpp)')
+parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutation simulation, rather than partis (i.e. TreeSim/bpp)')
+parser.add_argument('--data-cluster-size-hist-fname', default='/fh/fast/matsen_e/processed-data/partis/goo-dengue-10x/count-params-v0/d-14/parameters/igh+igk/igh/hmm/cluster_size.csv') #/fh/fast/matsen_e/processed-data/partis/10x-examples/v1/hs-1-postvax/parameters/igh+igk/igh/hmm/cluster_size.csv')  # ick ick ick
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
@@ -75,7 +78,7 @@ parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while w
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
+args.scan_vars = {'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
 for act in ['cache-parameters'] + ptn_actions + plot_actions:
     args.scan_vars[act] = args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times']
@@ -94,6 +97,8 @@ if args.plot_metric_extra_strs is None:
 if len(args.plot_metrics) != len(args.plot_metric_extra_strs):
     raise Exception('--plot-metrics %d not same length as --plot-metric-extra-strs %d' % (len(args.plot_metrics), len(args.plot_metric_extra_strs)))
 args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
+if 'all-pcfrac' in args.perf_metrics:
+    args.perf_metrics = args.perf_metrics.replace('all-pcfrac', ':'.join(pcfrac_metrics))
 args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 
@@ -209,6 +214,11 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' %s' % args.simu_extra_args
         for vname, vstr in zip(varnames, vstrs):
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd, replacefo=get_replacefo())
+            if vname in ['n-leaves', 'n-leaf-distribution'] and vstr == 'hist':
+                if vname == 'n-leaves':
+                    cmd = ' '.join(utils.remove_from_arglist(cmd.split(), '--n-leaves', has_arg=True))
+                    cmd += ' --n-leaf-distribution hist'
+                cmd += ' --n-leaf-hist-fname %s' %  args.data_cluster_size_hist_fname
         if args.bcr_phylo:
             # raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
             cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath --min-ustr-len 20 --dont-observe-common-ancestors'  # NOTE don't increase the mutation rate it makes everything terminate early  --base-mutation-rate 1'  # it's nice to jack up the mutation rate so we get more mutations in less time (higher than this kills off all leaves, not sure why, altho i'm sure it's obvious if i thought about it)
