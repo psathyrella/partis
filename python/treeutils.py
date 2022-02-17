@@ -39,10 +39,7 @@ daffy_metrics += ['sum-'+m for m in daffy_metrics]
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
 selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr']  # I really thought this was somewhere, but can't find it so adding it here
-# ----------------------------------------------------------------------------------------
-# TODO
 selection_metrics += ['sum-n_mutations', 'sum-shm-aa']
-# ----------------------------------------------------------------------------------------
 typical_bcr_seq_len = 400
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 1
@@ -2213,8 +2210,6 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
     annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(annotations)
     print '      %s getting individual metric for %d true cluster%s with size%s: %s' % (utils.color('blue', metric_method), n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
-# ----------------------------------------------------------------------------------------
-# TODO damnit clean this whole thing up (e.g. warning about adding metrics on paired metrics
     if n_before - n_after > 0:
         print '        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
 
