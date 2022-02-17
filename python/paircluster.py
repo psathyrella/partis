@@ -290,13 +290,20 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
     return lp_antn_pairs
 
 # ----------------------------------------------------------------------------------------
-def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet):
+def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constant_n_cells=False):
     n_droplets = max(1, int(0.5 * float(len(outfos)) / mean_cells_per_droplet))  # (randomly) apportion cells among this many droplets (0.5 is because <outfos> includes both heavy and light sequences)
     droplet_ids = [[] for _ in range(n_droplets)]  # list of sequence ids for each droplet
     sfo_dict = {s['name'] : s for s in outfos}  # temp, to keep track of who still needs apportioning (but we do modify its sfos, which are shared with <outfos>)
+    print mean_cells_per_droplet
     while len(sfo_dict) > 0:
         tid = next(iter(sfo_dict))
-        idrop = numpy.random.choice(range(len(droplet_ids)))
+        if constant_n_cells:
+            ichoices = [i for i in range(len(droplet_ids)) if len(droplet_ids[i]) / 2. < mean_cells_per_droplet]
+            if len(ichoices) == 0:
+                ichoices = range(len(droplet_ids))
+            idrop = numpy.random.choice(ichoices)
+        else:
+            idrop = numpy.random.choice(range(len(droplet_ids)))
         droplet_ids[idrop] += [tid] + metafos[tid]['paired-uids']  # add <tid> plus its paired ids to this drop (note that these are the original/correct paired ids, which is what we want)
         for uid in [tid] + metafos[tid]['paired-uids']:
             sfo_dict[uid]['droplet-ids'] = droplet_ids[idrop]
@@ -304,6 +311,7 @@ def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet):
     for sfo in outfos:
         metafos[sfo['name']]['paired-uids'] = [u for u in sfo['droplet-ids'] if u != sfo['name']]
     print '  apportioned %d seqs among %d droplets (mean/2 %.1f): %s' % (len(outfos), n_droplets, numpy.mean([len(d) for d in droplet_ids]) / 2, ' '.join(str(len(d)) for d in droplet_ids))
+
 # ----------------------------------------------------------------------------------------
 def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
     n_to_remove = int(fraction_of_reads_to_remove * len(outfos))
@@ -313,9 +321,10 @@ def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
     outfos = [outfos[ifo] for ifo in range(len(outfos)) if ifo not in ifos_to_remove]
     print '  removed %d / %d = %.2f seqs from outfos' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove))
     return outfos
+
 # ----------------------------------------------------------------------------------------
 # write fasta and meta file with all simulation loci together
-def write_merged_simu(antn_lists, fastafname, metafname, mean_cells_per_droplet=None, fraction_of_reads_to_remove=None):  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
+def write_merged_simu(antn_lists, fastafname, metafname, mean_cells_per_droplet=None, fraction_of_reads_to_remove=None, constant_n_cells=False):  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
     # merge together info from all loci into <outfos> and <metafos>
     outfos, metafos = [], {}
     for ltmp in antn_lists:
@@ -325,7 +334,7 @@ def write_merged_simu(antn_lists, fastafname, metafname, mean_cells_per_droplet=
                 metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
 
     if mean_cells_per_droplet is not None:
-        apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet)
+        apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constant_n_cells=constant_n_cells)
     if fraction_of_reads_to_remove is not None:
         outfos = remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove)
 

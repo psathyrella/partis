@@ -176,6 +176,8 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         return [l.strip() for l in pvlabel[0].split(';')]
     # ----------------------------------------------------------------------------------------
     def ldfcn(name, axis=False):
+        if name == 'mean-cells-per-droplet' and hasattr(args, 'simu_extra_args') and '--constant-cells-per-droplet' in args.simu_extra_args:
+            name = name.replace('mean-', '')
         if axis and name in axdict:
             return axdict[name]
         return legdict.get(name, name.replace('-', ' '))

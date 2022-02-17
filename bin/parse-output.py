@@ -58,7 +58,7 @@ def count_plot(tglfo, tlist, plotdir, paired_loci=None):
     pcounter = ParameterCounter(tglfo, args)  # NOTE doesn't count correlations by default
     for line in tlist:
         pcounter.increment(line)
-    pcounter.plot(plotdir, only_csv=args.only_csv_plots) #, make_per_base_plots=True) #, only_overall=True, make_per_base_plots=True
+    pcounter.plot(plotdir, only_csv=args.only_csv_plots, only_overall=args.only_overall_plots) #, make_per_base_plots=True) , make_per_base_plots=True
 
 # ----------------------------------------------------------------------------------------
 helpstr = """
@@ -84,8 +84,8 @@ parser.add_argument('--glfo-dir', help='Directory with germline info. Only neces
 parser.add_argument('--template-glfo-dir', help='use this glfo dir as a template when reading --glfo-dir (only used for airr input atm)')
 parser.add_argument('--locus', default='igh', help='only used for old-style csv output files')
 parser.add_argument('--plotdir', help='if set, plot annotation parameters from infile to --plotdir and exit (you still have to set outfile, sorry, since it\'s nice having it be a positional arg, but it doesn\'t get used for this). To add e.g. per-gene-per-position plots comment/uncomment args in the call below.')
-parser.add_argument('--only-count-correlations', action='store_true', help='instead of counting/plotting all parameters, including correlations, only count and plot correlations (no effect if --plotdir isn\'t set)')
-parser.add_argument('--only-plot-performance', action='store_true', help='instead of counting/plotting all parameters, including correlations, only count and plot correlations (no effect if --plotdir isn\'t set)')
+parser.add_argument('--only-count-correlations', action='store_true', help='')
+parser.add_argument('--only-plot-performance', action='store_true', help='')
 parser.add_argument('--fasta-info-separator', default=' ', help='character to use ')
 parser.add_argument('--debug', type=int, default=0)
 parser.add_argument('--airr-input', action='store_true', help='read input in AIRR tsv format, and if output file suffix is .yaml write partis output.')
@@ -98,6 +98,7 @@ parser.add_argument('--only-make-plots', action='store_true', help='if --plotdir
 parser.add_argument('--plot-tree-mut-stats', action='store_true', help='plot tree mutation stats and exit')
 parser.add_argument('--only-plot-leaves', action='store_true', help='only affects --plot-tree-mut-stats')
 parser.add_argument('--is-simu', action='store_true', help='only affects --plot-tree-mut-stats')
+parser.add_argument('--only-overall-plots', action='store_true', help='TODO')
 parser.add_argument('--treefname', help='only affects --plot-tree-mut-stats')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works

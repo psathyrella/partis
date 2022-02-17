@@ -86,7 +86,7 @@ class TreeGenerator(object):
     def init_n_leaves(self):
         # ----------------------------------------------------------------------------------------
         def init_n_leaf_hist():
-            csfname = '%s/cluster_size.csv' % self.parameter_dir
+            csfname = '%s/cluster_size.csv' % self.parameter_dir if self.args.n_leaf_hist_fname is None else self.args.n_leaf_hist_fname
             if not os.path.exists(csfname):
                 print '  %s tried to use cluster size hist for N leaf distribution, but it doesn\'t exist: %s' % (utils.color('yellow', 'warning'), csfname)
                 return
