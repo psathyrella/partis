@@ -27,6 +27,8 @@ default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c
 default_linewidths = ['5', '3', '2', '2', '2']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
+
+# ----------------------------------------------------------------------------------------
 def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either xmin and xmax, or hlist NOTE pretty similar to get_auto_y_ticks() (for search: log_bins log bins)
     if xmin is None or xmax is None:
         assert xmin is None and xmax is None  # would have to implement it if you want to be able to set just one
