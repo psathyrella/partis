@@ -450,7 +450,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=None, max_hdist=4, debug=False):
+def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=None, max_hdist=4, true_partitions=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def crct_fam(uid, pids, tdbg=False):  # not mutually exclusive to the others (it kind of sucks to have this separate, but i think it's better)
         if len(pids) != 1:
@@ -463,10 +463,11 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             return True
         plocus = pids[0].split('-')[-1]
         assert plocus in utils.loci
-        pntn = utils.get_single_entry([l for l in antn_dicts[plocus].values() if pids[0] in l['unique_ids']])  # paired annotation
-        is_corr_fam = any(utils.is_correctly_paired(uid, u) for u in pntn['unique_ids'])  # true if the correct paired id is in the paired annotation (i.e. we just got the wrong family member)
+        # pntn = utils.get_single_entry([l for l in antn_dicts[plocus].values() if pids[0] in l['unique_ids']])  # paired annotation
+        true_clust = utils.get_single_entry([c for c in true_partitions[plocus] if pids[0] in c])  # paired annotation
+        is_corr_fam = any(utils.is_correctly_paired(uid, u) for u in true_clust)  # true if the correct paired id is in the paired annotation (i.e. we just got the wrong family member)
         if tdbg:
-            print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(pntn['unique_ids']))
+            print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(true_clust))
         return is_corr_fam
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
@@ -679,27 +680,28 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         return ids_to_remove
 
     # ----------------------------------------------------------------------------------------
-    def update_pid_info(antn, cpids, tdbg=False):  # remove the two ids <cpids> from everybody's paired ids, since we've just decided they're properly paired (note that you do *not* want to modify <pfamilies> here -- that would be destroying the info you need to decided who's paired with who)
-        if tdbg:
-            print '  upd: %s' % ' '.join(cpids)
-        for cid in cpids:
-            for iseq, uid in enumerate(antn['unique_ids']):  # remove <cid> from all paired uid lists (except the other one in <cpids>)
-                if cid not in antn['paired-uids'][iseq]:
-                    continue
-                if uid in cpids:
-                    continue
-                if tdbg:
-                    print '    %s %3d --> %3d   %s' % (uid, len(antn['paired-uids'][iseq]), len([p for p in antn['paired-uids'][iseq] if p != cid]), ' '.join(utils.color('red' if p==cid else None, p) for p in antn['paired-uids'][iseq]))  # ok i know it should always just decrease by one, but maybe something else could break and you get duplicates?
-                antn['paired-uids'][iseq] = [p for p in antn['paired-uids'][iseq] if p != cid]
-                # if len(antn['paired-uids'][iseq]) == 0:
-                #     raise Exception('removed all paired ids')
-    # ----------------------------------------------------------------------------------------
-    def update_all_pid_info(cpids, tdbg=False):
+    def update_all_pid_info(finished_ids, tdbg=False):  # update pids in all annotations for all loci after finishing cleaning a cluster
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
-                update_pid_info(antn_dicts[ltmp][':'.join(cluster)], cpids, tdbg=tdbg)
+                antn = antn_dicts[ltmp][':'.join(cluster)]
+                for iseq, uid in enumerate(antn['unique_ids']):
+                    if uid in finished_ids:
+                        continue
+                    antn['paired-uids'][iseq] = [p for p in antn['paired-uids'][iseq] if p not in finished_ids]
     # ----------------------------------------------------------------------------------------
-    def ptn_clean(cline, cluster, remove_uncertain_pids=False):  # use information from the [clonal family] partitions to decide which of several potential paired uids is the correct one
+    def update_pid_info(cpids, tdbg=False):  # remove the two ids <cpids> from everybody's paired ids, since we've just decided they're properly paired (note that you do *not* want to modify <pfamilies> here -- that would be destroying the info you need to decided who's paired with who)
+        if tdbg:
+            print '  upd: %s' % ' '.join(cpids)
+        assert len(cpids) == 2
+        for cid, oid in zip(cpids, reversed(cpids)):
+            cntn, ic = all_antns[cid], all_antns[cid]['unique_ids'].index(cid)
+            if cntn['paired-uids'][ic] == [oid]:  # already ok
+                continue
+            if tdbg:
+                print '      %s %3d --> %3d   %s' % (cid, len(cntn['paired-uids'][ic]), 1, ' '.join(utils.color('red' if p==oid else None, p) for p in cntn['paired-uids'][ic]))  # ok i know it should always just decrease by one, but maybe something else could break and you get duplicates?
+            cntn['paired-uids'][ic] = [oid]
+    # ----------------------------------------------------------------------------------------
+    def ptn_clean(uloc, cline, cluster, remove_uncertain_pids=False):  # use information from the [clonal family] partitions to decide which of several potential paired uids is the correct one
         # ----------------------------------------------------------------------------------------
         def fidstr(fid):
             if fid == '':
@@ -712,7 +714,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                     name_ids[fid] = fstr
                 return utils.color(utils.cyclecolor(fid, clist=['red', 'yellow', 'blue_bkg', 'reverse_video', 'green_bkg', 'purple', 'green', 'blue']), fstr)
         # ----------------------------------------------------------------------------------------
-        def get_pfamily_dict(extra_str='', old_pfam_dict=None):  # see what others in its family are paired with
+        def get_pfamily_dict(old_pfam_dict=None):  # see what others in its family are paired with
             pfdict = {}  # counts how many different uids in <cline> had paired ids from each potential paired family (well, how many pids total, but i think they'll always be the same)
             fid_counter = 0  # give a unique id to each family, for dbg printing purposes
             for uid, pids in zip(cline['unique_ids'], cline['paired-uids']):
@@ -723,27 +725,25 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                         pfdict[fkey] = {'locus' : gval(pid, 'loci'), 'count' : 0, 'id' : fid_counter if old_pfam_dict is None else old_pfam_dict[fkey]['id']}
                         fid_counter += 1
                     pfdict[fkey]['count'] += 1  # NOTE that if two cells from this family are in the same droplet, we can see the same pid here more than once (i.e. two counts here can be from the same uid)
-            if debug and len(cline['unique_ids']) > 1:
-                print '    %7s votes size  id  cdr3' % extra_str
-                for fkey, fdict in sorted(pfdict.items(), key=lambda x: x[1]['count'], reverse=True):
-                    print '       %s    %3d   %3d  %2d %s  %3d' % (utils.locstr(fdict['locus']), fdict['count'], len(antn_dicts[fdict['locus']][fkey]['unique_ids']), fdict['id'], fidstr(fdict['id']), antn_dicts[fdict['locus']][fkey]['cdr3_length'])
-
             return pfdict
         # ----------------------------------------------------------------------------------------
         def pfkey(p):
             return ':'.join(all_antns[p]['unique_ids'])  # keystr for the family of paired id <p>
         # ----------------------------------------------------------------------------------------
-        def print_dbg():
+        def print_dbg(old_pfams, new_pfams):
             # ----------------------------------------------------------------------------------------
-            def lcstr(pids, pfcs, pfids=None):  # returns string summarizing the families of the paired uids for a uid, e.g. 'k 51  l 3  h 1' if the uid has three potential pids, one from k with which 50 other uids in <cline> are paired, etc.
+            def prpfd(pfdict, extra_str=''):
+                print '        %7s votes size  id  cdr3' % extra_str
+                for fkey, fdct in sorted(pfdict.items(), key=lambda x: x[1]['count'], reverse=True):
+                    if utils.samechain(fdct['locus'], uloc):
+                        continue
+                    print '           %s    %3d   %3d  %2d %s  %3d' % (utils.locstr(fdct['locus']), fdct['count'], len(antn_dicts[fdct['locus']][fkey]['unique_ids']), fdct['id'], fidstr(fdct['id']), antn_dicts[fdct['locus']][fkey]['cdr3_length'])
+            # ----------------------------------------------------------------------------------------
+            def lcstr(pids, pfcs, pfids):  # returns string summarizing the families of the paired uids for a uid, e.g. 'k 51  l 3  h 1' if the uid has three potential pids, one from k with which 50 other uids in <cline> are paired, etc.
                 if len(pids) == 0: return ''
-                if pfids is None:
-                    spids, spfcs = zip(*sorted(zip(pids, pfcs), key=operator.itemgetter(1), reverse=True))
-                    spfids = ['' for _ in spids]
-                else:
-                    assert len(pids) == 1  # if we passed in <pfids> (an id for each paired family), this should be after cleaning, so there should only be one of them
-                    spids, spfcs, spfids = pids, pfcs, pfids
-                return '  '.join('%s %s %s'%(lg, '%1d'%sp if pfids is None else '%2d'%sp, fidstr(fid)) for lg, sp, fid in zip(lgstr(spids, dont_sort=True).split(' '), spfcs, spfids))
+                spids, spfcs, spfids = zip(*sorted(zip(pids, pfcs, pfids), key=operator.itemgetter(1), reverse=True))
+                plocs = [getloc(u) for u in spids]
+                return '  '.join('%s %s %s'%(utils.locstr(sl), '%2d'%sp, fidstr(fid)) for sl, sp, fid in zip(plocs, spfcs, spfids) if not utils.samechain(sl, uloc))
             # ----------------------------------------------------------------------------------------
             def truestr(uid, pids):
                 if uid is None or args.is_data:
@@ -752,52 +752,62 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 cfam = crct_fam(uid, pids)
                 return '%s ' % (utils.color('green', 'y') if is_correct else (utils.color('yellow', '*') if cfam else utils.color('red', 'n')))
             # ----------------------------------------------------------------------------------------
-            new_pfams = get_pfamily_dict(extra_str='after:', old_pfam_dict=old_pfams)
-            pfcounts = [[new_pfams[pfkey(p)]['count'] for p in pids] for pids in cline['paired-uids']]
-            pfids = [[new_pfams[pfkey(p)]['id'] for p in pids] for pids in cline['paired-uids']]
-            uid_extra_strs = ['%s%s: %s'%(truestr(u, pids), utils.locstr(l), lcstr(pids, pfcs, pfids)) for l, u, pids, pfcs, pfids in zip(cline['loci'], cline['unique_ids'], cline['paired-uids'], pfcounts, pfids)]
+            # prpfd(old_pfams, extra_str='before:')
+            # prpfd(new_pfams, extra_str='after:')
+            new_pfcounts = [[new_pfams[pfkey(p)]['count'] for p in pids] for pids in cline['paired-uids']]
+            new_pfids = [[new_pfams[pfkey(p)]['id'] for p in pids] for pids in cline['paired-uids']]
+            new_estrs = [lcstr(pids, pfcs, pfd) for u, pids, pfcs, pfd in zip(cline['unique_ids'], cline['paired-uids'], new_pfcounts, new_pfids)]
+            old_pfids = [[old_pfams[pfkey(p)]['id'] for p in pids] for pids in old_pids]
             old_pfcounts = [[old_pfams[pfkey(p)]['count'] for p in pids] for pids in old_pids]
-            old_estrs = ['%s: %s'%(utils.locstr(l), lcstr(pids, pfcs)) for l, pids, pfcs in zip(cline['loci'], old_pids, old_pfcounts)]
-            for istr, (oldstr, newstr) in enumerate(zip(old_estrs, uid_extra_strs)):
-                if newstr != oldstr:
-                    uid_extra_strs[istr] = '%s%s (%s)' % (newstr, ' '*(12 - utils.len_excluding_colors(newstr)), oldstr)
-            utils.print_reco_event(cline, uid_extra_strs=uid_extra_strs, extra_str='      ')
+            old_estrs = [lcstr(pids, pfcs, pfd) for pids, pfcs, pfd in zip(old_pids, old_pfcounts, old_pfids)]
+            ulen, olen = [max(utils.len_excluding_colors(s) for s in slist) for slist in [cline['unique_ids'], old_estrs]]
+            print '       %scorrect     after       %s         pid(s)' % (utils.wfmt('uid', ulen, jfmt='-'), utils.wfmt('before', olen, jfmt='-'))
+            for uid, pids, oldstr, newstr in zip(cline['unique_ids'], cline['paired-uids'], old_estrs, new_estrs):
+                print '      %s    %s      %s      %s       %s' % (utils.wfmt(uid, ulen), truestr(uid, pids), utils.color('blue', '-' if len(pids)==0 else '', width=6) if len(pids)!=1 else newstr, oldstr + (olen - utils.len_excluding_colors(oldstr))*' ', ' '.join(pids))
             print ''
         # ----------------------------------------------------------------------------------------
         if debug:
             name_dict, name_ids = {'potential' : None, 'used' : None}, {}  # infrastructure for color code strs
             old_pids = copy.deepcopy(cline['paired-uids'])
-        old_pfams = get_pfamily_dict(extra_str='before:')  # map from each potential paired family to the number of uids in <cluster> that are potentially paired with it (i.e. the number of uids that are voting for it)
+        old_pfams = get_pfamily_dict()  # map from each potential paired family to the number of uids in <cluster> that are potentially paired with it (i.e. the number of uids that are voting for it)
 
         # for each uid, choose the pid that's of opposite chain, and has the most other uids voting for it (as long as some criteria are met)
+        finished_ids = []
         for iseq, uid in enumerate(cline['unique_ids']):
-            pid_to_keep = None
+            cline['paired-uids'][iseq] = [p for p in cline['paired-uids'][iseq] if p not in finished_ids]
             ochain_pidfcs = [(p, old_pfams[pfkey(p)]['count']) for p in cline['paired-uids'][iseq] if not utils.samechain(getloc(p), getloc(uid))]  # (pid, pcount) for all opposite-chain pids, where <pcount> is the number of votes for <pid>'s family (note that the 'paired-uids' get modified as we go through the loop)
+            pid_to_keep = None
             if len(ochain_pidfcs) > 0:
                 sorted_pids, sorted_pfcs = zip(*sorted(ochain_pidfcs, key=operator.itemgetter(1), reverse=True))
                 # note that even if there's only one ochain choice, there can be other same-chain ones that we still want to drop (hence the <2 below)
                 if len(sorted_pfcs) < 2 or sorted_pfcs[0] > sorted_pfcs[1] or pfkey(sorted_pids[0]) == pfkey(sorted_pids[1]):  # in order to drop the later ones, the first one either has to have more counts, or at least the second one has to be from the same family (in the latter case we still don't know which is the right one, but for the purposes of clustering resolution we just need to know what the family is)
                     pid_to_keep = sorted_pids[0]
-                    update_all_pid_info([uid, pid_to_keep])
-            if pid_to_keep is not None:
-                cline['paired-uids'][iseq] = [pid_to_keep]
-            elif remove_uncertain_pids:
+                    update_pid_info([uid, pid_to_keep])
+                    finished_ids += [uid, pid_to_keep]
+            if pid_to_keep is None and remove_uncertain_pids:
                 cline['paired-uids'][iseq] = []  # if we didn't decide on an opposite-chain pid, remove all pairing info
 
+        update_all_pid_info(finished_ids)  # have to update everybody before recalculating pfamily dicts
+
         if debug: # and len(cline['unique_ids']) > 1:  # NOTE it's annoying printing the singletons, but it's way worse when they're just missing and you can't figure out where a sequence went
-            print_dbg()
+            print_dbg(old_pfams, get_pfamily_dict(old_pfam_dict=old_pfams))
     # ----------------------------------------------------------------------------------------
     def clean_with_partition_info():  # use information from the [clonal family] partitions to decide which of several potential paired uids is the correct one
+        # orig_pids, orig_pfams = None, None
+        # if debug:
+        #     orig_pids = {l : {':'.join(c) : copy.deepcopy(antn_dicts[l][':'.join(c)]['paired-uids']) for c in cpaths[l].best()} for l in cpaths}  # keep track of original pids
+        #     orig_pfams = get_pfamily_dict()
         for ltmp in sorted(cpaths):
             if debug:
                 print '%s' % utils.color('green', ltmp)
             for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
-                ptn_clean(antn_dicts[ltmp][':'.join(cluster)], cluster)
-        for ltmp in sorted(cpaths):
-            if debug:
-                print '%s' % utils.color('green', ltmp)
-            for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
-                ptn_clean(antn_dicts[ltmp][':'.join(cluster)], cluster, remove_uncertain_pids=True)
+                ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster)
+        # for ltmp in sorted(cpaths):
+        #     if debug:
+        #         print '%s' % utils.color('green', ltmp)
+        #     for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
+        #         ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster, remove_uncertain_pids=True)
+        # sys.exit()
     # ----------------------------------------------------------------------------------------
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
     all_uids = set(u for p in cpaths.values() for c in p.best() for u in c)  # all uids that occur in a partition (should I think be the same as the ones for which we have valid/non-failed annotations)
