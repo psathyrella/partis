@@ -43,7 +43,7 @@ In order to find the most likely annotation (VDJ assignment, deletion boundaries
 partis annotate --infname test/example.fa --outfname _output/example.yaml
 ```
 
-For information on parsing the output file, see [here](#output-formats.md).
+For information on parsing the output file, see [here](output-formats.md).
 
 ### partition
 
@@ -53,7 +53,7 @@ In order to cluster sequences into clonal families and annotate each family, run
 partis partition --infname test/example.fa --outfname _output/example.yaml
 ```
 
-For information on parsing the output file, see [here](#output-formats.md).
+For information on parsing the output file, see [here](output-formats.md).
 
 By default, this uses the most accurate and slowest method: hierarchical agglomeration with, first, hamming distance between naive sequences for distant clusters, and full likelihood calculation for more similar clusters. This method is typically appropriate (finishing in minutes to tens of hours) for tens of thousands of sequences on a laptop, or hundreds of thousands on a server. Because the usual optimizations that prevent clustering time from scaling quadratically with sample size do not translate well to BCR rearrangement space (at least not if you care about getting accurate clusters), run time varies significantly from sample to sample, hence the large range of quoted run times.
 
