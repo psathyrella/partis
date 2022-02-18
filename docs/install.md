@@ -68,7 +68,7 @@ You can then install the required R packages with:
 ```
 R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE)'
 ```
-The default mutation model also requires compilatoin of an updated (development) version of bpp that's in `packages/bpp-newlik/`:
+The default mutation model also requires compilation of an updated (development) version of bpp that's in `packages/bpp-newlik/`:
 ```
 ./bin/build.sh with-simulation  # this takes a while, maybe 20-60 mimutes
 ```
