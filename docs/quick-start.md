@@ -19,7 +19,7 @@ To paralellize over many machines, the slurm and sge batch systems are currently
 Typically, you can expect to annotate 10,000 sequences on an 8-core desktop in about five minutes, and partition in 25 minutes.
 If it's taking too long, or using too much memory, there are many ways to improve these by orders of magnitude by trading some accuracy, or by focusing only on specific aspects of the repertoire, described [here](subcommands.md#partition), [here](parallel.md) and [here](https://groups.google.com/forum/#!topic/partis/1IEfLapbStw).
 
-In addition to any output files specified with `--oufname` (described [here](output-formats.md)), partis writes to two directories on your file system.
+In addition to any output files specified with `--outfname` (described [here](output-formats.md)), partis writes to two directories on your file system.
 Temporary working files go in `--workdir`, which is entirely removed upon successful completion.
 The workdir defaults to a subdirectory of `/tmp` (`/tmp/$USER/hmms/<random.randint>`), and this default shouldn't need to be changed unless you're using a batch system to run on multiple machines, in which case it needs to be on a network mount that they can all see.
 Permament parameter files are written to `--parameter-dir`, which defaults to a subdirectory of the current directory (see [here](subcommands.md#cache-parameters)).
