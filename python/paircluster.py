@@ -801,7 +801,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             if debug:
                 print '%s' % utils.color('green', ltmp)
             for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
-                ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster)
+                ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster, remove_uncertain_pids=True)
         # for ltmp in sorted(cpaths):
         #     if debug:
         #         print '%s' % utils.color('green', ltmp)
