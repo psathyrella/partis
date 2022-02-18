@@ -576,8 +576,9 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             else:
                 return 'mispaired'
         # ----------------------------------------------------------------------------------------
-        kcodes = ['correct', 'mispaired', 'unpaired', 'multiple', 'correct-family', 'total']
-        fcinfo = {k : {} for k in kcodes}
+        mcodes = ['correct', 'mispaired', 'unpaired', 'multiple']  # these are mutually exclusive
+        kcodes = mcodes + ['correct-family', 'total']
+        fcinfo, afo = {k : {} for k in kcodes}, {c : 0 for c in mcodes}
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
                 atn = antn_dicts[ltmp][':'.join(cluster)]
@@ -592,14 +593,17 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                         fcinfo[rcode][fsize] = 0
                     fcinfo['total'][fsize] += 1
                     fcinfo[rcode][fsize] += 1
+                    afo[rcode] += 1
                     if cfam:
                         fcinfo['correct-family'][fsize] += 1
-        for kcd in kcodes:
-            if kcd != 'total':
+        fcinfo['all'] = afo
+        for kcd in kcodes + ['all']:
+            if kcd not in ['total', 'all']:
                 for fsize in fcinfo[kcd]:
                     fcinfo[kcd][fsize] = fcinfo[kcd][fsize] / float(fcinfo['total'][fsize])
-            fchist = hutils.make_hist_from_dict_of_counts(fcinfo[kcd], 'int', 'pair cleaning performance', is_log_x=True) #, no_sort=True)
-            fcplname = 'true-pair-clean-performance-%s' % kcd
+            xbins = None if kcd=='all' else [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 10.5, 30.5, 75.5, 100.5, 200.5, 500.5, 1000.5, 5000.5, 10000.5]
+            fchist = hutils.make_hist_from_dict_of_counts(fcinfo[kcd], 'string' if kcd=='all' else 'int', 'pair cleaning performance', is_log_x=kcd!='all', xbins=xbins) #, no_sort=True)
+            fcplname = 'true-pair-clean-performance%s' % ('' if kcd=='all' else '-'+kcd)
             if performance_outdir is not None:  # need to write it here so you have it even if you're not plotting
                 fchist.write('%s/%s.csv'%(performance_outdir, fcplname))
             if plotdir is not None:
