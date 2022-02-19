@@ -585,7 +585,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
                     rcode = gpt(uid, pids)  # mutually exclusive result code
                     cfam = crct_fam(uid, pids)  # correct family
-                    fsize = len(atn['unique_ids'])
+                    fsize = len(utils.get_single_entry([c for c in true_partitions[ltmp] if uid in c]))
                     if fsize not in fcinfo['total']:
                         for k in kcodes:  # add it to all of them so they all have the same bins
                             fcinfo[k][fsize] = 0
