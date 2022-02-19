@@ -778,11 +778,11 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         # for each uid, choose the pid that's of opposite chain, and has the most other uids voting for it (as long as some criteria are met)
         finished_ids = []
         for iseq, uid in enumerate(cline['unique_ids']):
-            cline['paired-uids'][iseq] = [p for p in cline['paired-uids'][iseq] if p not in finished_ids]
-            ochain_pidfcs = [(p, old_pfams[pfkey(p)]['count']) for p in cline['paired-uids'][iseq] if not utils.samechain(getloc(p), getloc(uid))]  # (pid, pcount) for all opposite-chain pids, where <pcount> is the number of votes for <pid>'s family (note that the 'paired-uids' get modified as we go through the loop)
+            cline['paired-uids'][iseq] = [p for p in cline['paired-uids'][iseq] if p not in finished_ids and not utils.samechain(getloc(p), getloc(uid))]
+            pidfcs = [(p, old_pfams[pfkey(p)]['count']) for p in cline['paired-uids'][iseq]]  # (pid, pcount) for all opposite-chain pids, where <pcount> is the number of votes for <pid>'s family (note that the 'paired-uids' get modified as we go through the loop)
             pid_to_keep = None
-            if len(ochain_pidfcs) > 0:
-                sorted_pids, sorted_pfcs = zip(*sorted(ochain_pidfcs, key=operator.itemgetter(1), reverse=True))
+            if len(pidfcs) > 0:
+                sorted_pids, sorted_pfcs = zip(*sorted(pidfcs, key=operator.itemgetter(1), reverse=True))
                 # note that even if there's only one ochain choice, there can be other same-chain ones that we still want to drop (hence the <2 below)
                 if len(sorted_pfcs) < 2 or sorted_pfcs[0] > sorted_pfcs[1] or pfkey(sorted_pids[0]) == pfkey(sorted_pids[1]):  # in order to drop the later ones, the first one either has to have more counts, or at least the second one has to be from the same family (in the latter case we still don't know which is the right one, but for the purposes of clustering resolution we just need to know what the family is)
                     pid_to_keep = sorted_pids[0]
@@ -803,15 +803,15 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         #     orig_pfams = get_pfamily_dict()
         for ltmp in sorted(cpaths):
             if debug:
-                print '%s' % utils.color('green', ltmp)
+                print '%s starting pair cleaning' % utils.color('green', ltmp)
             for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
                 ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster, remove_uncertain_pids=True)
+        # NOTE i would think it would help to do this twice, only removing uncertain ones the second time (or, maybe better [faster], loop over uids in order of confidence that we'll get them correct)
         # for ltmp in sorted(cpaths):
         #     if debug:
-        #         print '%s' % utils.color('green', ltmp)
+        #         print '%s starting pair cleaning (second round)' % utils.color('green', ltmp)
         #     for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
         #         ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster, remove_uncertain_pids=True)
-        # sys.exit()
     # ----------------------------------------------------------------------------------------
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
     all_uids = set(u for p in cpaths.values() for c in p.best() for u in c)  # all uids that occur in a partition (should I think be the same as the ones for which we have valid/non-failed annotations)
