@@ -72,12 +72,23 @@ def cp_val(cpath, ptilestr, yfname):
     return rval
 
 # ----------------------------------------------------------------------------------------
-def read_hist_csv(fname, ptilestr):
-    hist = Hist(fname=fname)
+def read_hist_csv(fname, ptilestr):  # NOTE this is inside a try: except so any IOErrors will get eaten
     if 'pcfrac-' in ptilestr:
-        blabels = {'pcfrac-corr' : 'correct', 'pcfrac-mis' : 'mispaired', 'pcfrac-un' : 'unpaired', 'pcfrac-corrfam' : 'correct-family'}
-        pval = hist.bin_contents[hist.find_bin(None, label=blabels[ptilestr.replace('-ns', '')])]
+        if '-ns' in ptilestr:  # need to integrate bins in the individual histograms
+            min_family_size = 2  # ignore families smaller than this
+            bhist, thist = [Hist(fname=utils.insert_before_suffix('-'+k, fname)) for k in [ptilestr.replace('pcfrac-', '').replace('-ns', ''), 'total']]
+            sumv, total = 0, 0
+            for ibin in range(bhist.find_bin(min_family_size), bhist.n_bins+1):  # the bhists are normalized per bin (so we can just plot them as is), so here we have to do a weighted average using the 'total' hist
+                assert bhist.low_edges[ibin] == thist.low_edges[ibin]
+                sumv += bhist.bin_contents[ibin] * thist.bin_contents[ibin]
+                total += thist.bin_contents[ibin]
+            pval = sumv / total
+        else:  # can just read single bins from the overview hist
+            hist = Hist(fname=fname)
+            hist.normalize()
+            pval = hist.bin_contents[hist.find_bin(None, label=ptilestr.replace('pcfrac-', ''))]
     else:
+        hist = Hist(fname=fname)
         pval = hist.get_mean(ibounds=(0, 25) if ptilestr=='naive-hdist' else None)  # ok this sucks, but i can't figure out how to get igblast to give reasonable results for all seqs, so whatever just give it a pass on some of them
     return {ptilestr : pval}
 

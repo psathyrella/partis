@@ -18,7 +18,7 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['corr', 'mis', 'un', 'corrfam']]
+pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct', 'mispaired', 'unpaired']] #, 'correct-family']]
 all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
@@ -134,7 +134,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     if logfile:
         ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '',  action)
     elif pmetr is not None and 'pcfrac-' in pmetr:
-        ofn = '%s/true-pair-clean-performance%s.csv' % (outdir, '-non-singleton' if pmetr.split('-')[-1]=='ns' else '')
+        ofn = '%s/true-pair-clean-performance.csv' % outdir #, pmetr.replace('pcfrac', '').replace('-ns', '') if 'pcfrac-' in pmetr else '')
     elif pmetr is not None and pmetr == 'naive-hdist':
         ofn = '%s/single-chain/plots/%s/hmm/mutation/hamming_to_true_naive.csv' % (outdir, locus)
     elif action == 'cache-parameters':
@@ -403,7 +403,7 @@ for action in args.actions:
                     for ltmp in plot_loci():
                         if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):
                             continue
-                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[ipm], make_legend=ltmp=='igh', leg_label='-'+ptntype, debug=args.debug)
+                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[int(ipm/3) if 'pcfrac-' in pmetr else ipm], make_legend=ltmp=='igh', leg_label='-'+ptntype, debug=args.debug)
                         # iplot += 1
             fnames += [[os.path.dirname(fnames[0][0]) + '/legend-%s.svg'%ptntype] for ptntype in partition_types]
             plotting.make_html(cfpdir, n_columns=3 if len(plot_loci())==3 else 4, fnames=fnames)
