@@ -2,23 +2,26 @@
 
 bin=./test/cf-paired-loci.py
 
-# methods=partition #synth-distance-0.03:synth-singletons-0.20:single-chain-partis:vjcdr3-0.9:mobille:scoper:vsearch-partition:partition
-# # methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
-# # methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
-# # methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"
+methods=partition #synth-distance-0.03:synth-singletons-0.20:single-chain-partis:vjcdr3-0.9:mobille:scoper:vsearch-partition:partition
+# methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
+# methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
+# methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"
 # astr="--actions $methods"
-# # astr="--actions plot --plot-metrics $methods" # --perf-metrics f1"
-# # astr="--actions combine-plots --plot-metrics $methods $xstr"
-# common="--n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci $astr" # --dry" # /fh/local/dralph
-# # echo $bin --label vs-shm          --version v2 --n-replicates 3 --n-leaves-list 3 --n-sim-events-list 10000 --scratch-mute-freq-list 0.01:0.05:0.10:0.20:0.30 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --final-plot-xvar scratch-mute-freq $common  # with these simu args, the scratch mute freq is almost identical to the final mean mfreq, so can just use the scratch mute freq on x axis
-# # # echo $bin --label vs-n-leaves     --version v0 --n-replicates 3 --n-leaves-list 1:5:10:50 --n-sim-events-list 1000 --simu-extra-args="--constant-number-of-leaves" $common
-# # echo $bin --label vs-n-leaves     --version v1 --n-replicates 3 --n-leaves-list 1:2:3:5:7:10:25:50 --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist --simu-extra-args="--constant-number-of-leaves" $common
-# # # echo $bin --label vs-n-leaves     --version v2 --n-replicates 3 --n-leaves-list 1:2:3:5:7:25:50 --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist --scratch-mute-freq-list 0.15 --simu-extra-args="--constant-number-of-leaves --flat-mute-freq --same-mute-freq-for-all-seqs" $common
-# # echo $bin --label vs-n-sim-events --version v1 --n-replicates 3 --n-leaves-list 1 --n-sim-events-list 100:1000:10000:50000 --scratch-mute-freq-list 0.07:0.15 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --constant-number-of-leaves\" --final-plot-xvar n-sim-events --pvks-to-plot 0.15 $common
-# # echo $bin --label time-reqd --version v0 --n-replicates 3 --n-leaves-list 10 --n-sim-events-list 100:1000:10000 --perf-metrics time-reqd --x-legend-var n-seqs $common --n-sub-procs 28 --n-max-procs 1  # NOTE duplicate parallelization args also NOTE there's also a 4th replicate, and 50000 samples for at least 3 replicates
-# echo $bin --label pairclean --version v0 --n-replicates 3 --n-leaves-list 3:10:50 --constant-number-of-leaves-list 0:1 --n-sim-events-list 3000 --scratch-mute-freq-list 0.15 --mean-cells-per-droplet-list None:1:2:5:10 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --final-plot-xvar mean-cells-per-droplet --perf-metrics precision:sensitivity:f1:pcfrac-corr:pcfrac-mis:pcfrac-un --use-val-cfgs $common  #  --fraction-of-reads-to-remove-list 0.05
-# # echo $bin --label test-antn --version imbal-v3   --n-replicates 2 --tree-imbalance-list None:0.04:0.07 --scratch-mute-freq-list 0.15 --n-leaves-list 50 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist $common  # NOTE also made :0.13:0.14:0.16
-# exit 0
+# astr="--actions plot --plot-metrics $methods" # --perf-metrics f1"
+astr="--actions combine-plots --plot-metrics $methods $xstr"
+common="--n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci $astr" # --dry" # /fh/local/dralph
+# echo $bin --label vs-shm          --version v2 --n-replicates 3 --n-leaves-list 3 --n-sim-events-list 10000 --scratch-mute-freq-list 0.01:0.05:0.10:0.20:0.30 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --final-plot-xvar scratch-mute-freq $common  # with these simu args, the scratch mute freq is almost identical to the final mean mfreq, so can just use the scratch mute freq on x axis
+# # echo $bin --label vs-n-leaves     --version v0 --n-replicates 3 --n-leaves-list 1:5:10:50 --n-sim-events-list 1000 --simu-extra-args="--constant-number-of-leaves" $common
+# echo $bin --label vs-n-leaves     --version v1 --n-replicates 3 --n-leaves-list 1:2:3:5:7:10:25:50 --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist --simu-extra-args="--constant-number-of-leaves" $common
+# # echo $bin --label vs-n-leaves     --version v2 --n-replicates 3 --n-leaves-list 1:2:3:5:7:25:50 --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist --scratch-mute-freq-list 0.15 --simu-extra-args="--constant-number-of-leaves --flat-mute-freq --same-mute-freq-for-all-seqs" $common
+# echo $bin --label vs-n-sim-events --version v1 --n-replicates 3 --n-leaves-list 1 --n-sim-events-list 100:1000:10000:50000 --scratch-mute-freq-list 0.07:0.15 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --constant-number-of-leaves\" --final-plot-xvar n-sim-events --pvks-to-plot 0.15 $common
+# echo $bin --label time-reqd --version v0 --n-replicates 3 --n-leaves-list 10 --n-sim-events-list 100:1000:10000 --perf-metrics time-reqd --x-legend-var n-seqs $common --n-sub-procs 28 --n-max-procs 1  # NOTE duplicate parallelization args also NOTE there's also a 4th replicate, and 50000 samples for at least 3 replicates
+# echo $bin --label pairclean --version v0 --n-replicates 3 --n-leaves-list 3:10:50 --constant-number-of-leaves-list 0:1 --n-sim-events-list 3000 --scratch-mute-freq-list 0.15 --mean-cells-per-droplet-list None:1:2:5:10 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --final-plot-xvar mean-cells-per-droplet --perf-metrics all-pcfrac --use-val-cfgs $common  #  --fraction-of-reads-to-remove-list 0.05
+# echo $bin --label pairclean --version v1 --n-replicates 3 --n-leaves-list 1:2:3:10:hist --constant-number-of-leaves-list 1:1:1:1:0 --zip-vars n-leaves:constant-number-of-leaves --n-sim-events-list 3000 --scratch-mute-freq-list 0.15 --mean-cells-per-droplet-list None:1:2:5:10 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --final-plot-xvar mean-cells-per-droplet --perf-metrics all-pcfrac --use-val-cfgs $common  #  --fraction-of-reads-to-remove-list 0.05
+echo $bin --label pairclean --version v2 --n-replicates 3 --n-leaves-list 1:2:3:10:hist --constant-number-of-leaves-list 1:1:1:1:0 --zip-vars n-leaves:constant-number-of-leaves --n-sim-events-list 3000 --scratch-mute-freq-list 0.07 --mean-cells-per-droplet-list 1:1.5:2:5:10 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --constant-cells-per-droplet\" --final-plot-xvar mean-cells-per-droplet --perf-metrics all-pcfrac --use-val-cfgs $common  #  --fraction-of-reads-to-remove-list 0.05
+# TODO smaller mut freq?
+# echo $bin --label test-antn --version imbal-v3   --n-replicates 2 --tree-imbalance-list None:0.04:0.07 --scratch-mute-freq-list 0.15 --n-leaves-list 50 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist $common  # NOTE also made :0.13:0.14:0.16
+exit 0
 
 dvsn=v1 #test-ctnt
 simvsn=v0
@@ -37,6 +40,11 @@ bin=./bin/compare-plotdirs.py
 fsddir=/fh/fast/matsen_e/processed-data/partis
 bidir=$fsddir/10x-examples/$dvsn
 bodir=$bidir/comparisons
+
+tsubj=hs-1-postvax
+tpd=$bidir/comparisons/$tsubj
+$bin --outdir $bodir/ins-del-lens/$tsubj --plotdirs $bidir/$tsubj/igh+igk/plots/igh/overall:$bidir/$tsubj/igh+igk/plots/igk/overall:$bidir/$tsubj/igh+igl/plots/igl/overall  --names igh:igk:igl --normalize & # --extra-stats mean
+exit 0
 
 for subj in hs-1-postvax hs-1-prevax hs-2-pbmc mm-balbc; do #hs-1-prevax; do #mm-balbc
     for ltmp in igh igk; do #  igl
