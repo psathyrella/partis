@@ -538,8 +538,8 @@ axis_labels = {
 
 val_cfgs = {
     'legends' : {
-        'default' : {},
-        'constant-number-of-leaves' : {'0' : 'geom.', '1' : 'const.'},
+        'constant-number-of-leaves' : {'0' : {'n-leaves' : {'default' : 'geom.', 'hist' : 'data'}}, '1' : 'const.'},
+        'n-leaves' : {'hist' : 'distr.'},
     },
     'colors' : {
         'default' : 'black',

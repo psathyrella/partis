@@ -199,7 +199,10 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         # ----------------------------------------------------------------------------------------
         def ldstr(name, val):  # NOTE i think maybe i only really want to use <legdict> here if <title> is set?
             if args.use_val_cfgs and not title and name in plotting.val_cfgs['legends']:
-                vstr = plotting.val_cfgs['legends'][name][val]
+                vstr = plotting.val_cfgs['legends'][name].get(val, val)
+                if hasattr(vstr, 'keys'):  # it's actually a dict (ick ick ick)
+                    other_key, other_val = utils.get_single_entry([(n, v) for n, v in zip(pvl_list(), label.split('; ')) if n in vstr])  # find the key that's in the dict that's also in this list of legends (also ick)
+                    vstr = vstr[other_key].get(other_val, vstr[other_key]['default'])  # needs to have default set otherwise i don't know what tf to do
             else:
                 vstr = ldfcn(val) #legdict.get(val, val.replace('-', ' '))
             return vstr
