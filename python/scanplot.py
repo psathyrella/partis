@@ -89,7 +89,9 @@ def read_hist_csv(args, fname, ptilestr):  # NOTE this is inside a try: except s
         else:  # can just read single bins from the overview hist
             hist = Hist(fname=fname)
             hist.normalize()
-            pval = hist.bin_contents[hist.find_bin(None, label=ptilestr.replace('pcfrac-', ''))]
+            pval = 0
+            if 'correct-family' not in ptilestr:  # i took this bin out of the overall hist so the bins can be mutually exclusive, so whatever
+                pval = hist.bin_contents[hist.find_bin(None, label=ptilestr.replace('pcfrac-', ''))]
             if args.make_hist_plots:
                 rhist = Hist(fname=utils.insert_before_suffix('-'+ptilestr.replace('pcfrac-', ''), fname))
     else:
@@ -836,4 +838,4 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 h.title = x
             txt, txtl = plotting.get_cluster_size_xticks(hlist=hists)
             plotting.draw_no_root(None, more_hists=list(hists), plotdir=plotdir, plotname=getplotname(metric)+'-hist', remove_empty_bins=True, log='x', errors=True,
-                                  xtitle='true family size', ytitle=ylabel, plottitle=title, xticks=txt, xticklabels=txtl, leg_title=ldfcn(args.final_plot_xvar))
+                                  xtitle='true family size', ytitle=ylabel, plottitle=title, xticks=txt, xticklabels=txtl, leg_title=ldfcn(args.final_plot_xvar), alphas=[0.65 for _ in hists], translegend=[-0.2, -0.55])
