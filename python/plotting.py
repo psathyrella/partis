@@ -433,7 +433,7 @@ def get_unified_bin_hist(hists):
     return Hist(len(low_edges), low_edges[0], low_edges[-1] + dx)
 
 # ----------------------------------------------------------------------------------------
-def make_mean_hist(hists):
+def make_mean_hist(hists, ignore_empty_bins=False):
     """ return the hist with bin contents the mean over <hists> of each bin """
     binvals = {}
     for hist in hists:  # I could probably do this with list comprehensions or something, but this way handles different bin bounds
@@ -446,6 +446,10 @@ def make_mean_hist(hists):
     meanhist = Hist(len(binlist) - 2, binlist[1], binlist[-1], xbins=binlist[1 :])
     for ib in range(len(binlist)):
         vlist = binvals[binlist[ib]]
+        if ignore_empty_bins:
+            vlist = [v for v in vlist if v > 0]
+        if len(vlist) == 0:
+            continue
         meanhist.set_ibin(ib, numpy.mean(vlist), error=(numpy.std(vlist, ddof=1) / math.sqrt(len(vlist))))
     # meanhist.normalize()
     return meanhist

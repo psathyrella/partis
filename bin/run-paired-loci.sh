@@ -22,6 +22,8 @@ echo $bin --label pairclean --version v2 --n-replicates 3 --n-leaves-list 1:2:3:
 # echo $bin --label test-antn --version imbal-v3   --n-replicates 2 --tree-imbalance-list None:0.04:0.07 --scratch-mute-freq-list 0.15 --n-leaves-list 50 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist $common  # NOTE also made :0.13:0.14:0.16
 exit 0
 
+# ----------------------------------------------------------------------------------------
+# data
 dvsn=v1 #test-ctnt
 simvsn=v0
 

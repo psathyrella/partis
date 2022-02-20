@@ -322,6 +322,7 @@ class Hist(object):
                 self.bin_contents[ib] /= float(denom_hist.bin_contents[ib])
 
     # ----------------------------------------------------------------------------------------
+    # NOTE if you're here, you may be looking for plotting.make_mean_hist()
     def add(self, h2, debug=False):
         """ NOTE doesn't check bin edges are the same, only that they've got the same number of bins """
         if self.n_bins != h2.n_bins or self.xmin != h2.xmin or self.xmax != h2.xmax:

@@ -72,7 +72,7 @@ def cp_val(cpath, ptilestr, yfname):
     return rval
 
 # ----------------------------------------------------------------------------------------
-def read_hist_csv(fname, ptilestr):  # NOTE this is inside a try: except so any IOErrors will get eaten
+def read_hist_csv(args, fname, ptilestr):  # NOTE this is inside a try: except so any IOErrors will get eaten
     if 'pcfrac-' in ptilestr:
         if '-ns' in ptilestr:  # need to integrate bins in the individual histograms
             min_family_size = 2  # ignore families smaller than this
@@ -89,10 +89,12 @@ def read_hist_csv(fname, ptilestr):  # NOTE this is inside a try: except so any 
             hist = Hist(fname=fname)
             hist.normalize()
             pval = hist.bin_contents[hist.find_bin(None, label=ptilestr.replace('pcfrac-', ''))]
+            if args.make_hist_plots:
+                rhist = Hist(fname=utils.insert_before_suffix('-'+ptilestr.replace('pcfrac-', ''), fname))
     else:
         hist = Hist(fname=fname)
         pval = hist.get_mean(ibounds=(0, 25) if ptilestr=='naive-hdist' else None)  # ok this sucks, but i can't figure out how to get igblast to give reasonable results for all seqs, so whatever just give it a pass on some of them
-    return {ptilestr : pval}
+    return {ptilestr : pval, 'hist' : rhist}
 
 # ----------------------------------------------------------------------------------------
 def readlog(fname, metric, locus, ptntype):
@@ -338,8 +340,10 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     def initfcn(): return {('%d-%d' % (i, j)) : [] for i in utils.sargval(args, 'seed') for j in range(nsimevts())}
                 return ikey, initfcn
             # ----------------------------------------------------------------------------------------
+            fhist = None
             if per_x is None:
                 fval = ytmpfo[ptilestr]
+                fhist = ytmpfo.get('hist')
                 if debug:
                     print ' %.2f' % fval,
             elif distr_hists:
@@ -364,8 +368,12 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             pvkey = pvkeystr(vlists, varnames)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
             if pvkey not in plotvals:
                 plotvals[pvkey] = initfcn()
+                plothists[pvkey] = initfcn()
             plotlist = plotvals[pvkey][ikey] if ikey is not None else plotvals[pvkey]  # it would be nice if the no-replicate-families-together case wasn't treated so differently
             plotlist.append((tau, fval))  # NOTE this appends to plotvals, the previous line is just to make sure we append to the right place
+            if fhist is not None:
+                histlist = plothists[pvkey][ikey] if ikey is not None else plothists[pvkey]
+                histlist.append((tau, fhist))
             if args.x_legend_var is not None:
                 if 'mfreq' in args.x_legend_var:
                     mfreq = utils.get_mean_mfreq(pdirfcn(varnames, vstrs) + '/hmm')
@@ -420,7 +428,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 if ptilestr == 'time-reqd':
                     ytmpfo = readlog(yfname, metric, locus, ptntype)
                 elif 'pcfrac-' in ptilestr or ptilestr == 'naive-hdist':
-                    ytmpfo = read_hist_csv(yfname, ptilestr)
+                    ytmpfo = read_hist_csv(args, yfname, ptilestr)
                 else:
                     _, _, cpath = utils.read_output(yfname, skip_annotations=True)
                     ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
@@ -428,6 +436,17 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 missing_vstrs['missing'].append((None, vstrs))
                 return
             add_plot_vals(ytmpfo, vlists, varnames)
+        # ----------------------------------------------------------------------------------------
+        def get_tvd(ofvals):
+            tmpvaldict = collections.OrderedDict()  # rearrange them into a dict keyed by the appropriate tau/xval
+            for ikey in ofvals:  # <ikey> is an amalgamation of iseeds and icluster, e.g. '20-0'
+                for pairvals in ofvals[ikey]:
+                    tau, tval = pairvals  # reminder: tau is not in general (any more) tau, but is the variable values fulfilling the original purpose of tau (i think x values?) in the plot
+                    tkey = tuple(tau) if isinstance(tau, list) else tau  # if it's actually tau, it will be a single value, but if xvar is set to, say, n-sim-seqs-per-gen then it will be a list
+                    if tkey not in tmpvaldict:  # these will usually get added in order, except when there's missing ones in some ikeys
+                        tmpvaldict[tkey] = []
+                    tmpvaldict[tkey].append(tval)
+            return tmpvaldict
         # ----------------------------------------------------------------------------------------
         if debug:
             if per_x is None:
@@ -473,28 +492,27 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
                 dbgvals = []
             for pvkey, ofvals in plotvals.items():
-                mean_vals, err_vals = [], []
+                mean_vals, err_vals, hist_vals = [], [], []
                 ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
                 n_used = []  # just for dbg
-                tmpvaldict = collections.OrderedDict()  # rearrange them into a dict keyed by the appropriate tau/xval
-                for ikey in ofvals:  # <ikey> is an amalgamation of iseeds and icluster, e.g. '20-0'
-                    for pairvals in ofvals[ikey]:
-                        tau, tval = pairvals  # reminder: tau is not in general (any more) tau, but is the variable values fulfilling the original purpose of tau (i think x values?) in the plot
-                        tkey = tuple(tau) if isinstance(tau, list) else tau  # if it's actually tau, it will be a single value, but if xvar is set to, say, n-sim-seqs-per-gen then it will be a list
-                        if tkey not in tmpvaldict:  # these will usually get added in order, except when there's missing ones in some ikeys
-                            tmpvaldict[tkey] = []
-                        tmpvaldict[tkey].append(tval)
+                tmpvaldict = get_tvd(ofvals)
+                if args.make_hist_plots:
+                    tmphistdict = get_tvd(plothists[pvkey])
                 use_sort = False # UPDATE i think we can just not sort? it means you have to have the order right on the command line # xvar != 'parameter-variances' and 'None' not in tmpvaldict.keys()  # we want None to be first
                 tvd_keys = sorted(tmpvaldict) if use_sort else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
                 for tau in tvd_keys:  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
                     ltmp = tmpvaldict[tau]  # len of <ltmp> is N seeds (i.e. procs) times N clusters per seed
                     mean_vals.append((tau, numpy.mean(ltmp)))
                     err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))  # standard error on mean (for standard deviation, comment out denominator)
+                    if args.make_hist_plots:
+                        hist_vals.append((tau, plotting.make_mean_hist(tmphistdict[tau], ignore_empty_bins=True)))
                     n_used.append(len(ltmp))
                     if debug:
                         dbgvals.append((tau, mean_vals[-1][1], err_vals[-1][1]))
                 plotvals[pvkey] = mean_vals
                 errvals[pvkey] = err_vals
+                if args.make_hist_plots:
+                    plothists[pvkey] = hist_vals
                 if debug:
                     n_expected = args.n_replicates
                     if not treat_clusters_together:
@@ -638,7 +656,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         legdict.update(lbplotting.metric_for_target_distance_labels)
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     _, varnames, val_lists, valstrs = utils.get_var_info(args, svars)
-    plotvals, errvals = collections.OrderedDict(), collections.OrderedDict()
+    plotvals, errvals, plothists = collections.OrderedDict(), collections.OrderedDict(), collections.OrderedDict()
     fig, ax = plotting.mpl_init()
     all_xtks, all_xtls, xlabel, all_yvals = [], [], None, set()
     leg_entries = collections.OrderedDict()
@@ -806,3 +824,12 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         plotting.plot_legend_only(leg_entries, plotdir, 'legend%s'%leg_label, title=legstr(pvlabel[0], title=True))  #[(l, leg_entries['color']) for l, lfo in leg_entries], )
     if fnames is not None:
         fnames.append(ffn)
+
+    if args.make_hist_plots:  # this is all completely specific for the hists i want to plot now, but whatever i can change later if i want to use different variables
+        for pvkey in plothists:
+            xvals, hists = zip(*plothists[pvkey])
+            for x, h in zip(xvals, hists):
+                h.title = x
+            txt, txtl = plotting.get_cluster_size_xticks(hlist=hists)
+            plotting.draw_no_root(None, more_hists=list(hists), plotdir=plotdir, plotname=getplotname(metric)+'-hist', remove_empty_bins=True, log='x', errors=True,
+                                  xtitle='true family size', ytitle=ylabel, plottitle=title, xticks=txt, xticklabels=txtl, leg_title=ldfcn(args.final_plot_xvar))
