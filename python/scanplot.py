@@ -498,7 +498,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 n_used = []  # just for dbg
                 tmpvaldict = get_tvd(ofvals)
                 tmphistdict = None
-                if args.make_hist_plots and '-ns' not in ptilestr:
+                if args.make_hist_plots and any(len(l)>0 for l in plothists[pvkey].values()):
                     tmphistdict = get_tvd(plothists[pvkey])
                 use_sort = False # UPDATE i think we can just not sort? it means you have to have the order right on the command line # xvar != 'parameter-variances' and 'None' not in tmpvaldict.keys()  # we want None to be first
                 tvd_keys = sorted(tmpvaldict) if use_sort else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
@@ -827,8 +827,10 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     if fnames is not None:
         fnames.append(ffn)
 
-    if args.make_hist_plots and '-ns' not in ptilestr:  # this is all completely specific for the hists i want to plot now, but whatever i can change later if i want to use different variables
+    if args.make_hist_plots:  # this is all completely specific for the hists i want to plot now, but whatever i can change later if i want to use different variables
         for pvkey in plothists:
+            if all(len(l)==0 for l in plothists[pvkey].values()):
+                continue
             xvals, hists = zip(*plothists[pvkey])
             for x, h in zip(xvals, hists):
                 h.title = x
