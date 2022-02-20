@@ -82,7 +82,9 @@ def read_hist_csv(fname, ptilestr):  # NOTE this is inside a try: except so any 
                 assert bhist.low_edges[ibin] == thist.low_edges[ibin]
                 sumv += bhist.bin_contents[ibin] * thist.bin_contents[ibin]
                 total += thist.bin_contents[ibin]
-            pval = sumv / total
+            if total > 0:
+                sumv /= total
+            pval = sumv
         else:  # can just read single bins from the overview hist
             hist = Hist(fname=fname)
             hist.normalize()
