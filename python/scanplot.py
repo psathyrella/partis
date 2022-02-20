@@ -829,7 +829,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
 
     if args.make_hist_plots:  # this is all completely specific for the hists i want to plot now, but whatever i can change later if i want to use different variables
         for pvkey in plothists:
-            if all(len(l)==0 for l in plothists[pvkey].values()):
+            if hasattr(plothists[pvkey], 'keys') and all(len(l)==0 for l in plothists[pvkey].values()):
                 continue
             xvals, hists = zip(*plothists[pvkey])
             for x, h in zip(xvals, hists):
