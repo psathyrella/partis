@@ -837,5 +837,6 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             for x, h in zip(xvals, hists):
                 h.title = x
             txt, txtl = plotting.get_cluster_size_xticks(hlist=hists)
-            plotting.draw_no_root(None, more_hists=list(hists), plotdir=plotdir, plotname=getplotname(metric)+'-hist', remove_empty_bins=True, log='x', errors=True,
+            plotname = '%s-%s-hist' % (getplotname(metric), pvkey.replace('; ', '-'))
+            plotting.draw_no_root(None, more_hists=list(hists), plotdir=plotdir, plotname=plotname, remove_empty_bins=True, log='x', errors=True,
                                   xtitle='true family size', ytitle=ylabel, plottitle=title, xticks=txt, xticklabels=txtl, leg_title=ldfcn(args.final_plot_xvar), alphas=[0.65 for _ in hists], translegend=[-0.2, -0.55])

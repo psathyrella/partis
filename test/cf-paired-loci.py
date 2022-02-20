@@ -398,7 +398,7 @@ for action in args.actions:
             cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])
             fnames, iplot = [[] for _ in args.perf_metrics], 0
-            for ipm, pmetr in enumerate(args.perf_metrics):
+            for ipm, pmetr in enumerate([m for m in args.perf_metrics if 'pcfrac-correct-family' not in m]):  # see not ein read_hist_csv()
                 print '    ', pmetr
                 for ptntype in partition_types:
                     for ltmp in plot_loci():
