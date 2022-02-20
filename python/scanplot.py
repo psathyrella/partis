@@ -73,6 +73,7 @@ def cp_val(cpath, ptilestr, yfname):
 
 # ----------------------------------------------------------------------------------------
 def read_hist_csv(args, fname, ptilestr):  # NOTE this is inside a try: except so any IOErrors will get eaten
+    rhist = None
     if 'pcfrac-' in ptilestr:
         if '-ns' in ptilestr:  # need to integrate bins in the individual histograms
             min_family_size = 2  # ignore families smaller than this
@@ -496,7 +497,8 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 ofvals = {i : vals for i, vals in ofvals.items() if len(vals) > 0}  # remove zero-length ones (which should [edit: maybe?] correspond to 'missing'). Note that this only removes one where *all* the vals are missing, whereas if they're partially missing they values they do have will get added as usual below
                 n_used = []  # just for dbg
                 tmpvaldict = get_tvd(ofvals)
-                if args.make_hist_plots:
+                tmphistdict = None
+                if args.make_hist_plots and '-ns' not in ptilestr:
                     tmphistdict = get_tvd(plothists[pvkey])
                 use_sort = False # UPDATE i think we can just not sort? it means you have to have the order right on the command line # xvar != 'parameter-variances' and 'None' not in tmpvaldict.keys()  # we want None to be first
                 tvd_keys = sorted(tmpvaldict) if use_sort else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
@@ -504,14 +506,14 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     ltmp = tmpvaldict[tau]  # len of <ltmp> is N seeds (i.e. procs) times N clusters per seed
                     mean_vals.append((tau, numpy.mean(ltmp)))
                     err_vals.append((tau, numpy.std(ltmp, ddof=1) / math.sqrt(len(ltmp))))  # standard error on mean (for standard deviation, comment out denominator)
-                    if args.make_hist_plots:
+                    if tmphistdict is not None:
                         hist_vals.append((tau, plotting.make_mean_hist(tmphistdict[tau], ignore_empty_bins=True)))
                     n_used.append(len(ltmp))
                     if debug:
                         dbgvals.append((tau, mean_vals[-1][1], err_vals[-1][1]))
                 plotvals[pvkey] = mean_vals
                 errvals[pvkey] = err_vals
-                if args.make_hist_plots:
+                if tmphistdict is not None:
                     plothists[pvkey] = hist_vals
                 if debug:
                     n_expected = args.n_replicates
@@ -825,7 +827,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     if fnames is not None:
         fnames.append(ffn)
 
-    if args.make_hist_plots:  # this is all completely specific for the hists i want to plot now, but whatever i can change later if i want to use different variables
+    if args.make_hist_plots and '-ns' not in ptilestr:  # this is all completely specific for the hists i want to plot now, but whatever i can change later if i want to use different variables
         for pvkey in plothists:
             xvals, hists = zip(*plothists[pvkey])
             for x, h in zip(xvals, hists):
