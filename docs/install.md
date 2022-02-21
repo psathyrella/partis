@@ -70,7 +70,7 @@ R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "geiger", "MA
 ```
 The default mutation model also requires compilation of an updated (development) version of bpp that's in `packages/bpp-newlik/`:
 ```
-./bin/build.sh with-simulation  # this takes a while, maybe 20-60 mimutes
+./bin/build.sh with-simulation  # this takes a while, maybe 20-60 minutes
 ```
 However, if you don't much care about mutation model accuracy (in particular, if you don't care about modeling different rates between different bases e.g. A->C vs A->T), you can set `--no-per-base-mutation` and it'll fall back to an older, already-compiled bpp version in `packages/bpp`.
 
