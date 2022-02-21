@@ -251,7 +251,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
-                 square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None):
+                 square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None, no_legend=False):
     assert os.path.exists(plotdir)
 
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
@@ -272,10 +272,11 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             ymin = htmp.get_minimum(xbounds=bounds, exclude_empty='y' in log)
         if ymax is None or htmp.get_maximum(xbounds=bounds) > ymax:
             ymax = htmp.get_maximum(xbounds=bounds)
-        if xmin is None or htmp.xmin < xmin:  # overridden by <bounds> below
-            xmin = htmp.get_filled_bin_xbounds()[0] #.xmin
-        if xmax is None or htmp.xmax > xmax:
-            xmax = htmp.get_filled_bin_xbounds()[1] #.xmax
+        if htmp.integral(True) > 0:
+            if xmin is None or htmp.xmin < xmin:  # overridden by <bounds> below
+                xmin = htmp.get_filled_bin_xbounds()[0] #.xmin
+            if xmax is None or htmp.xmax > xmax:
+                xmax = htmp.get_filled_bin_xbounds()[1] #.xmax
 
     if bounds is not None:
         xmin, xmax = bounds
@@ -395,15 +396,16 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         tmpxtitle = hist.xtitle  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
 
     ymin = 0.8 * ymin if 'y' in log else -0.03*ymax
-    mpl_finish(ax, plotdir, plotname,
-               title=tmptitle,
-               xlabel=tmpxtitle,
-               ylabel=hist.ytitle if ytitle is None else ytitle,
-               xbounds=[xmin, xmax],
-               ybounds=[ymin, 1.15*ymax],
-               leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
-               log=log, xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels,
-               no_legend=(len(hists) <= 1), adjust={'left' : 0.2}, leg_title=leg_title)
+    fn = mpl_finish(ax, plotdir, plotname,
+                    title=tmptitle,
+                    xlabel=tmpxtitle,
+                    ylabel=hist.ytitle if ytitle is None else ytitle,
+                    xbounds=[xmin, xmax],
+                    ybounds=[ymin, 1.15*ymax],
+                    leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
+                    log=log, xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels,
+                    no_legend=(no_legend or len(hists) <= 1), adjust={'left' : 0.2}, leg_title=leg_title)
+    return fn
 
 # ----------------------------------------------------------------------------------------
 def get_unified_bin_hist(hists):

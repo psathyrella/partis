@@ -224,7 +224,7 @@ class Hist(object):
         if len(fbins) > 0:
             imin, imax = fbins[0], fbins[-1]
         else:
-            imin, imax = 0, self.n_bins + 2  # not sure this is really the best default, but i'm adding it long after writing the rest of the fcn and it seems ok?
+            imin, imax = 1, self.n_bins + 1  # not sure this is really the best default, but i'm adding it long after writing the rest of the fcn and it seems ok? (note after afterwards: it might be better to return None, but this is better than what i originally had which included under/overflows)
         if extra_pads > 0:  # give a little extra space on either side
             imin = max(0, imin - extra_pads)
             imax = min(len(self.low_edges) - 1, imax + extra_pads)
