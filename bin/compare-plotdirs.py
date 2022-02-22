@@ -204,6 +204,7 @@ parser.add_argument('--xbounds')
 parser.add_argument('--ybounds')
 parser.add_argument('--xticks')
 parser.add_argument('--no-errors', action='store_true')
+parser.add_argument('--single-plotdir', action='store_true')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -220,8 +221,8 @@ for iname in range(len(args.names)):
 if args.add_to_title is not None:
     args.add_to_title = args.add_to_title.replace('@', ' ')
 
-# if you just pass in one parent directory, we assume <args.names> contains the desired subdirs
-if len(args.plotdirs) == 1:
+if len(args.plotdirs) == 1 and not args.single_plotdir:
+    print '  --plotdirs is length 1 (and --single-plotdir wasn\'t set), so assuming --names has the desired subdirs'
     parentdir = args.plotdirs[0]
     args.plotdirs = [parentdir + '/' + n for n in args.names]
 
@@ -248,6 +249,7 @@ else:
     print '    no csvs in main/parent dir %s' % firstdir
 # then figure out if there's subdirs we need to deal with
 added_subds = []
+
 for subdir in [d for d in os.listdir(firstdir) if os.path.isdir(firstdir + '/' + d)]:
     listof_plotdirlists.append([d + '/' + subdir for d in args.plotdirs])
     listof_outdirs.append(args.outdir + '/' + subdir)
