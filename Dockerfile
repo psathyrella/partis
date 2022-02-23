@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
   libyaml-cpp-dev \
   libyaml-dev \
   libz-dev \
+  python-levenshtein \
   python-pyqt5
 
 RUN conda install -y -cbioconda -cbiocore python=2.7 biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn mafft # -cbioconda is for pysam, -cbiocore is for mafft
