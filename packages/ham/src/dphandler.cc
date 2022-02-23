@@ -145,9 +145,9 @@ Result DPHandler::Run(vector<Sequence> seqvector, KBounds kbounds, vector<string
       sprintf(kstr, "    [%zu-%zu)     [%zu-%zu)", kbounds.vmin, kbounds.vmax, kbounds.dmin, kbounds.dmax);
     }
     double cpu_seconds(((clock() - run_start) / (double)CLOCKS_PER_SEC));
-    printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.2fs   %s\n", alg_str.c_str(), prob, kstr,
+    printf("           %s %12.3f   %-25s  %2zuv %2zud %2zuj  %5.2fs   %4zu  %s\n", alg_str.c_str(), prob, kstr,
 	   only_genes["v"].size(), only_genes["d"].size(), only_genes["j"].size(),  // hmms_.NameString(&only_genes, 30)
-	   cpu_seconds, seqs.name_str(":").c_str());
+	   cpu_seconds, seqs.n_seqs(), seqs.name_str(":").c_str());
 
     if(result.boundary_error()) {   // not necessarily a big deal yet -- the bounds get automatical expanded
       // cout << "             max at boundary:"
