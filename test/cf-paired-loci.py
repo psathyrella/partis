@@ -47,6 +47,8 @@ parser.add_argument('--scratch-mute-freq-list') #, type=float, default=1)
 parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
 parser.add_argument('--obs-times-list')  # only for bcr-phylo
 parser.add_argument('--tree-imbalance-list')
+parser.add_argument('--biggest-naive-seq-cluster-to-calculate-list')
+parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
@@ -77,11 +79,18 @@ parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
 parser.add_argument('--make-hist-plots', action='store_true')
+parser.add_argument('--bcrham-time', action='store_true')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
-args.scan_vars = {'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events']}
+args.scan_vars = {
+    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events'],
+    'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameters
+    'partition' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],
+}
 for act in ['cache-parameters'] + ptn_actions + plot_actions:
-    args.scan_vars[act] = args.scan_vars['simu']
+    if act not in args.scan_vars:
+        args.scan_vars[act] = []
+    args.scan_vars[act] += args.scan_vars['simu']
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times']
 args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
 # NOTE ignoring svartypes atm, which may actually work?
@@ -203,8 +212,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         actstr = 'merge-paired-partitions'
     binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.bcr_phylo and action=='simu' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
     cmd = './bin/%s %s --paired-loci --%s-outdir %s' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action))
-    if args.n_sub_procs > 1:
-        cmd += ' --n-procs %d' % args.n_sub_procs
+    cmd += ' --n-procs %d' % args.n_sub_procs
     if action == 'simu':
         if not args.bcr_phylo:
             cmd += ' --simulate-from-scratch --no-per-base-mutation'
@@ -246,6 +254,10 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
         if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots and not args.antn_perf:
             cmd += ' --dont-calculate-annotations'
+        for vname, vstr in zip(varnames, vstrs):
+            if action == 'cache-parameters' and vname in ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate']:
+                continue  # ick ick ick
+            cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd, replacefo=get_replacefo())
         if args.make_plots and action != 'cache-parameters':
             cmd += ' --plotdir paired-outdir'
             if action in ptn_actions:
@@ -380,6 +392,8 @@ for action in args.actions:
                             if pmetr == 'time-reqd' and (ptntype == 'joint' and (is_single_chain(method) or method=='vsearch-partition')):
                                 continue
                             if method == 'single-chain-partis' and ptntype != 'joint':  # this is just a hackey way to get the single chain line on the joint plot, we don't actually want it [twice] on the single chain plot
+                                continue
+                            if args.bcrham_time and ptntype == 'joint':
                                 continue
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
                             arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype, pmetr), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}

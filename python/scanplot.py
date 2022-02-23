@@ -100,9 +100,12 @@ def read_hist_csv(args, fname, ptilestr):  # NOTE this is inside a try: except s
     return {ptilestr : pval, 'hist' : rhist}
 
 # ----------------------------------------------------------------------------------------
-def readlog(fname, metric, locus, ptntype):
+def readlog(args, fname, metric, locus, ptntype):
     # ----------------------------------------------------------------------------------------
     def timestr():
+        # if args.bcrham_time:  # maye eventually? but would need to recode the below since there's too many of these
+        #     return 'time: bcrham'
+        # el
         if ptntype == 'joint':
             return 'merge time'
         elif metric == 'partition':
@@ -118,6 +121,8 @@ def readlog(fname, metric, locus, ptntype):
         lstrs = ['./bin/partis', timestr()] if ptntype=='single' else [timestr()]
         tlines = []
         for tln in flines:
+            if 'view-output' in tln:  # we have debug set for the key translation stuff, but we want to ignore those command lines
+                continue
             for lstr in lstrs:
                 if lstr in tln:
                     tlines.append((lstr, tln))
@@ -429,7 +434,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             yfname = fnfcn(varnames, vstrs)
             try:
                 if ptilestr == 'time-reqd':
-                    ytmpfo = readlog(yfname, metric, locus, ptntype)
+                    ytmpfo = readlog(args, yfname, metric, locus, ptntype)
                 elif 'pcfrac-' in ptilestr or ptilestr == 'naive-hdist':
                     ytmpfo = read_hist_csv(args, yfname, ptilestr)
                 else:
@@ -769,11 +774,15 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             ymin, ymax = [mfcn(sorted(all_yvals)) for mfcn in [min, max]]
             if 'y' not in log: log += 'y'
             yticks, yticklabels = plotting.timeticks, plotting.timeticklabels
-            in_ticks = [y for y in yticks if y > ymin and y < ymax]  # ticks that will actually show up
-            if ymin < in_ticks[0]:  # if the lowest tick isn't right at the min, add another tick below
-                ymin = yticks[yticks.index(in_ticks[0]) - 1]  # don't think there's any reason to add it to in_ticks
-            if ymax > in_ticks[-1]:  # same for max
-                ymax = yticks[yticks.index(in_ticks[-1]) + 1]
+            in_ticks = [y for y in yticks if y > ymin and y < ymax]  # ticks that will actually show up (we just use these to reset ymin and ymax)
+            if len(in_ticks) == 0:
+                in_ticks = sorted(sorted(yticks, key=lambda y: abs(y-ymin))[0:3])  # nearest 3 ticks
+                ymin, ymax = in_ticks[0], in_ticks[-1]
+            else:
+                if ymin < in_ticks[0]:  # if the lowest tick isn't right at the min, reduce the min to the next lower tick
+                    ymin = yticks[max(0, yticks.index(in_ticks[0]) - 1)]  # don't think there's any reason to add it to in_ticks
+                if ymax > in_ticks[-1]:  # same for max
+                    ymax = yticks[yticks.index(in_ticks[-1]) + 1]
             if ptntype == 'joint':
                 xlabel = xlabel.replace('N seqs', 'N seq pairs')
         else:
