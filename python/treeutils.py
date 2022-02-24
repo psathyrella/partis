@@ -2970,10 +2970,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     rtns_list = []
     import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
-        antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, required_keys=['tree-info'])
-    antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)
+        antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, required_keys=['tree-info'], min_cluster_size=min_cluster_size)
+    antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
     # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
-    n_too_small = 0
     plot_antns = []
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
@@ -2989,9 +2988,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             lid = pids[0]
             if lid not in l_atn['unique_ids']:
                 print '  paired light id %s missing' % lid
-                continue
-            if any(len(l['unique_ids']) < min_cluster_size for l in (h_atn, l_atn)):
-                n_too_small += 1
                 continue
             mpfo = {'iclust' : iclust, 'seqtype' : 'observed'}
             for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
@@ -3011,8 +3007,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '      chose %d total' % len(iclust_mfos)
         if debug:
             print_dbg(metric_pairs, iclust_mfos)
-        if n_too_small > 0:
-            print '    skipped %d clusters smaller than %d' % (n_too_small, min_cluster_size)
     if plotdir is not None:
         mtc = ['sum-'+m for m in args.selection_metrics_to_calculate]
         plot_tree_metrics(args, plotdir, mtc, plot_antns, is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, paired=True)

@@ -207,7 +207,7 @@ def concat_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i wan
 
 # ----------------------------------------------------------------------------------------
 # NOTE i'm really not sure that this fcn needs to exist -- don't the joint partitions for h and l end up ordered i.e. with each cluster tied to its partner? Or at least I should be able to keep track of who goes with who so I don't need to reconstruct it here
-def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, quiet=False, debug=False):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
+def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, quiet=False, min_cluster_size=None, debug=False):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
     # can set <antn_lists> if you don't already have lp_infos (and don't need glfos)
     # ----------------------------------------------------------------------------------------
     def getpids(line):  # return uids of all seqs paired with any seq in <line>
@@ -240,7 +240,7 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
         print '  finding cluster pairs for %s partitions with cluster sizes:\n     %s: %s\n     %s: %s' % ('+'.join(lpair), lpair[0], ' '.join(str(len(c)) for c in h_part), lpair[1], ' '.join(str(len(c)) for c in l_part))
         print '          sizes'
         print '          h   l    l index'
-    n_skipped = {k : 0 for k in required_keys + ['zero-len-paired-uids']}
+    n_skipped = {k : 0 for k in required_keys + ['zero-len-paired-uids', 'too-small']}
     unpaired_l_clusts = [c for c in l_part]
     for h_clust in h_part:
         h_atn = h_atn_dict[':'.join(h_clust)]
@@ -264,6 +264,9 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
             unpaired_l_clusts.remove(l_clusts[0])  # i guess i want to remove it from here? i guess we know who it's paired with, but there's no annotation so we can't do anything with it
             continue
         l_atn = l_atn_dict[':'.join(l_clusts[0])]
+        if min_cluster_size is not None and any(len(l['unique_ids']) < min_cluster_size for l in [h_atn, l_atn]):
+            n_skipped['too-small'] += 1
+            continue
         h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
         l_atn['loci'] = [lpair[1] for _ in l_atn['unique_ids']]
         lp_antn_pairs.append((h_atn, l_atn))
@@ -285,6 +288,8 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
         print '    %s: skipped %d annotations missing required keys: %s' % ('+'.join(lpair), sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids'))
     if n_skipped['zero-len-paired-uids'] > 0:
             print '    %s: skipped %d annotations with zero length paired uids' % ('+'.join(lpair), n_skipped['zero-len-paired-uids'])
+    if n_skipped['too-small'] > 0:
+            print '    %s: skipped %d annotations with N h or l ids < %d' % ('+'.join(lpair), n_skipped['too-small'], min_cluster_size)
     if debug:
         print '  '
     return lp_antn_pairs
