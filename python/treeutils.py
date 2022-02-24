@@ -2582,7 +2582,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 print '        finished: %s' % ('n-per-family not specified' if get_n_choose(cfgfo, 'n-per-family') is None else '%d per family >= %d' % (len(chosen_mfos), get_n_choose(cfgfo, 'n-per-family')))
             return is_finished
         # ----------------------------------------------------------------------------------------
-        def handle_drople_sim_choice(refid, n_take, rmfo):
+        def handle_droplet_sim_choice(refid, n_take, rmfo):
             def sfcn(m): return sum(utils.hamming_distance(gsval(m, c, 'seqs_aa'), gsval(rmfo, c, 'seqs_aa'), amino_acid=True) for c in 'hl')  # note: *not* input seqs, since they aren't in general all the same length
             if tdbg:
                 altid = gsval(rmfo, 'h', 'alternate-uids', no_fail=True)
@@ -2642,11 +2642,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                     if tdbg:
                         print '        chose ab with droplet id %s' % did
-        if 'similar-to-droplet-ids' in cfgfo:  # add seqs similar to some specific seqs
-            for refid, n_take in cfgfo['similar-to-droplet-ids']:
-                rmfos = [m for m in metric_pairs if get_joint_did(m)==refid]
-                if len(rmfos) > 0:  # if <refid> is in the family
-                    handle_drople_sim_choice(refid, n_take, utils.get_single_entry(rmfos))
         for ctk, ntk in [('cell-types', ctkey()), ('min-umis', 'umis')]:
             if len(metric_pairs) > 0 and ctk in cfgfo and ntk not in metric_pairs[0]['h']:
                 print '  %s \'%s\' in cfgfo but \'%s\' info not in annotation' % (utils.color('yellow', 'warning'), ctk, ntk)
@@ -2679,6 +2674,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs):
                 print '          skipped %d with too many ambiguous bases (>%d)' % (n_before - len(metric_pairs), cfgfo['max-ambig-positions'])
+        if 'similar-to-droplet-ids' in cfgfo:  # add seqs similar to some specific seqs
+            for refid, n_take in cfgfo['similar-to-droplet-ids']:
+                rmfos = [m for m in metric_pairs if get_joint_did(m)==refid]
+                if len(rmfos) > 0:  # if <refid> is in the family
+                    handle_droplet_sim_choice(refid, n_take, utils.get_single_entry(rmfos))
 
         if len(metric_pairs) == 0:
             return []
