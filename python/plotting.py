@@ -529,6 +529,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'pcfrac-correct-family-ns' : 'paired with correct family (non-singleton)',
            'naive-hdist' : 'mean N incorrect bases', #'ham. dist. to true naive',  # NOTE duplicates/similar to entries in plotconfig.py
            'n-seqs' : 'N seqs',
+           'biggest-logprob-cluster-to-calculate' : 'max calc\'d cluster size',
            }
 
 axis_labels = {

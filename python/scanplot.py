@@ -333,7 +333,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             # ----------------------------------------------------------------------------------------
             def getikey():
                 if args.n_replicates == 1:
-                    raise Exception('this should be checked, especially as regards nsimevts()')
+                    print '  %s --n-replicates of 1 may need checking, especially as regards nsimevts()' % utils.wrnstr()
                 if args.n_replicates == 1 and treat_clusters_together:  # could add 'or per_x is None' next to treat_clusters_together in all these places, but whatever
                     ikey = None
                     def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
@@ -748,7 +748,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     log, adjust = '', {}
     if xvar == 'lb-tau' and len(all_xtks) > 1:
         ax.plot([1./args.seq_len, 1./args.seq_len], (ymin, ymax), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-    if xvar in ['carry-cap', 'n-sim-events', 'n-leaves']:
+    if xvar in ['carry-cap', 'n-sim-events', 'n-leaves', 'biggest-logprob-cluster-to-calculate']:
         log = 'x'
 
     if ax.get_ylim()[1] < 1:

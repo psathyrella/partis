@@ -84,13 +84,13 @@ parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events'],
-    'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameters
+    'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameter dir
     'partition' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],
 }
 for act in ['cache-parameters'] + ptn_actions + plot_actions:
     if act not in args.scan_vars:
         args.scan_vars[act] = []
-    args.scan_vars[act] += args.scan_vars['simu']
+    args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times']
 args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
 # NOTE ignoring svartypes atm, which may actually work?
@@ -255,6 +255,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots and not args.antn_perf:
             cmd += ' --dont-calculate-annotations'
         for vname, vstr in zip(varnames, vstrs):
+            if vname in args.scan_vars['simu']:
+                continue
             if action == 'cache-parameters' and vname in ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate']:
                 continue  # ick ick ick
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd, replacefo=get_replacefo())
