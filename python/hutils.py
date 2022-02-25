@@ -109,7 +109,7 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
             hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
         else:
             if arg_bins is not None:
-                hist = Hist(n_bins, arg_bins[0], arg_bins[-1], arg_bins=arg_bins)
+                hist = Hist(n_bins, arg_bins[0], arg_bins[-1], xbins=arg_bins)
             elif is_log_x:  # get automatic log-spaced bins
                 set_bins(bin_labels, n_bins, is_log_x, xbins, var_type)
                 hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
