@@ -607,7 +607,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 for fsize in fcinfo[kcd]:
                     fcinfo[kcd][fsize] = fcinfo[kcd][fsize] / float(fcinfo['total'][fsize])
             xbins = None if kcd=='all' else [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 10.5, 30.5, 75.5, 100.5, 200.5, 500.5, 1000.5, 5000.5, 10000.5]
-            fchist = hutils.make_hist_from_dict_of_counts(fcinfo[kcd], 'string' if kcd=='all' else 'int', 'pair cleaning performance', is_log_x=kcd!='all', xbins=xbins) #, no_sort=True)
+            fchist = hutils.make_hist_from_dict_of_counts(fcinfo[kcd], 'string' if kcd=='all' else 'int', 'pair cleaning performance', is_log_x=kcd!='all', arg_bins=xbins) #, no_sort=True)
             fcplname = 'true-pair-clean-performance%s' % ('' if kcd=='all' else '-'+kcd)
             if performance_outdir is not None:  # need to write it here so you have it even if you're not plotting
                 fchist.write('%s/%s.csv'%(performance_outdir, fcplname))

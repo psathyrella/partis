@@ -79,7 +79,7 @@ def make_hist_from_list_of_values(vlist, var_type, hist_label, is_log_x=False, x
 
 # ----------------------------------------------------------------------------------------
 # <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}
-def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False, no_sort=False, default_n_bins=30, xbins=None):  # default_n_bins is only used if is_log_x set we're doing auto log bins
+def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False, no_sort=False, default_n_bins=30, arg_bins=None):  # default_n_bins is only used if is_log_x set we're doing auto log bins
     """ Fill a histogram with values from a dictionary (each key will correspond to one bin) """
     assert var_type == 'int' or var_type == 'string'  # floats should be handled by Hist class in hist.py
 
@@ -94,24 +94,22 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
     if sort_by_counts:  # instead sort by counts
         bin_labels = sorted(values, key=values.get, reverse=True)
 
-    if xbins is not None:
-        n_bins = len(xbins) - 1
+    if arg_bins is not None:
+        n_bins = len(arg_bins) - 1
     elif var_type == 'string':
         n_bins = len(values)
     else:
         n_bins = bin_labels[-1] - bin_labels[0] + 1 if not is_log_x else default_n_bins
 
     hist = None
-    if xbins is None:
-        xbins = [0. for _ in range(n_bins+1)]  # NOTE the +1 is 'cause you need the lower edge of the overflow bin (hist.scratch_init() adds low edge of underflow)
-    assert len(xbins) == n_bins + 1
+    xbins = [0. for _ in range(n_bins+1)]  # NOTE the +1 is 'cause you need the lower edge of the overflow bin (hist.scratch_init() adds low edge of underflow)
     if xmin_force == xmax_force:  # if boundaries aren't set explicitly, work out what they should be
         if var_type == 'string':
             set_bins(bin_labels, n_bins, is_log_x, xbins, var_type)
             hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
         else:
-            if xbins is not None:
-                hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
+            if arg_bins is not None:
+                hist = Hist(n_bins, arg_bins[0], arg_bins[-1], arg_bins=arg_bins)
             elif is_log_x:  # get automatic log-spaced bins
                 set_bins(bin_labels, n_bins, is_log_x, xbins, var_type)
                 hist = Hist(n_bins, xbins[0], xbins[-1], xbins=xbins)
