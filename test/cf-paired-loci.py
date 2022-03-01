@@ -32,7 +32,7 @@ parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')
 parser.add_argument('--merge-paired-partitions', action='store_true', help='for partis partition actions, don\'t re-partition, just merge paired partitions')
 parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
 parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
-parser.add_argument('--n-leaves-list', help='NOTE can use either this or \'n-leaves\' for \'hist\' n leaf distr (and depending on zip vars you need to use one or the other)') #'2:3:4:10') #1 5; do10)
+parser.add_argument('--n-leaves-list', help='NOTE can use either this or \'n-leaf-distribution\' for \'hist\' n leaf distr (and depending on zip vars you need to use one or the other)') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--n-sim-seqs-per-generation-list')  # only for bcr-phylo
 parser.add_argument('--constant-number-of-leaves-list')
 parser.add_argument('--n-leaf-distribution-list', help='NOTE can use either this or \'n-leaves\' for \'hist\' n leaf distr (and depending on zip vars you need to use one or the other)')
@@ -40,6 +40,7 @@ parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
 parser.add_argument('--fraction-of-reads-to-remove-list')
+parser.add_argument('--bulk-data-fraction-list')
 parser.add_argument('--allowed-cdr3-lengths-list') #, default='30,45:30,33,36,42,45,48')
 parser.add_argument('--n-genes-per-region-list')
 parser.add_argument('--n-sim-alleles-per-gene-list')
@@ -83,7 +84,7 @@ parser.add_argument('--bcrham-time', action='store_true')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events'],
+    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events'],
     'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameter dir
     'partition' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],
 }
@@ -223,11 +224,14 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' %s' % args.simu_extra_args
         for vname, vstr in zip(varnames, vstrs):
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd, replacefo=get_replacefo())
-            if vname in ['n-leaves', 'n-leaf-distribution'] and vstr == 'hist':
-                if vname == 'n-leaves':
-                    cmd = ' '.join(utils.remove_from_arglist(cmd.split(), '--n-leaves', has_arg=True))
-                    cmd += ' --n-leaf-distribution hist'
-                cmd += ' --n-leaf-hist-fname %s' %  args.data_cluster_size_hist_fname
+        tmp_astrs = [a for a in ['--n-leaves', '--n-leaf-distribution'] if a in cmd.split() and utils.get_val_from_arglist(cmd.split(), a) == 'hist' ]
+        if len(tmp_astrs) > 0:
+            astr = utils.get_single_entry(tmp_astrs)
+            clist = cmd.split()
+            if astr == '--n-leaves':
+                cmd = ' '.join(utils.remove_from_arglist(cmd.split(), '--n-leaves', has_arg=True))
+                cmd += ' --n-leaf-distribution hist'
+            cmd += ' --n-leaf-hist-fname %s' %  args.data_cluster_size_hist_fname
         if args.bcr_phylo:
             # raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
             cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath --min-ustr-len 20 --dont-observe-common-ancestors'  # NOTE don't increase the mutation rate it makes everything terminate early  --base-mutation-rate 1'  # it's nice to jack up the mutation rate so we get more mutations in less time (higher than this kills off all leaves, not sure why, altho i'm sure it's obvious if i thought about it)
