@@ -2961,14 +2961,13 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         return mtpys
 
     # ----------------------------------------------------------------------------------------
+    import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     debug = args.debug or args.debug_paired_clustering  # not is_simu or
     if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
         print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
     all_chosen_mfos = []
     cfgfo = read_cfgfo()
     antn_pairs = []
-    rtns_list = []
-    import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, required_keys=['tree-info'], min_cluster_size=min_cluster_size)
     antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)

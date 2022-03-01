@@ -668,7 +668,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         print '%s %s:%s%s' % (utils.color('blue_bkg', tmpaction), lpstr, ltstr, utils.color('blue', ' merged') if joint and lpair is None else '')
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
-    def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
+    def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs, single_antn_list):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)
         old_metafos = {}
         if any(os.path.exists(f) for f in get_meta_fns(None, joint=True)):
             old_metafos = utils.read_json_yamls(get_meta_fns(None, joint=True))
@@ -680,11 +680,16 @@ def run_all_loci(args, ig_or_tr='ig'):
                     old_metafos[sfo['name']][mkey] = sfo[mkey]
         new_metafos = {}
         single_pids = {u : pids for l in antn_dict.values() for u, pids in zip(l['unique_ids'], l['paired-uids'])}
+        if args.pair_unpaired_seqs_with_paired_family:
+            single_antn_dict = {u : utils.get_single_entry([l for l in single_antn_list if u in l['unique_ids']]) for u in unpaired_seqs[ltmp]}  # NOTE keys are single seqs, i.e. it's *not* equivalent to getting the dict corresponding to single_antn_list
         for jclust in joint_partition:
             for uid in jclust:
                 new_metafos[uid] = old_metafos.get(uid, {})  # not sure it's possible for it to be missing, but maybe
                 if uid in unpaired_seqs[ltmp]:  # if we determined in paircluster.remove_badly_paired_seqs() that we weren't sure who <uid> was paired with, we need to set <pids> to []
-                    pids = utils.input_metafile_defaults('paired-uids')
+                    if args.pair_unpaired_seqs_with_paired_family and uid in single_antn_dict:
+                        pids = utils.per_seq_val(single_antn_dict[uid], 'paired-uids', uid)
+                    else:
+                        pids = utils.input_metafile_defaults('paired-uids')
                 else:
                     pids = single_pids.get(uid, utils.input_metafile_defaults('paired-uids'))
                 new_metafos[uid]['paired-uids'] = pids
@@ -713,7 +718,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # ----------------------------------------------------------------------------------------
         if len(joint_partition) == 0:
             return
-        rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs)
+        rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs, single_antn_list)
         missing_clusters = []
         for jclust in joint_partition:
             if ':'.join(jclust) not in antn_dict:
@@ -1014,8 +1019,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.min_largest_cluster_size is not None:
                 print '    %s: --min-largest-cluster-size is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently we don\'t do anything specific for --min-largest-cluster-size during paired clustering, so you\'ll probably get smaller clusters than you want. If this is a problem, you can try using --n-final-clusters 1 instead.' % utils.color('yellow', 'warning')
             mstart = time.time()
-            joint_partitions = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
-                                                        seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
+            joint_partitions, cluster_pairs = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
+                                                                       seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
+            if args.pair_unpaired_seqs_with_paired_family:
+                paircluster.pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, single_outfos['antn_lists'])
             print '  merge time %.1f' % (time.time() - mstart)
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 if args.seed_unique_id is not None:  # NOTE it's kind of dumb/shitty to keep the non-seeded h/l pair all the way through this (i.e. to do paired clustering on igl when the seed seq is igh+igk), but we really need to not lose the seqs in there, since then we lose track of their chain, which means it looks like the seqs they're paired with that we *do* care about are unpaired, which screws up their joint partition
@@ -1313,6 +1320,7 @@ parent_args.append({'name' : '--label-tree-nodes', 'kwargs' : {'action' : 'store
 parent_args.append({'name' : '--no-sw-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'By default, we get preliminary V annotations from vsearch that we pass to sw. This improves accuracy because the vsearch shm rate estimates let us separate sequences into groups by optimal sw match/mismatch scores, and improves speed by letting us reverse shm V indels before running sw (so fewer sw iterations; also vsearch is faster than sw). Setting this option skips the preliminary vsearch step (although if caching parameters, we still use vsearch to remove less-likely genes; but no vsearch info is passed to sw)'}})
 
 parent_args.append({'name' : '--collapse-similar-paired-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'if set, when cleaning heavy/light pair info we collapse highly similar sequences within droplets (i.e. extra seqs that likely result from sequencing error).'}})
+parent_args.append({'name' : '--pair-unpaired-seqs-with-paired-family', 'kwargs' : {'action' : 'store_true', 'help' : 'After finishing normal pair info cleaning, continue by randomly pairing together any unpaired sequences in each heavy/light familiy pair. This is designed for use when you have both single cell and bulk samples, and you want to use the single seq pairing info to arrive at some approximate pair info for the bulk sample.'}})
 
 # ----------------------------------------------------------------------------------------
 subconfig = collections.OrderedDict((

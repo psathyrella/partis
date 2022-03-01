@@ -408,8 +408,77 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_p
     for tch in joint_partitions:
         joint_partitions[tch] = [[u for u in c if all_loci[u]==ploci[tch]] for c in joint_partitions[tch]]  # i think they should all be in <all_loci>
 
-    for ch in antn_dict:  # atm this only gets used for dbg, but still nice to properly fix it
+    for ch in antn_dict:  # maybe this this still only gets used for dbg? but still should properly fix it
         antn_dict[ch] = utils.get_annotation_dict(antn_lists[ploci[ch]])
+
+# ----------------------------------------------------------------------------------------
+def pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, antn_lists, debug=True):  # note that at this point these are *single* chain annotations, and/since we've only just got the joint partition
+    # ----------------------------------------------------------------------------------------
+    def get_pids(atn, uid):
+        pds = atn['paired-uids'][atn['unique_ids'].index(uid)]
+        assert len(pds) in [0, 1]  # just to make sure
+        return pds
+    # ----------------------------------------------------------------------------------------
+    def tcol(pds, oclust):
+        if len(pds) == 0:
+            return utils.color('blue', '-')
+        elif pds[0] not in oclust:  # paired id isn't in opposite chain cluster? not sure but maybe could happen
+            return utils.color('yellow', '?')
+        else:
+            return utils.color('green', 'x')
+    # ----------------------------------------------------------------------------------------
+    def cstrs(cpair, pd_dict):
+        rstrs = [' '.join(tcol(pd_dict[u], oc) for u in tc) for tc, oc in zip(cpair, reversed(cpair))]
+        rstrs = ['%s%s' % (tstr, ' '*(mlen - 2*len(tclust))) for mlen, tstr, tclust in zip(max_lens, rstrs, cpair)]
+        return rstrs
+    # ----------------------------------------------------------------------------------------
+    def zstr(val):
+        return '' if val==0 else str(val)
+    # ----------------------------------------------------------------------------------------
+    n_no_paired = 0
+    if debug:
+        max_lens = [2*max(len(c) for c in clist) for clist in zip(*cluster_pairs)]
+        print '  pairing unpaired seqs from %d cluster pairs (N fixed \'both\': paired with unique unpaired seq from other chain; \'extra\' same, but not unique; %s paired with already-paired seq' % (len(cluster_pairs), utils.color('blue', '*'))
+        print '        size     recipr    N fixed         %s   %s' % tuple(utils.wfmt(s, 2*mlen, jfmt='-') for s, mlen in zip(('heavy', 'light'), max_lens))
+        print '       h     l   paired    h     l       %s%s   %s%s' % tuple(utils.wfmt(s, mlen, jfmt='-') for mlen in max_lens for s in ['before', 'after'])
+    # ----------------------------------------------------------------------------------------
+    all_atns = {u : utils.get_single_entry([l for l in antn_lists[ploci[tch]] if u in l['unique_ids']]) for cp in cluster_pairs for tch, c in zip('hl', cp) for u in c}
+    for cpair in cluster_pairs:
+        h_atns, l_atns = [[all_atns[u] for u in tclust] for c, tclust in zip('hl', cpair)]
+        all_pids = {u : get_pids(l, u) for tclust, alist in zip(cpair, (h_atns, l_atns)) for u, l in zip(tclust, alist)}
+        ok_ids = [[u for u in tc if len(all_pids[u])==1 and all_pids[u][0] in oc] for tc, oc in zip(cpair, reversed(cpair))]  # list of correctly paired uids for each chain (note that this is *not* mutually exclusive to <unp_ids>)
+        n_recip_paired = utils.get_single_entry(list(set(len(ulist) for ulist in ok_ids)))
+        if n_recip_paired == 0:
+            n_no_paired += 1
+            continue
+        unp_ids = [[u for u in tc if len(all_pids[u])==0] for tc, oc in zip(cpair, reversed(cpair))]  # could i guess just use <unpaired_seqs> as well
+        for tch, unlist, oklist in zip('hl', unp_ids, ok_ids):
+            for unid in unlist:
+                nearid = unpaired_seqs[ploci[tch]][unid]['nearest-paired']  # pair all unpaired seqs with their nearest paired seq (which i think makes sense since the paired seqs are the ones that are providing the actual information about what family the unpaired seqs are paired with)
+                all_atns[unid]['paired-uids'][all_atns[unid]['unique_ids'].index(unid)] = [all_pids[nearid][0]]
+        if debug:
+            after_pids = {u : get_pids(l, u) for tclust, alist in zip(cpair, (h_atns, l_atns)) for u, l in zip(tclust, alist)}
+            bcstrs, acstrs = [cstrs(cpair, pdlist) for pdlist in (all_pids, after_pids)]
+            print '    %4d  %4d  %4s    %4s  %4s       %s %s    %s %s'  % (len(cpair[0]), len(cpair[1]), zstr(n_recip_paired), zstr(len(unp_ids[0])), zstr(len(unp_ids[1])), bcstrs[0], acstrs[0], bcstrs[1], acstrs[1])
+# ----------------------------------------------------------------------------------------
+# old version that first pairs unpaired seqs in order, then apportions the leftovers (i think it's worse, but it was a fair bit of work so don't want to delete yet):
+        # unp_ids = [[u for u in tc if len(all_pids[u])==0] for tc, oc in zip(cpair, reversed(cpair))]  # keep the order the same, since it seems like similar seqs end up in similar order, probably due to seq similarity from single chain clustering?
+        # for uid_pair in zip(*unp_ids):  # first do the ones that're matched up
+        #     for tch, tid, oid in zip('hl', uid_pair, reversed(uid_pair)):
+        #         all_atns[tid]['paired-uids'][all_atns[tid]['unique_ids'].index(tid)] = [oid]
+        # (ish, iln), (shorter_unids, longer_unids) = zip(*sorted(enumerate(unp_ids), key=lambda x: len(x[1])))
+        # shid = shorter_unids[-1] if len(shorter_unids) > 0 else ok_ids[ish][0]  # if there are some unpaired uids from the shorter chain, use those; otherwise use the first paired one (note that this means in the latter case that we're pairing with a seq from single cell data, which is not going to be a correct pairing, but it *will* likely result in a functional ab)
+        # for eid in longer_unids[len(shorter_unids) : ]:
+        #     all_atns[eid]['paired-uids'][all_atns[eid]['unique_ids'].index(eid)] = [shid]
+        # if debug:
+        #     n_bt_fixed, n_ex_fixed = len(shorter_unids), len(longer_unids) - len(shorter_unids)
+        #     after_pids = {u : get_pids(l, u) for tclust, alist in zip(cpair, (h_atns, l_atns)) for u, l in zip(tclust, alist)}
+        #     bcstrs, acstrs = [cstrs(cpair, pdlist) for pdlist in (all_pids, after_pids)]
+        #     print '    %4d  %4d  %4s    %4s  %4s%s       %s %s    %s %s      %s    %s'  % (len(cpair[0]), len(cpair[1]), zstr(n_recip_paired), zstr(n_bt_fixed), zstr(n_ex_fixed), ' ' if len(longer_unids)==0 or len(shorter_unids)>0 else utils.color('blue', '*'), bcstrs[0], acstrs[0], bcstrs[1], acstrs[1], ' '.join(cpair[0]), ' '.join(cpair[1]))
+# ----------------------------------------------------------------------------------------
+
+    if n_no_paired > 0:
+        print '    skipped %d family pairs with no reciprocally paired seqs' % n_no_paired
 
 # ----------------------------------------------------------------------------------------
 def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired with the other/wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
@@ -417,7 +486,17 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     def add_unpaired(cline, iseq, uid):
         sorted_hdists = sorted([(u, utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i, u in enumerate(cline['unique_ids']) if i != iseq], key=operator.itemgetter(1))
         nearest_uid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
-        unpaired_seqs[cline['loci'][iseq]][uid] = nearest_uid  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance
+        unpaired_seqs[cline['loci'][iseq]][uid] = {'nearest' : nearest_uid}  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance
+    # ----------------------------------------------------------------------------------------
+    def process_unpaired(cline, iseqs_to_keep):
+        for iun, unid in [(i, u) for i, u in enumerate(cline['unique_ids']) if u in unpaired_seqs[cline['loci'][i]]]:
+            if unpaired_seqs[cline['loci'][iun]][unid]['nearest'] is None:  # singleton family, don't need to do anything
+                continue
+            sorted_hdists = sorted([(cline['unique_ids'][i], utils.hamming_distance(cline['seqs'][i], cline['seqs'][iun])) for i in iseqs_to_keep], key=operator.itemgetter(1))
+            nearest_pid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
+            unpaired_seqs[cline['loci'][iun]][unid]['nearest-paired'] = nearest_pid
+            if nearest_pid is None:
+                unpaired_seqs[cline['loci'][iun]][unid]['single-chain-family'] = cline['unique_ids']
     # ----------------------------------------------------------------------------------------
     cpaths, antn_lists, glfos = [outfos[k] for k in ['cpaths', 'antn_lists', 'glfos']]
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
@@ -447,12 +526,13 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
                     if tch == 'h' and all_loci[utils.get_single_entry(pids)] != ploci['l']:  # if it's the other light chain
                         iseqs_to_remove.append(iseq)
                         n_other_light += 1
-                    else:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in pair info cleaning, but atm i think we can't look at both chains at once in that fcn
+                    else:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in pair info cleaning, but atm i think we can't look at both chains at once in that fcn UPDATE i think we do this now
                         if all_pids[uid] not in all_pids or all_pids[all_pids[uid]] != uid:  # if uid's pid isn't in all_pids, or if it is but it's a different uid
                             iseqs_to_remove.append(iseq)
                             add_unpaired(cline, iseq, uid)
                             n_non_reciprocal += 1
             iseqs_to_keep = [i for i in range(len(cline['unique_ids'])) if i not in iseqs_to_remove]
+            process_unpaired(cline, iseqs_to_keep)  # have to go back after finishing cluster since only now do we know who we ended up keeping
             if len(iseqs_to_keep) > 0:
                 new_partition.append([cluster[i] for i in iseqs_to_keep])
                 new_cline = utils.get_non_implicit_copy(cline)
@@ -1215,29 +1295,35 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
 
     joint_partitions = {ch : copy.deepcopy(final_partition) for ch in utils.chains}
     if len(l_translations) > 0:
-        untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_partitions, antn_dict)
+        untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_partitions, antn_dict)  # NOTE code after here (at least randomly_pair_unpaired_seqs()) assumes that corresponding h/l clusters are in same order in each partition
 
     if unpaired_seqs is not None:  # it might be cleaner to have this elsewhere, but I want it to happen before we evaluate, and it's also nice to have evaluation in here
-        n_added = {tch : 0 for tch in ploci}
+        n_added = {tch : {'singleton' : 0, 'new-cluster' : 0, 'existing-cluster' : 0} for tch in ploci}
         for tch, ltmp in ploci.items():
-            for upid, nearid in unpaired_seqs[ltmp].items():  # <upid> is uid of seq with bad/no pair info, <nearid> is uid of nearest seq in <upid>'s original family
-                if nearid is None:  # it was a singleton, so keep it one
+            for upid, nearfo in unpaired_seqs[ltmp].items():  # <upid> is uid of seq with bad/no pair info, <nearfo['nearest']> is uid of nearest seq in <upid>'s original family
+                if nearfo['nearest'] is None:  # it was a singleton, so keep it one
                     joint_partitions[tch].append([upid])
-                    n_added[tch] += 1
+                    n_added[tch]['singleton'] += 1
                     continue
-                jclusts = [c for c in joint_partitions[tch] if nearid in c]
+                nearids = [nearfo['nearest-paired']] if nearfo['nearest-paired'] is not None else nearfo['single-chain-family']  # if there's any paired seqs in its single chain family, attach it to the nearest one of those; otherwise try to keep all the unpaired seqs from the family together
+                jclusts = [c for c in joint_partitions[tch] if len(set(nearids) & set(c)) > 0]
                 if len(jclusts) < 1:
-                    joint_partitions[tch].append([upid])  # this should mean that its <nearid> was also missing pairing info, so will also be in <unpaired_seqs>, so add it as a singleton, and then when the <nearid> comes up it should get added to this new cluster
-                    n_added[tch] += 1
+                    joint_partitions[tch].append([upid])  # it didn't have a 'nearest-paired' (i.e. no paired seqs in its single chain cluster), and we haven't gotten to any of the other unpaired seqs from its single chain cluster (when we do get to them, they'll get added to this cluster)
+                    n_added[tch]['new-cluster'] += 1
                     continue
-                jclust = utils.get_single_entry(jclusts)  # if <nearid> is in more than one cluster in the partition, it isn't a partition (which I think will only happen if it's an unfinished/uncleaned seed unique id partition)
-                jclust.append(upid)
-                n_added[tch] += 1
+                if len(jclusts) > 1:
+                    print '  %s multiple jclusts for %s: %s' % (utils.wrnstr(), upid, jclusts)
+                jclusts[0].append(upid)
+                n_added[tch]['existing-cluster'] += 1
         totstr = '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in joint_partitions[tch])) for tch in sorted(ploci))
-        print '    re-added unpaired seqs (%s) to give total seqs in joint partitions: %s' % (', '.join('%s %d'%(utils.locstr(ploci[tch]), n) for tch, n in n_added.items()), totstr)
+        print '    re-added unpaired seqs (%s) to give total seqs in joint partitions: %s' % (', '.join('%s %d'%(utils.locstr(ploci[tch]), sum(nfo.values())) for tch, nfo in n_added.items()), totstr)
+        # print '        singleton      new cluster     existing cluster'
+        # for tch in 'hl':
+        #     print '       %s      %4d      %4d    %4d' % (utils.locstr(ploci[tch]), n_added[tch]['singleton'], n_added[tch]['new-cluster'], n_added[tch]['existing-cluster'])
 
     if true_partitions is not None:
         assert iparts is None  # just for now
         evaluate_joint_partitions(ploci, true_partitions, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, seed_unique_ids=seed_unique_ids, debug=debug)
 
-    return {ploci[ch] : jp for ch, jp in joint_partitions.items()}
+    cluster_pairs = zip(*[joint_partitions[c] for c in 'hl'])
+    return {ploci[ch] : jp for ch, jp in joint_partitions.items()}, cluster_pairs
