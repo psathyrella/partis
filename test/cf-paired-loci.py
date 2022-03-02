@@ -226,8 +226,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd, replacefo=get_replacefo())
         tmp_astrs = [a for a in ['--n-leaves', '--n-leaf-distribution'] if a in cmd.split() and utils.get_val_from_arglist(cmd.split(), a) == 'hist' ]
         if len(tmp_astrs) > 0:
-            astr = utils.get_single_entry(tmp_astrs)
-            clist = cmd.split()
+            astr = utils.get_single_entry(tmp_astrs)  # i think it'll break/doesn't make sense if there's more than one
             if astr == '--n-leaves':
                 cmd = ' '.join(utils.remove_from_arglist(cmd.split(), '--n-leaves', has_arg=True))
                 cmd += ' --n-leaf-distribution hist'

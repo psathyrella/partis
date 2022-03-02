@@ -1000,8 +1000,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  no paired uids in any annotations, not merging single chain partitions'
             return None
         true_partitions = get_true_partitions(debug=args.debug_paired_clustering)
-        paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], #, max_hdist=4
-                                    plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_partitions=true_partitions, debug=args.debug_paired_clustering)
+        paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_partitions=true_partitions, debug=args.debug_paired_clustering)
         lp_infos = {}
         for lpair in spairs():
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
@@ -1022,7 +1021,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             joint_partitions, cluster_pairs = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
                                                                        seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
             if args.pair_unpaired_seqs_with_paired_family:
-                paircluster.pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, single_outfos['antn_lists'])
+                paircluster.pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, single_outfos['antn_lists'], debug=args.debug_paired_clustering)
             print '  merge time %.1f' % (time.time() - mstart)
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 if args.seed_unique_id is not None:  # NOTE it's kind of dumb/shitty to keep the non-seeded h/l pair all the way through this (i.e. to do paired clustering on igl when the seed seq is igh+igk), but we really need to not lose the seqs in there, since then we lose track of their chain, which means it looks like the seqs they're paired with that we *do* care about are unpaired, which screws up their joint partition
@@ -1032,6 +1031,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs, true_partitions=true_partitions)
             lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering and not args.count_parameters, dbgstr='partition')
             count_parameter_things(lp_infos, lpair)
+        if args.pair_unpaired_seqs_with_paired_family and not args.is_data:
+            paircluster.plot_fraction_correctly_paired(single_outfos['cpaths'], None, true_partitions, antn_lists=single_outfos['antn_lists'], performance_outdir=None if args.is_data else getodir(), plotdir=getplotdir(None) if args.plotdir is not None else None)
         if args.input_metafnames is not None:  # need to add any new input meta keys to headers
             seqfileopener.read_input_metafo(args.input_metafnames, [])
         _, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), true_partitions=true_partitions)

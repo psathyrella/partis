@@ -412,7 +412,8 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_p
         antn_dict[ch] = utils.get_annotation_dict(antn_lists[ploci[ch]])
 
 # ----------------------------------------------------------------------------------------
-def pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, antn_lists, debug=True):  # note that at this point these are *single* chain annotations, and/since we've only just got the joint partition
+def pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, antn_lists, debug=False):
+    # note that at this point these are *single* chain annotations, and/since we've only just got the joint partition
     # ----------------------------------------------------------------------------------------
     def get_pids(atn, uid):
         pds = atn['paired-uids'][atn['unique_ids'].index(uid)]
@@ -551,25 +552,76 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=None, max_hdist=4, true_partitions=None, debug=False):
-    # ----------------------------------------------------------------------------------------
-    def crct_fam(uid, pids, tdbg=False):  # not mutually exclusive to the others (it kind of sucks to have this separate, but i think it's better)
-        if len(pids) != 1:
-            if tdbg:
-                print '    %s N pids %d' % (uid, len(pids))
-            return False
-        if utils.is_correctly_paired(uid, pids[0]):
-            if tdbg:
-                print '    %s correct' % uid
-            return True
-        plocus = pids[0].split('-')[-1]
-        assert plocus in utils.loci
-        # pntn = utils.get_single_entry([l for l in antn_dicts[plocus].values() if pids[0] in l['unique_ids']])  # paired annotation
-        true_clust = utils.get_single_entry([c for c in true_partitions[plocus] if pids[0] in c])  # paired annotation
-        is_corr_fam = any(utils.is_correctly_paired(uid, u) for u in true_clust)  # true if the correct paired id is in the paired annotation (i.e. we just got the wrong family member)
+def crct_fam(true_partitions, uid, pids, tdbg=False):  # not mutually exclusive to the others (it kind of sucks to have this separate, but i think it's better)
+    if len(pids) != 1:
         if tdbg:
-            print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(true_clust))
-        return is_corr_fam
+            print '    %s N pids %d' % (uid, len(pids))
+        return False
+    if utils.is_correctly_paired(uid, pids[0]):
+        if tdbg:
+            print '    %s correct' % uid
+        return True
+    plocus = pids[0].split('-')[-1]
+    assert plocus in utils.loci
+    # pntn = utils.get_single_entry([l for l in antn_dicts[plocus].values() if pids[0] in l['unique_ids']])  # paired annotation
+    true_clust = utils.get_single_entry([c for c in true_partitions[plocus] if pids[0] in c])  # paired annotation
+    is_corr_fam = any(utils.is_correctly_paired(uid, u) for u in true_clust)  # true if the correct paired id is in the paired annotation (i.e. we just got the wrong family member)
+    if tdbg:
+        print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(true_clust))
+    return is_corr_fam
+
+# ----------------------------------------------------------------------------------------
+def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lists=None, performance_outdir=None, plotdir=None, fnames=None):
+    # ----------------------------------------------------------------------------------------
+    def gpt(uid, pids):  # these are all mutually exclusive (as opposed to 'correct-family')
+        if len(pids) == 0:
+            return 'unpaired'
+        elif len(pids) > 1:
+            return 'multiple'
+        elif utils.is_correctly_paired(uid, pids[0]):
+            return 'correct'
+        else:
+            return 'mispaired'
+    # ----------------------------------------------------------------------------------------
+    if antn_dicts is None:
+        assert antn_lists is not None
+        antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
+    mcodes = ['correct', 'mispaired', 'unpaired', 'multiple']  # these are mutually exclusive
+    kcodes = mcodes + ['correct-family', 'total']
+    fcinfo, afo = {k : {} for k in kcodes}, {c : 0 for c in mcodes}
+    for ltmp in sorted(cpaths):
+        for cluster in cpaths[ltmp].best():
+            atn = antn_dicts[ltmp][':'.join(cluster)]
+            for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
+                rcode = gpt(uid, pids)  # mutually exclusive result code
+                cfam = crct_fam(true_partitions, uid, pids)  # correct family
+                fsize = len(utils.get_single_entry([c for c in true_partitions[ltmp] if uid in c]))
+                if fsize not in fcinfo['total']:
+                    for k in kcodes:  # add it to all of them so they all have the same bins
+                        fcinfo[k][fsize] = 0
+                if fsize not in fcinfo[rcode]:
+                    fcinfo[rcode][fsize] = 0
+                fcinfo['total'][fsize] += 1
+                fcinfo[rcode][fsize] += 1
+                afo[rcode] += 1
+                if cfam:
+                    fcinfo['correct-family'][fsize] += 1
+    fcinfo['all'] = afo
+    for kcd in kcodes + ['all']:
+        if kcd not in ['total', 'all']:
+            for fsize in fcinfo[kcd]:
+                fcinfo[kcd][fsize] = fcinfo[kcd][fsize] / float(fcinfo['total'][fsize])
+        xbins = None if kcd=='all' else [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 10.5, 30.5, 75.5, 100.5, 200.5, 500.5, 1000.5, 5000.5, 10000.5]
+        fchist = hutils.make_hist_from_dict_of_counts(fcinfo[kcd], 'string' if kcd=='all' else 'int', 'pair cleaning performance', is_log_x=kcd!='all', arg_bins=xbins) #, no_sort=True)
+        fcplname = 'true-pair-clean-performance%s' % ('' if kcd=='all' else '-'+kcd)
+        if performance_outdir is not None:  # need to write it here so you have it even if you're not plotting
+            fchist.write('%s/%s.csv'%(performance_outdir, fcplname))
+        if plotdir is not None:
+            fn = fchist.fullplot(plotdir, fcplname, pargs={'label' : kcd, 'ignore_overflows' : True}, fargs={'xticklabelsize' : 15, 'ylabel' : 'number of seqs'})  # , 'ybounds' : (0., 1.05)'xbounds' : (0.95, 1.05*len(fcinfo)), 
+            fnames.append([fn])
+
+# ----------------------------------------------------------------------------------------
+def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=None, max_hdist=4, true_partitions=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
         if not args.is_data:
@@ -664,52 +716,6 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         fn = ahist.fullplot(plotdir, '%s-%s'%(xvar, pstr), pargs={'remove_empty_bins' : True}, fargs={'xlabel' : plotconfig.xtitles.get(xvar), 'ylabel' : 'counts', 'title' : pstr, 'xbounds' : (-0.05, 1.05*ahist.xmax), 'xticks' : [i for i in range(0, int(ahist.xmax+1), 1 if 'after' in pstr else 2)]})
         fnames[1].append(fn)
         return pidlengths
-    # ----------------------------------------------------------------------------------------
-    def make_fraction_correct_plot():
-        # ----------------------------------------------------------------------------------------
-        def gpt(uid, pids):  # these are all mutually exclusive (as opposed to 'correct-family')
-            if len(pids) == 0:
-                return 'unpaired'
-            elif len(pids) > 1:
-                return 'multiple'
-            elif utils.is_correctly_paired(uid, pids[0]):
-                return 'correct'
-            else:
-                return 'mispaired'
-        # ----------------------------------------------------------------------------------------
-        mcodes = ['correct', 'mispaired', 'unpaired', 'multiple']  # these are mutually exclusive
-        kcodes = mcodes + ['correct-family', 'total']
-        fcinfo, afo = {k : {} for k in kcodes}, {c : 0 for c in mcodes}
-        for ltmp in sorted(cpaths):
-            for cluster in cpaths[ltmp].best():
-                atn = antn_dicts[ltmp][':'.join(cluster)]
-                for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
-                    rcode = gpt(uid, pids)  # mutually exclusive result code
-                    cfam = crct_fam(uid, pids)  # correct family
-                    fsize = len(utils.get_single_entry([c for c in true_partitions[ltmp] if uid in c]))
-                    if fsize not in fcinfo['total']:
-                        for k in kcodes:  # add it to all of them so they all have the same bins
-                            fcinfo[k][fsize] = 0
-                    if fsize not in fcinfo[rcode]:
-                        fcinfo[rcode][fsize] = 0
-                    fcinfo['total'][fsize] += 1
-                    fcinfo[rcode][fsize] += 1
-                    afo[rcode] += 1
-                    if cfam:
-                        fcinfo['correct-family'][fsize] += 1
-        fcinfo['all'] = afo
-        for kcd in kcodes + ['all']:
-            if kcd not in ['total', 'all']:
-                for fsize in fcinfo[kcd]:
-                    fcinfo[kcd][fsize] = fcinfo[kcd][fsize] / float(fcinfo['total'][fsize])
-            xbins = None if kcd=='all' else [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 10.5, 30.5, 75.5, 100.5, 200.5, 500.5, 1000.5, 5000.5, 10000.5]
-            fchist = hutils.make_hist_from_dict_of_counts(fcinfo[kcd], 'string' if kcd=='all' else 'int', 'pair cleaning performance', is_log_x=kcd!='all', arg_bins=xbins) #, no_sort=True)
-            fcplname = 'true-pair-clean-performance%s' % ('' if kcd=='all' else '-'+kcd)
-            if performance_outdir is not None:  # need to write it here so you have it even if you're not plotting
-                fchist.write('%s/%s.csv'%(performance_outdir, fcplname))
-            if plotdir is not None:
-                fn = fchist.fullplot(plotdir, fcplname, pargs={'label' : kcd, 'ignore_overflows' : True}, fargs={'xticklabelsize' : 15, 'ylabel' : 'number of seqs'})  # , 'ybounds' : (0., 1.05)'xbounds' : (0.95, 1.05*len(fcinfo)), 
-                fnames.append([fn])
     # ----------------------------------------------------------------------------------------
     def make_final_plots(initial_seqs_per_seq, initial_flcounts):
         final_seqs_per_seq = plot_n_pseqs_per_seq('after')
@@ -854,7 +860,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 if uid is None or args.is_data:
                     return ''
                 is_correct = len(pids)==1 and utils.is_correctly_paired(uid, pids[0])
-                cfam = crct_fam(uid, pids)
+                cfam = crct_fam(true_partitions, uid, pids)
                 return '%s ' % (utils.color('green', 'y') if is_correct else (utils.color('yellow', '*') if cfam else utils.color('red', 'n')))
             # ----------------------------------------------------------------------------------------
             # prpfd(old_pfams, extra_str='before:')
@@ -958,6 +964,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
     #     print '  %3d %s' % (ipg, ' '.join(pg))
 
     idg_ok = check_droplet_id_groups(pid_groups, all_uids)  # NOTE not using the return value here, but I may need to in the future
+    fnames = None
     if plotdir is not None:
         fnames = [[], [], []]
         initial_flcounts = plot_uids_before(plotdir, pid_groups, all_antns)
@@ -1041,7 +1048,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         print '     synchronized/fixed %d pairs where one had no pair info after cleaning: %s' % (sum(n for n in n_fixed.values()), '  '.join('%s %d'%(utils.locstr(l), n_fixed[l]) for l in sorted(n_fixed)))
 
     if not args.is_data and (performance_outdir is not None or plotdir is not None):
-        make_fraction_correct_plot()
+        plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, performance_outdir=performance_outdir, plotdir=plotdir, fnames=fnames)
     if plotdir is not None:
         make_final_plots(initial_seqs_per_seq, initial_flcounts)
 
