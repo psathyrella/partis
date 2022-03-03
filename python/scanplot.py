@@ -90,7 +90,7 @@ def read_hist_csv(args, fname, ptilestr):  # NOTE this is inside a try: except s
             hist = Hist(fname=fname)
             hist.normalize()
             pval = 0
-            if 'correct-family' not in ptilestr:  # i took this bin out of the overall hist so the bins can be mutually exclusive, so whatever
+            if ptilestr not in ['pcfrac-correct-family', 'pcfrac-near-family']:  # old note: i took this bin out of the overall hist so the bins can be mutually exclusive, so whatever
                 pval = hist.bin_contents[hist.find_bin(None, label=ptilestr.replace('pcfrac-', ''))]
             if args.make_hist_plots:
                 rhist = Hist(fname=utils.insert_before_suffix('-'+ptilestr.replace('pcfrac-', ''), fname))
@@ -847,7 +847,11 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 h.title = x
             txt, txtl = plotting.get_cluster_size_xticks(hlist=hists)
             plotname = '%s-%s-hist' % (getplotname(metric), pvkey.replace('; ', '-'))
-            hfn = plotting.draw_no_root(None, more_hists=list(hists), plotdir=plotdir, plotname=plotname, remove_empty_bins=True, log='x', errors=True, no_legend=ptilestr!='pcfrac-correct', ybounds=[0, 1],
-                                        xtitle='true family size', ytitle=ylabel, plottitle=title, xticks=txt, xticklabels=txtl, leg_title=ldfcn(args.final_plot_xvar), alphas=[0.65 for _ in hists], translegend=[-0.2, -0.55])
+            no_legend = ptilestr not in ['pcfrac-unpaired', 'pcfrac-near-family'] if 'bulk-data-fraction' in varnames else ptilestr!='pcfrac-correct'
+            translegend = [-0.2, -0.55]
+            if 'bulk-data-fraction' in varnames:
+                translegend = [-0.1, -0.4] if ptilestr == 'pcfrac-unpaired' else [-0.1, -0.7]
+            hfn = plotting.draw_no_root(None, more_hists=list(hists), plotdir=plotdir, plotname=plotname, remove_empty_bins=True, log='x', errors=True, no_legend=no_legend, ybounds=[0, 1],
+                                        xtitle='true family size', ytitle=ylabel, plottitle=title, xticks=txt, xticklabels=txtl, leg_title=ldfcn(args.final_plot_xvar), alphas=[0.65 for _ in hists], translegend=translegend)
             if fnames is not None:
                 fnames.append(hfn)

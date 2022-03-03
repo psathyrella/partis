@@ -149,6 +149,8 @@ class Hist(object):
     def find_bin(self, value, label=None):  # if <label> is set, find ibin corresponding to bin label <label>
         """ find <ibin> corresponding to <value>. NOTE boundary is owned by the upper bin. """
         if label is not None:
+            if label not in self.bin_labels:
+                raise Exception('asked for label \'%s\' that isn\'t among bin labels: %s' % (label, self.bin_labels))
             return utils.get_single_entry([i for i, l in enumerate(self.bin_labels) if l==label])
         if value < self.low_edges[0]:  # is it below the low edge of the underflow?
             return 0

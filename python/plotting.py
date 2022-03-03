@@ -523,6 +523,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'pcfrac-mispaired' : 'mispaired',
            'pcfrac-unpaired' : 'unpaired',
            'pcfrac-correct-family' : 'paired with correct family',
+           'pcfrac-near-family' : 'paired with similar family',
            'pcfrac-correct-ns' : 'correctly paired (non-singleton)',
            'pcfrac-mispaired-ns' : 'mispaired (non-singleton)',
            'pcfrac-unpaired-ns' : 'unpaired (non-singleton)',
@@ -530,6 +531,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'naive-hdist' : 'mean N incorrect bases', #'ham. dist. to true naive',  # NOTE duplicates/similar to entries in plotconfig.py
            'n-seqs' : 'N seqs',
            'biggest-logprob-cluster-to-calculate' : 'max calc\'d cluster size',
+           'bulk-data-fraction' : 'bulk data frac',
            }
 
 axis_labels = {
@@ -537,6 +539,7 @@ axis_labels = {
     'pcfrac-mispaired' : 'frac. mispaired',
     'pcfrac-unpaired' : 'frac. unpaired',
     'pcfrac-correct-family' : 'frac. correct family',
+    'pcfrac-near-family' : 'frac. similar family',
     'pcfrac-correct-ns' : 'frac. correctly paired',
     'pcfrac-mispaired-ns' : 'frac. mispaired',
     'pcfrac-unpaired-ns' : 'frac. unpaired',

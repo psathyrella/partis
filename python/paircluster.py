@@ -552,7 +552,15 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
 # ----------------------------------------------------------------------------------------
-def crct_fam(true_partitions, uid, pids, tdbg=False):  # not mutually exclusive to the others (it kind of sucks to have this separate, but i think it's better)
+# default: return True if <pids> is len 1 and is in the same family as <uid>'s correct partner
+# near=True: same, but only has to be a family whose naive seq is within <max_hdist> hamming distance of the true family's naive seq (true_antn_dict must be set)
+def crct_fam(true_partitions, uid, pids, near=False, max_hdist=3, true_antn_dict=None, tdbg=False):  # not mutually exclusive to the other categories (correct, mispaired, unpaired)
+    # ----------------------------------------------------------------------------------------
+    def getatn(utmp):
+        ltmp = utmp.split('-')[-1]
+        tclust = utils.get_single_entry([c for c in true_partitions[ltmp] if utmp in c])
+        return true_antn_dict[ltmp][':'.join(tclust)]
+    # ----------------------------------------------------------------------------------------
     if len(pids) != 1:
         if tdbg:
             print '    %s N pids %d' % (uid, len(pids))
@@ -564,14 +572,31 @@ def crct_fam(true_partitions, uid, pids, tdbg=False):  # not mutually exclusive 
     plocus = pids[0].split('-')[-1]
     assert plocus in utils.loci
     # pntn = utils.get_single_entry([l for l in antn_dicts[plocus].values() if pids[0] in l['unique_ids']])  # paired annotation
-    true_clust = utils.get_single_entry([c for c in true_partitions[plocus] if pids[0] in c])  # paired annotation
-    is_corr_fam = any(utils.is_correctly_paired(uid, u) for u in true_clust)  # true if the correct paired id is in the paired annotation (i.e. we just got the wrong family member)
-    if tdbg:
-        print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(true_clust))
-    return is_corr_fam
+    true_pclust = utils.get_single_entry([c for c in true_partitions[plocus] if pids[0] in c])  # cluster in true partition with paired id
+    is_corr_fam = any(utils.is_correctly_paired(uid, p) for p in true_pclust)  # true if the correct paired id is in the paired cluster (i.e. we just got the wrong family member) NOTE it's weird to kind of guess if the pairing is correct, but this is the how we do it when we don't have the annotation (yes it would be better to just always have the annotation [which we only pass in if <near> is set)
+    if near:  # NOTE this is pretty ugly and could really stand to be cleaned up
+        if true_antn_dict is None:
+            raise Exception('must set true_antn_dict if <near> is set')
+        if is_corr_fam:
+            return True
+        inf_patn = getatn(pids[0])  # annotation for the inferred paired id
+        true_uatn = getatn(uid)  # annotation for <uid>
+        # true_pid = utils.get_single_entry(utils.per_seq_val(true_uatn, 'paired-uids', uid))
+        # true_patn = getatn(true_pid)  # annotation for true paired id (NOTE this is quite different to inf_patn -- and that's fine, since our inference said that <uid> was associated with <pids[0]> (i.e. <uid> and the true partner of <pids[0]> are interchangeable), not that <true_pid> and <pids[0]> are interchangeable (the latter would mean that we had pair info for <true_pid>, whereas since <uid> has collided with something it is likely that its true partner was left unpaired)
+        true_inf_id = utils.get_single_entry(utils.per_seq_val(inf_patn, 'paired-uids', pids[0]))  # true partner of inferred pid
+        true_inf_atn = getatn(true_inf_id)
+        if len(true_uatn['naive_seq']) == len(true_inf_atn['naive_seq']):
+            hdist = utils.hamming_distance(true_uatn['naive_seq'], true_inf_atn['naive_seq'])  # naive hdist between the true naive seqs of <uid> and the true partner of <pids[0]>
+        else:
+            hdist = 9999
+        return hdist <= max_hdist
+    else:
+        if tdbg:
+            print '    %s corr fam: %6s   pid: %s   paired annotation uids: %s' % (uid, is_corr_fam, pids[0], ' '.join(true_pclust))
+        return is_corr_fam
 
 # ----------------------------------------------------------------------------------------
-def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lists=None, performance_outdir=None, plotdir=None, fnames=None):
+def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lists=None, performance_outdir=None, plotdir=None, true_antn_lists=None, fnames=None):
     # ----------------------------------------------------------------------------------------
     def gpt(uid, pids):  # these are all mutually exclusive (as opposed to 'correct-family')
         if len(pids) == 0:
@@ -586,15 +611,15 @@ def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lis
     if antn_dicts is None:
         assert antn_lists is not None
         antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
+    true_antn_dict = {l : utils.get_annotation_dict(true_antn_lists[l]) for l in true_antn_lists} if true_antn_lists is not None else None
     mcodes = ['correct', 'mispaired', 'unpaired', 'multiple']  # these are mutually exclusive
-    kcodes = mcodes + ['correct-family', 'total']
+    kcodes = mcodes + ['correct-family', 'near-family', 'total']
     fcinfo, afo = {k : {} for k in kcodes}, {c : 0 for c in mcodes}
     for ltmp in sorted(cpaths):
         for cluster in cpaths[ltmp].best():
             atn = antn_dicts[ltmp][':'.join(cluster)]
             for uid, pids in zip(atn['unique_ids'], atn['paired-uids']):
                 rcode = gpt(uid, pids)  # mutually exclusive result code
-                cfam = crct_fam(true_partitions, uid, pids)  # correct family
                 fsize = len(utils.get_single_entry([c for c in true_partitions[ltmp] if uid in c]))
                 if fsize not in fcinfo['total']:
                     for k in kcodes:  # add it to all of them so they all have the same bins
@@ -604,8 +629,10 @@ def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lis
                 fcinfo['total'][fsize] += 1
                 fcinfo[rcode][fsize] += 1
                 afo[rcode] += 1
-                if cfam:
+                if crct_fam(true_partitions, uid, pids):  # correct family
                     fcinfo['correct-family'][fsize] += 1
+                if true_antn_dict is not None and crct_fam(true_partitions, uid, pids, true_antn_dict=true_antn_dict, near=True):
+                        fcinfo['near-family'][fsize] += 1
     fcinfo['all'] = afo
     for kcd in kcodes + ['all']:
         if kcd not in ['total', 'all']:

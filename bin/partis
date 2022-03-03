@@ -772,7 +772,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
         paircluster.write_merged_simu(antn_lists, get_merged_fn('all-seqs'), get_merged_fn('meta'), mean_cells_per_droplet=args.mean_cells_per_droplet, fraction_of_reads_to_remove=args.fraction_of_reads_to_remove, constant_n_cells=args.constant_cells_per_droplet, bulk_data_fraction=args.bulk_data_fraction)
     # ----------------------------------------------------------------------------------------
-    def get_true_partitions(debug=False):
+    def get_true_partitions():  # NOTE see also read_true_files() below
         if args.is_data or args.paired_indir is None:
             return None
         true_partitions = {}
@@ -780,11 +780,15 @@ def run_all_loci(args, ig_or_tr='ig'):
             true_partitions[ltmp] = utils.read_cpath(getifn(ltmp), n_max_queries=args.n_max_queries).best()  # would be nice to use read_inputs(), but i think it's not worth handling changing args.locus and whatnot
         return true_partitions
     # ----------------------------------------------------------------------------------------
-    def read_true_files(add_selection_metrics=None, no_plot=False, debug=False):
+    def read_true_files(add_selection_metrics=None, no_plot=False, merged=False, debug=False):  # NOTE see also get_true_partitions() above
         assert args.paired_indir is not None
         def ofn_fcn(ltmp, lpair=None): return paircluster.paired_fn(args.paired_indir, ltmp, lpair=lpair, suffix='.yaml')
-        lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if (args.plotdir is None or no_plot) else getplotdir, dont_add_implicit_info=not debug)
-        return lp_infos
+        if merged:  # three of 'em, one for each locus (i.e. with merged igh)
+            outfos = paircluster.read_locus_output_files(sloci(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if (args.plotdir is None or no_plot) else getplotdir, dont_add_implicit_info=not debug)
+            return outfos
+        else:  # separate igh+igk and igh+igl
+            lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if (args.plotdir is None or no_plot) else getplotdir, dont_add_implicit_info=not debug)
+            return lp_infos
     # ----------------------------------------------------------------------------------------
     def print_joint_vs_input(input_cpaths, input_antn_lists, concat_cpaths, debug=False):
         # ----------------------------------------------------------------------------------------
@@ -999,7 +1003,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
             print '  no paired uids in any annotations, not merging single chain partitions'
             return None
-        true_partitions = get_true_partitions(debug=args.debug_paired_clustering)
+        true_partitions = get_true_partitions()
         paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_partitions=true_partitions, debug=args.debug_paired_clustering)
         lp_infos = {}
         for lpair in spairs():
@@ -1031,8 +1035,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs, true_partitions=true_partitions)
             lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering and not args.count_parameters, dbgstr='partition')
             count_parameter_things(lp_infos, lpair)
-        if args.pair_unpaired_seqs_with_paired_family and not args.is_data:
-            paircluster.plot_fraction_correctly_paired(single_outfos['cpaths'], None, true_partitions, antn_lists=single_outfos['antn_lists'], performance_outdir=None if args.is_data else getodir(), plotdir=getplotdir(None) if args.plotdir is not None else None)
+        if args.pair_unpaired_seqs_with_paired_family and not args.is_data:  # note that this will overwrite the plots/csvs that were written during normal pair info cleaning, but i think that's more or less ok
+            true_outfos = read_true_files(merged=True, no_plot=True)
+            paircluster.plot_fraction_correctly_paired(single_outfos['cpaths'], None, true_partitions, true_antn_lists=true_outfos['antn_lists'], antn_lists=single_outfos['antn_lists'], performance_outdir=None if args.is_data else getodir(), plotdir=getplotdir(None) if args.plotdir is not None else None)
         if args.input_metafnames is not None:  # need to add any new input meta keys to headers
             seqfileopener.read_input_metafo(args.input_metafnames, [])
         _, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), true_partitions=true_partitions)
