@@ -81,6 +81,6 @@ for subjdir in $bidir/hs-1-postvax $fsddir/goo-dengue-10x/v12/d-14; do
     # 	mkdir -p $cfd/$tstr
     # 	cp -v $subjdir/plots/$pstr-$tstr.csv $cfd/$tstr/$pstr.csv
     # done
-    $bin --outdir $cfd/cf --plotdirs $cfd/before:$cfd/after --names before:after --normalize --colors='#006600:#990012' --xbounds=-0.1:5.1 --ybounds=0:0.9 --xticks 0:1:2:3:4:5 &  #  --add-to-title `basename $subjdir`
+    $bin --outdir $cfd/cf --plotdirs $cfd/after:$cfd/before --names after:before --normalize --colors='#006600:#990012' --xbounds=-0.5:10 --ybounds=0:0.9 --xticks 0:1:2:3:4:5:6:7:8:9 --no-errors --square-bins &  #  --add-to-title `basename $subjdir`
 done
 

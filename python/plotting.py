@@ -395,7 +395,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     else:
         tmpxtitle = hist.xtitle  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
 
-    ymin = 0.8 * ymin if 'y' in log else -0.03*ymax
+    ymin = 0.8 * ymin if 'y' in log else ymin  # why tf was this here? -0.03*ymax
     fn = mpl_finish(ax, plotdir, plotname,
                     title=tmptitle,
                     xlabel=tmpxtitle,

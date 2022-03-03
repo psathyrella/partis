@@ -469,7 +469,8 @@ class Hist(object):
         elif self.title != '':
             kwargs['label'] = self.title
         if errors:
-            assert not square_bins  # would need to be implemented
+            if square_bins:
+                raise Exception('square_bins not yet implemented with errors')
             if remove_empty_bins:
                 xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
             kwargs['yerr'] = yerrs
@@ -478,6 +479,16 @@ class Hist(object):
             if remove_empty_bins:
                 xvals, yvals = zip(*[(xvals[iv], yvals[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
             if square_bins:
+                kwargs['markersize'] = 0
+                for ibin in self.ibiniter(include_overflows=False):
+                    if ibin > 1:
+                        kwargs['label'] = None
+                        ax.plot([self.low_edges[ibin], self.low_edges[ibin]], [self.bin_contents[ibin-1], self.bin_contents[ibin]], **kwargs)  # vertical line from last bin contents
+                    ax.plot([self.low_edges[ibin], self.low_edges[ibin+1]], [self.bin_contents[ibin], self.bin_contents[ibin]], **kwargs)  # horizontal line for this bin
+                tplt = ax.plot([self.low_edges[ibin+1], self.low_edges[ibin+1]], [self.bin_contents[ibin], 0], **kwargs)  # vertical line for right side of last bin
+                return tplt  # not sure if this gets used anywhere?
+                # TODO some oldercalls of this may require the following code, so I need to figure shit out
+                print '  %s square_bins option needs to be checked/fixed, it does not work in some cases (seems to eat bins)' % utils.wrnstr()
                 import matplotlib.pyplot as plt
                 if abs(xvals[-1] - xvals[0]) > 5:  # greater/less than five is kind of a shitty way to decide whether to int() and +/- 0.5 or not, but I'm calling it now with a range much less than 1, and I don't want the int()s, but where I call it elsewhere I do and the range is much larger, so...
                     npbins = list(numpy.arange(int(xvals[0]) - 0.5, int(xvals[-1]) - 0.5))
