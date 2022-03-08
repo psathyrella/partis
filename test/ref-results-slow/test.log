@@ -20,72 +20,72 @@ smith-waterman  (writing parameters)
       info for 1370 / 1412 = 0.970   (removed: 42 failed)
       kept 437 (0.309) unproductive
         writing sw results to test/new-results-slow/test/parameters/data/sw-cache.yaml
-    writing parameters to test/new-results-slow/test/parameters/data/sw (2.1 sec)
-    water time: 4.9  (ig-sw 3.1  processing 0.2)
+    writing parameters to test/new-results-slow/test/parameters/data/sw (2.0 sec)
+    water time: 4.8  (ig-sw 2.9  processing 0.2)
   writing hmms (0.4 sec)
 hmm
     skipping matches from 4 genes without enough counts: [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m
     running 10 procs
                     calcd:         vtb 1370        fwd    0
-             min-max time:  4.1 - 5.0 sec
+             min-max time:  4.1 - 5.1 sec
     reading output
         read 1370 hmm output lines with 1365 sequences in 1365 events  (5 failures)
           [91mwarning[0m no valid paths: -5294497590599348090 -1651760806376077044 -3094020580816257316 6182728664197942741 6880877555932742798
-    writing parameters to test/new-results-slow/test/parameters/data/hmm (1.8 sec)
-         infra time: 2.9
-      hmm step time: 8.0
-  writing hmms (0.7 sec)
-      total time: 16.9
+    writing parameters to test/new-results-slow/test/parameters/data/hmm (1.7 sec)
+         infra time: 2.8
+      hmm step time: 7.9
+  writing hmms (0.6 sec)
+      total time: 16.4
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/test/simu.yaml --indel-frequency 0.2
 simulating
-      --> proc 0
+      --> proc 4
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 68 seqs in 3.3s (3.0s of which was running bppseqgen)
-      total time: 5.4
-
-      --> proc 2
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 93 seqs in 3.4s (2.9s of which was running bppseqgen)
-      total time: 5.3
+    made 20 events with 85 seqs in 3.6s (3.2s of which was running bppseqgen)
+      total time: 5.5
 
       --> proc 7
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
     made 20 events with 92 seqs in 3.7s (3.3s of which was running bppseqgen)
       total time: 5.6
 
-      --> proc 3
+      --> proc 8
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 120 seqs in 3.8s (3.4s of which was running bppseqgen)
-      total time: 5.7
+    made 20 events with 100 seqs in 3.7s (3.2s of which was running bppseqgen)
+      total time: 5.6
 
-      --> proc 4
+      --> proc 0
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 85 seqs in 3.8s (3.4s of which was running bppseqgen)
+    made 20 events with 68 seqs in 3.9s (3.5s of which was running bppseqgen)
       total time: 5.8
-
-      --> proc 5
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 116 seqs in 3.8s (3.2s of which was running bppseqgen)
-      total time: 5.7
-
-      --> proc 1
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 107 seqs in 4.0s (3.4s of which was running bppseqgen)
-      total time: 6.0
 
       --> proc 9
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 119 seqs in 4.1s (3.7s of which was running bppseqgen)
+    made 20 events with 119 seqs in 3.8s (3.4s of which was running bppseqgen)
+      total time: 5.6
+
+      --> proc 3
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 120 seqs in 3.9s (3.6s of which was running bppseqgen)
       total time: 5.9
 
-      --> proc 8
+      --> proc 5
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 100 seqs in 4.1s (3.5s of which was running bppseqgen)
+    made 20 events with 116 seqs in 4.0s (3.5s of which was running bppseqgen)
+      total time: 5.9
+
+      --> proc 2
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 93 seqs in 4.1s (3.7s of which was running bppseqgen)
+      total time: 6.0
+
+      --> proc 1
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 107 seqs in 4.1s (3.6s of which was running bppseqgen)
       total time: 6.0
 
       --> proc 6
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 126 seqs in 4.3s (3.7s of which was running bppseqgen)
+    made 20 events with 126 seqs in 4.3s (3.8s of which was running bppseqgen)
       total time: 6.3
 
    read 200 events with 1026 seqs from 10 .yaml files
@@ -103,7 +103,7 @@ smith-waterman  (new-allele fitting)
     running 13 procs for 42 seqs
       info for 1026 / 1026 = 1.000   (removed: 0 failed)
       kept 537 (0.523) unproductive
-    water time: 2.0  (ig-sw 0.1  processing 0.2)
+    water time: 1.9  (ig-sw 0.1  processing 0.2)
 smith-waterman  (writing parameters)
   vsearch: 1020 / 1026 v annotations (6 failed) with 40 v genes in 0.3 sec
     running 10 procs for 1026 seqs
@@ -111,22 +111,22 @@ smith-waterman  (writing parameters)
       info for 1026 / 1026 = 1.000   (removed: 0 failed)
       kept 537 (0.523) unproductive
         writing sw results to test/new-results-slow/test/parameters/simu/sw-cache.yaml
-    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.6 sec)
-    water time: 5.4  (ig-sw 3.4  processing 0.4)
+    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.4 sec)
+    water time: 5.2  (ig-sw 3.1  processing 0.4)
   writing hmms (0.6 sec)
 hmm
     skipping matches from 4 genes without enough counts: [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m
     running 10 procs
                     calcd:         vtb 1026        fwd    0
-             min-max time:  2.0 - 2.3 sec
+             min-max time:  2.1 - 2.4 sec
     reading output
         read 1026 hmm output lines with 1026 sequences in 1026 events  (0 failures)
-    writing parameters to test/new-results-slow/test/parameters/simu/hmm (2.2 sec)
-    writing parameters to test/new-results-slow/test/parameters/simu/true (2.2 sec)
-         infra time: 6.2
-      hmm step time: 8.6
+    writing parameters to test/new-results-slow/test/parameters/simu/hmm (2.0 sec)
+    writing parameters to test/new-results-slow/test/parameters/simu/true (2.1 sec)
+         infra time: 5.7
+      hmm step time: 8.2
   writing hmms (0.6 sec)
-      total time: 19.2
+      total time: 18.4
 [92mannotate-new-simu[0m                /home/dralph/work/partis/bin/partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results-slow/annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -137,7 +137,7 @@ smith-waterman
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 55 queries with different true and inferred net shm indel lengths: 5629264253304024145 5682660683093806845 1175488601718297834 5591617885835598229 3886747080774096031 6395747884783030417 1313564414865612573 6626120315423446579 7313925889346239196 2098570399976328165 0476044108397972459 0124127571189216992 3912802465547300929 5279679704856921714 2727269143598889476 1444890119691167186 1569629383512278541 7211472592842049700 4289324043034197908 1394938732591330568 5724059634837646077 0640745137133175045 5701800787906642425 6008873273339286634 7138232978272678395 5665531665867722227 0490577074271026758 6930619212463038707 5109974893706936892 8675444217178116723 7855760719862093457 0039091348268348378 6885160241280380759 5785350065557401439 0741242172335670447 8168336592863033265 2849798872722531984 7374002060320429499 7299329197133768495 4494002205663150372 6521901911293909860 2215518339038567056 1084789169395531601 4146298052541110975 8709098225680771538 0993769420739802575 5808602634287074428 1825030195571712911 4499635858023572433 4509419815147442018 6315096478339546191 7026675222450334149 5593910730480616589 0424533893727944898 6668229921315544839
 (0.0 sec)
-        water time: 1.2
+        water time: 1.1
 hmm
     running 10 procs
                     calcd:         vtb 1026        fwd    0
@@ -147,9 +147,9 @@ hmm
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 55 queries with different true and inferred net shm indel lengths: 4289324043034197908 5665531665867722227 0490577074271026758 6930619212463038707 2849798872722531984 7026675222450334149 5629264253304024145 5109974893706936892 4509419815147442018 1175488601718297834 6626120315423446579 1444890119691167186 5724059634837646077 4494002205663150372 2215518339038567056 5682660683093806845 6395747884783030417 8675444217178116723 0741242172335670447 8709098225680771538 5808602634287074428 5593910730480616589 5591617885835598229 2098570399976328165 1394938732591330568 4146298052541110975 1313564414865612573 0476044108397972459 7855760719862093457 8168336592863033265 1825030195571712911 6668229921315544839 3912802465547300929 7211472592842049700 1084789169395531601 0424533893727944898 0124127571189216992 5279679704856921714 6008873273339286634 0039091348268348378 6885160241280380759 5785350065557401439 7299329197133768495 0993769420739802575 4499635858023572433 6315096478339546191 3886747080774096031 1569629383512278541 5701800787906642425 7374002060320429499 6521901911293909860 7313925889346239196 2727269143598889476 0640745137133175045 7138232978272678395
 (0.0 sec)
-         infra time: 1.2
+         infra time: 1.1
       hmm step time: 3.5
-      total time: 5.7
+      total time: 5.5
 [92mmulti-annotate-new-simu[0m          /home/dralph/work/partis/bin/partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir test/new-results-slow/multi-annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/multi-annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -160,7 +160,7 @@ smith-waterman
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 55 queries with different true and inferred net shm indel lengths: 5629264253304024145 5682660683093806845 1175488601718297834 5591617885835598229 3886747080774096031 6395747884783030417 1313564414865612573 6626120315423446579 7313925889346239196 2098570399976328165 0476044108397972459 0124127571189216992 3912802465547300929 5279679704856921714 2727269143598889476 1444890119691167186 1569629383512278541 7211472592842049700 4289324043034197908 1394938732591330568 5724059634837646077 0640745137133175045 5701800787906642425 6008873273339286634 7138232978272678395 5665531665867722227 0490577074271026758 6930619212463038707 5109974893706936892 8675444217178116723 7855760719862093457 0039091348268348378 6885160241280380759 5785350065557401439 0741242172335670447 8168336592863033265 2849798872722531984 7374002060320429499 7299329197133768495 4494002205663150372 6521901911293909860 2215518339038567056 1084789169395531601 4146298052541110975 8709098225680771538 0993769420739802575 5808602634287074428 1825030195571712911 4499635858023572433 4509419815147442018 6315096478339546191 7026675222450334149 5593910730480616589 0424533893727944898 6668229921315544839
 (0.0 sec)
-        water time: 1.2
+        water time: 1.1
 hmm
   --simultaneous-true-clonal-seqs: grouping seqs according to true partition
   [93mwarning[0m split apart 39 clusters that contained multiple cdr3 lengths (total clusters: 200 --> 245)
@@ -171,8 +171,8 @@ hmm
              min-max time:  1.4 - 1.8 sec
     reading output
         read 448 hmm output lines with 1026 sequences in 448 events  (0 failures)
-         infra time: 0.5
-      hmm step time: 2.4
+         infra time: 0.4
+      hmm step time: 2.3
     read 448 new subcluster annotations: added hashid 308   whole finished 140   subcl finished 0
     running 10 procs
                     calcd:         vtb  133        fwd    0
@@ -192,8 +192,8 @@ hmm
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 55 queries with different true and inferred net shm indel lengths: 1084789169395531601 5808602634287074428 6930619212463038707 5629264253304024145 1444890119691167186 6626120315423446579 1175488601718297834 0424533893727944898 1569629383512278541 5109974893706936892 8675444217178116723 5591617885835598229 5593910730480616589 7026675222450334149 5724059634837646077 7855760719862093457 4509419815147442018 5785350065557401439 8709098225680771538 0039091348268348378 0476044108397972459 2098570399976328165 4146298052541110975 0741242172335670447 4494002205663150372 4499635858023572433 5682660683093806845 7313925889346239196 0490577074271026758 1825030195571712911 1313564414865612573 2849798872722531984 0640745137133175045 4289324043034197908 1394938732591330568 7299329197133768495 5279679704856921714 3912802465547300929 6315096478339546191 6395747884783030417 3886747080774096031 6885160241280380759 6668229921315544839 8168336592863033265 6521901911293909860 5701800787906642425 0124127571189216992 6008873273339286634 2727269143598889476 7211472592842049700 2215518339038567056 0993769420739802575 7374002060320429499 5665531665867722227 7138232978272678395
 (0.0 sec)
-    subcluster annotation time 5.4
-      total time: 7.6
+    subcluster annotation time 5.3
+      total time: 7.2
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --plotdir test/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -204,14 +204,14 @@ smith-waterman
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 55 queries with different true and inferred net shm indel lengths: 5629264253304024145 5682660683093806845 1175488601718297834 5591617885835598229 3886747080774096031 6395747884783030417 1313564414865612573 6626120315423446579 7313925889346239196 2098570399976328165 0476044108397972459 0124127571189216992 3912802465547300929 5279679704856921714 2727269143598889476 1444890119691167186 1569629383512278541 7211472592842049700 4289324043034197908 1394938732591330568 5724059634837646077 0640745137133175045 5701800787906642425 6008873273339286634 7138232978272678395 5665531665867722227 0490577074271026758 6930619212463038707 5109974893706936892 8675444217178116723 7855760719862093457 0039091348268348378 6885160241280380759 5785350065557401439 0741242172335670447 8168336592863033265 2849798872722531984 7374002060320429499 7299329197133768495 4494002205663150372 6521901911293909860 2215518339038567056 1084789169395531601 4146298052541110975 8709098225680771538 0993769420739802575 5808602634287074428 1825030195571712911 4499635858023572433 4509419815147442018 6315096478339546191 7026675222450334149 5593910730480616589 0424533893727944898 6668229921315544839
 (0.0 sec)
-        water time: 1.2
+        water time: 1.1
 hmm
 caching all 1026 naive sequences
     running 10 procs
                 no/empty cache file
                     calcd:         vtb 1026        fwd    0
                    merged:       hfrac    0     lratio    0
-             min-max time:  2.0 - 2.3 sec
+             min-max time:  2.1 - 2.3 sec
          infra time: 0.1
       hmm step time: 2.5
    collapsed 1026 queries into 454 clusters with identical naive seqs (0.0 sec)
@@ -221,8 +221,8 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1026   logprobs    0
                     calcd:         vtb  194        fwd  226
                    merged:       hfrac   36     lratio   13
-             min-max time:  1.0 - 2.0 sec
-         infra time: 0.3
+             min-max time:  1.0 - 2.1 sec
+         infra time: 0.2
       hmm step time: 2.4
 405 clusters with 7 procs
        naive hfrac bounds: 0.015 0.088
@@ -230,8 +230,8 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1220   logprobs  226
                     calcd:         vtb   63        fwd  169
                    merged:       hfrac   35     lratio   17
-             min-max time:  1.1 - 3.0 sec
-         infra time: 0.3
+             min-max time:  1.1 - 3.1 sec
+         infra time: 0.2
       hmm step time: 3.4
 353 clusters with 5 procs
        naive hfrac bounds: 0.015 0.088
@@ -239,7 +239,7 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1283   logprobs  395
                     calcd:         vtb   50        fwd  138
                    merged:       hfrac   29     lratio   12
-             min-max time:  1.5 - 4.0 sec
+             min-max time:  1.6 - 4.1 sec
          infra time: 0.2
       hmm step time: 4.3
 312 clusters with 3 procs
@@ -248,8 +248,8 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1335   logprobs  533
                     calcd:         vtb   29        fwd  118
                    merged:       hfrac   20     lratio    7
-             min-max time:  2.8 - 4.3 sec
-         infra time: 0.3
+             min-max time:  2.8 - 4.4 sec
+         infra time: 0.2
       hmm step time: 4.6
 285 clusters with 2 procs
        naive hfrac bounds: 0.015 0.088
@@ -257,9 +257,9 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1365   logprobs  651
                     calcd:         vtb   35        fwd   92
                    merged:       hfrac   30     lratio    5
-             min-max time:  2.8 - 5.6 sec
+             min-max time:  2.9 - 5.7 sec
          infra time: 0.2
-      hmm step time: 5.8
+      hmm step time: 5.9
 250 clusters with 2 procs
        naive hfrac bounds: 0.015 0.088
     running 2 procs
@@ -275,7 +275,7 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1414   logprobs  807
                     calcd:         vtb    6        fwd   25
                    merged:       hfrac    6     lratio    0
-             min-max time:  1.8 - 2.2 sec
+             min-max time:  1.8 - 2.3 sec
          infra time: 0.2
       hmm step time: 2.5
 232 clusters with 2 procs
@@ -293,11 +293,11 @@ caching all 1026 naive sequences
           read from cache:  naive-seqs 1424   logprobs  863
                     calcd:         vtb    6        fwd  157
                    merged:       hfrac    6     lratio    1
-                     time:  7.0 sec
+                     time:  7.1 sec
          infra time: 0.1
-      hmm step time: 7.2
+      hmm step time: 7.3
   [93mnote[0m not merging entire cpath history
-      loop time: 36.9
+      loop time: 37.1
 getting annotations for final partition
   subcluster annotating 223 clusters: 
     running 10 procs
@@ -310,7 +310,7 @@ getting annotations for final partition
     read 441 new subcluster annotations: added hashid 316   whole finished 125   subcl finished 0
     running 10 procs
                     calcd:         vtb  134        fwd    0
-             min-max time:  0.7 - 1.0 sec
+             min-max time:  0.8 - 1.0 sec
     reading output
         read 134 hmm output lines with 316 sequences in 134 events  (0 failures)
          infra time: 0.1
@@ -321,29 +321,30 @@ getting annotations for final partition
              min-max time:  0.2 - 0.5 sec
     reading output
         read 30 hmm output lines with 64 sequences in 30 events  (0 failures)
-      hmm step time: 0.6
+         infra time: 0.2
+      hmm step time: 0.7
     read 30 new subcluster annotations: added hashid 30   whole finished 0   subcl finished 26
-    running 10 procs
+    running 2 procs
                     calcd:         vtb    2        fwd    0
-             min-max time:  0.0 - 0.2 sec
+             min-max time:  0.2 - 0.2 sec
     reading output
         read 2 hmm output lines with 4 sequences in 2 events  (0 failures)
-      hmm step time: 0.2
+      hmm step time: 0.3
     read 2 new subcluster annotations: added hashid 2   whole finished 0   subcl finished 2
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 55 queries with different true and inferred net shm indel lengths: 1825030195571712911 0124127571189216992 1569629383512278541 7855760719862093457 8675444217178116723 5701800787906642425 0039091348268348378 0424533893727944898 0476044108397972459 0490577074271026758 0640745137133175045 0741242172335670447 0993769420739802575 1084789169395531601 1175488601718297834 1313564414865612573 1394938732591330568 1444890119691167186 2098570399976328165 2215518339038567056 2727269143598889476 2849798872722531984 3886747080774096031 3912802465547300929 4146298052541110975 4289324043034197908 4494002205663150372 4499635858023572433 4509419815147442018 5109974893706936892 5279679704856921714 5591617885835598229 5593910730480616589 5629264253304024145 5665531665867722227 5682660683093806845 5724059634837646077 5785350065557401439 5808602634287074428 6008873273339286634 6315096478339546191 6395747884783030417 6521901911293909860 6626120315423446579 6668229921315544839 6885160241280380759 6930619212463038707 7026675222450334149 7138232978272678395 7211472592842049700 7299329197133768495 7313925889346239196 7374002060320429499 8168336592863033265 8709098225680771538
 (0.0 sec)
-    subcluster annotation time 5.7
-      total time: 48.4
+    subcluster annotation time 5.6
+      total time: 48.2
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --seed-unique-id 4673755916090720408 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/seed-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1020 / 1026 v annotations (6 failed) with 40 v genes in 0.3 sec
+  vsearch: 1020 / 1026 v annotations (6 failed) with 40 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 1026 / 1026 = 1.000   (removed: 0 failed, 0 duplicates)
       kept 537 (0.523) unproductive
       removed 843 / 1026 = 0.82 sequences with cdr3 length different from seed sequence (leaving 183)
-        water time: 0.5
+        water time: 0.4
 hmm
    collapsed 183 queries into 69 clusters with identical naive seqs (0.0 sec)
 69 clusters with 10 procs
@@ -354,7 +355,7 @@ hmm
                    merged:       hfrac    0     lratio    0
              min-max time:  0.2 - 0.6 sec
          infra time: 0.1
-      hmm step time: 0.8
+      hmm step time: 0.7
 78 clusters with 7 procs
   [93mwarning[0m cluster occurs 10 times in the <nsets> we're sending to bcrham: 7821621024778575104:7821621024778575103:2609400583718501341:3916817926193357517:1914102290209987105:4673755916090720410:4673755916090720413:4673755916090720412:4673755916090720415:4673755916090720414:4673755916090720408:8856444052507969095:4759972355902360966:7821621024778575098:4855614564378680625
        naive hfrac bounds: 0.015 0.088
@@ -363,7 +364,7 @@ hmm
                     calcd:         vtb    0        fwd    0
                    merged:       hfrac    0     lratio    0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/599944/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/470488/hmm_cached_info.csv
          infra time: 0.1
       hmm step time: 0.2
 75 clusters with 5 procs
@@ -374,7 +375,7 @@ hmm
                     calcd:         vtb    0        fwd    0
                    merged:       hfrac    0     lratio    0
              min-max time:  0.0 - 0.0 sec
-    nothing to merge into /tmp/dralph/hmms/599944/hmm_cached_info.csv
+    nothing to merge into /tmp/dralph/hmms/470488/hmm_cached_info.csv
          infra time: 0.1
       hmm step time: 0.2
       removed 168 sequences in unseeded clusters, split 5 seeded clusters into 15 singletons, and merged these into 1 clusters with identical naive seqs (0.0 sec)
@@ -390,16 +391,16 @@ hmm
       loop time: 1.3
 getting annotations for final partition
   subcluster annotating 1 cluster: 
-    running 1 proc
+    running 5 procs
                     calcd:         vtb    5        fwd    0
-                     time:  0.1 sec
+             min-max time:  0.1 - 0.1 sec
     reading output
         read 5 hmm output lines with 15 sequences in 5 events  (0 failures)
       hmm step time: 0.2
     read 5 new subcluster annotations: added hashid 5   whole finished 0   subcl finished 0
-    running 1 proc
+    running 2 procs
                     calcd:         vtb    2        fwd    0
-                     time:  0.1 sec
+             min-max time:  0.1 - 0.1 sec
     reading output
         read 2 hmm output lines with 5 sequences in 2 events  (0 failures)
       hmm step time: 0.1
@@ -413,7 +414,7 @@ getting annotations for final partition
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
     subcluster annotation time 0.4
   seed cluster size in best partition: 15, excluding seed seq: 14
-      total time: 3.3
+      total time: 3.1
 [92mvsearch-partition-new-simu[0m       /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --random-seed 1 --n-procs 10 --outfname test/new-results-slow/vsearch-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -430,13 +431,12 @@ hmm
       vsearch time: 3.0
 getting annotations for final partition
   subcluster annotating 245 clusters: 
-        hmm prep time: 0.1
     running 10 procs
                     calcd:         vtb  455        fwd    0
-             min-max time:  1.4 - 1.8 sec
+             min-max time:  1.4 - 1.9 sec
     reading output
         read 455 hmm output lines with 1026 sequences in 455 events  (0 failures)
-         infra time: 0.5
+         infra time: 0.4
       hmm step time: 2.4
     read 455 new subcluster annotations: added hashid 298   whole finished 157   subcl finished 0
     running 10 procs
@@ -444,7 +444,6 @@ getting annotations for final partition
              min-max time:  0.6 - 0.9 sec
     reading output
         read 124 hmm output lines with 298 sequences in 124 events  (0 failures)
-         infra time: 0.1
       hmm step time: 1.1
     read 124 new subcluster annotations: added hashid 124   whole finished 0   subcl finished 62
     running 10 procs
@@ -454,15 +453,15 @@ getting annotations for final partition
         read 28 hmm output lines with 62 sequences in 28 events  (0 failures)
       hmm step time: 0.5
     read 28 new subcluster annotations: added hashid 28   whole finished 0   subcl finished 24
-    running 10 procs
+    running 2 procs
                     calcd:         vtb    2        fwd    0
-             min-max time:  0.0 - 0.2 sec
+             min-max time:  0.2 - 0.2 sec
     reading output
         read 2 hmm output lines with 4 sequences in 2 events  (0 failures)
-      hmm step time: 0.2
+      hmm step time: 0.3
     read 2 new subcluster annotations: added hashid 2   whole finished 0   subcl finished 2
-    subcluster annotation time 4.8
-      total time: 9.4
+    subcluster annotation time 4.7
+      total time: 9.1
 [92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml --selection-metric-fname test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml
   note: --parameter-dir not set, so using default: xxx-dummy-xxx
 getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
