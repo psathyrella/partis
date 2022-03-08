@@ -413,7 +413,7 @@ def untranslate_pids(ploci, init_partitions, antn_lists, l_translations, joint_p
 
 # ----------------------------------------------------------------------------------------
 def pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, antn_lists, debug=False):
-    # note that at this point these are *single* chain annotations, and/since we've only just got the joint partition
+    # note that at this point these are *single* chain annotations, and/since we've only just made the joint partition
     # ----------------------------------------------------------------------------------------
     def get_pids(atn, uid):
         pds = atn['paired-uids'][atn['unique_ids'].index(uid)]
@@ -1339,10 +1339,10 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                     joint_partitions[tch].append([upid])
                     n_added[tch]['singleton'] += 1
                     continue
-                nearids = [nearfo['nearest-paired']] if nearfo['nearest-paired'] is not None else nearfo['single-chain-family']  # if there's any paired seqs in its single chain family, attach it to the nearest one of those; otherwise try to keep all the unpaired seqs from the family together
+                nearids = [nearfo['nearest-paired']] if nearfo['nearest-paired'] is not None else nearfo['single-chain-family']  # if there's any paired seqs in its single chain family, attach it to the nearest one of those; otherwise try to keep all the unpaired seqs from the family together (note that the old method, of always attaching to the 'nearest' id whether it was paired or not, had the effect of splitting in some cases, which we don't want)
                 jclusts = [c for c in joint_partitions[tch] if len(set(nearids) & set(c)) > 0]
-                if len(jclusts) < 1:
-                    joint_partitions[tch].append([upid])  # it didn't have a 'nearest-paired' (i.e. no paired seqs in its single chain cluster), and we haven't gotten to any of the other unpaired seqs from its single chain cluster (when we do get to them, they'll get added to this cluster)
+                if len(jclusts) < 1:  # it didn't have a 'nearest-paired' (i.e. no paired seqs in its single chain cluster), and we haven't gotten to any of the other unpaired seqs from its single chain cluster (when we do get to them, they'll get added to this cluster)
+                    joint_partitions[tch].append([upid])
                     n_added[tch]['new-cluster'] += 1
                     continue
                 if len(jclusts) > 1:

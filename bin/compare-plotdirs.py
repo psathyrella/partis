@@ -142,7 +142,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
 
     if varname == 'cluster-sizes':
         xtitle = 'cluster size'
-        ytitle = 'fraction of clusteres' if args.normalize else 'N clusters'
+        ytitle = 'fraction of clusters' if args.normalize else 'N clusters'
         plottitle = ''
         xticks, xticklabels = plotting.get_cluster_size_xticks(hlist=hlist)  # it would be better to use all the hists, but i think it'll just screw up the ticks
         import matplotlib.pyplot as plt
@@ -171,7 +171,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     shift_overflows = os.path.basename(outdir) != 'gene-call' and 'func-per-drop' not in varname
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds, ybounds=args.ybounds,
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
-                          xtitle=xtitle, ytitle=ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
+                          xtitle=xtitle, ytitle=ytitle if args.ytitle is None else args.ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, alphas=alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins)
 
@@ -203,6 +203,7 @@ parser.add_argument('--file-replace-str', default='.csv', help='string to remove
 parser.add_argument('--xbounds')
 parser.add_argument('--ybounds')
 parser.add_argument('--xticks')
+parser.add_argument('--ytitle')
 parser.add_argument('--no-errors', action='store_true')
 parser.add_argument('--single-plotdir', action='store_true')
 parser.add_argument('--square-bins', action='store_true')
