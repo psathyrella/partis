@@ -14,7 +14,7 @@ namespace ham {
 
 class TracebackPath {
 public:
-  TracebackPath(Model* model) : hmm_(model), abbreviate_(false) {}
+  TracebackPath(Model* model) : hmm_(model), score_(0), abbreviate_(false) {}
   TracebackPath() : hmm_(nullptr) {}
   void push_back(int state) { path_.push_back(state); }
   void clear() { path_.clear(); }

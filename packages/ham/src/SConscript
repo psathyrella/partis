@@ -24,7 +24,8 @@ for fname in glob.glob(os.getenv('PWD') + '/src/*.cc'):
             is_binary = True
             break
     if not is_binary:
-        sources.append(fname.replace('src/', '_build/'))
+        # sources.append(fname.replace('src/', '_build/'))
+        sources.append(fname)  # seems to work fine this was as well for me, and in this issue someone had it break with the previous line https://github.com/psathyrella/ham/issues/16
 
 env.Library(target='ham', source=sources)
 
