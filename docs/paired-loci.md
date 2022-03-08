@@ -12,7 +12,9 @@ partis partition --infname <fasta-input-file> --paired-loci --paired-outdir <out
 As usual, this will first cache parameters if they don't exist; also as usual, if you want to use more advanced parameter caching options, it's best to run the `cache-parameters` step by hand.
 If this is indeed 10x single cell data, partis will automatically extract the droplet id from each sequence id in your input file, and use this to write pairing info to a json/yaml file (which it'll pass internally with `--input-metafnames`).
 With current 10x conventions, this means that sequence ids look like "AAACGGGCAAGCGAGT-1_contig_2", and all sequences with the same bit before the first "-" are from the same droplet.
-You can also run the pairing info extraction by hand (for instance if 10x changes their naming conventions) with `extract-pairing-info.py <10x-fasta-input-file> <meta-info-file>`, then pass the resulting `--input-metafnames` to partis.
+You can also run the pairing info extraction by hand (for instance if 10x changes their naming conventions) with `bin/extract-pairing-info.py <10x-fasta-input-file> <meta-info-file>`, then pass the resulting `--input-metafnames` to partis.
+Both this extraction script and `bin/partis` take the arguments `--droplet-id-separators` and `--droplet-id-indices` to provide some customization as to which bits of the sequence id specify the droplet id.
+Alternatively, you can pass in your own pairing info with the `paired-uids` key in `--input-metafnames` as described [here](subcommands.md#input-meta-info).
 
 Partis will then use `bin/split-loci.py` to split the input fasta file into separate files for each locus, and run on those individually.
 Everything of potential future use (including parameters) is written to `--paired-outdir`.
@@ -30,6 +32,8 @@ The single-chain partitions for each locus are in `single-chain/partition-ig{h,k
 If pairing info was available, there will be subdirs `igh+igk/` and `igh+igl/` so that heavy chain sequences can be further split into those pairing with each light chain, so with `ig{h,k}.fa` and `ig{h,l}.fa`.
 The joint/merged partitions are also written to these paired subdirs.
 Finally, the joint/merged heavy chain partitions from both paired subdirs are concatenated into `partition-igh.yaml` in the main/parent dir (there are also corresponding light chain files, but they're just links to the paired subdirs, since there'd be nothing to concatenate).
+
+In paired simulation output directories, there will also be `all-seqs.fa`, which contains all sequences from all chains, and `meta.yaml`, with meta info (locus and pairing info) for all sequences from all chains.
 
 ### choosing antibodies
 

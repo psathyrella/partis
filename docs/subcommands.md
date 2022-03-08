@@ -478,13 +478,15 @@ Because the fasta format only specifies how to write sequences and names, many w
 Meta info is thus specified in partis via a [list of] separate json/yaml file[s] with the argument `--input-metafnames <meta.yaml>`, which for example might contain:
 
 ```
-seq-1:
+seq-1-igh:
   multiplicity: 1
   affinity: 0.04
   timepoint: -1d
-seq-2:
+  paired-uids: [seq-1-igk]
+seq-2-igh:
   multiplicity: 3
   affinity: 0.1
+  paired-uids: [seq-2a-igk, seq-2b-igk]
 seq-3:
   xyz: pqrs
 ```
