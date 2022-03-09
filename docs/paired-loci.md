@@ -1,5 +1,11 @@
+  - [overview](#overview)
   - [output directory](#output-directory)
+  - [pair cleaning](#pair-cleaning)
+  - [approximate bulk pairing](#approximate-bulk-pairing)
+  - [choosing antibodies](#choosing-antibodies)
   - [simulation](#simulation)
+
+### overview
 
 By default partis assumes each input file contains sequences from only a single locus, specified with `--species` and `--locus`.
 In order to run on multiple loci, you must set the `--paired-loci` option.
@@ -34,6 +40,23 @@ The joint/merged partitions are also written to these paired subdirs.
 Finally, the joint/merged heavy chain partitions from both paired subdirs are concatenated into `partition-igh.yaml` in the main/parent dir (there are also corresponding light chain files, but they're just links to the paired subdirs, since there'd be nothing to concatenate).
 
 In paired simulation output directories, there will also be `all-seqs.fa`, which contains all sequences from all chains, and `meta.yaml`, with meta info (locus and pairing info) for all sequences from all chains.
+
+### pair cleaning
+
+Partis can fix pairing info that is quite ambiguous due to more than one cell per droplet.
+This disambiguation uses single chain partition information, and is always run before paired clustering.
+It will print a summary of what it's doing, for instance with the fraction of sequences paired with different chains:
+![pair-clean](images/pair-clean.png)
+and as always turn on `--debug 1` (or `--debug-paired-clustering`) for more detail.
+To give a rough idea of performance, for example, with 10 cells per droplet we find that sequences in families larger than 3 are correctly paired around 80-85% of the time even.
+You can try various other scenarios in simulation with the args `--mean-cells-per-droplet`,  `--constant-cells-per-droplet`, and `--fraction-of-reads-to-remove`.
+
+### approximate bulk pairing
+
+Partis also has the option `--pair-unpaired-seqs-with-paired-family` to approximately pair sequences from a bulk data sample using pair info from a matched single cell sample (i.e. where the samples are drawn from the same pool of B cells).
+Here "approximately" means that, depending on the ratio of bulk to single cell sample sizes, and on the family size, we can pair bulk sequences with the correct family (but not usually the correct sequence).
+For instance with a bulk sample 5-10 times the size of the single cell sample, bulk sequences in families of 10 or larger are paired with the correct family around 80-90% of the time.
+To try out other scenarios in simulation you can use the arg `--bulk-data-fraction`.
 
 ### choosing antibodies
 

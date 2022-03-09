@@ -22,18 +22,18 @@
 
 ### overview
 
-`partis` takes a single positional argument specifying the action to run:
+`partis` takes a single positional argument specifying the action/subcommand to be run:
 
 ```
-partis partition | get-selection-metrics | simulate | view-output | cache-parameters | annotate
+partis <action> <other args>
 ```
 
 For information on options for each subcommand that are not documented in this manual run `partis <subcommand> --help`.
 
 For the sake of brevity, the commands below invoke partis with no leading path, which will work if you've either:
-  - linked the binary into to a directory that's already in your path, e.g. `ln -s /path/to/<partis_dir/bin/partis ~/bin/` or
-  - added the partis `bin/` to your path: `export PATH=/path/to/<partis_dir/bin/:$PATH`
-The other option is to specify the full path with each call `/path/to/<partis_dir>/bin/partis`.
+  - linked the binary into to a directory that's already in your path, e.g. `ln -s /path/to/partis/dir/bin/partis ~/bin/` or
+  - added the partis `bin/` to your path: `export PATH=/path/to/partis/dir/bin/:$PATH`
+The other option is to specify the full path with each call `/path/to/partis/dir/bin/partis`.
 
 ### annotate
 

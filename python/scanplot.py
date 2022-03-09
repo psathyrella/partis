@@ -768,7 +768,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         ylabel = ldfcn(ptilestr, axis=True) if ptilelabel is None else ptilelabel
         if ptilestr == 'time-reqd':
             if ltexts[ptntype] == 'joint':
-                title += 'joint merge time'
+                title += 'paired clustering time'
             else:
                 title += ' %s: single chain partition time' % locus
             ymin, ymax = [mfcn(sorted(all_yvals)) for mfcn in [min, max]]
