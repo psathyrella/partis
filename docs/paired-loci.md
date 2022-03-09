@@ -43,19 +43,21 @@ In paired simulation output directories, there will also be `all-seqs.fa`, which
 
 ### pair cleaning
 
-Partis can fix pairing info that is quite ambiguous due to more than one cell per droplet.
+Partis can fix pairing info that is quite ambiguous, i.e. when there is more than one cell per droplet.
 This disambiguation uses single chain partition information, and is always run before paired clustering.
 It will print a summary of what it's doing, for instance with the fraction of sequences paired with different chains:
+
 ![pair-clean](images/pair-clean.png)
-and as always turn on `--debug 1` (or `--debug-paired-clustering`) for more detail.
-To give a rough idea of performance, for example, with 10 cells per droplet we find that sequences in families larger than 3 are correctly paired around 80-85% of the time even.
-You can try various other scenarios in simulation with the args `--mean-cells-per-droplet`,  `--constant-cells-per-droplet`, and `--fraction-of-reads-to-remove`.
+
+and as always you can turn on `--debug 1` (or `--debug-paired-clustering`) for more detail.
+To give a very rough idea of performance, for example with 10 cells per droplet, sequences in families larger than 3 are correctly paired around 80-85% of the time.
+You can try various other scenarios in simulation with the args `--mean-cells-per-droplet`,  `--constant-cells-per-droplet`, and `--fraction-of-reads-to-remove`; pair cleaning performance plots will be written if `--plotdir` is set.
 
 ### approximate bulk pairing
 
 Partis also has the option `--pair-unpaired-seqs-with-paired-family` to approximately pair sequences from a bulk data sample using pair info from a matched single cell sample (i.e. where the samples are drawn from the same pool of B cells).
 Here "approximately" means that, depending on the ratio of bulk to single cell sample sizes, and on the family size, we can pair bulk sequences with the correct family (but not usually the correct sequence).
-For instance with a bulk sample 5-10 times the size of the single cell sample, bulk sequences in families of 10 or larger are paired with the correct family around 80-90% of the time.
+For instance with a bulk sample 5-10 times the size of the single cell sample, bulk sequences in families of 10 or larger are paired with the correct family around 80-90% of the time (and when they're paired with the wrong family, it's usually with a family that is essentially indistinguishable to the correct one, i.e. with naive sequence closer than 3 nucleotides).
 To try out other scenarios in simulation you can use the arg `--bulk-data-fraction`.
 
 ### choosing antibodies
