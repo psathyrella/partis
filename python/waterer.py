@@ -925,8 +925,8 @@ class Waterer(object):
             inf_label = ' ' + utils.kbound_str({r : line['k_' + r] for r in ['v', 'd']})
             if not self.args.is_data:
                 inf_label = 'inf: ' + inf_label
-                utils.print_reco_event(self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'))
-            utils.print_reco_event(self.info[qname], extra_str='    ', label=inf_label)
+                utils.print_reco_event(self.reco_info[qname], extra_str='    ', label=utils.color('green', 'true:'), extra_print_keys=self.args.extra_print_keys)
+            utils.print_reco_event(self.info[qname], extra_str='    ', label=inf_label, extra_print_keys=self.args.extra_print_keys)
 
         if not utils.is_functional(self.info[qname], iseq=0):
             self.kept_unproductive_queries.add(qname)

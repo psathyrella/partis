@@ -157,8 +157,8 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
     if args.queries is not None:
         missing_queries = set(args.queries) - set(input_info)
         extra_queries = set(input_info) - set(args.queries)  # this is just checking for a bug in the code just above here...
-        if len(missing_queries) > 0:
-            raise Exception('didn\'t find some of the specified --queries: %s' % ' '.join(missing_queries))
+        if len(missing_queries) > 0:  # used to crash on this, but with paired loci we'll never find the uids from the opposite chain
+            print '  %s didn\'t find some of the specified --queries: %s' % (utils.wrnstr(), ' '.join(missing_queries))
         if len(extra_queries) > 0:
             raise Exception('extracted uids %s that weren\'t specified with --queries' % ' '.join(extra_queries))
     if args.seed_unique_id is not None and not found_seed:
