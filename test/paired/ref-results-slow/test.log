@@ -29,11 +29,11 @@ hmm
              min-max time:  0.2 - 0.4 sec
     reading output
         read 48 hmm output lines with 48 sequences in 48 events  (0 failures)
-    writing parameters to test/paired/new-results-slow/test/parameters/data/igh/hmm (1.6 sec)
-         infra time: 1.7
+    writing parameters to test/paired/new-results-slow/test/parameters/data/igh/hmm (1.7 sec)
+         infra time: 1.8
       hmm step time: 2.2
   writing hmms (0.2 sec)
-      total time: 5.4
+      total time: 5.5
 [44mcache-parameters[0m [94migk[0m:
   note: adding input metafname from default location (test/paired-data/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igk --n-max-queries -1 --random-seed 1 --n-procs 10 --infname test/paired-data/igk.fa --sw-cachefname test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml --input-metafnames test/paired-data/meta.yaml
@@ -55,7 +55,7 @@ smith-waterman  (writing parameters)
       kept 1 (0.027) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml
     writing parameters to test/paired/new-results-slow/test/parameters/data/igk/sw (1.3 sec)
-    water time: 1.5  (ig-sw 1.4  processing 0.1)
+    water time: 1.6  (ig-sw 1.4  processing 0.1)
   writing hmms (0.1 sec)
 hmm
     running 10 procs
@@ -67,16 +67,16 @@ hmm
          infra time: 1.2
       hmm step time: 1.4
   writing hmms (0.1 sec)
-      total time: 3.7
+      total time: 3.8
 [44mcache-parameters[0m [94migl[0m:
   note: adding input metafname from default location (test/paired-data/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igl --n-max-queries -1 --random-seed 1 --n-procs 10 --infname test/paired-data/igl.fa --sw-cachefname test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml --input-metafnames test/paired-data/meta.yaml
   --input-metafnames: added meta info for 15 sequences from test/paired-data/meta.yaml: paired-uids
 caching parameters
-  vsearch: 15 / 15 v annotations (0 failed) with 13 v genes in 0.1 sec
+  vsearch: 15 / 15 v annotations (0 failed) with 13 v genes in 0.0 sec
     keeping 10 / 70 v genes
 smith-waterman  (new-allele fitting)
-  vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.0 sec
+  vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.1 sec
   removing old sw cache test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml
     running 10 procs for 15 seqs
       info for 15 / 15 = 1.000   (removed: 0 failed)
@@ -92,15 +92,15 @@ smith-waterman  (writing parameters)
 hmm
     running 10 procs
                     calcd:         vtb 15        fwd  0
-             min-max time:  0.0 - 0.1 sec
+             min-max time:  0.1 - 0.1 sec
     reading output
         read 15 hmm output lines with 15 sequences in 15 events  (0 failures)
     writing parameters to test/paired/new-results-slow/test/parameters/data/igl/hmm (0.7 sec)
-         infra time: 0.7
+         infra time: 0.8
       hmm step time: 0.9
   writing hmms (0.1 sec)
       total time: 2.5
-      total time: 12.6
+      total time: 12.7
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --paired-loci --parameter-dir test/paired/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/test/simu --indel-frequency 0.2
     cleaning paired files in test/paired/new-results-slow/test/simu/
 [94migh+igk[0m: simulating 134 events
@@ -116,131 +116,131 @@ hmm
 simulating
       --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-4.nwk
-    made 13 events with 59 seqs in 2.5s (2.2s of which was running bppseqgen)
-      total time: 2.8
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-4.nwk
+    made 13 events with 59 seqs in 2.1s (1.8s of which was running bppseqgen)
+      total time: 2.4
 
-      --> proc 3
+      --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-3.nwk
-    made 13 events with 84 seqs in 2.5s (2.2s of which was running bppseqgen)
-      total time: 2.9
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-8.nwk
+    made 13 events with 57 seqs in 2.4s (2.0s of which was running bppseqgen)
+      total time: 2.7
 
-      --> proc 6
+      --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-6.nwk
-    made 13 events with 55 seqs in 2.5s (2.2s of which was running bppseqgen)
-      total time: 2.8
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-7.nwk
+    made 13 events with 65 seqs in 2.4s (2.2s of which was running bppseqgen)
+      total time: 2.7
 
       --> proc 5
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-5.nwk
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-5.nwk
     made 13 events with 47 seqs in 2.6s (2.2s of which was running bppseqgen)
       total time: 2.9
 
-      --> proc 8
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-8.nwk
-    made 13 events with 57 seqs in 2.6s (2.3s of which was running bppseqgen)
-      total time: 2.9
-
-      --> proc 7
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-7.nwk
-    made 13 events with 65 seqs in 2.7s (2.5s of which was running bppseqgen)
-      total time: 3.0
-
-      --> proc 2
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-2.nwk
-    made 13 events with 104 seqs in 2.8s (2.4s of which was running bppseqgen)
-      total time: 3.2
-
       --> proc 1
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-1.nwk
-    made 13 events with 71 seqs in 2.9s (2.5s of which was running bppseqgen)
-      total time: 3.3
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-1.nwk
+    made 13 events with 71 seqs in 2.7s (2.3s of which was running bppseqgen)
+      total time: 3.0
+
+      --> proc 6
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-6.nwk
+    made 13 events with 55 seqs in 2.6s (2.3s of which was running bppseqgen)
+      total time: 3.0
 
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/991206/trees-sub-0.nwk
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-0.nwk
     made 13 events with 94 seqs in 2.9s (2.6s of which was running bppseqgen)
       total time: 3.3
 
+      --> proc 2
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-2.nwk
+    made 13 events with 104 seqs in 3.0s (2.6s of which was running bppseqgen)
+      total time: 3.4
+
+      --> proc 3
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/904016/trees-sub-3.nwk
+    made 13 events with 84 seqs in 3.1s (2.8s of which was running bppseqgen)
+      total time: 3.5
+
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/991206/trees-sub-9.nwk
-    made 17 events with 111 seqs in 3.6s (3.0s of which was running bppseqgen)
-      total time: 3.9
+    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/904016/trees-sub-9.nwk
+    made 17 events with 111 seqs in 3.7s (3.2s of which was running bppseqgen)
+      total time: 4.0
 
    read 134 events with 747 seqs from 10 .yaml files
-      total time: 4.8
+      total time: 4.9
 [44msimulate[0m [94migh+igk[0m:[94m igk[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igk --n-sim-events 134 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 298017927 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results-slow/test/simu/igh+igk/igk.yaml --input-simulation-treefname test/paired/new-results-slow/test/simu/igh+igk/trees.nwk
 simulating
-      --> proc 5
+      --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-5.nwk
-    made 13 events with 47 seqs in 2.0s (1.7s of which was running bppseqgen)
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-6.nwk
+    made 13 events with 55 seqs in 2.0s (1.7s of which was running bppseqgen)
       total time: 2.3
 
-      --> proc 1
+      --> proc 5
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-1.nwk
-    made 13 events with 71 seqs in 2.0s (1.8s of which was running bppseqgen)
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-5.nwk
+    made 13 events with 47 seqs in 2.1s (1.8s of which was running bppseqgen)
       total time: 2.4
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-8.nwk
-    made 13 events with 57 seqs in 2.0s (1.9s of which was running bppseqgen)
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-8.nwk
+    made 13 events with 57 seqs in 2.1s (1.9s of which was running bppseqgen)
       total time: 2.3
-
-      --> proc 6
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-6.nwk
-    made 13 events with 55 seqs in 2.1s (1.9s of which was running bppseqgen)
-      total time: 2.4
-
-      --> proc 0
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-0.nwk
-    made 13 events with 94 seqs in 2.3s (2.0s of which was running bppseqgen)
-      total time: 2.7
-
-      --> proc 7
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-7.nwk
-    made 13 events with 65 seqs in 2.3s (2.1s of which was running bppseqgen)
-      total time: 2.7
-
-      --> proc 3
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-3.nwk
-    made 13 events with 84 seqs in 2.3s (2.0s of which was running bppseqgen)
-      total time: 2.7
 
       --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-4.nwk
-    made 13 events with 59 seqs in 2.4s (2.1s of which was running bppseqgen)
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-4.nwk
+    made 13 events with 59 seqs in 2.1s (1.8s of which was running bppseqgen)
+      total time: 2.5
+
+      --> proc 7
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-7.nwk
+    made 13 events with 65 seqs in 2.1s (1.8s of which was running bppseqgen)
+      total time: 2.4
+
+      --> proc 3
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-3.nwk
+    made 13 events with 84 seqs in 2.2s (1.9s of which was running bppseqgen)
+      total time: 2.6
+
+      --> proc 1
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-1.nwk
+    made 13 events with 71 seqs in 2.3s (2.0s of which was running bppseqgen)
       total time: 2.7
+
+      --> proc 0
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-0.nwk
+    made 13 events with 94 seqs in 2.4s (2.1s of which was running bppseqgen)
+      total time: 2.8
 
       --> proc 2
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/523885/trees-sub-2.nwk
-    made 13 events with 104 seqs in 2.6s (2.3s of which was running bppseqgen)
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/9732/trees-sub-2.nwk
+    made 13 events with 104 seqs in 2.5s (2.2s of which was running bppseqgen)
       total time: 2.9
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/523885/trees-sub-9.nwk
-    made 17 events with 111 seqs in 2.8s (2.6s of which was running bppseqgen)
-      total time: 3.1
+    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/9732/trees-sub-9.nwk
+    made 17 events with 111 seqs in 2.7s (2.5s of which was running bppseqgen)
+      total time: 3.0
 
    read 134 events with 747 seqs from 10 .yaml files
-      total time: 4.0
+      total time: 3.9
 [94migh+igl[0m: simulating 66 events
 [44mgenerate-trees[0m [94migh+igl[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --n-trees 66 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 172687121 --indel-frequency 0.2 --generate-trees --outfname test/paired/new-results-slow/test/simu/igh+igl/trees.nwk
@@ -248,142 +248,142 @@ simulating
   generating 66 trees, n-leaves from geometric distribution with parameter 5.0
     mean over 66 trees:   depth 0.02433   leaves 6.45
     writing trees to test/paired/new-results-slow/test/simu/igh+igl/trees.nwk
-      total time: 1.4
+      total time: 1.5
 [44msimulate[0m [94migh+igl[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --n-sim-events 66 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 172687121 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results-slow/test/simu/igh+igl/igh.yaml --input-simulation-treefname test/paired/new-results-slow/test/simu/igh+igl/trees.nwk
 simulating
-      --> proc 0
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-0.nwk
-    made 6 events with 15 seqs in 1.0s (0.9s of which was running bppseqgen)
-      total time: 1.4
-
       --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-4.nwk
-    made 6 events with 22 seqs in 1.1s (1.0s of which was running bppseqgen)
-      total time: 1.4
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-4.nwk
+    made 6 events with 22 seqs in 1.0s (0.8s of which was running bppseqgen)
+      total time: 1.3
 
-      --> proc 2
+      --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-2.nwk
-    made 6 events with 43 seqs in 1.2s (1.1s of which was running bppseqgen)
-      total time: 1.5
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-0.nwk
+    made 6 events with 15 seqs in 1.1s (0.9s of which was running bppseqgen)
+      total time: 1.6
 
-      --> proc 6
+      --> proc 5
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-6.nwk
-    made 6 events with 30 seqs in 1.2s (1.0s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-5.nwk
+    made 6 events with 27 seqs in 1.2s (1.0s of which was running bppseqgen)
       total time: 1.6
 
       --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-7.nwk
-    made 6 events with 31 seqs in 1.3s (1.1s of which was running bppseqgen)
-      total time: 1.5
-
-      --> proc 5
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-5.nwk
-    made 6 events with 27 seqs in 1.3s (1.1s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-7.nwk
+    made 6 events with 31 seqs in 1.2s (0.9s of which was running bppseqgen)
       total time: 1.6
 
-      --> proc 3
+      --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-3.nwk
-    made 6 events with 41 seqs in 1.3s (1.2s of which was running bppseqgen)
-      total time: 1.7
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-6.nwk
+    made 6 events with 30 seqs in 1.2s (1.1s of which was running bppseqgen)
+      total time: 1.5
 
       --> proc 1
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-1.nwk
-    made 6 events with 49 seqs in 1.4s (1.3s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-1.nwk
+    made 6 events with 49 seqs in 1.3s (1.2s of which was running bppseqgen)
+      total time: 1.8
+
+      --> proc 2
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-2.nwk
+    made 6 events with 43 seqs in 1.3s (1.2s of which was running bppseqgen)
       total time: 1.8
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/450429/trees-sub-8.nwk
-    made 6 events with 69 seqs in 1.7s (1.5s of which was running bppseqgen)
-      total time: 1.9
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-8.nwk
+    made 6 events with 69 seqs in 1.4s (1.3s of which was running bppseqgen)
+      total time: 1.7
+
+      --> proc 3
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/644550/trees-sub-3.nwk
+    made 6 events with 41 seqs in 1.5s (1.2s of which was running bppseqgen)
+      total time: 1.8
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/450429/trees-sub-9.nwk
-    made 12 events with 99 seqs in 2.6s (2.3s of which was running bppseqgen)
-      total time: 2.9
+    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/644550/trees-sub-9.nwk
+    made 12 events with 99 seqs in 2.5s (2.2s of which was running bppseqgen)
+      total time: 2.7
 
    read 66 events with 426 seqs from 10 .yaml files
-      total time: 3.8
+      total time: 3.6
 [44msimulate[0m [94migh+igl[0m:[94m igl[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igl --n-sim-events 66 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --random-seed 1456246501 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results-slow/test/simu/igh+igl/igl.yaml --input-simulation-treefname test/paired/new-results-slow/test/simu/igh+igl/trees.nwk
 simulating
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-0.nwk
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-0.nwk
     made 6 events with 15 seqs in 0.8s (0.7s of which was running bppseqgen)
-      total time: 1.1
+      total time: 1.2
 
       --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-7.nwk
-    made 6 events with 31 seqs in 0.9s (0.8s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-7.nwk
+    made 6 events with 31 seqs in 1.0s (0.9s of which was running bppseqgen)
       total time: 1.2
-
-      --> proc 2
-    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-2.nwk
-    made 6 events with 43 seqs in 1.0s (0.9s of which was running bppseqgen)
-      total time: 1.4
-
-      --> proc 3
-    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-3.nwk
-    made 6 events with 41 seqs in 1.1s (1.0s of which was running bppseqgen)
-      total time: 1.5
-
-      --> proc 6
-    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-6.nwk
-    made 6 events with 30 seqs in 1.1s (1.0s of which was running bppseqgen)
-      total time: 1.4
-
-      --> proc 5
-    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-5.nwk
-    made 6 events with 27 seqs in 1.1s (1.0s of which was running bppseqgen)
-      total time: 1.5
 
       --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-4.nwk
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-4.nwk
     made 6 events with 22 seqs in 1.1s (0.9s of which was running bppseqgen)
-      total time: 1.3
+      total time: 1.4
 
       --> proc 1
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-1.nwk
-    made 6 events with 49 seqs in 1.2s (1.0s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-1.nwk
+    made 6 events with 49 seqs in 1.1s (1.0s of which was running bppseqgen)
       total time: 1.5
+
+      --> proc 5
+    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-5.nwk
+    made 6 events with 27 seqs in 1.1s (1.0s of which was running bppseqgen)
+      total time: 1.4
+
+      --> proc 6
+    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-6.nwk
+    made 6 events with 30 seqs in 1.1s (1.0s of which was running bppseqgen)
+      total time: 1.5
+
+      --> proc 2
+    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-2.nwk
+    made 6 events with 43 seqs in 1.2s (1.1s of which was running bppseqgen)
+      total time: 1.5
+
+      --> proc 3
+    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-3.nwk
+    made 6 events with 41 seqs in 1.3s (1.1s of which was running bppseqgen)
+      total time: 1.7
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/300758/trees-sub-8.nwk
-    made 6 events with 69 seqs in 1.2s (1.1s of which was running bppseqgen)
-      total time: 1.5
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/187235/trees-sub-8.nwk
+    made 6 events with 69 seqs in 1.3s (1.2s of which was running bppseqgen)
+      total time: 1.7
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/300758/trees-sub-9.nwk
+    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/187235/trees-sub-9.nwk
     made 12 events with 99 seqs in 2.1s (1.9s of which was running bppseqgen)
-      total time: 2.3
+      total time: 2.4
 
    read 66 events with 426 seqs from 10 .yaml files
-      total time: 3.2
+      total time: 3.3
 [94migh+igk[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results-slow/test/simu/igh+igk/
 [94migh+igl[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results-slow/test/simu/igh+igl/
 [91mrun[0m cd test/paired/new-results-slow/test/simu && ln -sf igh+igk/igk.yaml igk.yaml
 [91mrun[0m cd test/paired/new-results-slow/test/simu && ln -sf igh+igl/igl.yaml igl.yaml
-      total time: 22.0
+      total time: 22.1
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --parameter-dir test/paired/new-results-slow/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
 [44mcache-parameters[0m [94migh[0m:
@@ -392,7 +392,7 @@ simulating
   --input-metafnames: added meta info for 1173 sequences from test/paired/new-results-slow/test/simu/meta.yaml: paired-uids loci
   note: running on a lot of sequences (1173) without setting --outfname. Which is ok, but there will be no persistent record of the results (except the parameter directory).
 caching parameters
-  vsearch: 1173 / 1173 v annotations (0 failed) with 38 v genes in 0.2 sec
+  vsearch: 1173 / 1173 v annotations (0 failed) with 38 v genes in 0.1 sec
     keeping 23 / 220 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 1173 / 1173 v annotations (0 failed) with 23 v genes in 0.3 sec
@@ -409,22 +409,22 @@ smith-waterman  (writing parameters)
       info for 1173 / 1173 = 1.000   (removed: 0 failed)
       kept 404 (0.344) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/sw (1.6 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/sw (1.5 sec)
     water time: 4.1  (ig-sw 2.4  processing 0.3)
   writing hmms (0.4 sec)
 hmm
     skipping matches from 4 genes without enough counts: [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m04[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m5[0m[93m01[0m
     running 10 procs
                     calcd:         vtb 1173        fwd    0
-             min-max time:  1.6 - 1.8 sec
+             min-max time:  1.6 - 1.9 sec
     reading output
         read 1173 hmm output lines with 1173 sequences in 1173 events  (0 failures)
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/hmm (1.5 sec)
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/true (1.5 sec)
-         infra time: 4.7
-      hmm step time: 6.7
-  writing hmms (0.4 sec)
-      total time: 15.6
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/hmm (1.4 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/true (1.4 sec)
+         infra time: 4.6
+      hmm step time: 6.6
+  writing hmms (0.3 sec)
+      total time: 15.5
 [44mcache-parameters[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igk --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results-slow/test/simu/igk.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -447,8 +447,8 @@ smith-waterman  (writing parameters)
       info for 747 / 747 = 1.000   (removed: 0 failed)
       kept 128 (0.171) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igk/sw (1.1 sec)
-    water time: 2.4  (ig-sw 1.5  processing 0.2)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igk/sw (1.0 sec)
+    water time: 2.5  (ig-sw 1.6  processing 0.2)
   writing hmms (0.2 sec)
 hmm
     skipping matches from 2 genes without enough counts: [95mk[0m[91mj[0m[95m4[0m[93m02[0m [95mk[0m[91mj[0m[95m2[0m[93m02[0m
@@ -477,7 +477,7 @@ smith-waterman  (new-allele fitting)
     running 11 procs for 8 seqs
       info for 426 / 426 = 1.000   (removed: 0 failed)
       kept 87 (0.204) unproductive
-    water time: 0.4  (ig-sw 0.0  processing 0.1)
+    water time: 0.5  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 426 / 426 v annotations (0 failed) with 10 v genes in 0.1 sec
     running 10 procs for 426 seqs
@@ -486,7 +486,7 @@ smith-waterman  (writing parameters)
       kept 87 (0.204) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/simu/igl/sw-cache.yaml
     writing parameters to test/paired/new-results-slow/test/parameters/simu/igl/sw (0.8 sec)
-    water time: 1.5  (ig-sw 1.1  processing 0.1)
+    water time: 1.6  (ig-sw 1.1  processing 0.1)
   writing hmms (0.2 sec)
 hmm
     running 10 procs
@@ -500,7 +500,7 @@ hmm
          infra time: 2.1
       hmm step time: 2.7
   writing hmms (0.1 sec)
-      total time: 5.7
+      total time: 5.8
       total time: 32.2
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --parameter-dir test/paired/new-results-slow/test/parameters/simu --plot-annotation-performance --is-simu --plotdir test/paired/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/partition-new-simu
 [44mpartition[0m [94migh[0m:
@@ -542,7 +542,7 @@ caching all 1173 naive sequences
           read from cache:  naive-seqs 1436   logprobs  516
                     calcd:         vtb   73        fwd  257
                    merged:       hfrac   36     lratio   28
-             min-max time:  1.1 - 1.5 sec
+             min-max time:  1.0 - 1.5 sec
          infra time: 0.2
       hmm step time: 1.8
 342 clusters with 5 procs
@@ -551,7 +551,7 @@ caching all 1173 naive sequences
           read from cache:  naive-seqs 1513   logprobs  773
                     calcd:         vtb   42        fwd  206
                    merged:       hfrac   23     lratio   18
-             min-max time:  0.9 - 2.2 sec
+             min-max time:  1.0 - 2.2 sec
          infra time: 0.2
       hmm step time: 2.5
 301 clusters with 3 procs
@@ -560,7 +560,7 @@ caching all 1173 naive sequences
           read from cache:  naive-seqs 1555   logprobs  979
                     calcd:         vtb   34        fwd  164
                    merged:       hfrac   17     lratio   17
-             min-max time:  1.8 - 2.6 sec
+             min-max time:  1.9 - 2.6 sec
          infra time: 0.2
       hmm step time: 2.8
 267 clusters with 2 procs
@@ -569,7 +569,7 @@ caching all 1173 naive sequences
           read from cache:  naive-seqs 1591   logprobs 1143
                     calcd:         vtb   30        fwd  173
                    merged:       hfrac   28     lratio    9
-             min-max time:  3.6 - 3.8 sec
+             min-max time:  3.7 - 3.8 sec
          infra time: 0.2
       hmm step time: 4.0
 230 clusters with 2 procs
@@ -600,7 +600,7 @@ caching all 1173 naive sequences
          infra time: 0.1
       hmm step time: 5.3
   [93mnote[0m not merging entire cpath history
-      loop time: 23.0
+      loop time: 23.1
 getting annotations for final partition
   subcluster annotating 209 clusters: 
     running 10 procs
@@ -609,7 +609,7 @@ getting annotations for final partition
     reading output
         read 482 hmm output lines with 1173 sequences in 482 events  (0 failures)
          infra time: 0.5
-      hmm step time: 2.1
+      hmm step time: 2.0
     read 482 new subcluster annotations: added hashid 376   whole finished 106   subcl finished 0
     running 10 procs
                     calcd:         vtb  157        fwd    0
@@ -631,13 +631,13 @@ getting annotations for final partition
              min-max time:  0.1 - 0.2 sec
     reading output
         read 4 hmm output lines with 9 sequences in 4 events  (0 failures)
-      hmm step time: 0.3
+      hmm step time: 0.2
     read 4 new subcluster annotations: added hashid 4   whole finished 0   subcl finished 4
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 51 queries with different true and inferred net shm indel lengths: 2941879260630713450-igh 4080921475674879727-igh 3332812478823208550-igh 4847540134030695462-igh 2266557530034175766-igh 7788445019675643258-igh 1346405104640335780-igh 2443114284239806005-igh 0015836289824885101-igh 0497142986593355855-igh 0849823490602332668-igh 1202949175819197746-igh 1612791893288905975-igh 1965327953427248067-igh 2140354615523209257-igh 2148751831878089429-igh 2260506213630771760-igh 2316884101960894369-igh 2387080066609923455-igh 2420921955538524671-igh 2435308346487042358-igh 2439049957655876274-igh 2877666911830896838-igh 3171790528442837239-igh 3280466687811356157-igh 3344153475914336323-igh 3388849225779556607-igh 3645864798637182476-igh 3767014294834279604-igh 3785190254138251079-igh 4440160995040218810-igh 4755071984689497058-igh 4975135389751441864-igh 5053390551094301741-igh 5235663855169387750-igh 5378888161691847675-igh 5479979364695988617-igh 5584256691029793091-igh 5986985051134645429-igh 6247378278939507338-igh 6700386955102474268-igh 7117584031579204251-igh 7452022174808169370-igh 7532600282966856898-igh 7649652184084697594-igh 7775775703694324620-igh 8034210568695520943-igh 8585266049145533130-igh 8659717766248920473-igh 8885014819426259245-igh 8979836157019047937-igh
 (0.0 sec)
-    subcluster annotation time 5.2
-      total time: 33.7
+    subcluster annotation time 5.1
+      total time: 33.8
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igk --plot-annotation-performance --is-simu --plotdir test/paired/new-results-slow/partition-new-simu-annotation-performance/single-chain/plots/igk --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results-slow/test/simu/igk.yaml --outfname test/paired/new-results-slow/partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -658,7 +658,7 @@ caching all 747 naive sequences
                 no/empty cache file
                     calcd:         vtb 747        fwd   0
                    merged:       hfrac   0     lratio   0
-             min-max time:  0.8 - 0.8 sec
+             min-max time:  0.8 - 0.9 sec
       hmm step time: 1.0
    collapsed 747 queries into 60 clusters with identical naive seqs (0.0 sec)
 60 clusters with 10 procs
@@ -677,8 +677,8 @@ caching all 747 naive sequences
                     calcd:         vtb   7        fwd   6
                    merged:       hfrac   2     lratio   0
              min-max time:  0.0 - 0.1 sec
-         infra time: 0.1
-      hmm step time: 0.3
+         infra time: 0.2
+      hmm step time: 0.4
 57 clusters with 5 procs
        naive hfrac bounds: 0.015 0.060
     running 5 procs
@@ -715,7 +715,7 @@ caching all 747 naive sequences
                      time:  1.0 sec
       hmm step time: 1.1
   [93mnote[0m not merging entire cpath history
-      loop time: 2.7
+      loop time: 2.8
 getting annotations for final partition
   subcluster annotating 48 clusters: 
     running 10 procs
@@ -791,7 +791,7 @@ caching all 426 naive sequences
                     calcd:         vtb   7        fwd   0
                    merged:       hfrac   1     lratio   0
              min-max time:  0.0 - 0.1 sec
-         infra time: 0.2
+         infra time: 0.1
       hmm step time: 0.3
 33 clusters with 7 procs
        naive hfrac bounds: 0.015 0.062
@@ -809,7 +809,6 @@ caching all 426 naive sequences
                     calcd:         vtb   4        fwd   3
                    merged:       hfrac   2     lratio   0
              min-max time:  0.0 - 0.1 sec
-         infra time: 0.1
       hmm step time: 0.3
 28 clusters with 3 procs
        naive hfrac bounds: 0.015 0.062
@@ -818,7 +817,6 @@ caching all 426 naive sequences
                     calcd:         vtb   1        fwd   0
                    merged:       hfrac   1     lratio   0
              min-max time:  0.0 - 0.1 sec
-         infra time: 0.1
       hmm step time: 0.2
 27 clusters with 2 procs
        naive hfrac bounds: 0.015 0.062
@@ -837,7 +835,7 @@ caching all 426 naive sequences
                      time:  0.6 sec
       hmm step time: 0.7
   [93mnote[0m not merging entire cpath history
-      loop time: 2.2
+      loop time: 2.1
 getting annotations for final partition
   subcluster annotating 19 clusters: 
     running 10 procs
@@ -857,6 +855,7 @@ getting annotations for final partition
              min-max time:  0.2 - 0.2 sec
     reading output
         read 51 hmm output lines with 142 sequences in 51 events  (0 failures)
+         infra time: 0.1
       hmm step time: 0.4
     read 51 new subcluster annotations: added hashid 51   whole finished 0   subcl finished 1
     running 10 procs
@@ -884,7 +883,7 @@ getting annotations for final partition
     [93mwarning[0m skipped annotation performance evaluation on 11 queries with different true and inferred net shm indel lengths: 7410197645865402313-igl 8811699128935131392-igl 7698768102636357101-igl 7671550897726070243-igl 2243686301040758968-igl 1684827879342020250-igl 2613843819161832654-igl 5183092064312725602-igl 5895050847834969305-igl 6475678262750260136-igl 8538818755890410112-igl
 (0.0 sec)
     subcluster annotation time 2.3
-      total time: 6.5
+      total time: 6.4
       removed 2 failed queries when reading partition: 9184504695515260329-igl 2885609380885640393-igl
    2/2344 missing uids when cleaning pair info
      synchronized/fixed 0 pairs where one had no pair info after cleaning: [94mh[0m 0  [95mk[0m 0  [92ml[0m 0
@@ -938,7 +937,8 @@ hmm
              min-max time:  0.4 - 0.6 sec
     reading output
         read 103 hmm output lines with 232 sequences in 103 events  (0 failures)
-      hmm step time: 0.7
+         infra time: 0.1
+      hmm step time: 0.8
     read 103 new subcluster annotations: added hashid 103   whole finished 0   subcl finished 59
     running 10 procs
                     calcd:         vtb   21        fwd    0
@@ -955,7 +955,7 @@ hmm
       hmm step time: 0.2
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
     subcluster annotation time 3.0
-      total time: 3.6
+      total time: 3.7
   need to get annotations for 164/178 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
@@ -1003,7 +1003,7 @@ hmm
         read 1 hmm output lines with 2 sequences in 1 events  (0 failures)
       hmm step time: 0.1
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
-    subcluster annotation time 2.6
+    subcluster annotation time 2.5
       total time: 3.1
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
   intersection and complement both ok
@@ -1046,14 +1046,14 @@ hmm
     reading output
         read 184 hmm output lines with 426 sequences in 184 events  (0 failures)
          infra time: 0.2
-      hmm step time: 1.1
+      hmm step time: 1.0
     read 184 new subcluster annotations: added hashid 130   whole finished 54   subcl finished 0
     running 10 procs
                     calcd:         vtb  54        fwd   0
              min-max time:  0.3 - 0.5 sec
     reading output
         read 54 hmm output lines with 130 sequences in 54 events  (0 failures)
-      hmm step time: 0.6
+      hmm step time: 0.5
     read 54 new subcluster annotations: added hashid 54   whole finished 0   subcl finished 27
     running 10 procs
                     calcd:         vtb  13        fwd   0
@@ -1064,13 +1064,13 @@ hmm
     read 13 new subcluster annotations: added hashid 13   whole finished 0   subcl finished 11
     running 1 proc
                     calcd:         vtb   1        fwd   0
-                     time:  0.2 sec
+                     time:  0.1 sec
     reading output
         read 1 hmm output lines with 2 sequences in 1 events  (0 failures)
       hmm step time: 0.2
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
-    subcluster annotation time 2.3
-      total time: 2.7
+    subcluster annotation time 2.2
+      total time: 2.6
   need to get annotations for 87/93 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
@@ -1147,7 +1147,7 @@ hmm
       purity:       95.8 / 424 = 0.226
       completeness: 423.0 / 424 = 0.998
   [93mwarning[0m ignoring --plot-annotation-performance for paired clustering since it's going to be a bit fiddly to implement
-      total time: 67.1
+      total time: 67.0
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --parameter-dir test/paired/new-results-slow/test/parameters/simu --is-simu --seed-unique-id 2298849017709047818-igh:2298849017709047818-igk --seed-loci igh:igk --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/seed-partition-new-simu
    removing seqs very different from seed seq
                            wrong/no     removed      singly         kept   missing
@@ -1226,7 +1226,7 @@ caching all 19 naive sequences
                 no/empty cache file
                     calcd:         vtb 19        fwd  0
                    merged:       hfrac  0     lratio  0
-             min-max time:  0.0 - 0.1 sec
+             min-max time:  0.1 - 0.1 sec
       hmm step time: 0.1
    collapsed 19 queries into 1 cluster with identical naive seqs (0.0 sec)
   reducing n procs to number of clusters: 10 --> 1
@@ -1291,7 +1291,7 @@ getting annotations for final partition
   --input-partition-fname: read best partition with 19 sequences in 1 clusters from test/paired/new-results-slow/seed-partition-new-simu/seeds/2298849017709047818-igh+2298849017709047818-igk/igh+igk/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
-  vsearch: 19 / 19 v annotations (0 failed) with 1 v gene in 0.1 sec
+  vsearch: 19 / 19 v annotations (0 failed) with 1 v gene in 0.0 sec
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
       info for 19 / 19 = 1.000   (removed: 0 failed, 0 duplicates)
       kept 2 (0.105) unproductive
@@ -1348,7 +1348,7 @@ hmm
     read 7 new subcluster annotations: added hashid 7   whole finished 0   subcl finished 0
     running 3 procs
                     calcd:         vtb  3        fwd  0
-             min-max time:  0.0 - 0.1 sec
+             min-max time:  0.1 - 0.1 sec
     reading output
         read 3 hmm output lines with 7 sequences in 3 events  (0 failures)
       hmm step time: 0.1
@@ -1361,7 +1361,7 @@ hmm
       hmm step time: 0.1
     read 1 new subcluster annotation: added hashid 1   whole finished 0   subcl finished 1
     subcluster annotation time 0.4
-      total time: 0.5
+      total time: 0.6
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
     no single chain output
 [91mrun[0m cd test/paired/new-results-slow/seed-partition-new-simu/seeds/2298849017709047818-igh+2298849017709047818-igk && ln -sf igh+igk/partition-igk.yaml partition-igk.yaml
@@ -1382,7 +1382,7 @@ hmm
            1     19  single
       purity:       19.0 / 19 = 1.000
       completeness: 19.0 / 19 = 1.000
-      total time: 5.2
+      total time: 5.1
 [92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --paired-loci --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/partition-new-simu --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml
 [44mget-selection-metrics[0m [94migh+igk[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igh.yaml
@@ -1423,7 +1423,7 @@ getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 3/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       tree origins: 20 made from cpath
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk-selection-metrics.yaml
-      total time: 1.2
+      total time: 1.3
 [44mget-selection-metrics[0m [94migh+igl[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igh.yaml
   note: --parameter-dir not set, so using default: xxx-dummy-xxx
@@ -1458,7 +1458,7 @@ getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 14/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified)
       tree origins: 12 made from cpath
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igl-selection-metrics.yaml
-      total time: 1.4
+      total time: 1.3
     [93mwarning[0m get_annotation_dict(): missing annotations for 1/178 clusters in best partition with size: 5 (present: 36, 19, 19, 17, 15, 15, 15, 14, 13, 13, 12, 12, 12, 12, 11, 11, 11, 10, 10, 10, 9, 9, 9, 9, 8, 8, 8, 8, 8, 7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
         2 extra annotations (i.e. they're for clusters not in best partition) with sizes: 4 1
           missing 'best' cluster with size 5 overlaps with the following (overlap/size): 4/4  1/1
@@ -1534,4 +1534,4 @@ getting selection metrics: lbi lbr aa-lbi aa-lbr cons-dist-aa
           [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 5735706521960683698-igh 5735706521960683698-igl
           [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 3832770680068607362-igh 3832770680068607362-igl
         finished: 3 newly chosen >= 3
-      total time: 8.0
+      total time: 8.1
