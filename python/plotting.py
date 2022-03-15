@@ -1306,7 +1306,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # ----------------------------------------------------------------------------------------
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
-                        cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, global_max_vals=None,
+                        cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, all_emph_vals=None, emph_colors=None, global_max_vals=None,
                         make_legend=False, remove_none_vals=False, sortlabel='?', debug=False):
     import lbplotting
     smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
@@ -1474,8 +1474,6 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         print '    %s None type xbounds in single joyplot: %s' % (utils.wrnstr(), xbounds)
         return 'no values' if high_x_val is None else high_x_clusters  # 'no values' isn't really a file name, it just shows up as a dead link in the html
     fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
-    if meta_info_key_to_color is not None:
-        all_emph_vals, emph_colors = meta_emph_init(meta_info_key_to_color, sorted_clusters, annotations, formats=meta_emph_formats)
     if meta_info_to_emphasize is not None:
         meta_emph_key, meta_emph_val = meta_info_to_emphasize.items()[0]
         if all(meta_emph_key not in l for l in annotations.values()):
