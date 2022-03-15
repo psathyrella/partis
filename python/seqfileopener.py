@@ -207,7 +207,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     elif suffix in ['.fa', '.fasta', '.fq', '.fastq', '.fastx']:
         add_info = args is not None and args.name_column is not None and 'fasta-info-index' in args.name_column
         reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=add_info, sanitize_uids=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
-                                  queries=(args.queries if (args is not None and not args.abbreviate) else None))  # NOTE also can't filter on args.queries here if we're also translating
+                                  queries=(args.queries if (args is not None and not args.abbreviate) else None), sanitize_seqs=args.sanitize_input_seqs)  # NOTE also can't filter on args.queries here if we're also translating
     elif suffix == '.yaml':
         yaml_glfo, reader, _ = utils.read_yaml_output(infname, n_max_queries=n_max_queries, synth_single_seqs=True, dont_add_implicit_info=True)  # not really sure that long term I want to synthesize single seq lines, but for backwards compatibility it's nice a.t.m.
         if not is_data:
@@ -280,7 +280,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
 
         if any(c not in utils.alphabet for c in inseq):  # NOTE should really be integrated with sanitize_seqs arg in utils.read_fastx()
             unexpected_chars = set([ch for ch in inseq if ch not in utils.alphabet])
-            raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s:\n  %s' % (utils.plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), utils.alphabet, uid, inseq))
+            raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s (maybe should set --sanitize-input-seqs?):\n  %s' % (utils.plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), utils.alphabet, uid, inseq))
 
         # da business
         input_info[uid] = {'unique_ids' : [uid, ], 'seqs' : [inseq, ]}

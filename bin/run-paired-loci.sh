@@ -47,7 +47,8 @@ bodir=$bidir/comparisons
 
 tsubj=hs-1-postvax
 tpd=$bidir/comparisons/$tsubj
-$bin --outdir $bodir/ins-del-lens/$tsubj --plotdirs $bidir/$tsubj/igh+igk/plots/igh/overall:$bidir/$tsubj/igh+igk/plots/igk/overall:$bidir/$tsubj/igh+igl/plots/igl/overall  --names igh:igk:igl --normalize & # --extra-stats mean
+$bin --outdir $bodir/ins-del-lens-all/$tsubj --plotdirs $bidir/$tsubj/igh+igk/plots/igh/overall:$bidir/$tsubj/igh+igk/plots/igk/overall:$bidir/$tsubj/igh+igl/plots/igl/overall --names igh:igk:igl --normalize & # --extra-stats mean
+$bin --outdir $bodir/ins-del-lens-igh/$tsubj --plotdirs $bidir/$tsubj/igh+igk/plots/igh/overall --names igh --normalize --single-plotdir & # --extra-stats mean
 exit 0
 
 for subj in hs-1-postvax hs-1-prevax hs-2-pbmc mm-balbc; do #hs-1-prevax; do #mm-balbc
