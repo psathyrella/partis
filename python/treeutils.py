@@ -129,6 +129,8 @@ def smvals(line, smetric, iseq=None, uid=None, nullval=None):  # retrieve select
     assert (iseq is None and uid is None) or [iseq, uid].count(None) == 1
     if uid is not None:
         iseq = line['unique_ids'].index(uid)
+    if smetric in line:
+        raise Exception('called smvals() with normal list-based key %s' % smetric)
     if 'tree-info' not in line or 'lb' not in line['tree-info'] or smetric not in line['tree-info']['lb']:
         return [nullval for _ in line['unique_ids']] if iseq is None else nullval
     lbfo = line['tree-info']['lb'][smetric]

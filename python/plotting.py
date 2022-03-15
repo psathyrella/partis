@@ -1322,7 +1322,10 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     # ----------------------------------------------------------------------------------------
     def get_xval_list(cluster, xkey):  # NOTE this *has* to return values in the same order they're in line['unique_ids']
         line = annotations[':'.join(cluster)]
-        return treeutils.smvals(line, xkey)
+        if xkey in line:
+            return line[xkey]
+        else:
+            return treeutils.smvals(line, xkey)
     # ----------------------------------------------------------------------------------------
     def get_xval_dict(uids, xkey):
         line = annotations[':'.join(cluster)]
@@ -1334,6 +1337,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     def getbounds(xkey):
         all_xvals = [x for c in sorted_clusters for x in get_xval_list(c, xkey) if x is not None]  # NOTE can't ignore/skip None vals in the list/dict getter fcn above, since order has to match line['unique_ids']
         if len(all_xvals) == 0:
+            print '    %s no (non-None) xvals for %s in single joyplot fcn' % (utils.wrnstr(), xkey)
             return None
         bounds = [f(all_xvals) for f in [min, max]]
         if bounds[0] == bounds[1]:  # if min and max are the same (i.e. all vals are the same), just use the value +/- 10%
@@ -1467,6 +1471,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     if x2key is not None:
         xbounds[x2key] = getbounds(x2key)
     if any(xbounds[xk] is None for xk in xbounds):
+        print '    %s None type xbounds in single joyplot: %s' % (utils.wrnstr(), xbounds)
         return 'no values' if high_x_val is None else high_x_clusters  # 'no values' isn't really a file name, it just shows up as a dead link in the html
     fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
     if meta_info_key_to_color is not None:
