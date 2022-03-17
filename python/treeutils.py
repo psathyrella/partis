@@ -2370,7 +2370,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         else:
             def vfcn(c): return gsval(mfo, c, kstr)
         kvals = [vfcn(c) for c in 'hl']
-        return None if None in kvals else sum(kvals)
+        return None if None in kvals else kvals[0] + kvals[1]  # needs to work for both ints and strings
     # ----------------------------------------------------------------------------------------
     def sum_nuc_shm_pct(mpfo):
         total_len = sum(len(gsval(mpfo, c, 'seqs')) - gsval(mpfo, c, 'seqs').count(utils.ambig_base) for c in 'hl')
@@ -2381,6 +2381,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def get_joint_did(mfo):
         return utils.get_single_entry(list(set([get_did(gsval(mfo, c, 'unique_ids')) for c in 'hl'])))
+    # ----------------------------------------------------------------------------------------
+    def combid(mfo):  # new uid that combines h+l ids
+        _, cids = zip(*[get_did(gsval(mfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
+        return '%s-%s+%s' % (get_joint_did(mfo), cids[0], cids[1])
     # ----------------------------------------------------------------------------------------
     def get_didstr(dids, cids, mpfo):
         if len(set(dids)) == 1:  # make sure they're from the same droplet
@@ -2603,11 +2607,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     chsnstr = utils.color('green', 'x')
                 if tdbg:
                     dids, cids = zip(*[get_did(gsval(simfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
-                    didstr, cids = get_didstr(dids, cids, simfo)
+                    didstr, cidstrs = get_didstr(dids, cids, simfo)
                     print '              %2d %2d %2d %s %20s  %s  %s  %s %s' % (sfcn(simfo),
                                                                                 utils.hamming_distance(gsval(rmfo, 'h', 'seqs_aa'), gsval(simfo, 'h', 'seqs_aa'), amino_acid=True),
                                                                                 utils.hamming_distance(gsval(rmfo, 'l', 'seqs_aa'), gsval(simfo, 'l', 'seqs_aa'), amino_acid=True),
-                                                                                chsnstr, didstr, cids[0], cids[1],
+                                                                                chsnstr, didstr, cidstrs[0], cidstrs[1],
                                                                                 utils.color_mutants(gsval(rmfo, 'h', 'seqs_aa'), gsval(simfo, 'h', 'seqs_aa'), amino_acid=True),
                                                                                 utils.color_mutants(gsval(rmfo, 'l', 'seqs_aa'), gsval(simfo, 'l', 'seqs_aa'), amino_acid=True)
                     )
@@ -2913,25 +2917,25 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
     # ----------------------------------------------------------------------------------------
-    def get_sum_metrics(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
-        # ----------------------------------------------------------------------------------------
-        def trfn(uid, idup=None):
-            tid = get_did(uid)
-            if idup is not None:
-                tid = '%s-DUPL-%d' % (tid, idup)
-            return tid
-        # ----------------------------------------------------------------------------------------
-        p_atn = {k : copy.deepcopy(h_atn[k]) for k in ['unique_ids', 'affinities', 'tree', 'min_target_distances'] if k in h_atn}
-        trns, reverse_translations = {}, {}
-        for uid in h_atn['unique_ids']:  # translate uid to the droplet id, which ends up being a god damn clusterfuck because droplet ids can be repeated but we don't want duplicate ids
-            idup = None
-            while trfn(uid, idup=idup) in reverse_translations:  # add an integer plus some crap to try to make it obvious that we hit a duplicate (yeah this solution sucks, but i think it's the best available atm)
-                if idup is None: idup = 0
-                idup += 1
-            trns[uid] = trfn(uid, idup=idup)
-            reverse_translations[trfn(uid, idup=idup)] = uid
-        utils.translate_uids([p_atn], trns=trns)
+    def get_sum_antn_for_plotting(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
+        p_atn = {}  # make a new fake annotation for the sequences that are in both h+l
+        p_atn['unique_ids'] = [combid(m) for m in metric_pairs]
+        p_atn['seqs'] = [sumv(m, 'seqs') for m in metric_pairs]
+        p_atn['seqs_aa'] = [sumv(m, 'seqs_aa') for m in metric_pairs]
+        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]
+        if is_simu:
+            trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
+            stree = get_dendro_tree(treestr=h_atn['tree'])
+            translate_labels(stree, trns)
+            p_atn['tree'] = stree.as_string(schema='newick')
+        for tk in [k for k in cpkeys if k in h_atn]:
+            p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs] #utils.per_seq_val(h_atn, tk, gsval(m, 'h', 'unique_ids')) for m in metric_pairs]
         p_atn['tree-info'] = {'lb' : {}}
+        seqfos = [{'name' : combid(mfo), 'seq' : sumv(mfo, 'seqs')} for mfo in metric_pairs]  # sumv(mfo, 'unique_ids')
+        dtree = get_fasttree_tree(seqfos, naive_seq=sumv(mfo, 'naive_seq'))  # NOTE kind of duplicates get_tree_for_inf_line() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
+        treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
+        p_atn['tree-info']['lb']['tree'] = treestr
+        p_atn['tree-info']['lb']['aa-tree'] = get_aa_tree(dtree, p_atn).as_string(schema='newick')
         for b_mtr in args.selection_metrics_to_calculate + ['n_mutations', 'shm-aa']:
             sum_mtr = 'sum-%s' % b_mtr
             p_atn['tree-info']['lb'][sum_mtr] = {}
@@ -2995,9 +2999,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 mpfo[tch] = ltmp
                 mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
             metric_pairs.append(mpfo)
-        p_atn = get_sum_metrics(metric_pairs, h_atn)
         if plotdir is not None:
-            plot_antns.append(p_atn)
+            plot_antns.append(get_sum_antn_for_plotting(metric_pairs, h_atn))
         if len(metric_pairs) == 0:
             continue
         mtpys = get_mtpys(metric_pairs)

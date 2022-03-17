@@ -1401,7 +1401,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         assert hist.overflow_contents() == 0.  # includes underflows
         max_contents = max(hist.bin_contents)
         for ibin in range(1, hist.n_bins + 1):
-            barheight = utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
+            barheight = 0 if max_contents==0 else utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
             if meta_info_key_to_color is not None:
                 bin_ids = [u for u, x in zip(antn['unique_ids'], get_xval_list(cluster, xkey)) if hist.find_bin(x)==ibin]  # uids in this bin
                 def psfcn(u): return utils.meta_emph_str(meta_info_key_to_color, utils.per_seq_val(antn, meta_info_key_to_color, u, use_default=True), formats=meta_emph_formats)

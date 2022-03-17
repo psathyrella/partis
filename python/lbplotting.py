@@ -344,6 +344,14 @@ def get_tree_from_line(line, is_true_line, aa=False):
 # NOTE that this isn't symmetric wrt x/y vars -- some combos require one var to be x, and the other y (otherwise it'll crash cause it can't figure out how to calculate the values)
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
                           add_jitter=False, min_ptile=80., n_iclust_plot_fnames=None, use_relative_affy=False, queries_to_include=None, add_stats=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+    # ----------------------------------------------------------------------------------------
+    def add_warn(tstr, targs):
+        if 'warn_text' in targs:
+            targs['warn_text'] += '\n'
+        else:
+            targs['warn_text'] = ''
+        targs['warn_text'] += tstr
+    # ----------------------------------------------------------------------------------------
     if colorvar is not None and colorvar in [xvar, yvar]:
         raise Exception('colorvar \'%s\' can\'t be one of xvar, yvar (%s %s)' % (colorvar, xvar, yvar))
     if only_overall and only_iclust:
@@ -391,8 +399,9 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
     basetitle = '%s %s vs %s' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', yvar, short=True), mtitlestr('per-seq', xvar, short=True).replace('- N', 'N'))  # here 'shm' the plain number of mutations, not 'shm' the non-lb metric, so we have to fiddle with the label in mtitle_cfg
     scatter_kwargs = {'xvar' : xvar, 'xlabel' : xlabel, 'colorvar' : colorvar, 'leg_loc' : (0.55, 0.75), 'log' : 'y' if 'lbr' in yvar else '', 'stats' : add_stats}
     if use_relative_affy:
-        scatter_kwargs['warn_text'] = 'relative affinity'
+        add_warn('relative affinity', scatter_kwargs)
     sorted_lines = sorted(lines_to_use, key=lambda l: len(l['unique_ids']), reverse=True)
+    n_total_null = {k : 0 for k in [xvar, yvar]}
     for iclust, line in enumerate(sorted_lines):  # get depth/n_mutations for each node
         iclust_plotvals = {x : [] for x in vtypes}
         lbfo = line['tree-info']['lb'][lb_metric]
@@ -446,6 +455,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         else:
             assert False
 
+        n_null = {k : 0 for k in [xvar, yvar]}
         for iseq, uid in enumerate(line['unique_ids']):
             xval = xvalfcn(iseq)
             # if xvar == 'affinity-ptile' and '-ptile' in yvar and xvalfcn(iseq) < min_ptile:  # and yvalfcn(iseq) < min_ptile:  the number of cells with high lbi but low affinity (last, commented criterion) is just too small to bother plotting -- all our errors come from the other direction
@@ -454,6 +464,10 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             if 'lbr' in yvar and yval == 0:
                 continue
             if None in (xval, yval):
+                for k, v in [(xvar, xval), (yvar, yval)]:
+                    if v is None:
+                        n_null[k] += 1
+                        n_total_null[k] += 1
                 continue
             iclust_plotvals[xvar].append(xval)
             iclust_plotvals[yvar].append(yval)
@@ -472,14 +486,16 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                 iclust_plotvals['uids'].append(uid if queries_to_include is None or uid in queries_to_include else None)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
         if len(iclust_plotvals[xvar]) == 0:
             continue
+        iskargs = copy.deepcopy(scatter_kwargs)
         if add_jitter: #xvar == 'affinity-ptile' and '-ptile' in yvar:
             iclust_plotvals[xvar] = plotting.add_jitter(iclust_plotvals[xvar], delta=100. - min_ptile if '-ptile' in xvar else None, frac=0.02)
-            if 'jitter' not in scatter_kwargs['xlabel']:
-                scatter_kwargs['xlabel'] += ' (+jitter)'
+            iskargs['xlabel'] += ' (+jitter)'
         if not only_overall:
             title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(lbfo))
             tmpplotname = '%s%s-vs-%s%s-iclust-%d' % (rel_affy_str(yvar, use_relative_affy), yvar, rel_affy_str(yvar, use_relative_affy), xvar, iclust)
-            fn = plot_2d_scatter(tmpplotname, plotdir, iclust_plotvals, yvar, ylabel, title, **scatter_kwargs)
+            for vname in [v for v in [xvar, yvar] if n_null[v] > 0]:
+                add_warn('%s for %d / %d' % (vname, len(line['unique_ids']) - n_null[vname], len(line['unique_ids'])), iskargs)
+            fn = plot_2d_scatter(tmpplotname, plotdir, iclust_plotvals, yvar, ylabel, title, **iskargs)
             if n_iclust_plot_fnames is not None and iclust < n_iclust_plot_fnames:
                 add_fn(fnames, fn=fn)
         assert len(set([len(plotvals[vt]) for vt in plotvals])) == 1  # make sure all of them are the same length
@@ -501,6 +517,9 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
 
     if not only_iclust and len(sorted_lines) > 1:
         tmpplotname = '%s%s-vs-%s%s-all-clusters' % (rel_affy_str(yvar, use_relative_affy), yvar, rel_affy_str(xvar, use_relative_affy), xvar)
+        for vname in [v for v in [xvar, yvar] if n_total_null[v] > 0]:
+            n_tot = sum(len(l['unique_ids']) for l in sorted_lines)
+            add_warn('%s for %d / %d' % (vname, n_tot - n_total_null[vname], n_tot), scatter_kwargs)
         fn = plot_2d_scatter(tmpplotname, plotdir, plotvals, yvar, ylabel, '%s (%s)' % (basetitle, all_clust_str(len(sorted_lines))), **scatter_kwargs)
         add_fn(fnames, fn=fn)
 
@@ -613,7 +632,7 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
             ax.text(xval, yval, uid, color='red', fontsize=8)
 
     if warn_text is not None:
-        ax.text(0.6 * ax.get_xlim()[1], 0.75 * ax.get_ylim()[1], warn_text, fontsize=30, fontweight='bold', color='red')
+        fig.text(0.6 if len(warn_text) < 15 else 0.4, 0.75 if len(warn_text) < 15 else 0.82, warn_text, fontsize=30 if len(warn_text) < 15 else 15, fontweight='bold', color='red')
     xmin, xmax = [mfcn([x for x in xvals if x is not None]) for mfcn in [min, max]]
     ymin, ymax = [mfcn([y for y in yvals if y is not None]) for mfcn in [min, max]]
     # if xvar == 'cons-dist-aa':
@@ -1006,7 +1025,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     if not only_csv:
         if sum(len(l['unique_ids']) for l in lines) < max_scatter_plot_size:
             make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=scfns, n_iclust_plot_fnames=1 if len(lines)==1 else None, is_true_line=is_true_line, colorvar='edge-dist' if is_true_line else None,
-                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric or len(lines)==1, add_jitter=is_true_line, use_relative_affy='relative' in affy_key, add_stats='correlation')  # there's some code duplication between these two fcns, but oh well
+                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric or len(lines)==1, add_jitter=is_true_line, use_relative_affy='relative' in affy_key) #, add_stats='correlation')  # there's some code duplication between these two fcns, but oh well
         else:  # ok this is hackey
             print '    too many seqs %d >= %d, not making scatter plots' % (sum(len(l['unique_ids']) for l in lines), max_scatter_plot_size)
             utils.prep_dir(getplotdir(), wildlings=['*.svg', '*.yaml'])

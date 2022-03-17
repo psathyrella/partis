@@ -5377,6 +5377,9 @@ def add_alignments(glfo, aligned_gl_seqs, line, debug=False):
 # ----------------------------------------------------------------------------------------
 def intexterpolate(x1, y1, x2, y2, x):
     """ interpolate/extrapolate linearly based on two points in 2-space, returning y-value corresponding to <x> """
+    if x1 == x2:
+        print '  %s x1 equal to x2 in utils.intexterpolate()' % wrnstr()
+        return 0  # arg, maybe this is right?
     m = (y2 - y1) / (x2 - x1)
     b = 0.5 * (y1 + y2 - m*(x1 + x2))
     # if debug:
