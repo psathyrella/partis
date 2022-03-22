@@ -354,6 +354,7 @@ parser.add_argument('--min-target-distance-list')
 parser.add_argument('--context-depend-list')
 parser.add_argument('--multifurcating-tree-list')
 parser.add_argument('--paratope-positions-list')
+parser.add_argument('--affinity-measurement-error-list')
 parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi', 'aa-lbi', 'lbr', 'aa-lbr', 'dtr', 'cons-lbi'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics. UPDATE can now run this way also for plain/nuc lbi and lbr.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
@@ -404,7 +405,7 @@ parser.add_argument('--only-metrics', default='lbi:lbr', help='which (of lbi, lb
 parser.add_argument('--make-plots', action='store_true', help='note: only for get-lb-bounds')
 args = parser.parse_args()
 
-args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'target-distance', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'context-depend', 'paratope-positions', 'parameter-variances', 'multifurcating-tree'],}
+args.scan_vars = {'simu' : ['carry-cap', 'n-sim-seqs-per-gen', 'obs-times', 'seed', 'target-distance', 'metric-for-target-distance', 'selection-strength', 'leaf-sampling-scheme', 'target-count', 'n-target-clusters', 'min-target-distance', 'context-depend', 'paratope-positions', 'affinity-measurement-error', 'parameter-variances', 'multifurcating-tree'],}
 args.scan_vars['get-tree-metrics'] = args.scan_vars['simu'] + ['lb-tau']
 args.str_list_vars = ['n-sim-seqs-per-gen', 'obs-times', 'context-depend', 'n-sim-seqs-per-gen', 'obs-times', 'context-depend']
 args.bool_args = ['multifurcating-tree']
@@ -437,6 +438,7 @@ args.min_target_distance_list = utils.get_arg_list(args.min_target_distance_list
 args.context_depend_list = utils.get_arg_list(args.context_depend_list, forbid_duplicates=True)
 args.multifurcating_tree_list = utils.get_arg_list(args.multifurcating_tree_list, forbid_duplicates=True)
 args.paratope_positions_list = utils.get_arg_list(args.paratope_positions_list, forbid_duplicates=True, choices=['all', 'cdrs'])
+args.affinity_measurement_error_list = utils.get_arg_list(args.affinity_measurement_error_list, forbid_duplicates=True, floatify=True)
 args.parameter_variances_list = utils.get_arg_list(args.parameter_variances_list, forbid_duplicates=True)
 args.plot_metrics = utils.get_arg_list(args.plot_metrics)
 args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)

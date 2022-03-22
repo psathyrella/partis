@@ -159,7 +159,7 @@ def readlog(args, fname, metric, locus, ptntype):
 
 # ----------------------------------------------------------------------------------------
 # NOTE in some sense averaging over the ptiles from 75 to 100 is double counting (since e.g. the value at 75 is summing to 100), so it might make more sense to just take the value at 75 without averaging. But I think I like that it effectively over-weights the higher ptile values (since e.g. 100 occurs in every single one), plus this is used in a lot of places (e.g. in the paper) and i don't want to change it unless it's really wrong
-def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None, single_value=False):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
+def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None, single_value=False, distr_hists=False):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
     # ----------------------------------------------------------------------------------------
     def yval_key(subfo):
         if ptilestr == 'affinity' and 'mean_affy_ptiles' in subfo:  # old-style files used shortened version
@@ -168,9 +168,9 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
             return 'mean_%s_ptiles' % ptilestr
     # ----------------------------------------------------------------------------------------
     if 'percentiles' in yamlfo:  # new-style files (note that 'percentiles' will still be in there even if we didn't make the ptile plots)
-        subfo = yamlfo['percentiles'] #['distr-hists' if distr_hists else 'percentiles']
+        subfo = yamlfo['distr-hists' if distr_hists else 'percentiles']
         if per_x == 'per-seq':
-            subfo = subfo['per-seq'].get('all-clusters' if iclust is None else 'iclust-%d' % iclust)  # old: .get(xxx, subfo) distr-hists don't have 'per-seq'/'per-cluster' level
+            subfo = subfo.get('per-seq', subfo).get('all-clusters' if iclust is None else 'iclust-%d' % iclust)  # old: .get(xxx, subfo) distr-hists don't have 'per-seq'/'per-cluster' level
         else:
             subfo = subfo['per-cluster'][choice_grouping]
     else:  # old-style files
@@ -179,6 +179,8 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
             if 'iclust-%d' % iclust not in subfo:
                 print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')  # I think it's just going to crash on the next line anyway
             subfo = subfo['iclust-%d' % iclust]
+    if distr_hists:
+        return subfo
     if subfo is None:  # i think this usually happens when there's no values for a particular cluster
         return []
     if single_value:
@@ -289,17 +291,17 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     # ----------------------------------------------------------------------------------------
     def get_dhist_vals(ytmpfo, iclust=None):  # specify args.distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
         # ----------------------------------------------------------------------------------------
-        def gethist(tkey):
-            yfo = ytmpfo[k]
+        def gethist(subfo, tkey):
+            yfo = subfo[tkey]
             htmp = Hist(n_bins=yfo['n_bins'], xmin=yfo['xmin'], xmax=yfo['xmax'])
             for ibin in htmp.ibiniter(True):
                 htmp.bin_contents[ibin] = yfo['bin_contents'][ibin]
             return htmp
         # ----------------------------------------------------------------------------------------
-        ytmpfo = get_ytmpfo(ytmpfo, iclust=iclust)
-        if ytmpfo is None:
+        subfo = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, distr_hists=distr_hists)
+        if subfo is None:
             return 0, 0, 0
-        hzero, hother = [gethist(k) for k in ['zero', 'not 0']]
+        hzero, hother = [gethist(subfo, k) for k in ['zero', 'not 0']]
         for tattr in ['n_bins', 'xmin', 'xmax']:
             assert getattr(hzero, tattr) == getattr(hother, tattr)
         if args.distr_hist_limit[0] == 'val':

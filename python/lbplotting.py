@@ -66,7 +66,7 @@ def mean_of_top_quintile(vals):  # yeah, yeah could name it xtile and have anoth
     frac = 0.2  # i.e. top quintile
     n_to_take = max(1, int(frac * len(vals)))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which causes bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
     return numpy.mean(sorted(vals)[len(vals) - n_to_take:])
-mean_max_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-lbi']
+mean_max_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'shm-aa', 'cons-lbi']
 mean_max_metrics += ['sum-%s'%m for m in mean_max_metrics]
 mean_max_metrics += treeutils.dtr_metrics
 cluster_summary_cfg = collections.OrderedDict()
@@ -84,7 +84,7 @@ def getptvar(xvar): return xvar if xvar == 'affinity' else 'n-ancestor'  # NOTE 
 def ungetptvar(xvar): return xvar if xvar == 'affinity' else 'delta-affinity'  # ok this name sucks, and these two functions are anyway shitty hacks
 def ungetptlabel(xvar): return xvar if xvar == 'affinity' else 'affinity change'
 
-per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'cons-lbi']
+per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'shm-aa', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'cons-lbi']
 per_seq_metrics += ['sum-'+m for m in per_seq_metrics]
 per_seq_metrics += treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
@@ -343,7 +343,7 @@ def get_tree_from_line(line, is_true_line, aa=False):
 # ----------------------------------------------------------------------------------------
 # NOTE that this isn't symmetric wrt x/y vars -- some combos require one var to be x, and the other y (otherwise it'll crash cause it can't figure out how to calculate the values)
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
-                          add_jitter=False, min_ptile=80., n_iclust_plot_fnames=None, use_relative_affy=False, queries_to_include=None, add_stats=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+                          add_jitter=False, min_ptile=80., n_iclust_plot_fnames=None, use_relative_affy=False, queries_to_include=None, add_stats=None, xlabel=None, ylabel=None):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
     # ----------------------------------------------------------------------------------------
     def add_warn(tstr, targs):
         if 'warn_text' in targs:
@@ -364,8 +364,10 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         yvar = lb_metric
 
     choice_str = 'among-families' if choose_among_families else 'within-families'
-    xlabel = mtitlestr('per-seq', xvar).replace('- N', 'N')
-    ylabel = mtitlestr('per-seq', yvar)
+    if xlabel is None:
+        xlabel = mtitlestr('per-seq', xvar).replace('- N', 'N')
+    if ylabel is None:
+        ylabel = mtitlestr('per-seq', yvar)
     if choose_among_families:
         assert '-ptile' in xvar or '-ptile' in yvar
         if xvar == 'affinity-ptile':
@@ -1024,8 +1026,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
 
     if not only_csv:
         if sum(len(l['unique_ids']) for l in lines) < max_scatter_plot_size:
+            affy_label = None if 'affinities' in affy_key else affy_key
             make_lb_scatter_plots('affinity', baseplotdir, lb_metric, lines, fnames=scfns, n_iclust_plot_fnames=1 if len(lines)==1 else None, is_true_line=is_true_line, colorvar='edge-dist' if is_true_line else None,
-                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric or len(lines)==1, add_jitter=is_true_line, use_relative_affy='relative' in affy_key) #, add_stats='correlation')  # there's some code duplication between these two fcns, but oh well
+                                  only_overall='among-families' in lb_metric, only_iclust='within-families' in lb_metric or len(lines)==1, add_jitter=is_true_line, use_relative_affy='relative' in affy_key, xlabel=affy_label) #, add_stats='correlation')  # there's some code duplication between these two fcns, but oh well
         else:  # ok this is hackey
             print '    too many seqs %d >= %d, not making scatter plots' % (sum(len(l['unique_ids']) for l in lines), max_scatter_plot_size)
             utils.prep_dir(getplotdir(), wildlings=['*.svg', '*.yaml'])

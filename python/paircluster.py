@@ -1044,7 +1044,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 print '      %3d  %s' % (count, lstr)
         prcgrps(ok_groups, 'ok to start with:')
         prcgrps(id_removed_groups, 'removed ids from:')
-        prcgrps(tried_to_fix_groups, 'after tring to fix:')
+        prcgrps(tried_to_fix_groups, 'after trying to fix:')
 
     # re-set 'paired-uids' key in <cline> to the pid group (which was modified in the previous cleaning steps)
     for ltmp in sorted(cpaths):

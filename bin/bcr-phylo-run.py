@@ -283,6 +283,11 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         if len(set(final_line['unique_ids']) - set(nodefo)) > 0:
             print '        in final_line, but missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(nodefo))
         final_line['affinities'] = [1. / nodefo[u]['kd'] for u in final_line['unique_ids']]
+        if args.affinity_measurement_error is not None:
+            before = final_line['affinities']
+            final_line['affinities'] = [numpy.random.normal(a, args.affinity_measurement_error * a) for a in final_line['affinities']]
+            # print '  '.join('%.4f'%v for v in before)
+            # print '  '.join('%.4f'%v for v in final_line['affinities'])
         final_line['relative_affinities'] = [1. / nodefo[u]['relative_kd'] for u in final_line['unique_ids']]
         final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
         final_line['nearest_target_indices'] = [nodefo[u]['target_index'] for u in final_line['unique_ids']]
@@ -481,6 +486,7 @@ parser.add_argument('--target-count', type=int, default=1, help='Number of targe
 parser.add_argument('--n-target-clusters', type=int, help='number of cluster into which to divide the --target-count target seqs (see bcr-phylo docs)')
 parser.add_argument('--min-target-distance', type=int, help='see bcr-phylo docs')
 parser.add_argument('--min-effective-kd', type=float, help='see bcr-phylo docs')
+parser.add_argument('--affinity-measurement-error', type=float, help='If set, replace \'affinities\' in final partis line with new values smeared with a normal distribution with this width')
 parser.add_argument('--n-initial-seqs', type=int, help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')

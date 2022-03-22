@@ -173,6 +173,7 @@ class PartitionPlotter(object):
         sorted_cluster_groups = [sorted_clusters[i : i + self.n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), self.n_clusters_per_joy_plot)]
         if debug:
             print '  shm vs size joyplots: divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
+        all_emph_vals, emph_colors = None, None
         if self.args.meta_info_key_to_color is not None:  # have to do this out here before the loop so that the colors are synchronized (and all plots include all possible values)
             all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
         for subclusters in sorted_cluster_groups:

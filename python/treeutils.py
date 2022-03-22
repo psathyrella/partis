@@ -1709,7 +1709,9 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     plot_cfg = args.selection_metric_plot_cfg
     if plot_cfg is None:
         plot_cfg = all_plot_cfg
+    affy_key = 'affinities'
     if args.affinity_key is not None:
+        affy_key = args.affinity_key
         tmplines = [l for l in antn_list if args.affinity_key in l]
         if len(tmplines) == 0:
             print '  %s --affinity-key \'%s\' doesn\'t occur in any of the %d annotations' % (utils.wrnstr(), args.affinity_key, len(antn_list))
@@ -1731,7 +1733,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
         affy_fnames, slice_fnames = [[]], [[]]
         for mtr in [m for m in metrics_to_calc if m in affy_metrics]:
             if 'lb-vs-affy' in plot_cfg:
-                lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, debug=debug)
+                lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, affy_key=affy_key, debug=debug)
             if 'slice' in plot_cfg:
                 lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, paired=paired, n_bin_cfg_fname=args.slice_bin_fname, debug=debug)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', plotdir, mtr, antn_list, yvar=mtr+'-ptile', fnames=fnames, is_true_line=is_simu)
@@ -1753,7 +1755,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     if not args.only_csv_plots:  # all the various scatter plots are really slow
         if 'lb-scatter' in plot_cfg:
             for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi'), ('sum-cons-dist-aa', 'sum-aa-lbi'), ('sum-aa-lbi', 'sum-lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
-                lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include, add_stats='correlation')
+                lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include) #, add_stats='correlation')
         if ete_path is not None and has_trees and 'tree' in plot_cfg:
             lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=args.queries_to_include, fnames=fnames, label_all_nodes=args.label_tree_nodes)
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
@@ -2928,8 +2930,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             stree = get_dendro_tree(treestr=h_atn['tree'])
             translate_labels(stree, trns)
             p_atn['tree'] = stree.as_string(schema='newick')
+            cpkeys.append('min_target_distances')
         for tk in [k for k in cpkeys if k in h_atn]:
-            p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs] #utils.per_seq_val(h_atn, tk, gsval(m, 'h', 'unique_ids')) for m in metric_pairs]
+            p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         p_atn['tree-info'] = {'lb' : {}}
         seqfos = [{'name' : combid(mfo), 'seq' : sumv(mfo, 'seqs')} for mfo in metric_pairs]  # sumv(mfo, 'unique_ids')
         dtree = get_fasttree_tree(seqfos, naive_seq=sumv(mfo, 'naive_seq'))  # NOTE kind of duplicates get_tree_for_inf_line() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
