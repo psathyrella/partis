@@ -783,11 +783,12 @@ def run_all_loci(args, ig_or_tr='ig'):
     def read_true_files(add_selection_metrics=None, no_plot=False, merged=False, debug=False):  # NOTE see also get_true_partitions() above
         assert args.paired_indir is not None
         def ofn_fcn(ltmp, lpair=None): return paircluster.paired_fn(args.paired_indir, ltmp, lpair=lpair, suffix='.yaml')
+        kwargs = {'add_selection_metrics' : add_selection_metrics, 'plotdir_fcn' : None if (args.plotdir is None or no_plot) else getplotdir, 'dont_add_implicit_info' : not debug, 'lb_tau' : args.lb_tau, 'lbr_tau_factor' : args.lbr_tau_factor}
         if merged:  # three of 'em, one for each locus (i.e. with merged igh)
-            outfos = paircluster.read_locus_output_files(sloci(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if (args.plotdir is None or no_plot) else getplotdir, dont_add_implicit_info=not debug)
+            outfos = paircluster.read_locus_output_files(sloci(), ofn_fcn, **kwargs)
             return outfos
         else:  # separate igh+igk and igh+igl
-            lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, add_selection_metrics=add_selection_metrics, plotdir_fcn=None if (args.plotdir is None or no_plot) else getplotdir, dont_add_implicit_info=not debug)
+            lp_infos = paircluster.read_lpair_output_files(spairs(), ofn_fcn, **kwargs)
             return lp_infos
     # ----------------------------------------------------------------------------------------
     def print_joint_vs_input(input_cpaths, input_antn_lists, concat_cpaths, debug=False):

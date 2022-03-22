@@ -31,15 +31,14 @@ except ImportError:
 
 import utils
 
-# TODO isn't this info somewhere else?
-affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'aa-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
+# ----------------------------------------------------------------------------------------
+affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'shm-aa', 'aa-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
 affy_metrics += ['sum-'+m for m in affy_metrics]
 daffy_metrics = ['delta-lbi', 'lbr', 'aa-lbr']
 daffy_metrics += ['sum-'+m for m in daffy_metrics]
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
-selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr']  # I really thought this was somewhere, but can't find it so adding it here
-selection_metrics += ['sum-n_mutations', 'sum-shm-aa']
+selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr', 'shm', 'shm-aa']
 typical_bcr_seq_len = 400
 default_lb_tau = 0.0025
 default_lbr_tau_factor = 1
@@ -62,6 +61,7 @@ legtexts = {
     'cons-frac-aa' : 'aa-cfrac',
     'cons-dist-nuc' : 'nuc-cdist',
     'shm' : 'n-shm',
+    'shm' : 'n-shm-aa',
     'aa-lbi' : 'AA lb index',
     'aa-lbr' : 'AA lb ratio',
     'sum-aa-lbi' : 'h+l AA lb index',
@@ -69,6 +69,7 @@ legtexts = {
     'sum-lbi' : 'h+l lb index',
     'sum-lbr' : 'h+l lb ratio',
     'sum-n_mutations' : 'h+l nuc mutations',
+    'sum-shm' : 'h+l nuc mutations',
     'sum-shm-aa' : 'h+l AA mutations',
 }
 
@@ -1933,6 +1934,8 @@ def calculate_tree_metrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_f
 
             if args.dtr_path is not None and not train_dtr:  # don't want to train on data (NOTE this would probably also need all the lb metrics calculated, but i don't care atm)
                 calc_dtr(False, line, line['tree-info']['lb'], treefo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
+            for mtmp in [m for m in metrics_to_calc if m not in line['tree-info']['lb']]:  # ick (but we want it to work for e.g. the metric 'shm' which isn't the name of the annotation key)
+                line['tree-info']['lb'][mtmp] = {u : utils.antnval(line, mtmp, i) for i, u in enumerate(line['unique_ids'])}
 
             final_inf_lines.append(line)
 
@@ -1964,6 +1967,8 @@ def calculate_tree_metrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_f
                 add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above
             if args.dtr_path is not None:
                 calc_dtr(train_dtr, true_line, true_lb_info, true_dtree, trainfo, pmml_models, dtr_cfgvals)  # either adds training values to trainfo, or adds predicted dtr values to lbfo
+            for mtmp in [m for m in metrics_to_calc if m not in true_line['tree-info']['lb']]:  # ick (but we want it to work for e.g. the metric 'shm' which isn't the name of the annotation key)
+                true_line['tree-info']['lb'][mtmp] = {u : utils.antnval(true_line, mtmp, i) for i, u in enumerate(true_line['unique_ids'])}
             final_true_lines.append(true_line)
         true_lines_to_use = final_true_lines  # replace it with a new list that only has the clusters we really want
 
@@ -2202,10 +2207,10 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
     def add_to_treefo(lbfo):
         if 'tree-info' in line:
             wstr = (' %s replacing existing info'%utils.wrnstr()) if metric_method in line['tree-info']['lb'] else ''
-            print '    add %s to existing lb keys:  %s%s' % (metric_method, ' '.join(k for k in line['tree-info']['lb']), wstr)
+            if debug: print '    add %s to existing lb keys:  %s%s' % (metric_method, ' '.join(k for k in line['tree-info']['lb']), wstr)
             line['tree-info']['lb'][metric_method] = lbfo
         else:
-            print '    add new metric %s' % metric_method
+            if debug: print '    add new metric %s' % metric_method
             line['tree-info'] = {'lb' : {metric_method : lbfo}}
     # ----------------------------------------------------------------------------------------
     if min_cluster_size is None:
@@ -2226,8 +2231,8 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         if 'tree-info' in line and 'lb' in line['tree-info'] and metric_method in line['tree-info']['lb']:
             print '    %s already in annotation, not doing anything' % metric_method
             continue
-        if metric_method == 'shm':
-            metric_info = {u : -utils.per_seq_val(line, 'n_mutations', u) for u in line['unique_ids']}
+        if metric_method in ['shm', 'shm-aa']:
+            metric_info = {u : utils.antnval(line, metric_method, i) for i, u in enumerate(line['unique_ids'])}
             add_to_treefo(metric_info)
         elif metric_method == 'fay-wu-h':  # NOTE this isn't actually tree info, but I"m comparing it to things calculated with a tree, so putting it in the same place at least for now
             fwh = -utils.fay_wu_h(line)
@@ -2939,7 +2944,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
         p_atn['tree-info']['lb']['tree'] = treestr
         p_atn['tree-info']['lb']['aa-tree'] = get_aa_tree(dtree, p_atn).as_string(schema='newick')
-        for b_mtr in args.selection_metrics_to_calculate + ['n_mutations', 'shm-aa']:
+        for b_mtr in args.selection_metrics_to_calculate + ['shm', 'shm-aa']:
             sum_mtr = 'sum-%s' % b_mtr
             p_atn['tree-info']['lb'][sum_mtr] = {}
             for mfo in metric_pairs:

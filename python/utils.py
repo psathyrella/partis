@@ -987,17 +987,17 @@ def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalize
             return antn[key]
         else:
             return antn[key][iseq]
+    elif 'tree-info' in antn and key in antn['tree-info']['lb']:
+        return treeutils.smvals(antn, key, iseq=iseq)
     elif key in ['aa-cfrac', 'cons-frac-aa']:  # NOTE this doesn't check to see if it's there (i think because we don't store it), it just calculates it
         return treeutils.lb_cons_dist(antn, iseq, aa=True, frac=True)
     elif key == 'shm-aa':  # NOTE this doesn't either, which [also] may be worth fixing eventually
         return shm_aa(antn, iseq=iseq)
     elif key == 'shm':  # NOTE this probably shouldn't work like this, but i just want the h+l selection metrics to work atm
         return antn['n_mutations'][iseq]
-    elif key == 'aa-cdist':
-        cd = treeutils.smvals(antn, 'cons-dist-aa', iseq=iseq)
-        return cd if cd is None else -cd
-    elif key in treeutils.selection_metrics:
-        return treeutils.smvals(antn, key, iseq=iseq)
+    # elif key == 'aa-cdist':
+    #     cd = treeutils.smvals(antn, 'cons-dist-aa', iseq=iseq)
+    #     return cd if cd is None else -cd
     elif key == 'multipy':  # multiplicity
         return get_multiplicity(antn, iseq=iseq)
     else:

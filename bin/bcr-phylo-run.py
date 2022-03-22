@@ -284,7 +284,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
             print '        in final_line, but missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(nodefo))
         final_line['affinities'] = [1. / nodefo[u]['kd'] for u in final_line['unique_ids']]
         if args.affinity_measurement_error is not None:
-            before = final_line['affinities']
+            # before = final_line['affinities']
             final_line['affinities'] = [numpy.random.normal(a, args.affinity_measurement_error * a) for a in final_line['affinities']]
             # print '  '.join('%.4f'%v for v in before)
             # print '  '.join('%.4f'%v for v in final_line['affinities'])

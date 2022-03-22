@@ -88,9 +88,23 @@ per_seq_metrics = ['lbi', 'lbr', 'aa-lbi', 'aa-lbr', 'shm', 'shm-aa', 'cons-dist
 per_seq_metrics += ['sum-'+m for m in per_seq_metrics]
 per_seq_metrics += treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
-mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq', 'cons-dist-aa' : '- AA distance to cons seq', 'shm' : '- N mutations', 'delta-lbi' : 'change in lb index', 'z-score-err' : 'z score diff (lb - affy)', 'edge-dist' : 'root/tip dist',
-                           'affinity-ptile' : 'affinity percentile', 'lbi-ptile' : 'lbi percentile', 'lbr-ptile' : 'lbr percentile', 'within-families-affinity-dtr' : 'in-family dtr', 'within-families-delta-affinity-dtr' : 'in-family dtr', 'among-families-affinity-dtr' : 'among-families dtr', 'among-families-delta-affinity-dtr' : 'among-families dtr'},
-              'per-cluster' : {'fay-wu-h' : '- Fay-Wu H', 'cons-seq-shm-nuc' : 'N mutations in cons seq', 'shm' : '- N mutations', 'affinity' : 'top quintile affinity'}}
+mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq',
+                           'cons-dist-aa' : '- AA distance to cons seq',
+                           'shm' : '- N mutations',
+                           'delta-lbi' : 'change in lb index',
+                           'z-score-err' : 'z score diff (lb - affy)',
+                           'edge-dist' : 'root/tip dist',
+                           'affinity-ptile' : 'affinity percentile',
+                           'lbi-ptile' : 'lbi percentile',
+                           'lbr-ptile' : 'lbr percentile',
+                           'within-families-affinity-dtr' : 'in-family dtr',
+                           'within-families-delta-affinity-dtr' : 'in-family dtr',
+                           'among-families-affinity-dtr' : 'among-families dtr',
+                           'among-families-delta-affinity-dtr' : 'among-families dtr'},
+              'per-cluster' : {'fay-wu-h' : '- Fay-Wu H',
+                               'cons-seq-shm-nuc' : 'N mutations in cons seq',
+                               'shm' : '- N mutations',
+                               'affinity' : 'top quintile affinity'}}
 mtitle_cfg['per-seq'].update(treeutils.legtexts)
 mtitle_shorts = {'cons-dist-aa' : 'AA cons dist', 'cons-dist-nuc' : 'nuc cons dist'}
 def mtitlestr(pchoice, lbm, short=False, max_len=13):
@@ -929,7 +943,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
     original_affinities = [l['affinities'] for l in lines]
     int_vars = ['n_mutations', 'shm-aa', 'sum-n_mutations', 'sum-shm-aa']
 
-    slvars = ['affinities'] + ['%s%s'%('sum-' if paired else '', k) for k in ['n_mutations', 'shm-aa']]
+    slvars = ['affinities'] + ['%s%s'%('sum-' if paired else '', k) for k in ['shm', 'shm-aa']]
     if is_true_line:
         slvars.append('min_target_distances')
     for slvar in slvars:
