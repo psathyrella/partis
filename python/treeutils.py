@@ -2287,7 +2287,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         if ete_path is not None:
             lbplotting.plot_lb_trees([metric_method], true_plotdir, metric_antns, ete_path, workdir, is_true_line=True, fnames=fnames)
         if not only_csv:
-            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(metric_method, '%s/%s/' % (true_plotdir, metric_method)),], bgcolor='#FFFFFF')
+            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(metric_method, '%s/%s/' % (true_plotdir, metric_method)),], bgcolor='#FFFFFF', htmlfname='%s/%s.html'%(true_plotdir, metric_method))
         print '      non-lb metric plotting time %.1fs' % (time.time() - plstart)
 
 # ----------------------------------------------------------------------------------------

@@ -90,7 +90,6 @@ per_seq_metrics += treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
 mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq',
                            'cons-dist-aa' : '- AA distance to cons seq',
-                           'shm' : '- N mutations',
                            'delta-lbi' : 'change in lb index',
                            'z-score-err' : 'z score diff (lb - affy)',
                            'edge-dist' : 'root/tip dist',
@@ -103,7 +102,6 @@ mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq',
                            'among-families-delta-affinity-dtr' : 'among-families dtr'},
               'per-cluster' : {'fay-wu-h' : '- Fay-Wu H',
                                'cons-seq-shm-nuc' : 'N mutations in cons seq',
-                               'shm' : '- N mutations',
                                'affinity' : 'top quintile affinity'}}
 mtitle_cfg['per-seq'].update(treeutils.legtexts)
 mtitle_shorts = {'cons-dist-aa' : 'AA cons dist', 'cons-dist-nuc' : 'nuc cons dist'}
