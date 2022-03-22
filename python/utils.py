@@ -981,6 +981,8 @@ def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get val
 
 # ----------------------------------------------------------------------------------------
 def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
+    if key == 'aa-cdist':
+        key = 'cons-dist-aa'  # arggggggh (when we write output info when choosing abs, we write it as 'aa-cdist', and can't change it now)
     if key in antn:
         # assert key in linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
         if key in linekeys['per_family']:
