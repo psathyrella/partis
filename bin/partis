@@ -440,7 +440,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print '  note: found \'paired-uids\' in --input-metafnames, so not extracting pairing info'
         mfname = getofn(None, joint=True, input_meta=True)
         if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
-            cmd = './bin/extract-pairing-info.py %s %s' % (args.infname, mfname)
+            cmd = '%s/bin/extract-pairing-info.py %s %s' % (args.partis_dir, args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
             if args.droplet_id_separators is not None:
@@ -453,7 +453,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 elines = traceback.format_exception(*sys.exc_info())
                 print utils.pad_lines(''.join(elines))
                 print '  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info'
-        cmd = './bin/split-loci.py %s --outdir %s' % (args.infname, getodir())
+        cmd = '%s/bin/split-loci.py %s --outdir %s' % (args.partis_dir, args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
         if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
@@ -1057,7 +1057,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         titlestr = ltmp
         if ccfs is not None and ltmp in ccfs:
             titlestr += ':@specif.%.2f'%ccfs[ltmp][0]
-        cmdstr = './bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
+        cmdstr = '%s/bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (args.partis_dir, cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
         cmdstr += ' --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % titlestr
         utils.simplerun(cmdstr, dryrun=args.dry_run)
 
