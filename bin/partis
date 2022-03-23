@@ -433,6 +433,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         return utils.locus_pairs[ig_or_tr]  # if args.seed_unique_id is None else [args.seed_loci]
     # ----------------------------------------------------------------------------------------
     def prep_inputs():
+        has_input_meta_pair_info = False
         if args.input_metafnames is not None:  # need to see if we were passed any pair info
             has_input_meta_pair_info = any('paired-uids' in mfo for mfo in utils.read_json_yamls(args.input_metafnames).values())
             if has_input_meta_pair_info:
