@@ -35,13 +35,28 @@ class Tester(object):
     def nqr(self, act):
         if act == 'quick':  # bears no relation to the others, so makes sense to handle it differently
             return 10
-        nqdict = {'normal' : {'simu' :   50, 'data' :   50},
+        nqdict = {'normal' : {'simu' :   50, 'data' :   100 if args.paired else 50},
                     'slow' : {'simu' : 1000, 'data' :   -1}}
         return nqdict['slow' if args.slow else 'normal'][act]
     # ----------------------------------------------------------------------------------------
+    def get_stypes(self, ptest):
+        namelist = ptest.split('-')
+        if ptest == 'simulate':
+            input_stype = 'new'
+            input_dtype = None
+        elif 'cache-parameters' in ptest:
+            input_stype = 'new'
+            input_dtype = namelist[-1]
+        else:
+            input_stype, input_dtype = namelist[-2:]
+
+        assert input_stype in self.stypes + [None]
+        assert input_dtype in self.dtypes + [None]
+        return input_stype, input_dtype
+    # ----------------------------------------------------------------------------------------
     def inpath(self, st, dt):
         if dt == 'data':
-            return self.paired_datadir if args.paired else self.datafname
+            return self.paired_datafname if args.paired else self.datafname
         else:
             spath = self.label + '/simu' + ('' if args.paired else '.yaml')
             if st is None:
@@ -54,8 +69,10 @@ class Tester(object):
             return pd
         return self.dirs(st) + '/' + pd
     # ----------------------------------------------------------------------------------------
-    def astr(self, inout):
-        return ('paired-%sdir'%inout) if args.paired else '%sfname'%inout
+    def astr(self, inout, dt=None):
+        if not args.paired or (args.paired and inout == 'in' and dt == 'data'):
+            return '%sfname' % inout
+        return 'paired-%sdir' % inout
     # ----------------------------------------------------------------------------------------
     # i'm adding this late (especially for the non-production tests) so there's probably some more places it could be used
     def opath(self, ptest, st=None):  # don't set <st> if you just want the basename-type stuff (no base/parent dirs)
@@ -104,7 +121,7 @@ class Tester(object):
         # generate paired data dir with:
         #  - ./bin/split-loci.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta --outdir test/paired-data --input-metafname /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml --n-max-queries 100 >test/paired-data/split-loci.log
         #  - ./bin/extract-pairing-info.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta test/paired-data/meta.yaml --n-max-queries 100 >test/paired-data/extract.log
-        self.paired_datadir = 'test/paired-data'
+        self.paired_datafname = 'test/paired-data/all-seqs.fa'
         self.input_metafname = 'test/input-meta.yaml'
 
         self.stypes = ['ref', 'new']  # I don't know what the 's' stands for
@@ -193,18 +210,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def fiddle_with_arguments(self, ptest, argfo):
-        namelist = ptest.split('-')
-        if ptest == 'simulate':
-            input_stype = 'new'
-            input_dtype = None
-        elif 'cache-parameters' in ptest:
-            input_stype = 'new'
-            input_dtype = namelist[-1]
-        else:
-            input_stype, input_dtype = namelist[-2:]
-
-        assert input_stype in self.stypes + [None]
-        assert input_dtype in self.dtypes + [None]
+        input_stype, input_dtype = self.get_stypes(ptest)
         argfo['input_stype'] = input_stype
         argfo['bin'] = self.partis
 
@@ -291,13 +297,14 @@ class Tester(object):
 
             self.prepare_to_run(args, name, info)
 
+            ist, idt = self.get_stypes(name)
             action = info['action']
             cmd_str = info['bin'] + ' ' + action + ' --dont-write-git-info'
             if args.paired:
                 cmd_str += ' --paired-loci'
             for tkey in ['inpath', 'parameter-dir', 'sw-cachefname']:
                 if tkey in info:
-                    cmd_str += ' --%s %s' % (tkey if tkey != 'inpath' else self.astr('in'), info[tkey])
+                    cmd_str += ' --%s %s' % (tkey if tkey != 'inpath' else self.astr('in', dt=idt), info[tkey])
             cmd_str += ' %s' % ' '.join(info['extras'] + self.common_extras)
 
             if name == 'simulate':
@@ -309,7 +316,7 @@ class Tester(object):
                 if args.slow:
                     cmd_str += ' --ab-choice-cfg %s/test/ab-choice-slow.yaml' % utils.get_partis_dir()
                 clist = cmd_str.split()
-                utils.remove_from_arglist(clist, '--%s'%self.astr('in'), has_arg=True)
+                utils.remove_from_arglist(clist, '--%s'%self.astr('in', dt=idt), has_arg=True)
                 utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)
                 utils.remove_from_arglist(clist, '--sw-cachefname', has_arg=True)
                 utils.remove_from_arglist(clist, '--is-simu')
