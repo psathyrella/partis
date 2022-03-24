@@ -118,7 +118,7 @@ class Tester(object):
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
-        # generate paired data dir with:
+        # generate paired data dir with: UPDATE i cat'd the ig?.fa files into all-seqs.fa (in the same dir) so extract-pair-info and split-loci get run
         #  - ./bin/split-loci.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta --outdir test/paired-data --input-metafname /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml --n-max-queries 100 >test/paired-data/split-loci.log
         #  - ./bin/extract-pairing-info.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta test/paired-data/meta.yaml --n-max-queries 100 >test/paired-data/extract.log
         self.paired_datafname = 'test/paired-data/all-seqs.fa'
