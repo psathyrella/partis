@@ -24,7 +24,6 @@ import types
 import collections
 import operator
 import yaml
-import Levenshtein
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -3452,6 +3451,8 @@ def mean_pairwise_hfrac(seqlist):
 
 # ----------------------------------------------------------------------------------------
 def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters correctly (also NOTE <aa> has no effect
+    if 'Levenshtein' not in sys.modules:  # installing this reliably is being super annoying, and we only using it in the ab choice stuff
+        import Levenshtein
     return Levenshtein.distance(s1, s2)
 
 # ----------------------------------------------------------------------------------------
