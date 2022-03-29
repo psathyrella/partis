@@ -970,10 +970,13 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 n_missing += len(missing_ids)
                 pset = set([uid] + pids) - missing_ids
                 found = False
-                for ipg, pgroup in enumerate(pid_groups):  # look for an existing pid group with some overlap
-                    if any(p in pgroup for p in pset):  # could maybe check for consistency if some of them are already in there (i.e. from reciprocal info in another chain)?
+                for pd in pids:  # even if we assume the pair info from all seqs is consistent (which this more or less does), we need to do this to get the <ipg>
+                    if pd in pid_ids:
+                        ipg = pid_ids[pd]
                         found = True
-                        pgroup |= pset
+                        pid_groups[ipg] |= pset
+                        if pid_groups[ipg] != pset:
+                            print pid_groups[ipg], pset
                         break
                 if not found:
                     pid_groups.append(pset)

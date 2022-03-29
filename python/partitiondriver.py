@@ -937,8 +937,8 @@ class PartitionDriver(object):
             for line in reader:
                 if ':' in line['unique_ids']:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
                     continue
-                if line['unique_ids'] not in expected_queries:  # probably can only happen if self.args.persistent_cachefname is set
-                    continue
+                # if line['unique_ids'] not in expected_queries:  # probably can only happen if self.args.persistent_cachefname is set UPDATE commenting since it's really slow
+                #     continue
                 cached_naive_seqs[line['unique_ids']] = line['naive_seq']
                 if len(cached_naive_seqs) == len(expected_queries):  # already got everybody
                     break
@@ -1920,7 +1920,7 @@ class PartitionDriver(object):
     def get_nsets(self, algorithm, partition):
 
         if partition is not None:
-            if any(partition.count(c) > 1 for c in partition):  # there's nothing really *wrong* with having duplicates, but a) it's wasteful and b) it typically means something is wrong/nonsensical in the code that decided to send you the same task twice
+            if len(partition) < 10000 and any(partition.count(c) > 1 for c in partition):  # there's nothing really *wrong* with having duplicates, but a) it's wasteful and b) it typically means something is wrong/nonsensical in the code that decided to send you the same task twice (first clause is just cause this is slow on super large samples, and this whole check is only really likely to trigger if we're debugging new code)
                 for tcount, tclust in set([(partition.count(c), ':'.join(c)) for c in partition if partition.count(c) > 1]):
                     print '  %s cluster occurs %d times in the <nsets> we\'re sending to bcrham: %s' % (utils.color('yellow', 'warning'), tcount, tclust)
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order

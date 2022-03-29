@@ -278,7 +278,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         if uid in input_info:
             raise Exception('found uid \'%s\' twice in input file %s' % (uid, infname))
 
-        if any(c not in utils.alphabet for c in inseq):  # NOTE should really be integrated with sanitize_seqs arg in utils.read_fastx()
+        if len(set(inseq) - set(utils.alphabet)) > 0:  # NOTE should really be integrated with sanitize_seqs arg in utils.read_fastx()
             unexpected_chars = set([ch for ch in inseq if ch not in utils.alphabet])
             raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s (maybe should set --sanitize-input-seqs?):\n  %s' % (utils.plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), utils.alphabet, uid, inseq))
 
