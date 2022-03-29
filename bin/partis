@@ -1024,7 +1024,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.min_largest_cluster_size is not None:
                 print '    %s: --min-largest-cluster-size is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently we don\'t do anything specific for --min-largest-cluster-size during paired clustering, so you\'ll probably get smaller clusters than you want. If this is a problem, you can try using --n-final-clusters 1 instead.' % utils.color('yellow', 'warning')
             mstart = time.time()
-            joint_partitions, cluster_pairs = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, check_partitions=True, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
+            joint_partitions, cluster_pairs = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, true_partitions=true_partitions, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
                                                                        seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, debug=args.debug_paired_clustering)  # , iparts={'igl' : 7}
             if args.pair_unpaired_seqs_with_paired_family:
                 paircluster.pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, single_outfos['antn_lists'], debug=args.debug_paired_clustering)
@@ -1044,10 +1044,14 @@ def run_all_loci(args, ig_or_tr='ig'):
             seqfileopener.read_input_metafo(args.input_metafnames, [])
         _, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), true_partitions=true_partitions)
         print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_cpaths, debug=args.debug_paired_clustering)
-        ccfs = {}
-        for ltmp in sloci(tdict=concat_cpaths):
-            dbg_str = '%s single vs joint concat\'d '%utils.locstr(ltmp)
-            ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str=dbg_str, cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
+        ccfs = None
+        if len(single_outfos['cpaths']['igh'].best()) > 5000:
+            print '    not comparing single vs joint partitions to save time'
+        else:
+            ccfs = {}
+            for ltmp in sloci(tdict=concat_cpaths):
+                dbg_str = '%s single vs joint concat\'d '%utils.locstr(ltmp)
+                ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str=dbg_str, cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
         return ccfs
     # ----------------------------------------------------------------------------------------
     def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):

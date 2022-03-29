@@ -819,13 +819,13 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
 
     # ----------------------------------------------------------------------------------------
     def update_all_pid_info(finished_ids, tdbg=False):  # update pids in all annotations for all loci after finishing cleaning a cluster
-        for ltmp in sorted(cpaths):
-            for cluster in cpaths[ltmp].best():
-                antn = antn_dicts[ltmp][':'.join(cluster)]
-                for iseq, uid in enumerate(antn['unique_ids']):
-                    if uid in finished_ids:
-                        continue
-                    antn['paired-uids'][iseq] = [p for p in antn['paired-uids'][iseq] if p not in finished_ids]
+        finished_ipgs = [pid_ids[u] for u in finished_ids]
+        finished_pgroups = [pid_groups[i] for i in finished_ipgs]
+        for pgroup in finished_pgroups:
+            for uid in [u for u in pgroup if u not in finished_ids]:
+                antn = all_antns[uid]
+                iseq = antn['unique_ids'].index(uid)
+                antn['paired-uids'][iseq] = [p for p in antn['paired-uids'][iseq] if p not in finished_ids]
     # ----------------------------------------------------------------------------------------
     def update_pid_info(cpids, tdbg=False):  # remove the two ids <cpids> from everybody's paired ids, since we've just decided they're properly paired (note that you do *not* want to modify <pfamilies> here -- that would be destroying the info you need to decided who's paired with who)
         if tdbg:
@@ -974,9 +974,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                     if pd in pid_ids:
                         ipg = pid_ids[pd]
                         found = True
-                        pid_groups[ipg] |= pset
-                        if pid_groups[ipg] != pset:
-                            print pid_groups[ipg], pset
+                        pid_groups[ipg] |= pset  # don't really need this, but i guess it catches one possible way in which pair info could be inconsistent? Although we should really probably crash if so
                         break
                 if not found:
                     pid_groups.append(pset)
@@ -1130,12 +1128,11 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     def akey(klist):
         return ':'.join(klist)
     # ----------------------------------------------------------------------------------------
-    def any_in_common(l1, l2):  # true if any uids in any cluster in l1 are found in any clusters in l2
-        for tclust in l1:
-            tset = set(tclust)
-            if any(len(tset & set(tc)) > 0 for tc in l2):
-                return True
-        return False
+    def any_in_common(l1, l2):  # true if any uids in any cluster in l1 are found in any clusters in l2 NOTE kind of dumb but atm only calling this with <l1> of len 1
+        # l2ids = set(itertools.chain.from_iterable(l2))
+        # return any(len(set(c) & l2ids) > 0 for c in l1)
+        l1ids, l2ids = [set(itertools.chain.from_iterable(l)) for l in [l1, l2]]
+        return len(l1ids & l2ids) > 0
     # ----------------------------------------------------------------------------------------
     def common_clusters(tclust, tlist, return_indices=False):  # return all clusters in tlist that have uids in common with tclust
         tset = set(tclust)
@@ -1306,7 +1303,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 if debug: appdbg(new_fset, rset, common_uids, xdbg)
             final_partition[ifclust] = list(new_fset)  # replace <fclust> (even if nothing was removed, which shuffles the order of unchanged clusters, but oh well)
             if debug: dbgheader = prdbg(ifclust, dbgheader, dbgstr)
-        assert is_clean_partition(resolved_clusters)
+        if check_partitions:
+            assert is_clean_partition(resolved_clusters)
         final_partition += resolved_clusters  # add the (potentially modified) resolved clusters
 
     if debug:

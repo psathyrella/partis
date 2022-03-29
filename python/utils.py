@@ -4839,7 +4839,9 @@ def get_partition_from_annotation_list(annotation_list):
 
 # ----------------------------------------------------------------------------------------
 def restrict_partition_to_ids(partition, ids):  # return copy of <partition> with any uids removed that aren't in <ids>
-    return [[u for u in c if u in ids] for c in partition]
+    sids = set(ids)
+    ptn = [set(c) & sids for c in partition]
+    return [c for c in ptn if len(c) > 0]
 
 # ----------------------------------------------------------------------------------------
 def get_partition_from_reco_info(reco_info, ids=None):
