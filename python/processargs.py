@@ -109,6 +109,8 @@ def process(args):
         args.locus = None
         if [args.infname, args.paired_indir].count(None) == 0:
             raise Exception('can\'t specify both --infname and --paired-indir')
+        if args.guess_pairing_info and args.paired_indir is not None:
+            print '  %s --guess-pairing-info has no effect on input when --paired-indir is set (only when --infname is set)' % utils.wrnstr()
         if args.outfname is not None:
             raise Exception('can\'t set --outfname if --paired-loci is set (use --paired-outdir)')
         if args.plotdir == 'paired-outdir':

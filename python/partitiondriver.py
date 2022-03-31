@@ -200,7 +200,7 @@ class PartitionDriver(object):
             self.set_vsearch_info(get_annotations=True)
 
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
-        waterer = Waterer(self.args, self.glfo, self.input_info, self.simglfo, self.reco_info,
+        waterer = Waterer(self.args, self.glfo, self.input_info, self.simglfo, self.reco_info,  # NOTE if we're reading a cache file, this glfo gets replaced with the glfo from the file
                           count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
                           plot_annotation_performance=self.args.plot_annotation_performance,
@@ -223,6 +223,7 @@ class PartitionDriver(object):
             waterer.run(cachefname if write_cachefile else None)
 
         self.sw_info = waterer.info
+        self.sw_glfo = waterer.glfo  # ick
         for uid, dupes in waterer.duplicates.items():  # <waterer.duplicates> is <self.duplicates> OR'd into any new duplicates from this run
             self.duplicates[uid] = dupes
 
@@ -852,6 +853,17 @@ class PartitionDriver(object):
     #     return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
+    def convert_sw_annotations(self, partition):
+        antn_dict = OrderedDict()
+        for cluster in partition:
+            antn = utils.synthesize_multi_seq_line_from_reco_info(cluster, self.sw_info)
+            utils.remove_all_implicit_info(antn)  # gotta remove + re-add implicit info to get the naive seq the right length (I think just to remove padding)
+            utils.add_implicit_info(self.sw_glfo, antn, reset_indel_genes=True)
+            antn_dict[':'.join(cluster)] = antn
+        self.glfo = self.sw_glfo  # this is ugly, but we do need to replace it (i'm just a bit worried about doing it so bluntly, but otoh the idea is that we don't really even use these annotations for anything except passing around the pair info)
+        return antn_dict, set()  # maybe empty set for hmm failures makes sense since we're not actually running hmm?
+
+    # ----------------------------------------------------------------------------------------
     def get_annotations_for_partitions(self, cpath):  # we used to try to have glomerator.cc try to guess what annoations to write (using ::WriteAnnotations()), but now we go back and rerun a separate bcrham process just to get the annotations we want, partly for that control, but also partly because we typically want all these annotations calculated without any uid translation.
         # ----------------------------------------------------------------------------------------
         def get_clusters_to_annotate():
@@ -896,7 +908,11 @@ class PartitionDriver(object):
         clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print 'getting annotations for final partition%s%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '', ' (with star tree annotation since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else '')
-        _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
+        if self.args.use_sw_annotations or self.args.naive_vsearch:
+            print '    using sw annotations (to make a multi-seq annotation for each cluster) instead of running hmm since either --use-sw-annotations or --naive-vsearch/--fast were set'
+            all_annotations, hmm_failures = self.convert_sw_annotations(clusters_to_annotate)
+        else:
+            _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
@@ -993,6 +1009,7 @@ class PartitionDriver(object):
         cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
 
         print '      vsearch time: %.1f' % (time.time()-start)
+        sys.stdout.flush()
         return cpath
 
     # ----------------------------------------------------------------------------------------
@@ -1243,6 +1260,7 @@ class PartitionDriver(object):
 
         istep = 0
         print '  subcluster annotating %d cluster%s: %s' % (len(init_partition), utils.plural(len(init_partition)), '' if not debug else ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in init_partition))
+        sys.stdout.flush()
         clusters_still_to_do = [copy.deepcopy(c) for c in init_partition]
         subd_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster: for each such cluster, stores a list where each entry is the subclusters for that round (i.e. the first entry has subclusters composed of the actual seqs in the cluster, and after that it's intermediate naives/hashid seqs)
         naive_ancestor_hashes = {}  # list of inferred naive "intermediate" (hashid) seqs, for each subclustered cluster, that we'll run on in the next step (if there is a next step)

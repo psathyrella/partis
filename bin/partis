@@ -616,6 +616,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.remove_from_arglist(clist, '--simultaneous-true-clonal-seqs')  # if this is set, it'll already be taken care of in --input-partition-fname
                 if os.path.exists(getofn(ltmp, joint=True, lpair=lpair, input_meta=True)):
                     utils.replace_in_arglist(clist, '--input-metafnames', getofn(ltmp, joint=True, lpair=lpair, input_meta=True))  # have to use the new, rewritten input meta file (with corrected pairing info)
+            if args.dont_calculate_annotations and tmpaction == 'partition':
+                clist += ['--use-sw-annotations']  # we need the annotations just for propagating pair info (yes it'd be better to arrange it differently but whatever)
             if tmpaction in ['annotate', 'partition']:  # eh, it's better to do this stuff after reading all the annotations
                 utils.remove_from_arglist(clist, '--count-parameters')  # we want to only write these for the annotation step, with the merged partition
                 utils.remove_from_arglist(clist, '--count-correlations')
@@ -995,6 +997,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             single_outfos['cpaths'][ltmp] = ClusterPath(partition=getattr(single_outfos['cpaths'][ltmp], pfcn)(), seed_unique_id=seedid(ltmp))
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
+        print '%s chains' % utils.color('blue_bkg', 'combining')
+        sys.stdout.flush()
         single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=args.debug_paired_clustering)  # single chain cpaths (and other info)
         restrict_to_single_partition(single_outfos)
         # doesn't work: (see note above)
@@ -1010,6 +1014,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         lp_infos = {}
         for lpair in spairs():
             print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
+            sys.stdout.flush()
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
             if any(l not in single_outfos['antn_lists'] or len(single_outfos['antn_lists'][l])==0 for l in lpair):
                 print '    no single chain output'
@@ -1261,6 +1266,7 @@ parent_args.append({'name' : '--input-partition-index', 'kwargs' : {'type' : int
 parent_args.append({'name' : '--outfname', 'kwargs' : {'help' : 'output file name'}})
 parent_args.append({'name' : '--paired-outdir', 'kwargs' : {'help' : 'Directory for all output files when --paired-loci is set, i.e. involving multiple loci in input and/or paired heavy/light information.'}})
 parent_args.append({'name' : '--dont-calculate-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t calculate annotations for the final partition (so just the partition is written to output).'}})
+parent_args.append({'name' : '--use-sw-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'Instead of running hmm annotation on each cluster in the final partition, use the smith-waterman annotations to synthesize a multi-sequence annotation for each final cluster.'}})
 parent_args.append({'name' : '--write-full-yaml-output', 'kwargs' : {'action' : 'store_true', 'help' : 'By default, we write yaml output files using the json subset of yaml, since it\'s much faster. If this is set, we instead write full yaml, which is more human-readable (but also much slower).'}})
 parent_args.append({'name' : '--presto-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Write output file(s) in presto/changeo format. Since this format depends on a particular IMGT alignment, this depends on a fasta file with imgt-gapped alignments for all the V, D, and J germline genes. The default in data/germlines/<species>/imgt-alignments/, is probably fine for most cases. For the \'annotate\' action, a single .tsv file is written with annotations (so --outfname suffix must be .tsv). For the \'partition\' action, a fasta file is written with cluster information (so --outfname suffix must be .fa or .fasta), as well as a .tsv in the same directory with the corresponding annotations.'}})
 parent_args.append({'name' : '--airr-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Write output file(s) in AIRR-C format (if --outfname has suffix .tsv, only the airr .tsv is written; however if --outfname has suffix .yaml, both the standard partis .yaml file and an airr .tsv are written). A description of the airr columns can be found here https://docs.airr-community.org/en/stable/datarep/rearrangements.html#fields.'}})

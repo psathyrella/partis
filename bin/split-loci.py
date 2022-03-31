@@ -140,6 +140,8 @@ if os.path.dirname(args.fname) == '':
 if args.outdir is None:
     args.outdir = utils.getprefix(args.fname)
 args.droplet_id_indices = utils.get_arg_list(args.droplet_id_indices, intify=True)
+if args.input_metafname is not None and args.input_metafname[0] != '/':  # add the full path
+    args.input_metafname = '%s/%s' % (os.getcwd(), args.input_metafname)
 
 if any(os.path.exists(ofn) for ofn in paircluster.paired_dir_fnames(args.outdir)):
     if args.overwrite:
@@ -217,9 +219,12 @@ if len(failed_seqs) > 0:
 for locus in outfos:  # first write the single files with all seqs for each locus
     write_locus_file(locus, outfos[locus])
 
+omfname = '%s/meta.yaml' % args.outdir
 if args.guess_pairing_info:
-    with open('%s/meta.yaml' % args.outdir, 'w') as outfile:  # NOTE file name duplicates code in bin/partis
+    with open(omfname, 'w') as outfile:  # NOTE file name duplicates code in bin/partis
         json.dump(guessed_metafos, outfile)
+elif args.input_metafname is not None and not os.path.exists(omfname):
+    utils.makelink(os.path.dirname(omfname), args.input_metafname, omfname)
 
 if len(paired_uids) == 0:
     print 'no pairing info'

@@ -1127,17 +1127,29 @@ def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting don
 
 # ----------------------------------------------------------------------------------------
 # <reco_info> just needs to be an annotation dict with single-sequence annotations
-def synthesize_multi_seq_line_from_reco_info(uids, reco_info):  # assumes you already added all the implicit info
+def synthesize_multi_seq_line_from_reco_info(uids, reco_info, dont_deep_copy=False):  # assumes you already added all the implicit info
+    # ----------------------------------------------------------------------------------------
+    def dfn(val):
+        return val if dont_deep_copy else copy.deepcopy(val)
+    # ----------------------------------------------------------------------------------------
+    def cfcn(antn, key=None):
+        if key is None:
+            return dfn(antn)
+        elif key in antn:
+            return dfn(antn[key][0])
+        else:
+            return nullval(key)
+    # ----------------------------------------------------------------------------------------
     assert len(uids) > 0
     invalid = False
     if any(reco_info[u]['invalid'] for u in uids):
         print '    %s invalid events in synthesize_multi_seq_line_from_reco_info()' % wrnstr()
         invalid = True
-    multifo = copy.deepcopy(reco_info[uids[0]])  # should really do something better, but whatever
+    multifo = cfcn(reco_info[uids[0]])
     for col in [c for c in linekeys['per_seq'] if c in multifo]:
         if not invalid:
             assert [len(reco_info[u][col]) for u in uids].count(1) == len(uids)  # make sure every uid's info for this column is of length 1
-        multifo[col] = [copy.deepcopy(reco_info[uid].get(col, [nullval(col)])[0]) for uid in uids]
+        multifo[col] = [cfcn(reco_info[uid], col) for uid in uids]
     return multifo
 
 # ----------------------------------------------------------------------------------------
@@ -4830,7 +4842,7 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
             naive_seq_map[c3len][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
             naive_seq_hashes[c3len][hashstr] = []  # first sequence that has this naive
         naive_seq_hashes[c3len][hashstr].append(uid)
-    print '        collapsed %d sequences into %d unique naive sequences (%.1f sec)' % (len(naive_seq_list), len(naive_seq_hashes), time.time() - start)
+    print '        collapsed %d sequences into %d unique naive sequences over %d cdr3 lengths (%.1f sec)' % (len(naive_seq_list), sum(len(d) for d in naive_seq_hashes.values()), len(naive_seq_hashes), time.time() - start)
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
