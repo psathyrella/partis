@@ -953,8 +953,8 @@ class PartitionDriver(object):
             for line in reader:
                 if ':' in line['unique_ids']:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
                     continue
-                # if line['unique_ids'] not in expected_queries:  # probably can only happen if self.args.persistent_cachefname is set UPDATE commenting since it's really slow
-                #     continue
+                if self.args.persistent_cachefname is not None and line['unique_ids'] not in expected_queries:  # probably can only happen if self.args.persistent_cachefname is set, and it's slow on huge samples
+                    continue
                 cached_naive_seqs[line['unique_ids']] = line['naive_seq']
                 if len(cached_naive_seqs) == len(expected_queries):  # already got everybody
                     break
