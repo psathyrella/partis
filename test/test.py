@@ -148,6 +148,7 @@ class Tester(object):
         self.n_simu_leaves = 5
 
         self.selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'aa-lbi', 'aa-lbr']  # NOTE kind of duplicates treeutils.selection_metrics, but I want to be able to change the latter
+        self.pair_clean_metrics = ['correct', 'unpaired', 'mispaired']
         self.expected_trees = ['tree', 'aa-tree']
 
         self.logfname = self.dirs('new') + '/test.log'
@@ -175,7 +176,7 @@ class Tester(object):
             n_events = int(self.nqr('simu') / float(self.n_simu_leaves))
             simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', str(self.n_simu_leaves)]}
             if args.paired:
-                simulate_args['extras'] += ['--min-observations-per-gene', '5']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
+                simulate_args['extras'] += ['--min-observations-per-gene', '5', '--mean-cells-per-droplet', '1.5', '--fraction-of-reads-to-remove', '0.05']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
             if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
                 self.tests['cache-parameters-data'] = pcache_data_args
                 self.tests['simulate'] = simulate_args
@@ -488,6 +489,11 @@ class Tester(object):
                         ofn = sfns[0]
                     l_ccfs.append(read_cpath(ofn))
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = [numpy.mean(lcfs) for lcfs in zip(*l_ccfs)]
+                if 'seed-' not in ptest:
+                    htmp = Hist(fname='%s/true-pair-clean-performance.csv' % self.opath(ptest, st=version_stype))
+                    ttot = htmp.integral(False)
+                    for pcat in self.pair_clean_metrics:
+                        pinfo[ptest][pcat] = htmp.bin_contents[htmp.find_bin(None, label=pcat)] / ttot
             else:
                 ccfs = read_cpath(self.opath(ptest, st=version_stype))  # self.dirs(version_stype) + '/' + ptest + '.yaml')
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = ccfs
@@ -567,6 +573,9 @@ class Tester(object):
             'j_call' : 'j  ',
             'completeness' : 'compl.',
             'cons-dist-aa' : 'aa-cdist',
+            'correct' : 'pair clean correct',
+            'mispaired' : '         mispaired',
+            'unpaired' : '          unpaired',
         }
         refpfo, newpfo = [self.perf_info[st][input_stype] for st in ['ref', 'new']]
 
@@ -601,10 +610,12 @@ class Tester(object):
         for ptest in partition_ptests:
             print '    %-18s' % ptest.split('-')[0],
         print ''
-        for metric in ['purity', 'completeness']:
+        for metric in ['purity', 'completeness'] + self.pair_clean_metrics:
             alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
             print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
             for ptest in partition_ptests:
+                if 'seed-' in ptest and metric in self.pair_clean_metrics:  # ick
+                    continue
                 if set(refpfo[ptest]) != set(newpfo[ptest]):
                     raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))
                 method = ptest.split('-')[0]
