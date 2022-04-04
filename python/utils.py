@@ -3444,6 +3444,11 @@ def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False, a
         return fraction
 
 # ----------------------------------------------------------------------------------------
+def get_mut_positions(line):
+    hdistfo = [hamming_distance(line['naive_seq'], mature_seq, return_mutated_positions=True) for mature_seq in line['seqs']]
+    return [mps for _, mps in hdistfo]
+
+# ----------------------------------------------------------------------------------------
 def get_mut_codes(naive_seq, obs_seq, amino_acid=False, debug=False):  # return list of mutation "events" e.g. [{'pos' : 3, 'initial' : 'A', 'final' : 'C', 'str' : 'A3C'}, ]
     hdist, mutated_positions = hamming_distance(naive_seq, obs_seq, return_mutated_positions=True, amino_acid=amino_acid)
     mcodes = []

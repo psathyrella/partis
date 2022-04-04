@@ -487,19 +487,37 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     def add_unpaired(cline, iseq, uid, paired_iseqs):
         nearest_uid = None
         if len(paired_iseqs) > 0:
-            sorted_hdists = sorted([(cline['unique_ids'][i], utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i in paired_iseqs if i != iseq], key=operator.itemgetter(1))
-            nearest_uid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
-        unpaired_seqs[cline['loci'][iseq]][uid] = {'nearest' : nearest_uid}  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance
+            nearest_uid = 'NEAR'  # now that we have process_unpaired(), we don't use the actual distance that was calculated here, we just need to know if there were any paired seqs in the family (note that this could probably be cleaned up some more, e.g. synchronize definitions of 'paired' vs 'to keep' seqs, but I don't want to change things atm) 
+            # sorted_hdists = sorted([(cline['unique_ids'][i], utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i in paired_iseqs if i != iseq], key=operator.itemgetter(1))
+            # nearest_uid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
+        unpaired_seqs[cline['loci'][iseq]][uid] = {'nearest' : nearest_uid}  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance NOTE this is 'nearest' while the below is 'nearest-paired', although that isn't quite accurate names
     # ----------------------------------------------------------------------------------------
-    def process_unpaired(cline, iseqs_to_keep):
-        for iun, unid in [(i, u) for i, u in enumerate(cline['unique_ids']) if u in unpaired_seqs[cline['loci'][i]]]:
-            if unpaired_seqs[cline['loci'][iun]][unid]['nearest'] is None:  # singleton family, don't need to do anything
+    def process_unpaired(cline, locus, iseqs_to_keep, paired_iseqs, compare_hamming=False):
+        # ----------------------------------------------------------------------------------------
+        def print_cf_ham(iun, sorted_hdists):  # this is just to print some dbg to compare to the old hamming distance, so doesn't really belong here long term
+            old_sorted_hdists = sorted([(cline['unique_ids'][i], utils.hamming_distance(cline['seqs'][i], cline['seqs'][iun])) for i in paired_itokeep], key=operator.itemgetter(1))
+            print old_sorted_hdists
+            print sorted_hdists
+            if [u for u, d in old_sorted_hdists][0] != [u for u, d in sorted_hdists][0]:
+                print '  %s' % utils.color('red', 'YEP')
+            utils.print_reco_event(cline, extra_print_keys=['paired-uids', 'mut_positions'])
+            print ''
+        # ----------------------------------------------------------------------------------------
+        mut_positions = utils.get_mut_positions(cline)
+        cline['mut_positions'] = mut_positions
+        for iun, unid in [(i, u) for i, u in enumerate(cline['unique_ids']) if u in unpaired_seqs[locus]]:  # loop over unpaired seqs in <cline>
+            if unpaired_seqs[locus][unid]['nearest'] is None:  # if no paired seqs in family, don't need to do anything
                 continue
-            sorted_hdists = sorted([(cline['unique_ids'][i], utils.hamming_distance(cline['seqs'][i], cline['seqs'][iun])) for i in iseqs_to_keep], key=operator.itemgetter(1))
-            nearest_pid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
-            unpaired_seqs[cline['loci'][iun]][unid]['nearest-paired'] = nearest_pid
+            nearest_pid = None
+            if len(iseqs_to_keep) > 0:
+                # used to sort by hamming distance, but it was too slow, so now keep track of muted positions in each seq, and do this approximate hamming calculation (only difference i think is when the two sequences mutate at the same position but to different bases, which is rare enough idgaf)
+                sorted_hdists = sorted([(cline['unique_ids'][i], len(mut_positions[i]) + len(mut_positions[iun]) - 2 * len(set(mut_positions[i]) & set(mut_positions[iun]))) for i in iseqs_to_keep], key=operator.itemgetter(1))
+                nearest_pid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
+                if compare_hamming:  # compare to old way of actually calculating hamming distance
+                    print_cf_ham(iun, sorted_hdists)
+            unpaired_seqs[locus][unid]['nearest-paired'] = nearest_pid
             if nearest_pid is None:
-                unpaired_seqs[cline['loci'][iun]][unid]['single-chain-family'] = cline['unique_ids']
+                unpaired_seqs[locus][unid]['single-chain-family'] = cline['unique_ids']
     # ----------------------------------------------------------------------------------------
     cpaths, antn_lists, glfos = [outfos[k] for k in ['cpaths', 'antn_lists', 'glfos']]
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l]) for l in antn_lists}
@@ -507,6 +525,8 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # uid : pid for all uid's that have a single unique pid (which should be all of them, since we just ran pair cleaning -- otherwise we crash below) (I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this)
     unpaired_seqs = {l : {} for l in ploci.values()}  # map for each locus from the uid of each seq with no (or non-reciprocal) pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
     lp_cpaths, lp_antn_lists = {}, {}
+    print '    removing badly paired seqs'
+    sys.stdout.flush()
     if debug:
         print '  removing bad/un-paired seqs'
         print '          N       N      no   other  non-'
@@ -524,7 +544,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
                     iseqs_to_remove.append(iseq)
                     add_unpaired(cline, iseq, uid, paired_iseqs)
                     n_no_info += 1
-                elif len(pids) > 1:  # shouldn've all been removed by pair info cleaning
+                elif len(pids) > 1:  # should've all been removed by pair info cleaning
                     raise Exception('multiple paired uids for \'%s\': %s' % (uid, pids))
                 else:
                     if tch == 'h' and all_loci[utils.get_single_entry(pids)] != ploci['l']:  # if it's the other light chain
@@ -536,11 +556,12 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
                             add_unpaired(cline, iseq, uid, paired_iseqs)
                             n_non_reciprocal += 1
             iseqs_to_keep = [i for i in range(len(cline['unique_ids'])) if i not in iseqs_to_remove]
-            process_unpaired(cline, iseqs_to_keep)  # have to go back after finishing cluster since only now do we know who we ended up keeping
+            if len(cline) > 1:
+                process_unpaired(cline, ploci[tch], iseqs_to_keep, paired_iseqs)  # have to go back after finishing cluster since only now do we know who we ended up keeping
             if len(iseqs_to_keep) > 0:
                 new_partition.append([cluster[i] for i in iseqs_to_keep])
                 new_cline = utils.get_non_implicit_copy(cline)
-                utils.restrict_to_iseqs(new_cline, iseqs_to_keep, glfos[ploci[tch]])
+                utils.restrict_to_iseqs(new_cline, iseqs_to_keep, glfos[ploci[tch]])  # note that this calls utils.add_implicit_info()
                 new_antn_list.append(new_cline)
             if debug:
                 def fstr(v): return '' if v==0 else '%d'%v
