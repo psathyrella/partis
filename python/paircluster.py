@@ -1227,7 +1227,62 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             for tclust in return_clusts:
                 print '          %s' % ':'.join(tclust)
         return return_clusts
-
+    # ----------------------------------------------------------------------------------------
+    def incorporate_rclusts(final_partition, fclust_sets, resolved_clusters):  # incorporate <resolved_clusters> into <final_partition>
+        if debug:
+            dbgheader = ['    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition)), '      ifclust  fset   rset   common  after: fset  rset',]
+            # ----------------------------------------------------------------------------------------
+            def appdbg(new_fset, rset, common_uids, xdbg=None):
+                def cstr(tclust): return '(empty)' if len(tclust)==0 else ':'.join(utils.color('light_blue_bkg' if u in common_uids else None, u) for u in tclust)
+                dbgstr.append(' %3d %s%3d %s  %3d    %s   %s' % (len(new_fset | common_uids), ('%-s'%utils.color('red', str(len(new_fset)), width=3, padside='right')) if len(common_uids&new_fset)==0 else '   ',
+                                                                 len(rset | common_uids), ('%-s'%utils.color('red', str(len(rset)), width=3, padside='right')) if len(common_uids&rset)==0 else '   ',
+                                                                 len(common_uids), cstr(new_fset), cstr(rset)))
+                if xdbg is not None:
+                    dbgstr.append(xdbg)
+            # ----------------------------------------------------------------------------------------
+            def prdbg(ifclust, dbgheader, dbgstr):
+                if len(dbgheader) > 0:
+                    print '\n'.join(dbgheader)
+                    dbgheader = []
+                print '       %4d  %s' % (ifclust, '\n             '.join(dbgstr))
+                return dbgheader
+        # ----------------------------------------------------------------------------------------
+        n_clean = 0
+        rc_sets, rc_ids = [set(c) for c in resolved_clusters], set(itertools.chain.from_iterable(resolved_clusters))  # just for speed (note that rc_ids doesn't get updated, which i think is ok)
+        # for each cluster that's already in <final_partition> that has uids in common with a cluster in <resolved_clusters>, decide how to apportion the common uids (basically we remove them from the larger of the two clusters)
+        for ifclust in range(len(final_partition)):  # iteration/<ifclust> won't get as far as any clusters that we're just adding (to the end of <final_partition>), which is what we want
+            fclust, old_fset = final_partition[ifclust], fclust_sets[ifclust]
+            if len(old_fset & rc_ids) == 0:
+                n_clean += 1
+                continue
+            irclusts = [i for i, c in enumerate(rc_sets) if len(c & old_fset) > 0]  # indices of any resolved_clusters that overlap with this fclust
+            if debug: dbgstr = []
+            new_fset = set(fclust)  # we'll remove uids from this, and then replace fclust with its remains
+            for irclust in irclusts:  # resolve any discrepancies between these newly-resolved clusters and fclust
+                rset = set(resolved_clusters[irclust])
+                common_uids = new_fset & rset
+                if irclusts.index(irclust) == 0:
+                    if len(new_fset) > len(rset):  # remove the common ids from the larger one (effectively splitting according to the splittier one)
+                        new_fset -= common_uids
+                    else:
+                        rset -= common_uids
+                    if debug: xdbg = None
+                else:  # if this is the second or greater rclust, we need to apply the splits between rclusts (otherwise we can end up merging uids from different rclusts)
+                    new_fset -= common_uids
+                    rset -= common_uids
+                    resolved_clusters.append(list(common_uids))  # this adds a cluster at the end, which of course gets ignored in this loop over irclusts, but will get considered in the next fclust
+                    rc_sets.append(common_uids)
+                    if debug: xdbg = '                  %s  %s' % (utils.color('red', '+%-3d'%len(resolved_clusters[-1])), ':'.join(resolved_clusters[-1]))
+                resolved_clusters[irclust] = list(rset)  # replace this resolved cluster with a copy of itself that may have had any common uids removed (if it was bigger than fclust)
+                rc_sets[irclust] = rset
+                if debug: appdbg(new_fset, rset, common_uids, xdbg)
+            final_partition[ifclust] = list(new_fset)  # replace <fclust> (even if nothing was removed, which shuffles the order of unchanged clusters, but oh well)
+            fclust_sets[ifclust] = set(final_partition[ifclust])
+            if debug: dbgheader = prdbg(ifclust, dbgheader, dbgstr)
+        if check_partitions:
+            assert is_clean_partition(resolved_clusters)
+        final_partition += resolved_clusters  # add the (potentially modified) resolved clusters
+        fclust_sets += [set(c) for c in resolved_clusters]
     # ----------------------------------------------------------------------------------------
     print '    merging %s partitions' % '+'.join(ploci.values())
     sys.stdout.flush()
@@ -1286,61 +1341,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         resolved_clusters = resolve_discordant_clusters(copy.deepcopy(single_cluster), single_annotation, copy.deepcopy(cluster_list), annotation_list, tdbg=debug)
         if check_partitions:
             assert is_clean_partition(resolved_clusters)
-
-        if debug:
-            dbgheader = ['    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition)), '      ifclust  fset   rset   common  after: fset  rset',]
-            # ----------------------------------------------------------------------------------------
-            def appdbg(new_fset, rset, common_uids, xdbg=None):
-                def cstr(tclust): return '(empty)' if len(tclust)==0 else ':'.join(utils.color('light_blue_bkg' if u in common_uids else None, u) for u in tclust)
-                dbgstr.append(' %3d %s%3d %s  %3d    %s   %s' % (len(new_fset | common_uids), ('%-s'%utils.color('red', str(len(new_fset)), width=3, padside='right')) if len(common_uids&new_fset)==0 else '   ',
-                                                                 len(rset | common_uids), ('%-s'%utils.color('red', str(len(rset)), width=3, padside='right')) if len(common_uids&rset)==0 else '   ',
-                                                                 len(common_uids), cstr(new_fset), cstr(rset)))
-                if xdbg is not None:
-                    dbgstr.append(xdbg)
-            # ----------------------------------------------------------------------------------------
-            def prdbg(ifclust, dbgheader, dbgstr):
-                if len(dbgheader) > 0:
-                    print '\n'.join(dbgheader)
-                    dbgheader = []
-                print '       %4d  %s' % (ifclust, '\n             '.join(dbgstr))
-                return dbgheader
-        # ----------------------------------------------------------------------------------------
-        n_clean = 0
-        rc_sets, rc_ids = [set(c) for c in resolved_clusters], set(itertools.chain.from_iterable(resolved_clusters))  # just for speed (note that rc_ids doesn't get updated, which i think is ok)
-        # for each cluster that's already in <final_partition> that has uids in common with a cluster in <resolved_clusters>, decide how to apportion the common uids (basically we remove them from the larger of the two clusters)
-        for ifclust in range(len(final_partition)):  # iteration/<ifclust> won't get as far as any clusters that we're just adding (to the end of <final_partition>), which is what we want
-            fclust, old_fset = final_partition[ifclust], fclust_sets[ifclust]
-            if len(old_fset & rc_ids) == 0:
-                n_clean += 1
-                continue
-            irclusts = [i for i, c in enumerate(rc_sets) if len(c & old_fset) > 0]  # indices of any resolved_clusters that overlap with this fclust
-            if debug: dbgstr = []
-            new_fset = set(fclust)  # we'll remove uids from this, and then replace fclust with its remains
-            for irclust in irclusts:  # resolve any discrepancies between these newly-resolved clusters and fclust
-                rset = set(resolved_clusters[irclust])
-                common_uids = new_fset & rset
-                if irclusts.index(irclust) == 0:
-                    if len(new_fset) > len(rset):  # remove the common ids from the larger one (effectively splitting according to the splittier one)
-                        new_fset -= common_uids
-                    else:
-                        rset -= common_uids
-                    if debug: xdbg = None
-                else:  # if this is the second or greater rclust, we need to apply the splits between rclusts (otherwise we can end up merging uids from different rclusts)
-                    new_fset -= common_uids
-                    rset -= common_uids
-                    resolved_clusters.append(list(common_uids))  # this adds a cluster at the end, which of course gets ignored in this loop over irclusts, but will get considered in the next fclust
-                    rc_sets.append(common_uids)
-                    if debug: xdbg = '                  %s  %s' % (utils.color('red', '+%-3d'%len(resolved_clusters[-1])), ':'.join(resolved_clusters[-1]))
-                resolved_clusters[irclust] = list(rset)  # replace this resolved cluster with a copy of itself that may have had any common uids removed (if it was bigger than fclust)
-                rc_sets[irclust] = rset
-                if debug: appdbg(new_fset, rset, common_uids, xdbg)
-            final_partition[ifclust] = list(new_fset)  # replace <fclust> (even if nothing was removed, which shuffles the order of unchanged clusters, but oh well)
-            fclust_sets[ifclust] = set(final_partition[ifclust])
-            if debug: dbgheader = prdbg(ifclust, dbgheader, dbgstr)
-        if check_partitions:
-            assert is_clean_partition(resolved_clusters)
-        final_partition += resolved_clusters  # add the (potentially modified) resolved clusters
-        fclust_sets += [set(c) for c in resolved_clusters]
+        incorporate_rclusts(final_partition, fclust_sets, resolved_clusters)
 
     if debug:
         print '    removing %d/%d empty clusters' % (final_partition.count([]), len(final_partition))
