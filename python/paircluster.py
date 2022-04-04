@@ -1229,6 +1229,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         return return_clusts
 
     # ----------------------------------------------------------------------------------------
+    print '    merging %s partitions' % '+'.join(ploci.values())
+    sys.stdout.flush()
     init_partitions = {}
     for tch in utils.chains:
         if iparts is None or ploci[tch] not in iparts:
@@ -1242,7 +1244,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         for tstr, tpart in [('heavy', init_partitions['h']), ('light', init_partitions['l'])]:
             ptnprint(tpart, extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
 
-    common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light', debug=True)  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
+    common_uids, _, _ = utils.check_intersection_and_complement(init_partitions['h'], init_partitions['l'], only_warn=True, a_label='heavy', b_label='light')  # check that h and l partitions have the same uids (they're expected to be somewhat different because of either failed queries or duplicates [note that this is why i just turned off default duplicate removal])
     if len(common_uids) == 0:
         if all(len(init_partitions[c]) > 0 for c in 'hl'):
             print '  %s no uids in common between heavy (%d uids) and light (%d uids) partitions' % (utils.color('yellow', 'warning'), len(init_partitions['h']), len(init_partitions['l']))
@@ -1251,6 +1253,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     antn_dict = {ch : utils.get_annotation_dict(antn_lists[ploci[ch]]) for ch in ploci}
 
     final_partition = []
+    fclust_sets = [] # just for speed
+    initp_sets = {ch : [set(c) for c in ptn] for ch, ptn in init_partitions.items()}  # just for speed
     if debug:
         hdbg = ['    N        N       hclusts     lclusts       h/l',
                 '  hclusts  lclusts    sizes       sizes      overlaps']
@@ -1259,7 +1263,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     for h_initclust, l_initclust in [(c, None) for c in init_partitions['h']] + [(None, c) for c in init_partitions['l']]:  # just loops over each single cluster in h and l partitions, but in a way that we know whether the single cluster is from h or l
         single_chain, list_chain = 'h' if l_initclust is None else 'l', 'l' if l_initclust is None else 'h'
         single_cluster = h_initclust if single_chain == 'h' else l_initclust
-        cluster_list = common_clusters(single_cluster, init_partitions[list_chain])
+        single_cset = set(single_cluster)
+        cluster_list = [init_partitions[list_chain][i] for i, c in enumerate(initp_sets[list_chain]) if len(single_cset & c) > 0]
         single_annotation = antn_dict[single_chain][akey(single_cluster)]
         annotation_list = [antn_dict[list_chain][akey(c)] for c in cluster_list]
 
@@ -1301,13 +1306,14 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 return dbgheader
         # ----------------------------------------------------------------------------------------
         n_clean = 0
+        rc_sets, rc_ids = [set(c) for c in resolved_clusters], set(itertools.chain.from_iterable(resolved_clusters))  # just for speed (note that rc_ids doesn't get updated, which i think is ok)
         # for each cluster that's already in <final_partition> that has uids in common with a cluster in <resolved_clusters>, decide how to apportion the common uids (basically we remove them from the larger of the two clusters)
         for ifclust in range(len(final_partition)):  # iteration/<ifclust> won't get as far as any clusters that we're just adding (to the end of <final_partition>), which is what we want
-            fclust = final_partition[ifclust]
-            if not any_in_common([fclust], resolved_clusters):  # this is probably faster than combining it with getting the common cluster indices below, but maybe not
+            fclust, old_fset = final_partition[ifclust], fclust_sets[ifclust]
+            if len(old_fset & rc_ids) == 0:
                 n_clean += 1
                 continue
-            irclusts = common_clusters(fclust, resolved_clusters, return_indices=True)  # indices of any resolved_clusters that overlap with this fclust
+            irclusts = [i for i, c in enumerate(rc_sets) if len(c & old_fset) > 0]  # indices of any resolved_clusters that overlap with this fclust
             if debug: dbgstr = []
             new_fset = set(fclust)  # we'll remove uids from this, and then replace fclust with its remains
             for irclust in irclusts:  # resolve any discrepancies between these newly-resolved clusters and fclust
@@ -1323,14 +1329,18 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                     new_fset -= common_uids
                     rset -= common_uids
                     resolved_clusters.append(list(common_uids))  # this adds a cluster at the end, which of course gets ignored in this loop over irclusts, but will get considered in the next fclust
+                    rc_sets.append(common_uids)
                     if debug: xdbg = '                  %s  %s' % (utils.color('red', '+%-3d'%len(resolved_clusters[-1])), ':'.join(resolved_clusters[-1]))
                 resolved_clusters[irclust] = list(rset)  # replace this resolved cluster with a copy of itself that may have had any common uids removed (if it was bigger than fclust)
+                rc_sets[irclust] = rset
                 if debug: appdbg(new_fset, rset, common_uids, xdbg)
             final_partition[ifclust] = list(new_fset)  # replace <fclust> (even if nothing was removed, which shuffles the order of unchanged clusters, but oh well)
+            fclust_sets[ifclust] = set(final_partition[ifclust])
             if debug: dbgheader = prdbg(ifclust, dbgheader, dbgstr)
         if check_partitions:
             assert is_clean_partition(resolved_clusters)
         final_partition += resolved_clusters  # add the (potentially modified) resolved clusters
+        fclust_sets += [set(c) for c in resolved_clusters]
 
     if debug:
         print '    removing %d/%d empty clusters' % (final_partition.count([]), len(final_partition))
@@ -1340,6 +1350,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     tmpstrs = ['   N clusters without bad/unpaired seqs:'] \
               + ['%s %4d --> %-4d%s'  % (utils.locstr(ploci[tch]), len(init_partitions[tch]), len(final_partition), chstr(len(init_partitions[tch]), len(final_partition))) for tch in utils.chains]
     print '\n        '.join(tmpstrs)
+    sys.stdout.flush()
 
     # ptnprint(final_partition, sort_by_size=False) #extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
 
@@ -1360,23 +1371,28 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     if unpaired_seqs is not None:  # it might be cleaner to have this elsewhere, but I want it to happen before we evaluate, and it's also nice to have evaluation in here
         n_added = {tch : {'singleton' : 0, 'new-cluster' : 0, 'existing-cluster' : 0} for tch in ploci}
         for tch, ltmp in ploci.items():
+            jp_sets = [set(c) for c in joint_partitions[tch]]  # just for speed
             for upid, nearfo in unpaired_seqs[ltmp].items():  # <upid> is uid of seq with bad/no pair info, <nearfo['nearest']> is uid of nearest seq in <upid>'s original family
                 if nearfo['nearest'] is None:  # it was a singleton, so keep it one
                     joint_partitions[tch].append([upid])
+                    jp_sets.append(set([upid]))
                     n_added[tch]['singleton'] += 1
                     continue
-                nearids = [nearfo['nearest-paired']] if nearfo['nearest-paired'] is not None else nearfo['single-chain-family']  # if there's any paired seqs in its single chain family, attach it to the nearest one of those; otherwise try to keep all the unpaired seqs from the family together (note that the old method, of always attaching to the 'nearest' id whether it was paired or not, had the effect of splitting in some cases, which we don't want)
-                jclusts = [c for c in joint_partitions[tch] if len(set(nearids) & set(c)) > 0]
-                if len(jclusts) < 1:  # it didn't have a 'nearest-paired' (i.e. no paired seqs in its single chain cluster), and we haven't gotten to any of the other unpaired seqs from its single chain cluster (when we do get to them, they'll get added to this cluster)
+                nearids = set([nearfo['nearest-paired']] if nearfo['nearest-paired'] is not None else nearfo['single-chain-family'])  # if there's any paired seqs in its single chain family, attach it to the nearest one of those; otherwise try to keep all the unpaired seqs from the family together (note that the old method, of always attaching to the 'nearest' id whether it was paired or not, had the effect of splitting in some cases, which we don't want)
+                ijclusts = [i for i, c in enumerate(jp_sets) if len(nearids & c) > 0]
+                if len(ijclusts) < 1:  # it didn't have a 'nearest-paired' (i.e. no paired seqs in its single chain cluster), and we haven't gotten to any of the other unpaired seqs from its single chain cluster (when we do get to them, they'll get added to this cluster)
                     joint_partitions[tch].append([upid])
+                    jp_sets.append(set([upid]))
                     n_added[tch]['new-cluster'] += 1
                     continue
-                if len(jclusts) > 1:
-                    print '  %s multiple jclusts for %s: %s' % (utils.wrnstr(), upid, jclusts)
-                jclusts[0].append(upid)
+                if len(ijclusts) > 1:
+                    print '  %s multiple jclusts for %s: %s' % (utils.wrnstr(), upid, ijclusts)
+                joint_partitions[tch][ijclusts[0]].append(upid)
+                jp_sets[ijclusts[0]].add(upid)
                 n_added[tch]['existing-cluster'] += 1
         totstr = '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in joint_partitions[tch])) for tch in sorted(ploci))
         print '    re-added unpaired seqs (%s) to give total seqs in joint partitions: %s' % (', '.join('%s %d'%(utils.locstr(ploci[tch]), sum(nfo.values())) for tch, nfo in n_added.items()), totstr)
+        sys.stdout.flush()
         # print '        singleton      new cluster     existing cluster'
         # for tch in 'hl':
         #     print '       %s      %4d      %4d    %4d' % (utils.locstr(ploci[tch]), n_added[tch]['singleton'], n_added[tch]['new-cluster'], n_added[tch]['existing-cluster'])
