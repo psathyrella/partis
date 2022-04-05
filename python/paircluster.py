@@ -1399,7 +1399,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 sys.stdout.flush()
             ihuge += 1
 
-        resolved_clusters = resolve_discordant_clusters(copy.deepcopy(single_cluster), single_annotation, copy.deepcopy(cluster_list), annotation_list, tdbg=debug)  # these deep copy calls are kind of slow (although not like a bottleneck or anything), and maybe they could be replaced by something faster? (although definitely can't just pass the actual cluster/list)
+        resolved_clusters = resolve_discordant_clusters([u for u in single_cluster], single_annotation, [[u for u in c] for c in cluster_list], annotation_list, tdbg=debug)
         if check_partitions:
             assert is_clean_partition(resolved_clusters)
         incorporate_rclusts(final_partition, fclust_sets, fclust_indices, resolved_clusters)
