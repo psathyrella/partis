@@ -1299,7 +1299,6 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             ihuge = 0
         n_added = {tch : {'singleton' : 0, 'new-cluster' : 0, 'existing-cluster' : 0} for tch in ploci}
         for tch, ltmp in ploci.items():
-            jp_sets = [set(c) for c in joint_partitions[tch]]  # just for speed
             jp_indices = {u : i for i, c in enumerate(joint_partitions[tch]) for u in c}  # just for speed
             for upid, nearfo in unpaired_seqs[ltmp].items():  # <upid> is uid of seq with bad/no pair info, <nearfo['nearest']> is uid of nearest seq in <upid>'s original family
                 if huge_dbg:
@@ -1309,20 +1308,20 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                     ihuge += 1
                 if nearfo['nearest'] is None:  # it was a singleton, so keep it one
                     joint_partitions[tch].append([upid])
-                    jp_sets.append(set([upid]))
+                    jp_indices[upid] = len(joint_partitions[tch]) - 1
                     n_added[tch]['singleton'] += 1
                     continue
                 nearids = set([nearfo['nearest-paired']] if nearfo['nearest-paired'] is not None else nearfo['single-chain-family'])  # if there's any paired seqs in its single chain family, attach it to the nearest one of those; otherwise try to keep all the unpaired seqs from the family together (note that the old method, of always attaching to the 'nearest' id whether it was paired or not, had the effect of splitting in some cases, which we don't want)
                 ijclusts = sorted(set(jp_indices.get(u) for u in nearids) - set([None]))  # sort is just so results are identical to previous code that worked differently, can eventually be removed
                 if len(ijclusts) < 1:  # it didn't have a 'nearest-paired' (i.e. no paired seqs in its single chain cluster), and we haven't gotten to any of the other unpaired seqs from its single chain cluster (when we do get to them, they'll get added to this cluster)
                     joint_partitions[tch].append([upid])
-                    jp_sets.append(set([upid]))
+                    jp_indices[upid] = len(joint_partitions[tch]) - 1
                     n_added[tch]['new-cluster'] += 1
                     continue
                 if len(ijclusts) > 1:
                     print '  %s multiple jclusts for %s: %s' % (utils.wrnstr(), upid, ijclusts)
                 joint_partitions[tch][ijclusts[0]].append(upid)
-                jp_sets[ijclusts[0]].add(upid)
+                jp_indices[upid] = ijclusts[0]
                 n_added[tch]['existing-cluster'] += 1
         if huge_dbg:
             print ''
