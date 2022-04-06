@@ -5493,7 +5493,7 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
 
     if paired:
         antn_dict = get_annotation_dict(annotation_list)
-        pid = get_single_entry(per_seq_val(antn_dict[':'.join(scluster)], 'paired-uids', sid))
+        pid = get_single_entry([p for p in per_seq_val(antn_dict[':'.join(scluster)], 'paired-uids', sid) if is_correctly_paired(sid, p)])
         plocus = pid.split('-')[-1]
         if plocus not in loci:
             raise Exception('couldn\'t get allowed locus (got \'%s\') from uid \'%s\'' % (plocus, pid))
