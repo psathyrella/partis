@@ -148,7 +148,7 @@ class Tester(object):
         self.n_simu_leaves = 5
 
         self.selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'aa-lbi', 'aa-lbr']  # NOTE kind of duplicates treeutils.selection_metrics, but I want to be able to change the latter
-        self.pair_clean_metrics = ['correct', 'unpaired', 'mispaired']
+        self.pair_clean_metrics = ['correct', 'unpaired', 'mispaired'] if args.paired else []
         self.expected_trees = ['tree', 'aa-tree']
 
         self.logfname = self.dirs('new') + '/test.log'

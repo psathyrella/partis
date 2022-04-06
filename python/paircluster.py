@@ -347,8 +347,8 @@ def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
         metafos[pid]['paired-uids'] = list(set(metafos[pid]['paired-uids']) - uids_to_remove)
     outfos = [outfos[ifo] for ifo in range(len(outfos)) if ifo not in ifos_to_remove]
     print '  removed %d / %d = %.2f seqs from outfos (leaving %d / %d unpaired)' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove), len([ofo for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0]), len(outfos))
-    print '     removed ids: %s' % ' '.join(uids_to_remove)
-    print '     left unpaired: %s' % ' '.join([ofo['name'] for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0])
+    # print '     removed ids: %s' % ' '.join(uids_to_remove)
+    # print '     left unpaired: %s' % ' '.join([ofo['name'] for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0])
     return outfos, uids_to_remove
 
 # ----------------------------------------------------------------------------------------
