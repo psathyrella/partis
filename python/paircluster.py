@@ -349,28 +349,50 @@ def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
     print '  removed %d / %d = %.2f seqs from outfos (leaving %d / %d unpaired)' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove), len([ofo for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0]), len(outfos))
     print '     removed ids: %s' % ' '.join(uids_to_remove)
     print '     left unpaired: %s' % ' '.join([ofo['name'] for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0])
-    return outfos
+    return outfos, uids_to_remove
 
 # ----------------------------------------------------------------------------------------
-def get_simu_outmetafos(antn_lists):
-    # merge together info from all loci into <outfos> and <metafos>
+def get_simu_outmetafos(antn_lists):  # merge together info from all loci into <outfos> and <metafos>
     outfos, metafos = [], {}
     for ltmp in antn_lists:
         for tline in antn_lists[ltmp]:
             for uid, seq, pids in zip(tline['unique_ids'], tline['input_seqs'], tline['paired-uids']):
                 outfos.append({'name' : uid, 'seq' : seq})
                 metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
-
     return outfos, metafos
 
 # ----------------------------------------------------------------------------------------
-def modify_pair_info(args, outfos, metafos, antn_lists, lp_infos):
+def modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos):
+    # ----------------------------------------------------------------------------------------
+    def update_lpf(lpfos, ltmp, uids_to_remove):
+        if args.fraction_of_reads_to_remove is not None:
+            partition = [[u for u in c if u not in uids_to_remove] for c in lpfos['cpaths'][ltmp].best()]
+            lpfos['cpaths'][ltmp] = ClusterPath(partition=partition, seed_unique_id=lpfos['cpaths'][ltmp].seed_unique_id)
+            i_atns_to_remove = []
+            for iatn, atn in enumerate(lpfos['antn_lists'][ltmp]):
+                atn_ids_to_remove = set(atn['unique_ids']) & uids_to_remove
+                if len(atn_ids_to_remove) == len(atn['unique_ids']):
+                    i_atns_to_remove.append(iatn)
+                elif len(atn_ids_to_remove) > 0:
+                    utils.restrict_to_iseqs(atn, [i for i, u in enumerate(atn['unique_ids']) if u not in atn_ids_to_remove], lpfos['glfos'][ltmp])
+            if len(i_atns_to_remove) > 0:
+                lpfos['antn_lists'][ltmp] = [a for i, a in enumerate(lpfos['antn_lists'][ltmp]) if i not in i_atns_to_remove]
+        for atn in lpfos['antn_lists'][ltmp]:
+            atn['paired-uids'] = [metafos[u]['paired-uids'] for u in atn['unique_ids']]
+    # ----------------------------------------------------------------------------------------
     if args.bulk_data_fraction is not None:
         remove_pair_info_from_bulk_data(outfos, metafos, args.bulk_data_fraction)
     if args.mean_cells_per_droplet is not None:
         apportion_cells_to_droplets(outfos, metafos, args.mean_cells_per_droplet, constant_n_cells=args.constant_cells_per_droplet)
+    uids_to_remove = None
     if args.fraction_of_reads_to_remove is not None:
-        outfos = remove_reads_from_droplets(outfos, metafos, args.fraction_of_reads_to_remove)
+        outfos, uids_to_remove = remove_reads_from_droplets(outfos, metafos, args.fraction_of_reads_to_remove)
+    if any(a is not None for a in [args.bulk_data_fraction, args.mean_cells_per_droplet, args.fraction_of_reads_to_remove]):
+        for lpair, lpfos in lp_infos.items():
+            for ltmp in lpair:
+                update_lpf(lpfos, ltmp, uids_to_remove)
+        for ltmp in concat_lpfos['glfos']:
+            update_lpf(concat_lpfos, ltmp, uids_to_remove)
     return outfos
 
 # ----------------------------------------------------------------------------------------

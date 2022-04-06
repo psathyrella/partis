@@ -754,7 +754,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             return glfos, antn_lists, joint_cpaths
         tmp_ptn = utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc] if not args.dont_calculate_annotations else None, glfo=glfos[hloc], debug=args.debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
         joint_cpaths[hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))
-        return glfos, antn_lists, joint_cpaths
+        return {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : joint_cpaths}
     # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
         lp_infos = {}
@@ -768,12 +768,12 @@ def run_all_loci(args, ig_or_tr='ig'):
                 treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
             for ltmp in lpair:  # replace the old cpaths with new ones using the new uids (this should be faster than translating individual uids as we go)
                 lpfos['cpaths'][ltmp] = ClusterPath(partition=utils.get_partition_from_annotation_list(lpfos['antn_lists'][ltmp]), seed_unique_id=seedid(ltmp))
-        glfos, antn_lists, joint_cpaths = handle_concatd_heavy_chain(lp_infos)
-        outfos, metafos = paircluster.get_simu_outmetafos(antn_lists)
-        outfos = paircluster.modify_pair_info(args, outfos, metafos, antn_lists, lp_infos)
+        concat_lpfos = handle_concatd_heavy_chain(lp_infos)
+        outfos, metafos = paircluster.get_simu_outmetafos(concat_lpfos['antn_lists'])
+        outfos = paircluster.modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos)
         headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         paircluster.write_lpair_output_files(spairs(), lp_infos, getofn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
-        paircluster.write_concatd_output_files(glfos, antn_lists, getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=joint_cpaths, dont_write_git_info=args.dont_write_git_info)
+        paircluster.write_concatd_output_files(concat_lpfos['glfos'], concat_lpfos['antn_lists'], getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], dont_write_git_info=args.dont_write_git_info)
         paircluster.write_simu_fasta_and_meta(get_merged_fn('all-seqs'), get_merged_fn('meta'), outfos, metafos)
     # ----------------------------------------------------------------------------------------
     def get_true_partitions():  # NOTE see also read_true_files() below
@@ -1048,18 +1048,18 @@ def run_all_loci(args, ig_or_tr='ig'):
             paircluster.plot_fraction_correctly_paired(single_outfos['cpaths'], None, true_partitions, true_antn_lists=true_outfos['antn_lists'], antn_lists=single_outfos['antn_lists'], performance_outdir=None if args.is_data else getodir(), plotdir=getplotdir(None) if args.plotdir is not None else None)
         if args.input_metafnames is not None:  # need to add any new input meta keys to headers
             seqfileopener.read_input_metafo(args.input_metafnames, [])
-        concat_glfos, concat_antn_lists, concat_cpaths = handle_concatd_heavy_chain(lp_infos)
-        paircluster.write_concatd_output_files(concat_glfos, concat_antn_lists, getofn, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), use_pyyaml=args.write_full_yaml_output,
-                                               work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_cpaths, true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info)
-        print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_cpaths, debug=args.debug_paired_clustering)
+        concat_lpfos = handle_concatd_heavy_chain(lp_infos)
+        paircluster.write_concatd_output_files(concat_lpfos['glfos'], concat_lpfos['antn_lists'], getofn, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), use_pyyaml=args.write_full_yaml_output,
+                                               work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info)
+        print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_lpfos['cpaths'], debug=args.debug_paired_clustering)
         ccfs = None
         if len(single_outfos['cpaths']['igh'].best()) > 5000:
             print '    not comparing single vs joint partitions to save time'
         else:
             ccfs = {}
-            for ltmp in sloci(tdict=concat_cpaths):
+            for ltmp in sloci(tdict=concat_lpfos['cpaths']):
                 dbg_str = '%s single vs joint concat\'d '%utils.locstr(ltmp)
-                ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_cpaths[ltmp].best(), dbg_str=dbg_str, cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
+                ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_lpfos['cpaths'][ltmp].best(), dbg_str=dbg_str, cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
         return ccfs
     # ----------------------------------------------------------------------------------------
     def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):
