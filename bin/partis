@@ -1105,7 +1105,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         prep_inputs()
 
     if args.action == 'simulate':
-        paircluster.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
+        if not args.dry_run:
+            paircluster.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
         for lpair in utils.locus_pairs[ig_or_tr]:
             h_locus, l_locus = lpair
             print '%s: simulating %d event%s' % (utils.color('blue', '+'.join(lpair)), get_n_events(l_locus, args.n_sim_events), utils.plural(get_n_events(l_locus, args.n_sim_events)))
@@ -1117,8 +1118,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print '    %s drawing input simulation trees from --input-simulation-treefname *in order* for both heavy and light (rather than randomly, as for single chain)' % utils.color('yellow', 'warning')
             for ltmp in lpair:
                 run_step(args.action, ltmp, lpair=lpair)
-        if not args.dry_run:
-            combine_simu_chains()
+        combine_simu_chains()
         if args.paired_outdir is None:
             work_fnames.extend(paircluster.paired_dir_fnames(getodir(), suffix='.yaml') + [get_merged_fn('all-seqs'), get_merged_fn('meta')])  # using extend() rather than += in a few places because of local variable/scoping behavior
     else:

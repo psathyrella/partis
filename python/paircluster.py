@@ -317,7 +317,9 @@ def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constan
     while len(sfo_dict) > 0:
         tid = next(iter(sfo_dict))
         if constant_n_cells:
-            ichoices = [i for i in range(len(droplet_ids)) if len(droplet_ids[i]) / 2. < mean_cells_per_droplet]
+            for glen, igroup in itertools.groupby(sorted(range(len(droplet_ids)), key=lambda i: len(droplet_ids[i])), key=lambda i: len(droplet_ids[i])):  # sort droplets by number of cells, then choose any droplet that is among those with the fewest number of cells (e.g. if 7 droplets have 0 cells, choose randomly from among those 7)
+                ichoices = list(igroup)
+                break
             if len(ichoices) == 0:
                 ichoices = range(len(droplet_ids))
             idrop = numpy.random.choice(ichoices)
@@ -525,7 +527,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # uid : pid for all uid's that have a single unique pid (which should be all of them, since we just ran pair cleaning -- otherwise we crash below) (I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this)
     unpaired_seqs = {l : {} for l in ploci.values()}  # map for each locus from the uid of each seq with no (or non-reciprocal) pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
     lp_cpaths, lp_antn_lists = {}, {}
-    print '    removing badly paired seqs'
+    print '    removing badly paired seqs%s' % ('\n' if debug else ': '),
     sys.stdout.flush()
     if debug:
         print '  removing bad/un-paired seqs'
@@ -572,6 +574,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     if debug:
         print '    totals before: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in cpaths[ploci[tch]].best())) for tch in sorted(ploci))
         print '    totals after: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in lp_cpaths[ploci[tch]].best())) for tch in sorted(ploci))
+    print '%s%d total unpaired,  %s' % ('        ' if debug else '', sum(len(s) for s in unpaired_seqs.values()), '  '.join('%s %d'%(utils.locstr(l), len(unpaired_seqs[l])) for l in sorted(unpaired_seqs)))
 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
