@@ -176,7 +176,7 @@ class Tester(object):
             n_events = int(self.nqr('simu') / float(self.n_simu_leaves))
             simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', str(self.n_simu_leaves)]}
             if args.paired:
-                simulate_args['extras'] += ['--min-observations-per-gene', '5', '--mean-cells-per-droplet', '1.5', '--fraction-of-reads-to-remove', '0.05']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
+                simulate_args['extras'] += ['--min-observations-per-gene', '5', '--mean-cells-per-droplet', '1.5', '--constant-cells-per-droplet', '--fraction-of-reads-to-remove', '0.15']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
             if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
                 self.tests['cache-parameters-data'] = pcache_data_args
                 self.tests['simulate'] = simulate_args
