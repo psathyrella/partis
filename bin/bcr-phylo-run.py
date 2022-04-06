@@ -346,7 +346,8 @@ def write_simulation(glfos, mutated_events):
         paircluster.write_lpair_output_files(lpairs(), lp_infos, simfname, utils.simulation_headers)
         glfos, antn_lists, _ = paircluster.concat_heavy_chain(lpairs(), lp_infos)  # per-locus glfos with concat'd heavy chain
         paircluster.write_concatd_output_files(glfos, antn_lists, simfname, utils.simulation_headers)
-        paircluster.write_merged_simu(antn_lists, spath('mutated')+'/all-seqs.fa', spath('mutated')+'/meta.yaml')
+        outfos, metafos = paircluster.get_simu_outmetafos(antn_lists)
+        paircluster.write_simu_fasta_and_meta(spath('mutated')+'/all-seqs.fa', spath('mutated')+'/meta.yaml', outfos, metafos)
     else:
         utils.write_annotations(spath('mutated'), glfos[0], mutated_events, utils.simulation_headers)
 

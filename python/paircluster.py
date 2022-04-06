@@ -337,15 +337,22 @@ def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constan
 def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
     n_to_remove = int(fraction_of_reads_to_remove * len(outfos))
     ifos_to_remove = numpy.random.choice(range(len(outfos)), size=n_to_remove, replace=False)
-    for ifo in ifos_to_remove:
-        del metafos[outfos[ifo]['name']]
+    uids_to_remove = set(outfos[ifo]['name'] for ifo in ifos_to_remove)
+    pids_of_removed_ifos = set()  # keep track of all pids of each removed id, so we can (quickly) remove the removed ids from each pid's pair info
+    for rid in uids_to_remove:
+        pids_of_removed_ifos |= set(metafos[rid]['paired-uids'])
+        del metafos[rid]
+    pids_of_removed_ifos -= uids_to_remove
+    for pid in pids_of_removed_ifos:
+        metafos[pid]['paired-uids'] = list(set(metafos[pid]['paired-uids']) - uids_to_remove)
     outfos = [outfos[ifo] for ifo in range(len(outfos)) if ifo not in ifos_to_remove]
-    print '  removed %d / %d = %.2f seqs from outfos' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove))
+    print '  removed %d / %d = %.2f seqs from outfos (leaving %d / %d unpaired)' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove), len([ofo for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0]), len(outfos))
+    print '     removed ids: %s' % ' '.join(uids_to_remove)
+    print '     left unpaired: %s' % ' '.join([ofo['name'] for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0])
     return outfos
 
 # ----------------------------------------------------------------------------------------
-# write fasta and meta file with all simulation loci together
-def write_merged_simu(antn_lists, fastafname, metafname, mean_cells_per_droplet=None, fraction_of_reads_to_remove=None, constant_n_cells=False, bulk_data_fraction=False):  # NOTE that this writes a new input meta info file, which is where partis will then get the paird uid info if --input-metfname is set, but does *not* modify the 'paired-uids' key in the original simulation files (since we want those to be correct even if we're adding extra/removing cells from droplets)
+def get_simu_outmetafos(antn_lists):
     # merge together info from all loci into <outfos> and <metafos>
     outfos, metafos = [], {}
     for ltmp in antn_lists:
@@ -354,14 +361,21 @@ def write_merged_simu(antn_lists, fastafname, metafname, mean_cells_per_droplet=
                 outfos.append({'name' : uid, 'seq' : seq})
                 metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
 
-    if bulk_data_fraction is not None:
-        remove_pair_info_from_bulk_data(outfos, metafos, bulk_data_fraction)
-    if mean_cells_per_droplet is not None:
-        apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constant_n_cells=constant_n_cells)
-    if fraction_of_reads_to_remove is not None:
-        outfos = remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove)
+    return outfos, metafos
 
-    # write merged fasta and input meta files
+# ----------------------------------------------------------------------------------------
+def modify_pair_info(args, outfos, metafos, antn_lists, lp_infos):
+    if args.bulk_data_fraction is not None:
+        remove_pair_info_from_bulk_data(outfos, metafos, args.bulk_data_fraction)
+    if args.mean_cells_per_droplet is not None:
+        apportion_cells_to_droplets(outfos, metafos, args.mean_cells_per_droplet, constant_n_cells=args.constant_cells_per_droplet)
+    if args.fraction_of_reads_to_remove is not None:
+        outfos = remove_reads_from_droplets(outfos, metafos, args.fraction_of_reads_to_remove)
+    return outfos
+
+# ----------------------------------------------------------------------------------------
+# write fasta and meta file with all simulation loci together
+def write_simu_fasta_and_meta(fastafname, metafname, outfos, metafos):
     with open(fastafname, 'w') as outfile:
         for sfo in outfos:
             outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
