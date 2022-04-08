@@ -134,12 +134,13 @@ if args.kdfname is not None:
             if args.multiplicity_column is not None:
                 metafos[uid]['multiplicity'] = int(line[args.multiplicity_column])
 
-# convert metafos to per-locus names
-for base_id in metafos.keys():
-    for ltmp in utils.sub_loci('ig'):
-        new_id = '%s-%s' % (base_id, ltmp)
-        metafos[new_id] = metafos[base_id]
-    del metafos[base_id]
+if args.paired_loci:  # convert metafos to per-locus names
+    for base_id in metafos.keys():
+        for ltmp in utils.sub_loci('ig'):
+            new_id = '%s-%s' % (base_id, ltmp)
+            metafos[new_id] = metafos[base_id]
+        del metafos[base_id]
+
 # and write to json/yaml
 print '    writing input meta info to %s' % metafname()
 with open(metafname(), 'w') as mfile:
