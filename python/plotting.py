@@ -701,7 +701,8 @@ def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefnam
                     print '    getting tree from existing lb info'
                     dtree = treeutils.get_dendro_tree(treestr=line['tree-info']['lb']['tree'])
                 else:
-                    dtree = treeutils.get_tree_for_inf_line(line, treefname=treefname, debug=True)['tree']
+                    print '  %s may need testing' % utils.wrnstr()  # didn't run this after adding/rewriting this fcn
+                    dtree = treeutils.get_trees_for_annotations([line], treefname=treefname, debug=True)[0]['tree']
             if dtree is None:
                 raise Exception('plot_tree_mut_stats(): only_leaves was set, so we need the tree, but we couldn\'t get it from the annotation')
         else:  # default: include everybody

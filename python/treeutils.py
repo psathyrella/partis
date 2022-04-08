@@ -1774,39 +1774,6 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 
 # ----------------------------------------------------------------------------------------
-def get_tree_for_inf_line(line, treefname=None, cpath=None, annotations=None, use_true_clusters=False, ignore_existing_internal_node_labels=False, debug=False):
-    # figure out how we want to get the inferred tree
-    if treefname is not None:
-        uids_in_common = set()
-        for treestr in get_treestrs_from_file(treefname):
-            dtree = get_dendro_tree(treestr=treestr, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
-            uids_in_common = set([n.taxon.label for n in dtree.preorder_node_iter()]) & set(line['unique_ids'])
-            if len(uids_in_common) > 0:  # take the first one with any in common
-                origin = 'treefname'
-                break
-        if len(uids_in_common) == 0:
-            dtree = None
-            origin = 'no-uids'
-            print '  %s no uids in common between line and any trees from %s (line ids: %s)' % (utils.wrnstr(), treefname, ' '.join(line['unique_ids']))
-    elif False:  # use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
-        lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
-        dtree = get_dendro_tree(treestr=lonr_info['tree'])
-        # line['tree-info']['lonr'] = lonr_info
-        origin = 'lonr'
-    elif cpath is not None and cpath.i_best is not None and not use_true_clusters and line['unique_ids'] in cpath.partitions[cpath.i_best]:  # if <use_true_clusters> is set, then the clusters in <inf_lines_to_use> won't correspond to the history in <cpath>, so this won't work NOTE now that I've added the direct check if the unique ids are in the best partition, i can probably remove the use_true_clusters check, but I don't want to mess with it a.t.m.
-        assert annotations is not None
-        i_only_cluster = cpath.partitions[cpath.i_best].index(line['unique_ids'])
-        cpath.make_trees(annotations=annotations, i_only_cluster=i_only_cluster, get_fasttrees=True, debug=False)
-        dtree = cpath.trees[i_only_cluster]  # as we go through the loop, the <cpath> is presumably filling all of these in
-        origin = 'cpath'
-    else:
-        seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
-        dtree = get_fasttree_tree(seqfos, naive_seq=line['naive_seq'], debug=debug)
-        origin = 'fasttree'
-
-    return {'tree' : dtree, 'origin' : origin}
-
-# ----------------------------------------------------------------------------------------
 def check_lb_values(line, lbvals):
     for metric in [m for m in lbvals if m in lb_metrics]:
         missing = set(line['unique_ids']) - set(lbvals[metric])
@@ -1818,40 +1785,83 @@ def check_lb_values(line, lbvals):
             if len(missing) + len(extra) < 35:
                 print '      missing from lb info: %s\n      extra in lb info: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common))
 
-# NOTE this is not tested, but might be worth using in the future
-# # ----------------------------------------------------------------------------------------
-# def get_trees_for_annotations(annotations, cpath=None, workdir=None, min_cluster_size=default_min_selection_metric_cluster_size, cluster_indices=None, debug=False):  # NOTE this duplicates some code in the following function (but I want them separate since I don't really care about this fcn much)
-#     print 'getting trees'
-#     inf_lines_to_use = annotations.values()
-#     n_before = len(inf_lines_to_use)
-#     inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
-#     n_after = len(inf_lines_to_use)  # after removing the small ones
-#     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
-#     print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
-#     print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
-#     if cluster_indices is not None:
-#         if min(cluster_indices) < 0 or max(cluster_indices) >= len(inf_lines_to_use):
-#             raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, len(inf_lines_to_use)))
-#         print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
-#     n_already_there = 0
-#     for iclust, line in enumerate(inf_lines_to_use):
-#         if cluster_indices is not None and iclust not in cluster_indices:
-#             continue
-#         if debug:
-#             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
-#         if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
-#             if debug:
-#                 print '       %s overwriting tree that was already in <line>' % utils.color('yellow', 'warning')
-#             n_already_there += 1
-#         treefo = get_tree_for_inf_line(line, cpath=cpath, annotations=annotations, debug=debug)
-#         if treefo is None:
-#             continue
-#         tree_origin_counts[treefo['origin']]['count'] += 1
-#         line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-#         line['tree-info']['tree'] = treefo['tree'].as_string(schema='newick')
-#     print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
-#     if n_already_there > 0:
-#         print '    %s overwriting %d / %d that already had trees' % (utils.color('yellow', 'warning'), n_already_there, n_after)
+# ----------------------------------------------------------------------------------------
+def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
+    if cluster_indices is None:
+        return
+    if min(cluster_indices) < 0 or max(cluster_indices) >= ntot:
+        raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, ntot))
+    print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
+
+# ----------------------------------------------------------------------------------------
+# gets new tree for each specified annotation, and add a new 'tree-info' key for each (overwriting any that's already there)
+def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, gctree=False, debug=False):
+    filetrees = None
+    if treefname is not None:
+        filetrees = {}
+        for treestr in get_treestrs_from_file(treefname):
+            dtree = get_dendro_tree(treestr=treestr, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
+            treeids = set([n.taxon.label for n in dtree.preorder_node_iter()])
+            filetrees.append({'tree' : dtree, 'ids' : treeids})
+    ntot = len(inf_lines_to_use)
+    print '    getting trees for %d cluster%s with size%s: %s' % (ntot, utils.plural(ntot), utils.plural(ntot), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
+    check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
+    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
+    n_already_there, n_skipped_uid = 0, 0
+    treefos = [None for _ in inf_lines_to_use]
+    for iclust, line in enumerate(inf_lines_to_use):
+        if cluster_indices is not None and iclust not in cluster_indices:
+            continue
+        if debug:
+            print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
+        if 'tree-info' in line:  # overwrite any existing trees (although we could go back to skipping them)
+            if debug:
+                print '       %s overwriting tree that was already in <line>' % utils.color('yellow', 'warning')
+            n_already_there += 1
+        if treefname is not None:  # this assumes all trees are in the file, but i guess we could also just see if some are there and get the others ourselves
+            uids_in_common = set()
+            for tfo in filetrees:
+                uids_in_common = tfo['ids'] & set(line['unique_ids'])
+                if len(uids_in_common) > 0:  # take the first one with any in common
+                    dtree = tfo['tree']
+                    origin = 'treefname'
+                    break
+            if len(uids_in_common) == 0:
+                dtree = None  # can't continue here since we want to increment tree_origin_counts
+                origin = 'no-uids'
+                print '  %s no uids in common between line and any trees from %s (line ids: %s)' % (utils.wrnstr(), treefname, ' '.join(line['unique_ids']))
+        elif False:  # use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
+            lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
+            dtree = get_dendro_tree(treestr=lonr_info['tree'])
+            # line['tree-info']['lonr'] = lonr_info
+            origin = 'lonr'
+        elif cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
+            dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
+            origin = 'cpath'
+        elif gctree:
+            assert False
+        else:
+            seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
+            dtree = get_fasttree_tree(seqfos, naive_seq=line['naive_seq'], debug=debug)
+# TODO if preping, need another loop below or something
+            origin = 'fasttree'
+
+        tree_origin_counts[origin]['count'] += 1
+        if dtree is None:
+            if origin == 'no-uids':
+                n_skipped_uid += 1
+            continue
+        treefos[iclust] = {'tree' : dtree, 'origin' : origin}
+        line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
+        line['tree-info']['tree'] = dtree.as_string(schema='newick')
+
+    print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
+    if n_skipped_uid > 0:
+        print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, n_after, treefname)
+    if n_already_there > 0:
+        print '    %s overwriting %d / %d that already had trees' % (utils.color('yellow', 'warning'), n_already_there, ntot)
+
+    return treefos
 
 # ----------------------------------------------------------------------------------------
 def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize_lbi=False, extra_str=None, iclust=None, debug=False):  # and add them to <line>
@@ -1884,24 +1894,24 @@ def calculate_tree_metrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_f
         assert not args.dont_normalize_lbi  # it's trained on normalized lbi, so results are garbage if you don't normalize
         dtr_cfgvals, trainfo, skmodels, pmml_models, missing_models = init_dtr(train_dtr, args.dtr_path, cfg_fname=dtr_cfg)
 
-    if true_lines_to_use is not None:  # i.e. being called by bin/dtr-run.py
+    if true_lines_to_use is not None:  # being called by bin/dtr-run.py
         assert reco_info is None
         inf_lines_to_use = None
-    else:  # called from python/partitiondriver.py
+    else:  # called from python/partitiondriver.py (with reco_info set, which needs to be turned into true_lines_to_use)
         inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, only_use_best_partition=only_use_best_partition, glfo=glfo)  # NOTE these continue to be modified (by removing clusters we don't want) further down, and then they get passed to the plotting functions
 
     # get tree and calculate metrics for inferred lines
-    if inf_lines_to_use is not None and true_lines_to_use is None:  # eh, maybe i can get away with not running inferred stuff on true lines?
+    if inf_lines_to_use is not None and true_lines_to_use is None:  # if we have true lines, we don't run anything on inferred lines (at least atm)
         n_before = len(inf_lines_to_use)
         inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_after = len(inf_lines_to_use)  # after removing the small ones
-        tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
+        treefos = None
+# TODO check args.selection_metric_plot_cfg here
+        if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
+            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, debug=debug)
         print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
-        if args.cluster_indices is not None:
-            if min(args.cluster_indices) < 0 or max(args.cluster_indices) >= len(inf_lines_to_use):
-                raise Exception('invalid cluster indices %s for partition with %d clusters' % (args.cluster_indices, len(inf_lines_to_use)))
-            print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in args.cluster_indices), utils.plural(len(args.cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in args.cluster_indices))
+        check_cluster_indices(args.cluster_indices, n_after, inf_lines_to_use)
         n_already_there, n_skipped_uid = 0, 0
         final_inf_lines = []
         for iclust, line in enumerate(inf_lines_to_use):
@@ -1918,13 +1928,11 @@ def calculate_tree_metrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_f
             if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
 
-            # get the tree if any of the requested metrics need it
             if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):
-                treefo = get_tree_for_inf_line(line, treefname=treefname, cpath=cpath, annotations=annotations, use_true_clusters=use_true_clusters, debug=debug)
+                treefo = treefos[iclust]
                 if treefo['tree'] is None and treefo['origin'] == 'no-uids':
                     n_skipped_uid += 1
                     continue
-                tree_origin_counts[treefo['origin']]['count'] += 1
                 if any(m in metrics_to_calc for m in ['lbi', 'lbr']):  # have to (or at least easier to) calc both even if we only need one (although i think this is only because of the lbr_tau_factor shenanigans, which maybe we don't need any more?)
                     lbfo = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
                     check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
@@ -1934,16 +1942,16 @@ def calculate_tree_metrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_f
 
             if args.dtr_path is not None and not train_dtr:  # don't want to train on data (NOTE this would probably also need all the lb metrics calculated, but i don't care atm)
                 calc_dtr(False, line, line['tree-info']['lb'], treefo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
+
             for mtmp in [m for m in metrics_to_calc if m not in line['tree-info']['lb']]:  # ick (but we want it to work for e.g. the metric 'shm' which isn't the name of the annotation key)
                 line['tree-info']['lb'][mtmp] = {u : utils.antnval(line, mtmp, i) for i, u in enumerate(line['unique_ids'])}
 
             final_inf_lines.append(line)
-
-        print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
         if n_skipped_uid > 0:
             print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, n_after, treefname)
         if n_already_there > 0:
             print '    %s replaced tree info in %d / %d that already had it' % (utils.color('yellow', 'warning'), n_already_there, n_after)
+
         inf_lines_to_use = final_inf_lines  # replace it with a new list that only has the clusters we really want
 
     # calculate lb values for true lines/trees

@@ -664,3 +664,8 @@ class ClusterPath(object):
             sub_partitions, sub_annotations = self.get_sub_path(uid_set, partitions=partitions, annotations=annotations)
             self.trees[i_cluster] = self.make_single_tree(sub_partitions, sub_annotations, uid_set, naive_seq_name, get_fasttrees=get_fasttrees, debug=debug)
 
+    # ----------------------------------------------------------------------------------------
+    def get_single_tree(self, line, get_fasttrees=False, debug=False):  # make tree for <line>
+        i_only_cluster = self.best().index(line['unique_ids'])
+        self.make_trees(annotations=utils.get_annotation_dict([line]), i_only_cluster=i_only_cluster, get_fasttrees=get_fasttrees, debug=debug)
+        return self.trees[i_only_cluster]

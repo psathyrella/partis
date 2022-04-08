@@ -5781,7 +5781,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             n_random_queries = len(finfo)
         finfo = numpy.random.choice(finfo, n_random_queries, replace=False)
 
-    if look_for_tuples:  # this is really dumb
+    if look_for_tuples:  # this is because gctree writes broken fasta files with multiple uids in a line
         new_sfos, n_found = [], 0
         for sfo in finfo:
             headline = ' '.join(sfo['infostrs'])
