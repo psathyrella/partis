@@ -1796,15 +1796,16 @@ def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
 # ----------------------------------------------------------------------------------------
 # gets new tree for each specified annotation, and add a new 'tree-info' key for each (overwriting any that's already there)
 def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, gctree=False, debug=False):
-    filetrees = None
-    if treefname is not None:
-        filetrees = {}
-        for treestr in get_treestrs_from_file(treefname):
-            dtree = get_dendro_tree(treestr=treestr, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, debug=debug)
-            treeids = set([n.taxon.label for n in dtree.preorder_node_iter()])
-            filetrees.append({'tree' : dtree, 'ids' : treeids})
     ntot = len(inf_lines_to_use)
     print '    getting trees for %d cluster%s with size%s: %s' % (ntot, utils.plural(ntot), utils.plural(ntot), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
+    filetrees = None
+    if treefname is not None:
+        filetrees = []
+        for treestr in get_treestrs_from_file(treefname):
+            dtree = get_dendro_tree(treestr=treestr, debug=False)  # , ignore_existing_internal_node_labels=ignore_existing_internal_node_labels  # maybe i'll need this again in future?
+            treeids = set([n.taxon.label for n in dtree.preorder_node_iter()])
+            filetrees.append({'tree' : dtree, 'ids' : treeids})
+        print '      read %d trees from %s' % (len(filetrees), treefname)
     check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('lonr', 'ran liberman lonr'))}
     n_already_there, n_skipped_uid = 0, 0
