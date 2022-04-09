@@ -140,8 +140,7 @@ if os.path.dirname(args.fname) == '':
 if args.outdir is None:
     args.outdir = utils.getprefix(args.fname)
 args.droplet_id_indices = utils.get_arg_list(args.droplet_id_indices, intify=True)
-if args.input_metafname is not None and args.input_metafname[0] != '/':  # add the full path
-    args.input_metafname = '%s/%s' % (os.getcwd(), args.input_metafname)
+args.input_metafname = utils.fpath(args.input_metafname)
 
 if any(os.path.exists(ofn) for ofn in paircluster.paired_dir_fnames(args.outdir)):
     if args.overwrite:

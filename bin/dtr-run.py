@@ -50,8 +50,8 @@ if args.max_family_size is not None:
 
 if args.metric_method == 'dtr':
     raise Exception('I think the [new] first arg here (metrics_to_calc) isn\'t right, but don\'t want to test cause i don\'t care about dtr')
-    treeutils.calculate_tree_metrics(args, ['lbi', 'lbr', 'dtr'], None, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, base_plotdir=args.base_plotdir,
-                                     train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, ete_path=ete_path, workdir=workdir)
+    treeutils.add_smetrics(args, ['lbi', 'lbr', 'dtr'], None, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, base_plotdir=args.base_plotdir,
+                           train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, ete_path=ete_path, workdir=workdir)
 else:
     treeutils.calculate_individual_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, only_csv=args.only_csv_plots,
                                                 min_cluster_size=args.min_selection_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots,

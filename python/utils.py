@@ -2063,10 +2063,18 @@ def old_bio_cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=F
     return cons_seq
 
 # ----------------------------------------------------------------------------------------
-def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False):  # for search: get_seqfos()
+def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False, add_sfos_for_multiplicity=False, prepend_naive=False, naive_name='naive'):  # for search: get_seqfos()
     tstr = '_aa' if aa else ''
     skey = 'input_seqs' if use_input_seqs else 'seqs'
-    seqfos = [{'name' : u, 'seq' : s, 'multiplicity' : m if m is not None else 1} for u, s, m in zip(line['unique_ids'], line[skey+tstr], get_multiplicities(line))]
+    seqfos = []
+    if prepend_naive:
+        seqfos.append({'name' : naive_name, 'seq' : line['naive_seq']})
+    for uid, seq, mtp in zip(line['unique_ids'], line[skey+tstr], get_multiplicities(line)):
+        if add_sfos_for_multiplicity:  # add the sfo <mtp> times
+            for _ in range(mtp if mtp is not None else 1):
+                seqfos.append({'name' : uid, 'seq' : seq})
+        else:  # add it once, but with the 'multiplicity' key in the sfo
+            seqfos.append({'name' : uid, 'seq' : seq, 'multiplicity' : mtp if mtp is not None else 1})
     if extra_keys is not None:
         for iseq, sfo in enumerate(seqfos):
             for ekey in extra_keys:
@@ -3652,6 +3660,13 @@ def makelink(odir, target, link_name, dryrun=False):
     simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun)
 
 # ----------------------------------------------------------------------------------------
+def fpath(path):  # if <path> is relative, add full path from root (path can also be None)
+    if path is None or path[0] == '/':
+        return path
+    else:
+        return '%s/%s' % (os.getcwd(), path)
+
+# ----------------------------------------------------------------------------------------
 def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None, allow_other_files=False):
     """
     Make <dirname> if it d.n.e.
@@ -4323,11 +4338,14 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
         with open(cmdfname, 'w') as cmdfile:
             cmdfile.write(cmd_str)
         subprocess.check_call(['chmod', '+x', cmdfname])
+        if debug or dryrun:
+            print '      cmd lines in %s:' % cmdfname
+            print pad_lines('\n'.join(cmd_str.split('\n')))
+            sys.stdout.flush()
         cmd_str = cmdfname
 
     if debug:
         print '%s%s %s' % (extra_str, color('red', 'run'), cmd_str)
-    sys.stdout.flush()
     if dryrun:
         return '', '' if return_out_err else None
     if print_time is not None:
@@ -5671,6 +5689,7 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
     return seqfos
 
 # ----------------------------------------------------------------------------------------
+# if <look_for_tuples> is set, look for uids that are actually string-converted python tuples, and add each entry in the tuple as a duplicate sequence. Can also pass in a list <tuple_info> if you need to do more with the info afterwards (this is to handle gctree writing fasta files with broken names; see usage also in datascripts/meta/taraki-XXX)
 def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False, tuple_info=None):
     if ftype is None:
         suffix = getsuffix(fname)

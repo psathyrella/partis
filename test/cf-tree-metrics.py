@@ -280,21 +280,21 @@ def get_tree_metrics(args):
             if not os.path.isdir(tmpoutdir):
                 os.makedirs(tmpoutdir)
 
-        # it would probably be better to use dtr-run.py for everything, but then i'd be nervous i wasn't testing the partitiondriver version of the code enough UPDATE can now use it for lbi/lbr
+        # it would probably be better to use smetric-run.py for everything, but then i'd be nervous i wasn't testing the partitiondriver version of the code enough UPDATE can now use it for lbi/lbr
         tmpdir = get_tree_metric_plotdir(varnames, vstrs, metric_method=None if args.metric_method in ['lbi', 'lbr'] else args.metric_method, extra_str=args.extra_plotstr)  # if we're running lbi/lbr as a --metric-method to avoid running partis get-selection-metrics
         if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
             cmd = './bin/partis get-selection-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), tmpdir,
                                                                                                                                         get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
             cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
-            cmd += ' --selection-metrics-to-calculate lbi:lbr'  # TODO it would be better to just always use dtr-run.py, which you can do now, but i don't want to break backwards compatibility
+            cmd += ' --selection-metrics-to-calculate lbi:lbr'  # TODO it would be better to just always use smetric-run.py, which you can do now, but i don't want to break backwards compatibility
             if args.no_tree_plots:
                 cmd += ' --ete-path None'
             # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
             #     cmd += ' --n-procs %d' % args.n_sub_procs
         else:  # non-lb metrics, i.e. trying to predict with shm, etc.
-            cmd = './bin/dtr-run.py --metric-method %s --infname %s --base-plotdir %s' % (args.metric_method,
-                                                                                          get_simfname(varnames, vstrs),
-                                                                                          tmpdir)
+            cmd = './bin/smetric-run.py --metric-method %s --infname %s --base-plotdir %s' % (args.metric_method,
+                                                                                              get_simfname(varnames, vstrs),
+                                                                                              tmpdir)
             if args.metric_method == 'dtr':
                 if args.train_dtr and args.overwrite:  # make sure no training files exist, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)
                     assert set([os.path.exists(f) for f in get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)]) == set([False])
