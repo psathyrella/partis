@@ -339,7 +339,7 @@ class PartitionDriver(object):
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=cpath.partitions[cpath.i_best])  # replace <cpath> with a new <cpath> that only has the best partition. The cpath will in general have duplicate uids in different clusters when seed partitioning, so it's better to just use the best partition and use fasttree for everything
         treeutils.add_smetrics(self.args, self.args.selection_metrics_to_calculate, annotation_dict, self.args.lb_tau, lbr_tau_factor=self.args.lbr_tau_factor, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir,
-                               outfname=self.args.selection_metric_fname, only_use_best_partition=self.args.only_print_best_partition, glfo=self.glfo, gctree_outdir=None if self.args.outfname is None else os.path.dirname(utils.fpath(self.args.outfname)),
+                               outfname=self.args.selection_metric_fname, only_use_best_partition=self.args.only_print_best_partition, glfo=self.glfo, gctree_outdir=None if self.args.outfname is None or not self.args.run_gctree else os.path.dirname(utils.fpath(self.args.outfname)),
                                debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
@@ -520,6 +520,8 @@ class PartitionDriver(object):
             seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities', 'paired-uids'])  # these keys are modified by sw (multiplicities) or paired clustering (paired-uids), so if you want to update them with this action here you're out of luck
         if tmpact == 'update-meta-info' or (tmpact == 'get-selection-metrics' and self.args.add_selection_metrics_to_outfname):
             print '  rewriting output file with %s: %s' % ('newly-calculated selection metrics' if tmpact=='get-selection-metrics' else 'updated input meta info', outfname)
+            if self.args.add_selection_metrics_to_outfname and self.args.run_gctree:
+                print '  %s writing gctree annotations (with inferred ancestral sequences added) to original output file, which means that if you rerun gctree things may crash/be messed up since the inferred ancestral sequences are already in the annotation' % utils.wrnstr()
             self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'plot-partitions':

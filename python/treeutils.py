@@ -1798,7 +1798,7 @@ def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
 
 # ----------------------------------------------------------------------------------------
 # gets new tree for each specified annotation, and add a new 'tree-info' key for each (overwriting any that's already there)
-def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, run_gctree=False, gctree_outdir=None, glfo=None, extra_annotation_columns=None, debug=False):
+def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, run_gctree=False, gctree_outdir=None, glfo=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def prep_gctree(iclust, line):
         if glfo is not None:  # if you don't pass in glfo, your sequences better not have fwk insertions since gctree barfs on ambiguous bases
@@ -1868,7 +1868,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         elif cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
             dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
             origin = 'cpath'
-        else:
+        else:  # NOTE i sunk a bunch of time into trying to parallelize this, but since the existing fcn uses tempfile, and is called from a bunch of other places, it's pretty darn hard and probably not worth it
             seqfos = [{'name' : uid, 'seq' : seq} for uid, seq in zip(line['unique_ids'], line['seqs'])]
             dtree = get_fasttree_tree(seqfos, naive_seq=line['naive_seq'], debug=debug)
             origin = 'fasttree'
@@ -1888,12 +1888,8 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         for iclust, (line, cfo) in enumerate(zip(inf_lines_to_use, cmdfos)):
             dtree = get_dendro_tree(treefname=cfo['outfname'])
             seqfos = utils.read_fastx('%s/inferred-seqs.fa'%os.path.dirname(cfo['outfname']), look_for_tuples=True)
-            utils.add_seqs_to_line(line, seqfos, glfo, debug=debug)  # ok, i guess you need glfo
+            utils.add_seqs_to_line(line, seqfos, glfo, debug=debug)  # ok, i guess you need glfo (see above)
             addtree(iclust, line, dtree, 'gctree')
-        if gctree_outdir is not None:
-            anfname = '%s/gctree-annotations.yaml' % gctree_outdir
-            print '    writing gctree annotations (with inferred ancestral sequences) to %s' % anfname
-            utils.write_annotations(anfname, glfo, inf_lines_to_use, utils.add_lists(list(utils.annotation_headers), extra_annotation_columns))  # NOTE these have the fwk insertions removed, which is probably ok?
 
     print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_skipped_uid > 0:
@@ -1947,7 +1943,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
         n_after = len(inf_lines_to_use)  # after removing the small ones
         treefos = None
         if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
-            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, run_gctree=args.run_gctree, gctree_outdir=gctree_outdir, glfo=glfo, extra_annotation_columns=args.extra_annotation_columns, debug=debug)
+            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, run_gctree=args.run_gctree, gctree_outdir=gctree_outdir, glfo=glfo, debug=debug)
         print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
         check_cluster_indices(args.cluster_indices, n_after, inf_lines_to_use)
@@ -2066,6 +2062,10 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
             return dumpfo
         with open(outfname, 'w') as tfile:
             json.dump([dumpfo(l) for l in inf_lines_to_use if 'tree-info' in l], tfile)
+    if args.run_gctree and gctree_outdir is not None:
+        anfname = '%s/gctree-annotations.yaml' % gctree_outdir
+        print '    writing gctree annotations (with inferred ancestral sequences) to %s' % anfname
+        utils.write_annotations(anfname, glfo, inf_lines_to_use, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns))  # NOTE these probably have the fwk insertions removed, which is probably ok?
 
 # ----------------------------------------------------------------------------------------
 def init_dtr(train_dtr, dtr_path, cfg_fname=None):

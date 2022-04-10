@@ -144,15 +144,13 @@ parser.add_argument('--run-help', action='store_true', help='run gctree help')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
 args = parser.parse_args()
+args.infname = utils.fpath(args.infname)
+args.outdir = utils.fpath(args.outdir)
 
 if args.install:
     install()
     sys.exit()
 
 # ----------------------------------------------------------------------------------------
-if args.infname[0] != '/':
-    args.infname = '%s/%s' % (os.getcwd(), args.infname)
-if args.outdir[0] != '/':
-    args.outdir = '%s/%s' % (os.getcwd(), args.outdir)
 run_gctree(args.infname)
 parse_output()
