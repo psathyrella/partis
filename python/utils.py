@@ -3801,6 +3801,7 @@ def revcomp(nuc_seq):
     return str(bseq.Seq(nuc_seq).reverse_complement())
 
 # ----------------------------------------------------------------------------------------
+# NOTE do *not* call this directly on seqs from annotations, since they're not necessarily padded to the start of a codon (i.e. without first calling pad_seq_for_translation())
 def ltranslate(nuc_seq, trim=False):  # local file translation function
     if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
         from Bio.Seq import Seq
@@ -3814,10 +3815,10 @@ def get_cdr3_seq(info, iseq):  # NOTE includeds both codons, i.e. not the same a
     return info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3]
 
 # ----------------------------------------------------------------------------------------
-def add_naive_seq_aa(line):  # NOTE similarity to block in add_extra_column()
+def add_naive_seq_aa(line):
     if 'naive_seq_aa' in line:
         return
-    line['naive_seq_aa'] = ltranslate(line['naive_seq'])
+    line['naive_seq_aa'] = ltranslate(pad_seq_for_translation(line, line['naive_seq']))
 
 # ----------------------------------------------------------------------------------------
 def pad_seq_for_translation(line, tseq, debug=False):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
@@ -3841,6 +3842,7 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
         return
     line['seqs_aa'] = [ltranslate(pad_seq_for_translation(line, s, debug=debug)) for s in line['seqs']]
     line['input_seqs_aa'] = [ltranslate(pad_seq_for_translation(line, inseq, debug=debug)) if indelutils.has_indels_line(line, iseq) else irseq_aa for iseq, (inseq, irseq_aa) in enumerate(zip(line['input_seqs'], line['seqs_aa']))]
+    add_naive_seq_aa(line)
     if debug:
         print pad_lines('\n'.join(line['seqs_aa']))
         if any(indelutils.has_indels_line(line, i) for i in range(len(line['unique_ids']))):
@@ -3892,7 +3894,8 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
     elif key == 'consensus_seq_aa':
         outfo[key] = cons_seq_of_line(info, aa=True)
     elif key == 'naive_seq_aa':  # NOTE similarity to add_naive_seq_aa()
-        outfo[key] = ltranslate(info['naive_seq'])
+        add_naive_seq_aa(info)
+        outfo[key] = info['naive_seq']
     elif key == 'seqs_aa':  # NOTE similarity to add_seqs_aa()
         outfo[key] = [ltranslate(s) for s in info['seqs']]
     elif key in ['cons_dists_nuc', 'cons_dists_aa']:

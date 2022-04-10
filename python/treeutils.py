@@ -980,8 +980,10 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
     aa_dtree = copy.deepcopy(dtree)
     nuc_seqs = {uid : seq for uid, seq in zip(annotation['unique_ids'], annotation['seqs'])}
     aa_seqs = {uid : seq for uid, seq in zip(annotation['unique_ids'], annotation['seqs_aa'])}
-    nuc_seqs[dtree.seed_node.taxon.label] = annotation['naive_seq']
-    aa_seqs[dtree.seed_node.taxon.label] = annotation.get('naive_seq_aa', utils.ltranslate(annotation['naive_seq']))
+    if dtree.seed_node.taxon.label not in nuc_seqs:  # if it's already there, that should be because an observed seq is the root/naive
+        nuc_seqs[dtree.seed_node.taxon.label] = annotation['naive_seq']
+    if dtree.seed_node.taxon.label not in aa_seqs:
+        aa_seqs[dtree.seed_node.taxon.label] = annotation['naive_seq_aa']  # the aa naive seq *should* always be there now, since I just started adding it in add_seqs_aa()
 
     skipped_edges, missing_nodes = [], set()
     if debug > 1:
@@ -2213,6 +2215,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 #    2) mosty focuses on running one metric at a time (as opposed to running all the ones that we typically want on data)
 #    3) doesn't plot as many things
 #    4) only runs on simulation (as opposed to making two sets of things, for simulation and data)
+# and yes, it would be really *#(!$ing nice to merge them but I haven't had the time yet
 def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, lbr_tau_factor=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
                                       dont_normalize_lbi=False, cluster_indices=None, only_look_upwards=False, debug=False):
     # ----------------------------------------------------------------------------------------
