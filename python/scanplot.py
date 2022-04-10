@@ -159,13 +159,19 @@ def readlog(args, fname, metric, locus, ptntype):
 
 # ----------------------------------------------------------------------------------------
 # NOTE in some sense averaging over the ptiles from 75 to 100 is double counting (since e.g. the value at 75 is summing to 100), so it might make more sense to just take the value at 75 without averaging. But I think I like that it effectively over-weights the higher ptile values (since e.g. 100 occurs in every single one), plus this is used in a lot of places (e.g. in the paper) and i don't want to change it unless it's really wrong
-def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None, single_value=False, distr_hists=False):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
+def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None, single_value=False, distr_hists=False, spec_corr=False):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
     # ----------------------------------------------------------------------------------------
     def yval_key(subfo):
         if ptilestr == 'affinity' and 'mean_affy_ptiles' in subfo:  # old-style files used shortened version
             return 'mean_affy_ptiles'
         else:
             return 'mean_%s_ptiles' % ptilestr
+    # ----------------------------------------------------------------------------------------
+    def diff_fcn(affy_ptile, perf_ptile):
+        if spec_corr:  # specificity correlation
+            return 1. - abs(perf_ptile - affy_ptile) / (perf_ptile - 50)  # NOTE this used to use plain 50 in the denominator (fcn was also elsewhere), but this makes more sense (not a huge difference tho)
+        else:  # raw difference
+            return abs(perf_ptile - affy_ptile)
     # ----------------------------------------------------------------------------------------
     if 'percentiles' in yamlfo:  # new-style files (note that 'percentiles' will still be in there even if we didn't make the ptile plots)
         subfo = yamlfo['distr-hists' if distr_hists else 'percentiles']
@@ -188,7 +194,7 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
         def tfcn(p): return p == pt_val
     else:
         def tfcn(p): return p > min_ptile_to_plot
-    return [abs(pafp - afp) for lbp, afp, pafp in zip(subfo['lb_ptiles'], subfo[yval_key(subfo)], subfo['perfect_vals']) if tfcn(lbp)]
+    return [diff_fcn(afp, pafp) for lbp, afp, pafp in zip(subfo['lb_ptiles'], subfo[yval_key(subfo)], subfo['perfect_vals']) if tfcn(lbp)]
 
 # ----------------------------------------------------------------------------------------
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric

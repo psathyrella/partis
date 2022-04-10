@@ -828,11 +828,6 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
         with open(n_bin_cfg_fname) as cfile:
             n_bin_cfg = yaml.load(cfile, Loader=yaml.CLoader)
     # ----------------------------------------------------------------------------------------
-    def spec_corr(mdiff):
-        # if mdiff < 0 or mdiff > 50:
-        #     print '    %s mdiff outside bounds %f' % (utils.wrnstr(), mdiff)
-        return - (1. / 50) * mdiff + 1
-    # ----------------------------------------------------------------------------------------
     def modify_lines(slvar, slbounds):
         # ----------------------------------------------------------------------------------------
         def null_affy(line, iseq):
@@ -862,10 +857,10 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
                 if len(set(lines[iclust]['affinities']) - set([None])) == 1:  # if all the affinity values are the same we can't (well, shouldn't, and don't any more) make the ptile plots
                     isame[ix].append(iclust)
                     continue
-                diff_vals = scanplot.get_ptile_diff_vals(ymfo, iclust=iclust) #, single_value=True)
+                diff_vals = scanplot.get_ptile_diff_vals(ymfo, iclust=iclust, spec_corr=not use_quantile) #, single_value=True)
                 if len(diff_vals) > 0:
                     mdiff = numpy.mean(diff_vals)  # average over top 25% of ptiles (well, default is 25%)
-                    icvals.append(mdiff if use_quantile else spec_corr(mdiff))
+                    icvals.append(mdiff)
                 else:
                     imissing[ix].append(iclust)
             # mean: average over clusters (compare to 'for pvkey, ofvals in plotvals.items():' and 'for tau in tvd_keys:' bit in scaplot.make_plots())
