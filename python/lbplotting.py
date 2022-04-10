@@ -344,7 +344,7 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
     plotting.make_html(plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
-def get_tree_from_line(line, is_true_line, aa=False):
+def get_tree_in_line(line, is_true_line, aa=False):  # NOTE unlike treeutils.get_trees_for_annotations() this just looks to see if there's a tree already in the line
     if is_true_line:
         return line['tree']
     if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
@@ -423,7 +423,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             if 'ptile' in xvar or 'ptile' in yvar:  # if it's not a ptile, we just don't plot it unless we have a value for both x and y. But for ptiles I don't really want to think through right now how to handle it
                 raise Exception('  %s different uids in <lbfo> and <line>, and xvar or yvar is a ptile: %3d extra uids in lbfo, %3d extra in line, %3d in common. This (the code below) needs to be checked.' % (utils.color('yellow', 'warning'), len(set(lbfo) - set(line['unique_ids'])), len(set(line['unique_ids']) - set(lbfo)), len(set(line['unique_ids']) & set(lbfo))))
         if colorvar in ['is_leaf', 'edge-dist'] or xvar == 'edge-dist':
-            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric))
+            dtree = treeutils.get_dendro_tree(treestr=get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric))
             if dtree is None:
                 continue
 
@@ -951,7 +951,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
         if colorvar is not None and colorvar == 'is_leaf':
-            dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric))  # keeping this here to remind myself how to get the tree if I need it
+            dtree = treeutils.get_dendro_tree(treestr=get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric))  # keeping this here to remind myself how to get the tree if I need it
         if affy_key not in line:
             if debug: print '  no affy key'
             return plotvals
@@ -1126,7 +1126,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line, xvar, iclust):
         plotvals = {vt : [] for vt in [lb_metric, xvar, 'daffy']}  # , 'uids']}
-        dtree = treeutils.get_dendro_tree(treestr=get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric))
+        dtree = treeutils.get_dendro_tree(treestr=get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric))
         affy_increasing_edges, all_affy_changes = treeutils.find_affy_increases(dtree, line)
         if debug and iclust == 0:
             if debug > 1:
@@ -1366,7 +1366,7 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
     for lb_metric in metric_methods:
         fnames += [['header', '%s trees'%lb_metric], []]
         for iclust, line in enumerate(lines):  # note that <min_selection_metric_cluster_size> was already applied in treeutils
-            treestr = get_tree_from_line(line, is_true_line, aa='aa-lb' in lb_metric)
+            treestr = get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric)
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
             metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if affy_key in line:  # either 'affinities' or 'relative_affinities'

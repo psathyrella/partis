@@ -2990,7 +2990,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         p_atn['tree-info'] = {'lb' : {}}
         seqfos = [{'name' : combid(mfo), 'seq' : sumv(mfo, 'seqs')} for mfo in metric_pairs]  # sumv(mfo, 'unique_ids')
-        dtree = get_fasttree_tree(seqfos, naive_seq=sumv(mfo, 'naive_seq'))  # NOTE kind of duplicates get_tree_for_inf_line() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
+        dtree = get_fasttree_tree(seqfos, naive_seq=sumv(mfo, 'naive_seq'))  # NOTE kind of duplicates get_trees_for_annotations() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
         treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
         p_atn['tree-info']['lb']['tree'] = treestr
         p_atn['tree-info']['lb']['aa-tree'] = get_aa_tree(dtree, p_atn).as_string(schema='newick')
