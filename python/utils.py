@@ -833,9 +833,10 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         dbgstrs = '--n-random-queries', '(uniform randomly)'
     else:
         assert False
-    final_uids = [u for l in final_qlists for u in l]
-    print '  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgstrs[0], len(final_qlists), len(drop_query_lists), dbgstrs[1], len(final_uids), sum(len(ql) for ql in drop_query_lists))
-    return [s for s in seqfos if s['name'] in final_uids]
+    sfdict = {s['name'] : s for s in seqfos}
+    final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
+    print '  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgstrs[0], len(final_qlists), len(drop_query_lists), dbgstrs[1], len(final_sfos), sum(len(ql) for ql in drop_query_lists))
+    return final_sfos
 
 # ----------------------------------------------------------------------------------------
 def get_droplet_groups(all_uids, droplet_id_separators, droplet_id_indices):  # group all queries into droplets
