@@ -725,8 +725,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         n_not_found = 0
         if tdbg:
             print '              found?   drop id           contigs     overlaps (with any non-identical groups)'
-        def kfcn(u): return utils.get_droplet_id(u, args.droplet_id_separators, args.droplet_id_indices)
-        for dropid, drop_queries in itertools.groupby(sorted(all_uids, key=kfcn), key=kfcn):  # group all queries into droplets (assuming they conform to 10x convention for droplet ids)
+        for dropid, drop_queries in utils.get_droplet_groups(all_uids, args.droplet_id_separators, args.droplet_id_indices):
             dqlist = list(drop_queries)
             found = ':'.join(sorted(dqlist)) in pgroup_strs  # was this exact combination of queries in pid_groups?
             if not found:  # if not, see if any pid groups have some of these queries

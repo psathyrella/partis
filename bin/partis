@@ -443,6 +443,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             cmd = '%s/bin/extract-pairing-info.py %s %s' % (args.partis_dir, args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
+            if args.n_random_queries is not None:
+                cmd += ' --n-random-queries %d --random-seed %d' % (args.n_random_queries, args.random_seed)
             if args.droplet_id_separators is not None:
                 cmd += ' --droplet-id-separators %s' % args.droplet_id_separators
             if args.droplet_id_indices is not None:
@@ -466,6 +468,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             cmd += ' --droplet-id-indices %s' % ':'.join(str(i) for i in args.droplet_id_indices)
         if args.n_max_queries > 0:
             cmd += ' --n-max-queries %d' % args.n_max_queries
+        if args.n_random_queries is not None:
+            cmd += ' --n-random-queries %d --random-seed %d' % (args.n_random_queries, args.random_seed)
         utils.simplerun(cmd, dryrun=args.dry_run)
         if args.paired_outdir is None:
             no_pairing_info = not os.path.exists(mfname)
@@ -536,6 +540,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--dont-calculate-annotations')  # we need the single-chain partition steps to write annotations, although maybe it's just for pairing info so maybe we could write that separately, but whatever
             utils.remove_from_arglist(clist, '--guess-pairing-info')
             utils.remove_from_arglist(clist, '--no-pairing-info')
+            utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
+            utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
@@ -596,16 +602,12 @@ def run_all_loci(args, ig_or_tr='ig'):
 
             if joint and tmpaction in ['annotate', 'view-output', 'get-selection-metrics', 'plot-partitions']:  # used to have: 'args.plot_partitions or' which I'm pretty sure was wrong but too chicken to remove completely
                 clist[clist.index(args.action)] = tmpaction
-                utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
-                utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
             if args.seed_unique_id is not None and tmpaction == 'partition':
                 utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))  # this does almost the same thing as the line under 'annotate', but note that the tmp .fa files end up in different dirs, since lpair is unset here, whereas it's set for 'annotate'
                 utils.remove_from_arglist(clist, '--is-simu')  # at least for now, doing this since we're using fasta input file (which maybe is ok permanently?)
                 utils.remove_from_arglist(clist, '--seed-unique-id', has_arg=True)
             if joint and tmpaction == 'annotate':  # <joint> here (and just above) is just a proxy for if this is running annotations on paired clustering output (as opposed to if we're just running the plain annotate action)
                 utils.remove_from_arglist(clist, '--queries-to-include-fname', has_arg=True)  # we end up with inconsistent sequences (well, it's just that one is N-padded and the other isn't)
-                utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)  # we're no longer running on the initial input file, so theis (and --n-random-queries) screws everything up if e.g. --queries-to-include-fname is set by not reading all the seqs
-                utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
                 utils.remove_from_arglist(clist, '--plotdir', has_arg=True)  # i think there isn't anything we want to plot when we're getting the joint partition annotations?
                 utils.remove_from_arglist(clist, '--plot-annotation-performance')  # i think there isn't anything we want to plot when we're getting the joint partition annotations?
                 utils.remove_from_arglist(clist, '--persistent-cachefname', has_arg=True)  # i think there isn't anything we want to plot when we're getting the joint partition annotations?
@@ -669,6 +671,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print sdbgstr('output file missing', getofn(ltmp, joint=joint, lpair=lpair))
                 return
         print '%s %s:%s%s' % (utils.color('blue_bkg', tmpaction), lpstr, ltstr, utils.color('blue', ' merged') if joint and lpair is None else '')
+        sys.stdout.flush()
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
     def rewrite_input_metafo(ltmp, lpair, joint_partition, antn_dict, unpaired_seqs, single_antn_list):  # replace old paired uids with new, fixed ones (also writes tmp input meta file, even if there wasn't an original input meta file)

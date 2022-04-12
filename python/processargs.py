@@ -109,8 +109,12 @@ def process(args):
         args.locus = None
         if [args.infname, args.paired_indir].count(None) == 0:
             raise Exception('can\'t specify both --infname and --paired-indir')
-        if args.guess_pairing_info and args.paired_indir is not None:
-            print '  %s --guess-pairing-info has no effect on input when --paired-indir is set (only when --infname is set)' % utils.wrnstr()
+        if args.paired_indir is not None:
+            if args.guess_pairing_info:
+                print '  %s --guess-pairing-info has no effect on input when --paired-indir is set (only when --infname is set)' % utils.wrnstr()
+            for attrname in ['max', 'random']:
+                if getattr(args, 'n_%s_queries'%attrname) != (-1 if attrname=='max' else None):  # ick ick ick i wish i could go back and make default for max be None
+                    print '  %s --n-%s-queries can only try to choose properly paired seqs if --infname is set (since the args can then be passed to bin/split-loci.py); otherwise seqs are chosen from the different locus input files without regard to whether they\'re paired with each other.\n          But since --paired-indir is set we now have to assume the args were passed when that dir was generated (if they were, then all is well).' % (utils.wrnstr(), attrname)
         if args.outfname is not None:
             raise Exception('can\'t set --outfname if --paired-loci is set (use --paired-outdir)')
         if args.plotdir == 'paired-outdir':

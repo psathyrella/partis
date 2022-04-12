@@ -820,17 +820,42 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
     return fstr
 
 # ----------------------------------------------------------------------------------------
-def set_did_vals(uid):
-    if uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation, e.g. 7842229920653554932-igl
-        return '-', list(range(uid.count('-')))  # make the last bit the contig id, and keep everything else as the droplet id (kind of arbitrary)
-    elif '_contig_' in uid:  # 10x data
+def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=-1):
+    if [n_max_queries, n_random_queries].count(-1) != 1:
+        raise Exception('have to set exactly 1 of n_max_queries and n_random_queries to non-minus-1 value, but got %s %s ' % (n_max_queries, n_random_queries))
+    idg_it = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices)
+    drop_ids, drop_query_lists = zip(*[(did, list(qiter)) for did, qiter in idg_it])
+    if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense, but <drop_ids> is sorted alphabetically, so we're taking them in that order at least
+        final_qlists = drop_query_lists[:n_max_queries]
+        dbgstrs = '--n-max-queries', '(first %d, after sorting alphabetically by droplet id)' % n_max_queries
+    elif n_random_queries != -1:
+        final_qlists = numpy.random.choice(drop_query_lists, size=n_random_queries)
+        dbgstrs = '--n-random-queries', '(uniform randomly)'
+    else:
+        assert False
+    final_uids = [u for l in final_qlists for u in l]
+    print '  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgstrs[0], len(final_qlists), len(seqfos), dbgstrs[1], len(final_uids), sum(len(ql) for ql in drop_query_lists))
+    return [s for s in seqfos if s['name'] in final_uids]
+
+# ----------------------------------------------------------------------------------------
+def get_droplet_groups(all_uids, droplet_id_separators, droplet_id_indices):  # group all queries into droplets
+    def kfcn(u): return get_droplet_id(u, droplet_id_separators, droplet_id_indices)
+    return itertools.groupby(sorted(all_uids, key=kfcn), key=kfcn)  # iterate over result with: 'for dropid, drop_queries in '
+
+# ----------------------------------------------------------------------------------------
+def set_did_vals(uid):  # NOTE this is a pretty shitty way to do this, but i haven't thought of anything better
+    if '_contig_' in uid:  # 10x data
         return '_', [0]
+    elif uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation, e.g. 7842229920653554932-igl
+        if '_contig_' in uid:
+            print '  %s found string \'_contig_\' in uid \'%s\' that also has locus \'%s\' at the end (which likely means pair info guessing is not working' % (wrnstr(), uid, uid.split('-')[-1])
+        return '-', list(range(uid.count('-')))  # make the last bit the contig id, and keep everything else as the droplet id (kind of arbitrary)
     else:  # default (same as 10x atm)
         return '_', [0]
 
 # ----------------------------------------------------------------------------------------
 did_help = {
-    'guess' : 'Try to guess pairing info based on paired sequences having the same name, then append the locus to each uid (so e.g. \'2834\' --> \'2834-igh\', \'2834-igk\'). If set, this *must* be set both when split-loci.py is run (e.g. caching parameters) *and* during later inference (since e.g. --treefname or --input-partition-fname must be modified).',
+    'guess' : 'Try to guess pairing info based on paired sequences having similar names, then append the locus to each uid (so e.g. \'2834_contig_1\', \'2834_contig_3\' --> \'2834-igh\', \'2834-igk\'). If set, this *must* be set both when split-loci.py is run (e.g. caching parameters) *and* during later inference (since e.g. --treefname or --input-partition-fname must be modified).',
     'seps' : 'String consisting of characters that should be used to find the droplet id in each uid string (with --droplet-id-index), i.e. calls <uid>.split(<--droplet-id-separators>)[--droplet-id-index] (recursively, if there\'s more than one character). For example \'-._\' would split on each instance of \'-\', \'.\', or \'_\'. Default is set in utils.set_did_vals(), and should work for 10x data and partis simulation (e.g. the 10x uid AAACGGGCAAGCGAGT-1_contig_2 has a droplet id of AAACGGGCAAGCGAGT-1, and the simulation uid of 7842229920653554932-igl has a droplet id of 7842229920653554932).',
     'indices' : 'Colon-separated list of zero-based indices used with --droplet-id-separators (see that arg\'s help). Default is set in utils.set_did_vals(), and should work for 10x data and partis simulation.',
 }
@@ -4349,6 +4374,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
 
     if debug:
         print '%s%s %s' % (extra_str, color('red', 'run'), cmd_str)
+        sys.stdout.flush()
     if dryrun:
         return '', '' if return_out_err else None
     if print_time is not None:
@@ -4373,6 +4399,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
         os.remove(cmdfname)
     if print_time is not None:
         print '      %s time: %.1f' % (print_time, time.time() - start)
+        sys.stdout.flush()
 
     if return_out_err:
         return outstr, errstr

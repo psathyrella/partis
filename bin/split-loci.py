@@ -7,6 +7,8 @@ import argparse
 import operator
 import colored_traceback.always
 import collections
+import random
+import numpy
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
@@ -36,12 +38,15 @@ parser.add_argument('--vsearch-binary', help='Path to vsearch binary (vsearch bi
 parser.add_argument('--vsearch-threshold', type=float, default=0.4, help='default identity threshold for vsearch')
 parser.add_argument('--debug', type=int, default=1)
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--random-seed', type=int, default=1)
 parser.add_argument('--guess-pairing-info', action='store_true', help=utils.did_help['guess'])
 parser.add_argument('--droplet-id-separators', help=utils.did_help['seps'])
 parser.add_argument('--droplet-id-indices', help=utils.did_help['indices'])
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info/meta string of sequence name/uid (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
 parser.add_argument('--input-metafname', help='yaml file with meta information keyed by sequence id. See same argument in main partis help, and https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
-parser.add_argument('--n-max-queries', type=int)
+parser.add_argument('--for-testing-n-max-queries', type=int, default=-1, help='only for testing, applied when reading initial fasta file, just in case it\'s huge and you want to run quickly without having to read the whole file')
+parser.add_argument('--n-max-queries', type=int, default=-1, help='see partis help (although here it applies to droplets, not individual seqs)')
+parser.add_argument('--n-random-queries', type=int, default=-1, help='see partis help (although here it applies to droplets, not individual seqs)')
 parser.add_argument('--ig-or-tr', default='ig', choices=utils.locus_pairs.keys(), help='antibodies or TCRs?')
 
 # ----------------------------------------------------------------------------------------
@@ -135,6 +140,8 @@ def print_pairing_info(outfos, paired_uids):
 
 # ----------------------------------------------------------------------------------------
 args = parser.parse_args()
+random.seed(args.random_seed)
+numpy.random.seed(args.random_seed)
 if os.path.dirname(args.fname) == '':
     args.fname = '%s/%s' % (os.getcwd(), args.fname)
 if args.outdir is None:
@@ -149,7 +156,9 @@ if any(os.path.exists(ofn) for ofn in paircluster.paired_dir_fnames(args.outdir)
         print '  split-loci.py output exists and --overwrite was not set, so not doing anything: %s' % args.outdir
         sys.exit(0)
 
-seqfos = utils.read_fastx(args.fname, n_max_queries=args.n_max_queries)
+seqfos = utils.read_fastx(args.fname, n_max_queries=args.for_testing_n_max_queries)
+if args.n_random_queries != -1 or args.n_max_queries != -1:
+    seqfos = utils.subset_paired_queries(seqfos, args.droplet_id_separators, args.droplet_id_indices, n_max_queries=args.n_max_queries, n_random_queries=args.n_random_queries)
 if args.fasta_info_index is not None:
     for sfo in seqfos:
         sfo['name'] = sfo['infostrs'][args.fasta_info_index]
