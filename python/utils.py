@@ -834,7 +834,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     else:
         assert False
     final_uids = [u for l in final_qlists for u in l]
-    print '  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgstrs[0], len(final_qlists), len(seqfos), dbgstrs[1], len(final_uids), sum(len(ql) for ql in drop_query_lists))
+    print '  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgstrs[0], len(final_qlists), len(drop_query_lists), dbgstrs[1], len(final_uids), sum(len(ql) for ql in drop_query_lists))
     return [s for s in seqfos if s['name'] in final_uids]
 
 # ----------------------------------------------------------------------------------------
