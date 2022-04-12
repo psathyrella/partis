@@ -30,7 +30,7 @@ parser.add_argument('--droplet-id-indices', help=utils.did_help['indices'])
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--for-testing-n-max-queries', type=int, default=-1, help='only for testing, applied when reading initial fasta file, just in case it\'s huge and you want to run quickly without having to read the whole file')
 parser.add_argument('--n-max-queries', type=int, default=-1, help='see partis help (although here it applies to droplets, not individual seqs)')
-parser.add_argument('--n-random-queries', type=int, default=-1, help='see partis help (although here it applies to droplets, not individual seqs)')
+parser.add_argument('--n-random-queries', type=int, help='see partis help (although here it applies to droplets, not individual seqs)')
 parser.add_argument('--input-metafname', help='json/yaml file with additional (beyond pairing info) input meta info (see partis help)')
 parser.add_argument('--random-seed', type=int, default=1)
 args = parser.parse_args()
@@ -43,7 +43,7 @@ if utils.output_exists(args, args.outfname, offset=4, debug=False):
     sys.exit(0)
 
 seqfos = utils.read_fastx(args.infname, n_max_queries=args.for_testing_n_max_queries)
-if args.n_random_queries != -1 or args.n_max_queries != -1:
+if args.n_max_queries != -1 or args.n_random_queries is not None:
     seqfos = utils.subset_paired_queries(seqfos, args.droplet_id_separators, args.droplet_id_indices, n_max_queries=args.n_max_queries, n_random_queries=args.n_random_queries)
 metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separators, droplet_id_indices=args.droplet_id_indices, input_metafname=args.input_metafname)
 

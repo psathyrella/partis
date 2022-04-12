@@ -820,9 +820,9 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
     return fstr
 
 # ----------------------------------------------------------------------------------------
-def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=-1):
-    if [n_max_queries, n_random_queries].count(-1) != 1:
-        raise Exception('have to set exactly 1 of n_max_queries and n_random_queries to non-minus-1 value, but got %s %s ' % (n_max_queries, n_random_queries))
+def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
+    if n_max_queries != -1 and n_random_queries is not None:
+        raise Exception('have to set exactly 1 of n_max_queries and n_random_queries, but got %s %s ' % (n_max_queries, n_random_queries))
     idg_it = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices)
     drop_ids, drop_query_lists = zip(*[(did, list(qiter)) for did, qiter in idg_it])
     if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense, but <drop_ids> is sorted alphabetically, so we're taking them in that order at least

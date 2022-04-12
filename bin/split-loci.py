@@ -46,7 +46,7 @@ parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fa
 parser.add_argument('--input-metafname', help='yaml file with meta information keyed by sequence id. See same argument in main partis help, and https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parser.add_argument('--for-testing-n-max-queries', type=int, default=-1, help='only for testing, applied when reading initial fasta file, just in case it\'s huge and you want to run quickly without having to read the whole file')
 parser.add_argument('--n-max-queries', type=int, default=-1, help='see partis help (although here it applies to droplets, not individual seqs)')
-parser.add_argument('--n-random-queries', type=int, default=-1, help='see partis help (although here it applies to droplets, not individual seqs)')
+parser.add_argument('--n-random-queries', type=int, help='see partis help (although here it applies to droplets, not individual seqs)')
 parser.add_argument('--ig-or-tr', default='ig', choices=utils.locus_pairs.keys(), help='antibodies or TCRs?')
 
 # ----------------------------------------------------------------------------------------
@@ -157,7 +157,7 @@ if any(os.path.exists(ofn) for ofn in paircluster.paired_dir_fnames(args.outdir)
         sys.exit(0)
 
 seqfos = utils.read_fastx(args.fname, n_max_queries=args.for_testing_n_max_queries)
-if args.n_random_queries != -1 or args.n_max_queries != -1:
+if args.n_max_queries != -1 or args.n_random_queries is not None:
     seqfos = utils.subset_paired_queries(seqfos, args.droplet_id_separators, args.droplet_id_indices, n_max_queries=args.n_max_queries, n_random_queries=args.n_random_queries)
 if args.fasta_info_index is not None:
     for sfo in seqfos:
