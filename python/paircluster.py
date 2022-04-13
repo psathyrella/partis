@@ -178,14 +178,17 @@ def get_both_lpair_antn_pairs(lpairs, lp_infos):  # ok this name sucks, but this
     return antn_pairs
 
 # ----------------------------------------------------------------------------------------
-# NOTE the deep copies are really important, since we later deduplicate the concatd partitions + annotations (they didn't used to be there, which caused a bug/crash) [well even if we didn't deduplicate, it was fucking stupid to not deep copy them)
+# NOTE the deep copies can be really important, since we later deduplicate the concatd partitions + annotations (they didn't used to be there, which caused a bug/crash) [well even if we didn't deduplicate, it was fucking stupid to not deep copy them)
 # NOTE also that you'll probably have duplicates in both the partitions and annotations after this
-def concat_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
+def concat_heavy_chain(lpairs, lp_infos, dont_deep_copy=False):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
     # ----------------------------------------------------------------------------------------
     def glpf(p, k, l):  # short for "get key (k) from lp_infos for lpair (p) and locus (l) NOTE duplicates code in write_lpair_output_files
         if tuple(p) not in lp_infos or lp_infos[tuple(p)][k] is None:
             return None
         return lp_infos[tuple(p)][k].get(l)
+    # ----------------------------------------------------------------------------------------
+    def dfn(val):
+        return val if dont_deep_copy else copy.deepcopy(val)
     # ----------------------------------------------------------------------------------------
     glfos, antn_lists, joint_cpaths = {}, {}, {}
     for lpair in lpairs:
@@ -194,16 +197,38 @@ def concat_heavy_chain(lpairs, lp_infos):  # yeah yeah this name sucks but i wan
                 continue
             if ltmp in glfos:  # heavy chain, second time through: merge chain glfos from those paired with igk and with igl
                 glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
-                antn_lists[ltmp] += copy.deepcopy(glpf(lpair, 'antn_lists', ltmp))
+                antn_lists[ltmp] += dfn(glpf(lpair, 'antn_lists', ltmp))
                 if glpf(lpair, 'cpaths', ltmp) is not None:
                     assert len(joint_cpaths[ltmp].partitions) == 1  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
-                    joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + copy.deepcopy(glpf(lpair, 'cpaths', ltmp).best()))
+                    joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + dfn(glpf(lpair, 'cpaths', ltmp).best()))
             else:  # light + heavy chain first time through
-                glfos[ltmp] = copy.deepcopy(glpf(lpair, 'glfos', ltmp))
-                antn_lists[ltmp] = copy.deepcopy(glpf(lpair, 'antn_lists', ltmp))
+                glfos[ltmp] = dfn(glpf(lpair, 'glfos', ltmp))
+                antn_lists[ltmp] = dfn(glpf(lpair, 'antn_lists', ltmp))
                 if glpf(lpair, 'cpaths', ltmp) is not None:
-                    joint_cpaths[ltmp] = copy.deepcopy(glpf(lpair, 'cpaths', ltmp))
+                    joint_cpaths[ltmp] = dfn(glpf(lpair, 'cpaths', ltmp))
     return glfos, antn_lists, joint_cpaths
+
+# ----------------------------------------------------------------------------------------
+def find_seq_pairs(antn_lists, ig_or_tr='ig'):
+    # ----------------------------------------------------------------------------------------
+    def handle_atntn(ltmp, antn):
+        for iseq, (tid, pids, iseq) in enumerate(zip(antn['unique_ids'], antn['paired-uids'], antn['input_seqs'])):
+            tstr, ostr = ('h', 'l') if utils.has_d_gene(ltmp) else ('l', 'h')
+            if len(pids) == 0:  # add all the unpaired seqs
+                ofo = {'%s_id'%tstr : tid, '%s_locus'%tstr : ltmp, '%s_seq'%tstr : iseq, '%s_id'%ostr : '', '%s_locus'%ostr : '', '%s_seq'%ostr : ''}
+            elif len(pids) == 1 and tstr == 'h':  # write h/l pairs when <ltmp> is the h locus
+                lfo = all_seqs.get(pids[0], '')  # it really should be in there, but whatever i don't want to crash if it isn't
+                ofo = {'h_id' : tid, 'h_locus' : ltmp, 'h_seq' : iseq, 'l_id' : pids[0], 'l_locus' : lfo['locus'], 'l_seq' : lfo['seq']}
+            else:
+                continue
+            outfos.append(ofo)
+    # ----------------------------------------------------------------------------------------
+    all_seqs = {u : {'seq' : s, 'locus' : l} for l, alist in antn_lists.items() for a in alist for u, s in zip(a['unique_ids'], a['input_seqs'])}
+    outfos = []
+    for ltmp in sorted(antn_lists):
+        for antn in antn_lists[ltmp]:
+            handle_atntn(ltmp, antn)
+    return outfos
 
 # ----------------------------------------------------------------------------------------
 # NOTE i'm really not sure that this fcn needs to exist -- don't the joint partitions for h and l end up ordered i.e. with each cluster tied to its partner? Or at least I should be able to keep track of who goes with who so I don't need to reconstruct it here
@@ -352,7 +377,7 @@ def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
     return outfos, uids_to_remove
 
 # ----------------------------------------------------------------------------------------
-def get_simu_outmetafos(antn_lists):  # merge together info from all loci into <outfos> and <metafos>
+def get_combined_outmetafos(antn_lists):  # merge together info from all loci into <outfos> and <metafos>
     outfos, metafos = [], {}
     for ltmp in antn_lists:
         for tline in antn_lists[ltmp]:
@@ -360,6 +385,16 @@ def get_simu_outmetafos(antn_lists):  # merge together info from all loci into <
                 outfos.append({'name' : uid, 'seq' : seq})
                 metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
     return outfos, metafos
+
+# ----------------------------------------------------------------------------------------
+# write fasta and meta file with all simulation loci together
+def write_combined_fasta_and_meta(fastafname, metafname, outfos, metafos):
+    utils.mkdir(fastafname, isfile=True)
+    with open(fastafname, 'w') as outfile:
+        for sfo in outfos:
+            outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
+    with open(metafname, 'w') as mfile:
+        json.dump(metafos, mfile)
 
 # ----------------------------------------------------------------------------------------
 def modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos):
@@ -394,15 +429,6 @@ def modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos):
         for ltmp in concat_lpfos['glfos']:
             update_lpf(concat_lpfos, ltmp, uids_to_remove)
     return outfos
-
-# ----------------------------------------------------------------------------------------
-# write fasta and meta file with all simulation loci together
-def write_simu_fasta_and_meta(fastafname, metafname, outfos, metafos):
-    with open(fastafname, 'w') as outfile:
-        for sfo in outfos:
-            outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
-    with open(metafname, 'w') as mfile:
-        json.dump(metafos, mfile)
 
 # ----------------------------------------------------------------------------------------
 # rename all seqs in the light chain partition to their paired heavy chain uid (also change uids in the light chain annotations). Note that pairings must, at this stage, be unique.

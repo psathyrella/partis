@@ -408,7 +408,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             mfnames += args.input_metafnames
         elif os.path.exists(getofn(ltmp, joint=joint, lpair=lpair, input_meta=True)):
             mfnames.append(getofn(ltmp, joint=joint, lpair=lpair, input_meta=True))
-        if os.path.exists(getifn('meta')):  # look in a default-ish location to which e.g. paircluster.write_simu_fasta_and_meta() writes it
+        if os.path.exists(getifn('meta')):  # look in a default-ish location to which e.g. paircluster.write_combined_fasta_and_meta() writes it
             if tdbg:
                 print '  note: adding input metafname from default location (%s)' % getifn('meta')
             mfnames.append(getifn('meta'))
@@ -772,12 +772,12 @@ def run_all_loci(args, ig_or_tr='ig'):
             for ltmp in lpair:  # replace the old cpaths with new ones using the new uids (this should be faster than translating individual uids as we go)
                 lpfos['cpaths'][ltmp] = ClusterPath(partition=utils.get_partition_from_annotation_list(lpfos['antn_lists'][ltmp]), seed_unique_id=seedid(ltmp))
         concat_lpfos = handle_concatd_heavy_chain(lp_infos)
-        outfos, metafos = paircluster.get_simu_outmetafos(concat_lpfos['antn_lists'])
+        outfos, metafos = paircluster.get_combined_outmetafos(concat_lpfos['antn_lists'])
         outfos = paircluster.modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos)
         headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
         paircluster.write_lpair_output_files(spairs(), lp_infos, getofn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
         paircluster.write_concatd_output_files(concat_lpfos['glfos'], concat_lpfos['antn_lists'], getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], dont_write_git_info=args.dont_write_git_info)
-        paircluster.write_simu_fasta_and_meta(get_merged_fn('all-seqs'), get_merged_fn('meta'), outfos, metafos)
+        paircluster.write_combined_fasta_and_meta(get_merged_fn('all-seqs'), get_merged_fn('meta'), outfos, metafos)
     # ----------------------------------------------------------------------------------------
     def get_true_partitions():  # NOTE see also read_true_files() below
         if args.is_data or args.paired_indir is None:

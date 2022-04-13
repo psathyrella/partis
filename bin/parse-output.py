@@ -66,14 +66,15 @@ Extract sequences from a partis output file and write them to a fasta, csv, or t
 For details of partis output files, see the manual.
 To view the partitions and annotations in a partis output file, use the partis \'view-output\' action.
 Example usage:
-    ./bin/parse-output.py test/reference-results/partition-new-simu.yaml out.fa
+    bin/parse-output.py test/reference-results/partition-new-simu.yaml out.fa
+    bin/parse-output.py test/paired/ref-results/partition-new-simu outdir --paired
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
 parser.add_argument('infile', help='partis output file from which to read input')
-parser.add_argument('outfile', help='file to which to write output extracted from <infile> (fasta or csv/tsv)')
+parser.add_argument('outfile', help='File to which to write output extracted from <infile> (fasta or csv/tsv). If --paired is set, this must be a directory, to which will be written a fasta with all sequences, a yaml with pairing info, and a csv with h/l sequence pairs.')
 parser.add_argument('--paired', action='store_true', help='if set, <infile> should be a paired output dir, rather than a single file')
 parser.add_argument('--extra-columns', help='colon-separated list of additional partis output columns (beyond sequences), to write to the output file. If writing to a fasta file, the column values are appended after the sequence name, separated by --fasta-info-separator. If writing to csv/tsv, they\'re written as proper, labeled columns.')
 parser.add_argument('--partition-index', type=int, help='if set, use the partition at this index in the cluster path, rather than the default of using the best partition')
@@ -110,7 +111,11 @@ if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old scrip
 
 args = parser.parse_args()
 args.extra_columns = utils.get_arg_list(args.extra_columns)
-assert utils.getsuffix(args.outfile) in ['.csv', '.tsv', '.fa', '.fasta'] or args.airr_input and utils.getsuffix(args.outfile) == '.yaml'
+if args.paired:
+    if utils.getsuffix(args.outfile) != '':
+        raise Exception('--outfile \'%s\' must be a directory, but it has a non-empty suffix \'%s\'' % (args.outfile, utils.getsuffix(args.outfile)))
+else:
+    assert utils.getsuffix(args.outfile) in ['.csv', '.tsv', '.fa', '.fasta'] or args.airr_input and utils.getsuffix(args.outfile) == '.yaml'
 
 default_glfo_dir = partis_dir + '/data/germlines/human'
 if utils.getsuffix(args.infile) in ['.csv', '.tsv'] and args.glfo_dir is None:
@@ -120,6 +125,8 @@ if utils.getsuffix(args.infile) in ['.csv', '.tsv'] and args.glfo_dir is None:
 # ----------------------------------------------------------------------------------------
 # read input
 if args.paired:
+    if not os.path.isdir(args.infile):
+        raise Exception('--infile \'%s\' either doesn\'t exist or it isn\'t a directory' % args.infile)
     import paircluster
     def getofn(ltmp, lpair=None):
         ofn = paircluster.paired_fn(args.infile, ltmp, lpair=lpair, suffix='.yaml')
@@ -153,7 +160,19 @@ if args.plotdir is not None:
     if args.only_make_plots:
         sys.exit(0)
 
-assert not args.paired  # only handled for plotting above atm
+if args.paired:
+    if args.airr_output:
+        raise Exception('--airr-output not yet implemented with --paired')
+    glfos, antn_lists, cpaths = paircluster.concat_heavy_chain(utils.locus_pairs['ig'], lp_infos, dont_deep_copy=True)  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
+    outfos, metafos = paircluster.get_combined_outmetafos(antn_lists)
+    paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%args.outfile, '%s/meta.yaml'%args.outfile, outfos, metafos)
+    outfos = paircluster.find_seq_pairs(antn_lists)
+    with open('%s/seq-pairs.csv'%args.outfile, 'w') as cfile:
+        writer = csv.DictWriter(cfile, ['%s_%s'%(c, s) for s in ('id', 'locus', 'seq') for c in 'hl'])  # sorted(outfos[0].keys()))
+        writer.writeheader()
+        for ofo in outfos:
+            writer.writerow(ofo)
+    sys.exit(0)
 
 # restrict to certain partitions/clusters
 if cpath is None or cpath.i_best is None:
