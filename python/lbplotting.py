@@ -893,18 +893,21 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
             print '   %s with %d bins from %.4f to %.4f (%d/%d initial null affinities)' % (utils.color('blue', slvar), n_bins, xbins[0], xbins[-1], initial_n_null, n_tot)
             hstr = 'qtp' if use_quantile else 's-corr'
             print '    %s   x     %s (+/-)    xmin    xmax    N not null' % (utils.color('purple', 'slice'), hstr)
-        xvals, mean_vals, err_vals = [], [], []
+        xvals, mean_vals, err_vals, affy_ranges = [], [], [], []
         imissing, isame = [[] for _ in range(n_bins)], [[] for _ in range(n_bins)]
+        slhist = Hist(n_bins=n_bins, xbins=xbins, xmin=xbins[0], xmax=xbins[-1])
         for ix in range(n_bins):  # NOTE len(xbins) is one more than n_bins, for the low edge of the overflow bin
             modify_lines(slvar, (xbins[ix], xbins[ix+1]))
             xv, mval, err = 0.5 * (xbins[ix] + xbins[ix+1]), None, None
             affy_val_set = set(a for l in lines for a in l['affinities']) - set([None])
+            affy_ranges.append([min(affy_val_set), max(affy_val_set)])
             if len(affy_val_set) > 1:  # any(a is not None for l in lines for a in l['affinities']) and len(:
                 mval, err = get_plot_vals(ix)
                 if mval is not None:
                     xvals.append(xv)
                     mean_vals.append(mval)
                     err_vals.append(err)
+                    slhist.set_ibin(slhist.find_bin(xv), mval, err)  # NOTE <ix> is *not* the same as ibin
             if debug:
                 n_non_now = nonnullcnt()
                 print_dbg(xv, mval, err, n_non_now)
@@ -920,14 +923,23 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
                 print '        slice %d: missing %d / %d iclusts: %s' % (ix, len(imissing[ix]), len(lines), ' '.join(str(i) for i in imissing[ix]))
             if len(isame[ix]) > 0:
                 print '        slice %d: all affinity values the same for %d / %d iclusts: %s' % (ix, len(isame[ix]), len(lines), ' '.join(str(i) for i in isame[ix]))
-    
+
         fig, ax = plotting.mpl_init()
-        ax.errorbar(xvals, mean_vals, yerr=err_vals, linewidth=2, markersize=15, marker='.')  #, title='position ' + str(position)) #, label=legstr(label)
+        slhist.mpl_plot(ax, square_bins=True, errors=True, no_vertical_bin_lines=True, color='#006600', linewidth=6)
+        # NOTE this removes empty bins, which doesn't really make sense ax.errorbar(xvals, mean_vals, yerr=err_vals, linewidth=2, markersize=15, marker='.')  #, title='position ' + str(position)) #, label=legstr(label)
+        ax2 = ax.twinx()
+        for ix, (amin, amax) in enumerate(affy_ranges):
+            ax2.fill_between([xbins[ix], xbins[ix+1]], [amin, amin], [amax, amax], alpha=0.2, color='#2b65ec')
+        ax2.set_yticklabels([str(utils.round_to_n_digits(a, 2)) for a in ax2.get_yticks()])
+        ax2.set_ylabel('affinity range')
         plotname = '%s-%s-slice' % (lb_metric, slvar)
         legdict = plotting.legends
         legdict.update(treeutils.legtexts)
-        ybounds = (0, 50) if use_quantile else None #(0, 1)
-        fn = plotting.mpl_finish(ax, baseplotdir + '/slices', plotname, ybounds=ybounds, title=mtitlestr('per-seq', lb_metric), xlabel=legdict.get(slvar, slvar), ylabel='quantile to perfect' if use_quantile else 'specificity correlation')
+        ybounds = (0, 50) if use_quantile else (0, 1)
+        ax.set_ylim(ybounds[0], ybounds[1])
+        ax.set_ylabel('quantile to perfect' if use_quantile else 'specificity correlation')
+        ax.set_xlabel(legdict.get(slvar, slvar))
+        fn = plotting.mpl_finish(ax, baseplotdir + '/slices', plotname, title=mtitlestr('per-seq', lb_metric)) #, xlabel=legdict.get(slvar, slvar))  # , ybounds=ybounds ylabel=
         add_fn(fnames, fn=fn)
     # ----------------------------------------------------------------------------------------
     if debug:

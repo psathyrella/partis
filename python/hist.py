@@ -434,7 +434,37 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
-    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False, square_bins=False):
+    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False, square_bins=False, no_vertical_bin_lines=False):
+        # ----------------------------------------------------------------------------------------
+        def sqbplot(kwargs):
+            kwargs['markersize'] = 0
+            for ibin in self.ibiniter(include_overflows=False):
+                if ibin > 1:
+                    kwargs['label'] = None
+                    if not no_vertical_bin_lines:
+                        ax.plot([self.low_edges[ibin], self.low_edges[ibin]], [self.bin_contents[ibin-1], self.bin_contents[ibin]], **kwargs)  # vertical line from last bin contents
+                tplt = ax.plot([self.low_edges[ibin], self.low_edges[ibin+1]], [self.bin_contents[ibin], self.bin_contents[ibin]], **kwargs)  # horizontal line for this bin
+                if errors:
+                    bcenter = self.get_bin_centers()[ibin]
+                    tplt = ax.plot([bcenter, bcenter], [self.bin_contents[ibin] - self.errors[ibin], self.bin_contents[ibin] + self.errors[ibin]], **kwargs)  # horizontal line for this bin
+            if not no_vertical_bin_lines:
+                tplt = ax.plot([self.low_edges[ibin+1], self.low_edges[ibin+1]], [self.bin_contents[ibin], 0], **kwargs)  # vertical line for right side of last bin
+            return tplt  # not sure if this gets used anywhere?
+            # TODO some oldercalls of this may require the following code, so I need to figure shit out
+            print '  %s square_bins option needs to be checked/fixed, it does not work in some cases (seems to eat bins)' % utils.wrnstr()
+            import matplotlib.pyplot as plt
+            if abs(xvals[-1] - xvals[0]) > 5:  # greater/less than five is kind of a shitty way to decide whether to int() and +/- 0.5 or not, but I'm calling it now with a range much less than 1, and I don't want the int()s, but where I call it elsewhere I do and the range is much larger, so...
+                npbins = list(numpy.arange(int(xvals[0]) - 0.5, int(xvals[-1]) - 0.5))
+                npbins.append(npbins[-1] + 1)
+            elif xvals[0] != xvals[-1]:
+                n_bins = len(xvals)  # uh, maybe?
+                npbins = list(numpy.arange(xvals[0], xvals[-1], (xvals[-1] - xvals[0]) / float(n_bins)))
+            else:
+                npbins = [0, 1]
+            kwargs = {k : kwargs[k] for k in kwargs if k not in ['marker', 'markersize']}
+            kwargs['histtype'] = 'step'
+            return plt.hist(xvals, npbins, weights=yvals, **kwargs)
+        # ----------------------------------------------------------------------------------------
         if linewidth is not None:  # i'd really rather this wasn't here, but the error message mpl kicks is spectacularly uninformative so you have to catch it beforehand (when writing the svg file, it throws TypeError: Cannot cast array data from dtype('<U1') to dtype('float64') according to the rule 'safe')
             if not isinstance(linewidth, int):
                 raise Exception('have to pass linewidth as int, not %s' % type(linewidth))
@@ -468,39 +498,14 @@ class Hist(object):
             kwargs['label'] = label
         elif self.title != '':
             kwargs['label'] = self.title
-        if errors:
-            if square_bins:
-                raise Exception('square_bins not yet implemented with errors')
-            if remove_empty_bins:
-                xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
+        if remove_empty_bins:
+            xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
+        if errors and not square_bins:
             kwargs['yerr'] = yerrs
             return ax.errorbar(xvals, yvals, **kwargs)  #, fmt='-o')
         else:
-            if remove_empty_bins:
-                xvals, yvals = zip(*[(xvals[iv], yvals[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
             if square_bins:
-                kwargs['markersize'] = 0
-                for ibin in self.ibiniter(include_overflows=False):
-                    if ibin > 1:
-                        kwargs['label'] = None
-                        ax.plot([self.low_edges[ibin], self.low_edges[ibin]], [self.bin_contents[ibin-1], self.bin_contents[ibin]], **kwargs)  # vertical line from last bin contents
-                    ax.plot([self.low_edges[ibin], self.low_edges[ibin+1]], [self.bin_contents[ibin], self.bin_contents[ibin]], **kwargs)  # horizontal line for this bin
-                tplt = ax.plot([self.low_edges[ibin+1], self.low_edges[ibin+1]], [self.bin_contents[ibin], 0], **kwargs)  # vertical line for right side of last bin
-                return tplt  # not sure if this gets used anywhere?
-                # TODO some oldercalls of this may require the following code, so I need to figure shit out
-                print '  %s square_bins option needs to be checked/fixed, it does not work in some cases (seems to eat bins)' % utils.wrnstr()
-                import matplotlib.pyplot as plt
-                if abs(xvals[-1] - xvals[0]) > 5:  # greater/less than five is kind of a shitty way to decide whether to int() and +/- 0.5 or not, but I'm calling it now with a range much less than 1, and I don't want the int()s, but where I call it elsewhere I do and the range is much larger, so...
-                    npbins = list(numpy.arange(int(xvals[0]) - 0.5, int(xvals[-1]) - 0.5))
-                    npbins.append(npbins[-1] + 1)
-                elif xvals[0] != xvals[-1]:
-                    n_bins = len(xvals)  # uh, maybe?
-                    npbins = list(numpy.arange(xvals[0], xvals[-1], (xvals[-1] - xvals[0]) / float(n_bins)))
-                else:
-                    npbins = [0, 1]
-                kwargs = {k : kwargs[k] for k in kwargs if k not in ['marker', 'markersize']}
-                kwargs['histtype'] = 'step'
-                return plt.hist(xvals, npbins, weights=yvals, **kwargs)
+                return sqbplot(kwargs)
             else:
                 return ax.plot(xvals, yvals, **kwargs)  #, fmt='-o')
 

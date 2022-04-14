@@ -4364,6 +4364,7 @@ def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None, dryr
 # ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', logfname=None, debug=True):
     if cmdfname is not None:
+        mkdir(cmdfname, isfile=True)
         with open(cmdfname, 'w') as cmdfile:
             cmdfile.write(cmd_str)
         subprocess.check_call(['chmod', '+x', cmdfname])

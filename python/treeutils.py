@@ -61,7 +61,7 @@ legtexts = {
     'cons-frac-aa' : 'aa-cfrac',
     'cons-dist-nuc' : 'nuc-cdist',
     'shm' : 'n-shm',
-    'shm' : 'n-shm-aa',
+    'shm-aa' : 'n-shm-aa',
     'aa-lbi' : 'AA lb index',
     'aa-lbr' : 'AA lb ratio',
     'sum-aa-lbi' : 'h+l AA lb index',
