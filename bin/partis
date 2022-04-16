@@ -751,13 +751,14 @@ def run_all_loci(args, ig_or_tr='ig'):
             run_step('annotate', ltmp, lpair=lpair, joint=True)  # this runs partis 'annotate' (it would be nice if i could somehow use partitiondriver.get_cluster_annotations() here, but i don't think it really makes sense/is workable)
     # ----------------------------------------------------------------------------------------
     def handle_concatd_heavy_chain(lp_infos):  # concatenate partitions + annotations for the heavy chains paired with k and l (returns info also for the light chains, but they're unchanged)
-        glfos, antn_lists, joint_cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
+        glfos, antn_lists, cpaths = paircluster.concat_heavy_chain(spairs(), lp_infos)  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
+        lpfos = {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : cpaths}
         hloc = utils.heavy_locus(ig_or_tr)
-        if len(glfos) == 0:
-            return glfos, antn_lists, joint_cpaths
-        tmp_ptn = utils.get_deduplicated_partitions([joint_cpaths[hloc].best()], antn_list=antn_lists[hloc] if not args.dont_calculate_annotations else None, glfo=glfos[hloc], debug=args.debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
-        joint_cpaths[hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))
-        return {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : joint_cpaths}
+        if len(lpfos['glfos']) == 0:
+            return lpfos
+        tmp_ptn = utils.get_deduplicated_partitions([lpfos['cpaths'][hloc].best()], antn_list=lpfos['antn_lists'][hloc] if not args.dont_calculate_annotations else None, glfo=lpfos['glfos'][hloc], debug=args.debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
+        lpfos['cpaths'][hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))
+        return lpfos
     # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
         lp_infos = {}

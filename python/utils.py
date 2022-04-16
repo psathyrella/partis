@@ -874,8 +874,8 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, debug=False
     ulist = [uid]
     for sep in did_seps:  # recursively split by each sep character
         ulist = [s for u in ulist for s in u.split(sep)]
-    if any(i > len(ulist) - 1 for i in did_indices):
-        raise Exception('droplet id indices %s (out of %s) greater than len (%d) of list %s after splitting by separators \'%s\' for uid \'%s\'' % ([i for i in did_indices if i > len(ulist) - 1], did_indices, len(ulist), ulist, did_seps, uid))
+    if any(i > len(ulist) - 2 for i in did_indices):
+        raise Exception('droplet id indices %s (out of %s) greater than len-1 (%d) of list %s after splitting by separators \'%s\' for uid \'%s\'' % ([i for i in did_indices if i > len(ulist) - 2], did_indices, len(ulist) - 1, ulist, did_seps, uid))
     did = did_seps[0].join(ulist[i] for i in did_indices)  # rejoin with just the first sep (if there was more than one), since doing otherwise would be complicated and i don't think it matters
     cid = ulist[-1]  # just set the contig id to the last element, which is correct for [current] 10x data, and we don't care about it otherwise
     if debug:
