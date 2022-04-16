@@ -906,7 +906,7 @@ def mpl_init(figsize=None, fsize=20, label_fsize=15):
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
                xticks=None, xticklabels=None, xticklabelsize=None, yticklabelsize=None, yticks=None, yticklabels=None, no_legend=False, adjust=None,
-               suffix='svg', leg_title=None, legend_fontsize=None, fig=None):
+               suffix='svg', leg_title=None, legend_fontsize=None, fig=None, right_y_axis=False):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     if not no_legend:
@@ -919,7 +919,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if adjust is not None:
         default_adjust.update(adjust)  # this makes things still work if the calling fcn has {} as the default rather than None
     plt.gcf().subplots_adjust(**default_adjust)  # ok, it's not default any more, but I don't want to change the name
-    sys.modules['seaborn'].despine()  #trim=True, bottom=True)
+    sys.modules['seaborn'].despine(right=not right_y_axis)  #trim=True, bottom=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     if 'x' in log:

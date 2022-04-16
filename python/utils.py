@@ -372,7 +372,7 @@ def add_lists(list_a, list_b):  # add two lists together, except if one is None 
 # ----------------------------------------------------------------------------------------
 def get_single_entry(tl, errmsg=None):  # adding this very late, so there's a lot of places it could be used
     if len(tl) != 1:
-        raise Exception('length must be 1 in get_single_entry(), but got %d%s' % (len(tl), '' if errmsg is None else ': %s'%errmsg))
+        raise Exception('length must be 1 in get_single_entry(), but got %d (%s)%s' % (len(tl), tl, '' if errmsg is None else ': %s'%errmsg))
     return tl[0]
 
 # ----------------------------------------------------------------------------------------
@@ -3507,7 +3507,7 @@ def mean_pairwise_hfrac(seqlist):
 def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters correctly (also NOTE <aa> has no effect
     if 'Levenshtein' not in sys.modules:  # installing this reliably is being super annoying, and we only using it in the ab choice stuff
         import Levenshtein
-    return Levenshtein.distance(s1, s2)
+    return sys.modules['Levenshtein'].distance(s1, s2)
 
 # ----------------------------------------------------------------------------------------
 # return list of families in <antn_list> sorted by their nearness to <line> by either 'lev' (levenshtein) or 'ham' (hamming) distance between naive sequences (automatically skips <line> if it's in <antn_list>)
@@ -3526,6 +3526,8 @@ def non_clonal_clusters(refline, antn_list, dtype='lev', aa=False, max_print_dis
         if atn['unique_ids'] == refline['unique_ids']:
             continue
         distances.append({'i' : iclust, 'uids' : atn['unique_ids'], 'dist' : dfcn(nseq(atn), nseq(refline))})
+    if len(distances) == 0:
+        return []
     sdists = sorted(distances, key=lambda d: d['dist']) #operator.itemgetter(2))
     if debug:
         nearest = sdists[0]

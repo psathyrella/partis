@@ -143,6 +143,8 @@ def process(args):
             for ltmp in utils.light_loci(args.ig_or_tr):
                 args.light_chain_fractions[ltmp] = 1. if ltmp == args.single_light_locus else 0.
         args.droplet_id_indices = utils.get_arg_list(args.droplet_id_indices, intify=True)
+        if [args.droplet_id_separators, args.droplet_id_indices].count(None) not in [0, 2]:
+            raise Exception('if you set either --droplet-id-separators or --droplet-id-indicies you need to set both of them (guessing defaults is proving to be too dangerous)')
     else:
         if args.paired_indir is not None:
             raise Exception('need to set --paired-loci if --paired-indir is set')

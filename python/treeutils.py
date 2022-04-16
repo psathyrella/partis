@@ -980,9 +980,9 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
     aa_dtree = copy.deepcopy(dtree)
     nuc_seqs = {uid : seq for uid, seq in zip(annotation['unique_ids'], annotation['seqs'])}
     aa_seqs = {uid : seq for uid, seq in zip(annotation['unique_ids'], annotation['seqs_aa'])}
-    if dtree.seed_node.taxon.label not in nuc_seqs:  # if it's already there, that should be because an observed seq is the root/naive
+    if dtree.seed_node.taxon.label not in nuc_seqs and 'naive_seq' in annotation:  # if it's already there, that should be because an observed seq is the root/naive
         nuc_seqs[dtree.seed_node.taxon.label] = annotation['naive_seq']
-    if dtree.seed_node.taxon.label not in aa_seqs:
+    if dtree.seed_node.taxon.label not in aa_seqs and 'naive_seq_aa' in annotation:
         aa_seqs[dtree.seed_node.taxon.label] = annotation['naive_seq_aa']  # the aa naive seq *should* always be there now, since I just started adding it in add_seqs_aa()
 
     skipped_edges, missing_nodes = [], set()
@@ -1820,8 +1820,6 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
     # ----------------------------------------------------------------------------------------
     def addtree(iclust, line, dtree, origin):
         treefos[iclust] = {'tree' : dtree, 'origin' : origin}
-        line['tree-info'] = {}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
-        line['tree-info']['tree'] = dtree.as_string(schema='newick')
     # ----------------------------------------------------------------------------------------
     ntot = len(inf_lines_to_use)
     print '    getting trees for %d cluster%s with size%s: %s' % (ntot, utils.plural(ntot), utils.plural(ntot), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
@@ -1834,7 +1832,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             filetrees.append({'tree' : dtree, 'ids' : treeids})
         print '      read %d trees from %s' % (len(filetrees), treefname)
     check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
-    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('gctree', 'ran gctree'), ('lonr', 'ran liberman lonr'))}
+    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('gctree', 'ran gctree'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr'))}
     n_already_there, n_skipped_uid = 0, 0
     cmdfos, treefos = [None for _ in inf_lines_to_use], [None for _ in inf_lines_to_use]
     for iclust, line in enumerate(inf_lines_to_use):
@@ -1895,7 +1893,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
 
     print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_skipped_uid > 0:
-        print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, n_after, treefname)
+        print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, len(inf_lines_to_use), treefname)
     if n_already_there > 0:
         print '    %s overwriting %d / %d that already had trees' % (utils.color('yellow', 'warning'), n_already_there, ntot)
 
@@ -1961,29 +1959,34 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
                 if debug:
                     print '       %s overwriting selection metric info that was already in <line>' % utils.color('yellow', 'warning')
                 n_already_there += 1
-            line['tree-info'] = {'lb' : {}}  # NOTE <treefo> has a dendro tree, but what we put in the <line> (at least for now) is a newick string
+            if 'tree-info' not in line:
+                line['tree-info'] = {'lb' : {}}
+            if treefos is not None:
+                trfo = treefos[iclust]
+                if trfo['tree'] is not None:
+                    line['tree-info']['lb']['tree'] = trfo['tree'].as_string(schema='newick')
             if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
 
             if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):
-                treefo = treefos[iclust]
-                if treefo['tree'] is None and treefo['origin'] == 'no-uids':
+                if trfo['tree'] is None and trfo['origin'] == 'no-uids':
                     n_skipped_uid += 1
                     continue
                 if any(m in metrics_to_calc for m in ['lbi', 'lbr']):  # have to (or at least easier to) calc both even if we only need one (although i think this is only because of the lbr_tau_factor shenanigans, which maybe we don't need any more?)
-                    lbfo = calculate_lb_values(treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
+                    lbfo = calculate_lb_values(trfo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
                     check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
                     line['tree-info']['lb'].update(lbfo)
                 if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
-                    get_aa_lb_metrics(line, treefo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
+                    get_aa_lb_metrics(line, trfo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
 
             if args.dtr_path is not None and not train_dtr:  # don't want to train on data (NOTE this would probably also need all the lb metrics calculated, but i don't care atm)
-                calc_dtr(False, line, line['tree-info']['lb'], treefo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
+                calc_dtr(False, line, line['tree-info']['lb'], trfo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
 
             for mtmp in [m for m in metrics_to_calc if m not in line['tree-info']['lb']]:  # ick (but we want it to work for e.g. the metric 'shm' which isn't the name of the annotation key)
                 line['tree-info']['lb'][mtmp] = {u : utils.antnval(line, mtmp, i) for i, u in enumerate(line['unique_ids'])}
 
             final_inf_lines.append(line)
+
         if n_skipped_uid > 0:
             print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, n_after, treefname)
         if n_already_there > 0:
@@ -2924,8 +2927,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
 
-        utils.non_clonal_clusters(h_atn, [hl for hl, _ in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(h_atn['loci'][0]), extra_str='              ')
-        utils.non_clonal_clusters(l_atn, [ll for _, ll in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(l_atn['loci'][0]), extra_str='              ')
+        if len(antn_pairs) > 1:
+            utils.non_clonal_clusters(h_atn, [hl for hl, _ in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(h_atn['loci'][0]), extra_str='              ')
+            utils.non_clonal_clusters(l_atn, [ll for _, ll in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(l_atn['loci'][0]), extra_str='              ')
 
         lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
         h_cshm, l_cshm = [lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]

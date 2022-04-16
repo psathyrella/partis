@@ -49,6 +49,8 @@ class Hist(object):
                 raise Exception('misspecified xbins: should be n_bins + 1 (%d, i.e. the low edges of each non-under/overflow bin plus the low edge of the overflow bin) but got %d' % (self.n_bins + 1, len(xbins)))
             assert self.xmin == xbins[0]
             assert self.xmax == xbins[-1]
+            if len(set(xbins)) != len(xbins):
+                raise Exception('xbins has duplicate entries: %s' % xbins)
 
         dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / self.n_bins
         for ib in range(self.n_bins + 2):  # using root conventions: zero is underflow and last bin is overflow

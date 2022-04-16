@@ -50,27 +50,61 @@ def autobins(values, n_bins, is_log=False, var_type='float'):  # just making a b
     return xbins
 
 # ----------------------------------------------------------------------------------------
-def auto_volume_bins(values, n_bins, int_bins=False, debug=False):
+def binprint(xbins, values):
+    print '    chose %d bins (%d bin low edges, including low edge of overflow) using %d values with min/max %f %f' % (len(xbins) - 1, len(xbins), len(values), min(values), max(values))
+    print '      %s' % ' '.join('%8d'%(i+1) for i in range(len(xbins)))  # start at 1, to match hist.py/root convention that 0 is underflow (whose low edge is added in hist scratch init fcn, since its value has no effect)
+    print '      %s' % ' '.join('%8.4f'%x for x in xbins)
+    print '      %s' % ' '.join('%8d'%(len([v for v in values if v >= xbins[i] and v < xbins[i+1]])) for i in range(len(xbins) - 1))
+
+# ----------------------------------------------------------------------------------------
+def auto_bin_expand(values, xbins, int_bins=False, debug=False):
+    int_pad = 0.5 if int_bins else 0
+    if xbins[0] > values[0] - int_pad:  # make sure the hi edge of the underflow bin (lo edge of first bin) is below the smallest value
+        print '      expanding lower edge of first bin (hi edge of underflow): %.3f --> %.3f' % (xbins[0], values[0] - int_pad)
+        xbins[0] = values[0] - int_pad
+    if xbins[-1] < values[-1] + int_pad:  # make sure the lo edge of the overflow bin is above the largest value
+        print '      expanding upper edge of last bin (lo edge of overflow): %.3f --> %.3f' % (xbins[-1], values[-1] + int_pad)
+        xbins[-1] = values[-1] + int_pad
+    if debug:
+        binprint(xbins, values)
+
+# ----------------------------------------------------------------------------------------
+# attempts to make <n_bins> bins with equal numbers of entries per bin (may return fewer)
+def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False):
     n_per_bin = int(len(values) / float(n_bins))
     values = sorted([v for v in values if v is not None])
-    ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]
+    if debug > 1:
+        print '  trying to divide %d values%s from %s to %s into %d bins (%d per bin) %s' % (len(values), ' (with int bins)' if int_bins else '', values[0], values[-1], n_bins, n_per_bin, values if len(values) < 150 else '')
     if int_bins:
         if len(set(values)) < n_bins:
             print '    %s SHOULD PROBABLY MAYBE reduce n_bins %d to the number of different values %d' % (utils.wrnstr(), n_bins, len(set(values)))
-# TODO
-            # n_bins = len(set(values))
-        xbins = [values[i] - 0.5 for i in ibins]  # put each boundary at half-integer values (note that ties above result in zero-width bins, but it's ok for the moment since the only place i'm using it doesn't mind)
-        xbins[-1] = values[-1] + 0.5  # and expand the last one to double size
+        xbins = [values[0] - 0.5]
+        n_this_bin = 0
+        for iv, val in enumerate(values):  # similar to the ibins = below, but we have to deal with ties here
+            n_this_bin += 1
+            potential_hi_edge = val + 0.5
+            if n_this_bin < n_per_bin:
+                if debug > 1: print '  %3d %5.1f  too few %d'  % (iv, potential_hi_edge, n_this_bin)
+                continue
+            if min_xdist is not None and potential_hi_edge - xbins[-1] < min_xdist:
+                if debug > 1: print '  %3d %5.1f  too close %.1f'  % (iv, potential_hi_edge, potential_hi_edge - xbins[-1])
+                continue
+            xbins.append(potential_hi_edge)
+            n_this_bin = 0
+            if debug > 1: print '  %3d %5.1f  adding hi edge for bin with %d entries'  % (iv, potential_hi_edge, n_this_bin)
+        if xbins[-1] != values[-1] + 0.5:  # add the lo edge of the overflow bin
+            xbins.append(values[-1] + 0.5)
+            if debug > 1: print '  %3d %5.1f  adding hi edge for bin with %d entries'  % (len(values) - 1, values[-1] + 0.5, n_this_bin)
+        n_bins = len(xbins) - 1
     else:
+        ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]  # indices (in sorted values) of bin boundaries that have ~equal entries per bin
         xbins = [values[i] for i in ibins]
         dxmin, dxmax = [abs(float(xbins[ist+1] - xbins[ist])) for ist in (0, len(xbins) - 2)]  # width of (first, last) bin [not under/overflows]
         xbins[0], xbins[-1] = get_expanded_bounds(values, dxmin, dxmax=dxmax)
     if debug:
-        print '    chose %d bins (%d bin low edges, including low edge of overflow) using %d values with min/max %f %f' % (n_bins, len(xbins), len(values), min(values), max(values))
-        print '      %s' % ' '.join('%8d'%(i+1) for i in range(len(xbins)))  # start at 1, to match hist.py/root convention that 0 is underflow (whose low edge is added in hist scratch init fcn, since its value has no effect)
-        print '      %s' % ' '.join('%8.4f'%x for x in xbins)
+        binprint(xbins, values)
     assert len(xbins) == n_bins + 1  # will cause the n bin reduction to crash
-    return xbins
+    return xbins, n_bins
 
 # ----------------------------------------------------------------------------------------
 def make_hist_from_list_of_values(vlist, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False):
