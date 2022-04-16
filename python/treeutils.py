@@ -2979,23 +2979,35 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         print ''
     # ----------------------------------------------------------------------------------------
     def get_sum_antn_for_plotting(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
+        # ----------------------------------------------------------------------------------------
+        def translate_heavy_tree(htree):
+            trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
+            translate_labels(htree, trns)
+            return htree, htree.as_string(schema='newick')
+        # ----------------------------------------------------------------------------------------
         p_atn = {}  # make a new fake annotation for the sequences that are in both h+l
         p_atn['unique_ids'] = [combid(m) for m in metric_pairs]
         p_atn['seqs'] = [sumv(m, 'seqs') for m in metric_pairs]
         p_atn['seqs_aa'] = [sumv(m, 'seqs_aa') for m in metric_pairs]
+        p_atn['naive_seq'] = sumv(metric_pairs[0], 'naive_seq')
+        p_atn['naive_seq_aa'] = sumv(metric_pairs[0], 'naive_seq_aa')  # NOTE it's *really* important you don't end up translating the sum'd naive seq since i don't think they necessarily get concat'd in frame
+        p_atn['n_mutations'] = [sumv(m, 'n_mutations') for m in metric_pairs]
         cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]
         if is_simu:
-            trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
-            stree = get_dendro_tree(treestr=h_atn['tree'])
-            translate_labels(stree, trns)
-            p_atn['tree'] = stree.as_string(schema='newick')
+            dtree, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         p_atn['tree-info'] = {'lb' : {}}
         seqfos = [{'name' : combid(mfo), 'seq' : sumv(mfo, 'seqs')} for mfo in metric_pairs]  # sumv(mfo, 'unique_ids')
-        dtree = get_fasttree_tree(seqfos, naive_seq=sumv(mfo, 'naive_seq'))  # NOTE kind of duplicates get_trees_for_annotations() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
-        treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
+        if args.treefname is not None:
+            dtree, treestr = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree-info']['lb']['tree']))
+        else:
+            print '    getting fasttree (which may not be what you want)'
+# TODO should probably use this fcn somewhere here
+            # get_trees_for_annotations([h_atn], treefname=args.treefname, debug=True)
+            dtree = get_fasttree_tree(seqfos, naive_seq=p_atn['naive_seq'])  # NOTE kind of duplicates get_trees_for_annotations() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
+            treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
         p_atn['tree-info']['lb']['tree'] = treestr
         p_atn['tree-info']['lb']['aa-tree'] = get_aa_tree(dtree, p_atn).as_string(schema='newick')
         for b_mtr in args.selection_metrics_to_calculate + ['shm', 'shm-aa']:
