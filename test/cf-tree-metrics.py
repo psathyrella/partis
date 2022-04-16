@@ -360,7 +360,7 @@ parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until 
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
-parser.add_argument('--distr-hist-limit', default='frac:0.03', help='lower bound type:value to use for new distribution performance hists for delta affinity metrics (aa-lbr/lbr). frac:<f> takes the top 100*<f>\%, N:<n> takes the top <n> seqs, val:<v> takes all seqs with metric value above <v>.')
+parser.add_argument('--distr-hist-limit', default='frac:0.03', help='lower bound type:value to use for new distribution performance hists for delta affinity metrics (aa-lbr/lbr). frac:<f> takes the top 100*<f> percent, N:<n> takes the top <n> seqs, val:<v> takes all seqs with metric value above <v>.')
 parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
 parser.add_argument('--use-val-cfgs', action='store_true', help='use plotting.val_cfgs dict (we can\'t always use it)')
 parser.add_argument('--train-dtr', action='store_true')
@@ -393,7 +393,7 @@ parser.add_argument('--sub-slurm', action='store_true', help='run grandchild pro
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--final-plot-xvar', default='lb-tau', help='variable to put on the x axis of the final comparison plots')
 parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
-parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm %] when --final-plot-x-var is scratch-mute-freq)')
+parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm percent] when --final-plot-x-var is scratch-mute-freq)')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
 parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
 parser.add_argument('--make-hist-plots', action='store_true')
