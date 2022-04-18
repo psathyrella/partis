@@ -562,7 +562,7 @@ class PartitionPlotter(object):
                     antn = annotations.get(':'.join(tclust))
                     if antn is None:
                         continue
-                    emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=self.args.meta_emph_formats)
+                    emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, tclust, antn, formats=self.args.meta_emph_formats)
                     for v, frac in emph_fracs.items():
                         plotvals[v].append((csize, frac))
             bhist = csize_hists['best']
