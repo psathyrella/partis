@@ -1,3 +1,4 @@
+import csv
 import os
 import math
 import numpy
@@ -30,9 +31,10 @@ class PartitionPlotter(object):
         self.n_plots_per_row = 4
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
+        self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
         self.laplacian_spectra_min_clusters_size = 4
-        self.max_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
+        self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
 
         self.n_mds_components = 2
 
@@ -83,7 +85,7 @@ class PartitionPlotter(object):
 
         clusters_to_use = [cluster for cluster in sorted_clusters if numpy.mean(getnmutelist(cluster)) < self.n_max_mutations]  # have to do it as a separate line so the zip/* don't crash if no clusters pass the criterion
         skipped_small_clusters = False
-        if len(clusters_to_use) > self.max_clusters_to_apply_size_vs_shm_min_cluster_size:  # if repertoire is really big, ignore smaller clusters to keep the plots from being huge
+        if len(clusters_to_use) > self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size:  # if repertoire is really big, ignore smaller clusters to keep the plots from being huge
             clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= self.size_vs_shm_min_cluster_size]
             skipped_small_clusters = True
         if len(clusters_to_use) == 0:
@@ -222,6 +224,78 @@ class PartitionPlotter(object):
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, extra_links=[('all shm-vs-size plots', subd)])
 
         return rfnames
+
+    # ----------------------------------------------------------------------------------------
+    def make_bubble_plots(self, sorted_clusters, annotations, base_plotdir, alpha=0.4, n_to_write_size=10, debug=False):
+        import matplotlib.pyplot as plt
+        subd, plotdir = self.init_subd('bubble', base_plotdir)
+        rfn = '%s/csize-radii.csv' % base_plotdir
+        bpfn = '%s/bubble-positions.csv' % base_plotdir
+        workfnames = [rfn, bpfn]
+        mekey = self.args.meta_info_key_to_color
+        fake_cluster, fake_antn = [], {'unique_ids' : [], mekey : []} # make a fake cluster with all sequences from all skipped clusters (circlify is too slow to run on all the smaller clusters)
+        with open(rfn, 'w') as rfile:
+            writer = csv.DictWriter(rfile, ['id', 'radius'])
+            writer.writeheader()
+            for iclust, cluster in enumerate(sorted_clusters):
+                if iclust < self.n_max_bubbles:
+                    writer.writerow({'id' : iclust, 'radius' : len(cluster)})
+                else:
+                    fake_cluster += cluster
+                    fake_antn['unique_ids'] += cluster
+                    if mekey is not None:
+                        antn = annotations.get(':'.join(cluster))
+                        fake_antn[mekey] += antn[mekey] if antn is not None and mekey in antn else [None for _ in cluster]
+            if len(fake_cluster) > 0:
+                writer.writerow({'id' : 'fake', 'radius' : len(fake_cluster)})
+
+        cmd = '%s/bin/circle-plots.py %s %s' % (utils.get_partis_dir(), rfn, bpfn)
+        utils.simplerun(cmd)
+        bubble_positions = []
+        with open(bpfn) as bpfile:
+            def cfn(k, v): return v if k=='id' else float(v)
+            reader = csv.DictReader(bpfile)
+            for line in reader:
+                bubble_positions.append({k : cfn(k, v) for k, v in line.items()})
+        fig, ax = self.plotting.mpl_init()
+        lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubble_positions)
+        plt.xlim(-lim, lim)
+        plt.ylim(-lim, lim)
+        ax.axis('off')
+        plt.gca().set_aspect('equal')
+        if self.args.meta_info_key_to_color is not None:
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
+            hcolors = {v : c for v, c in emph_colors}
+        def getclust(idl): return sorted_clusters[int(idl)] if idl!='fake' else fake_cluster
+        for bfo in sorted(bubble_positions, key=lambda b: len(getclust(b['id'])), reverse=True):
+            cluster = getclust(bfo['id'])
+            if bfo['id']=='fake' or int(bfo['id']) < n_to_write_size:
+                ax.text(bfo['x'], bfo['y'], 'small clusters' if bfo['id']=='fake' else len(cluster), fontsize=8, alpha=0.4)
+            antn = annotations.get(':'.join(cluster)) if bfo['id'] != 'fake' else fake_antn
+            if antn is None or mekey is None:
+                ax.add_patch(plt.Circle((bfo['x'], bfo['y']), bfo['r'], alpha=alpha, linewidth=2, fill=True))  # plain circle
+            else:
+                emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=self.args.meta_emph_formats)
+                self.plotting.plot_pie_chart_marker(ax, bfo['x'], bfo['y'], bfo['r'], [{'label' : v, 'fraction' : f, 'color' : hcolors[v]} for v, f in emph_fracs.items()], alpha=alpha)
+        fname = 'bubbles'
+        total_bubble_seqs = sum(len(getclust(b['id'])) for b in bubble_positions if b['id']!='fake')
+        repertoire_size = sum([len(c) for c in sorted_clusters])
+        nbub = len(bubble_positions)
+        if len(fake_cluster) > 0:
+            nbub -= 1
+        title = 'bubbles for %d/%d clusters (%d/%d seqs)' % (nbub, len(sorted_clusters), total_bubble_seqs, repertoire_size)
+        if len(fake_cluster) > 0:
+            fig.text(0.2, 0.85, 'small clusters: %d seqs in %d clusters smaller than %d' % (len(fake_cluster), len(sorted_clusters) - len(bubble_positions), len(sorted_clusters[self.n_max_bubbles - 1])), fontsize=8, color='green')
+        self.plotting.mpl_finish(ax, plotdir, fname, title=title)
+        fnames = [[]]
+        self.addfname(fnames, fname)
+        if mekey is not None:
+            lfn = self.plotting.make_meta_info_legend(plotdir, fname, mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=alpha)
+            self.addfname(fnames, lfn)
+
+        for wfn in workfnames:
+            os.remove(wfn)
+        return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
     def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, debug=False):
@@ -488,10 +562,7 @@ class PartitionPlotter(object):
                     antn = annotations.get(':'.join(tclust))
                     if antn is None:
                         continue
-                    def gfcn(x): return utils.meta_emph_str(mekey, utils.per_seq_val(antn, mekey, x, use_default=True), formats=self.args.meta_emph_formats)
-                    vgroups = utils.group_seqs_by_value(tclust, gfcn, return_values=True)
-                    emph_fracs = {v : len(grp) / float(csize) for v, grp in vgroups}
-                    emph_fracs.update({v : 0. for v in all_emph_vals - set(emph_fracs)})  # need to include families with no seqs with a given value (otherwise all the lines go to 1 as cluster size goes to 1)
+                    emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=self.args.meta_emph_formats)
                     for v, frac in emph_fracs.items():
                         plotvals[v].append((csize, frac))
             bhist = csize_hists['best']
@@ -541,6 +612,7 @@ class PartitionPlotter(object):
         self.remove_failed_clusters(partition, annotations)
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
         fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
+        fnames += self.make_bubble_plots(sorted_clusters, annotations, plotdir)
         if not no_mds_plots:
             fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
         # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
@@ -548,7 +620,7 @@ class PartitionPlotter(object):
         csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)
         fnames[0] += csfns[0]
 
-        subdirs = ['shm-vs-size', 'mds'] #, 'laplacian-spectra']  # , 'sfs
+        subdirs = ['shm-vs-size', 'mds', 'bubble'] #, 'laplacian-spectra']  # , 'sfs
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd) for subd in subdirs])
 

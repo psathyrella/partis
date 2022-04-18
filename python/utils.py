@@ -730,6 +730,15 @@ def meta_info_equal(key, val1, val2, formats=None):  # also ick (don't have anot
     return cfcn()(val1) == cfcn()(val2)
 
 # ----------------------------------------------------------------------------------------
+# return dict of "meta emph value" : [fraction of cluster], e.g. for cell types could be {'pb' : 0.9, 'naive' : 0.1}
+def get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=None):
+    def gfcn(x): return meta_emph_str(mekey, per_seq_val(antn, mekey, x, use_default=True), formats=formats)
+    vgroups = group_seqs_by_value(cluster, gfcn, return_values=True)
+    emph_fracs = {v : len(grp) / float(len(cluster)) for v, grp in vgroups}
+    emph_fracs.update({v : 0. for v in all_emph_vals - set(emph_fracs)})  # need to include families with no seqs with a given value (otherwise all the lines go to 1 as cluster size goes to 1)
+    return emph_fracs
+
+# ----------------------------------------------------------------------------------------
 special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)  NOTE used to also include 'has_shm_indels' (also note that 'indel_reversed_seqs' is treated differently for some purposes than are the gap seq keys)
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates'] \
                      + [r + '_per_gene_support' for r in regions] \

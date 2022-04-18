@@ -63,6 +63,18 @@ def meta_emph_init(meta_info_key_to_color, sorted_clusters, antn_dict, formats=N
     emph_colors = [(v, cfcn(i, v)) for i, v in enumerate(sorted(all_emph_vals - set([None, 'None'])))] + [('None', 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
     return all_emph_vals, emph_colors
 
+# ----------------------------------------------------------------------------------------
+def make_meta_info_legend(plotdir, plotname, meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=None, alpha=None):
+    title = meta_info_key_to_color
+    if meta_emph_formats is not None and meta_emph_formats.get(meta_info_key_to_color) not in ['len', None]:
+        title = meta_emph_formats[meta_info_key_to_color]
+    emph_colors = [(v, c) for v, c in emph_colors if v in all_emph_vals]  # remove 'None' if there weren't any in the actual annotations
+    if any(c==title for c, _ in emph_colors):  # if it's actually a color (i.e. probably a bool) no point in adding title)
+        title = None
+    lfn = plotname + '-legend'
+    plot_legend_only({l : {'color' : c, 'alpha' : alpha} for l, c in emph_colors}, plotdir, lfn, title=title)
+    return lfn
+
 # # ----------------------------------------------------------------------------------------
 # def _hls2hex(rgb_tuple):
 #     h, l, s, alpha = rgb_tuple
@@ -904,6 +916,30 @@ def mpl_init(figsize=None, fsize=20, label_fsize=15):
     return fig, ax
 
 # ----------------------------------------------------------------------------------------
+# initially copied from https://matplotlib.org/3.5.1/gallery/lines_bars_and_markers/scatter_piecharts.html
+def plot_pie_chart_marker(ax, xpos, ypos, radius, fracfos, alpha=None, debug=False):
+    np = numpy
+    total = sum(f['fraction'] for f in fracfos)
+    if not utils.is_normed(total):
+        print '  %s fractions add to %f (should add to 1): %s' % (utils.wrnstr(), total, '  '.join('%12s %-.3f'%(f['label'], f['fraction']) for f in sorted(fracfos, key=lambda x: x['fraction'], reverse=True)))
+
+    total = 0
+    for ifo, ffo in enumerate(fracfos):
+        if ffo['fraction'] == 0:
+            continue
+        lnsp = np.linspace(total, total + ffo['fraction'] if ifo < len(fracfos) - 1 else 1)
+        if debug:
+            print '%.3f  %s  %s' % (ffo['fraction'], ffo['label'], lnsp)
+        x1 = np.cos(2 * np.pi * lnsp)
+        y1 = np.sin(2 * np.pi * lnsp)
+        xy1 = np.row_stack([[0, 0], np.column_stack([x1, y1])])
+        s1 = np.abs(xy1).max()
+        ax.scatter([xpos], [ypos], marker=xy1, s=(270* radius)**2, facecolor=ffo['color'], alpha=alpha)  # s= is in "points squared", but radius is in axis/fig coords ([0, 1], or maybe [-1, 1]?), and I can't figure out how to convert and I'm tired of googling so using 275 which seems about right, hopefully it keeps working
+        total += ffo['fraction']
+    if debug:
+        print ''
+
+# ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
                xticks=None, xticklabels=None, xticklabelsize=None, yticklabelsize=None, yticks=None, yticklabels=None, no_legend=False, adjust=None,
                suffix='svg', leg_title=None, legend_fontsize=None, fig=None, right_y_axis=False):
@@ -1552,13 +1588,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                     xbounds=plot_x_bounds, ybounds=bexpand((ymin, ymax), fuzz=0.03 if x2key is None else 0.07), xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels, yticklabelsize=11, adjust={'left' : 0.2, 'right' : 0.85})
 
     if meta_info_key_to_color is not None and make_legend:
-        title = meta_info_key_to_color
-        if meta_emph_formats is not None and meta_emph_formats.get(meta_info_key_to_color) not in ['len', None]:
-            title = meta_emph_formats[meta_info_key_to_color]
-        emph_colors = [(v, c) for v, c in emph_colors if v in all_emph_vals]  # remove 'None' if there weren't any in the actual annotations
-        if any(c==title for c, _ in emph_colors):  # if it's actually a color (i.e. probably a bool) no point in adding title)
-            title = None
-        plot_legend_only({l : {'color' : c, 'alpha' : base_alpha} for l, c in emph_colors},  plotdir, plotname+'-legend', title=title)
+        make_meta_info_legend(plotdir, plotname, meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=meta_emph_formats, alpha=base_alpha)
 
     if high_x_val is None:
         return fn
