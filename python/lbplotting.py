@@ -534,6 +534,8 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         for vname in [v for v in [xvar, yvar] if n_total_null[v] > 0]:
             n_tot = sum(len(l['unique_ids']) for l in sorted_lines)
             add_warn('%s for %d / %d' % (vname, n_tot - n_total_null[vname], n_tot), scatter_kwargs)
+        if add_jitter:
+            scatter_kwargs['xlabel'] += ' (+jitter)'
         fn = plot_2d_scatter(tmpplotname, plotdir, plotvals, yvar, ylabel, '%s (%s)' % (basetitle, all_clust_str(len(sorted_lines))), **scatter_kwargs)
         add_fn(fnames, fn=fn)
 
