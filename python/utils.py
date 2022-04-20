@@ -880,6 +880,8 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, debug=False
             print '  %s only one of did_seps/did_indices was set, so still need to guess both of them: %s %s' % (wrnstr(), did_seps, did_indices)
         did_seps, did_indices = set_did_vals(uid)
         auto_set = True
+    if not any(s in uid for s in did_seps):  # probably not paired data
+        return '', '' if return_contigs else ''
     ulist = [uid]
     for sep in did_seps:  # recursively split by each sep character
         ulist = [s for u in ulist for s in u.split(sep)]
@@ -1561,7 +1563,7 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
     return cigarstr
 
 # ----------------------------------------------------------------------------------------
-def get_airr_line(pline, iseq, partition=None, extra_columns=None, skip_columns=None, args=None, debug=False):
+def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_columns=None, args=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def getrgn(tk):  # get region from key name
         rgn = tk.split('_')[0]
@@ -1595,15 +1597,9 @@ def get_airr_line(pline, iseq, partition=None, extra_columns=None, skip_columns=
         elif akey == 'junction_aa':
             aline[akey] = ltranslate(aline.get('junction', get_cdr3_seq(pline, iseq)))  # should already be in there, since we're using an ordered dict and the previous elif block should've added it
         elif akey == 'clone_id':
-            if partition is None:
+            if cluster_indices is None:
                 continue
-            iclusts = [iclust for iclust in range(len(partition)) if pline['unique_ids'][iseq] in partition[iclust]]
-            if len(iclusts) == 0:
-                print '  %s sequence \'%s\' not found in partition' % (color('red', 'warning'), pline['unique_ids'][iseq])
-                iclusts = [-1]  # uh, sure, that's a good default
-            elif len(iclusts) > 1:
-                print '  %s sequence \'%s\' occurs multiple times (%d) in partition' % (color('red', 'warning'), pline['unique_ids'][iseq], len(iclusts))
-            aline[akey] = str(iclusts[0])
+            aline[akey] = cluster_indices.get(pline['unique_ids'][iseq])
         elif akey == 'locus':
             aline[akey] = get_locus(pline['v_gene']).upper()  # scoper at least requires upper case
         elif '_support' in akey and akey[0] in regions:  # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
@@ -1705,15 +1701,23 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
         extra_columns = []
     print '   writing airr annotations to %s' % outfname
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
+    cluster_indices = None
+    if cpath is not None:
+        cluster_indices = {u : i for i, c in enumerate(cpath.best()) for u in c}
     with open(outfname, 'w') as outfile:
         oheads = airr_headers.keys() + extra_columns
         if skip_columns is not None:
             oheads = [h for h in oheads if h not in skip_columns]
         writer = csv.DictWriter(outfile, oheads, delimiter='\t')
         writer.writeheader()
+        if len(annotation_list) == 0 and cpath is not None:
+            print '    writing partition with no annotations'
+            for cluster in cpath.best():
+                for uid in cluster:
+                    writer.writerow({'sequence_id' : uid, 'clone_id' : cluster_indices.get(uid)})
         for line in annotation_list:
             for iseq in range(len(line['unique_ids'])):
-                aline = get_airr_line(line, iseq, partition=None if cpath is None else cpath.partitions[cpath.i_best], extra_columns=extra_columns, skip_columns=skip_columns, args=args, debug=debug)
+                aline = get_airr_line(line, iseq, cluster_indices=cluster_indices, extra_columns=extra_columns, skip_columns=skip_columns, args=args, debug=debug)
                 writer.writerow(aline)
 
         # and write empty lines for seqs that failed either in sw or the hmm

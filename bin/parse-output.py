@@ -195,7 +195,7 @@ if not os.path.exists(os.path.dirname(os.path.abspath(args.outfile))):
     os.makedirs(os.path.dirname(os.path.abspath(args.outfile)))
 
 if args.airr_output:
-    print '  writing %d sequences to %s' % (len(annotation_list), args.outfile)
+    print '  writing %d annotations%s to %s' % (len(annotation_list), '' if cpath is None else ' (with partition: %d seqs in %d clusters)'%(sum(len(c) for c in cpath.best()), len(cpath.best())), args.outfile)
     utils.write_airr_output(args.outfile, annotation_list, cpath=cpath, extra_columns=args.extra_columns, skip_columns=args.skip_columns)
     sys.exit(0)
 
@@ -204,7 +204,7 @@ seqfos = []
 annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
 for cluster in clusters_to_use:
     if ':'.join(cluster) not in annotations:
-        print '  %s cluster with size %d not in annotations, so skipping it' % (utils.color('red', 'warning'), len(cluster))
+        print '  %s cluster with size %d not in annotations, so skipping it' % (utils.color('yellow', 'warning'), len(cluster))
         continue
     cluster_annotation = annotations[':'.join(cluster)]
     newfos = [{'name' : u, 'seq' : s} for u, s in zip(cluster_annotation['unique_ids'], cluster_annotation['seqs' if args.indel_reversed_seqs else 'input_seqs'])]
