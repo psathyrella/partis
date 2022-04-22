@@ -569,6 +569,13 @@ def translate_labels(dendro_tree, translation_pairs, dbgstr='', dont_fail=False,
 
 # ----------------------------------------------------------------------------------------
 def write_translated_trees(outfname, translation_pairs=None, translation_fcn=None, infname=None, intrees=None):  # specify one of <infname> (nwk file) or <intrees> (list of dendro trees), and one of <translation_pairs>, <translation_fcn>
+    # ----------------------------------------------------------------------------------------
+    def trnprs(dtree):
+        if translation_pairs is None:
+            return [(n.taxon.label, translation_fcn(n.taxon.label)) for n in dtree.preorder_node_iter() if n.taxon is not None]
+        else:
+            return translation_pairs
+    # ----------------------------------------------------------------------------------------
     if [infname, intrees].count(None) != 1:
         raise Exception('have to specify exactly one of <infname>, <intrees>, but got %s %s' % (infname, intrees))
     if [translation_pairs, translation_fcn].count(None) != 1:
@@ -578,9 +585,7 @@ def write_translated_trees(outfname, translation_pairs=None, translation_fcn=Non
         intrees = [get_dendro_tree(treestr=s) for s in get_treestrs_from_file(infname)]
     outtrees = []
     for dtree in intrees:
-        if translation_pairs is None:
-            translation_pairs = [(n.taxon.label, translation_fcn(n.taxon.label)) for n in dtree.preorder_node_iter() if n.taxon is not None]
-        translate_labels(dtree, translation_pairs) #, debug=True)
+        translate_labels(dtree, trnprs(dtree)) #, debug=True)
         outtrees.append(dtree)
     utils.mkdir(outfname, isfile=True)
     with open(outfname, 'w') as tfile:
@@ -2483,7 +2488,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def combid(mfo):  # new uid that combines h+l ids
         _, cids = zip(*[get_did(gsval(mfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
-        didstr = '+'.join(both_dids(mfo))  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
+        didstr = '+'.join(list(set(both_dids(mfo))))  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
         return hlid(didstr, [cids[0], cids[1]])
     # ----------------------------------------------------------------------------------------
     def get_didstr(dids, cids, mpfo):
