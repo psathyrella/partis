@@ -79,7 +79,10 @@ default_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', '
 
 # ----------------------------------------------------------------------------------------
 def smetric_fname(fname):
-    return utils.insert_before_suffix('-selection-metrics', fname)
+    if utils.getsuffix(fname) == '':  # directory (paired loci)
+        return '%s/selection-metrics.yaml' % fname
+    else:
+        return utils.insert_before_suffix('-selection-metrics', fname)
 
 # ----------------------------------------------------------------------------------------
 def add_cons_seqs(line, aa=False):
@@ -565,6 +568,26 @@ def translate_labels(dendro_tree, translation_pairs, dbgstr='', dont_fail=False,
         print get_ascii_tree(dendro_tree=dendro_tree, extra_str='      ')
 
 # ----------------------------------------------------------------------------------------
+def write_translated_trees(outfname, translation_pairs=None, translation_fcn=None, infname=None, intrees=None):  # specify one of <infname> (nwk file) or <intrees> (list of dendro trees), and one of <translation_pairs>, <translation_fcn>
+    if [infname, intrees].count(None) != 1:
+        raise Exception('have to specify exactly one of <infname>, <intrees>, but got %s %s' % (infname, intrees))
+    if [translation_pairs, translation_fcn].count(None) != 1:
+        raise Exception('have to specify exactly one of <translation_pairs>, <translation_fcn>, but got %s %s' % (infname, intrees))
+    if intrees is None:
+        assert infname is not None
+        intrees = [get_dendro_tree(treestr=s) for s in get_treestrs_from_file(infname)]
+    outtrees = []
+    for dtree in intrees:
+        if translation_pairs is None:
+            translation_pairs = [(n.taxon.label, translation_fcn(n.taxon.label)) for n in dtree.preorder_node_iter() if n.taxon is not None]
+        translate_labels(dtree, translation_pairs) #, debug=True)
+        outtrees.append(dtree)
+    utils.mkdir(outfname, isfile=True)
+    with open(outfname, 'w') as tfile:
+        for dtree in outtrees:
+            tfile.write(as_str(dtree) + '\n')
+
+# ----------------------------------------------------------------------------------------
 def get_mean_leaf_height(tree=None, treestr=None):
     assert tree is None or treestr is None
     if tree is None:
@@ -985,6 +1008,8 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
     if dtree.seed_node.taxon.label not in aa_seqs and 'naive_seq_aa' in annotation:
         aa_seqs[dtree.seed_node.taxon.label] = annotation['naive_seq_aa']  # the aa naive seq *should* always be there now, since I just started adding it in add_seqs_aa()
 
+    n_different, _ = compare_tree_distance_to_shm(dtree, annotation, only_check_leaf_depths=True, debug=True)  # this checks leaf depths, whereas in the loop below we check each edge (result should be the ~same, but this fcn has better dbg printing)
+
     skipped_edges, missing_nodes = [], set()
     if debug > 1:
         print '          N mutations        branch length'
@@ -999,15 +1024,16 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
             missing_nodes |= set([clabel, plabel]) - set(aa_seqs)
             continue
         nuc_branch_length = edge.length  # nucleotide distance from parent node (only used for debug, but we have to grab it before we change the edge length)
-        aa_mut_frac, aa_n_muts = utils.hamming_fraction(aa_seqs[plabel], aa_seqs[clabel], amino_acid=True, also_return_distance=True)
+        aa_mut_frac, aa_n_muts = utils.hamming_fraction(aa_seqs[plabel], aa_seqs[clabel], amino_acid=True, also_return_distance=True)  # should've called it hamming fraction rather than mut frac
         edge.length = aa_mut_frac
-        if debug:
+        if debug or n_different > 0:
             nuc_mut_frac, nuc_n_muts = utils.hamming_fraction(nuc_seqs[plabel], nuc_seqs[clabel], also_return_distance=True)
             if nuc_mut_frac > 0 and abs(nuc_branch_length - nuc_mut_frac) / nuc_mut_frac > very_different_frac:
-                print '  %s nuc branch length %.4f and mut frac %.4f very different for branch between %s --> %s' % (utils.color('red', 'warning'), nuc_branch_length, nuc_mut_frac, clabel, plabel)
-            changes[edge] = (nuc_n_muts, aa_n_muts)
-            if debug > 1:
-                print '          %3d   %3d        %.3f     %.3f      %s' % (nuc_n_muts, aa_n_muts, nuc_branch_length, aa_mut_frac, clabel)
+                print '          %s nuc branch length %.4f and hamming frac %.4f very different (ratio %.2f) for branch between %s --> %s' % (utils.color('yellow', 'warning'), nuc_branch_length, nuc_mut_frac, nuc_branch_length / nuc_mut_frac, clabel, plabel)
+            if debug:
+                changes[edge] = (nuc_n_muts, aa_n_muts)
+                if debug > 1:
+                    print '          %3d   %3d        %.3f     %.3f      %s' % (nuc_n_muts, aa_n_muts, nuc_branch_length, aa_mut_frac, clabel)
 
     aa_dtree.update_bipartitions(suppress_unifurcations=False)
 
@@ -1030,7 +1056,7 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
 
 # ----------------------------------------------------------------------------------------
 # check whether 1) node depth and 2) node pairwise distances are super different when calculated with tree vs sequences (not really sure why it's so different sometimes, best guess is fasttree sucks, partly because it doesn't put the root node anywhere near the root of the tree)
-def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, min_warn_frac=0.25, extra_str=None, debug=False):
+def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, min_warn_frac=0.1, only_check_leaf_depths=False, extra_str=None, debug=False):
     common_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label in annotation['unique_ids']]
     tdepths, mfreqs, fracs = {}, {}, {}
     for node in common_nodes:
@@ -1046,36 +1072,42 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.5, min_warn_
         warnstr = utils.color('yellow', 'warning ') if len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
             print '        %stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % (warnstr, 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
-        if debug and len(fracs) > 0:
-            print '    tree depth   mfreq    frac diff'
+        if (debug and len(fracs) > 0) or len(fracs) > 0:
+            print '    tree depth   mfreq      ratio    frac diff'
             for key, frac in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
-                print '      %.4f    %.4f     %.4f     %s' % (tdepths[key], mfreqs[key], frac, key)
+                print '      %.4f    %.4f     %.4f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], frac, key)
 
-    dmatrix = dtree.phylogenetic_distance_matrix()
+    if only_check_leaf_depths:  # the pairwise bit is slow
+        return len(fracs), None
+
+    dmatrix = dtree.phylogenetic_distance_matrix()  # note that this only considers leaves
     dmx_taxa = set(dmatrix.taxon_iter())  # phylogenetic_distance_matrix() seems to only return values for leaves, which maybe I'm supposed to expect?
-    tdists, mdists, fracs = {}, {}, {}  # NOTE reusing these names is kind of dangerous
+    pv_tdists, pv_mdists, pw_fracs = {}, {}, {}
     for n1, n2 in itertools.combinations([n for n in common_nodes if n.taxon in dmx_taxa], 2):
         tdist = dmatrix.distance(n1.taxon, n2.taxon)
         mdist = utils.hamming_fraction(utils.per_seq_val(annotation, 'seqs', n1.taxon.label), utils.per_seq_val(annotation, 'seqs', n2.taxon.label))
         frac_diff = abs(tdist - mdist) / tdist if tdist > 0 else 0
         if frac_diff > max_frac_diff:
             key = (n1.taxon.label, n2.taxon.label)
-            tdists[key] = tdist
-            mdists[key] = mdist
-            fracs[key] = frac_diff
-    if debug or len(fracs) > 0:
-        warnstr = utils.color('yellow', 'warning ') if len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
+            pv_tdists[key] = tdist
+            pv_mdists[key] = mdist
+            pw_fracs[key] = frac_diff
+    if debug or len(pw_fracs) > 0:
+        warnstr = utils.color('yellow', 'warning ') if len(pw_fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
-            print '        %spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % (warnstr, 100*max_frac_diff, len(fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
-        if debug and len(fracs) > 0:
+            print '        %spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % (warnstr, 100*max_frac_diff, len(pw_fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
+        if debug and len(pw_fracs) > 0:
             print '          pairwise'
-            print '     tree dist  seq dist  frac diff'
-            for key, frac_diff in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
-                print '      %.4f     %.4f    %.4f    %s  %s' % (tdists[key], mdists[key], frac_diff, key[0], key[1])
+            print '     tree dist  seq dist    ratio   frac diff'
+            for key, frac_diff in sorted(pw_fracs.items(), key=operator.itemgetter(1), reverse=True):
+                print '      %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / pv_mdists[key], frac_diff, key[0], key[1])
 
     if debug:
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
-        utils.print_reco_event(annotation)
+        if 'v_3p_del' in annotation:  # hackey way to avoid trying to print the fake h+l annotation
+            utils.print_reco_event(annotation)
+
+    return len(fracs), len(pw_fracs)
 
 # ----------------------------------------------------------------------------------------
 def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, extra_str=None, iclust=None, dbgstr='', debug=False):
@@ -1084,7 +1116,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
     # <iclust> is just to give a little more granularity in dbg
 
-    # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes)
+    # # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes)
     # if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
     #     compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
 
@@ -1930,7 +1962,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
         assert not args.dont_normalize_lbi  # it's trained on normalized lbi, so results are garbage if you don't normalize
         dtr_cfgvals, trainfo, skmodels, pmml_models, missing_models = init_dtr(train_dtr, args.dtr_path, cfg_fname=dtr_cfg)
 
-    if true_lines_to_use is not None:  # being called by bin/smetric-run.py
+    if true_lines_to_use is not None:  # being called by bin/smetric-run.py or combine_selection_metrics()
         assert reco_info is None
         inf_lines_to_use = None
     else:  # called from python/partitiondriver.py (with reco_info set, which needs to be turned into true_lines_to_use)
@@ -2020,6 +2052,10 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
             final_true_lines.append(true_line)
         true_lines_to_use = final_true_lines  # replace it with a new list that only has the clusters we really want
 
+    if true_lines_to_use is None:  # don't plot inferred metrics on simulation (saves time + complication, and we hardly ever actually want them)
+        plstr, antn_list, is_simu, inf_annotations = 'inferred', inf_lines_to_use, False, None
+    else:
+        plstr, antn_list, is_simu, inf_annotations = 'true', true_lines_to_use, True, inf_lines_to_use
     if args.dtr_path is not None:  # it would be nice to eventually merge these two blocks, i.e. use the same code to plot dtr and lbi/lbr
         if train_dtr:
             print '  training decision trees into %s' % args.dtr_path
@@ -2052,10 +2088,6 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
             print '      dtr plotting time %.1fs' % (time.time() - plstart)
     elif base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        if true_lines_to_use is None:  # don't plot inferred metrics on simulation (saves time + complication, and we hardly ever actually want them)
-            plstr, antn_list, is_simu, inf_annotations = 'inferred', inf_lines_to_use, False, None
-        else:
-            plstr, antn_list, is_simu, inf_annotations = 'true', true_lines_to_use, True, inf_lines_to_use
         plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir, debug=debug)
 
     if outfname is not None:
@@ -2066,11 +2098,11 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
             dumpfo.update(l['tree-info'])
             return dumpfo
         with open(outfname, 'w') as tfile:
-            json.dump([dumpfo(l) for l in inf_lines_to_use if 'tree-info' in l], tfile)
+            json.dump([dumpfo(l) for l in antn_list if 'tree-info' in l], tfile)
     if args.run_gctree and gctree_outdir is not None:
         anfname = '%s/gctree-annotations.yaml' % gctree_outdir
         print '    writing gctree annotations (with inferred ancestral sequences) to %s' % anfname
-        utils.write_annotations(anfname, glfo, inf_lines_to_use, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns))  # NOTE these probably have the fwk insertions removed, which is probably ok?
+        utils.write_annotations(anfname, glfo, antn_list, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns))  # NOTE these probably have the fwk insertions removed, which is probably ok?
 
 # ----------------------------------------------------------------------------------------
 def init_dtr(train_dtr, dtr_path, cfg_fname=None):
@@ -2232,7 +2264,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         dtree = get_dendro_tree(treestr=line['tree'])
         lbvars = set(varlist) & set(['lbi', 'lbr'])  # although if is_aa_lb is set, we're really calculating aa-lbi/aa-lbr
         if lb_tau is None or lbr_tau_factor is None:
-            print '  %s using default lb_tau %.3f and lbr_tau_factor %.3f to calculate individual tree metric %s' % (utils.color('yellow', 'warning'), default_lb_tau, default_lbr_tau_factor, metric_method)
+            print '  %s using default lb_tau %.4f and lbr_tau_factor %.1f to calculate individual tree metric %s' % (utils.color('yellow', 'warning'), default_lb_tau, default_lbr_tau_factor, metric_method)
             lb_tau, lbr_tau_factor = default_lb_tau, default_lbr_tau_factor
         tmp_tau, tmp_factor = lb_tau, lbr_tau_factor  # weird/terrible hack (necessary to allow the calculation fcn to enforce that either a) we're calculating both metrics, so we probably want the factor applied or b) we're only calculating one, and we're not normalizing (i.e. we're probably calculating the bounds)
         if len(lbvars) == 2:
@@ -2439,12 +2471,20 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def get_did(uid, return_contigs=False):
         return utils.get_droplet_id(uid, args.droplet_id_separators, args.droplet_id_indices, return_contigs=return_contigs)
     # ----------------------------------------------------------------------------------------
+    def both_dids(mfo):
+        return [get_did(gsval(mfo, c, 'unique_ids')) for c in 'hl']
+    # ----------------------------------------------------------------------------------------
     def get_joint_did(mfo):
-        return utils.get_single_entry(list(set([get_did(gsval(mfo, c, 'unique_ids')) for c in 'hl'])))
+        return utils.get_single_entry(list(set(both_dids(mfo))))
+    # ----------------------------------------------------------------------------------------
+    def hlid(did, lpair):
+        return did
+        # return '%s-%s+%s' % (did, lpair[0], lpair[1])
     # ----------------------------------------------------------------------------------------
     def combid(mfo):  # new uid that combines h+l ids
         _, cids = zip(*[get_did(gsval(mfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
-        return '%s-%s+%s' % (get_joint_did(mfo), cids[0], cids[1])
+        didstr = '+'.join(both_dids(mfo))  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
+        return hlid(didstr, [cids[0], cids[1]])
     # ----------------------------------------------------------------------------------------
     def get_didstr(dids, cids, mpfo):
         if len(set(dids)) == 1:  # make sure they're from the same droplet
@@ -2926,6 +2966,15 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # ----------------------------------------------------------------------------------------
         smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
+# ----------------------------------------------------------------------------------------
+        print '  %s debug print needs updating to use new paired annotation rather than just adding h+l metrics' % utils.wrnstr()
+# TODO this doesn't really work cause you need to translate the tree, which isn't worth it -- just run single chain selection metrics, or update this fcn
+        # for smetric in args.selection_metrics_to_calculate:
+        #     for tmpntn in [h_atn, l_atn]:
+        #         # calculate_individual_tree_metrics(smetric, [tmpntn], lb_tau=args.lb_tau, lbr_tau_factor=args.lbr_tau_factor) #, debug=True)
+        #         inf_lines, true_lines = (None, [tmpntn]) if is_simu else (utils.get_annotation_dict([tmpntn]), None)
+        #         add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, true_lines_to_use=true_lines, treefname=args.treefname)
+# ----------------------------------------------------------------------------------------
 
         if len(antn_pairs) > 1:
             utils.non_clonal_clusters(h_atn, [hl for hl, _ in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(h_atn['loci'][0]), extra_str='              ')
@@ -2983,6 +3032,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         def translate_heavy_tree(htree):
             trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
             translate_labels(htree, trns)
+            htree.scale_edges(len(h_atn['seqs'][0]) / float(len(p_atn['seqs'][0])))
             return htree, htree.as_string(schema='newick')
         # ----------------------------------------------------------------------------------------
         p_atn = {}  # make a new fake annotation for the sequences that are in both h+l
@@ -2992,46 +3042,39 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         p_atn['naive_seq'] = sumv(metric_pairs[0], 'naive_seq')
         p_atn['naive_seq_aa'] = sumv(metric_pairs[0], 'naive_seq_aa')  # NOTE it's *really* important you don't end up translating the sum'd naive seq since i don't think they necessarily get concat'd in frame
         p_atn['n_mutations'] = [sumv(m, 'n_mutations') for m in metric_pairs]
+        p_atn['mut_freqs'] = [n / float(len(s)) for n, s in zip(p_atn['n_mutations'], p_atn['seqs'])]
         cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]
         if is_simu:
-            dtree, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
+            _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
-        p_atn['tree-info'] = {'lb' : {}}
-        seqfos = [{'name' : combid(mfo), 'seq' : sumv(mfo, 'seqs')} for mfo in metric_pairs]  # sumv(mfo, 'unique_ids')
-        if args.treefname is not None:
-            dtree, treestr = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree-info']['lb']['tree']))
-        else:
-            print '    getting fasttree (which may not be what you want)'
-# TODO should probably use this fcn somewhere here
-            # get_trees_for_annotations([h_atn], treefname=args.treefname, debug=True)
-            dtree = get_fasttree_tree(seqfos, naive_seq=p_atn['naive_seq'])  # NOTE kind of duplicates get_trees_for_annotations() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
-            treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
-        p_atn['tree-info']['lb']['tree'] = treestr
-        p_atn['tree-info']['lb']['aa-tree'] = get_aa_tree(dtree, p_atn).as_string(schema='newick')
-        for b_mtr in args.selection_metrics_to_calculate + ['shm', 'shm-aa']:
-            sum_mtr = 'sum-%s' % b_mtr
-            p_atn['tree-info']['lb'][sum_mtr] = {}
-            for mfo in metric_pairs:
-                sum_mval = sumv(mfo, b_mtr)
-                if sum_mval is None:
-                    continue
-                pid = p_atn['unique_ids'][mfo['h_iseq']]
-                p_atn['tree-info']['lb'][sum_mtr][pid] = sum_mval
         return p_atn
-    # # ----------------------------------------------------------------------------------------
-    # def makeplots(sum_antns):
-    #     # h vs l aa-cdist scatter plots:
-    #     # iclust_plotvals = {c+'_aa-cfrac' : [gsval(m, c, 'aa-cfrac') for m in metric_pairs] for c in 'hl'}
-    #     # if any(vl.count(0)==len(vl) for vl in iclust_plotvals.values()):  # doesn't plot anything useful, and gives a pyplot warning to std err which is annoying
-    #     #     return
-    #     # add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs)  # add uids for the chosen ones
-    #     # mstr = legtexts['cons-frac-aa']
-    #     # lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-%d'%iclust, plotdir, iclust_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')  # NOTE this iclust will in general *not* correspond to the one in partition plots
-    #     # # for k in iclust_plotvals:
-    #     # #     if k not in all_plotvals: all_plotvals[k] = []  # just for 'uids'
-    #     # #     all_plotvals[k] += iclust_plotvals[k]
+# ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
+# # old way of just summing h+l metrics (don't want to do this):
+#         p_atn['tree-info'] = {'lb' : {}}
+#         if args.treefname is not None:
+#             dtree, treestr = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree-info']['lb']['tree']))
+#         else:
+#             print '    getting fasttree (which may not be what you want)'
+#             dtree = get_fasttree_tree([{'name' : combid(mfo), 'seq' : sumv(mfo, 'seqs')} for mfo in metric_pairs], naive_seq=p_atn['naive_seq'])  # NOTE kind of duplicates get_trees_for_annotations() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
+#             treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
+#         p_atn['tree-info']['lb']['tree'] = treestr
+#         p_atn['tree-info']['lb']['aa-tree'] = get_aa_tree(dtree, p_atn).as_string(schema='newick')
+#         for b_mtr in args.selection_metrics_to_calculate + ['shm', 'shm-aa']:
+#             sum_mtr = 'sum-%s' % b_mtr
+#             p_atn['tree-info']['lb'][sum_mtr] = {}
+#             for mfo in metric_pairs:
+#                 # if b_mtr == 'sum-aa-lbr':
+#                 print b_mtr, gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'h', b_mtr), gsval(mfo, 'l', b_mtr), sumv(mfo, b_mtr)
+#                 sum_mval = sumv(mfo, b_mtr)
+#                 if sum_mval is None:
+#                     continue
+#                 pid = p_atn['unique_ids'][mfo['h_iseq']]
+#                 p_atn['tree-info']['lb'][sum_mtr][pid] = sum_mval
+#         return p_atn
     # ----------------------------------------------------------------------------------------
     def get_mtpys(metric_pairs):  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
         mtpys = {}
@@ -3049,10 +3092,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     cfgfo = read_cfgfo()
     antn_pairs = []
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
-        antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, required_keys=['tree-info'], min_cluster_size=min_cluster_size)
+        antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, min_cluster_size=min_cluster_size)  # , required_keys=['tree-info']
     antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
     # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
-    plot_antns = []
+    pair_antns = []
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
         print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
@@ -3073,22 +3116,25 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 mpfo[tch] = ltmp
                 mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
             metric_pairs.append(mpfo)
-        if plotdir is not None:
-            plot_antns.append(get_sum_antn_for_plotting(metric_pairs, h_atn))
+        pair_antns.append(get_sum_antn_for_plotting(metric_pairs, h_atn))
         if len(metric_pairs) == 0:
             continue
-        mtpys = get_mtpys(metric_pairs)
+        mtpys = get_mtpys(metric_pairs)  # ick (this is used by fcns relying on scope)
         iclust_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
         if len(iclust_mfos) > 0:
             all_chosen_mfos += iclust_mfos
             if debug:
                 print '      chose %d total' % len(iclust_mfos)
         if debug:
-            print_dbg(metric_pairs, iclust_mfos)
-    if plotdir is not None:
-        mtc = ['sum-'+m for m in args.selection_metrics_to_calculate]
-        plot_tree_metrics(args, plotdir, mtc, plot_antns, is_simu=is_simu, ete_path=args.ete_path, workdir=args.workdir, paired=True)
+            print_dbg(metric_pairs, iclust_mfos)  # note that this fcn uses a lot of local variables that we don't pass to it
+    inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
+    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
+                 workdir=args.workdir, outfname=args.selection_metric_fname) #, debug=True
+# TODO will need these args in order to run gctree
+                 # glfo=, gctree_outdir=None if args.outfname is None or not args.run_gctree else os.path.dirname(utils.fpath(args.outfname)),
     if args.chosen_ab_fname is not None:
-        write_chosen_file(all_chosen_mfos)
+# TODO needs updating
+        pass
+        # write_chosen_file(all_chosen_mfos)
     # if plotdir is not None:  # eh, maybe there isn't a big reason for an overall one
     #     lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')

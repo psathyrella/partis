@@ -1022,6 +1022,8 @@ def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get val
 def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
     if key == 'aa-cdist':
         key = 'cons-dist-aa'  # arggggggh (when we write output info when choosing abs, we write it as 'aa-cdist', and can't change it now)
+    if key == 'aa-cfrac':
+        key = 'cons-frac-aa'  # arggggggh (when we write output info when choosing abs, we write it as 'aa-cfrac', and can't change it now)
     if key in antn:
         # assert key in linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
         if key in linekeys['per_family']:
@@ -1030,8 +1032,8 @@ def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalize
             return antn[key][iseq]
     elif 'tree-info' in antn and key in antn['tree-info']['lb']:
         return treeutils.smvals(antn, key, iseq=iseq)
-    elif key in ['aa-cfrac', 'cons-frac-aa']:  # NOTE this doesn't check to see if it's there (i think because we don't store it), it just calculates it
-        return treeutils.lb_cons_dist(antn, iseq, aa=True, frac=True)
+    elif key in ['cons-frac-aa', 'cons-dist-aa']:  # NOTE this doesn't check to see if it's there (i think because we don't store it), it just calculates it
+        return treeutils.lb_cons_dist(antn, iseq, aa=True, frac='frac' in key)  # we look to see if it's in the tree info in the previous lines, but if it isn't there, whatever, just recalculate
     elif key == 'shm-aa':  # NOTE this doesn't either, which [also] may be worth fixing eventually
         return shm_aa(antn, iseq=iseq)
     elif key == 'shm':  # NOTE this probably shouldn't work like this, but i just want the h+l selection metrics to work atm

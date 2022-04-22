@@ -101,9 +101,11 @@ def run_cmd(action):
     if action in ['annotate', 'get-selection-metrics'] and '--paired-outdir' not in cmd:
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
-        cmd += ' --min-selection-metric-cluster-size 3 --treefname %s/%s --plotdir %s --selection-metrics-to-calculate aa-lbi:cons-dist-aa:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
+        cmd += ' --min-selection-metric-cluster-size 3 --treefname %s/%s --plotdir %s --selection-metrics-to-calculate lbi:aa-lbi:cons-dist-aa:lbr:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
         # --label-tree-nodes
         cmd += ' --add-selection-metrics-to-outfname --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + ['distr', 'tree-mut-stats'])
+# TODO this needs to be turned on until i update the print_dbg() fcn in combine_selection_metrics()
+        cmd += ' --run-single-chain-selection-metrics'
         if args.slice_bin_fname is not None:
             cmd += ' --slice-bin-fname %s' % args.slice_bin_fname
         cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv --debug 1' % args.outdir

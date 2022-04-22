@@ -360,11 +360,19 @@ def process(args):
         args.n_partitions_to_write = 999  # need to make sure to get all the ones after the best partition, and this is a somewhat hackey way to do that
         print '  note: setting --n-partitions-to-write to 999 since either --min-largest-cluster-size or --n-final-clusters was set'  # bcrham argument parser barfs if you use sys.maxint
 
-    if not args.paired_loci and (args.action == 'get-selection-metrics' or args.get_selection_metrics):
-        if args.outfname is None and args.selection_metric_fname is None:
-                print '    %s calculating selection metrics, but neither --outfname nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
-        elif args.selection_metric_fname is None and args.action == 'get-selection-metrics' and not args.add_selection_metrics_to_outfname:
-            args.selection_metric_fname = treeutils.smetric_fname(args.outfname)
+    if args.action == 'get-selection-metrics' or args.get_selection_metrics:
+        if args.paired_loci:
+            if args.paired_outdir is None and args.selection_metric_fname is None:
+                print '    %s calculating selection metrics, but neither --paired-outdir nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
+            elif args.selection_metric_fname is None:
+                if args.add_selection_metrics_to_outfname:
+                    print '  note: --add-selection-metrics-to-outfname has no effect on final output files when --paired-loci is set since there isn\'t a unique output file (although if --run-single-chain-selection-metrics is set they will get written to those files)'
+                args.selection_metric_fname = treeutils.smetric_fname(args.paired_outdir)
+        else:
+            if args.outfname is None and args.selection_metric_fname is None:
+                    print '    %s calculating selection metrics, but neither --outfname nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
+            elif args.selection_metric_fname is None and args.action == 'get-selection-metrics' and not args.add_selection_metrics_to_outfname:
+                args.selection_metric_fname = treeutils.smetric_fname(args.outfname)
     args.selection_metrics_to_calculate = utils.get_arg_list(args.selection_metrics_to_calculate, choices=treeutils.selection_metrics)
     args.selection_metric_plot_cfg = utils.get_arg_list(args.selection_metric_plot_cfg, choices=treeutils.all_plot_cfg)
 

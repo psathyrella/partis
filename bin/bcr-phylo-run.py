@@ -292,7 +292,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
         final_line['nearest_target_indices'] = [nodefo[u]['target_index'] for u in final_line['unique_ids']]
         final_line['min_target_distances'] = [nodefo[u]['target_distance'] for u in final_line['unique_ids']]
-        ftree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))
+        ftree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))  # note that if --paired-loci is set then most edges will still be the wrong length (compared to the mutations in the single-locus sequences), i.e. best not to use this much until treeutils.combine_selection_metrics(), where we rescale to the full h+l length
         if args.debug:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ftree), padwidth=12)
         final_line['tree'] = ftree.as_string(schema='newick')

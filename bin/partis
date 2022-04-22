@@ -499,15 +499,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def translate_locus_names(clist, lpair, ltmp):
         if args.treefname is not None:  # have to translate uids (i.e. add locus)
-            ntrees = []
-            for treestr in treeutils.get_treestrs_from_file(args.treefname):
-                dtree = treeutils.get_dendro_tree(treestr=treestr)
-                treeutils.translate_labels(dtree, [(n.taxon.label, '%s-%s' % (n.taxon.label, ltmp)) for n in dtree.preorder_node_iter() if n.taxon is not None]) #, debug=True)
-                ntrees.append(dtree)
             tfn = getofn(ltmp, trees=True, lpair=lpair, gctrees=True)
-            with open(tfn, 'w') as tfile:
-                for dtree in ntrees:
-                    tfile.write(treeutils.as_str(dtree) + '\n')
+            treeutils.write_translated_trees(tfn, translation_fcn=lambda x: '%s-%s'%(x, ltmp), infname=args.treefname)
             utils.replace_in_arglist(clist, '--treefname', tfn)
             work_fnames.append(tfn)
         if args.queries_to_include_fname is not None: # NOTE this isn't really right, since the file we read here has uids repeated, once for h and once for l, so when the file we write here gets read, the duplicate uid translator adds "-2", and the seqs are messed up then, but it's actually ok for now since we only need the uids in there
@@ -542,6 +535,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--no-pairing-info')
             utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
+            if not args.run_single_chain_selection_metrics:
+                utils.remove_from_arglist(clist, '--get-selection-metrics')
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
@@ -1155,18 +1150,18 @@ def run_all_loci(args, ig_or_tr='ig'):
             for ltmp in sloci():
                 run_step('view-output', ltmp, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
         if args.action == 'get-selection-metrics' or args.get_selection_metrics:
-            if args.action == 'get-selection-metrics':
+            if args.run_single_chain_selection_metrics and args.action == 'get-selection-metrics':
                 for lpair in spairs():
                     for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
                         run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
-            if not args.is_data and args.paired_indir is not None:
-                true_lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate, no_plot=True)  # read true (input) files, and add selection metrics NOTE these will presumably already have been plotted (to the same dir) in the 'get-selection-metrics' call just above, but all the ways i can think of to avoid it are worse (underlying issue is i don't want to rewrite simulation file with selection metrics)
-                bpltdir = None if args.plotdir is None else getplotdir(None)+'/true-combo-selection-metrics'
-                treeutils.combine_selection_metrics(true_lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=bpltdir, args=args, is_simu=True)
+            if not args.is_data:
+                if args.paired_indir is None:
+                    raise Exception('can\'t get simulation selection metrics without setting --paired-indir')
+                lp_infos = read_true_files()
             else:
-                lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, read_selection_metrics=True, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')  # for --get-selection-metrics we shouldn't need to read any annotations here (could be passed from combine_inf_chains()) but oh well
+                lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition')
                 _ = read_qti_file(args)  # sets <args.queries_to_include>
-                treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None)+'/inferred-combo-selection-metrics', args=args)  # NOTE this is kind of weird that we don't set is_simu to true even if it is simu (we instead run again below) but i think it's right(ish)?
+            treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None), is_simu=not args.is_data, args=args)
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         utils.rmdir(args.workdir, fnames=work_fnames)
@@ -1328,6 +1323,8 @@ parent_args.append({'name' : '--min-allele-finding-gene-length', 'kwargs' : {'ty
 parent_args.append({'name' : '--plot-and-fit-absolutely-everything', 'kwargs' : {'type' : int, 'help' : 'fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)'}})
 parent_args.append({'name' : '--cluster-indices', 'kwargs' : {'help' : 'indices of clusters (when sorted largest to smallest) to process for actions that read existing output, e.g. \'view-output\' and \'get-selection-metrics\'. Specified as a colon-separated list, where each item can be either a single integer or a python slice-style range of integers, e.g. 0:3-6:50 --> 0:3:4:5:50'}})
 parent_args.append({'name' : '--partition-index-to-print', 'kwargs' : {'type' : int, 'help' : 'like --cluster-indices, but restricts to the partition with this index (rather than default of printing best partition).'}})
+parent_args.append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname, or alternatively run gctree with --run-gctree (unrelated to --input-simulation-treefname).'}})
+parent_args.append({'name' : '--run-single-chain-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'if --paired-loci is set and calculating selection metrics, in addition to getting the paired h+l selection metrics, also calculate selection metrics on the individual chain output files in igh+igk/ and igh+igk/ (i.e. the *joint*, not single chain, partitions of each individual/single chain)'}})
 parent_args.append({'name' : '--min-selection-metric-cluster-size', 'kwargs' : {'type' : int, 'default' : treeutils.default_min_selection_metric_cluster_size, 'help' : 'don\'t calculate selection metrics for clusters smaller than this'}})
 parent_args.append({'name' : '--treefname', 'kwargs' : {'help' : 'newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-selection-metrics) (unrelated to --input-simulation-treefname).'}})
 parent_args.append({'name' : '--run-gctree', 'kwargs' : {'action' : 'store_true', 'help' : 'run gctree to calculate trees when getting selection metrics (you\'ll need to first install gctree, preferably with: ./bin/gctree-run.py --install)'}})
@@ -1377,7 +1374,6 @@ def runs_on_existing_output(actionstr):
 subargs = {subname : [] for subname in subconfig}
 
 # ----------------------------------------------------------------------------------------
-subargs['annotate'].append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster.'}})
 subargs['annotate'].append({'name' : '--annotation-clustering', 'kwargs' : {'action' : 'store_true', 'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
 subargs['annotate'].append({'name' : '--annotation-clustering-threshold', 'kwargs' : {'default' : 0.9, 'type' : float, 'help' : 'threshold used by --annotation-clustering (i.e. a cluster is defined as the same v and j gene plus this threshold for single-linkage clustering on cdr3 nucleotide hamming distance)'}})
 
@@ -1404,7 +1400,6 @@ subargs['partition'].append({'name' : '--min-largest-cluster-size', 'kwargs' : {
 subargs['partition'].append({'name' : '--calculate-alternative-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'write to disk all the information necessary to, in a later step (\'view-alternative-annotations\'), print alternative inferred naive sequences (i.e. visualize uncertainty in the inferred naive sequence). This is largely equivalent to setting --write-additional-cluster-annotations to \'sys.maxint:sys.maxint\'.'}})
 subargs['partition'].append({'name' : '--max-cluster-size', 'kwargs' : {'type' : int, 'help' : 'stop clustering immediately if any cluster grows larger than this (useful for limiting memory usage, which can become a problem when the final partition contains very large clusters)'}})
 subargs['partition'].append({'name' : '--write-additional-cluster-annotations', 'kwargs' : {'help' : 'in addition to writing annotations for each cluster in the best partition, also write annotations for all the clusters in several partitions on either side of the best partition. Specified as a pair of numbers \'m:n\' for m partitions before, and n partitions after, the best partition.'}})
-subargs['partition'].append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname (unrelated to --input-simulation-treefname).'}})
 subargs['partition'].append({'name' : '--naive-hamming-cluster', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value. Not recommended at this point: if you want fast use --naive-vsearch. (Default clustering uses naive hamming distance enough that it\'s not much slower than this, anyway).'}})
 
 # ----------------------------------------------------------------------------------------
