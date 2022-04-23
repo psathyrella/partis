@@ -15,7 +15,7 @@ import treeutils
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--infname', required=True)
 parser.add_argument('--base-plotdir', required=True)
-parser.add_argument('--lb-tau', type=float, default=treeutils.default_lb_tau)
+parser.add_argument('--lb-tau', type=float)
 parser.add_argument('--lbr-tau-factor', type=float, default=treeutils.default_lbr_tau_factor)
 parser.add_argument('--dont-normalize-lbi', action='store_true')
 parser.add_argument('--action', choices=['train', 'test'])

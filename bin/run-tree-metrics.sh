@@ -10,7 +10,11 @@ testargs="--n-sim-seqs-per-gen-list 50:125 --lb-tau-list 0.002:0.003 --obs-times
 # $bin --actions get-lb-bounds --label $testlabel $testargs --make-plots
 # echo $bin --actions get-lb-bounds --seq-len 133 --label aa-lb-bounds-v0 --make-plots
 # echo $bin --actions get-lb-bounds --seq-len 133 --label $testlabel $testargs --make-plots
-# exit 0
+for slen in 1200; do #300 400 500 600 700 900; do  # redo normalization for different seq lengths
+    # 1200 doesn't work, some %.xf print things i think need to be changed
+    $bin --actions get-lb-bounds --seq-len $slen --label generalize-lb-bounds-$slen --lb-tau-list auto --make-plots >$slen.log #--make-plots
+done
+exit 0
 
 # echo $bin --label $testlabel $testargs --only-csv-plots
 # echo $bin --label $label --n-replicates 3 --only-csv-plots

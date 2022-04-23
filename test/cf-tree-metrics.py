@@ -428,6 +428,10 @@ args.zip_vars = utils.get_arg_list(args.zip_vars)
 args.carry_cap_list = utils.get_arg_list(args.carry_cap_list, intify=True, forbid_duplicates=args.zip_vars is None or 'carry-cap' not in args.zip_vars)  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()
 args.n_sim_seqs_per_gen_list = utils.get_arg_list(args.n_sim_seqs_per_gen_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'n-sim-seqs-per-gen' not in args.zip_vars)
 args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True, intify=True, forbid_duplicates=args.zip_vars is None or 'obs-times' not in args.zip_vars)
+if args.lb_tau_list == 'auto':
+    assert 'get-lb-bounds' in args.actions
+    args.lb_tau_list = '%f' % utils.round_to_n_digits(1. / args.seq_len, 2)  # (1. / args.seq_len) #
+    print '  setting --lb-tau-list to 1 / %d = %s' % (args.seq_len, args.lb_tau_list)
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
 args.target_distance_list = utils.get_arg_list(args.target_distance_list, intify=True)
 args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target_distance_list, forbid_duplicates=True, choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'])

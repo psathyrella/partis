@@ -40,7 +40,7 @@ daffy_metrics += ['sum-'+m for m in daffy_metrics]
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
 selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr', 'shm', 'shm-aa']
 typical_bcr_seq_len = 400
-default_lb_tau = 0.0025
+# default_lb_tau = 0.0025
 default_lbr_tau_factor = 1
 default_min_selection_metric_cluster_size = 10
 
@@ -302,34 +302,50 @@ def train_dtr_model(trainfo, outdir, cfgvals, cgroup, tvar):
     write_pmml(dtrfname(outdir, cgroup, tvar, suffix='pmml'), model, get_dtr_varnames(cgroup, cfgvals['vars']), tvar)
 
 # ----------------------------------------------------------------------------------------
-# NOTE the min lbi is just tau, but I still like doing it this way
-lb_bounds = {  # calculated to 17 generations, which is quite close to the asymptote
-    typical_bcr_seq_len : {  # seq_len
-        0.0030: (0.0030, 0.0331),  # if tau is any bigger than this it doesn't really converge
-        0.0025: (0.0025, 0.0176),
-        0.0020: (0.0020, 0.0100),
-        0.0010: (0.0010, 0.0033),
-        0.0005: (0.0005, 0.0015),
-    },
-    # it turns out the aa lb metrics need the above nuc normalization (i.e. if we normalize with the below, the values are huge, like lots are 10ish). I guess maybe this makes sense, since i'm taking the nuc tree topology and scaling it to aa
-    # int(typical_bcr_seq_len / 3.) : {  # amino acid (133)
-    #     0.0030: (0.0030, 0.0099),
-    #     0.0025: (0.0025, 0.0079),
-    #     0.0020: (0.0020, 0.0061),
-    #     0.0010: (0.0010, 0.0030),
-    #     0.0005: (0.0005, 0.0015),
-    # }
-}
+def get_lb_bounds(tau, seq_len):
+    if tau != 1. / seq_len:
+        raise Exception('tau now has to equal 1 / len(seq) in order to normalize lb metrics')
+    bvals = [
+        (300, 0.0219),
+        (400, 0.0169),
+        (500, 0.0135),
+        (600, 0.0119),
+        (700, 0.0091),
+        (900, 0.0073),
+    ]
+    seq_len = 400
+    slvals = [l for l, _ in bvals]
+    if seq_len < min(slvals) or seq_len > max(slvals):
+        print '  %s seq len %d outside known interpolation values [%d, %d], probably need to rerun test/cf-tree-metrics.py --actions get-lb-bounds to cover this seq len' % (utils.wrnstr(), seq_len, min(slvals), max(slvals))
+    (len1, max1), (len2, max2) = sorted(bvals, key=lambda x: abs(x[0] - seq_len))[:2]
+    return tau, utils.intexterpolate(len1, max1, len2, max2, seq_len)
+
+# old way:
+# # ----------------------------------------------------------------------------------------
+# # NOTE the min lbi is just tau, but I still like doing it this way
+# lb_bounds = {  # calculated to 17 generations, which is quite close to the asymptote
+#     400 : {  # seq_len
+#         0.0030: (0.0030, 0.0331),  # if tau is any bigger than this it doesn't really converge
+#         0.0025: (0.0025, 0.0176),
+#         0.0020: (0.0020, 0.0100),
+#         0.0010: (0.0010, 0.0033),
+#         0.0005: (0.0005, 0.0015),
+#     },
+#     # it turns out the aa lb metrics need the above nuc normalization (i.e. if we normalize with the below, the values are huge, like lots are 10ish). I guess maybe this makes sense, since i'm taking the nuc tree topology and scaling it to aa
+#     # int(typical_bcr_seq_len / 3.) : {  # amino acid (133)
+#     #     0.0030: (0.0030, 0.0099),
+#     #     0.0025: (0.0025, 0.0079),
+#     #     0.0020: (0.0020, 0.0061),
+#     #     0.0010: (0.0010, 0.0030),
+#     #     0.0005: (0.0005, 0.0015),
+#     # }
+# }
 
 # ----------------------------------------------------------------------------------------
-def normalize_lb_val(metric, lbval, tau, seq_len=typical_bcr_seq_len):
+def normalize_lb_val(metric, lbval, tau, seq_len):
     if metric == 'lbr':
         return lbval
-    if seq_len not in lb_bounds:
-        raise Exception('seq len %d not in cached lb bound values (available: %s)' % (seq_len, lb_bounds.keys()))
-    if tau not in lb_bounds[seq_len]:
-        raise Exception('tau value %f not in cached lb bound values (available: %s)' % (tau, lb_bounds[seq_len].keys()))
-    lbmin, lbmax = lb_bounds[seq_len][tau]
+    lbmin, lbmax = get_lb_bounds(tau, seq_len)
     return (lbval - lbmin) / (lbmax - lbmin)
 
 # ----------------------------------------------------------------------------------------
@@ -761,6 +777,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
     removed_nodes = []
     for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
         recursed = False
+# TODO this shouldn't really use typical_bcr_seq_len any more since we have h seqs, l seqs, and h+l seqs
         while leaf.edge_length is not None and leaf.edge_length < 1./(2*typical_bcr_seq_len):  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
             if leaf.parent_node is None:  # why tf can i get the root node here?
                 break
@@ -817,11 +834,11 @@ def node_mtpy(multifo, node):  # number of reads/contigs/whatever (depending on 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 # also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multifo=None, use_old_multiplicity_method=False, debug=False):
+def set_lb_values(dtree, tau, seq_len, only_calc_metric=None, dont_normalize=False, multifo=None, use_old_multiplicity_method=False, debug=False):
     """
     traverses <dtree> in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI (and divides as LBR)
     use_old_multiplicity_method: insert multiplicity into integrals (below), which is equivalent to adding N-1 branches between the node and its parent
-    new version: add N-1 dummy branches of length <default_lb_tau> from the node
+    new version: add N-1 dummy branches of length <tau> from the node
     """
     getmulti = node_mtpy if use_old_multiplicity_method else lambda x, y: 1
 
@@ -877,7 +894,11 @@ def set_lb_values(dtree, tau, only_calc_metric=None, dont_normalize=False, multi
         if node is dtree.seed_node or node.parent_node is dtree.seed_node:  # second clause is only because of dummy root addition (well, and if we are adding dummy root the first clause doesn't do anything)
             vals['lbr'] = 0.
         for metric in metrics_to_calc:
-            returnfo[metric][node.taxon.label] = float(vals[metric]) if dont_normalize else normalize_lb_val(metric, float(vals[metric]), tau)
+            mval = float(vals[metric])
+            if not dont_normalize:
+                assert seq_len is not None
+                mval = normalize_lb_val(metric, mval, tau, seq_len)
+            returnfo[metric][node.taxon.label] = mval
 
     if debug:
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
@@ -942,7 +963,7 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
             for idum in range(1, node_mtpy(multifo, mnode)):
                 new_label = '%s-multi-%d-%s' % (dummy_str, idum, mnode.taxon.label)
                 tns.add_taxon(dendropy.Taxon(new_label))
-                new_child_node = mnode.new_child(taxon=tns.get_taxon(new_label), edge_length=default_lb_tau)
+                new_child_node = mnode.new_child(taxon=tns.get_taxon(new_label), edge_length=tau)
                 dummy_labels.append(new_child_node.taxon.label)
 
     # TODO commenting this because it gets triggered way too much, but I'm not actually sure that I can really just ignore the problem (but maybe I can)
@@ -1121,9 +1142,21 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
     # <iclust> is just to give a little more granularity in dbg
 
-    # # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes) UPDATE there's now an option to not do pairwise distances, so i could probably turn it on now
-    # if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
-    #     compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
+    seq_len = None
+    if annotation is not None:
+        seq_len = numpy.mean([len(s) for s in annotation['seqs']])
+
+    if tau is None:
+        if annotation is None:
+            raise Exception('need annotation to get sequence lengths if tau is None')
+        tau = 1. / seq_len  # note that this uses the nuc seq len even if we're calculating aa lb metrics (which is what we want)
+        print '  setting default tau to 1 / %d = %.4f' % (seq_len, tau)
+
+    # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes) UPDATE there's now an option to not do pairwise distances, so i could probably turn it on now
+    if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
+        compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str, only_check_leaf_depths=True)
+        if not utils.is_normed(tau * len(annotation['seqs'][0]), this_eps=0.1):  # should be within 10% at least
+            print '  %s inverse of specified tau value %.1f (tau %.4f) not equal to seq len %.1f (inverse %.4f)' % (utils.wrnstr(), 1. / tau, tau, len(annotation['seqs'][0]), 1. / len(annotation['seqs'][0]))
 
     if max(get_leaf_depths(dtree).values()) > 1:
         if annotation is None:
@@ -1148,14 +1181,14 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
         assert lbr_tau_factor is not None  # has to be set if we're calculating both metrics
         if iclust is None or iclust == 0:
             print '    %scalculating %s lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % ('' if extra_str is None else '%s: '%extra_str, normstr, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
-        lbvals = set_lb_values(dtree, tau, only_calc_metric='lbi', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
-        tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, only_calc_metric='lbr', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
+        lbvals = set_lb_values(dtree, tau, seq_len, only_calc_metric='lbi', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
+        tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, seq_len, only_calc_metric='lbr', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
         lbvals['lbr'] = tmpvals['lbr']
     else:
         assert lbr_tau_factor is None or dont_normalize  # we need to make sure that we weren't accidentally called with lbr_tau_factor set, but then we ignore it because the caller forgot that we ignore it if only_calc_metric is also set
         if iclust is None or iclust == 0:
             print '    calculating %s %s%s with tau %.4f' % (normstr, lb_metrics[only_calc_metric], dbgstr, tau)
-        lbvals = set_lb_values(dtree, tau, only_calc_metric=only_calc_metric, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
+        lbvals = set_lb_values(dtree, tau, seq_len, only_calc_metric=only_calc_metric, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
     return lbvals
