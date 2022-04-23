@@ -4361,14 +4361,18 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfna
         return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
-def run_ete_script(sub_cmd, ete_path, return_for_cmdfos=False, tmpdir=None, dryrun=False, extra_str='', debug=True):  # ete3 requires its own python version, so we run as a subprocess
+def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion='', return_for_cmdfos=False, tmpdir=None, dryrun=False, extra_str='', debug=True):  # ete3 requires its own python version, so we run as a subprocess
     prof_cmds = '' #' -m cProfile -s tottime -o prof.out'
     # xvfb_err_str = '' # '-e %s' % XXX outdir + '/xvfb-err'  # tell xvfb-run to write its error to this file (rather than its default of /dev/null). This is only errors actually from xvfb-run, e.g. xauth stuff is broken
     if tmpdir is None:
         tmpdir = choose_random_subdir('/tmp/xvfb-run', make_dir=True)
     cmd = 'export TMPDIR=%s' % tmpdir
-    cmd += ' && export PATH=%s:$PATH' % ete_path
-    cmd += ' && %s/bin/xvfb-run -a python%s %s' % (get_partis_dir(), prof_cmds, sub_cmd)
+    if conda_path is None:
+        cmd += ' && export PATH=%s:$PATH' % ete_path
+    else:
+        assert conda_env is not None  # specify both conda_path and conda_env
+        cmd += ' && . %s/etc/profile.d/conda.sh && conda activate %s' % (conda_path, conda_env)
+    cmd += ' && %s/bin/xvfb-run -a python%s%s %s' % (get_partis_dir(), pyversion, prof_cmds, sub_cmd)
     if debug or dryrun:
         itmp = cmd.rfind('&&')
         print '%s%s %s' % (extra_str, color('red', 'run'), '%s \\\n%s     %s' % (cmd[:itmp + 2], extra_str, cmd[itmp + 2:]))
@@ -5831,7 +5835,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             if add_info:
                 seqfo['infostrs'] = infostrs
             if sanitize_seqs:
-                seqfo[seq_key] = seqfo[seq_key].translate(ambig_translations)
+                seqfo[seq_key] = seqfo[seq_key].translate(ambig_translations).upper()
                 if any(c not in alphabet for c in seqfo[seq_key]):
                     unexpected_chars = set([ch for ch in seqfo[seq_key] if ch not in alphabet])
                     raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s:\n  %s' % (plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), alphabet, seqfo[name_key], seqfo[seq_key]))

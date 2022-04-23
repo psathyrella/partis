@@ -68,7 +68,7 @@ def run_gctree(infname):
         if not os.path.exists(args.infname):
             raise Exception('--infname %s doesn\'t exist' % args.infname)
         utils.prep_dir(args.outdir, wildlings=['outfile', 'outtree'], allow_other_files=True)  # phylip barfs like a mfer if its outputs exist (probably you'll get a KeyError 'naive')
-        # cmds += ['gctree &>/dev/null && dnapars &>/dev/null || echo "command \'gctree\' or \'dnapars\' not in path, maybe need to run: gctree-run.py --install"']  # ick doesn't quite work, whatever
+        # cmds += ['gctree &>/dev/null && dnapars &>/dev/null || echo "command \'gctree\' or \'dnapars\' not in path, maybe need to run: gctree-run.py --actions install"']  # ick doesn't quite work, whatever
         cmds += ['cd %s' % args.outdir]
         cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
         cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
@@ -131,8 +131,14 @@ def parse_output():
     utils.write_fasta(fofn('seqs'), seqfos)
 
 # ----------------------------------------------------------------------------------------
+def convert_pickle_tree():
+    assert False  # doesn't work yet
+    cmd = '%s/bin/read-bcr-phylo-trees.py --pickle-tree-file %s --newick-tree-file %s/tree.nwk' % (utils.get_partis_dir(), args.infname, args.outdir)
+    utils.run_ete_script(cmd, None, conda_path=args.condapath, conda_env='ete3', pyversion='3')
+
+# ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--install', action='store_true')
+parser.add_argument('--actions', default='run:parse')
 parser.add_argument('--infname')
 parser.add_argument('--outdir')
 parser.add_argument('--overwrite', action='store_true')
@@ -143,14 +149,18 @@ parser.add_argument('--inf-int-label', default='inf', help='base name for inferr
 parser.add_argument('--run-help', action='store_true', help='run gctree help')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
+# parser.add_argument('--ete-path', default='/home/%s/anaconda_ete/bin' % os.getenv('USER') if os.getenv('USER') is not None else None)
+
 args = parser.parse_args()
+args.actions = utils.get_arg_list(args.actions, choices=['install', 'run', 'parse', 'convert-pickle-tree'])
 args.infname = utils.fpath(args.infname)
 args.outdir = utils.fpath(args.outdir)
 
-if args.install:
+if 'install' in args.actions:
     install()
-    sys.exit()
-
-# ----------------------------------------------------------------------------------------
-run_gctree(args.infname)
-parse_output()
+if 'run' in args.actions:
+    run_gctree(args.infname)
+if 'parse' in args.actions:
+    parse_output()
+if 'convert-pickle-tree' in args.actions:
+    convert_pickle_tree()
