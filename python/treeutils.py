@@ -1121,7 +1121,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
     # <iclust> is just to give a little more granularity in dbg
 
-    # # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes)
+    # # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes) UPDATE there's now an option to not do pairwise distances, so i could probably turn it on now
     # if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
     #     compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str)
 
