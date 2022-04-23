@@ -313,7 +313,6 @@ def get_lb_bounds(tau, seq_len):
         (700, 0.0091),
         (900, 0.0073),
     ]
-    seq_len = 400
     slvals = [l for l, _ in bvals]
     if seq_len < min(slvals) or seq_len > max(slvals):
         print '  %s seq len %d outside known interpolation values [%d, %d], probably need to rerun test/cf-tree-metrics.py --actions get-lb-bounds to cover this seq len' % (utils.wrnstr(), seq_len, min(slvals), max(slvals))
