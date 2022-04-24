@@ -308,7 +308,7 @@ def get_tree_metrics(args):
         if args.lb_tau_list is not None:
             cmd += ' --lb-tau %s' % utils.vlval(args, vstrs, varnames, 'lb-tau')
             if len(args.lb_tau_list) > 1:
-                cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
+                cmd += ' --dont-normalize-lbi'
         if args.only_csv_plots:
             cmd += ' --only-csv-plots'
         if args.n_max_queries is not None:

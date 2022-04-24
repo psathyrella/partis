@@ -16,7 +16,6 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpForm
 parser.add_argument('--infname', required=True)
 parser.add_argument('--base-plotdir', required=True)
 parser.add_argument('--lb-tau', type=float)
-parser.add_argument('--lbr-tau-factor', type=float, default=treeutils.default_lbr_tau_factor)
 parser.add_argument('--dont-normalize-lbi', action='store_true')
 parser.add_argument('--action', choices=['train', 'test'])
 parser.add_argument('--dtr-path')
@@ -49,9 +48,9 @@ if args.max_family_size is not None:
 
 if args.metric_method == 'dtr':
     raise Exception('I think the [new] first arg here (metrics_to_calc) isn\'t right, but don\'t want to test cause i don\'t care about dtr')
-    treeutils.add_smetrics(args, ['lbi', 'lbr', 'dtr'], None, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, base_plotdir=args.base_plotdir,
+    treeutils.add_smetrics(args, ['lbi', 'lbr', 'dtr'], None, args.lb_tau, base_plotdir=args.base_plotdir,
                            train_dtr=args.action=='train', dtr_cfg=args.dtr_cfg, true_lines_to_use=true_lines, ete_path=ete_path, workdir=workdir)  # NOTE if you need this in the future you may want to add run_gctree and gctree_outdir
 else:
-    treeutils.calculate_individual_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, only_csv=args.only_csv_plots,
+    treeutils.calculate_individual_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, only_csv=args.only_csv_plots,
                                                 min_cluster_size=args.min_selection_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots,
                                                 dont_normalize_lbi=args.dont_normalize_lbi, ete_path=ete_path, workdir=workdir, cluster_indices=args.cluster_indices, only_look_upwards=args.only_look_upwards) #, debug=True)

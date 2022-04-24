@@ -41,7 +41,7 @@ lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (
 selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr', 'shm', 'shm-aa']
 typical_bcr_seq_len = 400
 # default_lb_tau = 0.0025
-default_lbr_tau_factor = 1
+# default_lbr_tau_factor = 1
 default_min_selection_metric_cluster_size = 10
 
 dummy_str = 'x-dummy-x'
@@ -833,7 +833,7 @@ def node_mtpy(multifo, node):  # number of reads/contigs/whatever (depending on 
 # ----------------------------------------------------------------------------------------
 # copied from https://github.com/nextstrain/augur/blob/master/base/scores.py
 # also see explanation here https://photos.app.goo.gl/gtjQziD8BLATQivR6
-def set_lb_values(dtree, tau, seq_len, only_calc_metric=None, dont_normalize=False, multifo=None, use_old_multiplicity_method=False, debug=False):
+def set_lb_values(dtree, tau, seq_len, metrics_to_calc=None, dont_normalize=False, multifo=None, use_old_multiplicity_method=False, debug=False):
     """
     traverses <dtree> in postorder and preorder to calculate the up and downstream tree length exponentially weighted by distance, then adds them as LBI (and divides as LBR)
     use_old_multiplicity_method: insert multiplicity into integrals (below), which is equivalent to adding N-1 branches between the node and its parent
@@ -841,7 +841,6 @@ def set_lb_values(dtree, tau, seq_len, only_calc_metric=None, dont_normalize=Fal
     """
     getmulti = node_mtpy if use_old_multiplicity_method else lambda x, y: 1
 
-    metrics_to_calc = lb_metrics.keys() if only_calc_metric is None else [only_calc_metric]
     if debug:
         print '    setting %s values with tau %.4f' % (' and '.join(metrics_to_calc), tau)
 
@@ -1135,11 +1134,12 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, min_warn
     return len(fracs), len(pw_fracs)
 
 # ----------------------------------------------------------------------------------------
-def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize=False, annotation=None, extra_str=None, iclust=None, dbgstr='', debug=False):
-    # if <only_calc_metric> is None, we use <tau> and <lbr_tau_factor> to calculate both lbi and lbr (i.e. with different tau)
-    #   - whereas if <only_calc_metric> is set, we use <tau> to calculate only the given metric
+def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, annotation=None, extra_str=None, iclust=None, dbgstr='', debug=False):
     # note that it's a little weird to do all this tree manipulation here, but then do the dummy branch tree manipulation in set_lb_values(), but the dummy branch stuff depends on tau so it's better this way
     # <iclust> is just to give a little more granularity in dbg
+
+    if metrics_to_calc is None:
+        metrics_to_calc = lb_metrics.keys()
 
     seq_len = None
     if annotation is not None:
@@ -1164,7 +1164,7 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
         dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
 
     if debug:
-        print '   calculating %s%s with tree:' % (' and '.join(lb_metrics if only_calc_metric is None else [only_calc_metric]), '' if extra_str is None else ' for %s' % extra_str)
+        print '   calculating %s%s with tree:' % (' and '.join(utils.non_none([metrics_to_calc, '?'])), '' if extra_str is None else ' for %s' % extra_str)
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
 
     multifo = None
@@ -1176,18 +1176,9 @@ def calculate_lb_values(dtree, tau, lbr_tau_factor=None, only_calc_metric=None, 
     treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
     normstr = 'unnormalized' if dont_normalize else 'normalized'
 
-    if only_calc_metric is None:
-        assert lbr_tau_factor is not None  # has to be set if we're calculating both metrics
-        if iclust is None or iclust == 0:
-            print '    %scalculating %s lb metrics with tau values %.4f (lbi) and %.4f * %d = %.4f (lbr)' % ('' if extra_str is None else '%s: '%extra_str, normstr, tau, tau, lbr_tau_factor, tau*lbr_tau_factor)
-        lbvals = set_lb_values(dtree, tau, seq_len, only_calc_metric='lbi', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
-        tmpvals = set_lb_values(dtree, tau*lbr_tau_factor, seq_len, only_calc_metric='lbr', dont_normalize=dont_normalize, multifo=multifo, debug=debug)
-        lbvals['lbr'] = tmpvals['lbr']
-    else:
-        assert lbr_tau_factor is None or dont_normalize  # we need to make sure that we weren't accidentally called with lbr_tau_factor set, but then we ignore it because the caller forgot that we ignore it if only_calc_metric is also set
-        if iclust is None or iclust == 0:
-            print '    calculating %s %s%s with tau %.4f' % (normstr, lb_metrics[only_calc_metric], dbgstr, tau)
-        lbvals = set_lb_values(dtree, tau, seq_len, only_calc_metric=only_calc_metric, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
+    if iclust is None or iclust == 0:
+        print '    calculating %s %s%s with tau %.4f' % (normstr, ' and '.join([lb_metrics.get(m, m) for m in utils.non_none([metrics_to_calc, '?'])]), dbgstr, tau)
+    lbvals = set_lb_values(dtree, tau, seq_len, metrics_to_calc=metrics_to_calc, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
     return lbvals
@@ -1240,7 +1231,7 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
             start = time.time()
             dtree = get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=debug)
             label_nodes(dtree)
-            lbvals = calculate_lb_values(dtree, tau, only_calc_metric=metric, dont_normalize=True, debug=debug)
+            lbvals = calculate_lb_values(dtree, tau, metrics_to_calc=[metric], dont_normalize=True, debug=debug)
             bfcn = __builtins__[bound]  # min() or max()
             info[metric][bound] = {metric : bfcn(lbvals[metric].values()), 'vals' : lbvals}
             if debug:
@@ -1969,7 +1960,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
     return treefos
 
 # ----------------------------------------------------------------------------------------
-def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_metric=None, dont_normalize_lbi=False, extra_str=None, iclust=None, debug=False):  # and add them to <line>
+def get_aa_lb_metrics(line, nuc_dtree, lb_tau, metrics_to_calc=None, dont_normalize_lbi=False, extra_str=None, iclust=None, debug=False):  # and add them to <line>
     utils.add_seqs_aa(line)
     if max(get_leaf_depths(nuc_dtree).values()) > 1:  # not really sure why i have to add this before converting to aa, but it seems necessary to avoid getting a huge branch below root (and for consistency -- if we're calculating also [nuc-]lbi the nuc tree is already rescaled when we get here
         if line is None:
@@ -1977,7 +1968,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_me
         print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
         nuc_dtree.scale_edges(1. / numpy.mean([len(s) for s in line['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
     aa_dtree = get_aa_tree(nuc_dtree, line, extra_str=extra_str, debug=debug)
-    aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, only_calc_metric=only_calc_metric, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
+    aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, metrics_to_calc=metrics_to_calc, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
     if 'tree-info' not in line:
         line['tree-info'] = {'lb' : {}}
     line['tree-info']['lb']['aa-tree'] = aa_dtree.as_string(schema='newick')
@@ -1985,8 +1976,8 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, lbr_tau_factor=None, only_calc_me
         line['tree-info']['lb']['aa-'+nuc_metric] = aa_lb_info[nuc_metric]
 
 # ----------------------------------------------------------------------------------------
-def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                           train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, only_use_best_partition=False, glfo=None, gctree_outdir=None, debug=False):
+def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
+                 train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, only_use_best_partition=False, glfo=None, gctree_outdir=None, debug=False):
     min_cluster_size = args.min_selection_metric_cluster_size  # default_min_selection_metric_cluster_size
     print 'getting selection metrics: %s' % ' '.join(metrics_to_calc)
     if reco_info is not None:
@@ -2041,12 +2032,12 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
                 if trfo['tree'] is None and trfo['origin'] == 'no-uids':
                     n_skipped_uid += 1
                     continue
-                if any(m in metrics_to_calc for m in ['lbi', 'lbr']):  # have to (or at least easier to) calc both even if we only need one (although i think this is only because of the lbr_tau_factor shenanigans, which maybe we don't need any more?)
-                    lbfo = calculate_lb_values(trfo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
+                if any(m in metrics_to_calc for m in ['lbi', 'lbr']):
+                    lbfo = calculate_lb_values(trfo['tree'], lb_tau, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
                     check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
                     line['tree-info']['lb'].update(lbfo)
                 if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
-                    get_aa_lb_metrics(line, trfo['tree'], lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
+                    get_aa_lb_metrics(line, trfo['tree'], lb_tau, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
 
             if args.dtr_path is not None and not train_dtr:  # don't want to train on data (NOTE this would probably also need all the lb metrics calculated, but i don't care atm)
                 calc_dtr(False, line, line['tree-info']['lb'], trfo['tree'], None, pmml_models, dtr_cfgvals)  # adds predicted dtr values to lbfo (hardcoded False and None are to make sure we don't train on data)
@@ -2075,11 +2066,11 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, lbr_tau_factor=None
             if args.cluster_indices is not None and iclust not in args.cluster_indices:
                 continue
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, annotation=true_line, dont_normalize=args.dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
+            true_lb_info = calculate_lb_values(true_dtree, lb_tau, annotation=true_line, dont_normalize=args.dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             true_line['tree-info'] = {'lb' : true_lb_info}
             check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
             if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
-                get_aa_lb_metrics(true_line, true_dtree, lb_tau, lbr_tau_factor=lbr_tau_factor, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
+                get_aa_lb_metrics(true_line, true_dtree, lb_tau, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
             if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above
             if args.dtr_path is not None:
@@ -2288,10 +2279,10 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 #    3) doesn't plot as many things
 #    4) only runs on simulation (as opposed to making two sets of things, for simulation and data)
 # and yes, it would be really *#(!$ing nice to merge them but I haven't had the time yet
-def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, lbr_tau_factor=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
+def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
                                       dont_normalize_lbi=False, cluster_indices=None, only_look_upwards=False, debug=False):
     # ----------------------------------------------------------------------------------------
-    def get_combo_lbfo(varlist, iclust, line, lb_tau, lbr_tau_factor, is_aa_lb=False): #, add_to_line=False):
+    def get_combo_lbfo(varlist, iclust, line, lb_tau, is_aa_lb=False): #, add_to_line=False):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
             utils.add_naive_seq_aa(line)
             utils.add_seqs_aa(line)
@@ -2299,26 +2290,12 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         for mtmp in [m for m in varlist if 'cons-dist-' in m]:
             add_cdists_to_lbfo(line, lbfo, mtmp)
         dtree = get_dendro_tree(treestr=line['tree'])
-        lbvars = set(varlist) & set(['lbi', 'lbr'])  # although if is_aa_lb is set, we're really calculating aa-lbi/aa-lbr
-        if lb_tau is None or lbr_tau_factor is None:
-            print '  %s using default lb_tau %.4f and lbr_tau_factor %.1f to calculate individual tree metric %s' % (utils.color('yellow', 'warning'), default_lb_tau, default_lbr_tau_factor, metric_method)
-            lb_tau, lbr_tau_factor = default_lb_tau, default_lbr_tau_factor
-        tmp_tau, tmp_factor = lb_tau, lbr_tau_factor  # weird/terrible hack (necessary to allow the calculation fcn to enforce that either a) we're calculating both metrics, so we probably want the factor applied or b) we're only calculating one, and we're not normalizing (i.e. we're probably calculating the bounds)
-        if len(lbvars) == 2:
-            only_calc_metric = None
-        elif len(lbvars) == 1:
-            only_calc_metric = list(lbvars)[0]
-            if only_calc_metric == 'lbr':
-                tmp_tau *= lbr_tau_factor
-            tmp_factor = None
-        else:
-            raise Exception('unexpected combination of variables %s' % varlist)
-
+        lbvars = [m for m in ['lbi', 'lbr'] if m in varlist]  # although if is_aa_lb is set, we're really calculating aa-lbi/aa-lbr
         if is_aa_lb:  # NOTE this adds the metrics to <line>
-            get_aa_lb_metrics(line, dtree, tmp_tau, lbr_tau_factor=tmp_factor, only_calc_metric=only_calc_metric, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
+            get_aa_lb_metrics(line, dtree, lb_tau, metrics_to_calc=lbvars, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             # lbfo.update(line['tree-info']['lb'])
         else:
-            tmp_lb_info = calculate_lb_values(dtree, tmp_tau, only_calc_metric=only_calc_metric, lbr_tau_factor=tmp_factor, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
+            tmp_lb_info = calculate_lb_values(dtree, lb_tau, metrics_to_calc=lbvars, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             for lbm in [m for m in lb_metrics if m in varlist]:  # this skips the tree, which I guess isn't a big deal
                 lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
         # if add_to_line:
@@ -2364,7 +2341,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             add_cdists_to_lbfo(line, lbfo, metric_method)
             add_to_treefo(lbfo[metric_method])
         elif metric_method == 'delta-lbi':
-            dtree, lbfo = get_combo_lbfo(['lbi'], iclust, line, lb_tau, lbr_tau_factor)
+            dtree, lbfo = get_combo_lbfo(['lbi'], iclust, line, lb_tau)
             delta_lbfo = {}
             for uid in line['unique_ids']:
                 node = dtree.find_node_with_taxon_label(uid)
@@ -2373,16 +2350,16 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
                 delta_lbfo[uid] = lbfo['lbi'][uid] - lbfo['lbi'][node.parent_node.taxon.label]  # I think the parent should always be in here, since I think we should calculate lbi for every node in the tree
             add_to_treefo(delta_lbfo)
         elif 'aa-lb' in metric_method:  # aa versions of lbi and lbr
-            _, lbfo = get_combo_lbfo([metric_method.lstrip('aa-')], iclust, line, lb_tau, lbr_tau_factor, is_aa_lb=True)  # NOTE i shouldn't have used lstrip() here (i keep forgetting it's character-based, not string-based', but i think it's ok
+            _, lbfo = get_combo_lbfo([metric_method.lstrip('aa-')], iclust, line, lb_tau, is_aa_lb=True)  # NOTE i shouldn't have used lstrip() here (i keep forgetting it's character-based, not string-based', but i think it's ok
             # NOTE do *not* call add_to_treefo() since they're already added to <line>
         elif metric_method in ['lbi', 'lbr']:  # last cause i'm adding them last, but would probably be cleaner to handle it differently (i'm just tired of having to run the full (non-individual) tree metric fcn to get them)
-            _, lbfo = get_combo_lbfo([metric_method], iclust, line, lb_tau, lbr_tau_factor) #, add_to_line=True)
+            _, lbfo = get_combo_lbfo([metric_method], iclust, line, lb_tau) #, add_to_line=True)
             add_to_treefo(lbfo[metric_method])
         elif metric_method == 'cons-lbi':  # now uses aa-lbi as a tiebreaker for cons-dist-aa, but used to be old z-score style combination of (nuc-)lbi and cons-dist
             def tiefcn(uid):
                 cdist, aalbi = lbfo['cons-dist-aa'][uid], lbfo['aa-lbi'][uid]
                 return cdist + aalbi / max_aa_lbi
-            _, lbfo = get_combo_lbfo(['cons-dist-aa', 'lbi'], iclust, line, lb_tau, lbr_tau_factor, is_aa_lb=True)
+            _, lbfo = get_combo_lbfo(['cons-dist-aa', 'lbi'], iclust, line, lb_tau, is_aa_lb=True)
             max_aa_lbi = max(lbfo['aa-lbi'].values())
             add_to_treefo({u : tiefcn(u) for u in line['unique_ids']})
         else:
@@ -3012,9 +2989,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
 # TODO this doesn't really work cause you need to translate the tree, which isn't worth it -- just run single chain selection metrics, or update this fcn
         # for smetric in args.selection_metrics_to_calculate:
         #     for tmpntn in [h_atn, l_atn]:
-        #         # calculate_individual_tree_metrics(smetric, [tmpntn], lb_tau=args.lb_tau, lbr_tau_factor=args.lbr_tau_factor) #, debug=True)
+        #         # calculate_individual_tree_metrics(smetric, [tmpntn], lb_tau=args.lb_tau) #, debug=True)
         #         inf_lines, true_lines = (None, [tmpntn]) if is_simu else (utils.get_annotation_dict([tmpntn]), None)
-        #         add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, true_lines_to_use=true_lines, treefname=args.treefname)
+        #         add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname)
 # ----------------------------------------------------------------------------------------
 
         if len(antn_pairs) > 1:
@@ -3172,7 +3149,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if debug:
             print_dbg(metric_pairs, iclust_mfos)  # note that this fcn uses a lot of local variables that we don't pass to it
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
-    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
+    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
                  workdir=args.workdir, outfname=args.selection_metric_fname) #, debug=True)
 # TODO will need these args in order to run gctree
                  # glfo=, gctree_outdir=None if args.outfname is None or not args.run_gctree else os.path.dirname(utils.fpath(args.outfname)),

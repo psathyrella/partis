@@ -75,7 +75,7 @@ def clean_paired_dir(bdir, suffix='.fa', extra_files=None, expect_missing=False,
 
 # ----------------------------------------------------------------------------------------
 # add_selection_metrics: list of selection metrics to add (plotdir_fcn is atm only if adding selection metrics)
-def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics=False, add_selection_metrics=None, lb_tau=None, lbr_tau_factor=None, plotdir_fcn=None, seed_unique_id=None, dont_add_implicit_info=False, dbgstr='', debug=False):
+def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics=False, add_selection_metrics=None, lb_tau=None, plotdir_fcn=None, seed_unique_id=None, dont_add_implicit_info=False, dbgstr='', debug=False):
     # ----------------------------------------------------------------------------------------
     def parse_pairing_info(ltmp, atnlist):
         if seed_unique_id is not None:  # I'm really not sure this is the best place to do this, but we have to add the seed id pairing info at some point
@@ -124,17 +124,17 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
         if add_selection_metrics is not None:
             print '            adding %d selection metrics to annotations read from %s%s: %s' % (len(add_selection_metrics), ofn_fcn(ltmp, lpair=lpair), '' if plotdir_fcn is None else ' and plotting to %s' % plotdir_fcn(ltmp, lpair=lpair), ' '.join(add_selection_metrics))
             for smetric in add_selection_metrics:
-                treeutils.calculate_individual_tree_metrics(smetric, lpfos['antn_lists'][ltmp], base_plotdir=None if plotdir_fcn is None else plotdir_fcn(ltmp, lpair=lpair), lb_tau=lb_tau, lbr_tau_factor=lbr_tau_factor)
+                treeutils.calculate_individual_tree_metrics(smetric, lpfos['antn_lists'][ltmp], base_plotdir=None if plotdir_fcn is None else plotdir_fcn(ltmp, lpair=lpair), lb_tau=lb_tau)
         parse_pairing_info(ltmp, lpfos['antn_lists'][ltmp])
     if all(lpfos['glfos'][l] is None for l in tmploci):  # if there was no info for *any* of the loci, set Nones one level up (it's just easier to have the Nones there)
         lpfos = {k : None for k in lpfos}
     return lpfos
 
 # ----------------------------------------------------------------------------------------
-def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, add_selection_metrics=None, lb_tau=None, lbr_tau_factor=None, plotdir_fcn=None, seed_unique_id=None, dont_add_implicit_info=False, dbgstr='', debug=False):
+def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, add_selection_metrics=None, lb_tau=None, plotdir_fcn=None, seed_unique_id=None, dont_add_implicit_info=False, dbgstr='', debug=False):
     lp_infos = {}
     for lpair in lpairs:
-        lp_infos[tuple(lpair)] = read_locus_output_files(lpair, ofn_fcn, lpair=lpair, read_selection_metrics=read_selection_metrics, add_selection_metrics=add_selection_metrics, lb_tau=lb_tau, lbr_tau_factor=lbr_tau_factor, plotdir_fcn=plotdir_fcn,
+        lp_infos[tuple(lpair)] = read_locus_output_files(lpair, ofn_fcn, lpair=lpair, read_selection_metrics=read_selection_metrics, add_selection_metrics=add_selection_metrics, lb_tau=lb_tau, plotdir_fcn=plotdir_fcn,
                                                          seed_unique_id=seed_unique_id, dont_add_implicit_info=dont_add_implicit_info, dbgstr=dbgstr, debug=debug)
     return lp_infos
 
