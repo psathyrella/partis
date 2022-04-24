@@ -1034,7 +1034,7 @@ def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalize
         return treeutils.smvals(antn, key, iseq=iseq)
     elif key in ['cons-frac-aa', 'cons-dist-aa']:  # NOTE this doesn't check to see if it's there (i think because we don't store it), it just calculates it
         return treeutils.lb_cons_dist(antn, iseq, aa=True, frac='frac' in key)  # we look to see if it's in the tree info in the previous lines, but if it isn't there, whatever, just recalculate
-    elif key == 'shm-aa':  # NOTE this doesn't either, which [also] may be worth fixing eventually
+    elif key in ['shm-aa', 'shm_aa']:  # NOTE this doesn't either, which [also] may be worth fixing eventually
         return shm_aa(antn, iseq=iseq)
     elif key == 'shm':  # NOTE this probably shouldn't work like this, but i just want the h+l selection metrics to work atm
         return antn['n_mutations'][iseq]

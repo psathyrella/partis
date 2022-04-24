@@ -2479,7 +2479,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname, no_fail=False):
         cln, iseq = mfo[tch], mfo[tch+'_iseq']
-        return utils.antnval(cln, vname, iseq=iseq, use_default=no_fail)
+        return utils.antnval(cln, vname, iseq, use_default=no_fail)
+    # ----------------------------------------------------------------------------------------
+    def p_gsval(mfo, vname, no_fail=False):
+        cln, iseq = mfo['p_atn'], mfo['p_atn']['unique_ids'].index(combid(mfo))
+        return utils.antnval(cln, vname, iseq, use_default=no_fail)
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
         if val is None:
@@ -2514,14 +2518,14 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def get_joint_did(mfo):
         return utils.get_single_entry(list(set(both_dids(mfo))))
     # ----------------------------------------------------------------------------------------
-    def hlid(did, lpair):
-        return did
-        # return '%s-%s+%s' % (did, lpair[0], lpair[1])
-    # ----------------------------------------------------------------------------------------
     def combid(mfo):  # new uid that combines h+l ids
         _, cids = zip(*[get_did(gsval(mfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
-        didstr = '+'.join(list(set(both_dids(mfo))))  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
-        return hlid(didstr, [cids[0], cids[1]])
+        dids = both_dids(mfo)  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
+        if len(set(dids)) == 1:  # if they have the same droplet id (either data, or correctly paired simulation) just use the droplet id as the combined id
+            return dids[0]
+        else:  # but if they're mispaired in simulation then keep all the info
+            assert len(set(dids)) == 2
+            return '%s-%s+%s-%s' % (dids[0], lpair[0], dids[1], lpair[1])
     # ----------------------------------------------------------------------------------------
     def get_didstr(dids, cids, mpfo):
         if len(set(dids)) == 1:  # make sure they're from the same droplet
@@ -2895,7 +2899,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if mfo['seqtype'] == 'observed':
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
                 for kn in ['aa-cfrac', 'shm-aa', 'aa-cdist'] + [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']:
-                    ofo.update([('sum_'+kn, sumv(mfo, kn))])
+                    ofo.update([(kn, p_gsval(mfo, kn))])
             else:
                 def gid(mfo, c):
                     hstr = utils.uidhashstr(getseq(mfo, c, aa=True))[:hash_len]
@@ -3004,7 +3008,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
 # ----------------------------------------------------------------------------------------
-        print '  %s debug print needs updating to use new paired annotation rather than just adding h+l metrics' % utils.wrnstr()
+        print '  %s debug print needs updating to use new paired annotation rather than just adding h+l metrics (for now you need to set --run-single-chain-selection-metrics to get it to work at all)' % utils.wrnstr()
 # TODO this doesn't really work cause you need to translate the tree, which isn't worth it -- just run single chain selection metrics, or update this fcn
         # for smetric in args.selection_metrics_to_calculate:
         #     for tmpntn in [h_atn, l_atn]:
@@ -3064,7 +3068,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
     # ----------------------------------------------------------------------------------------
-    def get_sum_antn_for_plotting(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
+    def get_pantn(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
         # ----------------------------------------------------------------------------------------
         def translate_heavy_tree(htree):
             trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
@@ -3079,6 +3083,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         p_atn['naive_seq'] = sumv(metric_pairs[0], 'naive_seq')
         p_atn['naive_seq_aa'] = sumv(metric_pairs[0], 'naive_seq_aa')  # NOTE it's *really* important you don't end up translating the sum'd naive seq since i don't think they necessarily get concat'd in frame
         p_atn['n_mutations'] = [sumv(m, 'n_mutations') for m in metric_pairs]
+        p_atn['shm_aa'] = [sumv(m, 'shm_aa') for m in metric_pairs]
         p_atn['mut_freqs'] = [n / float(len(s)) for n, s in zip(p_atn['n_mutations'], p_atn['seqs'])]
         cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]
         if is_simu:
@@ -3153,25 +3158,25 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 mpfo[tch] = ltmp
                 mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
             metric_pairs.append(mpfo)
-        pair_antns.append(get_sum_antn_for_plotting(metric_pairs, h_atn))
+        pair_antns.append(get_pantn(metric_pairs, h_atn))
         if len(metric_pairs) == 0:
             continue
         mtpys = get_mtpys(metric_pairs)  # ick (this is used by fcns relying on scope)
         iclust_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
         if len(iclust_mfos) > 0:
             all_chosen_mfos += iclust_mfos
+            for mfo in iclust_mfos:
+                mfo['p_atn'] = pair_antns[-1]  # ick
             if debug:
                 print '      chose %d total' % len(iclust_mfos)
         if debug:
             print_dbg(metric_pairs, iclust_mfos)  # note that this fcn uses a lot of local variables that we don't pass to it
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, lbr_tau_factor=args.lbr_tau_factor, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
-                 workdir=args.workdir, outfname=args.selection_metric_fname) #, debug=True
+                 workdir=args.workdir, outfname=args.selection_metric_fname) #, debug=True)
 # TODO will need these args in order to run gctree
                  # glfo=, gctree_outdir=None if args.outfname is None or not args.run_gctree else os.path.dirname(utils.fpath(args.outfname)),
     if args.chosen_ab_fname is not None:
-# TODO needs updating
-        pass
-        # write_chosen_file(all_chosen_mfos)
+        write_chosen_file(all_chosen_mfos)
     # if plotdir is not None:  # eh, maybe there isn't a big reason for an overall one
     #     lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')
