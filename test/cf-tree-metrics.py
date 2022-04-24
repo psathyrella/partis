@@ -178,13 +178,13 @@ def rel_affy_str(use_relative_affy, metric):
 def get_tm_fname(varnames, vstr, metric, x_axis_label, use_relative_affy=False, cg=None, tv=None, extra_str=''):  # note that there are separate svg files for each iclust, but info for all clusters are written to the same yaml file (but split apart with separate info for each cluster)
     if metric == 'dtr':
         assert cg is not None and tv is not None
-    if metric in ['lbi', 'lbr']:  # NOTE using <metric> and <metric_method> for slightly different but overlapping things: former is the actual metric name, whereas setting the latter says we want a non-lb metric (necessary because by default we want to calculate lbi and lbr, but also be able treat lbi and lbr separately when plotting)
-        plotdir = get_tree_metric_plotdir(varnames, vstr, extra_str=extra_str)
-        old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (plotdir, metric, x_axis_label, rel_affy_str(use_relative_affy, metric))  # just for backwards compatibility, could probably remove at some point (note: not updating this when I'm adding non-lb metrics like shm)
-        if os.path.exists(old_path):
-            return old_path
-    else:
-        plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric, extra_str=extra_str)
+    # if metric in ['lbi', 'lbr']:  # NOTE using <metric> and <metric_method> for slightly different but overlapping things: former is the actual metric name, whereas setting the latter says we want a non-lb metric (necessary because by default we want to calculate lbi and lbr, but also be able treat lbi and lbr separately when plotting)
+    #     plotdir = get_tree_metric_plotdir(varnames, vstr, extra_str=extra_str)
+    #     old_path = '%s/true-tree-metrics/%s-vs-%s-true-tree-ptiles%s.yaml' % (plotdir, metric, x_axis_label, rel_affy_str(use_relative_affy, metric))  # just for backwards compatibility, could probably remove at some point (note: not updating this when I'm adding non-lb metrics like shm)
+    #     if os.path.exists(old_path):
+    #         return old_path
+    # else:
+    plotdir = get_tree_metric_plotdir(varnames, vstr, metric_method=metric, extra_str=extra_str)
     return treeutils.tmfname(plotdir, metric, x_axis_label, cg=cg, tv=tv, use_relative_affy=use_relative_affy)
 
 # ----------------------------------------------------------------------------------------
@@ -280,33 +280,35 @@ def get_tree_metrics(args):
             if not os.path.isdir(tmpoutdir):
                 os.makedirs(tmpoutdir)
 
-        # it would probably be better to use smetric-run.py for everything, but then i'd be nervous i wasn't testing the partitiondriver version of the code enough UPDATE can now use it for lbi/lbr
-        tmpdir = get_tree_metric_plotdir(varnames, vstrs, metric_method=None if args.metric_method in ['lbi', 'lbr'] else args.metric_method, extra_str=args.extra_plotstr)  # if we're running lbi/lbr as a --metric-method to avoid running partis get-selection-metrics
-        if args.metric_method is None:  # lb metrics, i.e. actually running partis and getting tree metrics
-            cmd = './bin/partis get-selection-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), tmpdir,
-                                                                                                                                        get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
-            cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
-            cmd += ' --selection-metrics-to-calculate lbi:lbr'  # TODO it would be better to just always use smetric-run.py, which you can do now, but i don't want to break backwards compatibility
-            if args.no_tree_plots:
-                cmd += ' --ete-path None'
-            # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
-            #     cmd += ' --n-procs %d' % args.n_sub_procs
-        else:  # non-lb metrics, i.e. trying to predict with shm, etc.
-            cmd = './bin/smetric-run.py --metric-method %s --infname %s --base-plotdir %s' % (args.metric_method,
-                                                                                              get_simfname(varnames, vstrs),
-                                                                                              tmpdir)
-            if args.metric_method == 'dtr':
-                if args.train_dtr and args.overwrite:  # make sure no training files exist, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)
-                    assert set([os.path.exists(f) for f in get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)]) == set([False])
-                cmd += ' --action %s' % ('train' if args.train_dtr else 'test')
-                cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs, extra_str=args.extra_plotstr))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
-                if args.dtr_cfg is not None:
-                    cmd += ' --dtr-cfg %s' % args.dtr_cfg
-            if not args.only_csv_plots and not args.no_tree_plots:
-                cmd += ' --make-tree-plots'
-        cmd += ' --lb-tau %s' % utils.vlval(args, vstrs, varnames, 'lb-tau')
-        if len(args.lb_tau_list) > 1:
-            cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
+        tmpdir = get_tree_metric_plotdir(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)  # if we're running lbi/lbr as a --metric-method to avoid running partis get-selection-metrics
+
+        # old way, but don't want to delete it atm:
+        # tmpdir = get_tree_metric_plotdir(varnames, vstrs, metric_method=None if args.metric_method in ['lbi', 'lbr'] else args.metric_method, extra_str=args.extra_plotstr)  # if we're running lbi/lbr as a --metric-method to avoid running partis get-selection-metrics
+        # if args.metric_method is None:
+        #     cmd = './bin/partis get-selection-metrics --is-simu --infname %s --plotdir %s --outfname %s --selection-metric-fname %s' % (get_simfname(varnames, vstrs), tmpdir,
+        #                                                                                                                                 get_partition_fname(varnames, vstrs, 'bcr-phylo'), utils.insert_before_suffix('-selection-metrics', get_partition_fname(varnames, vstrs, 'get-tree-metrics')))  # we don't actually use the --selection-metric-fname for anything, but if we don't set it then all the different get-tree-metric jobs write their output files to the same selection metric file in the bcr-phylo dir
+        #     cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
+        #     cmd += ' --selection-metrics-to-calculate lbi:lbr'  # TODO it would be better to just always use smetric-run.py, which you can do now, but i don't want to break backwards compatibility
+        #     if args.no_tree_plots:
+        #         cmd += ' --ete-path None'
+        #     # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
+        #     #     cmd += ' --n-procs %d' % args.n_sub_procs
+        # else:
+
+        cmd = './bin/smetric-run.py --metric-method %s --infname %s --base-plotdir %s' % (args.metric_method, get_simfname(varnames, vstrs), tmpdir)
+        if args.metric_method == 'dtr':
+            if args.train_dtr and args.overwrite:  # make sure no training files exist, since we don\'t want treeutils.train_dtr_model() to overwrite existing ones (since training can be really slow)
+                assert set([os.path.exists(f) for f in get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)]) == set([False])
+            cmd += ' --action %s' % ('train' if args.train_dtr else 'test')
+            cmd += ' --dtr-path %s' % (args.dtr_path if args.dtr_path is not None else get_dtr_model_dir(varnames, vstrs, extra_str=args.extra_plotstr))  # if --dtr-path is set, we're reading the model from there; otherwise we write a new model to the normal/auto location for these parameters (i.e. the point of --dtr-path is to point at the location from a different set of parameters)
+            if args.dtr_cfg is not None:
+                cmd += ' --dtr-cfg %s' % args.dtr_cfg
+        if not args.only_csv_plots and not args.no_tree_plots:
+            cmd += ' --make-tree-plots'
+        if args.lb_tau_list is not None:
+            cmd += ' --lb-tau %s' % utils.vlval(args, vstrs, varnames, 'lb-tau')
+            if len(args.lb_tau_list) > 1:
+                cmd += ' --lbr-tau-factor 1 --dont-normalize-lbi'
         if args.only_csv_plots:
             cmd += ' --only-csv-plots'
         if args.n_max_queries is not None:
@@ -344,7 +346,7 @@ parser.add_argument('--carry-cap-list', default='1000')
 parser.add_argument('--n-sim-seqs-per-gen-list', default='30:50:75:100:150:200', help='colon-separated list of comma-separated lists of the number of sequences for bcr-phylo to sample at the times specified by --obs-times-list')
 parser.add_argument('--n-sim-events-per-proc', type=int, help='number of rearrangement events to simulate in each process (default is set in bin/bcr-phylo-run.py)')
 parser.add_argument('--obs-times-list', default='125,150', help='colon-separated list of comma-separated lists of bcr-phylo observation times')
-parser.add_argument('--lb-tau-list', default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
+parser.add_argument('--lb-tau-list') #, default='0.0005:0.001:0.002:0.003:0.004:0.008:0.012')
 parser.add_argument('--target-distance-list')
 parser.add_argument('--metric-for-target-distance-list') #, default='aa')  # it would be nice to not set defaults here, since it clutters up the bcr-phylo simulator.py calls, but this insulates us against the defaults in bcr-phylo simulator.py changing at some point
 parser.add_argument('--leaf-sampling-scheme-list') #, default='uniform-random')
@@ -391,7 +393,7 @@ parser.add_argument('--dry', action='store_true')
 parser.add_argument('--slurm', action='store_true', help='run child procs with slurm')
 parser.add_argument('--sub-slurm', action='store_true', help='run grandchild procs with slurm')
 parser.add_argument('--workdir')  # default set below
-parser.add_argument('--final-plot-xvar', default='lb-tau', help='variable to put on the x axis of the final comparison plots')
+parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')  # , default='lb-tau'
 parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
 parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm percent] when --final-plot-x-var is scratch-mute-freq)')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
@@ -461,6 +463,10 @@ args.only_metrics = utils.get_arg_list(args.only_metrics)
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 if [args.n_tau_lengths_list, args.n_generations_list].count(None) != 1:
     raise Exception('have to set exactly one of --n-tau-lengths, --n-generations')
+if args.final_plot_xvar is None:  # set default value based on scan vars
+    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
+    svars = [v for v in varnames if v != 'seed']
+    args.final_plot_xvar = svars[0] if len(svars) > 0 else 'seed'  # if we're not scanning over any vars, i'm not sure what we should use
 
 import random
 random.seed(args.random_seed)  # somehow this is necessary to get the same results, even though I'm not using the module anywhere directly
