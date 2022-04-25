@@ -32,13 +32,14 @@ except ImportError:
 import utils
 
 # ----------------------------------------------------------------------------------------
+fmetrics = ['lbf', 'aa-lbf']
 affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'shm-aa', 'aa-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
 affy_metrics += ['sum-'+m for m in affy_metrics]
-daffy_metrics = ['delta-lbi', 'lbr', 'aa-lbr']
+daffy_metrics = ['delta-lbi', 'lbr', 'aa-lbr'] + fmetrics
 daffy_metrics += ['sum-'+m for m in daffy_metrics]
 
-lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio')))
-selection_metrics = ['lbi', 'lbr', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr', 'shm', 'shm-aa']
+lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio'), ('f', 'fraction')))
+selection_metrics = ['lbi', 'lbr', 'lbf', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr', 'shm', 'shm-aa']
 typical_bcr_seq_len = 400
 # default_lb_tau = 0.0025
 # default_lbr_tau_factor = 1
@@ -163,9 +164,9 @@ cgroups = ['within-families', 'among-families']  # different ways of grouping cl
 dtr_targets = {'within-families' : ['affinity', 'delta-affinity'], 'among-families' : ['affinity', 'delta-affinity']}  # variables that we try to predict, i.e. we train on dtr for each of these
 pchoices = ['per-seq', 'per-cluster']  # per-? choice, i.e. is this a per-sequence or per-cluster quantity
 dtr_metrics = ['%s-%s-dtr'%(cg, tv) for cg in cgroups for tv in dtr_targets[cg]]  # NOTE order of this has to remain the same as in the loops used to generate it
-dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm', 'shm-aa'],  # NOTE when iterating over this, you have to take the order from <pchoices>, since both pchoices go into the same list of variable values
+dtr_vars = {'within-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'lbf', 'shm', 'shm-aa'],  # NOTE when iterating over this, you have to take the order from <pchoices>, since both pchoices go into the same list of variable values
                                  'per-cluster' : []},
-            'among-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'shm', 'shm-aa'],
+            'among-families' : {'per-seq' : ['lbi', 'cons-dist-nuc', 'cons-dist-aa', 'edge-dist', 'lbr', 'lbf', 'shm', 'shm-aa'],
                                 'per-cluster' : ['fay-wu-h', 'cons-seq-shm-nuc', 'cons-seq-shm-aa', 'mean-shm', 'max-lbi', 'max-lbr']},
             }
 default_dtr_options = {
@@ -188,7 +189,7 @@ def get_dtr_vals(cgroup, varlists, line, lbfo, dtree):
     # ----------------------------------------------------------------------------------------
     def getval(pchoice, var, uid):
         if pchoice == 'per-seq':
-            if var in ['lbi', 'lbr', 'cons-dist-nuc', 'cons-dist-aa']:
+            if var in ['lbi', 'lbr', 'lbf', 'cons-dist-nuc', 'cons-dist-aa']:
                 return lbfo[var][uid]  # NOTE this will fail in (some) cases where the uids in the tree and annotation aren't the same, but I don't care atm since it looks like we won't really be using the dtr
             elif var == 'edge-dist':
                 return edge_dist_fcn(dtree, uid)
@@ -342,8 +343,7 @@ def get_lb_bounds(tau, seq_len):
 
 # ----------------------------------------------------------------------------------------
 def normalize_lb_val(metric, lbval, tau, seq_len):
-    if metric == 'lbr':
-        return lbval
+    assert metric == 'lbi'
     lbmin, lbmax = get_lb_bounds(tau, seq_len)
     return (lbval - lbmin) / (lbmax - lbmin)
 
@@ -879,13 +879,15 @@ def set_lb_values(dtree, tau, seq_len, metrics_to_calc=None, dont_normalize=Fals
 
     returnfo = {m : {} for m in metrics_to_calc}
     # go over all nodes and calculate lb metrics (can be done in any order)
+    total_length = dtree.length()
     for node in dtree.postorder_node_iter():
-        vals = {'lbi' : node.down_polarizer, 'lbr' : 0.}
+        vals = {'lbi' : node.down_polarizer, 'lbr' : 0., 'lbf' : 0.}
         for child in node.child_node_iter():
-            vals['lbi'] += child.up_polarizer
-            vals['lbr'] += child.up_polarizer
+            for mtmp in vals:
+                vals[mtmp] += child.up_polarizer
         if node.down_polarizer > 0.:
             vals['lbr'] /= node.down_polarizer  # it might make more sense to not include the branch between <node> and its parent in either the numerator or denominator (here it's included in the denominator), but this way I don't have to change any of the calculations above
+        vals['lbf'] *= 100. / total_length
 
         if dummy_str in node.taxon.label:
             continue
@@ -893,14 +895,23 @@ def set_lb_values(dtree, tau, seq_len, metrics_to_calc=None, dont_normalize=Fals
             vals['lbr'] = 0.
         for metric in metrics_to_calc:
             mval = float(vals[metric])
-            if not dont_normalize:
+            if metric == 'lbi' and not dont_normalize:
                 assert seq_len is not None
                 mval = normalize_lb_val(metric, mval, tau, seq_len)
             returnfo[metric][node.taxon.label] = mval
 
     if debug:
+        # ----------------------------------------------------------------------------------------
+        def lbs(node, mtr):
+            lstr = '%8.3f' % returnfo[mtr][node.taxon.label]
+            if mtr == 'lbr':
+                lstr += ' = %-5.3f / %-5.3f' % (returnfo[mtr][node.taxon.label] * node.down_polarizer, node.down_polarizer)
+            elif mtr == 'lbf':
+                lstr += ' = %-5.3f / %-5.3f' % (returnfo[mtr][node.taxon.label] * total_length, total_length)
+            return lstr
+        # ----------------------------------------------------------------------------------------
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
-        print ('   %'+max_width+'s %s%s      multi') % ('node', ''.join('     %s' % m for m in metrics_to_calc), 16*' ' if 'lbr' in metrics_to_calc else '')
+        print ('   %s      %s      multi') % (utils.wfmt('node', max_width), ''.join('%s'%utils.wfmt(m, 24 if m in ['lbr', 'lbf'] else 9, jfmt='-') for m in metrics_to_calc)) #, 16*' ' if 'lbr' in metrics_to_calc else '')
         for node in dtree.preorder_node_iter():
             if dummy_str in node.taxon.label:
                 continue
@@ -909,9 +920,7 @@ def set_lb_values(dtree, tau, seq_len, metrics_to_calc=None, dont_normalize=Fals
                 multi_str = str(node_mtpy(multifo, node))
                 if node_mtpy(multifo, node) > 1:
                     multi_str = utils.color('blue', multi_str, width=3)
-            lbstrs = ['%8.3f' % returnfo[m][node.taxon.label] for m in metrics_to_calc]
-            if 'lbr' in metrics_to_calc:
-                lbstrs += [' = %-5.3f / %-5.3f' % (returnfo['lbr'][node.taxon.label] * node.down_polarizer, node.down_polarizer)]
+            lbstrs = [lbs(node, m) for m in metrics_to_calc]
             print ('    %' + max_width + 's  %s    %3s') % (node.taxon.label, ''.join(lbstrs), multi_str)
 
     # this is maybe time consuming, but I want to leave the tree that was passed in as unmodified as I can (especially since I have to run this fcn twice for lbi/lbr since they need different tau values)
@@ -1016,7 +1025,7 @@ def remove_dummy_branches(dtree, initial_labels, dummy_labels, add_dummy_leaves=
         assert False  # i think it's better to crash at this point, i think i have it working reliably
 
 # ----------------------------------------------------------------------------------------
-def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
+def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, debug=False):
     very_different_frac = 0.5
     if debug:
         print '    converting nuc tree (mean depth %.3f) to aa' % get_mean_leaf_height(dtree)
@@ -1032,7 +1041,7 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
     if dtree.seed_node.taxon.label not in aa_seqs and 'naive_seq_aa' in annotation:
         aa_seqs[dtree.seed_node.taxon.label] = annotation['naive_seq_aa']  # the aa naive seq *should* always be there now, since I just started adding it in add_seqs_aa()
 
-    n_different, _ = compare_tree_distance_to_shm(dtree, annotation, only_check_leaf_depths=True, debug=True)  # this checks leaf depths, whereas in the loop below we check each edge (result should be the ~same, but this fcn has better dbg printing)
+    n_different, _ = compare_tree_distance_to_shm(dtree, annotation, only_check_leaf_depths=True, iclust=iclust, debug=False)  # this checks leaf depths, whereas in the loop below we check each edge (result should be the ~same, but this fcn has better dbg printing)
 
     skipped_edges, missing_nodes = [], set()
     if debug > 1:
@@ -1080,7 +1089,7 @@ def get_aa_tree(dtree, annotation, extra_str=None, debug=False):
 
 # ----------------------------------------------------------------------------------------
 # check whether 1) node depth and 2) node pairwise distances are super different when calculated with tree vs sequences (not really sure why it's so different sometimes, best guess is fasttree sucks, partly because it doesn't put the root node anywhere near the root of the tree)
-def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, min_warn_frac=0.1, only_check_leaf_depths=False, extra_str=None, debug=False):
+def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_check_leaf_depths=False, extra_str=None, iclust=None, debug=False):  # , min_warn_frac=0.1
     common_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label in annotation['unique_ids']]
     tdepths, mfreqs, fracs = {}, {}, {}
     for node in common_nodes:
@@ -1093,9 +1102,9 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, min_warn
             mfreqs[key] = mfreq
             fracs[key] = frac_diff
     if debug or len(fracs) > 0:
-        warnstr = utils.color('yellow', 'warning ') if len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
+        warnstr = utils.color('yellow', 'warning ') if len(fracs) > 0 else ''  # len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
-            print '        %stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % (warnstr, 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
+            print '        %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
         if (debug and len(fracs) > 0) or len(fracs) > 0:
             print '    tree depth   mfreq      ratio    frac diff'
             for key, frac in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
@@ -1117,16 +1126,16 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, min_warn
             pv_mdists[key] = mdist
             pw_fracs[key] = frac_diff
     if debug or len(pw_fracs) > 0:
-        warnstr = utils.color('yellow', 'warning ') if len(pw_fracs) / float(len(common_nodes)) > min_warn_frac else ''
+        warnstr = utils.color('yellow', 'warning ') if len(pw_fracs) > 0 else ''  #  if len(pw_fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
-            print '        %spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % (warnstr, 100*max_frac_diff, len(pw_fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
+            print '        %s%spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(pw_fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
         if debug and len(pw_fracs) > 0:
             print '          pairwise'
             print '     tree dist  seq dist    ratio   frac diff'
             for key, frac_diff in sorted(pw_fracs.items(), key=operator.itemgetter(1), reverse=True):
                 print '      %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / pv_mdists[key], frac_diff, key[0], key[1])
 
-    if debug:
+    if debug > 1:
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
         if 'v_3p_del' in annotation:  # hackey way to avoid trying to print the fake h+l annotation
             utils.print_reco_event(annotation)
@@ -1149,11 +1158,11 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
         if annotation is None:
             raise Exception('need annotation to get sequence lengths if tau is None')
         tau = 1. / seq_len  # note that this uses the nuc seq len even if we're calculating aa lb metrics (which is what we want)
-        print '  setting default tau to 1 / %d = %.4f' % (seq_len, tau)
+        if iclust is None or iclust == 0:
+            print '  setting default tau to 1 / %d = %.4f' % (seq_len, tau)
 
-    # TODO this is too slow (although it would be easy to have an option for it to only spot check a random subset of nodes) UPDATE there's now an option to not do pairwise distances, so i could probably turn it on now
     if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
-        compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str, only_check_leaf_depths=True)
+        # compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str, only_check_leaf_depths=True, debug=True)  # this used to be slow (although now we only check depths, avoiding the slow pairwise check), and turning it off for amino acid trees would require some changes, so whatever, leaving it commented for now
         if not utils.is_normed(tau * len(annotation['seqs'][0]), this_eps=0.1):  # should be within 10% at least
             print '  %s inverse of specified tau value %.1f (tau %.4f) not equal to seq len %.1f (inverse %.4f)' % (utils.wrnstr(), 1. / tau, tau, len(annotation['seqs'][0]), 1. / len(annotation['seqs'][0]))
 
@@ -1761,8 +1770,8 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
 def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, queries_to_include=None,
                       paired=False, debug=False):
     reqd_args = [('selection_metric_plot_cfg', None), ('slice_bin_fname', None), ('queries_to_include', None), ('label_tree_nodes', False), ('affinity_key', None)]
-    for marg, dval in [a for a, _ in reqd_args if not hasattr(args, a)]:  # "required" args, just so when i add an arg to bin/partis i don't also have to add it to smetric-run.py
-        setattr(args, marg, dval)  # NOTE i can't actually test this atm since the individual tree metric fcn doesn't use this fcn for plotting (but it should)
+    for marg, dval in [(a, v) for a, v in reqd_args if not hasattr(args, a)]:  # "required" args, just so when i add an arg to bin/partis i don't also have to add it to smetric-run.py
+        setattr(args, marg, dval)
 
     assert not include_relative_affy_plots  # would need updating
     import plotting
@@ -1827,8 +1836,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
         plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs], bgcolor='#FFFFFF', title='all plots:')
 
-    if is_simu and not args.only_csv_plots and 'true-vs-inf-metrics' in plot_cfg:
-        assert inf_annotations is not None
+    if is_simu and not args.only_csv_plots and 'true-vs-inf-metrics' in plot_cfg and inf_annotations is not None:
         for mtr in [m for m in metrics_to_calc if m in lb_metrics]:
             lbplotting.plot_true_vs_inferred_lb(plotdir + '/' + mtr, antn_list, inf_annotations, mtr, fnames=fnames)
         lbplotting.plot_cons_seq_accuracy(plotdir, antn_list, fnames=fnames)
@@ -1967,7 +1975,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, metrics_to_calc=None, dont_normal
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong): found leaf depth greater than 1 (even when less than 1 they can be wrong, but we can be fairly certain that your BCR sequences don\'t have real mutation frequencty greater than 1, so this case we can actually check). If you pass in annotations we can rescale to the observed mutation frequencty.')
         print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
         nuc_dtree.scale_edges(1. / numpy.mean([len(s) for s in line['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
-    aa_dtree = get_aa_tree(nuc_dtree, line, extra_str=extra_str, debug=debug)
+    aa_dtree = get_aa_tree(nuc_dtree, line, extra_str=extra_str, iclust=iclust, debug=debug)
     aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, metrics_to_calc=metrics_to_calc, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
     if 'tree-info' not in line:
         line['tree-info'] = {'lb' : {}}
@@ -2002,7 +2010,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
         inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_after = len(inf_lines_to_use)  # after removing the small ones
         treefos = None
-        if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
+        if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
             treefos = get_trees_for_annotations(inf_lines_to_use, treefname=treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, run_gctree=args.run_gctree, gctree_outdir=gctree_outdir, glfo=glfo, debug=debug)
         print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
@@ -2028,11 +2036,11 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
             if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
 
-            if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'aa-lbi', 'aa-lbr']):
+            if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):
                 if trfo['tree'] is None and trfo['origin'] == 'no-uids':
                     n_skipped_uid += 1
                     continue
-                if any(m in metrics_to_calc for m in ['lbi', 'lbr']):
+                if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf']):
                     lbfo = calculate_lb_values(trfo['tree'], lb_tau, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
                     check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
                     line['tree-info']['lb'].update(lbfo)
@@ -2280,7 +2288,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 #    4) only runs on simulation (as opposed to making two sets of things, for simulation and data)
 # and yes, it would be really *#(!$ing nice to merge them but I haven't had the time yet
 def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
-                                      dont_normalize_lbi=False, cluster_indices=None, only_look_upwards=False, debug=False):
+                                      dont_normalize_lbi=False, cluster_indices=None, only_look_upwards=False, args=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_combo_lbfo(varlist, iclust, line, lb_tau, is_aa_lb=False): #, add_to_line=False):
         if 'shm-aa' in varlist and 'seqs_aa' not in line:
@@ -2290,7 +2298,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         for mtmp in [m for m in varlist if 'cons-dist-' in m]:
             add_cdists_to_lbfo(line, lbfo, mtmp)
         dtree = get_dendro_tree(treestr=line['tree'])
-        lbvars = [m for m in ['lbi', 'lbr'] if m in varlist]  # although if is_aa_lb is set, we're really calculating aa-lbi/aa-lbr
+        lbvars = [m for m in varlist if m[:2]=='lb']  # although if is_aa_lb is set, we're really calculating aa-lbi/aa-lbr
         if is_aa_lb:  # NOTE this adds the metrics to <line>
             get_aa_lb_metrics(line, dtree, lb_tau, metrics_to_calc=lbvars, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             # lbfo.update(line['tree-info']['lb'])
@@ -2352,7 +2360,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         elif 'aa-lb' in metric_method:  # aa versions of lbi and lbr
             _, lbfo = get_combo_lbfo([metric_method.lstrip('aa-')], iclust, line, lb_tau, is_aa_lb=True)  # NOTE i shouldn't have used lstrip() here (i keep forgetting it's character-based, not string-based', but i think it's ok
             # NOTE do *not* call add_to_treefo() since they're already added to <line>
-        elif metric_method in ['lbi', 'lbr']:  # last cause i'm adding them last, but would probably be cleaner to handle it differently (i'm just tired of having to run the full (non-individual) tree metric fcn to get them)
+        elif metric_method in ['lbi', 'lbr', 'lbf']:
             _, lbfo = get_combo_lbfo([metric_method], iclust, line, lb_tau) #, add_to_line=True)
             add_to_treefo(lbfo[metric_method])
         elif metric_method == 'cons-lbi':  # now uses aa-lbi as a tiebreaker for cons-dist-aa, but used to be old z-score style combination of (nuc-)lbi and cons-dist
@@ -2369,25 +2377,9 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         print '       tree quantity calculation/prediction time: %.1fs' % (time.time() - pstart)
 
     if base_plotdir is not None:
-        plstart = time.time()
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        import plotting
-        import lbplotting
-        if 'affinities' not in metric_antns[0] or all(affy is None for affy in metric_antns[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
-            return
-        true_plotdir = base_plotdir + '/true-tree-metrics'
-        utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=[metric_method])
-        fnames = []
-        if metric_method in daffy_metrics:
-            lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+metric_method, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, debug=debug, only_look_upwards=only_look_upwards)
-        else:
-            for affy_key in (['affinities', 'relative_affinities'] if include_relative_affy_plots else ['affinities']):
-                lbplotting.plot_lb_vs_affinity(true_plotdir, metric_antns, metric_method, is_true_line=True, only_csv=only_csv, fnames=fnames, affy_key=affy_key)
-        if ete_path is not None:
-            lbplotting.plot_lb_trees([metric_method], true_plotdir, metric_antns, ete_path, workdir, is_true_line=True, fnames=fnames)
-        if not only_csv:
-            plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(metric_method, '%s/%s/' % (true_plotdir, metric_method)),], bgcolor='#FFFFFF', htmlfname='%s/%s.html'%(true_plotdir, metric_method))
-        print '      non-lb metric plotting time %.1fs' % (time.time() - plstart)
+        plstr, is_simu, inf_annotations = 'true', True, None
+        plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), [metric_method], metric_antns, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):

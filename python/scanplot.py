@@ -30,7 +30,7 @@ def metric_color(metric):  # as a fcn to avoid import if we're not plotting
         return hard_colors[metric]
     if 'synth-' in metric:
         return 'grey'
-    mstrlist = ['shm:lbi:cons-dist-aa:cons-dist-nuc:dtr:aa-lbi', 'delta-lbi:lbr:dtr:aa-lbr']
+    mstrlist = ['shm:lbi:cons-dist-aa:cons-dist-nuc:dtr:aa-lbi', 'delta-lbi:lbr:dtr:aa-lbr:lbf:aa-lbf']
     metric_colors = {m : plotting.frozen_pltcolors[i % len(plotting.frozen_pltcolors)] for mstrs in mstrlist for i, m in enumerate(mstrs.split(':'))}
     return metric_colors.get(metric, 'red')
 ltexts = {

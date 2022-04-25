@@ -200,7 +200,7 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None, extra_str=''):
         else:  # testing
             return [get_tm_fname(varnames, vstr, metric_method, lbplotting.getptvar(tv), cg=cg, tv=tv, use_relative_affy=use_relative_affy, extra_str=extra_str) for cg in treeutils.cgroups for tv in treeutils.dtr_targets[cg] for use_relative_affy in ura_vals(tv)]
     else:
-        return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method in ['delta-lbi', 'lbr', 'aa-lbr'] else 'affinity', extra_str=extra_str)]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
+        return [get_tm_fname(varnames, vstr, metric_method, 'n-ancestor' if metric_method in treeutils.daffy_metrics else 'affinity', extra_str=extra_str)]  # this hard coding sucks, and it has to match some stuff in treeutils.calculate_non_lb_tree_metrics()
 
 # ----------------------------------------------------------------------------------------
 def run_bcr_phylo(args):  # also caches parameters
@@ -357,7 +357,7 @@ parser.add_argument('--context-depend-list')
 parser.add_argument('--multifurcating-tree-list')
 parser.add_argument('--paratope-positions-list')
 parser.add_argument('--affinity-measurement-error-list')
-parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi', 'aa-lbi', 'lbr', 'aa-lbr', 'dtr', 'cons-lbi'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics. UPDATE can now run this way also for plain/nuc lbi and lbr.')
+parser.add_argument('--metric-method', choices=['shm', 'fay-wu-h', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'lbi', 'aa-lbi', 'lbr', 'lbf', 'aa-lbr', 'aa-lbf', 'dtr', 'cons-lbi'], help='method/metric to compare to/correlate with affinity (for use with get-tree-metrics action). If not set, run partis to get lb metrics. UPDATE can now run this way also for plain/nuc lbi and lbr.')
 parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until it can really run with default options (i.e. model files are really settled)
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')

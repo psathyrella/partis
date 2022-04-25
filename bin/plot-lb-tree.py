@@ -124,7 +124,7 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
 # ----------------------------------------------------------------------------------------
 def set_meta_styles(args, etree, tstyle):
     lbfo = args.metafo[args.lb_metric]
-    if 'lbr' in args.lb_metric:  # remove zeros + maybe apply log()
+    if 'lbr' in args.lb_metric or 'lbf' in args.lb_metric:  # remove zeros + maybe apply log()
         lbfo = {u : (math.log(v) if args.log_lbr else v) for u, v in lbfo.items() if v > 0}
     lbvals = lbfo.values()
     if len(lbvals) == 0:

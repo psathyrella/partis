@@ -29,6 +29,7 @@ parser.add_argument('--min-selection-metric-cluster-size', type=int, default=tre
 parser.add_argument('--include-relative-affy-plots', action='store_true')
 parser.add_argument('--make-tree-plots', action='store_true')
 parser.add_argument('--only-look-upwards', action='store_true')
+parser.add_argument('--selection-metric-plot-cfg', default= ':'.join(treeutils.default_plot_cfg))
 args = parser.parse_args()
 args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)
 ete_path, workdir = None, None
@@ -53,4 +54,4 @@ if args.metric_method == 'dtr':
 else:
     treeutils.calculate_individual_tree_metrics(args.metric_method, true_lines, base_plotdir=args.base_plotdir, lb_tau=args.lb_tau, only_csv=args.only_csv_plots,
                                                 min_cluster_size=args.min_selection_metric_cluster_size, include_relative_affy_plots=args.include_relative_affy_plots,
-                                                dont_normalize_lbi=args.dont_normalize_lbi, ete_path=ete_path, workdir=workdir, cluster_indices=args.cluster_indices, only_look_upwards=args.only_look_upwards) #, debug=True)
+                                                dont_normalize_lbi=args.dont_normalize_lbi, ete_path=ete_path, workdir=workdir, cluster_indices=args.cluster_indices, only_look_upwards=args.only_look_upwards, args=args) #, debug=True)
