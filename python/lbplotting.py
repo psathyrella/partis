@@ -1368,7 +1368,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     cmdstr = '%s/bin/plot-lb-tree.py --treefname %s' % (utils.get_partis_dir(), treefname)
     if metafo is not None:
         with open(metafname, 'w') as metafile:
-            yaml.dump(metafo, metafile, Dumper=Dumper)
+            json.dump(metafo, metafile) # had this here, but it was having a crash from a quoting bug (was using " when it should have used '): yaml.dump , Dumper=Dumper)
         cmdstr += ' --metafname %s' % metafname
     if queries_to_include is not None:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)

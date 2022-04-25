@@ -1152,7 +1152,7 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
 
     seq_len = None
     if annotation is not None:
-        seq_len = numpy.mean([len(s) for s in annotation['seqs']])
+        seq_len = float(numpy.mean([len(s) for s in annotation['seqs']]))  # the numpy type is causing crashes when written to yaml file (yaml.dump is quoting with " instead of ' which breaks something) (although switching to json dump seems to have also fixed it)
 
     if tau is None:
         if annotation is None:
