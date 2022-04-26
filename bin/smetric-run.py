@@ -29,6 +29,8 @@ parser.add_argument('--min-selection-metric-cluster-size', type=int, default=tre
 parser.add_argument('--include-relative-affy-plots', action='store_true')
 parser.add_argument('--make-tree-plots', action='store_true')
 parser.add_argument('--only-look-upwards', action='store_true')
+parser.add_argument('--label-tree-nodes', action='store_true')
+parser.add_argument('--label-root-node', action='store_true')
 parser.add_argument('--selection-metric-plot-cfg', default= ':'.join(treeutils.default_plot_cfg))
 args = parser.parse_args()
 args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)

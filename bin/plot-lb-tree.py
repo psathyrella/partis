@@ -123,6 +123,16 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
 
 # ----------------------------------------------------------------------------------------
 def set_meta_styles(args, etree, tstyle):
+    # ----------------------------------------------------------------------------------------
+    def label_node(node):
+        if args.label_all_nodes:
+            return True
+        if args.queries_to_include is not None and node.name in args.queries_to_include:
+            return True
+        if args.label_root_node and node is etree.get_tree_root():
+            return True
+        return False
+    # ----------------------------------------------------------------------------------------
     lbfo = args.metafo[args.lb_metric]
     if 'lbr' in args.lb_metric or 'lbf' in args.lb_metric:  # remove zeros + maybe apply log()
         lbfo = {u : (math.log(v) if args.log_lbr else v) for u, v in lbfo.items() if v > 0}
@@ -176,7 +186,7 @@ def set_meta_styles(args, etree, tstyle):
                     node.img_style['hz_line_width'] = 1.2
                 else:
                     node.img_style['hz_line_color'] = plotting.getgrey()
-        if args.label_all_nodes or args.queries_to_include is not None and node.name in args.queries_to_include:
+        if label_node(node):
             tface = ete3.TextFace(node.name, fsize=3, fgcolor='red')
             node.add_face(tface, column=0)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
@@ -231,6 +241,7 @@ parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'rela
 parser.add_argument('--metafname')
 parser.add_argument('--queries-to-include')
 parser.add_argument('--label-all-nodes', action='store_true')
+parser.add_argument('--label-root-node', action='store_true')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
 parser.add_argument('--partis-dir', default=os.path.dirname(os.path.realpath(__file__)).replace('/bin', ''), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
