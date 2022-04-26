@@ -34,6 +34,7 @@ parser.add_argument('--label-root-node', action='store_true')
 parser.add_argument('--selection-metric-plot-cfg', default= ':'.join(treeutils.default_plot_cfg))
 args = parser.parse_args()
 args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)
+args.selection_metric_plot_cfg = utils.get_arg_list(args.selection_metric_plot_cfg, choices=treeutils.all_plot_cfg)
 ete_path, workdir = None, None
 if args.make_tree_plots:
     ete_path = '/home/%s/anaconda_ete/bin' % os.getenv('USER')

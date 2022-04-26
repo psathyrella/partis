@@ -696,7 +696,15 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return fn
 
 # ----------------------------------------------------------------------------------------
-def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 100., 2.), dbgstr=None, affy_key='affinities', debug=False):
+def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 100., 2.), dbgstr=None, affy_key='affinities', return_distr_hists=False, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def gethist(tstr, vfcn, max_bin_width=0.2, min_bins=30):  # NOTE similarity to fcn below
+        xmin = 0.
+        xmax = 1.01 * max(plotvals[lb_metric])  # this is the low edge of the overflow bin, so needs to be a bit above the biggest value
+        n_bins = max(min_bins, int((xmax - xmin) / max_bin_width))  # for super large lbr values like 100 you need way more bins
+        vlist = [lb for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if vfcn(xv)]
+        return Hist(n_bins=n_bins, xmin=xmin, xmax=xmax, title=tstr, value_list=vlist)
+    # ----------------------------------------------------------------------------------------
     # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot (i.e. are affinity, N ancestors, or branch length). On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
     if xvar == 'n-ancestor':
         plotvals = copy.deepcopy(plotvals)
@@ -741,7 +749,16 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
         # NON_corresponding_xvals = [affy for lb, affy in zip(shuffled_lb_vals, plotvals[xvar]) if lb > lb_ptile_val]
         # NON_corr_affy_ptiles = [stats.percentileofscore(plotvals[xvar], caffy, kind='weak') for caffy in NON_corresponding_xvals]
         # tmp_ptvals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
-    return tmp_ptvals
+
+    if return_distr_hists:
+        distr_ptile = 50
+        affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], distr_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
+        bottom_hist = gethist('bottom %.0f%%'%(distr_ptile), lambda a: a <= affy_ptile_val)
+        top_hist = gethist('top %.0f%%'%(100.-distr_ptile), lambda a: a > affy_ptile_val)
+        distr_hists = [bottom_hist, top_hist]
+        return tmp_ptvals, distr_hists
+    else:
+        return tmp_ptvals
 
 # ----------------------------------------------------------------------------------------
 # take a dict <ptile_vals> with a list of values for each cluster (e.g. 'lb_ptiles', 'perfect_vals' and 'mean_affinity_ptiles' where each list is over percentile values e.g. from 50 to 100), and return the same length list for each variable but averaged over clusters
@@ -1048,15 +1065,29 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     # ----------------------------------------------------------------------------------------
     def getcorrkey(xstr, ystr):
         return '-vs-'.join([xstr, ystr])
+    # ----------------------------------------------------------------------------------------
+    def make_perf_distr_plot(dhists, iclust=None, tfns=None):  # NOTE duplicates a lot of stuff in the vs delta affinity fcn below
+        if dhists is None:
+            return
+        title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
+        plotname = '%s-vs-%s-%s-tree%s' % (lb_metric, 'affinity', true_inf_str, icstr(iclust))
+        tpdir = getplotdir(extrastr='-perf-distr')
+        normalize, colors = False, ['#006600', 'darkred']
+        if len(dhists) > len(colors):
+            normalize = True
+            colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
+        plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
+                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='affinity', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
+        add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
 
     # ----------------------------------------------------------------------------------------
     if no_plot:
         only_csv = True
-    n_rows = 3
-    scfns, wptfns, aptfns = fnames, fnames, fnames
+    n_rows = 4
+    scfns, wptfns, aptfns, dhfns = fnames, fnames, fnames, fnames
     if separate_rows:  # indices of the rows to which to append each type of plot (if not set, all go on the same row [unless row width exceeds the limit, set elsewhere])
         if len(fnames) < n_rows: fnames += [[] for _ in range(n_rows)]
-        scfns, wptfns, aptfns = [[fnames[i]] for i in range(len(fnames) - n_rows, len(fnames))]  # rows: 1. scatters, 2. within-family ptiles, 3. among-family ptiles
+        scfns, wptfns, aptfns, dhfns = [[fnames[i]] for i in range(len(fnames) - n_rows, len(fnames))]  # rows: 1. scatters, 2. within-family ptiles, 3. among-family ptiles 4. perf distributions
     true_inf_str = 'true' if is_true_line else 'inferred'
     vtypes = get_lbscatteraxes(lb_metric)  # NOTE this puts relative affinity under the (plain) affinity key, which is kind of bad maybe i think probably UPDATE nah i think it's better
     if colorvar is not None:
@@ -1071,7 +1102,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
             print '    too many seqs %d >= %d, not making scatter plots' % (sum(len(l['unique_ids']) for l in lines), max_scatter_plot_size)
             utils.prep_dir(getplotdir(), wildlings=['*.svg', '*.yaml'])
     if not no_plot:
-        for estr in ['-ptiles']:  # previous line does a prep_dir() call as well
+        for estr in ['-ptiles', '-perf-distr']:  # previous line does a prep_dir() call as well
             utils.prep_dir(getplotdir(estr), wildlings=['*.svg', '*.yaml'])
 
     per_seq_plotvals = {vt : [] for vt in vtypes}  # plot values for choosing single seqs/cells (only among all clusters, since the iclust ones don't need to be kept outside the cluster loop)
@@ -1105,10 +1136,11 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
             print ''
         if lb_metric not in per_seq_metrics or 'among-families' in lb_metric or len(all_the_same) > 0:
             continue
-        iclust_ptile_vals = get_ptile_vals(lb_metric, iclust_plotvals, 'affinity', 'affinity', dbgstr='iclust %d'%iclust, affy_key=affy_key, debug=debug)
+        iclust_ptile_vals, iclust_distr_hists = get_ptile_vals(lb_metric, iclust_plotvals, 'affinity', 'affinity', dbgstr='iclust %d'%iclust, affy_key=affy_key, return_distr_hists=True, debug=debug)
         pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
         # correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes[:2]) : getcorr(*[iclust_plotvals[vt] for vt in vtypes[:2]])}
         if not only_csv and len(iclust_plotvals['affinity']) > 0 and iclust < max_iclust_plots:
+            make_perf_distr_plot(iclust_distr_hists, iclust=iclust, tfns=dhfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
             make_ptile_plot(iclust_ptile_vals, 'affinity', getplotdir('-ptiles'), ptile_plotname(iclust=iclust),
                             ylabel=tmpylabel(iclust, None), title=mtitlestr('per-seq', lb_metric, short=True), true_inf_str=true_inf_str, iclust=iclust, affy_key=affy_key, title_str=title_str)
 
@@ -1116,8 +1148,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         if per_seq_plotvals[lb_metric].count(0.) == len(per_seq_plotvals[lb_metric]):
             return
         # correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes[:2]) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes[:2]])}
-        pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', dbgstr='all clusters together', affy_key=affy_key, debug=debug)  # choosing single cells from among all cells with all clusters together
+        pt_vals['per-seq']['all-clusters'], all_distr_hists = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', dbgstr='all clusters together', affy_key=affy_key, return_distr_hists=True, debug=debug)  # choosing single cells from among all cells with all clusters together
         if len(lines) > 1 and not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
+            make_perf_distr_plot(all_distr_hists, tfns=dhfns)
             make_ptile_plot(pt_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(),
                             ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=aptfns, true_inf_str=true_inf_str, n_clusters=len(lines), affy_key=affy_key, title_str=title_str)
 
@@ -1221,7 +1254,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
     # ----------------------------------------------------------------------------------------
     def get_distr_hists(plotvals, xvar, max_bin_width=0.2, min_bins=30, extra_hists=False, iclust=None):
         # ----------------------------------------------------------------------------------------
-        def gethist(tstr, vfcn):
+        def gethist(tstr, vfcn):  # NOTE similarity to fcn above
             vlist = [v for v, n in zip(plotvals[lb_metric], plotvals['n-ancestor']) if vfcn(n)]
             return Hist(n_bins=n_bins, xmin=xmin, xmax=xmax, title=tstr, value_list=vlist)
         # ----------------------------------------------------------------------------------------
