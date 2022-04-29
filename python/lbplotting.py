@@ -54,13 +54,16 @@ def single_lbma_cfg_vars(metric_method, final_plots=False):
     return lb_metric_axis_cfg(metric_method, final_plots=final_plots)[0][1]  # [0] gets you the first metric's cfg (there's ony one because we specified a single <metric_method>, [1] gets you the (var, label)
 
 # ----------------------------------------------------------------------------------------
-def add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=False):  # NOTE acts on sub lists of the return value of the above (i.e. the .values())
-    cfg_list = [[s, l, False] for s, l in cfg_list]
+def add_lbma_cfg_permutations(cfg_list, include_relative_affy_plots=False, make_distr_hists=False):  # NOTE acts on sub lists of the return value of the above (i.e. the .values())
+    cfg_list = [[s, l, False, False] for s, l in cfg_list]
     if include_relative_affy_plots:
         for ic, (s, l, u) in enumerate(cfg_list):
             if s == 'affinity':  # add it just after the existing (non-relative) 'affinity'
-                cfg_list.insert(ic + 1, ['affinity', 'affinity', True])
+                cfg_list.insert(ic + 1, ['affinity', 'affinity', True, False])
                 break
+    if make_distr_hists:
+        assert not include_relative_affy_plots  # if i want to turn relative affinity plots back on, i'd just need to add both permutations here, but i don't care right now
+        cfg_list.append(['affinity', 'affinity', False, True])
     return cfg_list
 # ----------------------------------------------------------------------------------------
 def rel_affy_str(var, use_relative_affy):

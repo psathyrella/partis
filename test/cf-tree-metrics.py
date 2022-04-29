@@ -362,7 +362,8 @@ parser.add_argument('--plot-metrics', default='lbi:lbr')  # don't add dtr until 
 parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
-parser.add_argument('--distr-hist-limit', default='frac:0.03', help='lower bound type:value to use for new distribution performance hists for delta affinity metrics (aa-lbr/lbr). frac:<f> takes the top 100*<f> percent, N:<n> takes the top <n> seqs, val:<v> takes all seqs with metric value above <v>.')
+parser.add_argument('--daffy-distr-hist-limit', default='frac:0.03', help='lower bound type:value to use for new distribution performance hists for delta affinity metrics (aa-lbr/lbr). frac:<f> takes the top 100*<f> percent, N:<n> takes the top <n> seqs, val:<v> takes all seqs with metric value above <v>. Default set below.')
+parser.add_argument('--abs-affy-distr-hist-limit', default='frac:0.10', help='same as --daffy-distr-hist-limit, but for absolute affinity')
 parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
 parser.add_argument('--use-val-cfgs', action='store_true', help='use plotting.val_cfgs dict (we can\'t always use it)')
 parser.add_argument('--train-dtr', action='store_true')
@@ -453,9 +454,15 @@ if args.plot_metric_extra_strs is None:
 if len(args.plot_metrics) != len(args.plot_metric_extra_strs):
     raise Exception('--plot-metrics %d not same length as --plot-metric-extra-strs %d' % (len(args.plot_metrics), len(args.plot_metric_extra_strs)))
 args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
-args.distr_hist_limit = utils.get_arg_list(args.distr_hist_limit) #, key_val_pairs=True)
-assert args.distr_hist_limit[0] in ['N', 'frac', 'val']
-args.distr_hist_limit[1] = float(args.distr_hist_limit[1])
+
+args.daffy_distr_hist_limit = utils.get_arg_list(args.daffy_distr_hist_limit) #, key_val_pairs=True)
+assert args.daffy_distr_hist_limit[0] in ['N', 'frac', 'val']
+args.daffy_distr_hist_limit[1] = float(args.daffy_distr_hist_limit[1])
+
+args.abs_affy_distr_hist_limit = utils.get_arg_list(args.abs_affy_distr_hist_limit) #, key_val_pairs=True)
+assert args.abs_affy_distr_hist_limit[0] in ['N', 'frac', 'val']
+args.abs_affy_distr_hist_limit[1] = float(args.abs_affy_distr_hist_limit[1])
+
 args.selection_strength_list = utils.get_arg_list(args.selection_strength_list, floatify=True, forbid_duplicates=True)
 args.n_tau_lengths_list = utils.get_arg_list(args.n_tau_lengths_list, floatify=True)
 args.n_generations_list = utils.get_arg_list(args.n_generations_list, intify=True)
@@ -498,12 +505,12 @@ for action in args.actions:
             for metric, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):
                 utils.prep_dir(scanplot.get_comparison_plotdir(args, metric, extra_str=estr), subdirs=[pchoice], wildlings=['*.html', '*.svg', '*.yaml'])
                 cfg_list = lbplotting.single_lbma_cfg_vars(metric)
-                cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
-                for ptvar, ptlabel, use_relative_affy in cfg_list:
+                cfg_list = lbplotting.add_lbma_cfg_permutations(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots, make_distr_hists=True)
+                for ptvar, ptlabel, use_relative_affy, distr_hists in cfg_list:
                     print '  %s  %-s %-13s%-s' % (utils.color('blue', metric), utils.color('purple', estr, width=20, padside='right') if estr != '' else 20*' ', ptvar, utils.color('green', '(relative)') if use_relative_affy else '')
                     for cgroup in treeutils.cgroups:
                         print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
-                        arglist, kwargs = (args, args.scan_vars['get-tree-metrics'], action, metric, ptvar, args.final_plot_xvar), {'ptilelabel' : ptlabel, 'fnfcn' : get_tm_fname, 'per_x' : pchoice, 'choice_grouping' : cgroup, 'use_relative_affy' : use_relative_affy, 'metric_extra_str' : estr, 'debug' : args.debug}
+                        arglist, kwargs = (args, args.scan_vars['get-tree-metrics'], action, metric, ptvar, args.final_plot_xvar), {'ptilelabel' : ptlabel, 'fnfcn' : get_tm_fname, 'per_x' : pchoice, 'choice_grouping' : cgroup, 'use_relative_affy' : use_relative_affy, 'distr_hists' : distr_hists, 'metric_extra_str' : estr, 'debug' : args.debug}
                         if args.test:
                             scanplot.make_plots(*arglist, **kwargs)
                         else:
@@ -515,13 +522,14 @@ for action in args.actions:
         elif action == 'combine-plots':
             utils.prep_dir(scanplot.get_comparison_plotdir(args, 'combined'), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
             cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.single_lbma_cfg_vars(mtmp)])  # I don't think we care about the order
-            cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
+            # cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
+            cfg_list = lbplotting.add_lbma_cfg_permutations(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots, make_distr_hists=True)
             iplot = 0
-            for ptvar, ptlabel, use_relative_affy in cfg_list:
+            for ptvar, ptlabel, use_relative_affy, distr_hists in cfg_list:
                 print ptvar
                 for cgroup in treeutils.cgroups:
                     print '  ', cgroup
-                    scanplot.make_plots(args, args.scan_vars['get-tree-metrics'], action, None, ptvar, args.final_plot_xvar, ptilelabel=ptlabel, per_x=pchoice, choice_grouping=cgroup, use_relative_affy=use_relative_affy, make_legend=iplot==0)
+                    scanplot.make_plots(args, args.scan_vars['get-tree-metrics'], action, None, ptvar, args.final_plot_xvar, ptilelabel=ptlabel, per_x=pchoice, choice_grouping=cgroup, use_relative_affy=use_relative_affy, distr_hists=distr_hists, make_legend=iplot==0)
                     iplot += 1
             plotting.make_html(scanplot.get_comparison_plotdir(args, 'combined', per_x=pchoice), n_columns=2)
         else:

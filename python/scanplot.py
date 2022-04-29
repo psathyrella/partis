@@ -200,7 +200,7 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
-def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnfcn=None, per_x=None, choice_grouping=None, use_relative_affy=False, metric_extra_str='',
+def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnfcn=None, per_x=None, choice_grouping=None, use_relative_affy=False, distr_hists=False, no_spec_corr=False, metric_extra_str='',
                locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, make_legend=False, leg_label='', debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def pvl_list():
@@ -295,7 +295,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         pvlabel[0] = '; '.join(vlabels.get(vn, vn) for vn in pvnames)
         return pvkey
     # ----------------------------------------------------------------------------------------
-    def get_dhist_vals(ytmpfo, iclust=None):  # specify args.distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
+    def get_dhist_vals(ytmpfo, iclust=None):  # specify distr_hist_limit in one of three forms: (N, 3) (take 3 from each family), (frac, 0.01) (take 1% of family/total), or (val, 7) (take those with lb value greater than 7)
         # ----------------------------------------------------------------------------------------
         def gethist(subfo, tkey):
             yfo = subfo[tkey]
@@ -307,18 +307,18 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         subfo = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, distr_hists=distr_hists)
         if subfo is None:
             return 0, 0, 0
-        hzero, hother = [gethist(subfo, k) for k in (['zero', 'not 0'] if ptilestr=='n-ancestor' else ['top 50%', 'bottom 50%'])]
+        hzero, hother = [gethist(subfo, k) for k in (['zero', 'not 0'] if ptilestr=='n-ancestor' else ['top 20%', 'bottom 20%'])]
         for tattr in ['n_bins', 'xmin', 'xmax']:
             assert getattr(hzero, tattr) == getattr(hother, tattr)
-        if args.distr_hist_limit[0] == 'val':
-            ibin = hzero.find_bin(args.distr_hist_limit[1])
-        elif args.distr_hist_limit[0] in ['frac', 'N']:
+        if distr_hist_limit[0] == 'val':
+            ibin = hzero.find_bin(distr_hist_limit[1])
+        elif distr_hist_limit[0] in ['frac', 'N']:
             hsum = copy.deepcopy(hzero)
             hsum.add(hother)
             tsum, total = 0., hsum.integral(True)
-            tfrac = args.distr_hist_limit[1]
-            if args.distr_hist_limit[0] == 'N':
-                tfrac = args.distr_hist_limit[1] / total
+            tfrac = distr_hist_limit[1]
+            if distr_hist_limit[0] == 'N':
+                tfrac = distr_hist_limit[1] / total
                 if iclust is None:
                     tfrac *= nsimevts()
             for ibin in hsum.ibiniter(True, reverse=True):
@@ -372,7 +372,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     nd = str(0 if lo_edge >= 10. else 1)
                     print '%s%d/%d=%.2f (%s)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, fval, ('%3.'+nd+'f')%lo_edge),
             else:
-                diff_vals = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, per_x=per_x, choice_grouping=choice_grouping)  # kind of duplicates lbplotting.get_mean_ptile_vals() (although there we're averaging over the actual values, not the difference to perfect)
+                diff_vals = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, per_x=per_x, choice_grouping=choice_grouping, spec_corr=not no_spec_corr)  # kind of duplicates lbplotting.get_mean_ptile_vals() (although there we're averaging over the actual values, not the difference to perfect)
                 if len(diff_vals) == 0:
                     missing_vstrs['empty'].append((iclust, vstrs))  # empty may be from empty list in yaml file, or may be from none of them being above <min_ptile_to_plot>
                     return
@@ -579,7 +579,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         if per_x is None:
             return '%s-%s-vs-%s-%s-%s' % (ptilestr, mtmp if mtmp is not None else 'combined', xvar, ptntype, locus)
         elif per_x == 'per-seq':
-            return '%s%s-%s-ptiles-vs-%s-%s' % (affy_key_str, ptilestr, mtmp if mtmp is not None else 'combined', xvar, choice_grouping)
+            return '%s%s-%s-%s-vs-%s-%s' % (affy_key_str, ptilestr, mtmp if mtmp is not None else 'combined', 'distr-hists' if distr_hists else ('ptiles' if no_spec_corr else 'spec-corr'), xvar, choice_grouping)
         else:
             return '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
     # ----------------------------------------------------------------------------------------
@@ -663,7 +663,6 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     else:  # tree metrics
         assert not hasattr(args, 'n_sim_events_list') and hasattr(args, 'n_sim_events_per_proc')
         assert choice_grouping is not None
-        distr_hists = ptilestr == 'n-ancestor'  # hackey, but ok for now
         if metric == 'lbr' and args.dont_observe_common_ancestors:
             print '    skipping lbr when only observing leaves'
             return
@@ -671,6 +670,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         treat_clusters_together = nsimevts() is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
         legdict, axdict = treeutils.legtexts, treeutils.legtexts
         legdict.update(lbplotting.metric_for_target_distance_labels)
+        distr_hist_limit = args.abs_affy_distr_hist_limit if ptilestr=='affinity' else args.daffy_distr_hist_limit
     pvlabel = ['?']  # arg, this is ugly (but it does work...)
     _, varnames, val_lists, valstrs = utils.get_var_info(args, svars)
     plotvals, errvals, plothists = collections.OrderedDict(), collections.OrderedDict(), collections.OrderedDict()
@@ -820,17 +820,22 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         #     leg_loc[0] = 0.7
         if distr_hists:
             ylabel = 'frac. correct'
-            if args.distr_hist_limit[0] == 'val':
-                ylabel += ' (%s > %.1f)' % (titlestr(metric), args.distr_hist_limit[1])
-            elif args.distr_hist_limit[0] == 'frac':
-                ylabel += ' (top %.0f%%)' % (100*args.distr_hist_limit[1])
-            elif args.distr_hist_limit[0] == 'N':
-                ylabel += ' (top %d per family)' % args.distr_hist_limit[1]
+            if distr_hist_limit[0] == 'val':
+                ylabel += ' (%s > %.1f)' % (titlestr(metric), distr_hist_limit[1])
+            elif distr_hist_limit[0] == 'frac':
+                ylabel += ' (top %.0f%%)' % (100*distr_hist_limit[1])
+            elif distr_hist_limit[0] == 'N':
+                ylabel += ' (top %d per family)' % distr_hist_limit[1]
             else:
                 assert False
         else:
-            ylabel = '%s to perfect' % ('percentile' if ptilelabel == 'affinity' else ptilelabel)
+            if ptilelabel == 'affinity':
+                ylabel = 'accuracy gap' if no_spec_corr else 'specificity correlation'
+            else:
+                ylabel = ptilelabel
 
+    if distr_hists or not no_spec_corr:
+        ymin, ymax = (0, 1.02)
     ffn = plotting.mpl_finish(ax, plotdir, getplotname(metric),
                               xlabel=xlabel,
                               # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
