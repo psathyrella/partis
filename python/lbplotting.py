@@ -29,7 +29,7 @@ import mds
 # this name is terrible, but it's complicated and I can't think of a better one
 def lb_metric_axis_cfg(metric_method, final_plots=False):  # x axis variables against which we plot each lb metric (well, they're the x axis on the scatter plots, not the ptile plots)
     base_cfg = collections.OrderedDict([('lbi', [('affinity', 'affinity')]),
-                                        ('lbr', [('n-ancestor', 'N ancestors')]),  # , ('branch-length', 'branch length')])  # turning off branch length at least for now (for run time reasons)
+                                        ('lbr', [('n-ancestor', 'N ancestors'), ('daffy', 'affinity change')]), #, ('branch-length', 'branch length')]),  # turning off branch length at least for now (for run time reasons)
                                         ('lbf', [('n-ancestor', 'N ancestors')]),  # , ('branch-length', 'branch length')])  # turning off branch length at least for now (for run time reasons)
     ])
     if metric_method is None:
@@ -40,6 +40,13 @@ def lb_metric_axis_cfg(metric_method, final_plots=False):  # x axis variables ag
     else:  # shm, delta-lbi, cons-dist-*, etc
         xv = 'n-ancestor' if metric_method in ['delta-lbi', 'aa-lbr', 'aa-lbf'] else 'affinity'  # also hack hack hack
         return [[metric_method, [(xv, xv.replace('n-a', 'N a'))]]]
+
+# ----------------------------------------------------------------------------------------
+def ptile_range_tuple(xvar):
+    if xvar in ['daffy', 'n-ancestor']:
+        return (90., 100., 0.2)
+    else:
+        return (50., 100., 2.)
 
 # ----------------------------------------------------------------------------------------
 def single_lbma_cfg_vars(metric_method, final_plots=False):
@@ -696,19 +703,16 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return fn
 
 # ----------------------------------------------------------------------------------------
-def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 100., 2.), dbgstr=None, affy_key='affinities', return_distr_hists=False, debug=False):
+def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, dbgstr=None, affy_key='affinities', return_distr_hists=False, max_bin_width=0.2, min_bins=30, debug=False):
     # ----------------------------------------------------------------------------------------
-    def gethist(tstr, vfcn, max_bin_width=0.2, min_bins=30):  # NOTE similarity to fcn below
-        xmin = 0.
-        xmax = 1.01 * max(plotvals[lb_metric])  # this is the low edge of the overflow bin, so needs to be a bit above the biggest value
-        n_bins = max(min_bins, int((xmax - xmin) / max_bin_width))  # for super large lbr values like 100 you need way more bins
+    def gethist(tstr, xmin, xmax, n_bins, vfcn):  # NOTE similarity to fcn below
         vlist = [lb for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if vfcn(xv)]
         return Hist(n_bins=n_bins, xmin=xmin, xmax=xmax, title=tstr, value_list=vlist)
     # ----------------------------------------------------------------------------------------
     # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot (i.e. are affinity, N ancestors, or branch length). On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
     if xvar == 'n-ancestor':
         plotvals = copy.deepcopy(plotvals)
-        plotvals[xvar] = [abs(v) for v in plotvals[xvar]]
+        plotvals[xvar] = [abs(v) for v in plotvals[xvar]]  # TODO this maybe isn't what we want, see note in ptile plot fcn below
     xia = xvar == 'affinity'
     xkey = 'mean_%s_ptiles' % xvar
     tmp_ptvals = {'lb_ptiles' : [], xkey : [], 'perfect_vals' : []}  # , 'reshuffled_vals' : []}
@@ -716,15 +720,15 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
         return tmp_ptvals
     if debug:
         print '              getting ptile vals%s' % ('' if dbgstr is None else (' for %s' % utils.color('blue', dbgstr)))
-        print '                      %-12s N      mean     %s   |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
-        print '              ptile   threshold  taken    %s%-s %s|  N taken  mean %s'  % (utils.color('red', 'rel-') if xia and 'relative' in affy_key else '', 'affy' if xia else xlabel, '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
+        print '                      %-12s N      mean     %s     |  perfect   perfect' % (lb_metric, 'mean   ' if xia else '')
+        print '              ptile   threshold  taken    %s%-s %s  |  N taken  mean %s'  % (utils.color('red', 'rel-') if xia and 'relative' in affy_key else '', xlabel.replace('affinity', 'affy'), '   affy ptile ' if xia else '', 'ptile' if xia else xlabel)
     max_lb_val = max(plotvals[lb_metric])
-    sorted_xvals = sorted(plotvals[xvar], reverse=xia)
+    sorted_xvals = sorted(plotvals[xvar], reverse=xia or xvar == 'daffy')
     if xia:
         np_arr_sorted_xvals = numpy.asarray(sorted_xvals)  # the stats calls in the next two lines make this conversion, and it's way too slow to do for every x
         corr_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in plotvals[xvar]]  # x (e.g. affinity) percentile of each plot val (could speed this up by only using the best half of each list (since ptiles are starting at 50))
         perf_ptile_vals = sorted(corr_ptile_vals, reverse=True)  # x (e.g. affinity) percentile or each plot val, *after sorting by x* (e.g. affinity)
-    for percentile in numpy.arange(*ptile_range_tuple):
+    for percentile in numpy.arange(*ptile_range_tuple(xvar)):
         lb_ptile_val = min(max_lb_val, numpy.percentile(plotvals[lb_metric], percentile))  # lb value corresponding to <percentile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
         final_xvar_vals = [pt for lb, pt in zip(plotvals[lb_metric], corr_ptile_vals if xia else plotvals[xvar]) if lb >= lb_ptile_val]  # percentiles (if xia, else plain xvals [i.e. N ancestors or branch length]) corresponding to lb greater than <lb_ptile_val> (i.e. the ptiles for the x vals that you'd get if you took all the lb values greater than that)
         tmp_ptvals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
@@ -739,7 +743,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
             if xia:  # now we have to get these if we want to print them, since we no longer calculate them otherwise
                 corr_xvals = [xv for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if lb >= lb_ptile_val]  # x vals corresponding to lb greater than <lb_ptile_val> (i.e. the x vals that you'd get if you took all the lb values greater than that)
             v1str = ('%8.4f' % numpy.mean(corr_xvals if xia else final_xvar_vals)) if xia else ''
-            f1str = '5.0f' if xia else '6.2f'
+            f1str = '5.0f' if xia else '8.4f'
             f2str = '5.0f' if xia else ('8.2f' if xvar == 'n-ancestor' else '8.6f')
             print ('             %5.0f   %6.2f     %4d   %s  %'+f1str+'       |  %4d      %-'+f2str) % (percentile, lb_ptile_val, len(final_xvar_vals), v1str, tmp_ptvals[xkey][-1], n_to_take, tmp_ptvals['perfect_vals'][-1])
         # old way of adding a 'no correlation' line:
@@ -751,10 +755,17 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, ptile_range_tuple=(50., 10
         # tmp_ptvals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
 
     if return_distr_hists:
-        distr_ptile = 50
-        affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], distr_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
-        bottom_hist = gethist('bottom %.0f%%'%(distr_ptile), lambda a: a <= affy_ptile_val)
-        top_hist = gethist('top %.0f%%'%(100.-distr_ptile), lambda a: a > affy_ptile_val)
+        lower_ptile, upper_ptile = 20, 80
+        lo_affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], lower_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
+        hi_affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], upper_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
+        if 'cons' in lb_metric:
+            xmin, xmax = min(plotvals[lb_metric]) - 0.5, max(plotvals[lb_metric]) + 0.5
+            n_bins = xmax - xmin
+        else:
+            xmin, xmax = 0., 1.01 * max(plotvals[lb_metric])  # this is the low edge of the overflow bin, so needs to be a bit above the biggest value
+            n_bins = max(min_bins, int((xmax - xmin) / max_bin_width))  # for super large lbr values like 100 you need way more bins
+        bottom_hist = gethist('bottom %.0f%%'%(lower_ptile), xmin, xmax, n_bins, lambda a: a <= lo_affy_ptile_val)
+        top_hist = gethist('top %.0f%%'%(100. - upper_ptile), xmin, xmax, n_bins, lambda a: a > hi_affy_ptile_val)
         distr_hists = [bottom_hist, top_hist]
         return tmp_ptvals, distr_hists
     else:
@@ -789,11 +800,11 @@ def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind
     return outvals
 
 # ----------------------------------------------------------------------------------------
-def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?', title=None, fnames=None, ptile_range_tuple=(50., 100., 1.), true_inf_str='?', n_clusters=None, iclust=None, within_cluster_average=False, xlist=None, affy_key='affinities', title_str=''):
+def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?', title=None, fnames=None, true_inf_str='?', n_clusters=None, iclust=None, within_cluster_average=False, xlist=None, affy_key='affinities', title_str=''):
     if 'lb_ptiles' not in tmp_ptvals or len(tmp_ptvals['lb_ptiles']) == 0:
         return
 
-    if xvar == 'n-ancestor':
+    if xvar == 'n-ancestor':  # TODO this probably doesn't really make sense since it gives credit for being off by one in the wrong direction (kind of -- i guess you could argue it's ok to be off either direction, and in any case you're off in the 'right' direction vastly more frequently than in the 'wrong' one so it probably doesn't matter)
         xlist = [abs(v) for v in xlist]
 
     fig, ax = plotting.mpl_init()
@@ -809,9 +820,15 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
     ax.plot(tmp_ptvals['lb_ptiles'], tmp_ptvals[xkey], linewidth=3, alpha=0.7)
 
     # lines corresponding to no correlation and perfect correlation to guide the eye
-    bad_args = ((ax.get_xlim(), (xmean, xmean)), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkred', 'linestyle' : '--', 'label' : 'no correlation'})
-    perf_args = ((tmp_ptvals['lb_ptiles'], tmp_ptvals['perfect_vals']), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkgreen', 'linestyle' : '--', 'label' : 'perfect correlation'})
-    for (args, kwargs) in (perf_args, bad_args) if xia else (bad_args, perf_args):  # shenanigans are so their top/bottom ordering matches the actual lines
+    line_args = [
+        ((ax.get_xlim(), (xmean, xmean)), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkred', 'linestyle' : '--', 'label' : 'no correlation'}),
+        ((tmp_ptvals['lb_ptiles'], tmp_ptvals['perfect_vals']), {'linewidth' : 3, 'alpha' : 0.7, 'color' : 'darkgreen', 'linestyle' : '--', 'label' : 'perfect correlation'}),
+    ]
+    if xvar == 'daffy':
+        line_args.append(((ax.get_xlim(), (0, 0)), {'linewidth' : 1.5, 'alpha' : 0.7, 'color' : 'grey', 'linestyle' : '--', 'label' : 'zero'}))
+    if xia:  # so their top/bottom ordering matches the actual lines
+        line_args.reverse()
+    for (args, kwargs) in line_args:
         ax.plot(*args, **kwargs)
 
     if xia:
@@ -823,9 +840,14 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
         ptile_ylabel = 'mean percentile of\nresulting %s' % xlabel
     else:
         ymax = max([xmean] + tmp_ptvals[xkey] + tmp_ptvals['perfect_vals'])
-        ybounds = (-0.02*ymax, 1.1*ymax)
-        leg_loc = (0.5, 0.6)
-        ptile_ylabel = 'mean %s\nsince affinity increase' % xlabel
+        if xvar == 'daffy':
+            ymt = min([xmean] + tmp_ptvals[xkey])
+            ymin = (ymt-0.05*abs(ymax-ymt))
+        else:
+            ymin = -0.02*ymax
+        ybounds = (ymin, 1.1*ymax)
+        leg_loc = (0.05, 0.62) if xvar=='daffy' else (0.5, 0.6)
+        ptile_ylabel = 'mean %s\n%s' % (xlabel, 'from parent' if xvar=='daffy' else 'since affinity increase')
 
     if 'relative' in affy_key:
         fig.text(0.5, 0.82, 'relative %s' % xvar, fontsize=15, color='red', fontweight='bold')
@@ -835,7 +857,7 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
             fig.text(0.25, 0.84, 'within-cluster average over %d families' % n_clusters, fontsize=12, fontweight='bold')  # , color='red'
         else:
             fig.text(0.37, 0.84, 'choosing among %d families' % n_clusters, fontsize=12, fontweight='bold')  # , color='red'
-    fn = plotting.mpl_finish(ax, plotdir, plotname, xbounds=ptile_range_tuple, ybounds=ybounds, leg_loc=leg_loc,
+    fn = plotting.mpl_finish(ax, plotdir, plotname, xbounds=ptile_range_tuple(xvar), ybounds=ybounds, leg_loc=leg_loc,
                              title='%s%s%s' % (ungetptlabel(xvar), '' if iclust is None else ', iclust %d'%iclust, title_str),
                              xlabel='%s threshold (percentile)' % ylabel, ylabel=ptile_ylabel, adjust={'left' : 0.21}, legend_fontsize=14)
     add_fn(fnames, fn=fn)
@@ -993,7 +1015,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
     add_fn(fnames, new_row=True)
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, affy_key='affinities', only_csv=False, no_plot=False, fnames=None, separate_rows=False, add_uids=False,
+def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, affy_key='affinities', only_csv=False, no_plot=False, fnames=None, separate_rows=False, add_uids=False,
                         colorvar='is_leaf', max_scatter_plot_size=3000, max_iclust_plots=10, title_str='', debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
@@ -1108,6 +1130,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     per_seq_plotvals = {vt : [] for vt in vtypes}  # plot values for choosing single seqs/cells (only among all clusters, since the iclust ones don't need to be kept outside the cluster loop)
     per_clust_plotvals = {vt : {sn : [] for sn, _ in cluster_summary_cfg[vt]} for vt in vtypes}  # each cluster plotted as one point using a summary over its cells (e.g. max, mean) for affinity and lb
     pt_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
+    distr_hists = {}
     # correlation_vals = {'per-seq' : {}, 'per-cluster' : {}}
     if debug:
         print '                     N with    affinity      %s   ' % ''.join([('  %-12s'%vt) for vt in vtypes[:2] for _ in cluster_summary_cfg[vt]])
@@ -1138,6 +1161,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
             continue
         iclust_ptile_vals, iclust_distr_hists = get_ptile_vals(lb_metric, iclust_plotvals, 'affinity', 'affinity', dbgstr='iclust %d'%iclust, affy_key=affy_key, return_distr_hists=True, debug=debug)
         pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
+        distr_hists['iclust-%d'%iclust] = iclust_distr_hists
         # correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes[:2]) : getcorr(*[iclust_plotvals[vt] for vt in vtypes[:2]])}
         if not only_csv and len(iclust_plotvals['affinity']) > 0 and iclust < max_iclust_plots:
             make_perf_distr_plot(iclust_distr_hists, iclust=iclust, tfns=dhfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
@@ -1148,9 +1172,9 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
         if per_seq_plotvals[lb_metric].count(0.) == len(per_seq_plotvals[lb_metric]):
             return
         # correlation_vals['per-seq']['all-clusters'] = {getcorrkey(*vtypes[:2]) : getcorr(*[per_seq_plotvals[vt] for vt in vtypes[:2]])}
-        pt_vals['per-seq']['all-clusters'], all_distr_hists = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', dbgstr='all clusters together', affy_key=affy_key, return_distr_hists=True, debug=debug)  # choosing single cells from among all cells with all clusters together
+        pt_vals['per-seq']['all-clusters'], distr_hists['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, 'affinity', 'affinity', dbgstr='all clusters together', affy_key=affy_key, return_distr_hists=True, debug=debug)  # choosing single cells from among all cells with all clusters together
         if len(lines) > 1 and not only_csv and len(per_seq_plotvals[lb_metric]) > 0:
-            make_perf_distr_plot(all_distr_hists, tfns=dhfns)
+            make_perf_distr_plot(distr_hists['all-clusters'], tfns=dhfns)
             make_ptile_plot(pt_vals['per-seq']['all-clusters'], 'affinity', getplotdir('-ptiles'), ptile_plotname(),
                             ylabel=tmpylabel(None, None), title=mtitlestr('per-seq', lb_metric, short=True), fnames=aptfns, true_inf_str=true_inf_str, n_clusters=len(lines), affy_key=affy_key, title_str=title_str)
 
@@ -1181,17 +1205,26 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 1
     yamlfo = {'percentiles' : pt_vals} #, 'correlations' : correlation_vals}
     if not no_plot:
         with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), 'w') as yfile:
+            yamlfo['distr-hists'] = {}
+            n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
+            if n_missing > 0:
+                print '        %s missing %d / %d h lists for distr hists on %s tree (probably weren\'t any affinity increases in the tree)' % (utils.color('yellow', 'warning'), n_missing, len(distr_hists), 'true' if is_true_line else 'inf')
+            if hlist is not None:
+                yamlfo['distr-hists'] = {k : {h.title : h.getdict() for h in hlist} for k, hlist in distr_hists.items()}
             json.dump(yamlfo, yfile)
 
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_range_tuple=(50., 100., 1.), is_true_line=False, only_csv=False, fnames=None, separate_rows=False, max_scatter_plot_size=3000, max_iclust_plots=10,
+def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, max_scatter_plot_size=3000, max_iclust_plots=10,
                                         only_look_upwards=False, only_distr_plots=False, debug=False):
     # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
+    def init_pvals():
+        return {vt : [] for vt in [lb_metric, xvar]} #, 'daffy']}  # , 'uids']}
+    # ----------------------------------------------------------------------------------------
     def get_plotvals(line, xvar, iclust):
-        plotvals = {vt : [] for vt in [lb_metric, xvar, 'daffy']}  # , 'uids']}
+        plotvals = init_pvals()
         dtree = treeutils.get_dendro_tree(treestr=get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric))
         affy_increasing_edges, all_affy_changes = treeutils.find_affy_increases(dtree, line)
         if debug and iclust == 0:
@@ -1216,9 +1249,15 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
                 continue
             if all_affy_changes.get(uid) is None:
                 continue
-            plotvals[xvar].append(n_steps if xvar == 'n-ancestor' else branch_len)
+            if xvar == 'n-ancestor':
+                plotvals[xvar].append(n_steps)
+            elif xvar == 'branch-length':
+                plotvals[xvar].append(branch_len)
+            elif xvar == 'daffy':
+                plotvals[xvar].append(all_affy_changes[uid])
+            else:
+                assert False
             plotvals[lb_metric].append(lbval)
-            plotvals['daffy'].append(all_affy_changes.get(uid))
             # plotvals['uids'].append(uid)
         return plotvals
 
@@ -1234,11 +1273,10 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             return
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
         xlstr = 'affinity change' if xvar=='daffy' else '%s to nearest affinity increase' % xlabel
-        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel=xlstr, log='y' if 'lbr' in lb_metric else '', stats='correlation' if xvar=='daffy' else None)
+        fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel=xlstr, log='' if 'lbr' in lb_metric else '', stats='correlation' if xvar=='daffy' else None)
         add_fn(tfns, fn=fn)
     # ----------------------------------------------------------------------------------------
-    def make_perf_distr_plot(plotvals, xvar, iclust=None, tfns=None):
-        dhists = get_distr_hists(plotvals, xvar, iclust=iclust, max_bin_width=1) #, extra_hists=True)
+    def make_perf_distr_plot(dhists, xvar, iclust=None, tfns=None):
         if dhists is None:
             return
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
@@ -1252,12 +1290,14 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
                               errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='N steps to\naff. increase', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
         add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
     # ----------------------------------------------------------------------------------------
-    def get_distr_hists(plotvals, xvar, max_bin_width=0.2, min_bins=30, extra_hists=False, iclust=None):
+    def get_distr_hists(plotvals, xvar, max_bin_width=1., min_bins=30, extra_hists=False, iclust=None):
         # ----------------------------------------------------------------------------------------
         def gethist(tstr, vfcn):  # NOTE similarity to fcn above
             vlist = [v for v, n in zip(plotvals[lb_metric], plotvals['n-ancestor']) if vfcn(n)]
             return Hist(n_bins=n_bins, xmin=xmin, xmax=xmax, title=tstr, value_list=vlist)
         # ----------------------------------------------------------------------------------------
+        if xvar != 'n-ancestor':  # NOTE might also be worth making distr hists for daffy? but don't want to deal with it now
+            return None
         if len(plotvals[xvar]) == 0:
             return None
         # xmin, xmax = [tfac * mfcn(plotvals[lb_metric]) for mfcn, tfac in zip((min, max), (0.9, 1.1))]
@@ -1293,7 +1333,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
         print '%s finding ancestors with most recent affinity increases' % utils.color('blue', lb_metric)
     iclust_fnames = add_fn(None, init=True)
     for xvar, xlabel in xvar_list.items():
-        per_seq_plotvals = {vt : [] for vt in [lb_metric, xvar, 'daffy']}  # , 'uids']}
+        per_seq_plotvals = init_pvals()
         pt_vals = {'per-seq' : {}, 'per-cluster' : {}}  # 'per-seq': choosing single cells, 'per-cluster': choosing clusters; with subkeys in the former both for choosing sequences only within each cluster ('iclust-N', used later in cf-tree-metrics.py to average over all clusters in all processes) and for choosing sequences among all clusters together ('all-clusters')
         distr_hists = {}
         for iclust, line in enumerate(lines):
@@ -1309,8 +1349,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
             distr_hists['iclust-%d'%iclust] = get_distr_hists(iclust_plotvals, xvar, iclust=iclust)
             if not only_csv and iclust < max_iclust_plots:
-                make_perf_distr_plot(iclust_plotvals, xvar, iclust=iclust, tfns=dhfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
-                make_scatter_plot(iclust_plotvals, 'daffy', iclust=iclust, tfns=scfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
+                make_perf_distr_plot(distr_hists['iclust-%d'%iclust], xvar, iclust=iclust, tfns=dhfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
                 if not only_distr_plots:
                     make_scatter_plot(iclust_plotvals, xvar, iclust=iclust, tfns=nsfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
                     make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xlist=iclust_plotvals[xvar],
@@ -1326,8 +1365,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, ptile_ran
             pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
             distr_hists['all-clusters'] = get_distr_hists(per_seq_plotvals, xvar)
             if len(lines) > 1 and not only_csv:
-                make_perf_distr_plot(per_seq_plotvals, xvar, tfns=dhfns)
-                make_scatter_plot(per_seq_plotvals, 'daffy', tfns=scfns)
+                make_perf_distr_plot(distr_hists['all-clusters'], xvar, tfns=dhfns)
                 if not only_distr_plots:
                     make_scatter_plot(per_seq_plotvals, xvar, tfns=nsfns)
                     make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],

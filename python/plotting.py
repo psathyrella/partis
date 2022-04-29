@@ -155,9 +155,9 @@ def get_leg_entries(n_entries=5, vals=None, min_val=None, max_val=None, colorfcn
         return collections.OrderedDict(leg_entries)
 
 # ----------------------------------------------------------------------------------------
-def expand_bounds(bounds):
+def expand_bounds(bounds, only_down=False):
     assert len(bounds) == 2
-    return hutils.get_expanded_bounds(bounds, abs(bounds[1] - bounds[0]))
+    return hutils.get_expanded_bounds(bounds, abs(bounds[1] - bounds[0]), only_down=only_down)
 
 # ----------------------------------------------------------------------------------------
 # returns modified copy of input list

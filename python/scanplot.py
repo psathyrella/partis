@@ -307,7 +307,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         subfo = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, distr_hists=distr_hists)
         if subfo is None:
             return 0, 0, 0
-        hzero, hother = [gethist(subfo, k) for k in ['zero', 'not 0']]
+        hzero, hother = [gethist(subfo, k) for k in (['zero', 'not 0'] if ptilestr=='n-ancestor' else ['top 50%', 'bottom 50%'])]
         for tattr in ['n_bins', 'xmin', 'xmax']:
             assert getattr(hzero, tattr) == getattr(hother, tattr)
         if args.distr_hist_limit[0] == 'val':

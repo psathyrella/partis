@@ -91,7 +91,7 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
     tstyle.legend.add_face(ete3.TextFace('   %s ' % varname, fsize=fsize), column=start_column)
     min_val, max_val = get_scale_min(varname, all_vals), max(all_vals)
     if min_val == max_val:
-        min_val, max_val = plotting.expand_bounds([min_val, max_val])
+        min_val, max_val = plotting.expand_bounds([min_val, max_val], only_down=True)  # <only_down> is for affinity increase scale: expand downward if only one value so the one value shows up as dark red (rather than super light red)
     val_list = plotting.get_leg_entries(n_entries=n_entries, min_val=min_val, max_val=max_val)
     # if add_sign is not None and add_sign == '-':  # for negative changes, we have the cmap using abs() and want to legend order to correspond
     #     val_list = reversed(val_list)  # arg, this breaks something deep in the legend maker, not sure what
@@ -150,7 +150,10 @@ def set_meta_styles(args, etree, tstyle):
             affy_smap = plotting.get_normalized_scalar_map([a for a in affyvals if a is not None], 'viridis')
         elif args.lb_metric in treeutils.daffy_metrics:
             delta_affyvals = set_delta_affinities(etree, affyfo)
-            delta_affy_increase_smap = plotting.get_normalized_scalar_map([v for v in delta_affyvals if v > 0], 'Reds', remove_top_end=True) if len(delta_affyvals) > 0 else None
+            affy_increases = [v for v in delta_affyvals if v > 0]
+            if len(set(affy_increases)) == 1:  # if there's only one affinity increase, expand downward so color is dark red for actual observed value
+                affy_increases = plotting.expand_bounds([affy_increases[0] for _ in range(2)], only_down=True)
+            delta_affy_increase_smap = plotting.get_normalized_scalar_map(affy_increases, 'Reds', remove_top_end=True) if len(delta_affyvals) > 0 else None
             delta_affy_decrease_smap = plotting.get_normalized_scalar_map([abs(v) for v in delta_affyvals if v < 0], 'Blues', remove_top_end=True) if len(delta_affyvals) > 0 else None
         else:
             assert False
