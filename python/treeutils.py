@@ -33,7 +33,7 @@ import utils
 
 # ----------------------------------------------------------------------------------------
 fmetrics = ['lbf', 'aa-lbf']
-affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'shm-aa', 'aa-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
+affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'shm-aa', 'aa-lbi', 'cons-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
 affy_metrics += ['sum-'+m for m in affy_metrics]
 daffy_metrics = ['delta-lbi', 'lbr', 'aa-lbr'] + fmetrics
 daffy_metrics += ['sum-'+m for m in daffy_metrics]
@@ -1149,6 +1149,9 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
 
     if metrics_to_calc is None:
         metrics_to_calc = lb_metrics.keys()
+    else:
+        if any(m not in lb_metrics for m in metrics_to_calc):
+            raise Exception('unsupported lb metrics in %s (allowed: %s)' % (metrics_to_calc, lb_metrics))
 
     seq_len = None
     if annotation is not None:
@@ -1968,7 +1971,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
     return treefos
 
 # ----------------------------------------------------------------------------------------
-def get_aa_lb_metrics(line, nuc_dtree, lb_tau, metrics_to_calc=None, dont_normalize_lbi=False, extra_str=None, iclust=None, debug=False):  # and add them to <line>
+def get_aa_lb_metrics(line, nuc_dtree, lb_tau, dont_normalize_lbi=False, extra_str=None, iclust=None, debug=False):  # and add them to <line>
     utils.add_seqs_aa(line)
     if max(get_leaf_depths(nuc_dtree).values()) > 1:  # not really sure why i have to add this before converting to aa, but it seems necessary to avoid getting a huge branch below root (and for consistency -- if we're calculating also [nuc-]lbi the nuc tree is already rescaled when we get here
         if line is None:
@@ -1976,7 +1979,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, metrics_to_calc=None, dont_normal
         print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
         nuc_dtree.scale_edges(1. / numpy.mean([len(s) for s in line['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
     aa_dtree = get_aa_tree(nuc_dtree, line, extra_str=extra_str, iclust=iclust, debug=debug)
-    aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, metrics_to_calc=metrics_to_calc, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
+    aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
     if 'tree-info' not in line:
         line['tree-info'] = {'lb' : {}}
     line['tree-info']['lb']['aa-tree'] = aa_dtree.as_string(schema='newick')
@@ -2298,11 +2301,12 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         for mtmp in [m for m in varlist if 'cons-dist-' in m]:
             add_cdists_to_lbfo(line, lbfo, mtmp)
         dtree = get_dendro_tree(treestr=line['tree'])
-        lbvars = [m for m in varlist if m[:2]=='lb']  # although if is_aa_lb is set, we're really calculating aa-lbi/aa-lbr
+# TODO this doesn't really make sense, i'm using is_aa_lb to control what hould be in <varlist>
         if is_aa_lb:  # NOTE this adds the metrics to <line>
-            get_aa_lb_metrics(line, dtree, lb_tau, metrics_to_calc=lbvars, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
-            # lbfo.update(line['tree-info']['lb'])
+            get_aa_lb_metrics(line, dtree, lb_tau, dont_normalize_lbi=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
+            lbfo.update(line['tree-info']['lb'])
         else:
+            lbvars = [m for m in varlist if m[:2]=='lb']  # don't really need this any more i thinkg
             tmp_lb_info = calculate_lb_values(dtree, lb_tau, metrics_to_calc=lbvars, annotation=line, dont_normalize=dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
             for lbm in [m for m in lb_metrics if m in varlist]:  # this skips the tree, which I guess isn't a big deal
                 lbfo[lbm] = {u : tmp_lb_info[lbm][u] for u in line['unique_ids']}  # remove the ones that aren't in <line> (since we don't have sequences for them, so also no consensus distance)
@@ -2363,13 +2367,20 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         elif metric_method in ['lbi', 'lbr', 'lbf']:
             _, lbfo = get_combo_lbfo([metric_method], iclust, line, lb_tau) #, add_to_line=True)
             add_to_treefo(lbfo[metric_method])
-        elif metric_method == 'cons-lbi':  # now uses aa-lbi as a tiebreaker for cons-dist-aa, but used to be old z-score style combination of (nuc-)lbi and cons-dist
-            def tiefcn(uid):
-                cdist, aalbi = lbfo['cons-dist-aa'][uid], lbfo['aa-lbi'][uid]
-                return cdist + aalbi / max_aa_lbi
-            _, lbfo = get_combo_lbfo(['cons-dist-aa', 'lbi'], iclust, line, lb_tau, is_aa_lb=True)
-            max_aa_lbi = max(lbfo['aa-lbi'].values())
-            add_to_treefo({u : tiefcn(u) for u in line['unique_ids']})
+        elif metric_method == 'cons-lbi':
+            cmetrics = ['cons-dist-aa', 'aa-lbi']
+            _, lbfo = get_combo_lbfo(cmetrics, iclust, line, lb_tau, is_aa_lb=True)
+            mbounds = {}
+            for mtr in cmetrics:
+                mbounds[mtr] = [mfn(lbfo[mtr].values()) for mfn in (min, max)]
+            def zscore(mtr, uid):
+                return (lbfo[mtr][uid] - mbounds[mtr][0]) / float(mbounds[mtr][1] - mbounds[mtr][0])
+            def mcombine(uid):
+                return numpy.prod([zscore(m, uid) for m in cmetrics])
+            combovals = {u : mcombine(u) for u in line['unique_ids']}
+            # for u, v in sorted(combovals.items(), key=operator.itemgetter(1)):
+            #     print '  %.3f  %.5f   %3.0f  %.5f   %.7f %s' % (lbfo['aa-lbi'][u], zscore('aa-lbi', u), lbfo['cons-dist-aa'][u], zscore('cons-dist-aa', u), v, u)
+            add_to_treefo(combovals)
         else:
             assert False
 

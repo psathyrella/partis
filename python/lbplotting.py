@@ -761,7 +761,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, dbgstr=None, affy_key='aff
         lower_ptile, upper_ptile = 20, 80
         lo_affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], lower_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
         hi_affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], upper_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
-        if 'cons' in lb_metric:
+        if 'cons-dist' in lb_metric:
             xmin, xmax = min(plotvals[lb_metric]) - 0.5, max(plotvals[lb_metric]) + 0.5
             n_bins = xmax - xmin
         else:
@@ -1011,7 +1011,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
     original_affinities = [l['affinities'] for l in lines]
     int_vars = ['%s%s'%('sum-' if paired else '', k) for k in ['shm', 'shm-aa']]
     slvars = ['affinities'] + int_vars
-    if is_true_line:
+    if is_true_line and any('min_target_distances' in l for l in lines):
         slvars.append('min_target_distances')
     for slvar in slvars:
         slice_var(slvar, n_bin_cfg.get(slvar, n_bin_cfg['default']), slvar in int_vars)
