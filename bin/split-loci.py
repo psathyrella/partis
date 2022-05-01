@@ -106,7 +106,8 @@ def read_meta_info():  # read all input meta info, and add pairing info (if pres
     for line in dummy_annotation_list:
         if 'loci' in line:
             meta_loci[line['unique_ids'][0]] = line['loci'][0]
-        paired_uids[line['unique_ids'][0]] = line['paired-uids'][0] if 'paired-uids' in line else []
+        if 'paired-uids' in line:
+            paired_uids[line['unique_ids'][0]] = line['paired-uids'][0]
     if len(paired_uids) > 0:
         print '    read pairing info for %d seqs from input meta file' % len(paired_uids)
         if len(paired_uids) < len(seqfos):

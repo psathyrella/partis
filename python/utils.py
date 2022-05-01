@@ -881,6 +881,8 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, debug=False
         did_seps, did_indices = set_did_vals(uid)
         auto_set = True
     if not any(s in uid for s in did_seps):  # probably not paired data
+        if debug:
+            print '  %s no separators %s in uid %s' % (wrnstr(), did_seps, uid)
         return '', '' if return_contigs else ''
     ulist = [uid]
     for sep in did_seps:  # recursively split by each sep character

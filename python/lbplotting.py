@@ -935,6 +935,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
                                                                                        '' if len(affy_val_set)>1 or len(affy_val_set)==0 else utils.color('red', '   all affinities the same'), '  '.join([fstr(a) for a in avals]) if len(avals) < 10 else '')
         # ----------------------------------------------------------------------------------------
         all_vals = sorted(utils.antnval(l, slvar, i) for l in lines for i in range(len(l['unique_ids'])))
+        all_vals = [v for v in all_vals if v is not None]
         if isinstance(bincfg, list):  # explicit list of bin low edges
             xbins = [x for x in bincfg]  # maybe we'll modify it, so safer to copy
             n_bins = len(xbins) - 1

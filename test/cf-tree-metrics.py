@@ -522,7 +522,6 @@ for action in args.actions:
         elif action == 'combine-plots':
             utils.prep_dir(scanplot.get_comparison_plotdir(args, 'combined'), subdirs=[pchoice], wildlings=['*.html', '*.svg'])
             cfg_list = set([ppair for mtmp in args.plot_metrics for ppair in lbplotting.single_lbma_cfg_vars(mtmp)])  # I don't think we care about the order
-            # cfg_list = lbplotting.add_use_relative_affy_stuff(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots)
             cfg_list = lbplotting.add_lbma_cfg_permutations(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots, make_distr_hists=True)
             iplot = 0
             for ptvar, ptlabel, use_relative_affy, distr_hists in cfg_list:
