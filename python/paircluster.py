@@ -752,12 +752,13 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             return False
         # check against the droplet id method (we could just do it this way, but it would only work for 10x, and only until they change their naming convention)
         pgroup_strs = set(':'.join(sorted(pg)) for pg in pid_groups)  # <pid_groups>: list of pid groups, i.e. each element is the uids from a single droplet (for 10x), so <pgroup_strs> converts each group into an indexable key
-        n_not_found = 0
+        n_not_found, n_total = 0, 0
         if tdbg:
             print '              found?   drop id           contigs     overlaps (with any non-identical groups)'
         for dropid, drop_queries in utils.get_droplet_groups(all_uids, args.droplet_id_separators, args.droplet_id_indices):
             dqlist = list(drop_queries)
             found = ':'.join(sorted(dqlist)) in pgroup_strs  # was this exact combination of queries in pid_groups?
+            n_total += 1
             if not found:  # if not, see if any pid groups have some of these queries
                 n_not_found += 1
             if tdbg or not found:
@@ -766,7 +767,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 print '  %25s    %s   %-8s   %s' % (utils.color('green', '-') if found else utils.color('red', 'x'), dropid, ' '.join(sorted(utils.get_contig_id(q, args.droplet_id_separators, args.droplet_id_indices) for q in dqlist)),
                                                     utils.color('red', ostr if not found else ''))
         if n_not_found > 0:
-            print '  %s droplet id group check failed for %d groups, i.e. droplet ids parsed from uids don\'t match pair info: either pairing info is messed up or missing, or this is simulation and you didn\'t set --is-simu (if the latter, ignore this)' % (utils.color('red', 'error'), n_not_found)
+            print '  %s droplet id group check failed for %d / %d groups, i.e. droplet ids parsed from uids don\'t match pair info: either pairing info is messed up or missing, or this is simulation and you didn\'t set --is-simu (if the latter, ignore this)' % (utils.color('red', 'error'), n_not_found, n_total)
         return True
     # ----------------------------------------------------------------------------------------
     def plot_uids_before(plotdir, pid_groups, all_antns):
@@ -1084,7 +1085,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
     # for ipg, pg in enumerate(pid_groups):
     #     print '  %3d %s' % (ipg, ' '.join(pg))
 
-    idg_ok = check_droplet_id_groups(pid_groups, all_uids)  # NOTE not using the return value here, but I may need to in the future
+    # idg_ok = check_droplet_id_groups(pid_groups, all_uids)  # NOTE not using the return value here, but I may need to in the future UPDATE turning it off, it's too hard to figure out when we want it on vs not
     fnames = None
     if plotdir is not None:
         fnames = [[], [], []]
