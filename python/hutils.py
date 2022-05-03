@@ -61,13 +61,13 @@ def binprint(xbins, values):
 
 # ----------------------------------------------------------------------------------------
 def auto_bin_expand(values, xbins, int_bins=False, debug=False):
-    int_pad = 0.5 if int_bins else 0
-    if xbins[0] > values[0] - int_pad:  # make sure the hi edge of the underflow bin (lo edge of first bin) is below the smallest value
-        print '      expanding lower edge of first bin (hi edge of underflow): %.3f --> %.3f' % (xbins[0], values[0] - int_pad)
-        xbins[0] = values[0] - int_pad
-    if xbins[-1] < values[-1] + int_pad:  # make sure the lo edge of the overflow bin is above the largest value
-        print '      expanding upper edge of last bin (lo edge of overflow): %.3f --> %.3f' % (xbins[-1], values[-1] + int_pad)
-        xbins[-1] = values[-1] + int_pad
+    padval = 0.5 if int_bins else 0.01 * abs(max(values) - min(values))
+    if xbins[0] > values[0] - padval:  # make sure the hi edge of the underflow bin (lo edge of first bin) is below the smallest value
+        print '      expanding lower edge of first bin (hi edge of underflow): %.3f --> %.3f' % (xbins[0], values[0] - padval)
+        xbins[0] = values[0] - padval
+    if xbins[-1] < values[-1] + padval:  # make sure the lo edge of the overflow bin is above the largest value
+        print '      expanding upper edge of last bin (lo edge of overflow): %.3f --> %.3f' % (xbins[-1], values[-1] + padval)
+        xbins[-1] = values[-1] + padval
     if debug:
         binprint(xbins, values)
 
