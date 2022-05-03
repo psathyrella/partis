@@ -495,7 +495,7 @@ class PartitionDriver(object):
 
         annotation_list = self.parse_existing_annotations(annotation_list, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')  # NOTE modifies <annotation_list>
         if len(annotation_list) == 0:
-            if cpath is not None:
+            if cpath is not None and tmpact in ['view-output', 'view-annotations', 'view-partitions']:
                 self.print_results(cpath, [])  # used to just return, but now i want to at least see the cpath
             print 'zero annotations to print, exiting'
             return
