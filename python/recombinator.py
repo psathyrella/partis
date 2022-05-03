@@ -396,7 +396,7 @@ class Recombinator(object):
         # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
         for region in utils.regions:
             if len(self.glfo['seqs'][region]) == 0:
-                raise Exception('no genes to choose from for %s' % region)
+                raise Exception('no genes to choose from for %s (if light chain d, you need to explicitly add the dummy d to --only-genes)' % region)
             probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
             allowed_genes = sorted(self.glfo['seqs'][region].keys())  # sorted is really just to make the correlation stuff feel more repeatable (.keys() should have repeatable order within a version: https://docs.python.org/2/library/stdtypes.html#dict.items)
             if self.allele_prevalence_freqs is not None:

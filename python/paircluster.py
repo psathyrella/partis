@@ -151,15 +151,19 @@ def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=Fals
             utils.write_annotations(ofn_fcn(ltmp, lpair=lpair), glpf(lpair, 'glfos', ltmp), glpf(lpair, 'antn_lists', ltmp), headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
 
 # ----------------------------------------------------------------------------------------
-def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_partitions=None, dont_write_git_info=False):
+def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_partitions=None, dont_write_git_info=False, airr_output=False, args=None):
     for ltmp in sorted(glfos):  # not really a reason to write igh first, but i guess it's nice to be consistent
         ofn = ofn_fcn(ltmp, joint=True)
         if utils.has_d_gene(ltmp):
             cp = ClusterPath(partition=utils.get_partition_from_annotation_list(antn_lists[ltmp])) if cpaths is None else cpaths[ltmp]
             partition_lines = cp.get_partition_lines(true_partition=None if true_partitions is None else true_partitions[ltmp], calc_missing_values='best')
             utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
+            if airr_output:
+                utils.write_airr_output(utils.replace_suffix(ofn, '.tsv'), [], cpath=cp, args=args)
         else:
             utils.makelink(os.path.dirname(ofn), ofn_fcn(ltmp, lpair=utils.getlpair(ltmp)), ofn)
+            if airr_output:
+                utils.makelink(os.path.dirname(ofn), utils.replace_suffix(ofn_fcn(ltmp, lpair=utils.getlpair(ltmp)), '.tsv'), utils.replace_suffix(ofn, '.tsv'))
         if work_fnames is not None:
             work_fnames.append(ofn)
 

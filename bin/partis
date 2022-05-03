@@ -739,6 +739,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.dont_calculate_annotations:
                 print '    not calculating annotations'
             utils.write_annotations(getofn(ltmp, joint=True, lpair=lpair), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
+            if args.airr_output:
+                utils.write_airr_output(utils.replace_suffix(getofn(ltmp, joint=True, lpair=lpair), '.tsv'), [], cpath=jcp, args=args)
         else:
             utils.write_annotations(getofn(ltmp, joint=True, partition_only=True, lpair=lpair), glfo, [], headers, partition_lines=partition_lines)  # write just the partition (no annotations) to a tmp file for use by the annotation step below
             work_fnames.append(getofn(ltmp, joint=True, partition_only=True, lpair=lpair))
@@ -1049,7 +1051,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             seqfileopener.read_input_metafo(args.input_metafnames, [])
         concat_lpfos = handle_concatd_heavy_chain(lp_infos)
         paircluster.write_concatd_output_files(concat_lpfos['glfos'], concat_lpfos['antn_lists'], getofn, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), use_pyyaml=args.write_full_yaml_output,
-                                               work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info)
+                                               work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info, airr_output=args.airr_output, args=args)
         print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_lpfos['cpaths'], debug=args.debug_paired_clustering)
         ccfs = None
         if len(single_outfos['cpaths']['igh'].best()) > 5000:
