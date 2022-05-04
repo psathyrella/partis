@@ -200,11 +200,13 @@ if args.airr_output:
     sys.exit(0)
 
 # condense partis info into <seqfos> for fasta/csv output
+n_skipped = 0
 seqfos = []
 annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
 for cluster in clusters_to_use:
     if ':'.join(cluster) not in annotations:
-        print '  %s cluster with size %d not in annotations, so skipping it' % (utils.color('yellow', 'warning'), len(cluster))
+        n_skipped += 1
+        # print '  %s cluster with size %d not in annotations, so skipping it' % (utils.color('yellow', 'warning'), len(cluster))
         continue
     cluster_annotation = annotations[':'.join(cluster)]
     newfos = [{'name' : u, 'seq' : s} for u, s in zip(cluster_annotation['unique_ids'], cluster_annotation['seqs' if args.indel_reversed_seqs else 'input_seqs'])]
@@ -219,16 +221,19 @@ for cluster in clusters_to_use:
                     ival = ival[iseq]
                 newfos[iseq][ecol] = ival
     seqfos += newfos
+if n_skipped > 0:
+    print '  missing annotations for %d sequences' % n_skipped
 
 # write output
-print '  writing %d sequences to %s' % (len(seqfos), args.outfile)
 with open(args.outfile, 'w') as ofile:
     if utils.getsuffix(args.outfile) in ['.csv', '.tsv']:
+        print '  writing %d sequences to %s' % (len(seqfos), args.outfile)
         writer = csv.DictWriter(ofile, seqfos[0].keys(), delimiter=',' if utils.getsuffix(args.outfile)=='.csv' else '\t')
         writer.writeheader()
         for sfo in seqfos:
             writer.writerow(sfo)
     elif utils.getsuffix(args.outfile) in ['.fa', '.fasta']:
+        print '  writing %d sequences to %s' % (len(seqfos), args.outfile)
         for sfo in seqfos:
             estr = ''
             if args.extra_columns is not None:
@@ -241,6 +246,7 @@ with open(args.outfile, 'w') as ofile:
             _, _, true_cpath = utils.read_output(args.simfname, skip_annotations=True)
             true_partition = true_cpath.best()
         plines = cpath.get_partition_lines(true_partition=true_partition, calc_missing_values='none' if true_partition is None else 'best')
+        print '  writing %d annotations with %d partition%s to %s' % (len(annotation_list), len(plines), utils.plural(len(plines)), args.outfile)
         utils.write_annotations(args.outfile, glfo, annotation_list, utils.add_lists(utils.annotation_headers, args.extra_columns), partition_lines=plines)
     else:
         assert False

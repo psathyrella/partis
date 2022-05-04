@@ -225,9 +225,12 @@ def find_seq_pairs(antn_lists, ig_or_tr='ig'):
                 ofo = {'h_id' : tid, 'h_locus' : ltmp, 'h_seq' : iseq, 'l_id' : pids[0], 'l_locus' : lfo['locus'], 'l_seq' : lfo['seq']}
             else:
                 continue
+            ofo['h_antn'] = antn
+            ofo['l_antn'] = all_antns[ofo['l_id']]
             outfos.append(ofo)
     # ----------------------------------------------------------------------------------------
     all_seqs = {u : {'seq' : s, 'locus' : l} for l, alist in antn_lists.items() for a in alist for u, s in zip(a['unique_ids'], a['input_seqs'])}
+    all_antns = {u : l for llist in antn_lists.values() for l in llist for u in l['unique_ids']}
     outfos = []
     for ltmp in sorted(antn_lists):
         for antn in antn_lists[ltmp]:
@@ -336,7 +339,7 @@ def remove_pair_info_from_bulk_data(outfos, metafos, bulk_data_fraction):
             metafos[utmp]['paired-uids'] = []
             single_cell_ids.remove(utmp)
         n_removed += 1
-    print '  removed pair info for %d / %d = %.2f seqence pairs' % (n_to_remove, len(outfos) / 2, n_to_remove / float(len(outfos)/2))
+    print '  removed pair info for %d / %d = %.2f sequence pairs' % (n_to_remove, len(outfos) / 2, n_to_remove / float(len(outfos)/2))
 
 # ----------------------------------------------------------------------------------------
 def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constant_n_cells=False):

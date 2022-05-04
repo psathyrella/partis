@@ -1022,6 +1022,7 @@ def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get val
 
 # ----------------------------------------------------------------------------------------
 def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
+    # NOTE this is starting to duplicate code in add_extra_column()
     if key == 'aa-cdist':
         key = 'cons-dist-aa'  # arggggggh (when we write output info when choosing abs, we write it as 'aa-cdist', and can't change it now)
     if key == 'aa-cfrac':
@@ -1045,6 +1046,10 @@ def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalize
     #     return cd if cd is None else -cd
     elif key == 'multipy':  # multiplicity
         return get_multiplicity(antn, iseq=iseq)
+    elif key == 'cdr3_seq':
+        return get_cdr3_seq(antn, iseq)
+    elif key == 'cdr3_seq_aa':
+        return ltranslate(get_cdr3_seq(antn, iseq))
     else:
         if use_default:
             return default_val
@@ -1303,11 +1308,12 @@ def uidhashstr(instr, bwidth=19):  # e.g. '3869180544638498223'
 
 # ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
-def choose_new_uid(potential_names, used_names, initial_length=1, shuffle=False):
+def choose_new_uid(potential_names, used_names, initial_length=1, n_initial_names=None, available_chars=string.ascii_lowercase, repeat_chars=False, shuffle=False):
     # NOTE only need to set <initial_length> for the first call -- after that if you're reusing the same <potential_names> and <used_names> there's no need (but it's ok to set it every time, as long as it has the same value)
     # NOTE setting <shuffle> will shuffle every time, i.e. it's designed such that you call with shuffle *once* before starting
     def get_potential_names(length):
-        return [''.join(ab) for ab in itertools.combinations(string.ascii_lowercase, length)]
+        iterfcn = itertools.combinations_with_replacement if repeat_chars else itertools.combinations
+        return [''.join(ab) for i, ab in enumerate(iterfcn(available_chars, length)) if n_initial_names is None or i < n_initial_names]
     if potential_names is None:  # first time through
         potential_names = get_potential_names(initial_length)
         used_names = []
