@@ -21,7 +21,7 @@ all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist'
 pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct', 'mispaired', 'unpaired', 'correct-family', 'near-family']]
 all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
-ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
@@ -187,7 +187,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
     if action == 'scoper':
         cmd = './test/scoper-run.py --indir %s --outdir %s --simdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action), odir(args, varnames, vstrs, 'simu'))
         return cmd
-    if action in ['mobille', 'igblast', 'linearham']:
+    if action in ['mobille', 'igblast', 'linearham', 'enclone']:
         binstr = ('./test/mobille-igblast-run.py %s' % action) if action in ['mobile', 'igblast'] else './test/%s-run.py'%action
         cmd = '%s --simdir %s --outdir %s' % (binstr, odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action))
         if action in ['mobille', 'igblast']:  # i don't think both of them need all these
@@ -203,6 +203,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --prep'
             # then do this by hand, and submit to imgt/high vquest by hand, then download results and put them in the proper dir (run mobille run script to get dir)
             # tar czf /path/somewhere/to/rsync/imgt-input.tgz /fh/local/dralph/partis/paired-loci/vs-shm/v2/seed-*/scratch-mute-freq-*/mobille/work/*/imgt-input/*.fa
+        if args.overwrite:
+            cmd += ' --overwrite'
         return cmd
     actstr = action
     if 'synth-distance-' in action or action in ['vsearch-partition', 'partition-lthresh', 'star-partition']:

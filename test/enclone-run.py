@@ -134,7 +134,6 @@ def get_jdata(sfo, barstr, translations):
 def convert_input():
     ofn = encifn()
     if utils.output_exists(args, ofn, debug=False):
-        n_already_there += 1
         return
     lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs[ig_or_tr], simfn)
     _, antn_lists, _ = paircluster.concat_heavy_chain(utils.locus_pairs[ig_or_tr], lp_infos, dont_deep_copy=True)
@@ -166,7 +165,6 @@ def run_enclone():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, 1
     ofn = encofn()
     if utils.output_exists(args, ofn, debug=False): # and not args.dry:  # , offset=8):
-        n_already_there += 1
         return
     # description of output fields here https://10xgenomics.github.io/enclone/pages/auto/help.parseable.html
     out_columns = ['barcode', 'group_id']  # still don't understand what these are, but they're not the index of the family: , 'clonotype_id', 'exact_subclonotype_id'
@@ -218,6 +216,7 @@ parser.add_argument('--test-data', action='store_true', help='run on enclone tes
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
+parser.add_argument('--n-procs', type=int, help='NOT USED')
 args = parser.parse_args()
 
 if not args.test_data:
