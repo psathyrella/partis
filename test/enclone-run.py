@@ -177,7 +177,9 @@ def run_enclone():
         'logdir' : wkdir(),
         'workdir' : wkdir(),
     }]
+    start = time.time()
     utils.run_scan_cmds(args, cmdfos, 'enclone.log', n_total, n_already_there, ofn, dbstr='enclone run')
+    print 'enclone time: %.1f' % (time.time() - start)
 
 # ----------------------------------------------------------------------------------------
 def convert_output():

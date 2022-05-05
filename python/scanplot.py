@@ -106,10 +106,8 @@ def readlog(args, fname, metric, locus, ptntype):
         # if args.bcrham_time:  # maye eventually? but would need to recode the below since there's too many of these
         #     return 'time: bcrham'
         # el
-        if ptntype == 'joint':
-            return 'merge time'
-        elif metric == 'partition':
-            return 'loop time:'
+        if metric == 'partition':
+            return 'loop time:' if ptntype=='single' else 'merge time'
         elif metric == 'vsearch-partition':
             return 'vsearch time:'
         else:
@@ -142,11 +140,11 @@ def readlog(args, fname, metric, locus, ptntype):
             _, _, timestr = timeline.split()
             return {'time-reqd' : float(timestr)}
     else:  # other methods
-        assert ptntype == 'single'  # at least for now
+        assert ptntype == 'single' or metric == 'enclone'  # at least for now
         tlines = [l for l in flines if timestr() in l]
         tloci = ['igh', 'igk'] if metric=='scoper' else [locus]
         if len(tlines) != len(tloci):
-            raise Exception('couldn\'t find exactly %d time lines for loci %s (got %d) in %s' % (len(tloci), tloci, len(tlines), fname))
+            raise Exception('couldn\'t find exactly %d time lines (timestr \'%s\') for loci %s (got %d) in %s' % (len(tloci), timestr(), tloci, len(tlines), fname))
         tvals = {}
         for ltmp, tline in zip(tloci, tlines):
             if metric == 'scoper':
@@ -833,9 +831,10 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 ylabel = 'accuracy gap' if no_spec_corr else 'specificity correlation'
             else:
                 ylabel = ptilelabel
+        if distr_hists or not no_spec_corr:
+            ymin, ymax = (0, 1.02)
 
-    if distr_hists or not no_spec_corr:
-        ymin, ymax = (0, 1.02)
+]
     ffn = plotting.mpl_finish(ax, plotdir, getplotname(metric),
                               xlabel=xlabel,
                               # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),

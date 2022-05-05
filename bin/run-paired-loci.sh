@@ -2,7 +2,7 @@
 
 bin=./test/cf-paired-loci.py
 
-methods=partition #synth-distance-0.03:synth-singletons-0.20:single-chain-partis:vjcdr3-0.9:mobille:scoper:vsearch-partition:partition
+methods=synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.9:enclone:mobille:scoper:vsearch-partition:partition
 # methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
 # methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
 # methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"
