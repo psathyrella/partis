@@ -134,14 +134,15 @@ def get_jdata(sfo, barstr, translations):
 def convert_input():
     ofn = encifn()
     if utils.output_exists(args, ofn, debug=False):
+        print '    converted input already there %s' % ofn
         return
-    lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs[ig_or_tr], simfn)
+    lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs[ig_or_tr], simfn, dont_add_implicit_info=True)
     _, antn_lists, _ = paircluster.concat_heavy_chain(utils.locus_pairs[ig_or_tr], lp_infos, dont_deep_copy=True)
     outfos = paircluster.find_seq_pairs(antn_lists)
     potential_names, used_names = None, None
     jdatas, translations = [], {}
     for sfo in outfos:
-        barstr, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=16, n_initial_names=len(outfos), available_chars='ACGT', repeat_chars=True)
+        barstr, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=16, n_initial_names=len(outfos), available_chars='ACGT', repeat_chars=True, dont_extend=True)
         jdatas += get_jdata(sfo, barstr, translations)
     # jdatas = dummy_jdatas
     utils.mkdir(ofn, isfile=True)
@@ -165,6 +166,7 @@ def run_enclone():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, 1
     ofn = encofn()
     if utils.output_exists(args, ofn, debug=False): # and not args.dry:  # , offset=8):
+        print '    enclone output already there %s' % ofn
         return
     # description of output fields here https://10xgenomics.github.io/enclone/pages/auto/help.parseable.html
     out_columns = ['barcode', 'group_id']  # still don't understand what these are, but they're not the index of the family: , 'clonotype_id', 'exact_subclonotype_id'
@@ -180,6 +182,7 @@ def run_enclone():
 # ----------------------------------------------------------------------------------------
 def convert_output():
     if utils.all_outputs_exist(args, [getofn(l) for l in gloci()], debug=False):
+        print '    converted ouputs already there %s' % ', '.join(getofn(l) for l in gloci())
         return
     airr_fn = '%s/airr-partition.tsv' % wkdir()
     utils.simplerun('sed -e \"s/group_id/clone_id/\" -e \"s/barcode/sequence_id/\" %s >%s' % (encofn(), airr_fn), shell=True)

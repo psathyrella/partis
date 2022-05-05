@@ -1308,16 +1308,28 @@ def uidhashstr(instr, bwidth=19):  # e.g. '3869180544638498223'
 
 # ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
-def choose_new_uid(potential_names, used_names, initial_length=1, n_initial_names=None, available_chars=string.ascii_lowercase, repeat_chars=False, shuffle=False):
+def choose_new_uid(potential_names, used_names, initial_length=1, n_initial_names=None, available_chars=string.ascii_lowercase, repeat_chars=False, shuffle=False, dont_extend=False):
     # NOTE only need to set <initial_length> for the first call -- after that if you're reusing the same <potential_names> and <used_names> there's no need (but it's ok to set it every time, as long as it has the same value)
     # NOTE setting <shuffle> will shuffle every time, i.e. it's designed such that you call with shuffle *once* before starting
     def get_potential_names(length):
-        iterfcn = itertools.combinations_with_replacement if repeat_chars else itertools.combinations
-        return [''.join(ab) for i, ab in enumerate(iterfcn(available_chars, length)) if n_initial_names is None or i < n_initial_names]
+        itobj = itertools.product(available_chars, repeat=length) if repeat_chars else itertools.combinations(available_chars, length)
+        if n_initial_names is None:
+            return [''.join(ab) for i, ab in enumerate(itobj)]
+        else:
+            rstrs = []
+            for icombo, chars in enumerate(itobj):
+                rstrs.append(''.join(chars))
+                if len(rstrs) >= n_initial_names:
+                    break
+            return rstrs
     if potential_names is None:  # first time through
         potential_names = get_potential_names(initial_length)
+        if n_initial_names is not None and len(potential_names) != n_initial_names:
+            raise Exception('couldn\'t make enough potential names (asked for %d, made %d) with length %s from chars %s' % (n_initial_names, len(potential_names), initial_length, available_chars))
         used_names = []
     if len(potential_names) == 0:  # ran out of names
+        if dont_extend:
+            raise Exception('ran out of names, but <dont_extend> was set')
         potential_names = get_potential_names(len(used_names[-1]) + 1)
     if len(potential_names[0]) < initial_length:
         raise Exception('choose_new_uid(): next potential name \'%s\' is shorter than the specified <initial_length> %d (this is probably only possible if you called this several times with different <initial_length> values [which you shouldn\'t do])' % (potential_names[0], initial_length))
