@@ -834,7 +834,6 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         if distr_hists or not no_spec_corr:
             ymin, ymax = (0, 1.02)
 
-]
     ffn = plotting.mpl_finish(ax, plotdir, getplotname(metric),
                               xlabel=xlabel,
                               # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
