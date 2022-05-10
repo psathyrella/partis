@@ -288,7 +288,12 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
         l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
         if len(l_clusts) != 1:
             if not quiet:
-                print '  %s couldn\'t find a unique light cluster (found %d, looked in %d) for heavy cluster with size %d and %d paired ids (heavy: %s  pids: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(l_part), len(h_clust), len(getpids(h_atn)), ':'.join(h_clust), ':'.join(getpids(h_atn)))
+                l_overlaps = [set(getpids(h_atn)) & set(c) for c in l_clusts]
+                print '  %s found %d light clusters (rather than 1) for heavy cluster with size %d (%d pids) (overlaps: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(h_clust), len(getpids(h_atn)), ' '.join(str(len(o)) for o in l_overlaps))
+                print '         h clust %s' % ':'.join(utils.color('blue_bkg', u) for u in h_clust)
+                for il, lct in enumerate(l_clusts):
+                    tpids = getpids(h_atn)
+                    print '        %s %s' % ('l clusts' if il==0 else '        ', ':'.join(utils.color('blue_bkg' if u in tpids else None, u) for u in lct))
             continue
         assert len(l_clusts) == 1
         if ':'.join(l_clusts[0]) not in l_atn_dict:

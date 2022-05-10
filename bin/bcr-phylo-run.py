@@ -10,6 +10,7 @@ import numpy
 import math
 import time
 import traceback
+import itertools
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 sys.path.insert(1, current_script_dir)
@@ -195,6 +196,7 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
     else:
         cmd, _ = utils.run_ete_script(cmd, ete_path, return_for_cmdfos=True, tmpdir=outdir, dryrun=args.dry_run)
         cfo = {'cmd_str' : cmd, 'workdir' : outdir, 'outfname' : bcr_phylo_fasta_fname(outdir)}
+    sys.stdout.flush()
     return cfo
 
 # ----------------------------------------------------------------------------------------
@@ -224,7 +226,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
                 }
         return nodefo
     # ----------------------------------------------------------------------------------------
-    def get_mature_line(sfos, naive_line, glfo, nodefo, dtree, target_sfos, locus=None):
+    def get_mature_line(sfos, naive_line, glfo, nodefo, dtree, target_sfos, dup_translations, locus=None):
         assert len(naive_line['unique_ids']) == 1  # enforces that we ran naive-only, 1-leaf partis simulation above
         assert not indelutils.has_indels(naive_line['indelfos'][0])  # would have to handle this below
         if args.debug:
@@ -264,18 +266,19 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
                 assert len(pids) == 1 and pids[0].find(bstr) == 0 and pids[0].count('-') == 1 and pids[0].split('-')[1] in utils.loci  # if uid is xxx-igh, paired id shoud be e.g. xxx-igk
                 final_line['paired-uids'][iseq] = [p.replace(bstr, sfo['name']) for p in pids]
 
-        dup_translations = {}
-        for iu, old_id in enumerate(final_line['unique_ids']):
+        tmp_trns = {}
+        for iu, old_id in enumerate(final_line['unique_ids']):  # NOTE this only translates the uids, for paired h/l we still need to go back through and translate paired uids
             if old_id in uid_info['all_uids']:
                 new_id, uid_info['n_duplicate_uids'] = utils.choose_non_dup_id(old_id, uid_info['n_duplicate_uids'], uid_info['all_uids'])
-                dup_translations[old_id] = new_id
+                tmp_trns[old_id] = new_id
                 final_line['unique_ids'][iu] = new_id
             uid_info['all_uids'].add(final_line['unique_ids'][iu])
-        if len(dup_translations) > 0:
-            for old_id, new_id in dup_translations.items():
+        if len(tmp_trns) > 0:
+            for old_id, new_id in tmp_trns.items():
                 nodefo[new_id] = nodefo[old_id]
                 del nodefo[old_id]
-            treeutils.translate_labels(ftree, [(o, n) for o, n in dup_translations.items()])
+            treeutils.translate_labels(ftree, [(o, n) for o, n in tmp_trns.items()])
+        dup_translations.update(tmp_trns)
 
         # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
         if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
@@ -304,6 +307,19 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         tmp_event.set_reco_id(final_line, irandom=ievent)  # not sure that setting <irandom> here actually does anything
         final_line['target_seqs'] = [tfo['seq'] for tfo in target_sfos]
         return final_line
+    # ----------------------------------------------------------------------------------------
+    def translate_duplicate_pids(mpair, dup_translations):
+        if len(dup_translations) == 0:
+            return
+        assert len(set(len(l['unique_ids']) for l in mpair)) == 1  # make sure h and l annotations have the same length
+        for atn1, atn2 in itertools.permutations(mpair, 2):
+            # print ':'.join([utils.color('red' if atn1['paired-uids'][i]!=[u] else None, u) for i, u in enumerate(atn2['unique_ids'])])
+            for pids, uid in zip(atn1['paired-uids'], atn2['unique_ids']):
+                assert len(pids) == 1
+                if pids[0] != uid:
+                    assert pids[0] in dup_translations and dup_translations[pids[0]] == uid
+                    del dup_translations[pids[0]]
+            atn1['paired-uids'] = [[u] for u in atn2['unique_ids']]
 
     # ----------------------------------------------------------------------------------------
     kdfname, nwkfname = '%s/kd-vals.csv' % outdir, '%s/simu.nwk' % outdir
@@ -315,10 +331,12 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
     seqfos = utils.read_fastx(bcr_phylo_fasta_fname(outdir))  # output mutated sequences from bcr-phylo
     target_seqfos = utils.read_fastx('%s/%s_targets.fa' % (outdir, args.extrastr))
     if args.paired_loci:
-        mevents = []
+        mpair = []
+        dup_translations = {}
         for tline, sfos, tsfos in zip(naive_events[ievent], split_seqfos(seqfos), split_seqfos(target_seqfos)):
-            mevents.append(get_mature_line(sfos, tline, glfos[tline['loci'][0]], nodefo, dtree, target_seqfos, locus=tline['loci'][0]))
-        return mevents
+            mpair.append(get_mature_line(sfos, tline, glfos[tline['loci'][0]], nodefo, dtree, target_seqfos, dup_translations, locus=tline['loci'][0]))
+        translate_duplicate_pids(mpair, dup_translations)
+        return mpair
     else:
         return get_mature_line(seqfos, naive_events[ievent], glfos[0], nodefo, dtree, target_seqfos)
 
@@ -432,6 +450,7 @@ def cache_parameters():
     if args.n_max_queries is not None:
         cmd += ' --n-max-queries %d' % args.n_max_queries
     utils.simplerun(cmd, debug=True, dryrun=args.dry_run)
+    sys.stdout.flush()
 
 # ----------------------------------------------------------------------------------------
 def partition():
@@ -458,6 +477,7 @@ def partition():
     utils.simplerun(cmd, debug=True, dryrun=args.dry_run)
     # cmd = './bin/partis get-selection-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)
+    sys.stdout.flush()
 
 # ----------------------------------------------------------------------------------------
 all_actions = ('simu', 'cache-parameters', 'partition')
