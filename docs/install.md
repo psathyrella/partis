@@ -57,9 +57,11 @@ Alternatively, if you have a list of your own newick trees in a file you can pas
 One way to install R on debian/ubuntu (and thus also within a partis container) is:
 ```
 apt-get install -y dirmngr apt-transport-https ca-certificates software-properties-common gnupg2
+# UPDATE maybe should be keyserver.ubuntu.com?
 apt-key adv --keyserver keys.gnupg.net --recv-key 'E19F5F87128899B192B1A2C2AD5F960A256A04AF'  # this R installation stuff was in the Dockerfile for a while, but this line was crashing on dockerhub, and it appears that keyservers are just too flakey to use in docker files
 add-apt-repository 'deb https://cloud.r-project.org/bin/linux/debian stretch-cran35/'  # this will have to change when anaconda changes debian releases, but the tree sim packages require a more recent version of r than is in the debian repos
 apt-get update && apt-get install -y r-base
+# UPDATE maybe should have this here somewhere https://mirror.las.iastate.edu/CRAN/
 ```
 Note that TreeSim/TreeSimGM require a much more recent R version than is in the default repos.
 Note also that if you instead install R with conda, it replaces your entire compiler toolchain (e.g. screws up where your system looks for gcc) so you probably won't be able to compile anything afterwards.

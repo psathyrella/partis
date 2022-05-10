@@ -2,6 +2,7 @@ import csv
 import math
 import os
 import numpy
+import sys
 
 import utils
 
@@ -194,13 +195,16 @@ class Hist(object):
 
         ymin, ymax = None, None
         for ibin in range(ibin_start, ibin_end):
+            if exclude_empty and self.bin_contents[ibin] == 0:
+                continue
             if ymin is None or self.bin_contents[ibin] < ymin:
-                if ymin is not None and exclude_empty and self.bin_contents[ibin] == 0:
-                    continue
                 ymin = self.bin_contents[ibin]
         for ibin in range(ibin_start, ibin_end):
             if ymax is None or self.bin_contents[ibin] > ymax:
                 ymax = self.bin_contents[ibin]
+        if ymin is None and exclude_empty:
+            print '  %s couldn\'t find ymin for hist, maybe because <exclude_empty> was set (setting ymin arbitrarily to -99999)' % utils.wrnstr()
+            ymin = -99999
         assert ymin is not None and ymax is not None
 
         if mtype == 'min':
@@ -420,12 +424,12 @@ class Hist(object):
         return [binline, contentsline]
 
     # ----------------------------------------------------------------------------------------
-    def __str__(self):
-        str_list = ['    %7s  %12s%s'  % ('low edge', 'contents', '' if self.errors is None else '     err'), '\n', ]
+    def __str__(self, print_ibin=False):
+        str_list = ['   %s %10s%12s%s'  % ('ibin ' if print_ibin else '', 'low edge', 'contents', '' if self.errors is None else '     err'), '\n', ]
         for ib in range(len(self.low_edges)):
-            str_list += ['    %7.4f  %12.3f'  % (self.low_edges[ib], self.bin_contents[ib]), ]
+            str_list += ['   %s %10.4f%12.3f'  % ('%4d'%ib if print_ibin else '', self.low_edges[ib], self.bin_contents[ib]), ]
             if self.errors is not None:
-                  str_list += ['%9.2f' % self.errors[ib]]
+                str_list += ['%9.2f' % self.errors[ib]]
             if self.bin_labels.count('') != len(self.bin_labels):
                 str_list += ['%12s' % self.bin_labels[ib]]
             if ib == 0:

@@ -175,7 +175,7 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
 # ----------------------------------------------------------------------------------------
 def csvlines(fn):
     with open(fn) as cfile:
-        reader = csv.DictReader(cfile)
+        reader = csv.DictReader(filter(lambda l: l[0]!='#', cfile))
         return list(reader)
 
 # ----------------------------------------------------------------------------------------
@@ -1907,6 +1907,9 @@ def len_only_letters(seq):  # usually the same as len_excluding_colors(), except
 
 def wrnstr():  # adding this very late, so could use it in a *lot* of places
     return color('yellow', 'warning')
+
+def errstr():  # adding this very late, so could use it in a *lot* of places
+    return color('red', 'error')
 
 # ----------------------------------------------------------------------------------------
 def color_chars(chars, col, seq):

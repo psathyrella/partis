@@ -155,6 +155,7 @@ def add_fn(fnames, fn=None, init=False, n_per_row=4, new_row=False):
 
 # ----------------------------------------------------------------------------------------
 def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False, n_plots=7, title='', xlabel='', fnames=None):
+    # NOTE would be nice to use make_single_joyplot() in plot_bcr_phylo_selection_hists()
     import joypy
     # ----------------------------------------------------------------------------------------
     def plot_this_time(otime, numpyhists):
@@ -1102,7 +1103,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, affy_
         if len(dhists) > len(colors):
             normalize = True
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
-        plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
+        plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None and 'lb' in lb_metric else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
                               errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='affinity', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
         add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
 
