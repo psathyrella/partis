@@ -270,7 +270,8 @@ class PartitionPlotter(object):
         for bfo in sorted(bubble_positions, key=lambda b: len(getclust(b['id'])), reverse=True):
             cluster = getclust(bfo['id'])
             if bfo['id']=='fake' or int(bfo['id']) < n_to_write_size:
-                ax.text(bfo['x'], bfo['y'], 'small clusters' if bfo['id']=='fake' else len(cluster), fontsize=8, alpha=0.4)
+                tstr, fsize, tcol, dx = ('small clusters', 12, 'red', -0.3) if bfo['id']=='fake' else (len(cluster), 8, 'black', -0.04)
+                ax.text(bfo['x']+dx, bfo['y'], tstr, fontsize=fsize, alpha=0.4, color=tcol)
             antn = annotations.get(':'.join(cluster)) if bfo['id'] != 'fake' else fake_antn
             if antn is None or mekey is None:
                 ax.add_patch(plt.Circle((bfo['x'], bfo['y']), bfo['r'], alpha=alpha, linewidth=2, fill=True))  # plain circle

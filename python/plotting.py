@@ -924,19 +924,22 @@ def plot_pie_chart_marker(ax, xpos, ypos, radius, fracfos, alpha=None, debug=Fal
     if not utils.is_normed(total):
         print '  %s fractions add to %f (should add to 1): %s' % (utils.wrnstr(), total, '  '.join('%12s %-.3f'%(f['label'], f['fraction']) for f in sorted(fracfos, key=lambda x: x['fraction'], reverse=True)))
 
+    if debug:
+        print '   frac    label    N   min   max'
+        lwd = max(len(f['label']) for f in fracfos)
     total = 0
     for ifo, ffo in enumerate(fracfos):
         if ffo['fraction'] == 0:
             continue
-        lnsp = np.linspace(total, total + ffo['fraction'] if ifo < len(fracfos) - 1 else 1)
-        if debug:
-            print '%.3f  %s  %s' % (ffo['fraction'], ffo['label'], lnsp)
-        x1 = np.cos(2 * np.pi * lnsp)
-        y1 = np.sin(2 * np.pi * lnsp)
-        xy1 = np.row_stack([[0, 0], np.column_stack([x1, y1])])
-        s1 = np.abs(xy1).max()
-        ax.scatter([xpos], [ypos], marker=xy1, s=(270* radius)**2, facecolor=ffo['color'], alpha=alpha)  # s= is in "points squared", but radius is in axis/fig coords ([0, 1], or maybe [-1, 1]?), and I can't figure out how to convert and I'm tired of googling so using 275 which seems about right, hopefully it keeps working
+        lnsp = np.linspace(total, total + ffo['fraction'] if ifo < len(fracfos) - 1 else 1)  # evenly spaced values from <total> to <total + frac> for this slice's <frac>
+        xvals = np.cos(2 * np.pi * lnsp)
+        yvals = np.sin(2 * np.pi * lnsp)
+        xyvals = np.row_stack([[0, 0], np.column_stack([xvals, yvals])])
+        s1 = np.abs(xyvals).max()  # max x or y val (i don't understand why this goes into the size at all, but if you don't have it some slices end up having the wrong radius)
+        ax.scatter([xpos], [ypos], marker=xyvals, s=(270*radius*s1)**2, facecolor=ffo['color'], alpha=alpha)  # s= is in "points squared", but radius is in axis/fig coords ([0, 1], or maybe [-1, 1]?), and I can't figure out how to convert and I'm tired of googling so using 275 which seems about right, hopefully it keeps working
         total += ffo['fraction']
+        if debug:
+            print '   %.3f  %s  %3d  %5.3f %5.3f %.3f %.3f' % (ffo['fraction'], utils.wfmt(ffo['label'], lwd), len(lnsp), min(lnsp), max(lnsp), s1, max(max(x, y) for x, y in zip(xvals, yvals) )) #, [math.sqrt(x*x + y*y) for x, y in zip(xvals, yvals)])
     if debug:
         print ''
 
