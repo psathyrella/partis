@@ -314,12 +314,12 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         assert len(set(len(l['unique_ids']) for l in mpair)) == 1  # make sure h and l annotations have the same length
         for atn1, atn2 in itertools.permutations(mpair, 2):
             # print ':'.join([utils.color('red' if atn1['paired-uids'][i]!=[u] else None, u) for i, u in enumerate(atn2['unique_ids'])])
-            for pids, uid in zip(atn1['paired-uids'], atn2['unique_ids']):
+            for pids, uid in zip(atn1['paired-uids'], atn2['unique_ids']):  # this is just to double check things, so could be removed
                 assert len(pids) == 1
                 if pids[0] != uid:
                     assert pids[0] in dup_translations and dup_translations[pids[0]] == uid
                     del dup_translations[pids[0]]
-            atn1['paired-uids'] = [[u] for u in atn2['unique_ids']]
+            atn1['paired-uids'] = [[u] for u in atn2['unique_ids']]  # seems a bit hackey to reset all of them, not just the translated one, but whatever
 
     # ----------------------------------------------------------------------------------------
     kdfname, nwkfname = '%s/kd-vals.csv' % outdir, '%s/simu.nwk' % outdir
@@ -473,7 +473,7 @@ def partition():
     if args.n_max_queries is not None:
         cmd += ' --n-max-queries %d' % args.n_max_queries
     if args.extra_smetric_plots is not None:
-        cmd += ' --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + args.extra_smetric_plots)
+        cmd += ' --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + args.extra_smetric_plots + ['distr'])
     utils.simplerun(cmd, debug=True, dryrun=args.dry_run)
     # cmd = './bin/partis get-selection-metrics --outfname %s/partition.yaml' % infdir()
     # utils.simplerun(cmd, debug=True) #, dryrun=True)

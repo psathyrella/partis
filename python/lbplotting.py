@@ -556,8 +556,11 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
     def make_hist(plotvals, n_total, n_skipped, iclust=None):
         if len(plotvals) == 0:
             return
-        xmin, xmax = hutils.get_expanded_bounds([min(plotvals), max(plotvals)], 0)
-        hist = Hist(30, xmin, xmax, value_list=plotvals)
+        if lb_metric in ['cons-dist-aa', 'cons-dist-nuc', 'shm', 'shm-aa']:
+            hist = Hist(value_list=plotvals, init_int_bins=True)
+        else:
+            xmin, xmax = hutils.get_expanded_bounds([min(plotvals), max(plotvals)], 0)
+            hist = Hist(30, xmin, xmax, value_list=plotvals)
         texts = []
         if 'mean' in stats:
             texts.append((0.7, 0.8, 'mean %.3f' % numpy.mean(plotvals)))
@@ -937,6 +940,9 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
         # ----------------------------------------------------------------------------------------
         all_vals = sorted(utils.antnval(l, slvar, i) for l in lines for i in range(len(l['unique_ids'])))
         all_vals = [v for v in all_vals if v is not None]
+        if len(set(all_vals)) == 1:
+            print '    all %s values the same (%f), so not making slice plots' % (slvar, list(set(all_vals))[0])
+            return
         if isinstance(bincfg, list):  # explicit list of bin low edges
             xbins = [x for x in bincfg]  # maybe we'll modify it, so safer to copy
             n_bins = len(xbins) - 1
@@ -1010,6 +1016,9 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
         print '  %s' % utils.color('green', lb_metric)
     add_fn(fnames, new_row=True)
     original_affinities = [l['affinities'] for l in lines]
+    if len(set(a for alist in original_affinities for a in alist)) == 1:
+        print '    all original affinity values the same (%f), so not making slice plots' % list(set(a for alist in original_affinities for a in alist))[0]
+        return
     int_vars = ['%s%s'%('sum-' if paired else '', k) for k in ['shm', 'shm-aa']]
     slvars = ['affinities'] + int_vars
     if is_true_line and any('min_target_distances' in l for l in lines):
@@ -1104,7 +1113,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, affy_
             normalize = True
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
         plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None and 'lb' in lb_metric else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
-                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='affinity', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
+                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, linewidths=[5, 3, 2], leg_title='affinity', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
         add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
 
     # ----------------------------------------------------------------------------------------
@@ -1292,7 +1301,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
             normalize = True
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
         plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
-                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, leg_title='N steps to\naff. increase', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
+                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, linewidths=[5, 3, 2], leg_title='N steps to\naff. increase', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
         add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
     # ----------------------------------------------------------------------------------------
     def get_distr_hists(plotvals, xvar, max_bin_width=1., min_bins=30, extra_hists=False, iclust=None):

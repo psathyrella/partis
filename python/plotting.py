@@ -270,6 +270,11 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if more_hists is not None:
         hists = hists + more_hists
 
+    multiply_by_bin_width = False
+    if normalize and len(set((h.n_bins, h.xmin, h.xmax) for h in hists)) > 1:
+        print '    %s normalizing hists with different bins, which will *not* work/look right if there\'s empty bins (turn on square_bins to see)' % utils.wrnstr()
+        multiply_by_bin_width = True
+
     xmin, xmax, ymin, ymax = None, None, None, None
     for htmp in hists:
         if htmp.title == 'null':  # empty hists
@@ -279,7 +284,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             for ibin in range(htmp.n_bins + 2):
                 htmp.errors[ibin] *= factor
         if normalize:  # NOTE removed <normalization_bounds> option, hopefully I'm not using it any more
-            htmp.normalize()
+            htmp.normalize(multiply_by_bin_width=multiply_by_bin_width)
         if ymin is None or htmp.get_minimum(xbounds=bounds) < ymin:  # adding this afterwards, so might screw up something below
             ymin = htmp.get_minimum(xbounds=bounds, exclude_empty='y' in log)
         if ymax is None or htmp.get_maximum(xbounds=bounds) > ymax:
@@ -935,7 +940,7 @@ def plot_pie_chart_marker(ax, xpos, ypos, radius, fracfos, alpha=None, debug=Fal
         xvals = np.cos(2 * np.pi * lnsp)
         yvals = np.sin(2 * np.pi * lnsp)
         xyvals = np.row_stack([[0, 0], np.column_stack([xvals, yvals])])
-        s1 = np.abs(xyvals).max()  # max x or y val (i don't understand why this goes into the size at all, but if you don't have it some slices end up having the wrong radius)
+        s1 = np.abs(xyvals).max()  # max x or y val (i guess s= arg in ax.scatter() is based on max x or y size?)
         ax.scatter([xpos], [ypos], marker=xyvals, s=(270*radius*s1)**2, facecolor=ffo['color'], alpha=alpha)  # s= is in "points squared", but radius is in axis/fig coords ([0, 1], or maybe [-1, 1]?), and I can't figure out how to convert and I'm tired of googling so using 275 which seems about right, hopefully it keeps working
         total += ffo['fraction']
         if debug:

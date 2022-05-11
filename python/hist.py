@@ -247,20 +247,30 @@ class Hist(object):
         return imin, imax
 
     # ----------------------------------------------------------------------------------------
-    def integral(self, include_overflows, ibounds=None):
-        """ NOTE does not multiply/divide by bin widths """
+    def binwidth(self, ibin):
+        if ibin == 0:  # use width of first bin for underflow
+            ibin += 1
+        elif ibin == self.n_bins + 1:  # and last bin for overflow
+            ibin -= 1
+        return self.low_edges[ibin+1] - self.low_edges[ibin]
+
+    # ----------------------------------------------------------------------------------------
+    def integral(self, include_overflows, ibounds=None, multiply_by_bin_width=False):
+        """ NOTE by default does not multiply by bin widths """
         if ibounds is None:
             imin, imax = self.get_bounds(include_overflows)
         else:
             imin, imax = ibounds
         sum_value = 0.0
         for ib in range(imin, imax):
-            sum_value += self.bin_contents[ib]
+            sum_value += self.bin_contents[ib] * (self.binwidth(ib) if multiply_by_bin_width else 1)
         return sum_value
 
     # ----------------------------------------------------------------------------------------
-    def normalize(self, include_overflows=True, expect_overflows=False, overflow_eps_to_ignore=1e-15):
-        sum_value = self.integral(include_overflows)
+    def normalize(self, include_overflows=True, expect_overflows=False, overflow_eps_to_ignore=1e-15, multiply_by_bin_width=False):
+        sum_value = self.integral(include_overflows, multiply_by_bin_width=multiply_by_bin_width)
+        if multiply_by_bin_width and any(abs(self.binwidth(i)-self.binwidth(1)) > utils.eps for i in self.ibiniter(False)):
+            print '  %s normalizing with multiply_by_bin_width set, but bins aren\'t all the same width, which may not work' % utils.wrnstr()  # it would be easy to add but i don't want to test it now
         imin, imax = self.get_bounds(include_overflows)
         if sum_value == 0.0:
             return
@@ -274,7 +284,7 @@ class Hist(object):
                 self.errors[ib] /= sum_value
         check_sum = 0.0
         for ib in range(imin, imax):  # check it
-            check_sum += self.bin_contents[ib]
+            check_sum += self.bin_contents[ib] * (self.binwidth(ib) if multiply_by_bin_width else 1)
         if not utils.is_normed(check_sum, this_eps=1e-10):
             raise Exception('not normalized: %f' % check_sum)
         self.ytitle = 'freq (%.0f total)' % sum_value

@@ -154,13 +154,13 @@ import prutils
 #----------------------------------------------------------------------------------------
 # NOTE I also have an eps defined in hmmwriter. Simplicity is the hobgoblin of... no, wait, that's just plain ol' stupid to have two <eps>s defined
 eps = 1.0e-10  # if things that should be 1.0 are this close to 1.0, blithely keep on keepin on. kinda arbitrary, but works for the moment
-def is_normed(probs, this_eps=eps):
+def is_normed(probs, this_eps=eps, total=1.):
     if hasattr(probs, 'keys'):  # if it's a dict, call yourself with a list of the dict's values
         return is_normed([val for val in probs.values()], this_eps=this_eps)
     elif hasattr(probs, '__iter__'):  # if it's a list call yourself with their sum
         return is_normed(sum(probs), this_eps=this_eps)
     else:  # and if it's a float actually do what you're supposed to do
-        return math.fabs(probs - 1.0) < this_eps
+        return math.fabs(probs - total) < this_eps
 
 # ----------------------------------------------------------------------------------------
 # return copy of vlist with floats normalized to 1 (I kind of thought there was already a fcn that did this? maybe not)
