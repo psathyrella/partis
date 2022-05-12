@@ -2502,9 +2502,12 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def combid(mfo):  # new uid that combines h+l ids
         _, cids = zip(*[get_did(gsval(mfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
         dids = both_dids(mfo)  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
-        if len(set(dids)) == 1:  # if they have the same droplet id (either data, or correctly paired simulation) just use the droplet id as the combined id
-            return dids[0]
-        else:  # but if they're mispaired in simulation then keep all the info
+        if len(set(dids)) == 1:  # if they have the same droplet id (data or correctly paired simulation)
+            if is_simu:  # in simulation the droplet ids should be unique, sowe can just use the droplet id as the combined id
+                return dids[0]
+            else:  # but in data we can get multiple cells per droplet id
+                return '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
+        else:  # but if they're mispaired in simulation (i.e. have different "droplet ids") then keep all the info
             assert len(set(dids)) == 2
             return '%s-%s+%s-%s' % (dids[0], lpair[0], dids[1], lpair[1])
     # ----------------------------------------------------------------------------------------
@@ -2702,11 +2705,12 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 assert n_newly_chosen is not None
                 # this takes the top <n> by <sortvar> (not including any unobs cons seq)
                 if get_n_choose(tcfg, 'n') is not None and n_newly_chosen >= get_n_choose(tcfg, 'n'):  # number to choose for this var in this family
-                    print '        finished: %d newly chosen >= %d' % (n_newly_chosen, get_n_choose(tcfg, 'n'))
+                    if debug:
+                        print '        finished: %d newly chosen >= %d' % (n_newly_chosen, get_n_choose(tcfg, 'n'))
                     return True
             # whereas this makes sure we have N from the family over all sort vars (including any unobs cons seq), while still sorting by <sortvar>. It probably does *not* make sense to specify both versions
             is_finished = get_n_choose(cfgfo, 'n-per-family') is not None and len(chosen_mfos) >= get_n_choose(cfgfo, 'n-per-family')
-            if is_finished:
+            if debug and is_finished:
                 print '        finished: %s' % ('n-per-family not specified' if get_n_choose(cfgfo, 'n-per-family') is None else '%d per family >= %d' % (len(chosen_mfos), get_n_choose(cfgfo, 'n-per-family')))
             return is_finished
         # ----------------------------------------------------------------------------------------
@@ -2907,8 +2911,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                         utils.color_mutants(utils.ltranslate(ofo[tch+'_seq_nuc']), ofo[tch+'_seq_aa'], amino_acid=True, print_result=True, extra_str='        ')
             return ofo
         # ----------------------------------------------------------------------------------------
-        if debug:
-            print '      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname)
+        print '      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname)
         with open(args.chosen_ab_fname, 'w') as cfile:
             outfos, fieldnames = [], None
             for mfo in all_chosen_mfos:
