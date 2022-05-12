@@ -155,6 +155,13 @@ def process(args):
         raise Exception('--reverse-negative-strands has no effect unless --paired-loci is set (maybe need to run bin/split-loci.py separately?)')
 
     args.only_genes = utils.get_arg_list(args.only_genes)
+    if args.paired_loci and args.action == 'simulate' and args.only_genes is not None:
+        for lpair in utils.locus_pairs[args.ig_or_tr]:
+            l_locus = lpair[1]
+            if len([g for g in args.only_genes if utils.get_locus(g)==l_locus]) == 0:
+                args.light_chain_fractions[l_locus] = 0
+                args.light_chain_fractions[utils.get_single_entry([l for l in args.light_chain_fractions if l!=l_locus])] = 1
+                print '  note: no %s genes among --only-genes %s, so setting --light-chain-fractions accordingly (%s)' % (l_locus, ':'.join(args.only_genes), args.light_chain_fractions)
     args.queries = utils.get_arg_list(args.queries)
     args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 

@@ -522,6 +522,15 @@ def run_all_loci(args, ig_or_tr='ig'):
         # ----------------------------------------------------------------------------------------
         def prep_args(ltmp):
             clist = copy.deepcopy(sys.argv)
+            if any('=' in a for a in clist):  # arg (have to handle --arg=val style syntax)
+                new_clist = []
+                for cstr in clist:
+                    if '=' in cstr and hasattr(args, cstr.split('=')[0].lstrip('-').replace('-', '_')):
+                        print '    note: replacing \'%s\' --> \'%s\' in clist' % (cstr, cstr.split('='))
+                        new_clist += cstr.split('=')
+                    else:
+                        new_clist.append(cstr)
+                clist = new_clist
             utils.remove_from_arglist(clist, '--paired-loci')
             utils.remove_from_arglist(clist, '--dry-run')
             utils.remove_from_arglist(clist, '--reverse-negative-strands')
@@ -562,6 +571,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                         clist += ['--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair)]
                     if args.paired_correlation_values is not None and not utils.has_d_gene(ltmp):
                         clist += ['--heavy-chain-event-fname', getofn('igh', lpair=lpair)]
+                    if args.only_genes is not None:
+                        utils.replace_in_arglist(clist, '--only-genes', ':'.join([g for g in args.only_genes if utils.get_locus(g)==ltmp]))
                     utils.replace_in_arglist(clist, '--n-sim-events', str(get_n_events(lpair[1], args.n_sim_events)), insert_after='--choose-trees-in-order')
                 else:
                     if auto_cache:
@@ -1156,6 +1167,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for lpair in spairs():
                     for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
                         run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
+            print '  getting combined h/l selection metrics'
             if not args.is_data:
                 if args.paired_indir is None:
                     raise Exception('can\'t get simulation selection metrics without setting --paired-indir')

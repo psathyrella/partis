@@ -297,7 +297,7 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
             continue
         assert len(l_clusts) == 1
         if ':'.join(l_clusts[0]) not in l_atn_dict:
-            print '      %s missing annotation for light chain when finding cluster pairs: %s (paired with %s)' % (utils.color('yellow', 'warning'), ':'.join(l_clusts[0]), ':'.join(h_clust))
+            print '      %s missing annotation for light chain (size %d, paired with size %d) when finding cluster pairs%s%s' % (utils.color('yellow', 'warning'), len(l_clusts[0]), len(h_clust), ' '+':'.join(l_clusts[0]) if len(l_clusts[0])<30 else '', ' '+':'.join(h_clust) if len(h_clust) < 30 else '')
             unpaired_l_clusts.remove(l_clusts[0])  # i guess i want to remove it from here? i guess we know who it's paired with, but there's no annotation so we can't do anything with it
             continue
         l_atn = l_atn_dict[':'.join(l_clusts[0])]
@@ -321,8 +321,8 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
         #     hpclusts = [c for c in h_part if len(set(lpids) & set(c)) > 0]0
         #     if len(hpclusts) > 0:  # i think this would mean that the pairing info was non-reciprocal, which probably isn't really possible?
         #         print '       %s unpaired light cluster with size %d overlaps with heavy cluster(s): %s' % (utils.color('yellow', 'warning'), len(lc), ' '.join(str(len(c)) for c in hpclusts))
-    if any(n > 0 for k, n in n_skipped.items() if k!='zero-len-paired-uids'):
-        print '    %s: skipped %d annotations missing required keys: %s' % ('+'.join(lpair), sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids'))
+    if any(n > 0 for k, n in n_skipped.items() if k not in ['too-small', 'zero-len-paired-uids']):
+        print '    %s: skipped %d annotations missing required keys (%s)' % ('+'.join(lpair), sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids'))
     if n_skipped['zero-len-paired-uids'] > 0:
             print '    %s: skipped %d annotations with zero length paired uids' % ('+'.join(lpair), n_skipped['zero-len-paired-uids'])
     if n_skipped['too-small'] > 0:
