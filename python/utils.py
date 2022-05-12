@@ -1749,23 +1749,25 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
                 writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
-def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False):
-    if glfo is None:
+def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False, clone_id_field='clone_id', sequence_id_field='sequence_id', delimiter='\t', skip_annotations=False):
+    if glfo is None and glfo_dir is not None:
         glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
     failed_queries, clone_ids, plines, other_locus_ids = [], {}, [], []
     with open(fname) as afile:
-        reader = csv.DictReader(afile, delimiter='\t')
+        reader = csv.DictReader(afile, delimiter=delimiter)
         for aline in reader:
-            if 'clone_id' in reader.fieldnames:
+            if clone_id_field in reader.fieldnames:
                 # print '  note: no clone ids in airr file %s' % fname
-                clone_ids[aline['sequence_id']] = aline['clone_id']
+                clone_ids[aline[sequence_id_field]] = aline[clone_id_field]
+            if skip_annotations:
+                continue
             if 'sequence' not in aline:
                 continue
             if aline['v_call'] == '' or aline['j_call'] == '':
-                failed_queries.append({'unique_ids' : [aline['sequence_id']], 'input_seqs' : [aline['sequence']], 'invalid' : True})
+                failed_queries.append({'unique_ids' : [aline[sequence_id_field]], 'input_seqs' : [aline['sequence']], 'invalid' : True})
                 continue
             if skip_other_locus and get_locus(aline['v_call']) != glfo['locus']:
-                other_locus_ids.append(aline['sequence_id'])
+                other_locus_ids.append(aline[sequence_id_field])
                 continue
             plines.append(convert_airr_line(aline, glfo))
     if len(clone_ids) > 0:
