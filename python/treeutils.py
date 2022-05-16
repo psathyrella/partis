@@ -2927,53 +2927,81 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     def print_dbg(metric_pairs, iclust_mfos, print_nuc_seqs=True):
         # ----------------------------------------------------------------------------------------
         def init_xtras():
-            xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c_gene', '']), ('affinities', ['affin', 'ity'])]
+            xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c', 'gene']), ('affinities', ['affin', 'ity'])]
             if 'meta-info-print-keys' in cfgfo:
-                xtra_heads += [(k, [l, '']) for k, l in cfgfo['meta-info-print-keys']]
+                xtra_heads += [(k, l if isinstance(l, list) else [l, '']) for k, l in cfgfo['meta-info-print-keys']]
             xtra_heads += [(h, [h, 'sum']) for h in smheads]
             xheads, xtrafo, xlens = [[], []], [], {}
             for xn, xh in xtra_heads:
-                # if all(xn not in mpfo[c] and xn not in smheads for mpfo in metric_pairs for c in 'hl'):
                 if all(gsval(mpfo, c, xn, no_fail=True) is None for mpfo in metric_pairs for c in 'hl'):
                     continue
                 xtrafo.append(xn)
-                ctlens = [len(gsvstr(gsval(m, c, xn), xn)) for m in metric_pairs for c in 'hl']
-                xlens[xn] = max([len(h) for h in xh] + ctlens) + 1
+                ctlens = [utils.len_excluding_colors(single_xstr(m, xn, no_len=True)) for m in metric_pairs] # for c in 'hl']
+                xlens[xn] = max([len(h) for h in xh] + ctlens)
                 xheads = [x + [utils.wfmt(s, xlens[xn])] for x, s in zip(xheads, xh)]
             return xtrafo, xheads, xlens
         # ----------------------------------------------------------------------------------------
-        def neut_col(cg, tlen):
+        def neut_col(mk, cg, tlen):
             if cg in [None, 'None']: return ' ' * tlen
             cg = float(cg)
-            tcol, cgstr = ('blue', '-') if cg < 0 else (None, '%.0f' % cg)
-            if cg > 50: tcol = 'yellow'
-            if cg > 75: tcol = 'red'
+            if 'supernatant-' in mk:
+                tcol, cgstr = ('blue', '-') if cg < 0 else (None, '%.0f' % cg)
+                if cg > 50: tcol = 'yellow'
+                if cg > 75: tcol = 'red'
+            elif 'ic50-' in mk:
+                if cg > 9999:
+                    tcol, cgstr = ('blue', '-')
+                else:
+                    tcol, cgstr = None, utils.wfmt(utils.round_to_n_digits(cg, 3), 1, fmt='.0f' if cg > 10 else '.1f')
+                if cg < 1000: tcol = 'yellow'
+                if cg < 100: tcol = 'red'
+                if cg < 10: tcol = 'red_bkg'
+            else:
+                assert False
             return utils.color(tcol, cgstr, width=tlen)
         # ----------------------------------------------------------------------------------------
-        def get_xstr(mpfo):
+        def single_xstr(mpfo, xky, no_len=False):  # don't try to condense these into a block, they're too different
+            def lenfcn(): return 1 if no_len else xlens.get(xky, 7)  # maybe should only have .get and 7 for smheads?
+            if xky == ctkey():
+                ctval = utils.get_single_entry(list(set(gsval(mpfo, c, ctkey()) for c in 'hl')))
+                return utils.wfmt(utils.non_none([ctval, '?']), lenfcn())
+            elif xky == 'umis':
+                uvals = [gsval(mpfo, c, 'umis') for c in 'hl']
+                return utils.wfmt('?' if None in uvals else sum(uvals), lenfcn())
+            elif xky == 'c_genes':
+                cg = gsval(mpfo, 'h', 'c_genes')
+                return utils.wfmt('?' if cg in [None, 'None'] else cg.replace('IGH', ''), lenfcn())
+            elif xky == 'affinities':
+                affy = utils.get_single_entry(list(set([gsvstr(gsval(mpfo, c, 'affinities'), 'affinities') for c in 'hl'])))
+                return utils.wfmt(affy, lenfcn())
+            elif 'meta-info-print-keys' in cfgfo and xky in [k for k, _ in cfgfo['meta-info-print-keys']]:
+                mv = utils.get_single_entry(list(set([gsval(mpfo, c, xky) for c in 'hl'])))
+                if 'supernatant-' in xky or 'ic50-' in xky:  # colors that make sense for % neut values
+                    mv = neut_col(xky, mv, lenfcn())
+                elif xky == 'alternate-uids':
+                    mv = utils.wfmt('' if mv is None else mv, lenfcn())
+                return mv
+            elif xky in smheads:
+                return utils.wfmt(gsvstr(sumv(mpfo, sh), sh), lenfcn())
+            else:
+                print xky, cfgfo['meta-info-print-keys']
+                assert False
+        # ----------------------------------------------------------------------------------------
+        def get_xstrs(mpfo):
             xstr = []  # don't try to condense these into a block, they're too different
             if ctkey() in xtrafo:
-                ctval = utils.get_single_entry(list(set(gsval(mpfo, c, ctkey()) for c in 'hl')))
-                xstr += [utils.wfmt(utils.non_none([ctval, '?']), xlens[ctkey()])]
+                xstr.append(single_xstr(mpfo, ctkey()))
             if 'umis' in xtrafo:
-                uvals = [gsval(mpfo, c, 'umis') for c in 'hl']
-                xstr += [utils.wfmt('?' if None in uvals else sum(uvals), xlens['umis'])]
+                xstr.append(single_xstr(mpfo, 'umis'))
             if 'c_genes' in xtrafo:
-                cg = gsval(mpfo, 'h', 'c_genes')
-                xstr += [utils.wfmt('?' if cg in [None, 'None'] else cg.replace('IGH', ''), xlens['c_genes'])]
+                xstr.append(single_xstr(mpfo, 'c_genes'))
             if 'affinities' in xtrafo:
-                affy = utils.get_single_entry(list(set([gsvstr(gsval(mpfo, c, 'affinities'), 'affinities') for c in 'hl'])))
-                xstr += [utils.wfmt(affy, xlens['affinities'])]
+                xstr.append(single_xstr(mpfo, 'affinities'))
             if 'meta-info-print-keys' in cfgfo:
                 for mk in [k for k, _ in cfgfo['meta-info-print-keys'] if k in xtrafo]:
-                    mv = utils.get_single_entry(list(set([gsval(mpfo, c, mk) for c in 'hl'])))
-                    if 'neut-' in mk:  # colors that make sense for % neut values
-                        mv = neut_col(mv, xlens[mk])
-                    elif mk == 'alternate-uids':
-                        mv = utils.wfmt('' if mv is None else mv, xlens[mk])
-                    xstr += [mv]
+                    xstr.append(single_xstr(mpfo, mk))
             for sh in smheads:
-                xstr += [utils.wfmt(gsvstr(sumv(mpfo, sh), sh), xlens.get(sh, 7))]
+                xstr.append(single_xstr(mpfo, sh))
             return xstr
         # ----------------------------------------------------------------------------------------
         def getcdist(mpfo, tch, frac=False):  # can't just use gsval() for cases where we used the "input" (indel'd) cons seq (although note that there's probably some other places where the orginal/indel-reversed version is used)
@@ -3002,8 +3030,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
 # ----------------------------------------------------------------------------------------
 
         if len(antn_pairs) > 1:
-            utils.non_clonal_clusters(h_atn, [hl for hl, _ in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(h_atn['loci'][0]), extra_str='              ')
-            utils.non_clonal_clusters(l_atn, [ll for _, ll in antn_pairs], dtype='lev', aa=True, labelstr=utils.locstr(l_atn['loci'][0]), extra_str='              ')
+            utils.non_clonal_clusters((h_atn, l_atn), antn_pairs, dtype='lev', aa=True, labelstr='h+l', extra_str='              ')
 
         lstr = '%s %s' % (utils.locstr(h_atn['loci'][0]), utils.locstr(l_atn['loci'][0]))
         h_cshm, l_cshm = [lb_cons_seq_shm(l, aa=True) for l in [h_atn, l_atn]]
@@ -3039,7 +3066,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                                                             aa_cdstr if aa_cdstr!=last_cdist_str else ' '*utils.len_excluding_colors(aa_cdstr),
                                                             utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
                                                             didstr, cids[0], cids[1], indelstr),
-            print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstr(mpfo)),
+            print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstrs(mpfo)),
                                                                      mtpstr if mtpstr != last_mtpy_str else ' '*utils.len_excluding_colors(mtpstr),
                                                                      sum_nuc_shm_pct(mpfo),
                                                                      cshm_str if imp==0 else ' '*len(cshm_str),

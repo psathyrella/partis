@@ -3551,37 +3551,41 @@ def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters c
     return sys.modules['Levenshtein'].distance(s1, s2)
 
 # ----------------------------------------------------------------------------------------
-# return list of families in <antn_list> sorted by their nearness to <line> by either 'lev' (levenshtein) or 'ham' (hamming) distance between naive sequences (automatically skips <line> if it's in <antn_list>)
-def non_clonal_clusters(refline, antn_list, dtype='lev', aa=False, max_print_dist=8, extra_str='', labelstr='', debug=True):
+# return list of families in <antn_pairs> sorted by their nearness to <refpair> by either 'lev' (levenshtein) or 'ham' (hamming) distance between naive sequences (automatically skips <refpair> if it's in <antn_pairs>)
+def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_dist=8, extra_str='', labelstr='', debug=True):
     # ----------------------------------------------------------------------------------------
-    def nseq(atn):
-        ns = atn['naive_seq']
+    def nseq(atn_pair):
+        tkey = 'naive_seq'
         if aa:
-            ns = ltranslate(ns)
-        return ns
+            tkey += '_aa'
+            for tl in atn_pair:
+                add_naive_seq_aa(tl)
+        return atn_pair[0][tkey] + atn_pair[1][tkey]
     # ----------------------------------------------------------------------------------------
     assert dtype in ['lev', 'ham']
     dfcn = lev_dist if dtype == 'lev' else hamming_distance
     distances = []
-    for iclust, atn in enumerate(antn_list):
-        if atn['unique_ids'] == refline['unique_ids']:
+    for iclust, atn_pair in enumerate(antn_pairs):
+        if [l['unique_ids'] for l in atn_pair] == [l['unique_ids'] for l in refpair]:
             continue
-        distances.append({'i' : iclust, 'uids' : atn['unique_ids'], 'dist' : dfcn(nseq(atn), nseq(refline))})
+        h_atn, l_atn = atn_pair
+        distances.append({'i' : iclust, 'h_ids' : h_atn['unique_ids'], 'l_ids' : l_atn['unique_ids'], 'dist' : dfcn(nseq(atn_pair), nseq(refpair))})
     if len(distances) == 0:
         return []
-    sdists = sorted(distances, key=lambda d: d['dist']) #operator.itemgetter(2))
+    sdists = sorted(distances, key=lambda d: d['dist'])
     if debug:
         nearest = sdists[0]
         near_dfos = [d for d in sdists if d['dist'] <= max_print_dist]
         if labelstr!='':
             labelstr = ' %s ' % labelstr
         print '%s%snearest: %d edit%s (%d cluster%s less than %d)' % (extra_str, labelstr, nearest['dist'], plural(nearest['dist']), len(near_dfos), plural(len(near_dfos)), max_print_dist)
-        # color_mutants(nseq(refline), nseq(antn_list[nearest['i']]), amino_acid=aa, print_result=True, extra_str=extra_str+'  ', align_if_necessary=True)
         if len(near_dfos) > 0:
-            # print '   %s %s' % (extra_str, dtype)
-            print '   %s%s dist  iclust  N uids' % (extra_str, dtype)
+            print '                                    N uids'
+            print '    %s%s-dist  iclust   h   l' % (extra_str, dtype)
             for dfo in near_dfos:
-                print '   %s   %3d    %3d       %3d    %s' % (extra_str, dfo['dist'], dfo['i'], len(dfo['uids']), color_mutants(nseq(refline), nseq(antn_list[dfo['i']]), amino_acid=aa, align_if_necessary=True))
+                # assert len(dfo['h_ids']) == len(dfo['l_ids'])
+                print '   %s   %3d     %3d     %3d %3d    %s' % (extra_str, dfo['dist'], dfo['i'], len(dfo['h_ids']), len(dfo['l_ids']), color_mutants(nseq(refpair), nseq(antn_pairs[dfo['i']]), amino_acid=aa, align_if_necessary=True))
+            print ''
 
     return sdists
 
