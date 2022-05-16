@@ -3968,7 +3968,7 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         outfo[key] = cons_seq_of_line(info, aa=True)
     elif key == 'naive_seq_aa':  # NOTE similarity to add_naive_seq_aa()
         add_naive_seq_aa(info)
-        outfo[key] = info['naive_seq']
+        outfo[key] = info['naive_seq_aa']
     elif key == 'seqs_aa':  # NOTE similarity to add_seqs_aa()
         outfo[key] = [ltranslate(s) for s in info['seqs']]
     elif key in ['cons_dists_nuc', 'cons_dists_aa']:
