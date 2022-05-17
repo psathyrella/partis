@@ -3552,7 +3552,7 @@ def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters c
 
 # ----------------------------------------------------------------------------------------
 # return list of families in <antn_pairs> sorted by their nearness to <refpair> by either 'lev' (levenshtein) or 'ham' (hamming) distance between naive sequences (automatically skips <refpair> if it's in <antn_pairs>)
-def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_dist=8, extra_str='', labelstr='', debug=True):
+def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_dist=16, max_n_print=5, extra_str='', labelstr='', debug=True):
     # ----------------------------------------------------------------------------------------
     def nseq(atn_pair):
         tkey = 'naive_seq'
@@ -3580,11 +3580,12 @@ def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_di
             labelstr = ' %s ' % labelstr
         print '%s%snearest: %d edit%s (%d cluster%s less than %d)' % (extra_str, labelstr, nearest['dist'], plural(nearest['dist']), len(near_dfos), plural(len(near_dfos)), max_print_dist)
         if len(near_dfos) > 0:
-            print '                                    N uids'
-            print '    %s%s-dist  iclust   h   l' % (extra_str, dtype)
-            for dfo in near_dfos:
+            print '    %s%s-dist  iclust   N uids (h l)' % (extra_str, dtype)
+            for dfo in near_dfos[:max_n_print]:
                 # assert len(dfo['h_ids']) == len(dfo['l_ids'])
                 print '   %s   %3d     %3d     %3d %3d    %s' % (extra_str, dfo['dist'], dfo['i'], len(dfo['h_ids']), len(dfo['l_ids']), color_mutants(nseq(refpair), nseq(antn_pairs[dfo['i']]), amino_acid=aa, align_if_necessary=True))
+            if len(near_dfos) > max_n_print:
+                print '    (only printing nearest %d)' % max_n_print
             print ''
 
     return sdists

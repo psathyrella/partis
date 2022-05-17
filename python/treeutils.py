@@ -2982,7 +2982,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     mv = utils.wfmt('' if mv is None else mv, lenfcn())
                 return mv
             elif xky in smheads:
-                return utils.wfmt(gsvstr(sumv(mpfo, sh), sh), lenfcn())
+                return utils.wfmt(gsvstr(sumv(mpfo, xky), xky), lenfcn())
             else:
                 print xky, cfgfo['meta-info-print-keys']
                 assert False
