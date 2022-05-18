@@ -951,7 +951,7 @@ def plot_pie_chart_marker(ax, xpos, ypos, radius, fracfos, alpha=None, debug=Fal
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
                xticks=None, xticklabels=None, xticklabelsize=None, yticklabelsize=None, yticks=None, yticklabels=None, no_legend=False, adjust=None,
-               suffix='svg', leg_title=None, legend_fontsize=None, fig=None, right_y_axis=False):
+               suffix='svg', leg_title=None, legend_fontsize=None, fig=None, right_y_axis=False, rotation=None):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     if not no_legend:
@@ -983,7 +983,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         if median_length > 4:
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
         else:
-            ax.set_xticklabels(xticklabels, size=xticklabelsize)
+            ax.set_xticklabels(xticklabels, size=xticklabelsize, rotation=rotation)
     if xbounds is not None and xbounds[0] != xbounds[1]:
         plt.xlim(xbounds[0], xbounds[1])
     if ybounds is not None and ybounds[0] != ybounds[1]:
@@ -1020,40 +1020,39 @@ def plot_csim_matrix_from_files(plotdir, plotname, meth1, ofn1, meth2, ofn2, n_b
     # fpath = 'partitions/sizes/cluster-sizes'
     partitions = {}
     for mstr, ofn in zip((meth1, meth2), (ofn1, ofn2)):
-        _, _, cpath = utils.read_output(ofn, skip_annotations=True)
+        _, _, cpath = utils.read_output(ofn, skip_annotations=True, is_partition_file=True)
         partitions[mstr] = cpath.best()
     plot_cluster_similarity_matrix(plotdir, plotname, meth1, partitions[meth1], meth2, partitions[meth2], n_biggest_clusters, title=title, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, title='', debug=False):
-    if debug:
-        print ''
-        print '%s    %s' % (meth1, meth2)
+# iscn_denominator: 'max' if you want to look at a method that's oversplitting since it will show how much of the larger cluster is split among various clusters in the other partition
+#                   'min'                                        overmerging, since... eh, maybe not? not sure
+def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, iscn_denominator='max', title='', debug=False):
     # partition1 = [['4'], ['7', '8'], ['6', '5'], ['99', '3', '1']]
     # # partition2 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
     # partition2 = [['3'], ['5'], ['6'], ['7'], ['8'], ['99', '3', '4']]
-    a_cluster_lengths, b_cluster_lengths, smatrix = utils.partition_similarity_matrix(meth1, meth2, partition1, partition2, n_biggest_clusters, debug=debug)
-    if debug:
-        print 'a_clusters: ', ' '.join([str(l) for l in a_cluster_lengths])
-        print 'b_clusters: ', ' '.join([str(l) for l in b_cluster_lengths])
+
+    a_cluster_lengths, b_cluster_lengths, smatrix = utils.partition_similarity_matrix(partition1, partition2, n_biggest_clusters, iscn_denominator=iscn_denominator, a_label=meth1, b_label=meth2, debug=debug)
 
     fig, ax = mpl_init()
     data = numpy.array(smatrix)
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
     heatmap = ax.pcolormesh(data, cmap=cmap, vmin=0., vmax=1.)
-    cbar = plt.colorbar(heatmap, label='fractional overlap', pad=0.09)
+    cbar = plt.colorbar(heatmap, label='overlap / %s size' % iscn_denominator.replace('min', 'smaller').replace('max', 'larger'), pad=0.09)
     
     modulo = 2
-    axis_max = min(len(b_cluster_lengths), min(n_biggest_clusters, len(a_cluster_lengths)))
+    axis_max = min(len(partition1), min(n_biggest_clusters, len(partition2)))
     if axis_max > 20:
         modulo = 3
+    if n_biggest_clusters > 40:
+        modulo = int(n_biggest_clusters / 15.)
     ticks = [n - 0.5 for n in range(1, axis_max + 1, modulo)]
     xticklabels = [str(b_cluster_lengths[it]) for it in range(0, len(b_cluster_lengths), modulo)]
     yticklabels = [str(a_cluster_lengths[it]) for it in range(0, len(a_cluster_lengths), modulo)]
-    mpl_finish(ax, plotdir, plotname, title=title, xlabel='%s cluster size'%legends.get(meth2, meth2), ylabel='%s cluster size'%legends.get(meth1, meth1),
-               xticks=ticks, yticks=ticks, xticklabels=xticklabels, yticklabels=yticklabels, xticklabelsize=15, yticklabelsize=15,
-               xbounds=(0, axis_max), ybounds=(0, axis_max))
+    print mpl_finish(ax, plotdir, plotname, title=title, xlabel='%s cluster size'%legends.get(meth2, meth2), ylabel='%s cluster size'%legends.get(meth1, meth1),
+                     xticks=ticks, yticks=ticks, xticklabels=xticklabels, yticklabels=yticklabels, xticklabelsize=15, yticklabelsize=15,
+                     xbounds=(0, axis_max), ybounds=(0, axis_max), rotation='vertical')
 
 # ----------------------------------------------------------------------------------------
 # NOTE set unset/empty values to float('nan') to keep them transparent

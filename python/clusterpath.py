@@ -7,6 +7,7 @@ import copy
 import collections
 import itertools
 import numpy
+csv.field_size_limit(sys.maxsize)
 
 import utils
 import treeutils

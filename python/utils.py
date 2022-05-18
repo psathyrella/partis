@@ -5166,38 +5166,74 @@ def collision_fraction(partition):
     return cfrac
 
 # ----------------------------------------------------------------------------------------
-def partition_similarity_matrix(meth_a, meth_b, partition_a, partition_b, n_biggest_clusters, iscn_denominator='min', debug=False):
+def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, iscn_denominator='max', a_label='a', b_label='b', debug=False):
     # iscn_denominator: denominator to divide intersection size of each pair of clusters ('min': min of the two sizes, 'mean': mean of the two sizes)
-    """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest, divided by the mean size of the two clusters """
+    """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest, divided by the mean/min/max size of the two clusters """
+    # ----------------------------------------------------------------------------------------
     def sort_within_clusters(part):  # sort each cluster's uids alphabetically (so we can sort clusters alphabetically below in order to get a more consistent sorting between partitions, although maybe it would make more sense to sort afterwards by intersection size)
         for iclust in range(len(part)):
             part[iclust] = sorted(part[iclust])
+    # ----------------------------------------------------------------------------------------
     def norm_factor(clust_a, clust_b):
         if iscn_denominator == 'min':
             return min(len(clust_a), len(clust_b))
+        elif iscn_denominator == 'max':
+            return max(len(clust_a), len(clust_b))
         elif iscn_denominator == 'mean':
             return 0.5 * (len(clust_a) + len(clust_b))  # mean size of the two clusters
         else:
             assert False
 
-    sort_within_clusters(partition_a)
+    # ----------------------------------------------------------------------------------------
+    check_intersection_and_complement(partition_a, partition_b, a_label=a_label, b_label=b_label, only_warn=True)
+    sort_within_clusters(partition_a)  # have to do this before taking N biggest so that when there's lots of ties in size we're more likely to get the same clusters for both methods
     sort_within_clusters(partition_b)
     a_clusters = sorted(sorted(partition_a), key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters (after sorting clusters alphabetically)
     b_clusters = sorted(sorted(partition_b), key=len, reverse=True)[ : n_biggest_clusters]
 
-    smatrix = []
-    for clust_a in a_clusters:
+    smatrix = [[float('nan') for _ in b_clusters] for _ in a_clusters]
+    dszs, dovlps, dfracs = [], [], []
+    overlap_matrix = [[set(clust_a) & set(clust_b) for clust_b in b_clusters] for clust_a in a_clusters]
+    for ia, clust_a in enumerate(a_clusters):
+        sub_szs, sub_ovlps, sub_fracs, n_found = [], [], [], 0
+        for ib, clust_b in enumerate(b_clusters):
+            if len(overlap_matrix[ia][ib]) == 0:
+                continue
+            n_common = len(overlap_matrix[ia][ib])
+            ifrac = float(n_common) / norm_factor(clust_a, clust_b)
+            smatrix[ia][ib] = float('nan') if ifrac==0 else ifrac  # nan gives you transparent/empty color
+            if debug and n_common > 0:
+                n_found += n_common
+                sub_szs.append(len(clust_b))
+                sub_ovlps.append(n_common)
+                sub_fracs.append(ifrac)
+        if debug and n_found < len(clust_a):  # if we didn't find any with overlap, look in smaller clusters
+            sub_szs, sub_ovlps, sub_fracs, n_found = [], [], [], 0
+            for bclst in partition_b:
+                ncm = len(set(clust_a) & set(bclst))
+                if ncm > 0:
+                    n_found += ncm
+                    sub_szs.append(len(bclst))
+                    sub_ovlps.append(ncm)
+                    sub_fracs.append(float(ncm) / norm_factor(clust_a, bclst))
+                sub_szs = sorted(sub_szs, reverse=True)
+                sub_ovlps = sorted(sub_ovlps, reverse=True)
+            if n_found != len(clust_a):
+                print '  %s couldn\'t find %d / %d uids' % (wrnstr(), len(clust_a) - n_found, len(clust_a))
         if debug:
-            print clust_a
-        smatrix.append([])
-        for clust_b in b_clusters:
-            intersection = len(set(clust_a) & set(clust_b))
-            ifrac = float(intersection) / norm_factor(clust_a, clust_b)
-            if debug:
-                print '    %.2f  %5d   %5d %5d' % (ifrac, intersection, len(clust_a), len(clust_b))
-            smatrix[-1].append(ifrac)
+            dszs.append(sub_szs)
+            dovlps.append(sub_ovlps)
+            dfracs.append(sub_fracs)
+    if debug:
+        max_dsz, max_ovl = max(len(s) for s in dszs), max(len(o) for o in dovlps)
+        print '    %s  %s -->' % (a_label, b_label)
+        print '     size    %s        %s      overlap / %s size (*100)' % (wfmt('sizes', 2*max_dsz, jfmt='-'), wfmt('overlaps', 2*max_ovl, jfmt='-'), iscn_denominator.replace('min', 'smaller').replace('max', 'larger'))
+        cl = len(str(max(len(a_clusters[0]), len(b_clusters[0]))))
+        for ia, clust_a in enumerate(a_clusters):
+            szstr, ovlstr = ' '.join('%d'%s for s in dszs[ia]), ' '.join('%d'%o for o in dovlps[ia])
+            print ('    %4d      %-s    %-s    %s') % (len(clust_a), wfmt(szstr, 2*max_dsz, jfmt='-'), wfmt(ovlstr, 2*max_ovl, jfmt='-'), ' '.join('%3.0f'%(100*f) for f in dfracs[ia]))
 
-    a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]
+    a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]  # nice to return these here so you don't have to re-sort in the calling fcn
     return a_cluster_lengths, b_cluster_lengths, smatrix
 
 # ----------------------------------------------------------------------------------------
@@ -6474,12 +6510,12 @@ def read_cpath(fname, n_max_queries=-1, seed_unique_id=None, skip_annotations=Fa
     return cpath
 
 # ----------------------------------------------------------------------------------------
-def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, skip_failed_queries=False, debug=False):
+def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, skip_failed_queries=False, is_partition_file=False, debug=False):
     annotation_list = None
 
     if getsuffix(fname) == '.csv':
         cluster_annotation_fname = fname.replace('.csv', '-cluster-annotations.csv')
-        if os.path.exists(cluster_annotation_fname):  # i.e. if <fname> is a partition file
+        if os.path.exists(cluster_annotation_fname) or is_partition_file:  # i.e. if <fname> is a partition file
             assert cpath is None   # see note in read_yaml_output()
             cpath = clusterpath.ClusterPath(fname=fname, seed_unique_id=seed_unique_id)  # NOTE I'm not sure if I really want to pass in the seed here -- it should be stored in the file -- but if it's in both places it should be the same. um, should.
             fname = cluster_annotation_fname  # kind of hackey, but oh well
