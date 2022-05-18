@@ -251,8 +251,6 @@ class HmmWriter(object):
         }
         self.n_conserved_codon_erosion_transitions = 0
 
-        self.erosion_pseudocount_length = min(10, len(self.germline_seq))  # if we're closer to the end of the gene than this, make sure erosion probability isn't zero
-
         self.outdir = outdir
         self.smallest_entry_index = -1  # keeps track of the first state that has a chance of being entered from init -- we want to start writing (with add_internal_state) from there
 
@@ -385,8 +383,10 @@ class HmmWriter(object):
             self.hmm.add_state(insert_state)
 
     # ----------------------------------------------------------------------------------------
-    def add_pseudocounts(self, erosion_probs):
-        for n_eroded in range(self.erosion_pseudocount_length):
+    def add_pseudocounts(self, ename, erosion_probs):
+        for n_eroded in range(len(self.germline_seq)):
+            if self.would_erode_conserved_codon(ename, n_eroded):
+                break
             if n_eroded not in erosion_probs:
                 erosion_probs[n_eroded] = 0
             if erosion_probs[n_eroded] == 0:
@@ -400,7 +400,7 @@ class HmmWriter(object):
         if self.region == 'v' and '3p' in erosion:
             return len(self.germline_seq) - n_eroded <= cpos + 2
         elif self.region == 'j' and '5p' in erosion:
-            return n_eroded >= cpos
+            return n_eroded > cpos
         else:
             return False
 
@@ -420,8 +420,10 @@ class HmmWriter(object):
                 eprobs[erosion][0] = 1.  # always erode zero bases
                 continue
             deps = utils.column_dependencies[erosion + '_del']
-            with open(self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps), 'r') as infile:
+            dfn = self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)
+            with open(dfn, 'r') as infile:
                 reader = csv.DictReader(infile)
+                n_lines_read = 0
                 for line in reader:
                     # first see if we want to use this line (if <region>_gene isn't in the line, this erosion doesn't depend on gene version)
                     if self.region + '_gene' in line and line[self.region + '_gene'] not in approved_genes:  # NOTE you'll need to change this if you want it to depend on another region's genes
@@ -438,6 +440,9 @@ class HmmWriter(object):
 
                     if self.region + '_gene' in line:
                         genes_used.add(line[self.region + '_gene'])
+                    n_lines_read += 1
+            if self.debug:
+                print '      read %d deletion lines from %s' % (n_lines_read, dfn)
 
             if len(eprobs[erosion]) == 0:
                 raise Exception('didn\'t read any %s erosion probs from %s' % (erosion, self.indir + '/' + utils.get_parameter_fname(column=erosion + '_del', deps=deps)))
@@ -449,7 +454,7 @@ class HmmWriter(object):
                 n_max = -1
             if len(eprobs[erosion]) > 0:
                 interpolate_bins(eprobs[erosion], n_max, bin_eps=self.eps, max_bin=len(self.germline_seq))
-            self.add_pseudocounts(eprobs[erosion])
+            self.add_pseudocounts(erosion, eprobs[erosion])
 
             if not self.args.allow_conserved_codon_deletion:  # we could also just not add them to start with when reading the file, but then they'd get added by the interpolation and pseudocount stuff
                 for n_eroded in eprobs[erosion].keys():
