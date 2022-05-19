@@ -1105,7 +1105,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
     if debug or len(fracs) > 0:
         warnstr = utils.color('yellow', 'warning ') if len(fracs) > 0 else ''  # len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
-            print '        %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
+            print '        %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s (note that this is expected if these are single chain sequences being compared to a paired h+l tree)' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
         if (debug and len(fracs) > 0) or len(fracs) > 0:
             print '    tree depth   mfreq      ratio    frac diff'
             for key, frac in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
@@ -2480,7 +2480,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     # ----------------------------------------------------------------------------------------
     def sumv(mfo, kstr):
         if kstr == 'seq_mtps':  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
-            def vfcn(c): return mtpys[c][gsval(mfo, c, 'input_seqs_aa')]
+            def vfcn(c): return mtpys[iclust][c][gsval(mfo, c, 'input_seqs_aa')]
         else:
             def vfcn(c): return gsval(mfo, c, kstr)
         kvals = [vfcn(c) for c in 'hl']
@@ -2856,26 +2856,26 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                                                     '' if n_too_close==0 else ' (%d had seqs too close to previously-chosen ones)'%n_too_close)
 
         return chosen_mfos
-    # ----------------------------------------------------------------------------------------
-    def add_plotval_uids(iclust_plotvals, iclust_mfos, metric_pairs):
-        def waschosen(m):
-            return 'chosen' if all(gsval(m, c, 'unique_ids') in iclust_chosen_ids for c in 'hl') else 'nope'
-        def ustr(m):
-            rstr = ''
-            if waschosen(m) == 'chosen':  # if this is commented, i think i can simplify this fcn a lot? UPDATE need the extra text for cases where lots of dots are on top of each other
-                rstr = 'x'
-            if args.queries_to_include is not None and all(gsval(m, c, 'unique_ids') in args.queries_to_include for c in 'hl'):
-                common_chars = ''.join(c for c, d in zip(gsval(m, 'h', 'unique_ids'), gsval(m, 'l', 'unique_ids')) if c==d)
-                common_chars = common_chars.rstrip('-ig')
-                if len(common_chars) > 0:
-                    rstr += ' ' + common_chars
-                else:
-                    rstr += ' ' + ' '.join(gsval(m, c, 'unique__ids') for c in 'hl')
-            return None if rstr == '' else rstr
-        observed_mfos = [m for m in iclust_mfos if m['seqtype'] == 'observed']
-        iclust_chosen_ids = [gsval(m, c, 'unique_ids') for m in observed_mfos for c in 'hl']
-        iclust_plotvals['uids'] = [ustr(m) for m in metric_pairs]
-        iclust_plotvals['chosen'] = [waschosen(m) for m in metric_pairs]
+    # # ----------------------------------------------------------------------------------------
+    # def add_plotval_uids(iclust_plotvals, icl_mfos, metric_pairs):
+    #     def waschosen(m):
+    #         return 'chosen' if all(gsval(m, c, 'unique_ids') in iclust_chosen_ids for c in 'hl') else 'nope'
+    #     def ustr(m):
+    #         rstr = ''
+    #         if waschosen(m) == 'chosen':  # if this is commented, i think i can simplify this fcn a lot? UPDATE need the extra text for cases where lots of dots are on top of each other
+    #             rstr = 'x'
+    #         if args.queries_to_include is not None and all(gsval(m, c, 'unique_ids') in args.queries_to_include for c in 'hl'):
+    #             common_chars = ''.join(c for c, d in zip(gsval(m, 'h', 'unique_ids'), gsval(m, 'l', 'unique_ids')) if c==d)
+    #             common_chars = common_chars.rstrip('-ig')
+    #             if len(common_chars) > 0:
+    #                 rstr += ' ' + common_chars
+    #             else:
+    #                 rstr += ' ' + ' '.join(gsval(m, c, 'unique__ids') for c in 'hl')
+    #         return None if rstr == '' else rstr
+    #     observed_mfos = [m for m in icl_mfos if m['seqtype'] == 'observed']
+    #     iclust_chosen_ids = [gsval(m, c, 'unique_ids') for m in observed_mfos for c in 'hl']
+    #     iclust_plotvals['uids'] = [ustr(m) for m in metric_pairs]
+    #     iclust_plotvals['chosen'] = [waschosen(m) for m in metric_pairs]
     # ----------------------------------------------------------------------------------------
     def write_chosen_file(all_chosen_mfos, hash_len=8):
         # ----------------------------------------------------------------------------------------
@@ -2924,7 +2924,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 for ofo in outfos:
                     writer.writerow(ofo)
     # ----------------------------------------------------------------------------------------
-    def print_dbg(metric_pairs, iclust_mfos, print_nuc_seqs=True):
+    def print_dbg(iclust, metric_pairs, icl_mfos, print_nuc_seqs=True):
         # ----------------------------------------------------------------------------------------
         def init_xtras():
             xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c', 'gene']), ('affinities', ['affin', 'ity'])]
@@ -3017,10 +3017,15 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             nseq = (h_atn if c=='h' else l_atn)['naive_seq'+('_aa' if aa else '')]
             return cstr(c, s2=nseq, aa=aa)
         # ----------------------------------------------------------------------------------------
+        if len(metric_pairs) == 0:
+            return
+        h_atn, l_atn = [metric_pairs[0][c] for c in 'hl']  # antns for all metric_pairs are obviously the same
         smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
+        if len(icl_mfos) > 0:
+            print '      chose %d total' % len(icl_mfos)
 # ----------------------------------------------------------------------------------------
-        print '  %s debug print needs updating to use new paired annotation rather than just adding h+l metrics (for now you need to set --run-single-chain-selection-metrics to get it to work at all)' % utils.wrnstr()
+        # print '  %s debug print needs updating to use new paired annotation rather than just adding h+l metrics (for now you need to set --run-single-chain-selection-metrics to get it to work at all)' % utils.wrnstr()
 # TODO this doesn't really work cause you need to translate the tree, which isn't worth it -- just run single chain selection metrics, or update this fcn
         # for smetric in args.selection_metrics_to_calculate:
         #     for tmpntn in [h_atn, l_atn]:
@@ -3039,8 +3044,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         gstrs = ['%s %s' % (utils.color_gene(h_atn[r+'_gene']), utils.color_gene(l_atn[r+'_gene']) if r!='d' else '') for r in utils.regions]
         gstr_len = max(utils.len_excluding_colors(s) for s in gstrs)  # don't really need this as long as it's the last column
         gstrs = ['%s%s' % (g, ' '*(gstr_len - utils.len_excluding_colors(g))) for g in gstrs]
-        if any(m['seqtype']=='cons' for m in iclust_mfos):  # if the unobserved consensus was added for this cluster, we need to use the cons seq from cons_mfo for either of h/l that had enough shm indels that we used input seqs to calculate the cons seq (i.e. for which h/l_use_input_seqs was set)
-            cons_mfo = utils.get_single_entry([m for m in iclust_mfos if m['seqtype']=='cons'])
+        if any(m['seqtype']=='cons' for m in icl_mfos):  # if the unobserved consensus was added for this cluster, we need to use the cons seq from cons_mfo for either of h/l that had enough shm indels that we used input seqs to calculate the cons seq (i.e. for which h/l_use_input_seqs was set)
+            cons_mfo = utils.get_single_entry([m for m in icl_mfos if m['seqtype']=='cons'])
         else:
             cons_mfo = get_unobs_mfo('cons', metric_pairs)  # if we didn't choose a cons seq, we need to get the cons seqs/info (since both aa and nuc "chosen" cons seqs can differ from the one in the annotation: both if there's lots of shm indels, and the nuc because of codon_len=3
         print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s       N     %%shm   N aa mutations     sizes            %s %s %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), cstr('h', aa=True), cstr('l', aa=True), cstr('h'), cstr('l'))
@@ -3059,12 +3064,12 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             h_cfrac, l_cfrac = [getcdist(mpfo, c, frac=True) for c in 'hl']
             h_cdist, l_cdist = [getcdist(mpfo, c) for c in 'hl']
             aa_cdstr = '%4.1f %4.1f %4.1f   %4d%4d' % (100*sum([h_cfrac, l_cfrac]), 100*h_cfrac, 100*l_cfrac, h_cdist, l_cdist)
-            h_mtpy, l_mtpy = [mtpys[c][gsval(mpfo, c, 'input_seqs_aa')] for c in 'hl']
+            h_mtpy, l_mtpy = [mtpys[iclust][c][gsval(mpfo, c, 'input_seqs_aa')] for c in 'hl']
             mtpstr = '%3d %3d %3d' % (sum((h_mtpy, l_mtpy)), h_mtpy, l_mtpy)
             aa_shmstr = '%2d %2d %2d' % (sumv(mpfo, 'shm-aa'), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'))
             print '       %s  %s   %s %20s  %s  %s   %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
                                                             aa_cdstr if aa_cdstr!=last_cdist_str else ' '*utils.len_excluding_colors(aa_cdstr),
-                                                            utils.color('green', 'x') if mpfo in iclust_mfos else ' ',
+                                                            utils.color('green', 'x') if mpfo in icl_mfos else ' ',
                                                             didstr, cids[0], cids[1], indelstr),
             print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstrs(mpfo)),
                                                                      mtpstr if mtpstr != last_mtpy_str else ' '*utils.len_excluding_colors(mtpstr),
@@ -3102,6 +3107,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             cpkeys.append('min_target_distances')
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
+        for mfo in metric_pairs:
+            mfo['p_atn'] = p_atn
         return p_atn
 # ----------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------
@@ -3130,28 +3137,27 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
 #         return p_atn
     # ----------------------------------------------------------------------------------------
     def get_mtpys(metric_pairs):  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
-        mtpys = {}
+        icl_mtpys = {}
         for c in 'hl':
             seqlist = [gsval(m, c, 'input_seqs_aa') for m in metric_pairs for _ in range(gsval(m, c, 'multipy'))]
-            mtpys[c] = {s : seqlist.count(s) for s in set(seqlist)}
-        return mtpys
+            icl_mtpys[c] = {s : seqlist.count(s) for s in set(seqlist)}
+        return icl_mtpys
 
     # ----------------------------------------------------------------------------------------
     import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     debug = args.debug or args.debug_paired_clustering  # not is_simu or
     if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
         print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
-    all_chosen_mfos = []
     cfgfo = read_cfgfo()
     antn_pairs = []
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, min_cluster_size=min_cluster_size)  # , required_keys=['tree-info']
     antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
-    # all_plotvals = {k : [] for k in ('h_aa-cfrac', 'l_aa-cfrac')}
-    pair_antns = []
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
         print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
+    pair_antns, mtpys = [], {}
+    mpfo_lists, all_chosen_mfos = [[None for _ in antn_pairs] for _ in range(2)]
     for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
         for ltmp in (h_atn, l_atn):
             utils.add_seqs_aa(ltmp)
@@ -3169,25 +3175,20 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 mpfo[tch] = ltmp
                 mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
             metric_pairs.append(mpfo)
+        mpfo_lists[iclust] = metric_pairs
         pair_antns.append(get_pantn(metric_pairs, h_atn))
         if len(metric_pairs) == 0:
             continue
-        mtpys = get_mtpys(metric_pairs)  # ick (this is used by fcns relying on scope)
-        iclust_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
-        if len(iclust_mfos) > 0:
-            all_chosen_mfos += iclust_mfos
-            for mfo in iclust_mfos:
-                mfo['p_atn'] = pair_antns[-1]  # ick
-            if debug:
-                print '      chose %d total' % len(iclust_mfos)
-        if debug:
-            print_dbg(metric_pairs, iclust_mfos)  # note that this fcn uses a lot of local variables that we don't pass to it
+        mtpys[iclust] = get_mtpys(metric_pairs)  #  NOTE these get used by scope in several fcns
+        icl_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
+        all_chosen_mfos[iclust] = icl_mfos
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
                  workdir=args.workdir, outfname=args.selection_metric_fname) #, debug=True)
 # TODO will need these args in order to run gctree
                  # glfo=, gctree_outdir=None if args.outfname is None or not args.run_gctree else os.path.dirname(utils.fpath(args.outfname)),
+    if debug:
+        for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
+            print_dbg(iclust, metric_pairs, icl_mfos)  # note that this fcn uses a lot of local variables that we don't pass to it
     if args.chosen_ab_fname is not None:
-        write_chosen_file(all_chosen_mfos)
-    # if plotdir is not None:  # eh, maybe there isn't a big reason for an overall one
-    #     lbplotting.plot_2d_scatter('h-vs-l-cfrac-iclust-all', plotdir, all_plotvals, 'l_aa-cfrac', 'light %s'%mstr, mstr, xvar='h_aa-cfrac', xlabel='heavy %s'%mstr, colorvar='chosen', stats='correlation')
+        write_chosen_file([mfo for mlist in all_chosen_mfos for mfo in mlist])

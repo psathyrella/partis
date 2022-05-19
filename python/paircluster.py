@@ -122,7 +122,7 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
         if read_selection_metrics and os.path.exists(treeutils.smetric_fname(ofn)):  # if it doesn't exist, the info should be in the regular output file
             read_smetrics(ofn, lpfos['antn_lists'][ltmp])
         if add_selection_metrics is not None:
-            print '            adding %d selection metrics to annotations read from %s%s: %s' % (len(add_selection_metrics), ofn_fcn(ltmp, lpair=lpair), '' if plotdir_fcn is None else ' and plotting to %s' % plotdir_fcn(ltmp, lpair=lpair), ' '.join(add_selection_metrics))
+            print '            adding %d selection metric%s to annotations read from %s%s: %s' % (len(add_selection_metrics), utils.plural(len(add_selection_metrics)), ofn_fcn(ltmp, lpair=lpair), '' if plotdir_fcn is None else ' and plotting to %s' % plotdir_fcn(ltmp, lpair=lpair), ' '.join(add_selection_metrics))
             for smetric in add_selection_metrics:
                 treeutils.calculate_individual_tree_metrics(smetric, lpfos['antn_lists'][ltmp], base_plotdir=None if plotdir_fcn is None else plotdir_fcn(ltmp, lpair=lpair), lb_tau=lb_tau)
         parse_pairing_info(ltmp, lpfos['antn_lists'][ltmp])

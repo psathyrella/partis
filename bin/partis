@@ -799,7 +799,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     def read_true_files(add_selection_metrics=None, no_plot=False, merged=False, debug=False):  # NOTE see also get_true_partitions() above
         assert args.paired_indir is not None
         def ofn_fcn(ltmp, lpair=None): return paircluster.paired_fn(args.paired_indir, ltmp, lpair=lpair, suffix='.yaml')
-        kwargs = {'add_selection_metrics' : add_selection_metrics, 'plotdir_fcn' : None if (args.plotdir is None or no_plot) else getplotdir, 'dont_add_implicit_info' : not debug, 'lb_tau' : args.lb_tau}
+        kwargs = {'add_selection_metrics' : add_selection_metrics, 'plotdir_fcn' : None if (args.plotdir is None or no_plot) else getplotdir, 'dont_add_implicit_info' : not debug, 'lb_tau' : args.lb_tau, 'debug' : debug}
         if merged:  # three of 'em, one for each locus (i.e. with merged igh)
             outfos = paircluster.read_locus_output_files(sloci(), ofn_fcn, **kwargs)
             return outfos
@@ -1171,9 +1171,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             if not args.is_data:
                 if args.paired_indir is None:
                     raise Exception('can\'t get simulation selection metrics without setting --paired-indir')
-                lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate if args.run_single_chain_selection_metrics else None, no_plot=True)
+                lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate if args.run_single_chain_selection_metrics else None, no_plot=True, debug=args.debug or args.debug_paired_clustering)
             else:
-                lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=args.run_single_chain_selection_metrics, dbgstr='partition')
+                lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=args.run_single_chain_selection_metrics, dbgstr='partition', debug=args.debug or args.debug_paired_clustering)
                 _ = read_qti_file(args)  # sets <args.queries_to_include>
             treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None), is_simu=not args.is_data, args=args)
 
