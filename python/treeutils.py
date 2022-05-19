@@ -2459,11 +2459,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
 def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname, no_fail=False):
-        cln, iseq = mfo[tch], mfo[tch+'_iseq']
-        return utils.antnval(cln, vname, iseq, use_default=no_fail)
-    # ----------------------------------------------------------------------------------------
-    def p_gsval(mfo, vname, no_fail=False):
-        cln, iseq = mfo['p_atn'], mfo['p_atn']['unique_ids'].index(combid(mfo))
+        cln, iseq = mfo[tch if tch in 'hl' else tch+'_atn'], mfo[tch+'_iseq']
         return utils.antnval(cln, vname, iseq, use_default=no_fail)
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
@@ -2884,7 +2880,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if mfo['seqtype'] == 'observed':
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
                 for kn in ['aa-cfrac', 'shm-aa', 'aa-cdist'] + [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']:
-                    ofo.update([(kn, p_gsval(mfo, kn))])
+                    ofo.update([(kn, gsval(mfo, 'p', kn))])
             else:
                 def gid(mfo, c):
                     hstr = utils.uidhashstr(getseq(mfo, c, aa=True))[:hash_len]
@@ -2930,7 +2926,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c', 'gene']), ('affinities', ['affin', 'ity'])]
             if 'meta-info-print-keys' in cfgfo:
                 xtra_heads += [(k, l if isinstance(l, list) else [l, '']) for k, l in cfgfo['meta-info-print-keys']]
-            xtra_heads += [(h, [h, 'sum']) for h in smheads]
+            xtra_heads += [(h, [h, '']) for h in smheads]
             xheads, xtrafo, xlens = [[], []], [], {}
             for xn, xh in xtra_heads:
                 if all(gsval(mpfo, c, xn, no_fail=True) is None for mpfo in metric_pairs for c in 'hl'):
@@ -2982,7 +2978,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     mv = utils.wfmt('' if mv is None else mv, lenfcn())
                 return mv
             elif xky in smheads:
-                return utils.wfmt(gsvstr(sumv(mpfo, xky), xky), lenfcn())
+                return utils.wfmt(gsvstr(gsval(mpfo, 'p', xky), xky), lenfcn())
             else:
                 print xky, cfgfo['meta-info-print-keys']
                 assert False
@@ -3024,15 +3020,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         xtrafo, xheads, xlens = init_xtras()
         if len(icl_mfos) > 0:
             print '      chose %d total' % len(icl_mfos)
-# ----------------------------------------------------------------------------------------
-        # print '  %s debug print needs updating to use new paired annotation rather than just adding h+l metrics (for now you need to set --run-single-chain-selection-metrics to get it to work at all)' % utils.wrnstr()
-# TODO this doesn't really work cause you need to translate the tree, which isn't worth it -- just run single chain selection metrics, or update this fcn
-        # for smetric in args.selection_metrics_to_calculate:
-        #     for tmpntn in [h_atn, l_atn]:
-        #         # calculate_individual_tree_metrics(smetric, [tmpntn], lb_tau=args.lb_tau) #, debug=True)
-        #         inf_lines, true_lines = (None, [tmpntn]) if is_simu else (utils.get_annotation_dict([tmpntn]), None)
-        #         add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname)
-# ----------------------------------------------------------------------------------------
 
         if len(antn_pairs) > 1:
             utils.non_clonal_clusters((h_atn, l_atn), antn_pairs, dtype='lev', aa=True, labelstr='h+l', extra_str='              ')
@@ -3107,34 +3094,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             cpkeys.append('min_target_distances')
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
-        for mfo in metric_pairs:
+        for iseq, mfo in enumerate(metric_pairs):
             mfo['p_atn'] = p_atn
+            mfo['p_iseq'] = iseq
         return p_atn
-# ----------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------
-# # old way of just summing h+l metrics (don't want to do this):
-#         p_atn['tree-info'] = {'lb' : {}}
-#         if args.treefname is not None:
-#             dtree, treestr = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree-info']['lb']['tree']))
-#         else:
-#             print '    getting fasttree (which may not be what you want)'
-#             dtree = get_fasttree_tree([{'name' : combid(mfo), 'seq' : sumv(mfo, 'seqs')} for mfo in metric_pairs], naive_seq=p_atn['naive_seq'])  # NOTE kind of duplicates get_trees_for_annotations() (but i don't want to use that function because it requires a <line> whereas i went to great pains to rewrite this fcn here to not have a real/complete line for the h+l sequences
-#             treestr = dtree.as_string(schema='newick')  # get this before the dummy branch stuff to make more sure it isn't modified
-#         p_atn['tree-info']['lb']['tree'] = treestr
-#         p_atn['tree-info']['lb']['aa-tree'] = get_aa_tree(dtree, p_atn).as_string(schema='newick')
-#         for b_mtr in args.selection_metrics_to_calculate + ['shm', 'shm-aa']:
-#             sum_mtr = 'sum-%s' % b_mtr
-#             p_atn['tree-info']['lb'][sum_mtr] = {}
-#             for mfo in metric_pairs:
-#                 # if b_mtr == 'sum-aa-lbr':
-#                 print b_mtr, gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'h', b_mtr), gsval(mfo, 'l', b_mtr), sumv(mfo, b_mtr)
-#                 sum_mval = sumv(mfo, b_mtr)
-#                 if sum_mval is None:
-#                     continue
-#                 pid = p_atn['unique_ids'][mfo['h_iseq']]
-#                 p_atn['tree-info']['lb'][sum_mtr][pid] = sum_mval
-#         return p_atn
     # ----------------------------------------------------------------------------------------
     def get_mtpys(metric_pairs):  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
         icl_mtpys = {}
@@ -3189,6 +3152,6 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                  # glfo=, gctree_outdir=None if args.outfname is None or not args.run_gctree else os.path.dirname(utils.fpath(args.outfname)),
     if debug:
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
-            print_dbg(iclust, metric_pairs, icl_mfos)  # note that this fcn uses a lot of local variables that we don't pass to it
+            print_dbg(iclust, metric_pairs, icl_mfos)  # note: relies on mtpys being in scope
     if args.chosen_ab_fname is not None:
         write_chosen_file([mfo for mlist in all_chosen_mfos for mfo in mlist])
