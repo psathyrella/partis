@@ -299,7 +299,7 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, debug=False):
+    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, aa=False, debug=False):
         debug = True
         # ----------------------------------------------------------------------------------------
         def get_fname(ic):
@@ -330,7 +330,9 @@ class PartitionPlotter(object):
             # ----------------------------------------------------------------------------------------
             full_info = annotations[':'.join(full_cluster)]
             # title = '%s   (size: %d)' % (self.get_cdr3_title(full_info), len(full_cluster))
-            title = 'MDS comp. (index %d size %d)' % (iclust, len(full_cluster))
+            title = '%sMDS (index %d size %d)' % ('AA ' if aa else '', iclust, len(full_cluster))
+            leg_title = 'N %s mutations' % ('AA' if aa else 'nuc')
+            tstr = '_aa' if aa else ''
 
             kept_indices = list(range(len(full_cluster)))
             if len(kept_indices) > max_cluster_size:
@@ -347,8 +349,11 @@ class PartitionPlotter(object):
                 kept_indices = sorted(set(kept_indices) - set([full_cluster.index(uid) for uid in removed_uids]))
                 title += ' (subset: %d / %d)' % (len(kept_indices), len(full_cluster))
 
-            seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs'][iseq]} for iseq in kept_indices]
-            color_scale_vals = {full_cluster[iseq] : full_info['n_mutations'][iseq] for iseq in kept_indices}
+            if aa:
+                utils.add_seqs_aa(full_info)
+                utils.add_naive_seq_aa(full_info)
+            seqfos = [{'name' : full_info['unique_ids'][iseq], 'seq' : full_info['seqs%s'%tstr][iseq]} for iseq in kept_indices]
+            color_scale_vals = {full_cluster[iseq] : (utils.shm_aa(full_info, iseq) if aa else full_info['n_mutations'][iseq]) for iseq in kept_indices}
 
             tqtis = {}
             if self.args.queries_to_include is not None:
@@ -356,8 +361,8 @@ class PartitionPlotter(object):
             if self.args.meta_info_to_emphasize is not None:
                 key, val = self.args.meta_info_to_emphasize.items()[0]
                 addqtis(tqtis, {full_cluster[i] : utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats) for i in kept_indices if self.meta_emph(annotations, full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
-            addseq('_naive', full_info['naive_seq'])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
-            addseq('_consensus', utils.cons_seq_of_line(full_info))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
+            addseq('_naive', full_info['naive_seq%s'%tstr])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
+            addseq('_consensus', utils.cons_seq_of_line(full_info, aa=aa))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
 
             # remove duplicates, since they crash mds
             new_seqfos, all_seqs = [], {}
@@ -380,7 +385,7 @@ class PartitionPlotter(object):
                 all_seqs[sfo['seq']] = sfo['name']
             seqfos = new_seqfos
 
-            return seqfos, color_scale_vals, tqtis, title
+            return seqfos, color_scale_vals, tqtis, title, leg_title
 
         # ----------------------------------------------------------------------------------------
         def get_labels_for_coloring(full_cluster, color_rule):
@@ -399,7 +404,7 @@ class PartitionPlotter(object):
             return labels
 
         # ----------------------------------------------------------------------------------------
-        def prep_cmdfo(iclust, seqfos, tqtis, color_scale_vals, title):
+        def prep_cmdfo(iclust, seqfos, tqtis, color_scale_vals, title, leg_title):
             subworkdir = '%s/mds-%d' % (self.args.workdir, iclust)
             utils.prep_dir(subworkdir)
             tmpfname = '%s/seqs.fa' % subworkdir
@@ -414,6 +419,8 @@ class PartitionPlotter(object):
                 cmdstr += ' --queries-to-include %s' % ':'.join(','.join([u, l]) for u, l in tqtis.items())
             if title is not None:
                 cmdstr += ' --title=%s' % title.replace(' ', '@')
+            if leg_title is not None:
+                cmdstr += ' --leg-title=%s' % leg_title.replace(' ', '@')
             return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : '%s/%s.svg' % (plotdir, get_fname(iclust)), 'workfnames' : [tmpfname]}
 
         # ----------------------------------------------------------------------------------------
@@ -427,13 +434,14 @@ class PartitionPlotter(object):
         plotted_cluster_lengths, skipped_cluster_lengths = [], []
         fnames = [[]]
         cmdfos = []
+        self.addfname(fnames, 'mds-legend')
         for iclust in range(len(sorted_clusters)):
             if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='mds'):
                 skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
                 continue
             plotted_cluster_lengths.append(len(sorted_clusters[iclust]))
 
-            seqfos, color_scale_vals, tqtis, title = get_cluster_info(sorted_clusters[iclust], iclust)
+            seqfos, color_scale_vals, tqtis, title, leg_title = get_cluster_info(sorted_clusters[iclust], iclust)
 
             labels = None
             if color_rule is not None:
@@ -451,11 +459,11 @@ class PartitionPlotter(object):
 
             if run_in_parallel:
                 assert labels is None  # would need to implement this (or just switch to non-parallel version if you need to run with labels set)
-                cmdfos.append(prep_cmdfo(iclust, seqfos, tqtis, color_scale_vals, title))
+                cmdfos.append(prep_cmdfo(iclust, seqfos, tqtis, color_scale_vals, title, leg_title))
             else:
                 mds.run_bios2mds(self.n_mds_components, None, seqfos, self.args.workdir, self.args.random_seed,
                                  aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
-                                 queries_to_include=tqtis, color_scale_vals=color_scale_vals, labels=labels, title=title)
+                                 queries_to_include=tqtis, color_scale_vals=color_scale_vals, labels=labels, title=title, leg_title=leg_title)
                 if debug:
                     print '  %5.1f' % (time.time() - substart)
             self.addfname(fnames, '%s' % get_fname(iclust))
@@ -615,7 +623,7 @@ class PartitionPlotter(object):
         fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
         fnames += self.make_bubble_plots(sorted_clusters, annotations, plotdir)
         if not no_mds_plots:
-            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True) #, color_rule='wtf')
+            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
         # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
         # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
         csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)

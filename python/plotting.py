@@ -891,10 +891,9 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
 def plot_legend_only(leg_entries, plotdir, plotname, title=None, n_digits=None):
     if len(leg_entries) == 0:
         return
-    fig = plt.figure()
     max_label_len = max(len(str(l)) for l in leg_entries)
     figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(leg_entries) / 4.))
-    ax = fig.add_subplot(111)
+    fig, ax = mpl_init()
     for tlab, lfo in leg_entries.items():
         if n_digits is not None and tlab is not None:
             tlab = utils.round_to_n_digits(tlab, 2)
