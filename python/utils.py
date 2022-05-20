@@ -3585,7 +3585,7 @@ def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_di
                 # assert len(dfo['h_ids']) == len(dfo['l_ids'])
                 print '   %s   %3d     %3d     %3d %3d    %s' % (extra_str, dfo['dist'], dfo['i'], len(dfo['h_ids']), len(dfo['l_ids']), color_mutants(nseq(refpair), nseq(antn_pairs[dfo['i']]), amino_acid=aa, align_if_necessary=True))
             if len(near_dfos) > max_n_print:
-                print '    (only printing nearest %d)' % max_n_print
+                print '                  (only printing nearest %d)' % max_n_print
             print ''
 
     return sdists
