@@ -78,7 +78,6 @@ def mean_of_top_quintile(vals):  # yeah, yeah could name it xtile and have anoth
     n_to_take = max(1, int(frac * len(vals)))  # NOTE don't use numpy.percentile(), since affinity is fairly discrete-valued, which causes bad stuff (e.g. you don't take anywhere near the number of cells that you were trying to)
     return numpy.mean(sorted(vals)[len(vals) - n_to_take:])
 mean_max_metrics = ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf', 'shm', 'shm-aa', 'cons-lbi']
-mean_max_metrics += ['sum-%s'%m for m in mean_max_metrics]
 mean_max_metrics += treeutils.dtr_metrics
 cluster_summary_cfg = collections.OrderedDict()
 for k in mean_max_metrics:
@@ -87,7 +86,6 @@ cluster_summary_cfg['affinity'] = (('top-quintile', lambda line, plotvals: mean_
 cluster_summary_cfg['fay-wu-h'] = (('fay-wu-h', lambda line, plotvals: -utils.fay_wu_h(line)), )
 cluster_summary_cfg['cons-dist-nuc'] = (('cons-seq-shm-nuc', lambda line, plotvals: treeutils.lb_cons_seq_shm(line, aa=False)), )  # NOTE the cluster_summary_cfg key doesn't really make sense here any more (used to be 'consensus'), but i'm not really using these cluster summary things any more, since it turns out to not work very well to choose entire families
 cluster_summary_cfg['cons-dist-aa'] = (('cons-seq-shm-aa', lambda line, plotvals: treeutils.lb_cons_seq_shm(line, aa=True)), )  # NOTE the cluster_summary_cfg key doesn't really make sense here any more (used to be 'consensus'), but i'm not really using these cluster summary things any more, since it turns out to not work very well to choose entire families
-cluster_summary_cfg['sum-cons-dist-aa'] = (('sum-cons-seq-shm-aa', lambda line, plotvals: 1), )  # NOTE this is wrong! i just don't want it to crash
 cluster_summary_cfg['is_leaf'] = (('x-dummy-x', lambda line, plotvals: None), )  # just to keep things from breaking, doesn't actually get used
 def get_lbscatteraxes(lb_metric):
     return ['affinity', lb_metric]
@@ -96,7 +94,6 @@ def ungetptvar(xvar): return xvar if xvar == 'affinity' else 'delta-affinity'  #
 def ungetptlabel(xvar): return xvar if xvar == 'affinity' else 'affinity change'
 
 per_seq_metrics = ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'lbf', 'shm', 'shm-aa', 'cons-dist-nuc', 'cons-dist-aa', 'delta-lbi', 'cons-lbi']
-per_seq_metrics += ['sum-'+m for m in per_seq_metrics]
 per_seq_metrics += treeutils.dtr_metrics
 # per_clust_metrics = ('lbi', 'lbr', 'shm', 'fay-wu-h', 'cons-dist-nuc')  # don't need this atm since it's just all of them (note that 'cons-dist-nuc' doesn't really make sense here, see cluster_summary_cfg)
 mtitle_cfg = {'per-seq' : {'cons-dist-nuc' : '- nuc distance to cons seq',
@@ -133,7 +130,6 @@ metric_for_target_distance_labels = {
     'aa-sim-blosum' : 'AA BLOSUM',
 }
 cdist_keys = ['cons-dist-'+s for s in ['nuc', 'aa']]
-# cdist_keys += ['sum-'+k for k in cdist_keys]
 
 # ----------------------------------------------------------------------------------------
 def all_clust_str(n_clusters):
@@ -448,7 +444,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             treeutils.add_cons_dists(line, aa='aa' in xvar)
             tkey = xvar.replace('cons-dist-', 'cons_dists_')
             def xvalfcn(i): return -line[tkey][i]
-        elif xvar in ['aa-lbi', 'aa-lbr', 'sum-aa-lbi', 'sum-aa-lbr', 'sum-cons-dist-aa']:
+        elif xvar in ['aa-lbi', 'aa-lbr']:
             def xvalfcn(i): return line['tree-info']['lb'][xvar].get(line['unique_ids'][i], None)
         elif xvar == 'edge-dist':
             def xvalfcn(i): return treeutils.edge_dist_fcn(dtree, line['unique_ids'][i])
@@ -877,9 +873,6 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
     if n_bin_cfg_fname is not None:
         with open(n_bin_cfg_fname) as cfile:
             n_bin_cfg = yaml.load(cfile, Loader=yaml.CLoader)
-        if paired:
-            for v, c in n_bin_cfg.items():
-                n_bin_cfg['sum-'+v] = c
     # ----------------------------------------------------------------------------------------
     def modify_lines(slvar, slbounds):
         # ----------------------------------------------------------------------------------------
@@ -1019,7 +1012,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
     if len(set(a for alist in original_affinities for a in alist)) == 1:
         print '    all original affinity values the same (%f), so not making slice plots' % list(set(a for alist in original_affinities for a in alist))[0]
         return
-    int_vars = ['%s%s'%('sum-' if paired else '', k) for k in ['shm', 'shm-aa']]
+    int_vars = ['shm', 'shm-aa']
     slvars = ['affinities'] + int_vars
     if is_true_line and any('min_target_distances' in l for l in lines):
         slvars.append('min_target_distances')

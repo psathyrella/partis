@@ -34,9 +34,7 @@ import utils
 # ----------------------------------------------------------------------------------------
 fmetrics = ['lbf', 'aa-lbf']
 affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'shm-aa', 'aa-lbi', 'cons-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
-# affy_metrics += ['sum-'+m for m in affy_metrics]
 daffy_metrics = ['delta-lbi', 'lbr', 'aa-lbr'] + fmetrics
-# daffy_metrics += ['sum-'+m for m in daffy_metrics]
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio'), ('f', 'fraction')))
 selection_metrics = ['lbi', 'lbr', 'lbf', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr', 'aa-lbf', 'shm', 'shm-aa']
@@ -58,7 +56,6 @@ legtexts = {
     'affinity-biased' : 'affinity biased',
     'high-affinity' : 'perf. affinity',
     'cons-dist-aa' : 'aa-cdist',
-    # 'sum-cons-dist-aa' : '- AA dist. to cons seq (h+l)',
     'cons-frac-aa' : 'aa-cfrac',
     'cons-dist-nuc' : 'nuc-cdist',
     'shm' : 'n-shm',
@@ -66,13 +63,6 @@ legtexts = {
     'aa-lbi' : 'AA lb index',
     'aa-lbr' : 'AA lb ratio',
     'aa-lbf' : 'AA lb fraction',
-    # 'sum-aa-lbi' : 'h+l AA lb index',
-    # 'sum-aa-lbr' : 'h+l AA lb ratio',
-    # 'sum-lbi' : 'h+l lb index',
-    # 'sum-lbr' : 'h+l lb ratio',
-    # 'sum-n_mutations' : 'h+l nuc mutations',
-    # 'sum-shm' : 'h+l nuc mutations',
-    # 'sum-shm-aa' : 'h+l AA mutations',
 }
 
 # ----------------------------------------------------------------------------------------
@@ -1833,7 +1823,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
 
     if not args.only_csv_plots:  # all the various scatter plots are really slow
         if 'lb-scatter' in plot_cfg:
-            for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi'), ('sum-cons-dist-aa', 'sum-aa-lbi'), ('sum-aa-lbi', 'sum-lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
+            for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
                 lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include) #, add_stats='correlation')
         if ete_path is not None and has_trees and 'tree' in plot_cfg:
             lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=args.queries_to_include, fnames=fnames, label_all_nodes=args.label_tree_nodes, label_root_node=args.label_root_node)
