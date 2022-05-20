@@ -2478,7 +2478,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if kstr == 'seq_mtps':  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
             def vfcn(c): return mtpys[iclust][c][gsval(mfo, c, 'input_seqs_aa')]
         else:
-            def vfcn(c): return gsval(mfo, c, kstr)
+            if kstr in ['seqs', 'naive_seq']:
+                def vfcn(c): return utils.pad_seq_for_translation(mfo[c], gsval(mfo, c, kstr))  # maybe don't need this, but safer to have it
+            else:
+                def vfcn(c): return gsval(mfo, c, kstr)
         kvals = [vfcn(c) for c in 'hl']
         return None if None in kvals else kvals[0] + kvals[1]  # needs to work for both ints and strings
     # ----------------------------------------------------------------------------------------
@@ -3071,7 +3074,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
     # ----------------------------------------------------------------------------------------
-    def get_pantn(metric_pairs, h_atn):  # return a fake annotation <p_atn> with the sum/joint metrics in it
+    def get_pantn(metric_pairs, h_atn, all_pair_ids):  # return a fake annotation <p_atn> with the sum/joint metrics in it
         # ----------------------------------------------------------------------------------------
         def translate_heavy_tree(htree):
             trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
@@ -3081,6 +3084,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # ----------------------------------------------------------------------------------------
         p_atn = {}  # make a new fake annotation for the sequences that are in both h+l
         p_atn['unique_ids'] = [combid(m) for m in metric_pairs]
+        if any(u in all_pair_ids for u in p_atn['unique_ids']):
+            raise Exception('tried to add duplicate uid(s) %s when making paired annotation' % [u for u in p_atn['unique_ids'] if u in all_pair_ids])
+        all_pair_ids |= set(p_atn['unique_ids'])
         p_atn['seqs'] = [sumv(m, 'seqs') for m in metric_pairs]
         p_atn['seqs_aa'] = [sumv(m, 'seqs_aa') for m in metric_pairs]
         p_atn['naive_seq'] = sumv(metric_pairs[0], 'naive_seq')
@@ -3119,7 +3125,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
         print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
-    pair_antns, mtpys = [], {}
+    pair_antns, mtpys, all_pair_ids = [], {}, set()
     mpfo_lists, all_chosen_mfos = [[None for _ in antn_pairs] for _ in range(2)]
     for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
         for ltmp in (h_atn, l_atn):
@@ -3139,7 +3145,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
             metric_pairs.append(mpfo)
         mpfo_lists[iclust] = metric_pairs
-        pair_antns.append(get_pantn(metric_pairs, h_atn))
+        pair_antns.append(get_pantn(metric_pairs, h_atn, all_pair_ids))
         if len(metric_pairs) == 0:
             continue
         mtpys[iclust] = get_mtpys(metric_pairs)  #  NOTE these get used by scope in several fcns
