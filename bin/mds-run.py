@@ -20,6 +20,7 @@ parser.add_argument('--n-components', type=int, default=2)
 parser.add_argument('--plotdir')
 parser.add_argument('--plotname')
 parser.add_argument('--title')
+parser.add_argument('--leg-title')
 parser.add_argument('--queries-to-include')
 parser.add_argument('--workdir', default='/tmp/dralph/mds/' + str(random.randint(0, 999999)))
 parser.add_argument('--seed', type=int, default=1)
@@ -40,4 +41,4 @@ if len(color_scale_vals) == 0:
 # mds.run_sklearn_mds(args.n_components, args.n_clusters, seqfos, args.seed, plotdir=args.plotdir)
 mds.run_bios2mds(args.n_components, args.n_clusters, seqfos, args.workdir, args.seed,
                  aligned=args.aligned, plotdir=args.plotdir, plotname=args.plotname,
-                 queries_to_include=args.queries_to_include, color_scale_vals=color_scale_vals, title=args.title)
+                 queries_to_include=args.queries_to_include, color_scale_vals=color_scale_vals, title=args.title, leg_title=args.leg_title)

@@ -100,18 +100,11 @@ def read_component_file(mdsfname, n_components, seqfos):
     return pcvals
 
 # ----------------------------------------------------------------------------------------
-def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_scale_vals=None, hexbin=False, title=None, leg_title=None, cmapstr='Blues'):
-    import plotting
-    # TODO switch to mpl_init/mpl_finalize
-    import matplotlib
-    from matplotlib import pyplot as plt
-    # plt.rcParams['axes.facecolor'] = '#f1efef'
-    colors = ['blue', 'forestgreen', 'red', 'grey', 'orange', 'green', 'skyblue', 'maroon', 'salmon', 'chocolate', 'magenta']
-    single_color = '#4b92e7'
-    def plot_component_pair(ipair, svgfname, color_map):
-        fig = plt.figure(1)
-        ax = plt.axes([0., 0., 1., 1.])
-        # ax.set_facecolor('black')
+def plot_mds(n_components, pcvals, plotdir, basepltname, labels=None, partition=None, queries_to_include=None, gridsize=65, color_scale_vals=None, hexbin=False, title=None, leg_title=None, cmapstr='Blues',
+             single_color='#4b92e7', clrlist=['blue', 'forestgreen', 'red', 'grey', 'orange', 'green', 'skyblue', 'maroon', 'salmon', 'chocolate', 'magenta']):
+    # ----------------------------------------------------------------------------------------
+    def plot_component_pair(ipair, plotdir, plotname, color_map):
+        fig, ax = plotting.mpl_init()
         if hexbin:
             xvals, yvals = zip(*[(v[ipair], v[ipair + 1]) for v in pcvals.values()])
             hb = ax.hexbin(xvals, yvals, gridsize=gridsize, cmap=plt.cm.Blues, bins='log')
@@ -126,17 +119,12 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
                 ax.plot([xval], [yval], color='red', marker='.', markersize=10)
                 ax.text(xval, yval, ulabel.replace('@', ' '), color='red', fontsize=8)
 
-        # smap = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        # smap.set_array([])
-        # fig.colorbar(smap)
-        if title is not None:
-            # plt.title(title, fontweight='bold')  # wtf, doesn't work
-            fig.text(0.4, 0.9, title, fontsize=15)  # , color='red'
+        plotting.mpl_finish(ax, plotdir, plotname, xticks=[], yticks=[], xlabel='component %d'%(ipair+1), ylabel='component %d'%(ipair+2), title=utils.non_none([title, '']))
 
-        # plt.colorbar()
-        plt.savefig(svgfname)
-        plt.close()
-
+    # ----------------------------------------------------------------------------------------
+    import plotting
+    from matplotlib import pyplot as plt
+    # plt.rcParams['axes.facecolor'] = '#f1efef'
     if n_components % 2 != 0:
         print '%s odd number of components' % utils.color('red', 'warning')
 
@@ -150,22 +138,22 @@ def plot_mds(n_components, pcvals, plotdir, plotname, labels=None, partition=Non
                 return labels.get(q)
             leg_entries, partition = collections.OrderedDict(), []
             for igroup, (gval, group) in enumerate(itertools.groupby(sorted(pcvals, key=keyfunc), key=keyfunc)):
-                leg_entries[gval] = {'color' : colors[igroup%len(colors)], 'alpha' : 0.4}
+                leg_entries[gval] = {'color' : clrlist[igroup%len(clrlist)], 'alpha' : 0.4}
                 partition.append(list(group))
-        if len(partition) > len(colors):
-            print '  %s more clusters/labels %d than colors %d' % (utils.wrnstr(), len(partition), len(colors))
-        color_map = {uid : colors[iclust%len(colors)] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
+        if len(partition) > len(clrlist):
+            print '  %s more clusters/labels %d than colors %d' % (utils.wrnstr(), len(partition), len(clrlist))
+        color_map = {uid : clrlist[iclust%len(clrlist)] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
     elif color_scale_vals is not None:  # map with a number for each sequence (e.g. number of mutations) that we use to make a new color scale
         cmap = plt.cm.get_cmap(cmapstr) #'Blues') #viridis plt.cm.Blues  # 'Blues'
         all_vals = [v for k, v in color_scale_vals.items() if k != '_naive']
         norm = plotting.get_color_norm(all_vals)
         color_map = {uid : cmap(norm(color_scale_vals[uid])) for uid in pcvals if uid in color_scale_vals}
         leg_entries = plotting.get_leg_entries(vals=all_vals, colorfcn=lambda x: cmap(norm(x)))
-    plotting.plot_legend_only(leg_entries, plotdir, 'mds-legend', n_digits=2, title=leg_title)
+    plotting.plot_legend_only(leg_entries, plotdir, 'mds-legend', n_digits=2, title=leg_title.replace('@', ' '))
 
     for ipair in range(0, n_components - 1, 2):
         pcstr = '' if n_components == 2 else ('-pc-%d-vs-%d' % (ipair, ipair + 1))
-        plot_component_pair(ipair, '%s/%s%s.svg' % (plotdir, plotname, pcstr), color_map)
+        plot_component_pair(ipair, plotdir, '%s%s'%(basepltname, pcstr), color_map)
 
 # ----------------------------------------------------------------------------------------
 def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=False, reco_info=None, region=None,
