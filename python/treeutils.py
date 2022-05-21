@@ -65,6 +65,8 @@ legtexts = {
     'aa-lbf' : 'AA lb fraction',
 }
 
+int_metrics = ['cons-dist-aa', 'cons-dist-nuc', 'shm-aa', 'shm']  # adding this very late, so could probably use it more places
+
 # ----------------------------------------------------------------------------------------
 all_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree', 'distr', 'true-vs-inf-metrics', 'tree-mut-stats']
 default_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree']
@@ -3011,6 +3013,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         h_atn, l_atn = [metric_pairs[0][c] for c in 'hl']  # antns for all metric_pairs are obviously the same
         smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
+        print '    %s: joint cluster with size %d' % (utils.color('green', 'iclust %d'%iclust), len(metric_pairs))
         if len(icl_mfos) > 0:
             print '      chose %d total' % len(icl_mfos)
 
@@ -3104,7 +3107,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
 
     # ----------------------------------------------------------------------------------------
     import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
-    debug = args.debug or args.debug_paired_clustering  # not is_simu or
+    debug = args.debug or args.debug_paired_clustering or args.print_chosen_abs
     if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
         print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
     cfgfo = read_cfgfo()
