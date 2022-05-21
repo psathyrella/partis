@@ -1216,6 +1216,7 @@ parent_args.append({'name' : '--istartstop', 'kwargs' : {'help' : 'colon-separat
 parent_args.append({'name' : '--debug', 'kwargs' : {'type' : int, 'default' : 0, 'choices' : [0, 1, 2], 'help' : 'Overall debug verbosity level. See also --sw-debug (which defaults to this), and --debug-allele-finding and --debug-paired-clustering (which are independent).'}})
 parent_args.append({'name' : '--sw-debug', 'kwargs' : {'type' : int, 'choices' : [0, 1, 2], 'help' : 'Debug level for Smith-Waterman. If not set, defaults to level given by --debug.'}})
 parent_args.append({'name' : '--debug-paired-clustering', 'kwargs' : {'action' : 'store_true', 'help' : 'print lots of ascii debug info while merging paired partitions'}})
+parent_args.append({'name' : '--print-chosen-abs', 'kwargs' : {'action' : 'store_true', 'help' : 'print detailed ascii art information on chosen abs (see --ab-choice-cfg etc)'}})
 parent_args.append({'name' : '--abbreviate', 'kwargs' : {'action' : 'store_true', 'help' : 'Abbreviate/translate sequence ids to improve readability of partition debug output. Uses a, b, c, ..., aa, ab, ...'}})
 parent_args.append({'name' : '--print-git-commit', 'kwargs' : {'action' : 'store_true', 'help' : 'print sys.argv, git commit hash, and tag info'}})
 parent_args.append({'name' : '--dont-write-git-info', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t write git tag/commit info to yaml output files (used to enable diffing of test results)'}})

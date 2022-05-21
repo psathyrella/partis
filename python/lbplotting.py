@@ -358,7 +358,7 @@ def get_tree_in_line(line, is_true_line, aa=False):  # NOTE unlike treeutils.get
     if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
         return None
     # print '    %s tree' % utils.color('yellow', 'aa' if aa else 'nuc')
-    return line['tree-info']['lb']['%stree'%('aa-' if aa else '')]
+    return line['tree-info']['lb'].get('%stree'%('aa-' if aa else ''))  # also returns None if this key is missing (e.g. if we've only calculated cons-dist-aa)
 
 # ----------------------------------------------------------------------------------------
 # NOTE that this isn't symmetric wrt x/y vars -- some combos require one var to be x, and the other y (otherwise it'll crash cause it can't figure out how to calculate the values)
@@ -707,11 +707,6 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
 
 # ----------------------------------------------------------------------------------------
 def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, dbgstr=None, affy_key='affinities', return_distr_hists=False, max_bin_width=0.2, min_bins=30, debug=False):
-    # ----------------------------------------------------------------------------------------
-    def gethist(tstr, xmin, xmax, n_bins, vfcn):  # NOTE similarity to fcn below
-        vlist = [lb for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if vfcn(xv)]
-        return Hist(n_bins=n_bins, xmin=xmin, xmax=xmax, title=tstr, value_list=vlist)
-    # ----------------------------------------------------------------------------------------
     # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot (i.e. are affinity, N ancestors, or branch length). On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
     if xvar == 'n-ancestor':
         plotvals = copy.deepcopy(plotvals)
@@ -758,18 +753,28 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, dbgstr=None, affy_key='aff
         # tmp_ptvals['reshuffled_vals'].append(numpy.mean(NON_corr_affy_ptiles))
 
     if return_distr_hists:
+        # ----------------------------------------------------------------------------------------
+        def gethist(htype, ptbound, xmin, xmax, n_bins, ptval):
+            assert htype in ['lo', 'hi']
+            def vfcn(a): return a <= ptval if htype=='lo' else a >= ptval
+            lblist, xvlist = zip(*[(lb, xv) for lb, xv in zip(plotvals[lb_metric], plotvals[xvar]) if vfcn(xv)])
+            tstr = '%s %.0f%%\nmean %s' % ('bottom' if htype=='lo' else 'top', ptbound if htype=='lo' else 100. - ptbound, utils.round_to_n_digits(numpy.mean(xvlist), 2))
+            if debug:
+                print '  %s %.0f%%: affy %s= %.4f  %s' % (htype, ptbound, '<' if htype=='lo' else '>', ptval, sorted(lblist))
+            return Hist(n_bins=n_bins, xmin=xmin, xmax=xmax, title=tstr, value_list=lblist)
+        # ----------------------------------------------------------------------------------------
         lower_ptile, upper_ptile = 20, 80
         lo_affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], lower_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
         hi_affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], upper_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
-        if 'cons-dist' in lb_metric:
+        if lb_metric in treeutils.int_metrics:
             xmin, xmax = min(plotvals[lb_metric]) - 0.5, max(plotvals[lb_metric]) + 0.5
             n_bins = xmax - xmin
+            if n_bins > 1.5 * min_bins:  # min_bins is the min number of bins for float vars, and here we're using it as the max bins for int vars, but... whatever
+                n_bins = int(n_bins / 2.)
         else:
             xmin, xmax = 0., 1.01 * max(plotvals[lb_metric])  # this is the low edge of the overflow bin, so needs to be a bit above the biggest value
             n_bins = max(min_bins, int((xmax - xmin) / max_bin_width))  # for super large lbr values like 100 you need way more bins
-        bottom_hist = gethist('bottom %.0f%%'%(lower_ptile), xmin, xmax, n_bins, lambda a: a <= lo_affy_ptile_val)
-        top_hist = gethist('top %.0f%%'%(100. - upper_ptile), xmin, xmax, n_bins, lambda a: a > hi_affy_ptile_val)
-        distr_hists = [bottom_hist, top_hist]
+        distr_hists = [gethist(htp, ptb, xmin, xmax, n_bins, ptv) for htp, ptb, ptv in zip(['lo', 'hi'], [lower_ptile, upper_ptile], [lo_affy_ptile_val, hi_affy_ptile_val])]
         return tmp_ptvals, distr_hists
     else:
         return tmp_ptvals
@@ -1023,12 +1028,14 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, affy_key='affinities', only_csv=False, no_plot=False, fnames=None, separate_rows=False, add_uids=False,
-                        colorvar='is_leaf', max_scatter_plot_size=3000, max_iclust_plots=10, title_str='', debug=False):
+                        colorvar=None, max_scatter_plot_size=3000, max_iclust_plots=10, title_str='', debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
         if colorvar is not None and colorvar == 'is_leaf':
             dtree = treeutils.get_dendro_tree(treestr=get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric))  # keeping this here to remind myself how to get the tree if I need it
+            if dtree is None:
+                print '    %s asked for is_leaf colorvar, but couldn\'t find a tree, so will crash below (probably only specified to calculate cons-dist-aa)'  % utils.wrnstr()
         if affy_key not in line:
             if debug: print '  no affy key'
             return plotvals
