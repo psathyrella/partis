@@ -252,7 +252,7 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
                 all_ids.append(pids[0])
             else:
                 raise Exception('too many paired ids (%d) for %s: %s' % (len(pids), line['unique_ids'][ip], ' '.join(pids)))
-        return all_ids
+        return set(all_ids)
     # ----------------------------------------------------------------------------------------
     if antn_lists is not None:
         assert lp_infos is None
@@ -276,24 +276,24 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
     unpaired_l_clusts = [c for c in l_part]
     for h_clust in h_part:
         h_atn = h_atn_dict[':'.join(h_clust)]
+        h_pids = getpids(h_atn)
 
         if any(k not in h_atn for k in required_keys):  # skip any annotations that are missing any of these keys (atm, only used to skip ones without 'tree-info', which usually means clusters that were smaller than min selection metric cluster size
             for rk in set(required_keys) - set(h_atn):
                 n_skipped[rk] += 1
             continue
-        if len(getpids(h_atn)) == 0:
+        if len(h_pids) == 0:
             n_skipped['zero-len-paired-uids'] += 1
             continue
 
-        l_clusts = [c for c in l_part if len(set(getpids(h_atn)) & set(c)) > 0]
+        l_clusts = [c for c in l_part if len(h_pids & set(c)) > 0]
         if len(l_clusts) != 1:
             if not quiet:
-                l_overlaps = [set(getpids(h_atn)) & set(c) for c in l_clusts]
-                print '  %s found %d light clusters (rather than 1) for heavy cluster with size %d (%d pids) (overlaps: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(h_clust), len(getpids(h_atn)), ' '.join(str(len(o)) for o in l_overlaps))
+                l_overlaps = [h_pids & set(c) for c in l_clusts]
+                print '  %s found %d light clusters (rather than 1) for heavy cluster with size %d (%d pids) (overlaps: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(h_clust), len(h_pids), ' '.join(str(len(o)) for o in l_overlaps))
                 print '         h clust %s' % ':'.join(utils.color('blue_bkg', u) for u in h_clust)
                 for il, lct in enumerate(l_clusts):
-                    tpids = getpids(h_atn)
-                    print '        %s %s' % ('l clusts' if il==0 else '        ', ':'.join(utils.color('blue_bkg' if u in tpids else None, u) for u in lct))
+                    print '        %s %s' % ('l clusts' if il==0 else '        ', ':'.join(utils.color('blue_bkg' if u in h_pids else None, u) for u in lct))
             continue
         assert len(l_clusts) == 1
         if ':'.join(l_clusts[0]) not in l_atn_dict:
