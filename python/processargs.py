@@ -383,6 +383,8 @@ def process(args):
                 args.selection_metric_fname = treeutils.smetric_fname(args.outfname)
     args.selection_metrics_to_calculate = utils.get_arg_list(args.selection_metrics_to_calculate, choices=treeutils.selection_metrics)
     args.selection_metric_plot_cfg = utils.get_arg_list(args.selection_metric_plot_cfg, choices=treeutils.all_plot_cfg)
+    if args.invert_affinity and args.affinity_key is None:
+        raise Exception('--affinity-key must be set if setting --invert-affinity')
 
     if args.plot_annotation_performance:
         if args.plotdir is None and args.print_n_worst_annotations is None:
