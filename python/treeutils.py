@@ -1773,21 +1773,26 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     import plotting
     import lbplotting
     start = time.time()
-    print '           plotting to %s' % plotdir
     if inf_annotations is not None:
         assert is_simu
 
     plot_cfg = args.selection_metric_plot_cfg
     if plot_cfg is None:
         plot_cfg = all_plot_cfg
-    affy_key = 'affinities'
+    affy_label = None
     if args.affinity_key is not None:
-        affy_key = args.affinity_key
+        affy_label = args.affinity_key
         tmplines = [l for l in antn_list if args.affinity_key in l]
         if len(tmplines) == 0:
             print '  %s --affinity-key \'%s\' doesn\'t occur in any of the %d annotations' % (utils.wrnstr(), args.affinity_key, len(antn_list))
+        if any('affinities' in l for l in tmplines):
+            print '  %s overwriting existing \'affinities\' values with --affinity-key \'%s\'' % (utils.wrnstr(), args.affinity_key)
         for atn in tmplines:
             atn['affinities'] = atn[args.affinity_key]
+        if args.invert_affinity:
+            affy_label = '1/%s' % affy_label
+            for atn in tmplines:
+                atn['affinities'] = [1. / a if a is not None else a for a in atn['affinities']]
     has_affinities = any('affinities' in l for l in antn_list)
     if has_affinities and any('affinities' not in l for l in antn_list):  # if at least one has them, but not all of them do, add null values (this is kind of hackey, but it's way way better than handling some, but not all, of the lines missing affinities in all the differeing plotting fcns)
         for atn in [l for l in antn_list if 'affinities' not in l]:
@@ -1797,6 +1802,9 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
         print '      %s no affinity information in this simulation, so can\'t plot lb/affinity' % utils.color('yellow', 'note')
         return
 
+    if args.sub_plotdir is not None:
+        plotdir = '%s/%s' % (plotdir, args.sub_plotdir)
+    print '           plotting to %s' % plotdir
     utils.prep_dir(plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
     fnames = lbplotting.add_fn(None, init=True)
 
@@ -1804,7 +1812,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
         affy_fnames, slice_fnames = [[]], [[]]
         for mtr in [m for m in metrics_to_calc if m in affy_metrics]:
             if 'lb-vs-affy' in plot_cfg:
-                lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, affy_key=affy_key, debug=debug)
+                lbplotting.plot_lb_vs_affinity(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=affy_fnames, separate_rows=True, is_true_line=is_simu, affy_label=affy_label, debug=debug)
             if 'slice' in plot_cfg:
                 lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, paired=paired, n_bin_cfg_fname=args.slice_bin_fname, debug=debug)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', plotdir, mtr, antn_list, yvar=mtr+'-ptile', fnames=fnames, is_true_line=is_simu)
@@ -1840,6 +1848,9 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     if 'tree-mut-stats' in plot_cfg:
         plotting.plot_tree_mut_stats(plotdir + '/hmm/tree-mut-stats', antn_list, is_simu)  # only_leaves=True
 
+    if args.affinity_key is not None:
+        for atn in tmplines:
+            del atn['affinities']
     print '    selection metric plotting time: %.1f sec' % (time.time() - start)
 
 # ----------------------------------------------------------------------------------------
@@ -2089,35 +2100,36 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
     else:
         plstr, antn_list, is_simu, inf_annotations = 'true', true_lines_to_use, True, inf_lines_to_use
     if args.dtr_path is not None:  # it would be nice to eventually merge these two blocks, i.e. use the same code to plot dtr and lbi/lbr
-        if train_dtr:
-            print '  training decision trees into %s' % args.dtr_path
-            if dtr_cfgvals['n_train_per_family'] is not None:
-                print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
-            for cg in cgroups:
-                for tvar in dtr_targets[cg]:
-                    train_dtr_model(trainfo[cg][tvar], args.dtr_path, dtr_cfgvals, cg, tvar)
-        elif base_plotdir is not None:
-            assert true_lines_to_use is not None
-            plstart = time.time()
-            assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-            import plotting
-            import lbplotting
-            # if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
-            #     return
-            print '           plotting to %s' % base_plotdir
-            true_plotdir = base_plotdir + '/true-tree-metrics'
-            lbmlist = sorted(m for m in dtr_metrics if m not in missing_models)  # sorted() is just so the order in the html file matches that in the lb metric one
-            utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
-            fnames = []
-            for lbm in lbmlist:
-                if 'delta-affinity' in lbm:
-                    lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, true_lines_to_use, lbm, is_true_line=True, only_csv=args.only_csv_plots, fnames=fnames, debug=debug)
-                else:
-                    for affy_key in (['affinities', 'relative_affinities'] if args.include_relative_affy_plots else ['affinities']):
-                        lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, lbm, is_true_line=True, only_csv=args.only_csv_plots, fnames=fnames, affy_key=affy_key)
-            if not args.only_csv_plots:
-                plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
-            print '      dtr plotting time %.1fs' % (time.time() - plstart)
+        assert False  # needs updating
+        # if train_dtr:
+        #     print '  training decision trees into %s' % args.dtr_path
+        #     if dtr_cfgvals['n_train_per_family'] is not None:
+        #         print '     n_train_per_family: using only %d from each family for among-families dtr' % dtr_cfgvals['n_train_per_family']
+        #     for cg in cgroups:
+        #         for tvar in dtr_targets[cg]:
+        #             train_dtr_model(trainfo[cg][tvar], args.dtr_path, dtr_cfgvals, cg, tvar)
+        # elif base_plotdir is not None:
+        #     assert true_lines_to_use is not None
+        #     plstart = time.time()
+        #     assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
+        #     import plotting
+        #     import lbplotting
+        #     # if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
+        #     #     return
+        #     print '           plotting to %s' % base_plotdir
+        #     true_plotdir = base_plotdir + '/true-tree-metrics'
+        #     lbmlist = sorted(m for m in dtr_metrics if m not in missing_models)  # sorted() is just so the order in the html file matches that in the lb metric one
+        #     utils.prep_dir(true_plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lbmlist)
+        #     fnames = []
+        #     for lbm in lbmlist:
+        #         if 'delta-affinity' in lbm:
+        #             lbplotting.plot_lb_vs_ancestral_delta_affinity(true_plotdir+'/'+lbm, true_lines_to_use, lbm, is_true_line=True, only_csv=args.only_csv_plots, fnames=fnames, debug=debug)
+        #         else:
+        #             for affy_key in (['affinities', 'relative_affinities'] if args.include_relative_affy_plots else ['affinities']):
+        #                 lbplotting.plot_lb_vs_affinity(true_plotdir, true_lines_to_use, lbm, is_true_line=True, only_csv=args.only_csv_plots, fnames=fnames, affy_key=affy_key)
+        #     if not args.only_csv_plots:
+        #         plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
+        #     print '      dtr plotting time %.1fs' % (time.time() - plstart)
     elif base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir, debug=debug)
