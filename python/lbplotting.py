@@ -418,7 +418,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         plotdir += '-%s' % choice_str
     utils.prep_dir(plotdir, wildlings='*.svg')
     plotvals = {x : [] for x in vtypes}
-    basetitle = '%s %s vs %s%s' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', yvar, short=True), mtitlestr('per-seq', xvar, short=True).replace('- N', 'N'), title_str)  # here 'shm' the plain number of mutations, not 'shm' the non-lb metric, so we have to fiddle with the label in mtitle_cfg
+    basetitle = '' # '%s %s vs %s%s ' % ('true' if is_true_line else 'inferred', mtitlestr('per-seq', yvar, short=True), mtitlestr('per-seq', xvar, short=True).replace('- N', 'N'), title_str)  # here 'shm' the plain number of mutations, not 'shm' the non-lb metric, so we have to fiddle with the label in mtitle_cfg
     scatter_kwargs = {'xvar' : xvar, 'xlabel' : xlabel, 'colorvar' : colorvar, 'leg_loc' : (0.55, 0.75), 'log' : 'y' if 'lbr' in yvar else '', 'stats' : add_stats}
     if use_relative_affy:
         add_warn('relative affinity', scatter_kwargs)
@@ -513,7 +513,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             iclust_plotvals[xvar] = plotting.add_jitter(iclust_plotvals[xvar], delta=100. - min_ptile if '-ptile' in xvar else None, frac=0.02)
             iskargs['xlabel'] += ' (+jitter)'
         if not only_overall:
-            title = '%s (%d observed, %d total)' % (basetitle, len(line['unique_ids']), len(lbfo))
+            title = '%siclust %d: %d observed, %d total' % (basetitle, iclust, len(line['unique_ids']), len(lbfo))
             tmpplotname = '%s%s-vs-%s%s-iclust-%d' % (rel_affy_str(yvar, use_relative_affy), yvar, rel_affy_str(yvar, use_relative_affy), xvar, iclust)
             for vname in [v for v in [xvar, yvar] if n_null[v] > 0]:
                 add_warn('%s for %d / %d' % (vname, len(line['unique_ids']) - n_null[vname], len(line['unique_ids'])), iskargs)
@@ -544,7 +544,7 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
             add_warn('%s for %d / %d' % (vname, n_tot - n_total_null[vname], n_tot), scatter_kwargs)
         if add_jitter:
             scatter_kwargs['xlabel'] += ' (+jitter)'
-        fn = plot_2d_scatter(tmpplotname, plotdir, plotvals, yvar, ylabel, '%s (%s)' % (basetitle, all_clust_str(len(sorted_lines))), **scatter_kwargs)
+        fn = plot_2d_scatter(tmpplotname, plotdir, plotvals, yvar, ylabel, '%s%s' % (basetitle, all_clust_str(len(sorted_lines))), **scatter_kwargs)
         add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
