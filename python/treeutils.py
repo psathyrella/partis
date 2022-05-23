@@ -1816,16 +1816,17 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
             if 'slice' in plot_cfg:
                 lbplotting.make_lb_vs_affinity_slice_plots(plotdir, antn_list, mtr, only_csv=args.only_csv_plots, fnames=slice_fnames, separate_rows=True, is_true_line=is_simu, paired=paired, n_bin_cfg_fname=args.slice_bin_fname, debug=debug)
             # lbplotting.make_lb_scatter_plots('affinity-ptile', plotdir, mtr, antn_list, yvar=mtr+'-ptile', fnames=fnames, is_true_line=is_simu)
-        fnames += [['header', 'affinity metrics']] + affy_fnames + slice_fnames
+        fnames += [['header', 'affinity metrics: %s'%' '.join([m for m in metrics_to_calc if m in affy_metrics])]] + affy_fnames + slice_fnames
         if 'joy' in plot_cfg and not args.only_csv_plots:
             fnames.append([])
             for mtr in metrics_to_calc:
                 lbplotting.make_lb_affinity_joyplots(plotdir + '/joyplots', antn_list, mtr, fnames=fnames)
         if 'lb-vs-daffy' in plot_cfg:
+            dametrics = [m for m in metrics_to_calc if m in daffy_metrics]
             daffy_fnames = [[]]
-            for mtr in [m for m in metrics_to_calc if m in daffy_metrics]:
-                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + mtr, antn_list, mtr, is_true_line=is_simu, only_csv=args.only_csv_plots, fnames=daffy_fnames, separate_rows=True, debug=debug)
-            fnames += [['header', 'delta-affinity metrics']] + daffy_fnames
+            for mtr in dametrics:
+                lbplotting.plot_lb_vs_ancestral_delta_affinity(plotdir + '/' + mtr, antn_list, mtr, is_true_line=is_simu, only_csv=args.only_csv_plots, fnames=daffy_fnames, separate_rows=True, n_per_row=2*len(dametrics), debug=debug)
+            fnames += [['header', 'delta-affinity metrics: %s'%' '.join(dametrics)]] + daffy_fnames
     if ('distr' in plot_cfg or not has_affinities) and not args.only_csv_plots:
         for mtr in metrics_to_calc:
             lbplotting.plot_lb_distributions(mtr, plotdir, antn_list, is_true_line=is_simu, fnames=fnames, only_overall=False, n_iclust_plot_fnames=None if has_affinities else 8) #, stats='mean:max')
@@ -1994,7 +1995,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, dont_normalize_lbi=False, extra_s
 def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                  train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, only_use_best_partition=False, glfo=None, gctree_outdir=None, debug=False):
     min_cluster_size = args.min_selection_metric_cluster_size  # default_min_selection_metric_cluster_size
-    print 'getting selection metrics: %s' % ' '.join(metrics_to_calc)
+    print '  getting selection metrics: %s' % ' '.join(metrics_to_calc)
     if reco_info is not None:
         if not use_true_clusters:
             print '    note: getting selection metrics on simulation without setting <use_true_clusters> (i.e. probably without setting --simultaneous-true-clonal-seqs)'
@@ -2038,13 +2039,13 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
                 line['tree-info'] = {'lb' : {}}
             if treefos is not None:
                 trfo = treefos[iclust]
-                if trfo['tree'] is not None:
+                if trfo is not None and trfo['tree'] is not None:
                     line['tree-info']['lb']['tree'] = trfo['tree'].as_string(schema='newick')
             if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(line, line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # this adds the values both directly to the <line>, and to <line['tree-info']['lb']>, but the former won't end up in the output file unless the corresponding keys are specified as extra annotation columns (this distinction/duplication is worth having, although it's not ideal)
 
             if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):
-                if trfo['tree'] is None and trfo['origin'] == 'no-uids':
+                if trfo is None or trfo['tree'] is None and trfo['origin'] == 'no-uids':
                     n_skipped_uid += 1
                     continue
                 if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf']):
@@ -2506,7 +2507,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         _, cids = zip(*[get_did(gsval(mfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
         dids = both_dids(mfo)  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
         if len(set(dids)) == 1:  # if they have the same droplet id (data or correctly paired simulation)
-            if is_simu:  # in simulation the droplet ids should be unique, sowe can just use the droplet id as the combined id
+            if is_simu or args.use_droplet_id_for_combo_id:  # in simulation the droplet ids should be unique, so we can just use the droplet id as the combined id
                 return dids[0]
             else:  # but in data we can get multiple cells per droplet id
                 return '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
