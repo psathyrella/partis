@@ -31,6 +31,7 @@ class PartitionPlotter(object):
         self.n_plots_per_row = 4
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
+        self.min_pairwise_cluster_size = 7
         self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
         self.laplacian_spectra_min_clusters_size = 4
@@ -56,12 +57,11 @@ class PartitionPlotter(object):
         return title
 
     # ----------------------------------------------------------------------------------------
-    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, repfrac_ylabel=True, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
+    def make_cluster_scatter(self, plotdir, plotname, xfcn, yfcn, clusters_to_use, annotations, repertoire_size, min_csize, dxy=0.1, log_cluster_size=False, xlabel='?', xbounds=None, repfrac_ylabel=True, colorfcn=None, leg_title=None,
+                             alpha=0.65, title=''):
         # ----------------------------------------------------------------------------------------
-        def add_emph_clusters(sorted_clusters):
-            for cluster in sorted_clusters:
-                if len(cluster) < self.size_vs_shm_min_cluster_size:
-                    continue
+        def add_emph_clusters():
+            for cluster in clusters_to_use:
                 tqtis = set()  # queries to emphasize in this cluster
                 if self.args.queries_to_include is not None:
                     tqtis |= set(cluster) & set(self.args.queries_to_include)
@@ -70,32 +70,34 @@ class PartitionPlotter(object):
                     tqtis.add(utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats))
                 if len(tqtis) == 0:
                     continue
-                xval, yval = numpy.mean(getnmutelist(cluster)), len(cluster)  # it kind of sucks to recalulate the x and y vals here, but by default (i.e. no emphasis) we don't keep track of which cluster goes with which x val, and it's nice to keep that simple
+                xval, yval = xfcn(cluster), yfcn(cluster)  # it kind of sucks to recalulate the x and y vals here, but by default (i.e. no emphasis) we don't keep track of which cluster goes with which x val, and it's nice to keep that simple
                 if log_cluster_size:
                     yval = math.log(yval)
-                ax.plot([xval], [yval], color='red', marker='.', markersize=5)
-                ax.text(xval + 0.1, yval + (0.01 if log_cluster_size else 0.1), ' '.join(tqtis), color='red', fontsize=8)
+                ax.plot([xval], [yval], color='red', marker='.', markersize=2)
+                ax.text(xval + dxy, yval + (0.01 if log_cluster_size else 0.1), ' '.join(tqtis), color='red', fontsize=8)
 
         # ----------------------------------------------------------------------------------------
-        import matplotlib.pyplot as plt
-        def getnmutelist(cluster):
-            return annotations[':'.join(cluster)]['n_mutations']
 
-        fig, ax = self.plotting.mpl_init()
-
-        clusters_to_use = [cluster for cluster in sorted_clusters if numpy.mean(getnmutelist(cluster)) < self.n_max_mutations]  # have to do it as a separate line so the zip/* don't crash if no clusters pass the criterion
         skipped_small_clusters = False
         if len(clusters_to_use) > self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size:  # if repertoire is really big, ignore smaller clusters to keep the plots from being huge
-            clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= self.size_vs_shm_min_cluster_size]
+            clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= min_csize]
             skipped_small_clusters = True
         if len(clusters_to_use) == 0:
-            print '  %s no clusters to plot for hexbin size vs shm' % utils.color('yellow', 'warning')
+            print '  %s no clusters to plot for cluster size scatter' % utils.color('yellow', 'warning')
             return
-        xvals, yvals = zip(*[[numpy.mean(getnmutelist(cluster)), len(cluster)] for cluster in clusters_to_use])
+        xvals, yvals = zip(*[[xfcn(cluster), yfcn(cluster)] for cluster in clusters_to_use])
         if log_cluster_size:
             yvals = [math.log(yv) for yv in yvals]
-        # hb = ax.hexbin(xvals, yvals, gridsize=self.n_max_mutations, cmap=plt.cm.Blues, bins='log')
-        hb = ax.scatter(xvals, yvals, alpha=0.4)
+        colors = None
+        if colorfcn is not None:  # this is mostly copied from lbplotting.plot_2d_scatter()
+            colorvals = [colorfcn(c) for c in clusters_to_use]
+            smap = self.plotting.get_normalized_scalar_map(colorvals, 'viridis')
+            smfcn = lambda x: 'grey' if x is None else self.plotting.get_smap_color(smap, None, val=x)
+            colors = [smfcn(c) for c in colorvals]
+            leg_entries = self.plotting.get_leg_entries(vals=colorvals, colorfcn=smfcn)
+            self.plotting.plot_legend_only(leg_entries, plotdir, plotname+'-legend', title=leg_title, n_digits=2)
+        fig, ax = self.plotting.mpl_init()
+        hb = ax.scatter(xvals, yvals, c=colors, alpha=alpha)
 
         nticks = 5
         ymin, ymax = yvals[-1], yvals[0]
@@ -109,15 +111,31 @@ class PartitionPlotter(object):
 
         # if necessary, add red labels to clusters
         if self.args.queries_to_include is not None or self.args.meta_info_to_emphasize is not None:
-            add_emph_clusters(sorted_clusters)
+            add_emph_clusters()
 
         ylabel = ('family size\n(frac. of %d)' % repertoire_size) if repfrac_ylabel else 'clonal family size'
         if log_cluster_size:
             ylabel = '(log) ' + ylabel
             plotname += '-log'
         if skipped_small_clusters:
-            fig.text(0.8, 0.25, 'skipping clusters\nsmaller than %d' % self.size_vs_shm_min_cluster_size, color='green', fontsize=8)
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel='mean N mutations', ylabel=ylabel, xbounds=(0, self.n_max_mutations), ybounds=(ymin, 1.05 * ymax), yticks=yticks, yticklabels=yticklabels)
+            fig.text(0.8, 0.25, 'skipping clusters\nsmaller than %d' % min_csize, color='green', fontsize=8)
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=(ymin, 1.05 * ymax), yticks=yticks, yticklabels=yticklabels, title=title, leg_title=leg_title)
+
+    # ----------------------------------------------------------------------------------------
+    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
+        def mean_mutations(cluster):
+            return numpy.mean(annotations[':'.join(cluster)]['n_mutations'])
+
+        clusters_to_use = [cluster for cluster in sorted_clusters if mean_mutations(cluster) < self.n_max_mutations]  # have to do it as a separate line so the zip/* don't crash if no clusters pass the criterion
+        skipped_small_clusters = False
+        if len(clusters_to_use) > self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size:  # if repertoire is really big, ignore smaller clusters to keep the plots from being huge
+            clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= self.size_vs_shm_min_cluster_size]
+            skipped_small_clusters = True
+        if len(clusters_to_use) == 0:
+            print '  %s no clusters to plot for hexbin size vs shm' % utils.color('yellow', 'warning')
+            return
+
+        self.make_cluster_scatter(plotdir, plotname, mean_mutations, len, clusters_to_use, annotations, repertoire_size, self.size_vs_shm_min_cluster_size, log_cluster_size=log_cluster_size, xlabel='mean N mutations', xbounds=(0, self.n_max_mutations))
 
     # ----------------------------------------------------------------------------------------
     def addfname(self, fnames, fname, force_new_row=False):
@@ -297,6 +315,26 @@ class PartitionPlotter(object):
         for wfn in workfnames:
             os.remove(wfn)
         return [[subd + '/' + fn for fn in fnames[0]]]
+
+    # ----------------------------------------------------------------------------------------
+    def make_pairwise_diversity_plots(self, base_plotdir, sorted_clusters, annotations):
+        def antn(c): return annotations[':'.join(c)]
+        subd, plotdir = self.init_subd('diversity', base_plotdir)
+
+        repertoire_size = sum([len(c) for c in sorted_clusters])
+        for cluster in sorted_clusters:
+            utils.add_seqs_aa(antn(cluster))
+
+        fnlist = []
+        for tstr in ['nuc', 'aa']:
+            skey = '' if tstr=='nuc' else '_aa'
+            def pwfcn(c): return utils.mean_pairwise_hdist(antn(c)['seqs%s'%skey], amino_acid=tstr=='aa')
+            def mean_mutations(c): return numpy.mean(antn(c)['n_mutations'] if tstr=='nuc' else [utils.shm_aa(antn(c), iseq=i) for i in range(len(antn(c)['unique_ids']))])
+            fname = 'mean-pairwise-hdist-%s' % tstr
+            self.make_cluster_scatter(plotdir, fname, pwfcn, len, sorted_clusters, annotations, repertoire_size, self.min_pairwise_cluster_size, dxy=0.003, log_cluster_size=True,
+                                      xlabel='mean pairwise %s distance'%tstr, colorfcn=mean_mutations, title='pairwise %s diversity'%tstr, leg_title='N %s muts'%tstr) #, xbounds=(0, self.n_max_mutations))
+            fnlist += ['%s/%s-%s.svg' % (subd, fname, fstr) for fstr in ['legend', 'log']]
+        return [fnlist]
 
     # ----------------------------------------------------------------------------------------
     def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, aa=False, debug=False):
@@ -620,16 +658,18 @@ class PartitionPlotter(object):
         fnames = []
         self.remove_failed_clusters(partition, annotations)
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
+
         fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
+        fnames += self.make_pairwise_diversity_plots(plotdir, sorted_clusters, annotations)
         fnames += self.make_bubble_plots(sorted_clusters, annotations, plotdir)
-        if not no_mds_plots:
-            fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
-        # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
-        # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
+        # if not no_mds_plots:
+        #     fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
         csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)
         fnames[0] += csfns[0]
+        # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+        # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
 
-        subdirs = ['shm-vs-size', 'mds', 'bubble'] #, 'laplacian-spectra']  # , 'sfs
+        subdirs = ['shm-vs-size', 'mds', 'bubble', 'diversity'] #, 'laplacian-spectra']  # , 'sfs
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd) for subd in subdirs])
 

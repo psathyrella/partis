@@ -3539,10 +3539,16 @@ def get_mut_codes(naive_seq, obs_seq, amino_acid=False, debug=False):  # return 
     return mcodes
 
 # ----------------------------------------------------------------------------------------
-def mean_pairwise_hfrac(seqlist):
+def mean_pairwise_hfrac(seqlist, amino_acid=False):
     if len(seqlist) < 2:
         return 0.
-    return numpy.mean([hamming_fraction(s1, s2) for s1, s2 in itertools.combinations(seqlist, 2)])
+    return numpy.mean([hamming_fraction(s1, s2, amino_acid=amino_acid) for s1, s2 in itertools.combinations(seqlist, 2)])
+
+# ----------------------------------------------------------------------------------------
+def mean_pairwise_hdist(seqlist, amino_acid=False):
+    if len(seqlist) < 2:
+        return 0.
+    return numpy.mean([hamming_distance(s1, s2, amino_acid=amino_acid) for s1, s2 in itertools.combinations(seqlist, 2)])
 
 # ----------------------------------------------------------------------------------------
 def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters correctly (also NOTE <aa> has no effect
