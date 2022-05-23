@@ -888,6 +888,7 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
     plt.close()
 
 # ----------------------------------------------------------------------------------------
+# NOTE can use get_leg_entries()
 def plot_legend_only(leg_entries, plotdir, plotname, title=None, n_digits=None):
     if len(leg_entries) == 0:
         return
