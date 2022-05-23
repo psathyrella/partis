@@ -808,7 +808,7 @@ def get_mean_ptile_vals(n_clusters, ptile_vals, xvar, debug=False):  # NOTE kind
     return outvals
 
 # ----------------------------------------------------------------------------------------
-def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?', title=None, fnames=None, true_inf_str='?', n_clusters=None, iclust=None, within_cluster_average=False, xlist=None, use_relative_affy=False, title_str=''):
+def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?', title=None, fnames=None, true_inf_str='?', n_clusters=None, iclust=None, within_cluster_average=False, xlist=None, use_relative_affy=False, title_str='', n_per_row=4):
     if 'lb_ptiles' not in tmp_ptvals or len(tmp_ptvals['lb_ptiles']) == 0:
         return
 
@@ -868,12 +868,12 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
     fn = plotting.mpl_finish(ax, plotdir, plotname, xbounds=ptile_range_tuple(xvar), ybounds=ybounds, leg_loc=leg_loc,
                              title='%s%s%s' % (ungetptlabel(xvar), '' if iclust is None else ', iclust %d'%iclust, title_str),
                              xlabel='%s threshold (percentile)' % ylabel, ylabel=ptile_ylabel, adjust={'left' : 0.21}, legend_fontsize=14)
-    add_fn(fnames, fn=fn)
+    add_fn(fnames, fn=fn, n_per_row=n_per_row)
 
 # ----------------------------------------------------------------------------------------
 def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, use_quantile=False, paired=False, n_bin_cfg_fname=None, make_slice_ptile_plots=False, debug=False):
     # make_slice_ptile_plots = True
-    debug = True
+    # debug = True
     n_bin_cfg = {'default' : 5}
     if n_bin_cfg_fname is not None:
         with open(n_bin_cfg_fname) as cfile:
@@ -944,14 +944,15 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
         if isinstance(bincfg, list):  # explicit list of bin low edges
             xbins = [x for x in bincfg]  # maybe we'll modify it, so safer to copy
             n_bins = len(xbins) - 1
-            print '    using bins specified in cfg:'
+            if debug:
+                print '    using bins specified in cfg:'
             if xbins != sorted(xbins):
                 raise Exception('xbins not sorted: %s' % xbins)
-            hutils.auto_bin_expand(all_vals, xbins, int_bins=int_bins, debug=True)
+            hutils.auto_bin_expand(all_vals, xbins, int_bins=int_bins, debug=debug)
         else:
             n_bins = bincfg
             # xbins = hutils.autobins(all_vals, n_bins)  # note that this fcn pads a bit to avoid over/underflows
-            xbins, n_bins = hutils.auto_volume_bins(all_vals, n_bins, int_bins=int_bins, min_xdist=2, debug=True)  # NOTE may reset n_bins (mostly will return fewer if int_bins is set)
+            xbins, n_bins = hutils.auto_volume_bins(all_vals, n_bins, int_bins=int_bins, min_xdist=2, debug=debug)  # NOTE may reset n_bins (mostly will return fewer if int_bins is set)
         assert len(xbins) == n_bins + 1
         if all_vals[0] < xbins[0] or all_vals[-1] > xbins[-1]:
             print '  %s %s values (%.3f or %.3f) outside of lowest/highest x bins %.3f %.3f' % (utils.wrnstr(), slvar, all_vals[0], all_vals[-1], xbins[0], xbins[-1])
@@ -1230,7 +1231,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, use_r
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, max_scatter_plot_size=3000, max_iclust_plots=10,
-                                        only_look_upwards=False, only_distr_plots=False, debug=False):
+                                        only_look_upwards=False, only_distr_plots=False, n_per_row=4, debug=False):
     # plot lb[ir] vs both number of ancestors and branch length to nearest affinity decrease (well, decrease as you move upwards in the tree/backwards in time)
     # ----------------------------------------------------------------------------------------
     def init_pvals():
@@ -1287,7 +1288,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
         xlstr = 'affinity change' if xvar=='daffy' else '%s to nearest affinity increase' % xlabel
         fn = plot_2d_scatter('%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust)), getplotdir(xvar), plotvals, lb_metric, mtitlestr('per-seq', lb_metric), title, xvar=xvar, xlabel=xlstr, log='' if 'lbr' in lb_metric else '', stats='correlation' if xvar=='daffy' else None)
-        add_fn(tfns, fn=fn)
+        add_fn(tfns, fn=fn, n_per_row=n_per_row)
     # ----------------------------------------------------------------------------------------
     def make_perf_distr_plot(dhists, xvar, iclust=None, tfns=None):
         if dhists is None:
@@ -1296,37 +1297,45 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
         plotname = '%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust))
         tpdir = getplotdir(xvar, extrastr='-perf-distr')
         normalize, colors = False, ['#006600', 'darkred']
+        if xvar == 'n-ancestor':
+            leg_title = 'N steps to\naff. increase'
+        else:
+            leg_title = 'affinity'
+            colors.insert(0, 'grey')
         if len(dhists) > len(colors):
             normalize = True
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
         plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
-                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, linewidths=[5, 3, 2], leg_title='N steps to\naff. increase', translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
-        add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname))
+                              errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, linewidths=[5, 3, 2], leg_title=leg_title, translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
+        add_fn(tfns, fn='%s/%s.svg'%(tpdir, plotname), n_per_row=n_per_row)
     # ----------------------------------------------------------------------------------------
     def get_distr_hists(plotvals, xvar, max_bin_width=1., min_bins=30, extra_hists=False, iclust=None):
         # ----------------------------------------------------------------------------------------
         def gethist(tstr, vfcn):  # NOTE similarity to fcn above
-            vlist = [v for v, n in zip(plotvals[lb_metric], plotvals['n-ancestor']) if vfcn(n)]
+            vlist = [v for v, n in zip(plotvals[lb_metric], plotvals[xvar]) if vfcn(n)]
             return Hist(n_bins=n_bins, xmin=xmin, xmax=xmax, title=tstr, value_list=vlist)
         # ----------------------------------------------------------------------------------------
-        if xvar != 'n-ancestor':  # NOTE might also be worth making distr hists for daffy? but don't want to deal with it now
-            return None
         if len(plotvals[xvar]) == 0:
             return None
         # xmin, xmax = [tfac * mfcn(plotvals[lb_metric]) for mfcn, tfac in zip((min, max), (0.9, 1.1))]
-        xmin = 0.
-        xmax = 1.01 * max(plotvals[lb_metric])  # this is the low edge of the overflow bin, so needs to be a bit above the biggest value
+        xmin, xmax = 0., 1.01 * max(plotvals[lb_metric])  # this is the low edge of the overflow bin, so needs to be a bit above the biggest value
         n_bins = max(min_bins, int((xmax - xmin) / max_bin_width))  # for super large lbr values like 100 you need way more bins
-        zero_hist = gethist('zero', lambda n: n == 0)  # lb values for nodes that are immediately below affy-increasing branch
-        # <0 is a bit further right than >0, and abs(v)==1 is a bit further right than >1, but these differences are all small compared to the difference to ==0, which is much further right (this is in quick[ish] tests, not doing full parameter scans)
-        if extra_hists:
-            m_one_hist = gethist('-1', lambda n: n == -1)
-            p_one_hist = gethist('+1', lambda n: n == 1)
-            g_one_hist = gethist('|n|>1', lambda n: abs(n) > 1)
-            dhists = [g_one_hist, m_one_hist, p_one_hist, zero_hist]
+        if xvar == 'n-ancestor':
+            zero_hist = gethist('zero', lambda n: n == 0)  # lb values for nodes that are immediately below affy-increasing branch
+            # <0 is a bit further right than >0, and abs(v)==1 is a bit further right than >1, but these differences are all small compared to the difference to ==0, which is much further right (this is in quick[ish] tests, not doing full parameter scans)
+            if extra_hists:
+                m_one_hist = gethist('-1', lambda n: n == -1)
+                p_one_hist = gethist('+1', lambda n: n == 1)
+                g_one_hist = gethist('|n|>1', lambda n: abs(n) > 1)
+                dhists = [g_one_hist, m_one_hist, p_one_hist, zero_hist]
+            else:
+                other_hist = gethist('not 0', lambda n: abs(n) > 0)  # not perfect
+                dhists = [other_hist, zero_hist]
         else:
-            other_hist = gethist('not 0', lambda n: abs(n) > 0)  # not perfect
-            dhists = [other_hist, zero_hist]
+            const_hist = gethist('constant', lambda a: a == 0)
+            incr_hist = gethist('increase', lambda a: a > 0)
+            decr_hist = gethist('decrease', lambda a: a < 0)
+            dhists = [const_hist, decr_hist, incr_hist]
         return dhists
     # ----------------------------------------------------------------------------------------
     def ptile_plotname(xvar, iclust, extra_str=None):
@@ -1366,13 +1375,13 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
                 if not only_distr_plots:
                     make_scatter_plot(iclust_plotvals, xvar, iclust=iclust, tfns=nsfns if len(lines)==1 else None) #iclust_fnames if iclust < 3 else None)
                     make_ptile_plot(iclust_ptile_vals, xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, iclust), xlist=iclust_plotvals[xvar],
-                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), true_inf_str=true_inf_str, iclust=iclust, fnames=wptfns if len(lines)==1 else None)  #iclust_fnames if len(lines)==1 else None)
+                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), true_inf_str=true_inf_str, iclust=iclust, fnames=wptfns if len(lines)==1 else None, n_per_row=n_per_row)  #iclust_fnames if len(lines)==1 else None)
 
         if 'among-families' not in lb_metric and not only_csv:
             pt_vals['per-seq']['within-families-mean'] = get_mean_ptile_vals(len(lines), pt_vals['per-seq'], xvar)
             if len(lines) > 1 and not only_distr_plots:
                 make_ptile_plot(pt_vals['per-seq']['within-families-mean'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None, extra_str='within-cluster-average'),
-                                xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=wptfns, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, xlist=per_seq_plotvals[xvar])
+                                xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=wptfns, true_inf_str=true_inf_str, n_clusters=len(lines), within_cluster_average=True, xlist=per_seq_plotvals[xvar], n_per_row=n_per_row)
 
         if 'within-families' not in lb_metric:
             pt_vals['per-seq']['all-clusters'] = get_ptile_vals(lb_metric, per_seq_plotvals, xvar, xlabel, dbgstr='all clusters', debug=debug)  # "averaged" might be a better name than "all", but that's longer
@@ -1382,7 +1391,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
                 if not only_distr_plots:
                     make_scatter_plot(per_seq_plotvals, xvar, tfns=nsfns)
                     make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
-                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=aptfns, true_inf_str=true_inf_str, n_clusters=len(lines))
+                                    xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=aptfns, true_inf_str=true_inf_str, n_clusters=len(lines), n_per_row=n_per_row)
 
         with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
             n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
