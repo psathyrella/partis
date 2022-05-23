@@ -127,14 +127,6 @@ class PartitionPlotter(object):
             return numpy.mean(annotations[':'.join(cluster)]['n_mutations'])
 
         clusters_to_use = [cluster for cluster in sorted_clusters if mean_mutations(cluster) < self.n_max_mutations]  # have to do it as a separate line so the zip/* don't crash if no clusters pass the criterion
-        skipped_small_clusters = False
-        if len(clusters_to_use) > self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size:  # if repertoire is really big, ignore smaller clusters to keep the plots from being huge
-            clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= self.size_vs_shm_min_cluster_size]
-            skipped_small_clusters = True
-        if len(clusters_to_use) == 0:
-            print '  %s no clusters to plot for hexbin size vs shm' % utils.color('yellow', 'warning')
-            return
-
         self.make_cluster_scatter(plotdir, plotname, mean_mutations, len, clusters_to_use, annotations, repertoire_size, self.size_vs_shm_min_cluster_size, log_cluster_size=log_cluster_size, xlabel='mean N mutations', xbounds=(0, self.n_max_mutations))
 
     # ----------------------------------------------------------------------------------------
