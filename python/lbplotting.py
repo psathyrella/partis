@@ -706,9 +706,9 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return fn
 
 # ----------------------------------------------------------------------------------------
-def get_actual_ptval(plotvals, xvar, ptile):
-    npval = numpy.percentile(plotvals[xvar], ptile)  # numpy sometimes returns a value in between actual values in the list, or due to precision issues even slightly larger or smaller than any value in the list
-    nearvals = sorted(set(plotvals[xvar]), key=lambda x: abs(x - npval))  # sort by nearness to <npval>
+def get_actual_ptval(plotvals, pvr, ptile):
+    npval = numpy.percentile(plotvals[pvr], ptile)  # numpy sometimes returns a value in between actual values in the list, or due to precision issues even slightly larger or smaller than any value in the list
+    nearvals = sorted(set(plotvals[pvr]), key=lambda x: abs(x - npval))  # sort by nearness to <npval>
     return nearvals[0]  # return the nearest one
 
 # ----------------------------------------------------------------------------------------
