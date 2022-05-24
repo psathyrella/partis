@@ -226,7 +226,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
                 }
         return nodefo
     # ----------------------------------------------------------------------------------------
-    def get_mature_line(sfos, naive_line, glfo, nodefo, dtree, target_sfos, dup_translations, locus=None):
+    def get_mature_line(sfos, naive_line, glfo, nodefo, dtree, target_sfos, dup_translations=None, locus=None):
         assert len(naive_line['unique_ids']) == 1  # enforces that we ran naive-only, 1-leaf partis simulation above
         assert not indelutils.has_indels(naive_line['indelfos'][0])  # would have to handle this below
         if args.debug:
@@ -278,7 +278,8 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
                 nodefo[new_id] = nodefo[old_id]
                 del nodefo[old_id]
             treeutils.translate_labels(ftree, [(o, n) for o, n in tmp_trns.items()])
-        dup_translations.update(tmp_trns)
+        if dup_translations is not None:
+            dup_translations.update(tmp_trns)
 
         # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
         if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
@@ -334,7 +335,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         mpair = []
         dup_translations = {}
         for tline, sfos, tsfos in zip(naive_events[ievent], split_seqfos(seqfos), split_seqfos(target_seqfos)):
-            mpair.append(get_mature_line(sfos, tline, glfos[tline['loci'][0]], nodefo, dtree, target_seqfos, dup_translations, locus=tline['loci'][0]))
+            mpair.append(get_mature_line(sfos, tline, glfos[tline['loci'][0]], nodefo, dtree, target_seqfos, dup_translations=dup_translations, locus=tline['loci'][0]))
         translate_duplicate_pids(mpair, dup_translations)
         return mpair
     else:
@@ -508,7 +509,7 @@ parser.add_argument('--target-count', type=int, default=1, help='Number of targe
 parser.add_argument('--n-target-clusters', type=int, help='number of cluster into which to divide the --target-count target seqs (see bcr-phylo docs)')
 parser.add_argument('--min-target-distance', type=int, help='see bcr-phylo docs')
 parser.add_argument('--min-effective-kd', type=float, help='see bcr-phylo docs')
-parser.add_argument('--affinity-measurement-error', type=float, help='If set, replace \'affinities\' in final partis line with new values smeared with a normal distribution with this width')
+parser.add_argument('--affinity-measurement-error', type=float, help='Fractional measurement error on affinity: if set, replace \'affinities\' in final partis line with new values smeared with a normal distribution with this fractional width, i.e. <a> is replaced with a value drawn from a normal distribution with mean <a> and width <f>*<a> for this fraction <f>.')
 parser.add_argument('--n-initial-seqs', type=int, help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
@@ -549,6 +550,10 @@ if args.rearr_extra_args is not None:
     args.rearr_extra_args = args.rearr_extra_args.replace('@', ' ')  # ick this sucks
 if args.inf_extra_args is not None:
     args.inf_extra_args = args.inf_extra_args.replace('@', ' ')  # ick this sucks
+if args.affinity_measurement_error is not None:
+    assert args.affinity_measurement_error >= 0
+    if args.affinity_measurement_error > 1:
+        print '  note: --affinity-measurement-error %.2f is greater than 1 -- this is fine as long as it\'s on purpose, but will result in smearing by a normal with width larger than each affinity value (and probably result in some negative values).' % args.affinity_measurement_error
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 
