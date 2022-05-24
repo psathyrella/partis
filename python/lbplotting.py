@@ -1029,7 +1029,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
 
 # ----------------------------------------------------------------------------------------
 def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, use_relative_affy=False, affy_label=None, only_csv=False, no_plot=False, fnames=None, separate_rows=False, add_uids=False,
-                        colorvar=None, max_scatter_plot_size=3000, max_iclust_plots=10, title_str='', debug=False):
+                        colorvar=None, max_scatter_plot_size=5000, max_iclust_plots=10, title_str='', debug=False):
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line):
         plotvals = {vt : [] for vt in vtypes + ['uids']}
@@ -1296,14 +1296,14 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
         plotname = '%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust))
         tpdir = getplotdir(xvar, extrastr='-perf-distr')
-        normalize, colors = False, ['#006600', 'darkred']
+        normalize, colors = True, ['#006600', 'darkred']
         if xvar == 'n-ancestor':
             leg_title = 'N steps to\naff. increase'
         else:
             leg_title = 'affinity'
             colors.insert(0, 'grey')
         if len(dhists) > len(colors):
-            normalize = True
+            # normalize = True
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
         plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
                               errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, linewidths=[5, 3, 2], leg_title=leg_title, translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
