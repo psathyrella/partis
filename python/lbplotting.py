@@ -353,7 +353,7 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
 
 # ----------------------------------------------------------------------------------------
 def get_tree_in_line(line, is_true_line, aa=False):  # NOTE unlike treeutils.get_trees_for_annotations() this just looks to see if there's a tree already in the line
-    if is_true_line:
+    if is_true_line and not aa:  # this is weird and ugly
         return line['tree']
     if 'tree-info' not in line:  # if 'tree-info' is missing, it should be because it's a small cluster in data that we skipped when calculating lb values
         return None
