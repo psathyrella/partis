@@ -706,6 +706,12 @@ def plot_2d_scatter(plotname, plotdir, plotvals, yvar, ylabel, title, xvar='affi
     return fn
 
 # ----------------------------------------------------------------------------------------
+def get_actual_ptval(plotvals, xvar, ptile):
+    npval = numpy.percentile(plotvals[xvar], ptile)  # numpy sometimes returns a value in between actual values in the list, or due to precision issues even slightly larger or smaller than any value in the list
+    nearvals = sorted(set(plotvals[xvar]), key=lambda x: abs(x - npval))  # sort by nearness to <npval>
+    return nearvals[0]  # return the nearest one
+
+# ----------------------------------------------------------------------------------------
 def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, dbgstr=None, use_relative_affy=False, return_distr_hists=False, max_bin_width=0.2, min_bins=30, debug=False):
     # NOTE xvar and xlabel refer to the x axis on the scatter plot from which we make this ptile plot (i.e. are affinity, N ancestors, or branch length). On this ptile plot it's the y axis. (I tried calling it something else, but it was more confusing)
     if xvar == 'n-ancestor':
@@ -727,7 +733,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, dbgstr=None, use_relative_
         corr_ptile_vals = [stats.percentileofscore(np_arr_sorted_xvals, x, kind='weak') for x in plotvals[xvar]]  # x (e.g. affinity) percentile of each plot val (could speed this up by only using the best half of each list (since ptiles are starting at 50))
         perf_ptile_vals = sorted(corr_ptile_vals, reverse=True)  # x (e.g. affinity) percentile or each plot val, *after sorting by x* (e.g. affinity)
     for percentile in numpy.arange(*ptile_range_tuple(xvar)):
-        lb_ptile_val = min(max_lb_val, numpy.percentile(plotvals[lb_metric], percentile))  # lb value corresponding to <percentile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
+        lb_ptile_val = get_actual_ptval(plotvals, lb_metric, percentile)  # lb value corresponding to <percentile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
         final_xvar_vals = [pt for lb, pt in zip(plotvals[lb_metric], corr_ptile_vals if xia else plotvals[xvar]) if lb >= lb_ptile_val]  # percentiles (if xia, else plain xvals [i.e. N ancestors or branch length]) corresponding to lb greater than <lb_ptile_val> (i.e. the ptiles for the x vals that you'd get if you took all the lb values greater than that)
         tmp_ptvals['lb_ptiles'].append(float(percentile))  # stupid numpy-specific float classes (I only care because I write it to a yaml file below)
         assert len(final_xvar_vals) > 0  # this shouldn't need to be here, but I'm removing the old block that handled the length-zero case (because it had a bad bug), and i want to be absolutely certain it doesn't come up any more. (it was necessary because the above line [and below in dbg] were '>' rather than '>=')
@@ -764,8 +770,8 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, dbgstr=None, use_relative_
             return Hist(n_bins=n_bins, xmin=xmin, xmax=xmax, title=tstr, value_list=lblist)
         # ----------------------------------------------------------------------------------------
         lower_ptile, upper_ptile = 20, 80
-        lo_affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], lower_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
-        hi_affy_ptile_val = min(max(plotvals[xvar]), numpy.percentile(plotvals[xvar], upper_ptile))  # xvar (e.g. affinity) value corresponding to <distr_ptile> (the min() is because the numpy call has precision issues that sometimes give you a value (very very slightly) larger than any of the actual values in the list)
+        lo_affy_ptile_val = get_actual_ptval(plotvals, xvar, lower_ptile)
+        hi_affy_ptile_val = get_actual_ptval(plotvals, xvar, upper_ptile)
         if lb_metric in treeutils.int_metrics:
             xmin, xmax = min(plotvals[lb_metric]) - 0.5, max(plotvals[lb_metric]) + 0.5
             n_bins = xmax - xmin
@@ -897,7 +903,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
         # ----------------------------------------------------------------------------------------
         def get_plot_vals(ix):
             slpd, no_plot = ['%s/%s-%s-slice-%d' % (baseplotdir, lb_metric, slvar, ix), False] if make_slice_ptile_plots else [None, True]
-            ymfo = plot_lb_vs_affinity(slpd, lines, lb_metric, is_true_line=is_true_line, no_plot=no_plot, title_str=', slice %d'%ix, debug=False) #only_csv=only_csv, fnames=fnames, separate_rows=separate_rows, debug=debug)
+            ymfo = plot_lb_vs_affinity(slpd, lines, lb_metric, is_true_line=is_true_line, no_plot=no_plot, title_str=', slice %d'%ix, debug=False)  # this makes the distr hists, which is kind of wasteful, but turning them off is more trouble than it's worth
             if ymfo is None:
                 return None, None
             icvals = []
@@ -1173,7 +1179,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, use_r
             print ''
         if lb_metric not in per_seq_metrics or 'among-families' in lb_metric or len(all_the_same) > 0:
             continue
-        iclust_ptile_vals, iclust_distr_hists = get_ptile_vals(lb_metric, iclust_plotvals, 'affinity', 'affinity', dbgstr='iclust %d'%iclust, use_relative_affy=use_relative_affy, return_distr_hists=True, debug=debug)
+        iclust_ptile_vals, iclust_distr_hists = get_ptile_vals(lb_metric, iclust_plotvals, 'affinity', 'affinity', dbgstr='iclust %d'%iclust, use_relative_affy=use_relative_affy, return_distr_hists=True, debug=debug)  # NOTE we don't use the distr hists if this is for slice plots, but it's more trouble than it's worth to turn them off
         pt_vals['per-seq']['iclust-%d'%iclust] = iclust_ptile_vals
         distr_hists['iclust-%d'%iclust] = iclust_distr_hists
         # correlation_vals['per-seq']['iclust-%d'%iclust] = {getcorrkey(*vtypes[:2]) : getcorr(*[iclust_plotvals[vt] for vt in vtypes[:2]])}

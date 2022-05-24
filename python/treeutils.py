@@ -2075,16 +2075,18 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
         n_true_before = len(true_lines_to_use)
         true_lines_to_use = sorted([l for l in true_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_true_after = len(true_lines_to_use)
-        print '    also doing %d true cluster%s with size%s: %s' % (n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
+        print '    using %d true cluster%s with size%s: %s' % (n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
         print '      skipping %d smaller than %d' % (n_true_before - n_true_after, min_cluster_size)
         final_true_lines = []
         for iclust, true_line in enumerate(true_lines_to_use):
             if args.cluster_indices is not None and iclust not in args.cluster_indices:
                 continue
             true_dtree = get_dendro_tree(treestr=true_line['tree'])
-            true_lb_info = calculate_lb_values(true_dtree, lb_tau, annotation=true_line, dont_normalize=args.dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
-            true_line['tree-info'] = {'lb' : true_lb_info}
-            check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+            true_line['tree-info'] = {'lb' : {}}
+            if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf']):
+                true_lb_info = calculate_lb_values(true_dtree, lb_tau, annotation=true_line, dont_normalize=args.dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
+                true_line['tree-info']['lb'] = true_lb_info  # NOTE replaces value for 'lb' key set above (ick)
+                check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
             if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
                 get_aa_lb_metrics(true_line, true_dtree, lb_tau, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
             if 'cons-dist-aa' in metrics_to_calc:
