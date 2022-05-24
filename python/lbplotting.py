@@ -1245,7 +1245,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
     # ----------------------------------------------------------------------------------------
     def get_plotvals(line, xvar, iclust):
         plotvals = init_pvals()
-        dtree = treeutils.get_dendro_tree(treestr=get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric))
+        dtree = treeutils.get_dendro_tree(treestr=get_tree_in_line(line, is_true_line))  # i don't think there's any reason for this to use the aa tree? , aa='aa-lb' in lb_metric))
         affy_increasing_edges, all_affy_changes = treeutils.find_affy_increases(dtree, line)
         if debug and iclust == 0:
             if debug > 1:
