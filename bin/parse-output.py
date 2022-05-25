@@ -20,6 +20,7 @@ def count_plot(tglfo, tlist, plotdir, paired_loci=None):
     if args.plot_tree_mut_stats:
         import plotting
         plotting.plot_tree_mut_stats(plotdir, tlist, args.is_simu, only_leaves=args.only_plot_leaves, treefname=args.treefname)
+        plotting.make_html(plotdir)
         return
     if args.only_count_correlations:
         from corrcounter import CorrCounter
