@@ -702,7 +702,7 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
                  bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend)
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefname=None):
+def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefname=None, only_csv=False, fnames=None):
     # ----------------------------------------------------------------------------------------
     def add_to_distr_dict(ucounts, udistr):
         for scount in ucounts.values():
@@ -748,18 +748,21 @@ def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefnam
     # ----------------------------------------------------------------------------------------
     def finalize(udistr, plotname, title):
         hist = hutils.make_hist_from_dict_of_counts(udistr, 'int', '')
-        hist.fullplot(plotdir, plotname, pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N observations', 'ylabel' : 'counts', 'title' : title, 'log' : 'xy'}) #, texts=[(0.7, 0.8, 'N gtypes %d'%len(unique_seqs))])
+        fn = hist.fullplot(plotdir, plotname, pargs={'remove_empty_bins' : True}, fargs={'xlabel' : 'N observations', 'ylabel' : 'counts', 'title' : title, 'log' : 'xy'}, only_csv=only_csv) #, texts=[(0.7, 0.8, 'N gtypes %d'%len(unique_seqs))])
+        if fnames is not None:
+            fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
     print '    plotting tree mutation stats %s' % ('using only leaves' if only_leaves else 'with all seqs')
     import lbplotting
     utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+    if fnames is not None:
+        fnames.append([])
     useq_distr, umut_distr, n_mut_dict = {}, {}, {}
     for line in antn_list:
         add_antn(line)
     for ulabel, udistr in zip(['seq', 'mut'], (useq_distr, umut_distr)):
         finalize(udistr, 'u%s_distr'%ulabel, 'unique %s distr'%ulabel)
     finalize(n_mut_dict, 'n_muts', 'distance to root')
-    make_html(plotdir)
 
 # ----------------------------------------------------------------------------------------
 def plot_metrics_vs_thresholds(meth, thresholds, info, plotdir, plotfname, title):

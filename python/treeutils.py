@@ -34,7 +34,7 @@ import utils
 # ----------------------------------------------------------------------------------------
 fmetrics = ['lbf', 'aa-lbf']
 affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'shm-aa', 'aa-lbi', 'cons-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
-daffy_metrics = ['delta-lbi', 'lbr', 'aa-lbr'] + fmetrics
+daffy_metrics = ['delta-lbi', 'lbr', 'aa-lbr'] + fmetrics  # , 'lbi', 'aa-lbi'
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio'), ('f', 'fraction')))
 selection_metrics = ['lbi', 'lbr', 'lbf', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr', 'aa-lbf', 'shm', 'shm-aa']
@@ -1832,6 +1832,9 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
             lbplotting.plot_lb_distributions(mtr, plotdir, antn_list, is_true_line=is_simu, fnames=fnames, only_overall=False, n_iclust_plot_fnames=None if has_affinities else 8) #, stats='mean:max')
     lbplotting.add_fn(fnames, new_row=True)
 
+    if 'tree-mut-stats' in plot_cfg:
+        plotting.plot_tree_mut_stats(plotdir + '/tree-mut-stats', antn_list, is_simu, only_csv=args.only_csv_plots, fnames=fnames)  # only_leaves=True
+
     if not args.only_csv_plots:  # all the various scatter plots are really slow
         if 'lb-scatter' in plot_cfg:
             for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
@@ -1845,9 +1848,6 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
         for mtr in [m for m in metrics_to_calc if m in lb_metrics]:
             lbplotting.plot_true_vs_inferred_lb(plotdir + '/' + mtr, antn_list, inf_annotations, mtr, fnames=fnames)
         lbplotting.plot_cons_seq_accuracy(plotdir, antn_list, fnames=fnames)
-
-    if 'tree-mut-stats' in plot_cfg:
-        plotting.plot_tree_mut_stats(plotdir + '/hmm/tree-mut-stats', antn_list, is_simu)  # only_leaves=True
 
     if args.affinity_key is not None:
         for atn in tmplines:

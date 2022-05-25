@@ -80,6 +80,7 @@ def metafname():
 def run_cmd(action):
     locstr = '--paired-loci' if args.paired_loci else '--locus %s'%args.locus
     # this doesn't work since all gcs together needs 0:1 but single gc runs need 0, and the guessing functionality is working fine atm --droplet-id-separators - --droplet-id-indices 0:1
+    # NOTE would maybe be better to not guess pair info?
     cmd = './bin/partis %s %s --species %s --guess-pairing-info --input-metafnames %s' % (action, locstr, args.species, metafname())
     if args.no_insertions_or_deletions:
         cmd += ' --no-insertions-or-deletions'
