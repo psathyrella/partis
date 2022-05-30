@@ -3558,6 +3558,7 @@ def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters c
 
 # ----------------------------------------------------------------------------------------
 # return list of families in <antn_pairs> sorted by their nearness to <refpair> by either 'lev' (levenshtein) or 'ham' (hamming) distance between naive sequences (automatically skips <refpair> if it's in <antn_pairs>)
+# NOTE it would be nice to use vsearch for this, but it doesn't have an amino acid option (there's an issue they've had open to add it since like 6 years)
 def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_dist=16, max_n_print=5, extra_str='', labelstr='', debug=True):
     # ----------------------------------------------------------------------------------------
     def nseq(atn_pair):
@@ -3566,7 +3567,7 @@ def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_di
             tkey += '_aa'
             for tl in atn_pair:
                 add_naive_seq_aa(tl)
-        return atn_pair[0][tkey] + atn_pair[1][tkey]
+        return ''.join(l[tkey] for l in atn_pair) #atn_pair[0][tkey] + atn_pair[1][tkey]
     # ----------------------------------------------------------------------------------------
     assert dtype in ['lev', 'ham']
     dfcn = lev_dist if dtype == 'lev' else hamming_distance
@@ -6136,7 +6137,7 @@ def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwarg
 
 # ----------------------------------------------------------------------------------------
 # NOTE use the previous fcn if you expect duplicate uids
-def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:'):
+def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:'):
     # note: '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
@@ -6145,6 +6146,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_i
     #    - the search process stops after --maxaccept matches (default 1), and gives up after --maxreject non-matches (default 32)
     #    - If both are zero, it searches the whole database
     #    - I do not remember why I set both to zero. I just did a quick test, and on a few thousand sequences, it seems to be somewhat faster with the defaults, and a tiny bit less accurate.
+    #      - UPDATE i seem to have gone back to default
     region = 'v'
     userfields = [  # all 1-indexed (note: only used for 'search')
         'query',
@@ -6186,7 +6188,8 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', no_i
     cmd += ' --mismatch %d' % mismatch  # default -4
     # cmd += ' --gapext %dI/%dE' % (2, 1)  # default: (2 internal)/(1 terminal)
     # it would be nice to clean this up
-    gap_open = 1000 if no_indels else 50
+    if gap_open is None:
+        gap_open = 1000 if no_indels else 50
     cmd += ' --gapopen %dI/%dE' % (gap_open, 2)  # default: (20 internal)/(2 terminal)
     if minseqlength is not None:
         cmd += ' --minseqlength %d' % minseqlength
