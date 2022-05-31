@@ -3102,6 +3102,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         p_atn['n_mutations'] = [sumv(m, 'n_mutations') for m in metric_pairs]
         p_atn['shm_aa'] = [sumv(m, 'shm_aa') for m in metric_pairs]
         p_atn['mut_freqs'] = [n / float(len(s)) for n, s in zip(p_atn['n_mutations'], p_atn['seqs'])]
+        if 'multiplicities' in h_atn:  # <h_atn> is the same as m['h'], i should really settle on one of them
+            h_mults, l_mults = [[utils.get_multiplicity(m[c], uid=gsval(m, c, 'unique_ids')) for m in metric_pairs] for c in 'hl']
+            if h_mults != l_mults:
+                raise Exception('h and l multiplicities not the same:\n    %s\n    %s' % (h_mults, l_mults))
+            p_atn['multiplicities'] = h_mults
         cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]
         if is_simu:
             _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
