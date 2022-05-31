@@ -285,7 +285,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                 htmp.errors[ibin] *= factor
         if normalize:  # NOTE removed <normalization_bounds> option, hopefully I'm not using it any more
             htmp.normalize(multiply_by_bin_width=multiply_by_bin_width)
-        if ymin is None or htmp.get_minimum(xbounds=bounds) < ymin:  # adding this afterwards, so might screw up something below
+        if ymin is None or htmp.get_minimum(xbounds=bounds, exclude_empty='y' in log) < ymin:  # adding this afterwards, so might screw up something below
             ymin = htmp.get_minimum(xbounds=bounds, exclude_empty='y' in log)
         if ymax is None or htmp.get_maximum(xbounds=bounds) > ymax:
             ymax = htmp.get_maximum(xbounds=bounds)
