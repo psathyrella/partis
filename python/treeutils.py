@@ -1344,7 +1344,8 @@ def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line,
 def get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=False, lbval=None, only_look_upwards=False, debug=False):
     assert also_return_branch_len
     if debug:
-        print '     %12s  %5.3f%12s %2s %8s %9.4f' % (node.taxon.label, lbval, '', '', '', utils.per_seq_val(line, 'affinities', node.taxon.label))
+        aval = utils.per_seq_val(line, 'affinities', node.taxon.label)
+        print '     %12s  %5.3f%12s %2s %8s %s' % (node.taxon.label, lbval, '', '', '', '%9.4f'%aval if aval is not None else '?')
     n_ance, ance_branch_len = get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=also_return_branch_len, debug=debug)
     n_desc, desc_branch_len = None, None
     if not only_look_upwards:
