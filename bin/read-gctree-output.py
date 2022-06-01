@@ -103,6 +103,7 @@ def run_cmd(action):
         cmd += ' --%s %s%s' % ('paired-outdir' if args.paired_loci else 'outfname', args.outdir, '' if args.paired_loci else '/partition.yaml')
     if action == 'get-selection-metrics':
         cmd += ' --min-selection-metric-cluster-size 3 --treefname %s/%s --plotdir %s --selection-metrics-to-calculate lbi:aa-lbi:cons-dist-aa:lbr:aa-lbr' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
+        cmd += ' --extra-daffy-metrics lbi:aa-lbi'
         cmd += ' --label-root-node'
         cmd += ' --add-selection-metrics-to-outfname --use-droplet-id-for-combo-id --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + ['distr', 'tree-mut-stats'])
         if args.slice_bin_fname is not None:
