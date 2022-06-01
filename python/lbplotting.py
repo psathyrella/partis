@@ -967,7 +967,6 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
             initial_n_null = n_tot - nonnullcnt()
             print '   %s with %d bins from %.4f to %.4f (%d/%d initial null affinities)' % (utils.color('blue', slvar), n_bins, xbins[0], xbins[-1], initial_n_null, n_tot)
             hstr = 'qtp' if use_quantile else 's-corr'
-            # print '                                                      N not  N'
             print '    %s   x     %s (+/-)    xmin   xmax  N-not-null N-distinct    min   max' % (utils.color('purple', 'slice'), hstr)
         affy_ranges = []
         imissing, isame = [[] for _ in range(n_bins)], [[] for _ in range(n_bins)]
@@ -1004,6 +1003,7 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
         ax2 = ax.twinx()
         for ix, (amin, amax) in enumerate(affy_ranges):
             ax2.fill_between([xbins[ix], xbins[ix+1]], [amin, amin], [amax, amax], alpha=0.2, color='#2b65ec')
+        ax2.set_yticks(ax2.get_yticks())  # NOTE for some fucking reason the ticks are misplaced if you don't reset them first like this
         ax2.set_yticklabels([str(utils.round_to_n_digits(a, 2)) for a in ax2.get_yticks()])
         # ax2.set_ylabel('affinity range')  # this doesn't show up, maybe just cause it's pushed off the right edge?
         fig.text(0.84, 0.85, 'affinity\nrange', fontsize=15, fontweight='bold', color='#2b65ec', alpha=0.6)
@@ -1302,14 +1302,13 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
         title = '%s on %s tree%s' % (mtitlestr('per-seq', lb_metric, short=True), true_inf_str, (' (%d families together)' % len(lines)) if iclust is None else ' (cluster %d)'%iclust)
         plotname = '%s-vs-%s-%s-tree%s' % (lb_metric, xvar, true_inf_str, icstr(iclust))
         tpdir = getplotdir(xvar, extrastr='-perf-distr')
-        normalize, colors = True, ['#006600', 'darkred']
+        normalize, colors = False, ['#006600', 'darkred']
         if xvar == 'n-ancestor':
             leg_title = 'N steps to\naff. increase'
         else:
             leg_title = 'affinity'
-            colors.insert(0, 'grey')
+            colors = ['grey', 'blue', 'red']
         if len(dhists) > len(colors):
-            # normalize = True
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
         plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
                               errors=True, alphas=[0.7 for _ in range(len(dhists))], colors=colors, linewidths=[5, 3, 2], leg_title=leg_title, translegend=(0, -0.1), ytitle='freq.' if normalize else 'counts', normalize=normalize) #, markersizes=[0, 5, 11]) #, linestyles=['-', '-', '-.']) #'']) #, remove_empty_bins=True), '#2b65ec'
@@ -1341,6 +1340,9 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
             const_hist = gethist('constant', lambda a: a == 0)
             incr_hist = gethist('increase', lambda a: a > 0)
             decr_hist = gethist('decrease', lambda a: a < 0)
+            # const_hist = gethist('|da|<=0.3', lambda a: abs(a) <= 0.3)
+            # incr_hist = gethist('da>0.3', lambda a: a > 0.3)
+            # decr_hist = gethist('da<-0.3', lambda a: a < -0.3)
             dhists = [const_hist, decr_hist, incr_hist]
         return dhists
     # ----------------------------------------------------------------------------------------
