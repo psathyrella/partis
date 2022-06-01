@@ -385,6 +385,10 @@ def process(args):
     args.selection_metric_plot_cfg = utils.get_arg_list(args.selection_metric_plot_cfg, choices=treeutils.all_plot_cfg)
     if args.invert_affinity and args.affinity_key is None:
         raise Exception('--affinity-key must be set if setting --invert-affinity')
+    args.extra_daffy_metrics = utils.get_arg_list(args.extra_daffy_metrics)
+    if args.extra_daffy_metrics is not None:
+        print '  --extra-daffy-metrics: adding %d metrics to treeutils.daffy_metrics (%s)' % (len(args.extra_daffy_metrics), ':'.join(args.extra_daffy_metrics))
+        treeutils.daffy_metrics += args.extra_daffy_metrics
 
     if args.plot_annotation_performance:
         if args.plotdir is None and args.print_n_worst_annotations is None:
