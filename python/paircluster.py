@@ -220,13 +220,14 @@ def find_seq_pairs(antn_lists, ig_or_tr='ig'):
             tstr, ostr = ('h', 'l') if utils.has_d_gene(ltmp) else ('l', 'h')
             if len(pids) == 0:  # add all the unpaired seqs
                 ofo = {'%s_id'%tstr : tid, '%s_locus'%tstr : ltmp, '%s_seq'%tstr : iseq, '%s_id'%ostr : '', '%s_locus'%ostr : '', '%s_seq'%ostr : ''}
+                ofo['l_antn'] = None
             elif len(pids) == 1 and tstr == 'h':  # write h/l pairs when <ltmp> is the h locus
                 lfo = all_seqs.get(pids[0], '')  # it really should be in there, but whatever i don't want to crash if it isn't
                 ofo = {'h_id' : tid, 'h_locus' : ltmp, 'h_seq' : iseq, 'l_id' : pids[0], 'l_locus' : lfo['locus'], 'l_seq' : lfo['seq']}
+                ofo['l_antn'] = all_antns[ofo['l_id']]
             else:
                 continue
             ofo['h_antn'] = antn
-            ofo['l_antn'] = all_antns[ofo['l_id']]
             outfos.append(ofo)
     # ----------------------------------------------------------------------------------------
     all_seqs = {u : {'seq' : s, 'locus' : l} for l, alist in antn_lists.items() for a in alist for u, s in zip(a['unique_ids'], a['input_seqs'])}

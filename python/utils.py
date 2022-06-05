@@ -5067,7 +5067,7 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
         """ Return the fraction of seqs in <uid>'s inferred cluster which are really clonal. """
         n_clonal = 0
         for tmpid in inferred_cluster:  # NOTE this includes the case where tmpid equal to uid
-            if reco_ids[tmpid] == reco_ids[uid]:  # reminder (see event.py) reco ids depend only on rearrangement parameters, i.e. two different rearrangement events with the same rearrangement parameters have the same reco id
+            if reco_ids[tmpid] == reco_ids[uid]:
                 n_clonal += 1
         return float(n_clonal) / len(inferred_cluster)
 
