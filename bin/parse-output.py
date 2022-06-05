@@ -169,10 +169,11 @@ if args.paired:
     paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%args.outfile, '%s/meta.yaml'%args.outfile, outfos, metafos)
     outfos = paircluster.find_seq_pairs(antn_lists)
     with open('%s/seq-pairs.csv'%args.outfile, 'w') as cfile:
-        writer = csv.DictWriter(cfile, ['%s_%s'%(c, s) for s in ('id', 'locus', 'seq') for c in 'hl'])  # sorted(outfos[0].keys()))
+        okeys = ['%s_%s'%(c, s) for s in ('id', 'locus', 'seq') for c in 'hl']
+        writer = csv.DictWriter(cfile, okeys)  # sorted(outfos[0].keys()))
         writer.writeheader()
         for ofo in outfos:
-            writer.writerow(ofo)
+            writer.writerow({k : ofo[k] for k in okeys})
     sys.exit(0)
 
 # restrict to certain partitions/clusters

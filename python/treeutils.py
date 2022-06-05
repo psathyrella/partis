@@ -2088,7 +2088,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
                 true_lb_info = calculate_lb_values(true_dtree, lb_tau, annotation=true_line, dont_normalize=args.dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
                 true_line['tree-info']['lb'] = true_lb_info  # NOTE replaces value for 'lb' key set above (ick)
                 check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
-            if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr']):
+            if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr', 'aa-lbf']):
                 get_aa_lb_metrics(true_line, true_dtree, lb_tau, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
             if 'cons-dist-aa' in metrics_to_calc:
                 add_cdists_to_lbfo(true_line, true_line['tree-info']['lb'], 'cons-dist-aa', debug=debug)  # see comment in previous call above

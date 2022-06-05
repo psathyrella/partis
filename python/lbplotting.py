@@ -1307,7 +1307,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
             leg_title = 'N steps to\naff. increase'
         else:
             leg_title = 'affinity'
-            colors = ['grey', 'blue', 'red']
+            colors = ['grey', 'red', 'blue']
         if len(dhists) > len(colors):
             colors = ['#006600', 'royalblue', 'darkorange', 'darkred']
         plotting.draw_no_root(dhists[0], more_hists=dhists[1:], plotdir=tpdir, plotname=plotname, xtitle=mtitlestr('per-seq', lb_metric), plottitle=title, log='y' if iclust is None else '',  # NOTE don't normalize (and if you do, you have to deepcopy them first)
