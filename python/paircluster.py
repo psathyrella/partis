@@ -524,7 +524,7 @@ def pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, a
     for cpair in cluster_pairs:
         h_atns, l_atns = [[all_atns[u] for u in tclust] for c, tclust in zip('hl', cpair)]
         all_pids = {u : get_pids(l, u) for tclust, alist in zip(cpair, (h_atns, l_atns)) for u, l in zip(tclust, alist)}
-        ok_ids = [[u for u in tc if len(all_pids[u])==1 and all_pids[u][0] in oc] for tc, oc in zip(cpair, reversed(cpair))]  # list of correctly paired uids for each chain (note that this is *not* mutually exclusive to <unp_ids>)
+        ok_ids = [[u for u in tc if len(all_pids[u])==1 and all_pids[u][0] in oc] for tc, oc in zip(cpair, reversed(cpair))]  # list of correctly paired uids for each chain (note that this is *not* mutually exclusive to <unp_ids>) [tc: this cluster, oc: other cluster]
         n_recip_paired = utils.get_single_entry(list(set(len(ulist) for ulist in ok_ids)))
         if n_recip_paired == 0:
             n_no_paired += 1

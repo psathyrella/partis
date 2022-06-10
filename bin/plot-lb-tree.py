@@ -218,6 +218,30 @@ def plot_trees(args):
     if len(treestr.split()) == 2 and treestr.split()[0] in ['[&U]', '[&R']:  # dumbest #$!#$#ing format in the goddamn world (ete barfs on other programs' rooting information)
         treestr = treefo['treestr'].split()[1]
     etree = ete3.Tree(treestr, format=1)  # , quoted_node_names=True)
+    if args.gct_lb:
+        for node in etree.traverse():
+            node.abundance = args.metafo['abundance'][node.name]
+        tau_val = 1./args.seq_len
+        gctlb.local_branching(etree, tau=tau_val, tau0=tau_val)
+        def cfmt(mtr, node):
+            gval, pval = getattr(node, mtr.upper()), args.metafo[mtr][node.name]
+            if mtr == 'lbi':
+                gval = treeutils.normalize_lb_val(mtr, gval, tau_val, args.seq_len)
+            fdiff = (gval - pval) / pval if pval > 0 else 0 #float('nan')
+            return {'name' : node.name, 'gval' : gval, 'pval' : pval, 'fdiff' : fdiff, 'abundance' : node.abundance}
+        for mtmp in ['lbi', 'lbr']:
+            diff_vals = [cfmt(mtmp, n) for n in etree.traverse()]
+            print '  %s' % utils.color('blue', mtmp)
+            print '     partis      gctree     frac diff       ratio abundance'
+            n_identical = 0
+            for dfo in sorted(diff_vals, key=lambda x: abs(x['fdiff']), reverse=True):
+                if dfo['gval'] == dfo['pval']:
+                    n_identical += 1
+                    continue
+                def fdstr(v): return utils.color('red' if v > 0.01 else None, '%13.10f'%v)
+                print '    %10.7f  %10.7f  %s  %5.2f    %2d  %s' % (dfo['pval'], dfo['gval'], fdstr(dfo['fdiff']), dfo['gval'] / dfo['pval'], dfo['abundance'], dfo['name'])
+            if n_identical > 0:
+                print '    skipped %d identical values' % n_identical
 
     tstyle = ete3.TreeStyle()
     tstyle.mode = args.tree_style[0]
@@ -248,6 +272,8 @@ parser.add_argument('--label-root-node', action='store_true')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
 parser.add_argument('--partis-dir', default=os.path.dirname(os.path.realpath(__file__)).replace('/bin', ''), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
+parser.add_argument('--gct-lb', action='store_true')
+parser.add_argument('--seq-len', type=int)
 args = parser.parse_args()
 
 sys.path.insert(1, args.partis_dir + '/python')
@@ -257,6 +283,7 @@ try:
     import glutils
     import plotting
     import lbplotting
+    import gctlb
 except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
