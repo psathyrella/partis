@@ -238,7 +238,7 @@ def plot_trees(args):
                 if dfo['gval'] == dfo['pval']:
                     n_identical += 1
                     continue
-                def fdstr(v): return utils.color('red' if v > 0.01 else None, '%13.10f'%v)
+                def fdstr(v): return utils.color('red' if abs(v) > 0.01 else None, '%13.10f'%v)
                 print '    %10.7f  %10.7f  %s  %5.2f    %2d  %s' % (dfo['pval'], dfo['gval'], fdstr(dfo['fdiff']), dfo['gval'] / dfo['pval'], dfo['abundance'], dfo['name'])
             if n_identical > 0:
                 print '    skipped %d identical values' % n_identical
