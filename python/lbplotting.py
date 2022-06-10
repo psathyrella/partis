@@ -1512,7 +1512,8 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
             if gct_lb:
                 dtree = treeutils.get_dendro_tree(treestr=treestr)
                 def mtpy(n): return utils.get_multiplicity(line, uid=n.taxon.label) if n.taxon.label in line['unique_ids'] else 1
-                metafo['abundance'] = {n.taxon.label : mtpy(n) if n.is_leaf() else mtpy(n) - 1 for n in dtree.preorder_node_iter()}
+                def abdn(n, mtp): return (mtp - 1 if mtp > 1 else 1) if n.is_leaf() else mtp - 1  # don't ask
+                metafo['abundance'] = {n.taxon.label : abdn(n, mtpy(n)) for n in dtree.preorder_node_iter()}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
             cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=queries_to_include, label_all_nodes=label_all_nodes, label_root_node=label_root_node,
                                        gct_lb=gct_lb, seq_len=float(numpy.mean([len(s) for s in line['seqs']])))]
