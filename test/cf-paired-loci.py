@@ -143,7 +143,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         locus = 'igk'
     assert locus is not None
     if logfile:
-        ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '',  action)
+        ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '', action)
     elif pmetr is not None and 'pcfrac-' in pmetr:
         ofn = '%s/true-pair-clean-performance.csv' % outdir #, pmetr.replace('pcfrac', '').replace('-ns', '') if 'pcfrac-' in pmetr else '')
     elif pmetr is not None and pmetr == 'naive-hdist':
@@ -396,7 +396,7 @@ for action in args.actions:
                                 continue
                             if pmetr == 'naive-hdist' and ptntype != 'single':  # only do annotation performance for single chain (at least for now)
                                 continue
-                            if pmetr == 'time-reqd' and (ptntype == 'joint' and (is_single_chain(method) or method=='vsearch-partition')):
+                            if pmetr == 'time-reqd' and (ptntype == 'joint' and is_single_chain(method)): # or method=='vsearch-partition')):
                                 continue
                             if method == 'single-chain-partis' and ptntype != 'joint':  # this is just a hackey way to get the single chain line on the joint plot, we don't actually want it [twice] on the single chain plot
                                 continue
