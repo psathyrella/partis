@@ -71,7 +71,7 @@ def get_alignments():
     utils.run_scan_cmds(args, cmdfos, 'airr-convert.log', n_total, n_already_there, ofn)
 
 # ----------------------------------------------------------------------------------------
-def run_scoper():
+def run_single_chain_scoper():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, 0
     for locus in gloci():
         ofn = scofn(locus)
@@ -95,7 +95,8 @@ def run_joint_scoper():
     if utils.output_exists(args, ofn): # and not args.dry:  # , offset=8):
         return
     utils.merge_csvs(getifn('joint'), [getifn(l) for l in gloci()])
-    cmd = 'Rscript packages/joint-scoper/scoperClones.R %s %s spectral HL vj 10' % (getifn('joint'), ofn)
+    timecmd = 'time' #'/usr/bin/time -o %s/%s --append' % (wkdir('joint'), 'joint-scoper.log')  # this should append it to the same file, but i end up with two since it writes it before utils deals with stuff (NOTE gdit i got it to work in the mobille run script tho)
+    cmd = '%s Rscript packages/joint-scoper/scoperClones.R %s %s spectral HL vj 10' % (timecmd, getifn('joint'), ofn)
     cmdfos += [{
         'cmd_str' : cmd,
         'outfname' : ofn,
@@ -106,6 +107,18 @@ def run_joint_scoper():
 
 # ----------------------------------------------------------------------------------------
 def convert_output(joint=False):
+    # ----------------------------------------------------------------------------------------
+    def get_joint_time():
+        timeline, _ = utils.simplerun('grep maxresident %s/joint-scoper.log' % wkdir('joint'), return_out_err=True)
+        user, system, elapsed, cpu, _, _ = timeline.strip().split()
+        etstr = elapsed.replace('elapsed', '')
+        assert etstr.count(':') == 1
+        minutes, seconds = [float(vstr) for vstr in etstr.split(':')]
+        etime = 60 * minutes + seconds
+        return etime
+    # ----------------------------------------------------------------------------------------
+    if joint:
+        print '    joint scoper time: %.1f' % get_joint_time()
     ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
     for locus in gloci():
         pfn = getofn(locus, joint=joint)
@@ -146,7 +159,7 @@ parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 args = parser.parse_args()
 
 get_alignments()
-run_scoper()
+run_single_chain_scoper()  # note: this doesn't get used in any way for joint scoper, it's just in case we need the single chain results for something
 convert_output()
 run_joint_scoper()
 convert_output(joint=True)

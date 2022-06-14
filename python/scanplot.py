@@ -101,22 +101,10 @@ def read_hist_csv(args, fname, ptilestr):  # NOTE this is inside a try: except s
 
 # ----------------------------------------------------------------------------------------
 def readlog(args, fname, metric, locus, ptntype):
-    # ----------------------------------------------------------------------------------------
-    def timestr():
-        # if args.bcrham_time:  # maye eventually? but would need to recode the below since there's too many of these
-        #     return 'time: bcrham'
-        # el
-        if metric == 'partition':
-            return 'loop time:' if ptntype=='single' else 'merge time'
-        elif metric == 'vsearch-partition':
-            return 'vsearch time:'
-        else:
-            return '%s time:' % metric
-    # ----------------------------------------------------------------------------------------
     with open(fname) as lfile:
         flines = lfile.readlines()
     if 'partition' in metric:  # partis methods
-        lstrs = ['./bin/partis', timestr()] if ptntype=='single' else [timestr()]
+        lstrs = ['./bin/partis', '%s time:'%('vsearch' if metric=='vsearch-partition' else 'loop'), 'merge time']
         tlines = []
         for tln in flines:
             if 'view-output' in tln:  # we have debug set for the key translation stuff, but we want to ignore those command lines
@@ -124,27 +112,23 @@ def readlog(args, fname, metric, locus, ptntype):
             for lstr in lstrs:
                 if lstr in tln:
                     tlines.append((lstr, tln))
-        if ptntype == 'single':
-            assert len(tlines) == 5
-            tlines = tlines[1:]  # remove the paired cmd
-            tvals = {}
-            for ltmp, itmp in zip(['igh', 'igk'], [0, 2]):
-                lstr, cmdline = tlines[itmp]
+        assert len(tlines) == 6
+        tlines = tlines[1:]  # remove the paired cmd
+        tvals = {}
+        for ltmp, itmp in zip(['igh', 'igk', 'joint'], [0, 2, 3]):
+            lstr, cmdline = tlines[itmp]
+            if ltmp != 'joint':
                 assert ltmp == utils.get_val_from_arglist(cmdline.split(), '--locus')
-                _, timeline = tlines[itmp + 1]
-                _, _, timestr = timeline.split()
-                tvals[ltmp] = float(timestr)
-            return {'time-reqd' : tvals[locus]}
-        else:
-            _, timeline = utils.get_single_entry(tlines)
+            _, timeline = tlines[itmp + 1]
             _, _, timestr = timeline.split()
-            return {'time-reqd' : float(timestr)}
+            tvals[ltmp] = float(timestr)
     else:  # other methods
-        assert ptntype == 'single' or metric == 'enclone'  # at least for now
-        tlines = [l for l in flines if timestr() in l]
-        tloci = ['igh', 'igk'] if metric=='scoper' else [locus]
+        assert ptntype == 'single' or metric in ['enclone', 'scoper']  # at least for now
+        tmstr = '%s time:' % metric
+        tlines = [l for l in flines if tmstr in l]
+        tloci = ['igh', 'igk', 'joint'] if metric=='scoper' else [locus]
         if len(tlines) != len(tloci):
-            raise Exception('couldn\'t find exactly %d time lines (timestr \'%s\') for loci %s (got %d) in %s' % (len(tloci), timestr(), tloci, len(tlines), fname))
+            raise Exception('couldn\'t find exactly %d time lines (timestr \'%s\') for loci %s (got %d) in %s' % (len(tloci), tmstr, tloci, len(tlines), fname))
         tvals = {}
         for ltmp, tline in zip(tloci, tlines):
             if metric == 'scoper':
@@ -153,7 +137,12 @@ def readlog(args, fname, metric, locus, ptntype):
             else:
                 _, _, timestr = tline.split()
             tvals[ltmp] = float(timestr)
-        return {'time-reqd' : tvals[locus]}
+    if ptntype == 'joint':
+        if 'partition' in metric:
+            tvals['joint'] = tvals['joint'] + tvals['igh'] + tvals['igk']
+        # if metric == 'scoper':  # could subtract out single chain times for scoper
+        #     tvals['joint'] = tvals['joint'] - tvals['igh'] - tvals['igk']
+    return {'time-reqd' : tvals[locus if ptntype=='single' else 'joint']}
 
 # ----------------------------------------------------------------------------------------
 # NOTE in some sense averaging over the ptiles from 75 to 100 is double counting (since e.g. the value at 75 is summing to 100), so it might make more sense to just take the value at 75 without averaging. But I think I like that it effectively over-weights the higher ptile values (since e.g. 100 occurs in every single one), plus this is used in a lot of places (e.g. in the paper) and i don't want to change it unless it's really wrong
@@ -774,7 +763,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         ylabel = ldfcn(ptilestr, axis=True) if ptilelabel is None else ptilelabel
         if ptilestr == 'time-reqd':
             if ltexts[ptntype] == 'joint':
-                title += 'paired clustering time'
+                title += ' paired clustering time'
             else:
                 title += ' %s: single chain partition time' % locus
             ymin, ymax = [mfcn(sorted(all_yvals)) for mfcn in [min, max]]

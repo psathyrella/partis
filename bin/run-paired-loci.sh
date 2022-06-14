@@ -2,10 +2,10 @@
 
 bin=./test/cf-paired-loci.py
 
-methods=synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.9:enclone:mobille:scoper:vsearch-partition:partition
+methods=synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.9:enclone:mobille:scoper:vsearch-partition:partition  # this is for vs-shm; for time-reqd: enclone:mobille:scoper:vsearch-partition:partition NOTE enclone needs fixing tho (for missing uids)
 # methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
 # methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
-# methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"
+# methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"  # NOTE this is only for vs-shm (comparing single vs joint); for time-reqd you only need scoper
 # astr="--actions partition --merge-paired-partitions" #$methods"
 # astr="--actions plot --plot-metrics $methods" # --perf-metrics f1"
 astr="--actions combine-plots --plot-metrics $methods $xstr"
