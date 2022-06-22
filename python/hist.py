@@ -450,6 +450,7 @@ class Hist(object):
         return ''.join(str_list)
 
     # ----------------------------------------------------------------------------------------
+    # NOTE remove_empty_bins can be a bool (remove/not all empty bins) or a list of length two (remove empty bins outside range)
     def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False, square_bins=False, no_vertical_bin_lines=False):
         # ----------------------------------------------------------------------------------------
         def sqbplot(kwargs):
@@ -514,8 +515,16 @@ class Hist(object):
             kwargs['label'] = label
         elif self.title != '':
             kwargs['label'] = self.title
-        if remove_empty_bins:
-            xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if yvals[iv] != 0.])
+        if remove_empty_bins is not False:  # NOTE can be bool, but can also be list of length two (remove bins only outside those bounds)
+            # ----------------------------------------------------------------------------------------
+            def keep_bin(ib):
+                if isinstance(remove_empty_bins, list):
+                    xmin, xmax = remove_empty_bins
+                    if xvals[iv] > xmin and xvals[iv] < xmax:
+                        return True  # always keep within range
+                return yvals[iv] != 0.
+            # ----------------------------------------------------------------------------------------
+            xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if keep_bin(iv)])
         if errors and not square_bins:
             kwargs['yerr'] = yerrs
             return ax.errorbar(xvals, yvals, **kwargs)  #, fmt='-o')

@@ -18,7 +18,7 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct', 'mispaired', 'unpaired', 'correct-family', 'near-family']]
+pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct', 'mispaired', 'unpaired', 'correct-family', 'near-family']]  # '-ns': non-singleton
 all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
@@ -80,6 +80,7 @@ parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric
 parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
 parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
 parser.add_argument('--make-hist-plots', action='store_true')
+parser.add_argument('--empty-bin-range', help='remove empty bins only outside this range (will kick a warning if this ignores any non-empty bins)')
 parser.add_argument('--bcrham-time', action='store_true')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
@@ -112,6 +113,7 @@ if 'all-pcfrac' in args.perf_metrics:
     args.perf_metrics = args.perf_metrics.replace('all-pcfrac', ':'.join(pcfrac_metrics))
 args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
+args.empty_bin_range = utils.get_arg_list(args.empty_bin_range, floatify=True)
 
 utils.get_scanvar_arg_lists(args)
 if args.final_plot_xvar is None:  # set default value based on scan vars

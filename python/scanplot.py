@@ -75,7 +75,7 @@ def cp_val(cpath, ptilestr, yfname):
 def read_hist_csv(args, fname, ptilestr):  # NOTE this is inside a try: except so any IOErrors will get eaten
     rhist = None
     if 'pcfrac-' in ptilestr:
-        if '-ns' in ptilestr:  # need to integrate bins in the individual histograms
+        if '-ns' in ptilestr:  # non-singleton (need to integrate bins in the individual histograms)
             min_family_size = 2  # ignore families smaller than this
             bhist, thist = [Hist(fname=utils.insert_before_suffix('-'+k, fname)) for k in [ptilestr.replace('pcfrac-', '').replace('-ns', ''), 'total']]
             sumv, total = 0, 0
@@ -851,7 +851,8 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             translegend = [-0.2, -0.55]
             if 'bulk-data-fraction' in varnames:
                 translegend = [-0.1, -0.4] if ptilestr == 'pcfrac-unpaired' else [-0.1, -0.7]
-            hfn = plotting.draw_no_root(None, more_hists=list(hists), plotdir=plotdir, plotname=plotname, remove_empty_bins=True, log='x', errors=True, no_legend=no_legend, ybounds=[0, 1],
+            remove_empty_bins = True if args.empty_bin_range is None else args.empty_bin_range
+            hfn = plotting.draw_no_root(None, more_hists=list(hists), plotdir=plotdir, plotname=plotname, remove_empty_bins=remove_empty_bins, log='x', errors=True, no_legend=no_legend, ybounds=[-0.02, 1],
                                         xtitle='true family size', ytitle=ylabel, plottitle=title, xticks=txt, xticklabels=txtl, leg_title=ldfcn(args.final_plot_xvar), alphas=[0.65 for _ in hists], translegend=translegend)
             if fnames is not None:
                 fnames.append(hfn)
