@@ -3167,7 +3167,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         all_chosen_mfos[iclust] = icl_mfos
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
-                 workdir=args.workdir, outfname=args.selection_metric_fname) #, debug=True)
+                 workdir=args.workdir, outfname=args.selection_metric_fname, debug=debug)
 # TODO will need these args in order to run gctree
                  # glfo=, gctree_outdir=None if args.outfname is None or not args.run_gctree else os.path.dirname(utils.fpath(args.outfname)),
     if debug:
