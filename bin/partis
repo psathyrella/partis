@@ -617,6 +617,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.remove_from_arglist(clist, '--plotdir', has_arg=True)  # i think there isn't anything we want to plot when we're getting the joint partition annotations?
                 utils.remove_from_arglist(clist, '--plot-annotation-performance')  # i think there isn't anything we want to plot when we're getting the joint partition annotations?
                 utils.remove_from_arglist(clist, '--persistent-cachefname', has_arg=True)  # i think there isn't anything we want to plot when we're getting the joint partition annotations?
+                utils.remove_from_arglist(clist, '--annotation-clustering')
+                utils.remove_from_arglist(clist, '--annotation-clustering-threshold', has_arg=True)
                 utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))
                 clist += ['--input-partition-fname', getofn(ltmp, joint=True, partition_only=True, lpair=lpair)]
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)  # it crashes in utils.print_true_events() if debug is turned on, and I don't care about this debug output anyway
@@ -1395,6 +1397,7 @@ subargs = {subname : [] for subname in subconfig}
 # ----------------------------------------------------------------------------------------
 subargs['annotate'].append({'name' : '--annotation-clustering', 'kwargs' : {'action' : 'store_true', 'help' : 'Perform annotation-based clustering: group together sequences with the same V and J, same CDR3 length, and 90%% cdr identity. Very, very inaccurate.'}})
 subargs['annotate'].append({'name' : '--annotation-clustering-threshold', 'kwargs' : {'default' : 0.9, 'type' : float, 'help' : 'threshold used by --annotation-clustering (i.e. a cluster is defined as the same v and j gene plus this threshold for single-linkage clustering on cdr3 nucleotide hamming distance)'}})
+subargs['annotate'].append({'name' : '--paired-naive-hfrac-threshold-type', 'kwargs' : {'default' : 'naive-hamming', 'choices' : ['naive-hamming', 'likelihood'], 'help' : 'see help for this option under \'partition\' action'}})
 
 # ----------------------------------------------------------------------------------------
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then cluster using vsearch (in --cluster_fast mode, see https://doi.org/10.7717/peerj.2584). This is less accurate than default clustering, since it knows nothing about vdj rearrangement, but since it clusters on naive sequences it\'s still much more accurate than any clustering method on mutated sequences.'}})

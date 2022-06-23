@@ -314,18 +314,20 @@ class PartitionDriver(object):
         _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, partition=self.input_partition)
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
-        if self.args.annotation_clustering:  # VJ CDR3 clustering
+        if self.args.annotation_clustering:  # VJ CDR3 clustering (NOTE it would probably be better to have this under 'partition' action, but it's historical and also not very important)
             import annotationclustering
             antn_ptn = annotationclustering.vollmers(annotations, self.args.annotation_clustering_threshold)
             antn_cpath = ClusterPath(partition=antn_ptn)
-        if self.args.outfname is not None:
-            self.write_output(annotations.values(), hmm_failures, cpath=antn_cpath if self.args.annotation_clustering else self.input_cpath)
-        if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
-            assert self.input_partition is not None
-            partplotter = PartitionPlotter(self.args)
-            partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, no_mds_plots=self.args.no_mds_plots) #, cpath=cpath) cpath is only used for laplacian spectra
-        if self.args.count_parameters and not self.args.dont_write_parameters:
-            self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
+            self.get_annotations_for_partitions(antn_cpath)  # get new annotations corresponding to <antn_ptn>
+        else:
+            if self.args.outfname is not None:
+                self.write_output(annotations.values(), hmm_failures, cpath=antn_cpath if self.args.annotation_clustering else self.input_cpath)
+            if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
+                assert self.input_partition is not None
+                partplotter = PartitionPlotter(self.args)
+                partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, no_mds_plots=self.args.no_mds_plots) #, cpath=cpath) cpath is only used for laplacian spectra
+            if self.args.count_parameters and not self.args.dont_write_parameters:
+                self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
     def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
