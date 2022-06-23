@@ -969,11 +969,11 @@ def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotatio
     extra_antns = [l for l in annotation_list if l['unique_ids'] not in partition]
     if len(miss_clusts) == 0 and debug:
         estr = '' if len(extra_antns)==0 else ' (%d extra%s with size%s: %s)' % (len(extra_antns), plural(len(extra_antns)), plural(len(extra_antns)), ' '.join(str(len(l['unique_ids'])) for l in extra_antns))
-        print '    get_annotation_dict(): annotations for all %d clusters in %s partition%s' % (len(partition), pfcn, estr)
+        print '    check_concordance_of_cpath_and_annotations(): annotations for all %d clusters in %s partition%s' % (len(partition), pfcn, estr)
     if len(miss_clusts) > 0:
         def pstr(ptn): return ', '.join(str(len(c)) for c in sorted(ptn, key=len, reverse=True))
         present_str = '' if len(partition)>30 else ' (present: %s)' % pstr([c for c in partition if c not in miss_clusts])
-        print '    %s get_annotation_dict(): missing annotations for %d/%d clusters in %s partition with size%s: %s%s' % (color('yellow', 'warning'), len(miss_clusts), len(partition), pfcn, plural(len(miss_clusts)), pstr(miss_clusts), present_str)
+        print '    %s check_concordance_of_cpath_and_annotations(): missing annotations for %d/%d clusters in %s partition with size%s: %s%s' % (color('yellow', 'warning'), len(miss_clusts), len(partition), pfcn, plural(len(miss_clusts)), pstr(miss_clusts), present_str)
         if len(extra_antns) > 0:
             print '        %d extra annotations (i.e. they\'re for clusters not in %s partition) with sizes: %s' % (len(extra_antns), pfcn, ' '.join(str(len(l['unique_ids'])) for l in extra_antns))
     for mclust in miss_clusts:
