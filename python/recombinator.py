@@ -789,6 +789,8 @@ class Recombinator(object):
         for name, seq in names_seqs:
             if not self.args.mutate_conserved_codons:
                 seq = reco_event.revert_conserved_codons(seq, debug=self.args.debug)  # if mutation screwed up the conserved codons, just switch 'em back to what they were to start with UPDATE should really remove this now that we're setting the rates for these positions to zero
+            if self.args.mutate_stop_codons:
+                seq = reco_event.mutate_away_stop_codons(seq, debug=self.args.debug)
             reco_event.final_seqs.append(seq)
             reco_event.leaf_names.append(name)
             reco_event.final_codon_positions.append(copy.deepcopy(reco_event.post_erosion_codon_positions))  # separate codon positions for each sequence, because of shm indels

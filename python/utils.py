@@ -2453,8 +2453,9 @@ def in_frame(seq, codon_positions, fv_insertion, v_5p_del, debug=False):  # NOTE
     return v_cpos % 3 == 0 and j_cpos % 3 == 0
 
 #----------------------------------------------------------------------------------------
-def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):  # NOTE getting the indexing correct here is extremely non-trivial
-    """ true if there's a stop codon in frame with respect to the start of the V """
+# return list of the codons in <seq> (starting from first in frame position), along with any bits trimmed off the start and end
+# NOTE duplicates some of pad_seq_for_translation()
+def get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):  # NOTE getting the indexing correct here is extremely non-trivial
     germline_v_start = len(fv_insertion) - v_5p_del  # position in <seq> (the query sequence) to which the first base of the germline sequence aligns
     istart = germline_v_start  # start with the first complete codon after <germline_v_start>
     while istart < len(fv_insertion):  # while staying in frame with the start of the v, skootch up to the first base in the query sequence that's actually aligned to the germline (i.e. up to 0 if no fv_insertion, and further if there is one)
@@ -2463,9 +2464,16 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     istop = germline_j_end - ((germline_j_end - istart) % 3)
     codons = [seq[i : i + 3] for i in range(istart, istop, 3)]
     if debug:
-        print '   looking for stop codons: istart %d  istop %d' % (istart, istop)
+        print '   getting codons: istart %d  istop %d' % (istart, istop)
         print '     seq: %25s' % seq
         print '  codons: %s' % ''.join([color('red' if cdn in codon_table['stop'] else None, cdn) for cdn in codons])
+    return codons, [seq[:istart], seq[istop:]]
+
+#----------------------------------------------------------------------------------------
+def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):
+    """ true if there's a stop codon in frame with respect to the start of the V """
+    codons, _ = get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=debug)
+    if debug:
         print '    %d stop codon%s'  % (len(set(codons) & set(codon_table['stop'])), plural(len(set(codons) & set(codon_table['stop']))))
     return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
 
@@ -3904,6 +3912,7 @@ def add_naive_seq_aa(line):
 # ----------------------------------------------------------------------------------------
 def pad_seq_for_translation(line, tseq, debug=False):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
     # NOTE this duplicates [is reverse of?] code in n_variable_ambig() (but not really sure how to clean up/combine them)
+    # NOTE also duplicates some of get_codon_list()
     old_tseq = tseq  # just for dbg
     fv_xtra, v_5p_xtra = 0, 0
     if len(line['fv_insertion']) % 3 != 0:  # first base in v (i.e. after any fv insertion) is in frame, so have to align with that

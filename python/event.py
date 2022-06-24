@@ -29,7 +29,7 @@ class RecombinationEvent(object):
         self.effective_erosions = {}  # v left and j right erosions
         self.cdr3_length = 0  # NOTE this is the *desired* cdr3_length, i.e. after erosion and insertion
         self.insertion_lengths = {}
-        self.insertions = {}
+        self.insertions = {b : '' for b in utils.effective_boundaries}  # NOTE 'fv' and 'jf' insertions are hereby hardcoded to zero (I'm just writing this here to make it easily searchable -- I don't remember why it's set up that way)
         self.recombined_seq = ''  # combined sequence *before* mutations
         self.final_seqs, self.indelfos, self.final_codon_positions = [], [], []
         self.unmutated_codons = None
@@ -121,10 +121,8 @@ class RecombinationEvent(object):
         line = {}
         for region in utils.regions:
             line[region + '_gene'] = self.genes[region]
-        for boundary in utils.boundaries:
+        for boundary in utils.boundaries + utils.effective_boundaries:
             line[boundary + '_insertion'] = self.insertions[boundary]
-        for boundary in utils.effective_boundaries:
-            line[boundary + '_insertion'] = ''  # NOTE 'fv' and 'jf' insertions are hereby hardcoded to zero (I'm just writing this here to make it easily searchable -- I don't remember why it's set up that way)
         for erosion in utils.real_erosions:
             line[erosion + '_del'] = self.erosions[erosion]
         for erosion in utils.effective_erosions:
@@ -166,4 +164,25 @@ class RecombinationEvent(object):
                     print '    reverting %s --> %s' % (seq[pos : pos + 3], self.unmutated_codons[region])  # this doesn't happen *much* any more, but bppseqgen barfs if we pass it rates that are exactly zero, so it still happens sometimes
                 seq = seq[:pos] + self.unmutated_codons[region] + seq[pos + 3 :]
             assert utils.codon_unmutated(utils.conserved_codons[self.glfo['locus']][region], seq, pos)
+        return seq
+
+    # ----------------------------------------------------------------------------------------
+    def mutate_away_stop_codons(self, seq, debug=False):
+        # ----------------------------------------------------------------------------------------
+        def fix_stop(cdn):
+            while cdn in utils.codon_table['stop']:
+                imut = numpy.random.choice(range(len(cdn)))
+                new_nuc = numpy.random.choice([n for n in utils.nukes if n != cdn[imut]])
+                cdn = cdn[:imut] + new_nuc + cdn[imut + 1:]
+            return cdn
+        # ----------------------------------------------------------------------------------------
+        codons, trim_bits = utils.get_codon_list(seq, self.insertions['fv'], self.insertions['jf'], self.effective_erosions['v_5p'], debug=debug)
+        for istp in [i for i, c in enumerate(codons) if c in utils.codon_table['stop']]:
+            new_cdn = fix_stop(codons[istp])
+            if debug:
+                print '  fixed %3d: %s --> %s' % (istp, codons[istp], new_cdn)
+            codons[istp] = new_cdn
+        seq = trim_bits[0] + ''.join(codons) + trim_bits[1]
+        if debug:
+            assert not utils.is_there_a_stop_codon(seq, self.insertions['fv'], self.insertions['jf'], self.effective_erosions['v_5p'])
         return seq
