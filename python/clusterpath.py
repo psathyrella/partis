@@ -211,7 +211,7 @@ class ClusterPath(object):
                     cfpart = copy.deepcopy(cfpart)  # make sure not to modify self.partitions[ip]
                     cfpart.append(missing_ids)  # i guess it's ok to add them as a cluster, i mean we probably had them all together
                     cfids += missing_ids
-            partial_true_ptn = utils.restrict_partition_to_ids(true_partition, cfids)
+            partial_true_ptn = utils.restrict_partition_to_ids(true_partition, cfids, warn=True, fail_frac=0.02)  # this sucks and is terrible, but it's just too much trouble to always require all methods to never fail anything (but otoh the performance metrics start meaning very little if you're not comparing on the same sequences!). Could i guess also use utils.add_missing_uids_to_partition() to adding them to cfpart
             new_vals = utils.per_seq_correct_cluster_fractions(cfpart, partial_true_ptn, reco_info=reco_info, seed_unique_id=self.seed_unique_id)  # it doesn't need reco_info, but having does save a step
             if None not in new_vals:  # if the function finds messed up partitions, it returns None, None (at this point, this seems to just happens when a uid was found in multiple clusters, which happens for earlier partitions (n_procs > 1) when seed_unique_id is set, since we pass seed_unique_id to all the subprocs)
                 self.ccfs[ip] = new_vals

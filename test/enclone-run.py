@@ -170,7 +170,7 @@ def run_enclone():
         return
     # description of output fields here https://10xgenomics.github.io/enclone/pages/auto/help.parseable.html
     out_columns = ['barcode', 'group_id']  # still don't understand what these are, but they're not the index of the family: , 'clonotype_id', 'exact_subclonotype_id'
-    cmd = '%s/packages/enclone/enclone BCR=%s BUILT_IN NOPRINT POUT=%s PCELL PCOLS=%s' % (utils.get_partis_dir(), os.path.dirname(encifn()), encofn(), ','.join(out_columns))  #  FASTA=_output/enclone-test/out.fa
+    cmd = '%s/packages/enclone/enclone BCR=%s BUILT_IN SUMMARY NOPRINT POUT=%s PCELL PCOLS=%s' % (utils.get_partis_dir(), os.path.dirname(encifn()), encofn(), ','.join(out_columns))  #  FASTA=_output/enclone-test/out.fa
     cmdfos += [{
         'cmd_str' : cmd,
         'outfname' : ofn,
