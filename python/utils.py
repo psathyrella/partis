@@ -4973,9 +4973,16 @@ def get_partition_from_annotation_list(annotation_list):
     return [copy.deepcopy(l['unique_ids']) for l in annotation_list]
 
 # ----------------------------------------------------------------------------------------
-def restrict_partition_to_ids(partition, ids):  # return copy of <partition> with any uids removed that aren't in <ids>
+def restrict_partition_to_ids(partition, ids, warn=False, fail_frac=None):  # return copy of <partition> with any uids removed that aren't in <ids>
     sids = set(ids)
     ptn = [set(c) & sids for c in partition]
+    if warn or fail_frac:
+        removed_ids = set(u for c in partition for u in c) - sids
+        n_tot = sum(len(c) for c in partition)
+        if len(removed_ids) > 0:
+            print '  %s removed %d / %d = %.3f uids from partition' % (wrnstr(), len(removed_ids), n_tot, len(removed_ids) / float(n_tot))
+        if fail_frac is not None and len(removed_ids) / float(n_tot) > fail_frac:
+            raise Exception('removed more than %.3f' % fail_frac)
     return [c for c in ptn if len(c) > 0]
 
 # ----------------------------------------------------------------------------------------

@@ -109,7 +109,11 @@ def run_joint_scoper():
 def convert_output(joint=False):
     # ----------------------------------------------------------------------------------------
     def get_joint_time():
-        timeline, _ = utils.simplerun('grep maxresident %s/joint-scoper.log' % wkdir('joint'), return_out_err=True)
+        try:
+            timeline, _ = utils.simplerun('grep maxresident %s/joint-scoper.log' % wkdir('joint'), return_out_err=True)
+        except subprocess.CalledProcessError:
+            print '    %s grep failed' % utils.color('red', 'error')
+            return -1
         user, system, elapsed, cpu, _, _ = timeline.strip().split()
         etstr = elapsed.replace('elapsed', '')
         assert etstr.count(':') == 1
