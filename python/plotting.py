@@ -499,7 +499,7 @@ timeticklabels = ['0.1 sec', '1 sec', '10 sec', '1 min', '10 min', '1 hour', '10
 # would be nicer to call this 'titles' or something now that i'm adding a separate one for axes, but i don't want to change it
 legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'vjcdr3-0.9' : 'VJ CDR3 0.9',
-           'vjcdr3-0.d89' : 'VJ CDR3 0.8',
+           'vjcdr3-0.8' : 'VJ CDR3 0.8',
            # 'partition partis' : 'full partis',
            'partition' : 'full partis',
            # 'naive-hamming-partition partis' : 'point partis',
