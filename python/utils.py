@@ -4973,19 +4973,6 @@ def get_partition_from_annotation_list(annotation_list):
     return [copy.deepcopy(l['unique_ids']) for l in annotation_list]
 
 # ----------------------------------------------------------------------------------------
-def restrict_partition_to_ids(partition, ids, warn=False, fail_frac=None):  # return copy of <partition> with any uids removed that aren't in <ids>
-    sids = set(ids)
-    ptn = [set(c) & sids for c in partition]
-    if warn or fail_frac:
-        removed_ids = set(u for c in partition for u in c) - sids
-        n_tot = sum(len(c) for c in partition)
-        if len(removed_ids) > 0:
-            print '  %s removed %d / %d = %.3f uids from partition' % (wrnstr(), len(removed_ids), n_tot, len(removed_ids) / float(n_tot))
-        if fail_frac is not None and len(removed_ids) / float(n_tot) > fail_frac:
-            raise Exception('removed more than %.3f' % fail_frac)
-    return [c for c in ptn if len(c) > 0]
-
-# ----------------------------------------------------------------------------------------
 def get_partition_from_reco_info(reco_info, ids=None):
     # Two modes:
     #  - if <ids> is None, it returns the actual, complete, true partition.
@@ -5272,15 +5259,18 @@ def find_uid_in_partition(uid, partition):
         raise Exception('couldn\'t find %s in %s\n' % (uid, partition))
 
 # ----------------------------------------------------------------------------------------
-def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='a', b_label='b', debug=False):
+def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='a', b_label='b', print_uids=False, debug=False):
     """ make sure two partitions have identical uid lists """
-    uids_a = set([uid for cluster in part_a for uid in cluster])
-    uids_b = set([uid for cluster in part_b for uid in cluster])
+    uids_a, uids_b = [ptn_ids(p) for p in [part_a, part_b]]
     a_and_b = uids_a & uids_b
     a_not_b = uids_a - uids_b
     b_not_a = uids_b - uids_a
     if len(a_not_b) > 0 or len(b_not_a) > 0:  # NOTE this should probably also warn/pring if either of 'em has duplicate uids on their own
         failstr = '\'%s\' partition (%d total) and \'%s\' partition (%d total) don\'t have the same uids:   only %s %d    only %s %d    common %d' % (a_label, sum(len(c) for c in part_a), b_label, sum(len(c) for c in part_b), a_label, len(a_not_b), b_label, len(b_not_a), len(a_and_b))
+        if print_uids:
+            failstr += '\n' + '\n'.join(['    only %s: %s' % (a_label, ' '.join(a_not_b)),
+                                         '    only %s: %s' % (b_label, ' '.join(b_not_a)),
+                                         '    common: %s' % ' '.join(a_and_b)])
         if only_warn:
             print '  %s %s' % (color('yellow', 'warning'), failstr)
             if debug:
@@ -5292,6 +5282,10 @@ def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='
         if debug:
             print '  intersection and complement both ok'
     return a_and_b, a_not_b, b_not_a
+
+# ----------------------------------------------------------------------------------------
+def ptn_ids(partition):  # return set of uids in <partition> (adding this very late, so could probably be used in a lot of places it isn't)
+    return set(u for c in partition for u in c)
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_list_for_sklearn(part_a, part_b):
@@ -5319,13 +5313,17 @@ def adjusted_mutual_information(partition_a, partition_b):
     # return sklearn.metrics.cluster.adjusted_mutual_info_score(clusts_a, clusts_b)
 
 # ----------------------------------------------------------------------------------------
-def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, miss_label='', ref_label='', debug=True):
+def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, miss_label='', ref_label='', debug=False, warn=False, fail_frac=None):
     """ return a copy of <partition_with_missing_uids> which has had any uids which were missing inserted as singletons (i.e. uids which were in <ref_partition>) """
     ref_ids, pmiss_ids = set(u for c in ref_partition for u in c), set(u for c in partition_with_missing_uids for u in c)
     missing_ids = ref_ids - pmiss_ids
     partition_with_uids_added = copy.deepcopy(partition_with_missing_uids) + [[u] for u in missing_ids]
-    if debug:
-        print '  added %d (of %d) ids from %spartition that were missing from %spartition (%s)' % (len(missing_ids), sum([len(c) for c in ref_partition]), ref_label+' ' if ref_label is not None else '', miss_label+' ' if miss_label is not None else '', ' '.join(missing_ids))
+    if len(missing_ids) > 0 and (debug or warn or fail_frac):
+        if debug or warn:
+            print '  %sadded %d / %d missing ids as singletons to %s partition (to match ids in %s partition)%s' % (wrnstr()+' ' if warn else '', len(missing_ids), sum(len(c) for c in ref_partition), miss_label, ref_label, ' '.join(missing_ids) if len(missing_ids) < 30 else '')
+        miss_frac = len(missing_ids) / float(sum(len(c) for c in ref_partition))
+        if fail_frac is not None and miss_frac > fail_frac:
+            raise Exception('missing %.3f (more than %.3f)' % (miss_frac, fail_frac))
     return partition_with_uids_added
 
 # ----------------------------------------------------------------------------------------
