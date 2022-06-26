@@ -1,28 +1,8 @@
 #!/bin/bash
 
-# ----------------------------------------------------------------------------------------
-# To run the simulation-based analysis for each figure, choose the appropriate label from the table below, and uncomment the corresponding command in the block below.
-# You will need to run the desired actions (e.g. scoper, partition) as well as plot and combine-plots.
-# See $bin --help for details.
-#  FIG    label
-#   3   vs-shm/v2
-#   4   pairclean/v2
-#   5   pairfix/v1
-#   6   time-reqd/v0
-#   9   test-antn/imbal-v3
-#  S3   vs-shm/v2
-#  S4   vs-shm/v2
-#  S5   vs-shm/v2
-#  S6   vs-n-sim-events/v1
-#  S7   vs-n-sim-events/v1
-#  S8   pairclean/v2
-#  S9   pairfix/v1
-# S11   vs-n-leaves/v1
-# S12   key-trans/v0
-
 bin=./test/cf-paired-loci.py
 
-methods=synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.8:enclone:mobille:scoper:vsearch-partition:partition  # this is for vs-shm; for time-reqd: enclone:mobille:scoper:vsearch-partition:partition NOTE enclone needs fixing tho (for missing uids)
+methods=enclone #synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.8:enclone:mobille:scoper:vsearch-partition:partition  # this is for vs-shm; for time-reqd: enclone:mobille:scoper:vsearch-partition:partition NOTE enclone needs fixing tho (for missing uids)
 # methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
 # methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
 # methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"  # NOTE this is only for vs-shm (comparing single vs joint); for time-reqd you only need scoper
@@ -31,7 +11,7 @@ astr="--actions $methods" #partition --merge-paired-partitions" #$methods"
 # astr="--actions combine-plots --plot-metrics $methods $xstr"
 common="--n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci $astr" # --dry" # /fh/local/dralph
 echo $bin --label vs-shm          --version v2 --n-replicates 3 --n-leaves-list 3 --n-sim-events-list 10000 --scratch-mute-freq-list 0.01:0.05:0.10:0.20:0.30 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --final-plot-xvar scratch-mute-freq $common  # with these simu args, the scratch mute freq is almost identical to the final mean mfreq, so can just use the scratch mute freq on x axis
-# echo $bin --label vs-shm          --version v3 --n-replicates 3 --n-leaves-list 3 --n-sim-events-list 10000 --scratch-mute-freq-list 0.01:0.05:0.10:0.20:0.30 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --mutate-stop-codons\" --final-plot-xvar scratch-mute-freq $common  # with these simu args, the scratch mute freq is almost identical to the final mean mfreq, so can just use the scratch mute freq on x axis
+echo $bin --label vs-shm          --version v3 --n-replicates 3 --n-leaves-list 3 --n-sim-events-list 10000 --scratch-mute-freq-list 0.01:0.05:0.10:0.20:0.30 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --mutate-stop-codons\" --final-plot-xvar scratch-mute-freq $common  # with these simu args, the scratch mute freq is almost identical to the final mean mfreq, so can just use the scratch mute freq on x axis
 # # echo $bin --label vs-n-leaves     --version v0 --n-replicates 3 --n-leaves-list 1:5:10:50 --n-sim-events-list 1000 --simu-extra-args="--constant-number-of-leaves" $common
 # echo $bin --label vs-n-leaves     --version v1 --n-replicates 3 --n-leaves-list 1:2:3:5:7:10:25:50 --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist --simu-extra-args="--constant-number-of-leaves" $common
 # # echo $bin --label vs-n-leaves     --version v2 --n-replicates 3 --n-leaves-list 1:2:3:5:7:25:50 --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist --scratch-mute-freq-list 0.15 --simu-extra-args="--constant-number-of-leaves --flat-mute-freq --same-mute-freq-for-all-seqs" $common
