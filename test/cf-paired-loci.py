@@ -190,7 +190,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         cmd = './test/scoper-run.py --indir %s --outdir %s --simdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action), odir(args, varnames, vstrs, 'simu'))
         return cmd
     if action in ['mobille', 'igblast', 'linearham', 'enclone']:
-        binstr = ('./test/mobille-igblast-run.py %s' % action) if action in ['mobile', 'igblast'] else './test/%s-run.py'%action
+        binstr = ('./test/mobille-igblast-run.py %s' % action) if action in ['mobille', 'igblast'] else './test/%s-run.py'%action
         cmd = '%s --simdir %s --outdir %s' % (binstr, odir(args, varnames, vstrs, 'simu'), odir(args, varnames, vstrs, action))
         if action in ['mobille', 'igblast']:  # i don't think both of them need all these
             cmd += ' --id-str %s --base-imgt-outdir %s' % ('_'.join('%s-%s'%(n, s) for n, s in zip(varnames, vstrs)), '%s/%s/%s/imgt-output' % (args.base_outdir, args.label, args.version))
