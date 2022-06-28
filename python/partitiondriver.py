@@ -1841,7 +1841,7 @@ class PartitionDriver(object):
             uids_and_lengths = {q : self.sw_info[q]['cdr3_length'] for q in query_names}
             uids_and_lengths = sorted(uids_and_lengths.items(), key=operator.itemgetter(1))
             uids, lengths = zip(*uids_and_lengths)
-            raise Exception('cdr3 lengths not all the same for %s (%s)' % (' '.join(uids), ' '.join([str(c) for c in lengths])))
+            raise Exception('cdr3 lengths not all the same (%s) for %s (probably need to add more criteria for call to utils.split_clusters_by_cdr3())' % (' '.join([str(c) for c in lengths])), ' '.join(uids))
         combo['cdr3_length'] = cdr3_lengths[0]
 
         combo['k_v'] = {'min' : 99999, 'max' : -1}
@@ -1945,7 +1945,7 @@ class PartitionDriver(object):
                 for tcount, tclust in set([(partition.count(c), ':'.join(c)) for c in partition if partition.count(c) > 1]):
                     print '  %s cluster occurs %d times in the <nsets> we\'re sending to bcrham: %s' % (utils.color('yellow', 'warning'), tcount, tclust)
             nsets = copy.deepcopy(partition)  # needs to be a deep copy so we can shuffle the order
-            if self.input_partition is not None or self.args.simultaneous_true_clonal_seqs:  # this is hackey, but we absolutely cannot have different cdr3 lengths in the same cluster, and these are two cases where it can happen (in very rare cases, usually on really crappy sequences)
+            if self.input_partition is not None or self.args.simultaneous_true_clonal_seqs or self.args.annotation_clustering:  # this is hackey, but we absolutely cannot have different cdr3 lengths in the same cluster, and these are two cases where it can happen (in very rare cases, usually on really crappy sequences)
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)
         else:
             qlist = self.sw_info['queries']  # shorthand
