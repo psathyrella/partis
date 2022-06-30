@@ -25,6 +25,8 @@ ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-part
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
+def is_joint_method(action):
+    return action in ['enclone', 'single-chain-partis']
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -368,6 +370,20 @@ def get_ptntypes(method):
     return ptypes
 
 # ----------------------------------------------------------------------------------------
+def skip_this(pmetr, ptntype, method, ltmp):
+    if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):  # only plot pair info cleaning fractions for joint ptntype
+        return True
+    if pmetr == 'naive-hdist' and ptntype != 'single':  # only do annotation performance for single chain (at least for now)
+        return True
+    if pmetr == 'time-reqd' and ptntype == 'joint' and is_single_chain(method): # or method=='vsearch-partition')):
+        return True
+    if ptntype != 'joint' and is_joint_method(method):  # this is just a hackey way to get the single chain line on the joint plot, we don't actually want it [twice] on the single chain plot
+        return True
+    if args.bcrham_time and ptntype == 'joint':
+        return True
+    return False
+
+# ----------------------------------------------------------------------------------------
 import random
 random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
@@ -394,15 +410,7 @@ for action in args.actions:
                 for ipt, ptntype in enumerate(get_ptntypes(method)):
                     for ltmp in plot_loci():
                         for pmetr in args.perf_metrics:
-                            if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):  # only plot pair info cleaning fractions for joint ptntype
-                                continue
-                            if pmetr == 'naive-hdist' and ptntype != 'single':  # only do annotation performance for single chain (at least for now)
-                                continue
-                            if pmetr == 'time-reqd' and (ptntype == 'joint' and is_single_chain(method)): # or method=='vsearch-partition')):
-                                continue
-                            if method == 'single-chain-partis' and ptntype != 'joint':  # this is just a hackey way to get the single chain line on the joint plot, we don't actually want it [twice] on the single chain plot
-                                continue
-                            if args.bcrham_time and ptntype == 'joint':
+                            if skip_this(pmetr, ptntype, method, ltmp):
                                 continue
                             print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
                             arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype, pmetr), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'debug' : args.debug}

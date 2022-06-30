@@ -126,7 +126,12 @@ def readlog(args, fname, metric, locus, ptntype):
         assert ptntype == 'single' or metric in ['enclone', 'scoper']  # at least for now
         tmstr = '%s time:' % metric
         tlines = [l for l in flines if tmstr in l]
-        tloci = ['igh', 'igk', 'joint'] if metric=='scoper' else [locus]
+        if metric == 'scoper':
+            tloci = ['igh', 'igk', 'joint']
+        elif metric == 'enclone':
+            tloci = ['joint']
+        else:
+            tloci = [locus]
         if len(tlines) != len(tloci):
             raise Exception('couldn\'t find exactly %d time lines (timestr \'%s\') for loci %s (got %d) in %s' % (len(tloci), tmstr, tloci, len(tlines), fname))
         tvals = {}

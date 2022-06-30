@@ -20,6 +20,15 @@ from clusterpath import ClusterPath
 
 ig_or_tr = 'ig'
 
+imgt_by_hand_str = """
+you need to get these with/from the imgt web site by hand, after first running just the first convert_file() call below
+then running e.g. tar czf /fh/fast/matsen_e/dralph/partis/paired-loci/vs-shm/v3/imgt-input.tgz /fh/fast/matsen_e/dralph/partis/paired-loci/vs-shm/v3/seed-*/scratch-mute-freq-*/mobille/work/*/imgt-input/*.fa)
+(or maybe just seeds 0 + 1)
+then extract files on machine with browser, then mv to single dir: find . -name '*.fa' -exec mv {} . \;
+then add them all individually to imgt/high v-quest search page
+
+"""
+
 # ----------------------------------------------------------------------------------------
 def wkdir(locus):
     return '%s/work/%s' % (args.outdir, locus)
@@ -32,7 +41,7 @@ def imgt_indir(locus):
 def idlstr(locus, imgt=False):
     istr = '%s-%s' % (args.id_str, locus)
     if imgt:
-        istr = istr.replace('-', '_').replace('.', '_')+'_fa'  # friggin imgt changes - and . to _
+        istr = istr.replace('-', '_').replace('.', '_') #+'_fa'  # friggin imgt changes - and . to _ UPDATE arg the new version doesn't have '_fa'
     return istr
 
 # ----------------------------------------------------------------------------------------
@@ -177,7 +186,7 @@ def run_mobille():
             if os.path.exists(imtxzfn(locus)):
                 utils.simplerun('mkdir -p %s && cd %s && tar xf %s' % (imgt_outdir(locus), imgt_outdir(locus), imtxzfn(locus)), shell=True, dryrun=args.dry)
             else:
-                print '    missing imgt output txz %s' % imtxzfn(locus)
+                raise Exception('    missing imgt output txz %s\n%s' % (imtxzfn(locus), imgt_by_hand_str))
 
         # cmd = 'time bash run_MobiLLe.sh ../Data/Real_datasets/IMGT_highvquest_output/toy_dataset _output/tmp'
         shlines = [
