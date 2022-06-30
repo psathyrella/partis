@@ -26,7 +26,7 @@ plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
 def is_joint_method(action):
-    return action in ['enclone', 'single-chain-partis']
+    return action in ['enclone', 'single-chain-partis']  # yes, 'single-chain-partis' is a "joint method": this is just a hackey way to get the single chain line on the joint plot, we don't actually want it [twice] on the single chain plot
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -377,7 +377,7 @@ def skip_this(pmetr, ptntype, method, ltmp):
         return True
     if pmetr == 'time-reqd' and ptntype == 'joint' and is_single_chain(method): # or method=='vsearch-partition')):
         return True
-    if ptntype != 'joint' and is_joint_method(method):  # this is just a hackey way to get the single chain line on the joint plot, we don't actually want it [twice] on the single chain plot
+    if ptntype != 'joint' and is_joint_method(method):
         return True
     if args.bcrham_time and ptntype == 'joint':
         return True
