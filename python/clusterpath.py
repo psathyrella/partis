@@ -192,7 +192,7 @@ class ClusterPath(object):
             self.add_partition(line['partition'], float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), ccfs=ccfs)
 
     # ----------------------------------------------------------------------------------------
-    def calculate_missing_values(self, reco_info=None, true_partition=None, only_ip=None):  # NOTE adding true_partition argument very late, so there's probably lots of places that call the fcns that call this (printer + line getter) that would rather pass in true_partition and reco_info
+    def calculate_missing_values(self, reco_info=None, true_partition=None, only_ip=None, fail_frac=None):  # NOTE adding true_partition argument very late, so there's probably lots of places that call the fcns that call this (printer + line getter) that would rather pass in true_partition and reco_info
         for ip in range(len(self.partitions)):
             if only_ip is not None and ip != only_ip:
                 continue
@@ -210,7 +210,7 @@ class ClusterPath(object):
                 cftrue = [list(set(c) & utils.ptn_ids(cfpart)) for c in cftrue]  # then remove from true partition ids not in the inferred partition (i.e. non-seed ids), except for any non-seed ones that are in the inferred partition
                 cftrue = [c for c in cftrue if len(c) > 0]  # remove empties
             else:  # whereas for non-seed, add any missing (failed) ids to the inferred partition as singletons (fail if there's too many)
-                cfpart = utils.add_missing_uids_to_partition(cfpart, true_partition, warn=True, fail_frac=0.05, ref_label='true', miss_label='inferred')
+                cfpart = utils.add_missing_uids_to_partition(cfpart, true_partition, warn=True, fail_frac=fail_frac, ref_label='true', miss_label='inferred')
             new_vals = utils.per_seq_correct_cluster_fractions(cfpart, cftrue, reco_info=reco_info, seed_unique_id=self.seed_unique_id)  # it doesn't need reco_info, but having it does save a step
             if None not in new_vals:  # if the function finds messed up partitions, it returns None, None (at this point, this seems to just happens when a uid was found in multiple clusters, which happens for earlier partitions (n_procs > 1) when seed_unique_id is set, since we pass seed_unique_id to all the subprocs)
                 self.ccfs[ip] = new_vals
@@ -363,11 +363,11 @@ class ClusterPath(object):
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def get_partition_lines(self, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None):  # we use this (instead of .write()) if we're writing a yaml file
+    def get_partition_lines(self, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None, fail_frac=0.05):  # we use this (instead of .write()) if we're writing a yaml file
         assert calc_missing_values in ['none', 'all', 'best']
         is_simu = (reco_info is not None or true_partition is not None) or any(cfs!=[None, None] for cfs in self.ccfs)  # second clause is for cases where we've read a cpath with simulation info (i.e. ccfs), but don't have reco_info or true_partition
         if is_simu and calc_missing_values == 'all':
-            self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition)
+            self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, fail_frac=fail_frac)
 
         headers = self.get_headers(is_simu)  # NOTE it would be better (at least now, i think) to look at what is set e.g. in ccfs to determine headers, rather than use is_simu
         lines = []
@@ -380,7 +380,7 @@ class ClusterPath(object):
                    'partition' : part}
             if 'ccf_under' in headers:
                 if is_simu and calc_missing_values == 'best' and ipart == self.i_best:
-                    self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=ipart)
+                    self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=ipart, fail_frac=fail_frac)
                 if self.ccfs[ipart][0] is not None and self.ccfs[ipart][1] is not None:
                     row['ccf_under'], row['ccf_over'] = self.ccfs[ipart]  # for now assume we calculated the ccfs if we did adj mi
             if 'n_true_clusters' in headers:

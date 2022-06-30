@@ -209,7 +209,7 @@ def convert_output():
                     cpaths[loci[tch]].partitions[0].append(cclust)
     for locus in gloci():
         _, _, true_cpath = utils.read_output(simfn(locus), skip_annotations=True)
-        plines = cpaths[locus].get_partition_lines(true_partition=true_cpath.best(), calc_missing_values='best')
+        plines = cpaths[locus].get_partition_lines(true_partition=true_cpath.best(), calc_missing_values='best', fail_frac=0.10)
         print '    writing partition to %s' % getofn(locus)
         utils.write_annotations(getofn(locus), {}, [], utils.annotation_headers, partition_lines=plines)
 
