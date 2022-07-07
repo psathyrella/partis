@@ -100,14 +100,15 @@ def write_locus_file(locus, ofos, lpair=None, extra_str='  '):
             lfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
 
 # ----------------------------------------------------------------------------------------
-def read_meta_info():  # read all input meta info, and add pairing info (if present) to <paired_uids>
+def read_meta_info(seqfos):  # read all input meta info, and add pairing info (if present) to <paired_uids>
     dummy_annotation_list = [{'unique_ids' : [sfo['name']]} for sfo in seqfos]
     seqfileopener.read_input_metafo([args.input_metafname], dummy_annotation_list)  # , required_keys=['paired-uids'])
     for line in dummy_annotation_list:
+        uid = utils.get_single_entry(line['unique_ids'])
         if 'loci' in line:
-            meta_loci[line['unique_ids'][0]] = line['loci'][0]
+            meta_loci[uid] = line['loci'][0]
         if 'paired-uids' in line:
-            paired_uids[line['unique_ids'][0]] = line['paired-uids'][0]
+            paired_uids[uid] = line['paired-uids'][0]
     if len(paired_uids) > 0:
         print '    read pairing info for %d seqs from input meta file' % len(paired_uids)
         if len(paired_uids) < len(seqfos):
@@ -116,6 +117,12 @@ def read_meta_info():  # read all input meta info, and add pairing info (if pres
         print '    read loci for %d sequences from input meta file (so not running vsearch)' % len(meta_loci)
         if len(meta_loci) < len(seqfos):
             print '      %s only read locus info for %d/%d seqfos' % (utils.color('yellow', 'warning'), len(meta_loci), len(seqfos))
+    input_metafos = utils.read_json_yaml(args.input_metafname)
+    for uid in input_metafos:  # we want to copy over any additional meta info (not paired uids or loci) to the output meta info file (since if we're guessing pair info, the uid names will change, so the original one is no good)
+        additional_mfo = {k : v for k, v in input_metafos[uid].items() if k not in ['loci', 'paired-uids']}
+        if len(additional_mfo) > 0:
+            input_metafos[uid] = additional_mfo
+    return input_metafos
 
 # ----------------------------------------------------------------------------------------
 def print_pairing_info(outfos, paired_uids):
@@ -170,9 +177,9 @@ if os.path.exists(args.germline_dir + '/' + args.species):  # ick that is hackey
     args.germline_dir += '/' + args.species
 
 # read input meta file and/or run vsearch
-paired_uids, meta_loci = {}, {}
+paired_uids, meta_loci, input_metafos = {}, {}, {}
 if args.input_metafname is not None:
-    read_meta_info()
+    input_metafos = read_meta_info(seqfos)
 if len(meta_loci) == 0:  # default: no input locus info
     run_vsearch(seqfos)
 
@@ -203,8 +210,14 @@ if args.guess_pairing_info:
         raise Exception('can\'t/shouldn\'t guess pairing info if we already have it from elsewhere')
     for locus in outfos:
         for ofo in outfos[locus]:
-            ofo['name'] += '-' + locus
+            new_name = ofo['name'] + '-' + locus
+            if ofo['name'] in input_metafos:
+                input_metafos[new_name] = input_metafos[ofo['name']]
+                del input_metafos[ofo['name']]
+            ofo['name'] = new_name
     guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separators, droplet_id_indices=args.droplet_id_indices)
+    for uid in set(guessed_metafos) & set(input_metafos):
+        guessed_metafos[uid].update(input_metafos[uid])
     for uid, mfo in guessed_metafos.items():
         paired_uids[uid] = mfo['paired-uids']
 
