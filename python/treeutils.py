@@ -3112,6 +3112,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if is_simu:
             _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
+        if args.meta_info_key_to_color is not None:
+            cpkeys.append(args.meta_info_key_to_color)
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         for iseq, mfo in enumerate(metric_pairs):
@@ -3170,6 +3172,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=debug)
 # TODO will need these args in order to run gctree
                  # glfo=, gctree_outdir=None if args.outfname is None or not args.run_gctree else os.path.dirname(utils.fpath(args.outfname)),
+    if args.plot_partitions:  # ok this kinda maybe shouldn't work, but seems ok?
+        from partitionplotter import PartitionPlotter
+        partplotter = PartitionPlotter(args)
+        partplotter.plot(args.plotdir + '/partitions', [l['unique_ids'] for l in inf_lines.values()], inf_lines, no_mds_plots=args.no_mds_plots)
     if debug:
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
             print_dbg(iclust, metric_pairs, icl_mfos)  # note: relies on mtpys being in scope

@@ -122,16 +122,21 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         tstyle.legend.add_face(ete3.TextFace(tfstr, fsize=fsize), column=start_column + 2)
 
 # ----------------------------------------------------------------------------------------
-def set_meta_styles(args, etree, tstyle):
-    # ----------------------------------------------------------------------------------------
-    def label_node(node):
-        if args.label_all_nodes:
+def label_node(node):
+    if args.label_all_nodes:
+        return True
+    if args.queries_to_include is not None and node.name in args.queries_to_include:
+        return True
+    if args.label_root_node and node is etree.get_tree_root():
+        return True
+    if args.meta_info_to_emphasize is not None:
+        key, val = args.meta_info_to_emphasize.items()[0]
+        if utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
             return True
-        if args.queries_to_include is not None and node.name in args.queries_to_include:
-            return True
-        if args.label_root_node and node is etree.get_tree_root():
-            return True
-        return False
+    return False
+
+# ----------------------------------------------------------------------------------------
+def set_lb_styles(args, etree, tstyle):
     # ----------------------------------------------------------------------------------------
     lbfo = args.metafo[args.lb_metric]
     if 'lbr' in args.lb_metric or 'lbf' in args.lb_metric:  # remove zeros + maybe apply log()
@@ -211,6 +216,29 @@ def set_meta_styles(args, etree, tstyle):
             add_legend(tstyle, '%s increase' % affy_label, [v for v in delta_affyvals if v > 0], delta_affy_increase_smap, affyfo, 6, add_sign='+', no_opacity=True)
 
 # ----------------------------------------------------------------------------------------
+def set_meta_styles(args, etree, tstyle):
+    all_emph_vals, emph_colors = None, None
+    if args.meta_info_key_to_color is not None:
+        mvals = args.metafo[args.meta_info_key_to_color]
+        all_emph_vals, emph_colors = plotting.meta_emph_init(args.meta_info_key_to_color, None, None, formats=args.meta_emph_formats, all_emph_vals=set(mvals.values()))
+        mcolors = {v : c for v, c in emph_colors}
+    for node in etree.traverse():
+        node.img_style['size'] = 0
+        rfsize = 0
+        # rfsize = get_size(lb_min, lb_max, lbfo[node.name])
+        rfsize = 5
+        bgcolor = plotting.getgrey()
+        if args.meta_info_key_to_color is not None and node.name in mvals:
+            bgcolor = mcolors[mvals[node.name]]
+
+        if label_node(node):
+            tface = ete3.TextFace(node.name, fsize=3, fgcolor='red')
+            node.add_face(tface, column=0)
+        rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
+        rface.opacity = opacity
+        node.add_face(rface, column=0)
+
+# ----------------------------------------------------------------------------------------
 def plot_trees(args):
     treefo = read_input(args)
 
@@ -252,7 +280,10 @@ def plot_trees(args):
     # tstyle.complete_branch_lines_when_necessary = True
 
     if args.metafo is not None:
-        set_meta_styles(args, etree, tstyle)
+        if args.lb_metric is not None:
+            set_lb_styles(args, etree, tstyle)
+        if args.meta_info_key_to_color is not None or args.meta_info_to_emphasize:
+            set_meta_styles(args, etree, tstyle)
 
     # print '      %s' % args.outfname
     tstyle.show_leaf_name = False
@@ -262,7 +293,7 @@ def plot_trees(args):
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--treefname', required=True)
 parser.add_argument('--outfname', required=True)
-parser.add_argument('--lb-metric', default='lbi') #, choices=treeutils.affy_metrics+treeutils.daffy_metrics)
+parser.add_argument('--lb-metric') #, default='lbi') #, choices=treeutils.affy_metrics+treeutils.daffy_metrics)
 parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'relative_affinity'])
 # parser.add_argument('--lb-tau', required=True, type=float)
 parser.add_argument('--metafname')
@@ -274,6 +305,9 @@ parser.add_argument('--partis-dir', default=os.path.dirname(os.path.realpath(__f
 parser.add_argument('--log-lbr', action='store_true')
 parser.add_argument('--gct-lb', action='store_true')
 parser.add_argument('--seq-len', type=int)
+parser.add_argument('--meta-info-to-emphasize', help='see partis help')
+parser.add_argument('--meta-info-key-to-color', help='see partis help')
+parser.add_argument('--meta-emph-formats', help='see partis help')
 args = parser.parse_args()
 
 sys.path.insert(1, args.partis_dir + '/python')
@@ -287,6 +321,9 @@ try:
 except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
+args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
+args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
+utils.meta_emph_arg_process(args)
 
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 args.metafo = None

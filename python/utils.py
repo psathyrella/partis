@@ -699,6 +699,18 @@ def add_input_meta_keys(meta_keys, are_line_keys=False):  # NOTE I'm adding this
     print '  note: added %d new input meta key%s to allowed keys (add \'s\'/plural to access it in the final annotations): %s (%s)' % (len(new_keys), plural(len(new_keys)), ' '.join(new_keys), ' '.join(k+'s' for k in new_keys))
 
 # ----------------------------------------------------------------------------------------
+def meta_emph_arg_process(args):
+    if args.meta_info_to_emphasize is not None:
+        add_input_meta_keys(set(args.meta_info_to_emphasize), are_line_keys=True)  # these would get added when we read the meta info file, if we read it, but we don't e.g. when reading existing output
+        if args.meta_emph_formats is not None:  # have to make it so calling len() on this *and* on the actual values from annotations are comparable (ick, this is ugly, but... that's plotting for you)
+            for mkey, mval in args.meta_info_to_emphasize.items():
+                if args.meta_emph_formats.get(mkey) == 'len':
+                    args.meta_info_to_emphasize[mkey] = [None for _ in range(int(mval))]
+        assert len(args.meta_info_to_emphasize) == 1  # should at some point let there be more than one key
+    if args.meta_info_key_to_color is not None:
+        add_input_meta_keys([args.meta_info_key_to_color], are_line_keys=True)
+
+# ----------------------------------------------------------------------------------------
 def meta_emph_str(key, val, formats=None):  # ick
     kstr, use_len = key.rstrip('s'), False  # (rstrip removes plural, and yes will probably break something at some point)
     if formats is not None and key in formats:
