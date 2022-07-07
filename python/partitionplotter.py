@@ -13,6 +13,7 @@ import utils
 from clusterpath import ClusterPath
 import mds
 import treeutils
+import lbplotting
 
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
@@ -32,6 +33,7 @@ class PartitionPlotter(object):
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
         self.min_pairwise_cluster_size = 7
+        self.min_tree_cluster_size = 5
         self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
         self.laplacian_spectra_min_clusters_size = 4
@@ -512,6 +514,18 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 
     # ----------------------------------------------------------------------------------------
+    def get_treestr(self, annotation, cpath, debug=False):
+        # NOTE/TODO this always runs on inferred stuff, even on simulation
+        if 'tree-info' in annotation and 'lb' in annotation['tree-info']:
+            treestr = annotation['tree-info']['lb']['tree']
+        else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partition
+            print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()  # didn't run this after adding/rewriting this fcn
+            treefo = treeutils.get_trees_for_annotations([annotation], cpath=cpath, debug=debug)[0]
+            print '  %s no tree in annotation, so getting new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
+            treestr = treefo['tree'].as_string(schema='newick').strip()
+        return treestr
+
+    # ----------------------------------------------------------------------------------------
     def make_laplacian_spectra_plots(self, sorted_clusters, annotations, plotdir, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
         subd, plotdir = self.init_subd('laplacian-spectra', plotdir)
 
@@ -526,13 +540,7 @@ class PartitionPlotter(object):
                 repeated_uids = [u for u, count in collections.Counter(sorted_clusters[iclust]).items() if count > 1]
                 print '  skipping laplacian spectra plotting for cluster with %d duplicate uids (%s)' % (len(repeated_uids), ' '.join(repeated_uids))
                 continue
-            if 'tree-info' in annotation and 'lb' in annotation['tree-info']:
-                treestr = annotation['tree-info']['lb']['tree']
-            else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partition
-                print '  %s may need testing' % utils.wrnstr()  # didn't run this after adding/rewriting this fcn
-                treefo = treeutils.get_trees_for_annotations([annotation], cpath=cpath, debug=debug)[0]
-                print '  %s no tree in annotation, so getting new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
-                treestr = treefo['tree'].as_string(schema='newick').strip()
+            treestr = self.get_treestr(annotation, cpath, debug=debug)
             treeutils.run_laplacian_spectra(treestr, plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))
             if len(fnames[-1]) < self.n_plots_per_row:
                 self.addfname(fnames, 'icluster-%d' % iclust)
@@ -625,6 +633,39 @@ class PartitionPlotter(object):
         return [fnlist]
 
     # ----------------------------------------------------------------------------------------
+    def make_tree_plots(self, sorted_clusters, annotations, plotdir, cpath=None):
+        subd, plotdir = self.init_subd('trees', plotdir)
+        workdir = '%s/ete3-plots' % self.args.workdir
+        fnames = [[]]
+        cmdfos = []
+        for iclust in range(len(sorted_clusters)):
+            if not self.plot_this_cluster(sorted_clusters, iclust, annotations):
+                continue
+            annotation = annotations[':'.join(sorted_clusters[iclust])]
+            if len(annotation['unique_ids']) < self.min_tree_cluster_size:
+                continue
+            treestr = self.get_treestr(annotation, cpath)
+# TODO add other meta emph/info args
+            if self.args.meta_info_key_to_color is not None:
+                metafo = {self.args.meta_info_key_to_color : {u : f for u, f in zip(annotation['unique_ids'], annotation[self.args.meta_info_key_to_color])}}
+            plotname = 'tree-iclust-%d' % iclust
+            cmdfos += [lbplotting.get_lb_tree_cmd(treestr, '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=metafo, queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color)]
+            self.addfname(fnames, plotname)
+        if len(cmdfos) > 0:
+            start = time.time()
+            utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=utils.auto_n_procs(), proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
+            print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
+        os.rmdir(workdir)
+
+        if self.args.meta_info_key_to_color is not None:
+            mekey = self.args.meta_info_key_to_color
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
+            self.plotting.make_meta_info_legend(plotdir, 'tree', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
+            self.addfname(fnames, 'tree-legend')
+
+        return [[subd + '/' + fn for fn in fnames[0]]]
+
+    # ----------------------------------------------------------------------------------------
     def remove_failed_clusters(self, partition, annotations):
         # remove clusters with failed annotations
         failed_clusters = []
@@ -646,6 +687,7 @@ class PartitionPlotter(object):
         print '  plotting partitions'
         sys.stdout.flush()
         start = time.time()
+        subdirs = ['shm-vs-size', 'mds', 'bubble', 'diversity'] #, 'laplacian-spectra']  # , 'sfs
 
         fnames = []
         self.remove_failed_clusters(partition, annotations)
@@ -654,6 +696,9 @@ class PartitionPlotter(object):
         fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
         fnames += self.make_pairwise_diversity_plots(plotdir, sorted_clusters, annotations)
         fnames += self.make_bubble_plots(sorted_clusters, annotations, plotdir)
+        if self.args.meta_info_key_to_color is not None:
+            subdirs.append('trees')
+            fnames += self.make_tree_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
         # if not no_mds_plots:
         #     fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
         csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)
@@ -661,8 +706,7 @@ class PartitionPlotter(object):
         # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
         # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
 
-        subdirs = ['shm-vs-size', 'mds', 'bubble', 'diversity'] #, 'laplacian-spectra']  # , 'sfs
         if not self.args.only_csv_plots:
-            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd) for subd in subdirs])
+            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd) for subd in subdirs], bgcolor='#FFFFFF')
 
         print '    partition plotting time: %.1f sec' % (time.time()-start)

@@ -1459,7 +1459,8 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
         add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, gct_lb=False, seq_len=None):
+def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, gct_lb=False, seq_len=None,
+                    meta_info_key_to_color=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
@@ -1477,16 +1478,20 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --label-all-nodes'
     if label_root_node:
         cmdstr += ' --label-root-node'
-    if gct_lb:
-        cmdstr += ' --gct-lb --seq-len %d' % seq_len
+    # if gct_lb:
+    #     cmdstr += ' --gct-lb --seq-len %d' % seq_len
     cmdstr += ' --outfname %s' % outfname
-    cmdstr += ' --lb-metric %s' % lb_metric
-    cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
+    if lb_metric is not None:
+        cmdstr += ' --lb-metric %s' % lb_metric
+        if 'lbr' in lb_metric:
+            cmdstr += ' --log-lbr'
+    if affy_key is not None:
+        cmdstr += ' --affy-key %s' % utils.reversed_input_metafile_keys[affy_key]
     # cmdstr += ' --lb-tau %f' % lb_tau
-    if 'lbr' in lb_metric:
-        cmdstr += ' --log-lbr'
     if tree_style is not None:
         cmdstr += ' --tree-style %s' % tree_style
+    if meta_info_key_to_color is not None:
+        cmdstr += ' --meta-info-key-to-color %s' % meta_info_key_to_color
     cmdstr, _ = utils.run_ete_script(cmdstr, ete_path, return_for_cmdfos=True, tmpdir=subworkdir, extra_str='        ')
 
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
