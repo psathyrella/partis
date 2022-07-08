@@ -222,9 +222,13 @@ def find_seq_pairs(antn_lists, ig_or_tr='ig'):
                 ofo = {'%s_id'%tstr : tid, '%s_locus'%tstr : ltmp, '%s_seq'%tstr : iseq, '%s_id'%ostr : '', '%s_locus'%ostr : '', '%s_seq'%ostr : ''}
                 ofo['l_antn'] = None
             elif len(pids) == 1 and tstr == 'h':  # write h/l pairs when <ltmp> is the h locus
-                lfo = all_seqs.get(pids[0], '')  # it really should be in there, but whatever i don't want to crash if it isn't
-                ofo = {'h_id' : tid, 'h_locus' : ltmp, 'h_seq' : iseq, 'l_id' : pids[0], 'l_locus' : lfo['locus'], 'l_seq' : lfo['seq']}
-                ofo['l_antn'] = all_antns[ofo['l_id']]
+                if pids[0] in all_seqs:
+                    lfo = all_seqs[pids[0]]
+                    ofo = {'h_id' : tid, 'h_locus' : ltmp, 'h_seq' : iseq, 'l_id' : pids[0], 'l_locus' : lfo['locus'], 'l_seq' : lfo['seq']}
+                    ofo['l_antn'] = all_antns[ofo['l_id']]
+                else:
+                    print '  missing %s' % pids[0]
+                    continue
             else:
                 continue
             ofo['h_antn'] = antn
