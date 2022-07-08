@@ -46,7 +46,7 @@ def getofn(locus):
 
 # ----------------------------------------------------------------------------------------
 def gloci():  # if no sw file, we probably only made one light locus (or i guess all input is missing, oh well)
-    return [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(simfn(l))]
+    return [l for l in utils.sub_loci(ig_or_tr) if args.simdir is None or os.path.exists(simfn(l))]
 
 # ----------------------------------------------------------------------------------------
 def encofn():
@@ -113,22 +113,26 @@ def ctgid(tch):
     return 'contig_%d' % ('hl'.index(tch) + 1)
 
 # ----------------------------------------------------------------------------------------
-def get_jdata(sfo, barstr, translations):
-    jfos = []
-    for tch in 'hl':
-        jfo = {k : v for k, v in base_jdt.items()}
-        jfo['barcode'] = '%s-1' % barstr
+def get_jdata(sfo, barstr, translations, tch=None):
+    jfo = {k : v for k, v in base_jdt.items()}
+    jfo['barcode'] = '%s-1' % barstr
+    if tch is None:  # data
+        jfo['contig_name'] = sfo['name']
+        jfo['sequence'] = sfo['seq']
+        if barstr not in translations:
+            translations[barstr] = []
+        translations[barstr].append(sfo['name'])
+    else:
         jfo['contig_name'] = '%s_%s' % (jfo['barcode'], ctgid(tch))
         jfo['sequence'] = leader_seqs[tch] + sfo['%s_seq'%tch]
-        jfo['quals'] = len(jfo['sequence']) * ']'
         antn = sfo['%s_antn'%tch]
         # jfo['cdr3_seq'] = utils.get_cdr3_seq(antn, antn['unique_ids'].index(sfo['%s_id'%tch]))
         # jfo['cdr3'] = utils.ltranslate(jfo['cdr3_seq'])
         # jfo['cdr3_start'] = antn['codon_positions']['v'] + 3
         # jfo['cdr3_stop'] = antn['codon_positions']['j'] + 3
-        jfos.append(jfo)
         translations[jfo['contig_name']] = sfo['%s_id'%tch]
-    return jfos
+    jfo['quals'] = len(jfo['sequence']) * ']'
+    return jfo
 
 # ----------------------------------------------------------------------------------------
 def convert_input():
@@ -136,14 +140,23 @@ def convert_input():
     if utils.output_exists(args, ofn, debug=False):
         print '    converted input already there %s' % ofn
         return
-    lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs[ig_or_tr], simfn, dont_add_implicit_info=True)
-    _, antn_lists, _ = paircluster.concat_heavy_chain(utils.locus_pairs[ig_or_tr], lp_infos, dont_deep_copy=True)
-    outfos = paircluster.find_seq_pairs(antn_lists)
-    potential_names, used_names = None, None
     jdatas, translations = [], {}
-    for sfo in outfos:
-        barstr, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=16, n_initial_names=len(outfos), available_chars='ACGT', repeat_chars=True, dont_extend=True)
-        jdatas += get_jdata(sfo, barstr, translations)
+    if args.simdir is not None:
+        lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs[ig_or_tr], simfn, dont_add_implicit_info=True, debug=True)
+        _, antn_lists, _ = paircluster.concat_heavy_chain(utils.locus_pairs[ig_or_tr], lp_infos, dont_deep_copy=True)
+        outfos = paircluster.find_seq_pairs(antn_lists)
+        potential_names, used_names = None, None
+        for sfo in outfos:
+            barstr, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=16, n_initial_names=len(outfos), available_chars='ACGT', repeat_chars=True, dont_extend=True)
+            for tch in 'hl':
+                jdatas.append(get_jdata(sfo, barstr, translations, tch=tch))
+    elif args.datafname is not None:
+        seqfos = utils.read_fastx(args.datafname)
+        for sfo in seqfos:
+            did = utils.get_droplet_id(sfo['name'], '-_', [0])
+            jdatas.append(get_jdata(sfo, did, translations))
+    else:
+        assert False
     # jdatas = dummy_jdatas
     utils.mkdir(ofn, isfile=True)
     with open(ofn, 'w') as jfile:
@@ -194,28 +207,41 @@ def convert_output():
     _, _, barcode_cpath = utils.read_output(tptfn)
     with open(translation_fname()) as tfile:
         translations = json.load(tfile)
-    cpaths = {l : ClusterPath(partition=[]) for l in gloci()}
-    for bclust in barcode_cpath.best():
-        ch_clusts = [[] for _ in 'hl']
-        loci = {c : None for c in 'hl'}
-        for bcode in bclust:
-            for tch, cclust in zip('hl', ch_clusts):
-                encid = '%s_%s' % (bcode, ctgid(tch))
-                uid = translations[encid]
-                cclust.append(uid)
-                if loci[tch] is None:
-                    loci[tch] = uid.split('-')[-1]
-                    assert loci[tch] in gloci()  # will need to update to run on data that doesn't have the locus in the uid
-                    cpaths[loci[tch]].partitions[0].append(cclust)
-    for locus in gloci():
-        _, _, true_cpath = utils.read_output(simfn(locus), skip_annotations=True)
-        plines = cpaths[locus].get_partition_lines(true_partition=true_cpath.best(), calc_missing_values='best', fail_frac=0.10)
-        print '    writing partition to %s' % getofn(locus)
-        utils.write_annotations(getofn(locus), {}, [], utils.annotation_headers, partition_lines=plines)
+    if args.simdir is None:  # data
+        seqfos = utils.read_fastx(args.datafname)
+        input_uids = set(s['name'] for s in seqfos)
+        for cluster in barcode_cpath.best():
+            for barstr in cluster:
+                for uid in translations[barstr.replace('-1', '')]:  # i don't know why enclone adds -1, but whatever
+                    input_uids.remove(uid)
+        if len(input_uids) > 0:
+            print '  %s missing %d / %d input uids: %s' % (utils.wrnstr(), len(input_uids), len(seqfos), ' '.join(input_uids))
+        else:
+            print '  found all input uids'
+    else:
+        cpaths = {l : ClusterPath(partition=[]) for l in gloci()}
+        for bclust in barcode_cpath.best():
+            ch_clusts = [[] for _ in 'hl']
+            loci = {c : None for c in 'hl'}
+            for bcode in bclust:
+                for tch, cclust in zip('hl', ch_clusts):
+                    encid = '%s_%s' % (bcode, ctgid(tch))
+                    uid = translations[encid]
+                    cclust.append(uid)
+                    if loci[tch] is None:
+                        loci[tch] = uid.split('-')[-1]
+                        assert loci[tch] in gloci()  # will need to update to run on data that doesn't have the locus in the uid
+                        cpaths[loci[tch]].partitions[0].append(cclust)
+        for locus in gloci():
+            _, _, true_cpath = utils.read_output(simfn(locus), skip_annotations=True)
+            plines = cpaths[locus].get_partition_lines(true_partition=true_cpath.best(), calc_missing_values='best', fail_frac=0.10)
+            print '    writing partition to %s' % getofn(locus)
+            utils.write_annotations(getofn(locus), {}, [], utils.annotation_headers, partition_lines=plines)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--simdir', required=True)
+parser.add_argument('--simdir')  # set either --simdir (partis simulation dir) or --datafname (10x fasta data file)
+parser.add_argument('--datafname')
 parser.add_argument('--outdir', required=True)
 parser.add_argument('--test-data', action='store_true', help='run on enclone test data')
 parser.add_argument('--overwrite', action='store_true')
@@ -223,6 +249,7 @@ parser.add_argument('--dry', action='store_true')
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 parser.add_argument('--n-procs', type=int, help='NOT USED')
 args = parser.parse_args()
+assert [args.simdir, args.datafname].count(None) == 1
 
 if not args.test_data:
     convert_input()
