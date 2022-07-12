@@ -1066,23 +1066,23 @@ def run_all_loci(args, ig_or_tr='ig'):
         paircluster.write_concatd_output_files(concat_lpfos['glfos'], concat_lpfos['antn_lists'], getofn, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), use_pyyaml=args.write_full_yaml_output,
                                                work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], true_partitions=true_partitions, dont_write_git_info=args.dont_write_git_info, airr_output=args.airr_output, args=args)
         print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_lpfos['cpaths'], debug=args.debug_paired_clustering)
-        ccfs = None
-        if len(single_outfos['cpaths']['igh'].best()) > 5000:
-            print '    not comparing single vs joint partitions to save time'
-        else:
-            ccfs = {}
-            for ltmp in sloci(tdict=concat_lpfos['cpaths']):
-                dbg_str = '%s single vs joint concat\'d '%utils.locstr(ltmp)
-                ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_lpfos['cpaths'][ltmp].best(), dbg_str=dbg_str, cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
-        return ccfs
+        # ccfs = None
+        # if len(single_outfos['cpaths']['igh'].best()) > 5000:
+        #     print '    not comparing single vs joint partitions to save time'
+        # else:
+        #     ccfs = {}
+        #     for ltmp in sloci(tdict=concat_lpfos['cpaths']):
+        #         dbg_str = '%s single vs joint concat\'d '%utils.locstr(ltmp)
+        #         ccfs[ltmp] = paircluster.compare_partition_pair(single_outfos['cpaths'][ltmp].best(), concat_lpfos['cpaths'][ltmp].best(), dbg_str=dbg_str, cf_label='single', ref_label='joint', add_to_ref=True, debug=True) # antn_list=XXX
+        # return ccfs
     # ----------------------------------------------------------------------------------------
-    def run_cf_plotdirs(cfpdir, ltmp, ccfs=None):
+    def run_cf_plotdirs(cfpdir, ltmp):
         if not os.path.exists(getplotdir(ltmp, single_chain=True)) or not os.path.exists(getplotdir(ltmp)):
             return
         subd = 'partitions/sizes'
         titlestr = ltmp
-        if ccfs is not None and ltmp in ccfs:
-            titlestr += ':@specif.%.2f'%ccfs[ltmp][0]
+        # if ccfs is not None and ltmp in ccfs:
+        #     titlestr += ':@specif.%.2f'%ccfs[ltmp][0]
         cmdstr = '%s/bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (args.partis_dir, cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
         cmdstr += ' --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % titlestr
         utils.simplerun(cmdstr, dryrun=args.dry_run)
@@ -1104,7 +1104,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if tmpaction == 'plot-partitions' and os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):  # light chain in the paired subdirs is the same, so for plotting just link the results
                     utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
             if tmpaction == 'plot-partitions' and args.plotdir is not None and not args.no_partition_plots:
-                run_cf_plotdirs(cfpdir, ltmp, ccfs=ccfs)
+                run_cf_plotdirs(cfpdir, ltmp)
         if tmpaction == 'plot-partitions' and args.plotdir is not None and os.path.exists(cfpdir):
             fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
             import plotting
@@ -1153,9 +1153,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 remove_unseeded_seqs()
             for ltmp in sloci():
                 run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions', skip_missing_output=runs_on_existing_output(args.action))
-        ccfs = None  # if we're just plotting partitions (not merging), we'd have to go back and read single + joint/concat'd partitions in order to get these
         if args.action in ['partition', 'merge-paired-partitions', 'annotate'] and not args.dry_run:  # ok it's weird to combine inf chains for 'annotate', but really we just want the merged/joint heavy chain output file in the normal location
-            ccfs = combine_inf_chains()
+            combine_inf_chains()
         if args.plot_annotation_performance:
             print '  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning')
         ptnplot = args.action == 'plot-partitions' or args.plot_partitions or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None and not args.no_partition_plots)  # ick
