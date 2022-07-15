@@ -161,9 +161,10 @@ class Tester(object):
                 self.tests['multi-annotate-' + input_stype + '-simu']    = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
                 '--plot-annotation-performance',
+                '--max-ccf-fail-frac', '0.10',
                 # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             ]}
-            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : []}
+            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
                 self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
             self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--run-single-chain-selection-metrics']}  # NOTE this runs on simulation, but it's checking the inferred selection metrics

@@ -1,6 +1,6 @@
 import copy
 import pickle
-from scipy import stats
+from scipy import stats # this is fucking slow
 import os
 import sys
 import numpy

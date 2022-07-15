@@ -5325,31 +5325,37 @@ def adjusted_mutual_information(partition_a, partition_b):
     # return sklearn.metrics.cluster.adjusted_mutual_info_score(clusts_a, clusts_b)
 
 # ----------------------------------------------------------------------------------------
-def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, miss_label='', ref_label='', debug=False, warn=False, fail_frac=None):
+def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, allowed_uids=None, miss_label='', ref_label='', warn=False, fail_frac=None, dbgstr='', debug=False):
     """ return a copy of <partition_with_missing_uids> which has had any uids which were missing inserted as singletons (i.e. uids which were in <ref_partition>) """
     ref_ids, pmiss_ids = set(u for c in ref_partition for u in c), set(u for c in partition_with_missing_uids for u in c)
     missing_ids = ref_ids - pmiss_ids
+    if allowed_uids is not None:  # if <allowed_uids> is set, we're only allowed to add those uids
+        missing_ids &= set(allowed_uids)
     partition_with_uids_added = copy.deepcopy(partition_with_missing_uids) + [[u] for u in missing_ids]
     if len(missing_ids) > 0 and (debug or warn or fail_frac):
         if debug or warn:
-            print '  %sadded %d / %d missing ids as singletons to %s partition (to match ids in %s partition)%s' % (wrnstr()+' ' if warn else '', len(missing_ids), sum(len(c) for c in ref_partition), miss_label, ref_label, ' '.join(missing_ids) if len(missing_ids) < 30 else '')
+            print '    %sadded %d / %d missing ids as singletons to %s partition, to match ids in %s partition%s' % (wrnstr()+' ' if warn else '', len(missing_ids), sum(len(c) for c in ref_partition), miss_label, ref_label, dbgstr) #, ' '.join(missing_ids) if len(missing_ids) < 30 else '')
         miss_frac = len(missing_ids) / float(sum(len(c) for c in ref_partition))
         if fail_frac is not None and miss_frac > fail_frac:
             raise Exception('missing %.3f (more than %.3f)' % (miss_frac, fail_frac))
     return partition_with_uids_added
 
 # ----------------------------------------------------------------------------------------
-def remove_missing_uids_from_partition(ref_partition, partition_with_missing_uids, debug=True):
+def remove_missing_uids_from_partition(ref_partition, partition_with_missing_uids, ref_label='ref', miss_label='miss', fail_frac=None, dbgstr='', warn=False):
     """ return a copy of <ref_partition> which has had any uids which do not occur in <partition_with_missing_uids> removed """
     ref_ids, pmiss_ids = set(u for c in ref_partition for u in c), set(u for c in partition_with_missing_uids for u in c)
     missing_ids = ref_ids - pmiss_ids
-    ref_partition_with_uids_removed = copy.deepcopy(ref_partition)
+    ref_partition_with_uids_removed = [[u for u in c] for c in ref_partition]
     for iclust, cluster in enumerate(ref_partition_with_uids_removed):
         ref_partition_with_uids_removed[iclust] = [u for u in cluster if u not in missing_ids]
     ref_partition_with_uids_removed = [c for c in ref_partition_with_uids_removed if len(c) > 0]  # remove any empty clusters
     n_remaining = sum([len(c) for c in ref_partition_with_uids_removed])
-    if debug or n_remaining == 0:
-        print '    %sremoved %d/%d uids (leaving %d) from ref partition that were not in other partition: %s' % ('' if n_remaining>0 else color('yellow', 'warning')+' ', len(missing_ids), sum([len(c) for c in ref_partition]), n_remaining, ' '.join(missing_ids))
+    if len(missing_ids) > 0:
+        wstr = (color('yellow', 'warning')+' ') if (n_remaining==0 or warn) else ''
+        miss_frac = len(missing_ids) / float(sum([len(c) for c in ref_partition]))
+        print '    %sremoved %d/%d uids (leaving %d) from %s partition that were not in %s partition%s' % (wstr, len(missing_ids), sum([len(c) for c in ref_partition]), n_remaining, ref_label, miss_label, dbgstr) #, ' '.join(missing_ids))
+        if fail_frac is not None and miss_frac > fail_frac:
+            raise Exception('missing %.3f (more than %.3f)' % (miss_frac, fail_frac))
     return ref_partition_with_uids_removed
 
 # ----------------------------------------------------------------------------------------

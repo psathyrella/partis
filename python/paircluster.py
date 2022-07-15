@@ -151,12 +151,12 @@ def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=Fals
             utils.write_annotations(ofn_fcn(ltmp, lpair=lpair), glpf(lpair, 'glfos', ltmp), glpf(lpair, 'antn_lists', ltmp), headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
 
 # ----------------------------------------------------------------------------------------
-def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_partitions=None, dont_write_git_info=False, airr_output=False, args=None):
+def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_outfos=None, dont_write_git_info=False, airr_output=False, args=None):
     for ltmp in sorted(glfos):  # not really a reason to write igh first, but i guess it's nice to be consistent
         ofn = ofn_fcn(ltmp, joint=True)
         if utils.has_d_gene(ltmp):
             cp = ClusterPath(partition=utils.get_partition_from_annotation_list(antn_lists[ltmp])) if cpaths is None else cpaths[ltmp]
-            partition_lines = cp.get_partition_lines(true_partition=None if true_partitions is None else true_partitions[ltmp], calc_missing_values='best')
+            partition_lines = cp.get_partition_lines(true_partition=None if true_outfos is None else true_outfos['merged']['cpaths'][ltmp].best(), calc_missing_values='best')
             utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
             if airr_output:
                 utils.write_airr_output(utils.replace_suffix(ofn, '.tsv'), [], cpath=cp, args=args)
@@ -702,7 +702,7 @@ def crct_fam(true_partitions, uid, pids, near=False, max_hdist=3, true_antn_dict
         return is_corr_fam
 
 # ----------------------------------------------------------------------------------------
-def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lists=None, performance_outdir=None, plotdir=None, true_antn_lists=None, fnames=None):
+def plot_fraction_correctly_paired(cpaths, antn_dicts, true_outfos, antn_lists=None, performance_outdir=None, plotdir=None, fnames=None, calc_near_fams=False):
     # ----------------------------------------------------------------------------------------
     def gpt(uid, pids):  # these are all mutually exclusive (as opposed to 'correct-family')
         if len(pids) == 0:
@@ -717,7 +717,8 @@ def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lis
     if antn_dicts is None:
         assert antn_lists is not None
         antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
-    true_antn_dict = {l : utils.get_annotation_dict(true_antn_lists[l]) for l in true_antn_lists} if true_antn_lists is not None else None
+    true_partitions = {l : true_outfos['merged']['cpaths'][l].best() for l in antn_dicts}
+    true_antn_dict = {l : utils.get_annotation_dict(true_outfos['merged']['antn_lists'][l]) for l in antn_dicts} if calc_near_fams else None
     mcodes = ['correct', 'mispaired', 'unpaired', 'multiple']  # these are mutually exclusive
     kcodes = mcodes + ['correct-family', 'near-family', 'total']
     fcinfo, afo = {k : {} for k in kcodes}, {c : 0 for c in mcodes}
@@ -737,7 +738,7 @@ def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lis
                 afo[rcode] += 1
                 if crct_fam(true_partitions, uid, pids):  # correct family
                     fcinfo['correct-family'][fsize] += 1
-                if true_antn_dict is not None and crct_fam(true_partitions, uid, pids, true_antn_dict=true_antn_dict, near=True):
+                if calc_near_fams and crct_fam(true_partitions, uid, pids, true_antn_dict=true_antn_dict, near=True):
                         fcinfo['near-family'][fsize] += 1
     fcinfo['all'] = afo
     for kcd in kcodes + ['all']:
@@ -754,7 +755,7 @@ def plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, antn_lis
             fnames.append([fn])
 
 # ----------------------------------------------------------------------------------------
-def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=None, max_hdist=4, true_partitions=None, debug=False):
+def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=None, max_hdist=4, true_outfos=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def check_droplet_id_groups(pid_groups, all_uids, tdbg=False):
         if not args.is_data:
@@ -1051,6 +1052,8 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         #     for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
         #         ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster, remove_uncertain_pids=True)
     # ----------------------------------------------------------------------------------------
+    if true_outfos is not None:
+        true_partitions = {l : true_outfos['merged']['cpaths'][l].best() for l in antn_lists}
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
     all_uids = set(u for p in cpaths.values() for c in p.best() for u in c)  # all uids that occur in a partition (should I think be the same as the ones for which we have valid/non-failed annotations)
     print '   cleaning pair info for %d seqs' % len(all_uids)
@@ -1183,12 +1186,12 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         print '     synchronized/fixed %d pairs where one had no pair info after cleaning: %s' % (sum(n for n in n_fixed.values()), '  '.join('%s %d'%(utils.locstr(l), n_fixed[l]) for l in sorted(n_fixed)))
 
     if not args.is_data and (performance_outdir is not None or plotdir is not None):
-        plot_fraction_correctly_paired(cpaths, antn_dicts, true_partitions, performance_outdir=performance_outdir, plotdir=plotdir, fnames=fnames)
+        plot_fraction_correctly_paired(cpaths, antn_dicts, true_outfos, performance_outdir=performance_outdir, plotdir=plotdir, fnames=fnames)
     if plotdir is not None:
         make_final_plots(initial_seqs_per_seq, initial_flcounts)
 
 # ----------------------------------------------------------------------------------------
-def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_to_ref=False, antn_list=None, seed_unique_id=None, dbg_str=None, cf_label='inferred', ref_label='true', debug=False):
+def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_all_to_ref=False, antn_list=None, unpids=None, seed_unique_id=None, dbg_str=None, cf_label='inferred', ref_label='true', fail_frac=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def incorporate_duplicates(tpart):  # take the map from uid to list of its duplicates (dup_dict), and add the duplicates to any clusters in partition tpart that contain that uid
         for tclust in tpart:
@@ -1205,31 +1208,37 @@ def compare_partition_pair(cfpart, refpart, remove_from_ref=False, add_to_ref=Fa
     cfpart = copy.deepcopy(cfpart)  # don't want to modify opject pointed to by <cfpart)
     if len(dup_dict) > 0:
         incorporate_duplicates(cfpart)
+    # these remove/add shenanigans are mostly necessary for heavy chain on the h+k/h+l (not merged) partitions just because h seqs will get put with the wrong light chain
     if remove_from_ref:
-        refpart = utils.remove_missing_uids_from_partition(refpart, cfpart, debug=debug)  # returns a new/copied partition, doesn't modify original
-    if add_to_ref:
-        refpart = utils.add_missing_uids_to_partition(refpart, cfpart, miss_label=ref_label, ref_label=cf_label, debug=True)  # NOTE order is reversed here
+        refpart = utils.remove_missing_uids_from_partition(refpart, cfpart, ref_label=ref_label, miss_label=cf_label, fail_frac=fail_frac, warn=True, dbgstr=' (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])')  # returns a new/copied partition, doesn't modify original
+    if unpids is not None:
+        refpart = utils.add_missing_uids_to_partition(refpart, cfpart, miss_label=ref_label, ref_label=cf_label, allowed_uids=unpids, warn=True, dbgstr=' (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)')  # NOTE order of args (ref/miss) is reversed here
+    if add_all_to_ref:
+        refpart = utils.add_missing_uids_to_partition(refpart, cfpart, miss_label=ref_label, ref_label=cf_label, fail_frac=fail_frac, warn=True, dbgstr=' (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)')  # NOTE order of args (ref/miss) is reversed here
     return utils.per_seq_correct_cluster_fractions(cfpart, refpart, seed_unique_id=seed_unique_id, dbg_str=dbg_str, inf_label=cf_label, true_label=ref_label, debug=debug)
-    # TODO figure out which cases of 'missing' uids should really be removed, and which should be singletons
 
 # ----------------------------------------------------------------------------------------
-def evaluate_joint_partitions(ploci, true_partitions, init_partitions, joint_partitions, antn_lists, seed_unique_ids=None, debug=False):
+def evaluate_joint_partitions(ploci, true_outfos, init_partitions, joint_partitions, antn_lists, seed_unique_ids=None, unpaired_seqs=None, fail_frac=None, debug=False):
     if seed_unique_ids is not None and set(ploci.values()) != set(seed_unique_ids):  # skip non-seed light locus pair
         return
     # NOTE that <joint_partitions> can have many fewer seqs than <init_partitions> since in making <joint_partitions> we remove seqs paired with the other light chain (the weighted average ccfs over the h joint partitions corresponding to both light chains would be exactly comparable to the <init_partitions>, but I think this is fine as it is)
+    lpair = tuple(ploci[c] for c in 'hl')  # ick
+    ccfs = {}
     for tch in utils.chains:
         ltmp = ploci[tch]
-        ccfs = {}
-        for dstr, cfpart in [('single', init_partitions[tch]), ('joint', joint_partitions[tch])]:
-            ccfs[dstr] = compare_partition_pair(cfpart, true_partitions[ltmp], seed_unique_id=None if seed_unique_ids is None else seed_unique_ids[ltmp], remove_from_ref=True,  # removes from the true ptn any uids that are missing from the inferred ptn
-                                                antn_list=antn_lists[ltmp], dbg_str='%s %s '%(utils.locstr(ltmp), dstr), debug=debug)
+        lcfs = {}
+        for dstr, cfpart, true_cpaths in [('single', init_partitions[tch], true_outfos['merged']), ('joint', joint_partitions[tch], true_outfos['lpairs'][lpair])]:
+            lcfs[dstr] = compare_partition_pair(cfpart, true_cpaths['cpaths'][ploci[tch]].best(), seed_unique_id=None if seed_unique_ids is None else seed_unique_ids[ltmp], remove_from_ref=True,  add_all_to_ref=tch=='h',  # removes from the true ptn any uids that are missing from the inferred ptn
+                                                antn_list=antn_lists[ltmp], unpids=unpaired_seqs[ltmp] if tch=='h' else None, dbg_str='%s %s '%(utils.locstr(ltmp), dstr), fail_frac=None if tch=='h' else fail_frac, debug=debug)  # only apply fail_frac to light chain, since we can't guarantee we put the right h chain seqs to k vs l if pair info is super fucked (should apply fail_frac to heavy chain when we calculate on merged partition)
+        ccfs[ltmp] = lcfs
         print '  %s ccfs:     purity  completeness' % utils.locstr(ltmp)
-        print '      single  %6.3f %6.3f' % (ccfs['single'][0], ccfs['single'][1])
-        print '       joint  %6.3f %6.3f' % (ccfs['joint'][0], ccfs['joint'][1])
+        print '      single  %6.3f %6.3f' % (lcfs['single'][0], lcfs['single'][1])
+        print '       joint  %6.3f %6.3f' % (lcfs['joint'][0], lcfs['joint'][1])
+    return ccfs
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
-def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_partitions=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, overmerge=False, naive_hamming_bound_type=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_outfos=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, overmerge=False, naive_hamming_bound_type=None, fail_frac=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
     dbgids = None #['1437084736471665213-igh']  # None
     # ----------------------------------------------------------------------------------------
     def akey(klist):
@@ -1516,9 +1525,10 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     if unpaired_seqs is not None:  # it might be cleaner to have this elsewhere, but I want it to happen before we evaluate, and it's also nice to have evaluation in here
         re_add_unpaired(joint_partitions, unpaired_seqs)
 
-    if true_partitions is not None:
+    ccfs = None
+    if true_outfos is not None:
         assert iparts is None  # just for now
-        evaluate_joint_partitions(ploci, true_partitions, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, seed_unique_ids=seed_unique_ids, debug=debug)
+        ccfs = evaluate_joint_partitions(ploci, true_outfos, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, seed_unique_ids=seed_unique_ids, unpaired_seqs=unpaired_seqs, fail_frac=fail_frac, debug=debug)
 
     cluster_pairs = zip(*[joint_partitions[c] for c in 'hl'])
-    return {ploci[ch] : jp for ch, jp in joint_partitions.items()}, cluster_pairs
+    return {ploci[ch] : jp for ch, jp in joint_partitions.items()}, cluster_pairs, ccfs
