@@ -13,7 +13,6 @@ import utils
 from clusterpath import ClusterPath
 import mds
 import treeutils
-import lbplotting
 
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
@@ -634,6 +633,7 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_tree_plots(self, sorted_clusters, annotations, plotdir, cpath=None):
+        import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('trees', plotdir)
         workdir = '%s/ete3-plots' % self.args.workdir
         fnames = [[]]

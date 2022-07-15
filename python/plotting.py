@@ -21,6 +21,7 @@ import plotconfig
 from hist import Hist
 import treeutils
 import hutils
+from clusterpath import ClusterPath
 
 #                   green    dark red  light blue  light red  sky blue  pink/purple   grey
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
@@ -301,7 +302,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     if bounds is not None:
         xmin, xmax = bounds
     if ybounds is not None:  # ugly, but adding it long after the rest of the fcn
-        ymin, ymax = ybounds
+        ymin, ymax = [utils.non_none([yb, ym]) for ym, yb in zip((ymin, ymax), ybounds)]  # allows to set only one of them in the args
 
     if shift_overflows:
         if '_vs_per_gene_support' in plotname or '_fraction_correct_vs_mute_freq' in plotname or plotname in [r + '_gene' for r in utils.regions]:
@@ -669,7 +670,7 @@ def label_bullshit_transform(label):
 
 # ----------------------------------------------------------------------------------------
 # pass in <fnames> instead of <hists> if you want the bins to match
-def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None, ytitle=None, fnames=None, translegend=None):
+def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None, ytitle=None, fnames=None, translegend=None, alphas=None):
     if fnames is not None:
         assert hists is None
         xbins = set()
@@ -677,14 +678,13 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         for label, fn in fnames.items():
             cslists[label] = [len(c) for c in ClusterPath(fname=fn).best()]
             hist = hutils.make_hist_from_list_of_values(cslists[label], 'int', label, is_log_x=True)
-            print hist
             xbins |= set(hist.low_edges)
         xbins = sorted(xbins)
         hists = collections.OrderedDict()
         for label in fnames:
             hists[label] = hutils.make_hist_from_list_of_values(cslists[label], 'int', label, is_log_x=True, arg_bins=xbins)
 
-    hist_list, tmpcolors, alphas = [], [], []
+    hist_list, tmpcolors = [], []
     for ih, (name, hist) in enumerate(hists.items()):
         if 'misassign' in name:
             continue
@@ -698,7 +698,6 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
             tmpcolors.append(colors.get(name, 'grey' if len(hists)==1 else default_colors[ih%len(default_colors)]))
         else:
             tmpcolors.append(hcolors.get(name, 'grey'))
-        alphas.append(0.7)
         hxmin, hxmax = hist.get_filled_bin_xbounds()
         if xmin is None or hxmin < xmin:
             xmin = hxmin
@@ -710,6 +709,8 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
     if len(hist_list) == 0:
         return
 
+    if alphas is None:
+        alphas = [0.7 for _ in hist_list]
     if 'x' in log:
         if xmin < 1:  # the above gives us the bin low edge, which with log x scale is way too far left of the lowest point
             xmin = 0.9
@@ -719,8 +720,11 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         ytitle = '%s of clusters' % ('fraction' if normalize else 'number')
     if translegend is None:
         translegend = (0, 0) if len(hists)==1 else (-0.7, -0.65)
+    ybounds = None
+    if 'y' not in log:
+        ybounds = [-0.05, None]
     draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
-                 bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend, linewidths=[5, 2])
+                 bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8])
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefname=None, only_csv=False, fnames=None):
