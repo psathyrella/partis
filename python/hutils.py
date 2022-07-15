@@ -110,9 +110,9 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
     return xbins, n_bins
 
 # ----------------------------------------------------------------------------------------
-def make_hist_from_list_of_values(vlist, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False):
+def make_hist_from_list_of_values(vlist, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False, arg_bins=None):
     vdict = {v : vlist.count(v) for v in set(vlist)}
-    return make_hist_from_dict_of_counts(vdict, var_type, hist_label, is_log_x=is_log_x, xmin_force=xmin_force, xmax_force=xmax_force, sort_by_counts=sort_by_counts)
+    return make_hist_from_dict_of_counts(vdict, var_type, hist_label, is_log_x=is_log_x, xmin_force=xmin_force, xmax_force=xmax_force, sort_by_counts=sort_by_counts, arg_bins=arg_bins)
 
 # ----------------------------------------------------------------------------------------
 # <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}

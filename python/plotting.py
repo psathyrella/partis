@@ -36,7 +36,7 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either
         minlist, maxlist = zip(*[h.get_filled_bin_xbounds() for h in hlist])
         xmin, xmax = [mfcn(mlist) for mfcn, mlist in zip((min, max), (minlist, maxlist))]
     def tstr(xt): return ('%.0f'%xt) if xt < 500 else '%.0e'%xt
-    default_xticks = [1, 2, 3, 10, 30, 75, 200, 500, 1000, 5000, 10000]
+    default_xticks = [1, 2, 3, 10, 30, 75, 200, 1000, 5000, 10000]
     xticks = [xt for xt in default_xticks if xt >= xmin and xt <= xmax]
     if len(xticks) < 3:
         xticks = [int(xmin) + 1, int((xmin + xmax)/2.), int(xmax)]
@@ -668,7 +668,22 @@ def label_bullshit_transform(label):
 # colors['cdr3-indels'] = '#cc0000'
 
 # ----------------------------------------------------------------------------------------
-def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None, ytitle=None):
+# pass in <fnames> instead of <hists> if you want the bins to match
+def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None, ytitle=None, fnames=None, translegend=None):
+    if fnames is not None:
+        assert hists is None
+        xbins = set()
+        cslists = {}
+        for label, fn in fnames.items():
+            cslists[label] = [len(c) for c in ClusterPath(fname=fn).best()]
+            hist = hutils.make_hist_from_list_of_values(cslists[label], 'int', label, is_log_x=True)
+            print hist
+            xbins |= set(hist.low_edges)
+        xbins = sorted(xbins)
+        hists = collections.OrderedDict()
+        for label in fnames:
+            hists[label] = hutils.make_hist_from_list_of_values(cslists[label], 'int', label, is_log_x=True, arg_bins=xbins)
+
     hist_list, tmpcolors, alphas = [], [], []
     for ih, (name, hist) in enumerate(hists.items()):
         if 'misassign' in name:
@@ -702,9 +717,10 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
     xticks, xticklabels = get_cluster_size_xticks(xmin, xmax)  # NOTE could also pass list of hists in here to get xmin, xmax
     if ytitle is None:
         ytitle = '%s of clusters' % ('fraction' if normalize else 'number')
-    translegend = (0, 0) if len(hists)==1 else (-0.7, -0.65)
+    if translegend is None:
+        translegend = (0, 0) if len(hists)==1 else (-0.7, -0.65)
     draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
-                 bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend)
+                 bounds=(xmin, xmax), plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend, linewidths=[5, 2])
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefname=None, only_csv=False, fnames=None):
