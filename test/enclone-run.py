@@ -182,7 +182,7 @@ def run_enclone():
         print '    enclone output already there %s' % ofn
         return
     # description of output fields here https://10xgenomics.github.io/enclone/pages/auto/help.parseable.html
-    out_columns = ['barcode', 'group_id']  # still don't understand what these are, but they're not the index of the family: , 'clonotype_id', 'exact_subclonotype_id'
+    out_columns = ['barcode', 'group_id', 'datasets_cell']  # still don't understand what these other ones ('clonotype_id', 'exact_subclonotype_id') are, but they're not the index of the family
     cmd = '%s/packages/enclone/enclone BCR=%s BUILT_IN SUMMARY NOPRINT POUT=%s PCELL PCOLS=%s' % (utils.get_partis_dir(), os.path.dirname(encifn()), encofn(), ','.join(out_columns))  #  FASTA=_output/enclone-test/out.fa
     cmdfos += [{
         'cmd_str' : cmd,
@@ -212,7 +212,7 @@ def convert_output():
         input_uids = set(s['name'] for s in seqfos)
         for cluster in barcode_cpath.best():
             for barstr in cluster:
-                for uid in translations[barstr.replace('-1', '')]:  # i don't know why enclone adds -1, but whatever
+                for uid in translations[barstr.replace('-1', '')]:
                     input_uids.remove(uid)
         if len(input_uids) > 0:
             print '  %s missing %d / %d input uids: %s' % (utils.wrnstr(), len(input_uids), len(seqfos), ' '.join(input_uids))
