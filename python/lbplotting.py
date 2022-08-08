@@ -1459,7 +1459,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
         add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, gct_lb=False, seq_len=None,
+def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, seq_len=None,
                     meta_info_key_to_color=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
@@ -1478,8 +1478,6 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --label-all-nodes'
     if label_root_node:
         cmdstr += ' --label-root-node'
-    # if gct_lb:
-    #     cmdstr += ' --gct-lb --seq-len %d' % seq_len
     cmdstr += ' --outfname %s' % outfname
     if lb_metric is not None:
         cmdstr += ' --lb-metric %s' % lb_metric
@@ -1497,7 +1495,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None, queries_to_include=None, fnames=None, label_root_node=False, label_all_nodes=False, gct_lb=True):
+def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None, queries_to_include=None, fnames=None, label_root_node=False, label_all_nodes=False):
     add_fn(fnames, new_row=True)
     workdir = '%s/ete3-plots' % base_workdir
     plotdir = baseplotdir + '/trees'
@@ -1514,14 +1512,9 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
             metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if affy_key in line:  # either 'affinities' or 'relative_affinities'
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
-            if gct_lb:
-                dtree = treeutils.get_dendro_tree(treestr=treestr)
-                def mtpy(n): return utils.get_multiplicity(line, uid=n.taxon.label) if n.taxon.label in line['unique_ids'] else 1
-                def abdn(n, mtp): return (mtp - 1 if mtp > 1 else 1) if n.is_leaf() else mtp - 1  # don't ask
-                metafo['abundance'] = {n.taxon.label : abdn(n, mtpy(n)) for n in dtree.preorder_node_iter()}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
             cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=queries_to_include, label_all_nodes=label_all_nodes, label_root_node=label_root_node,
-                                       gct_lb=gct_lb, seq_len=float(numpy.mean([len(s) for s in line['seqs']])))]
+                                       seq_len=float(numpy.mean([len(s) for s in line['seqs']])))]
             add_fn(fnames, fn=outfname, n_per_row=4)
 
     if len(cmdfos) > 0:
