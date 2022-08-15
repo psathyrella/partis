@@ -1063,6 +1063,8 @@ def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalize
         return get_cdr3_seq(antn, iseq)
     elif key == 'cdr3_seq_aa':
         return ltranslate(get_cdr3_seq(antn, iseq))
+    elif key == 'imgt_cdr3_length_aa':  # ick
+        return antn['cdr3_length'] / 3 - 2
     else:
         if use_default:
             return default_val

@@ -171,7 +171,8 @@ def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=F
 def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
     if None in lpfos.values():
         return []
-    assert len(set(len(lpfos['antn_lists'][l]) for l in lpair)) == 1  # make sure the lists for both loci are the same length
+    if len(set(len(lpfos['antn_lists'][l]) for l in lpair)) != 1:  # if the lists for both loci aren't the same length, you should probably use find_cluster_pairs() (although in reality length differences are probably from unpaired singletons getting added, so it's probably ok)
+        print '  %s different length annotation lists (probably just from unpaired singletons) among %s: %s' % (utils.wrnstr(), lpair, [len(lpfos['antn_lists'][l]) for l in lpair])
     return zip(*[lpfos['antn_lists'][l] for l in lpair])
 
 # ----------------------------------------------------------------------------------------
