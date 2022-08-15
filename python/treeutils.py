@@ -2018,6 +2018,9 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
         n_before = len(inf_lines_to_use)
         inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_after = len(inf_lines_to_use)  # after removing the small ones
+        if n_after == 0:
+            print '  no annotations for selection metrics'
+            return
         treefos = None
         if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
             treefos = get_trees_for_annotations(inf_lines_to_use, treefname=treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, run_gctree=args.run_gctree, gctree_outdir=gctree_outdir, glfo=glfo, debug=debug)
@@ -2757,7 +2760,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         if iclust >= cfgfo['n-families']:
             return []
         chosen_mfos = []  # includes unobs cons + naive seqs plus seqs chosen from all sortvars
-        if finished():  # return if we weren't supposed to get any from this family
+        if finished() and not cfgfo['include_previously_chosen']:  # return if we weren't supposed to get any from this family
             return chosen_mfos
         if tdbg:
             print '    %s: choosing abs from joint cluster with size %d (marked with %s)' % (utils.color('green', 'iclust %d'%iclust), len(metric_pairs), utils.color('green', 'x'))
@@ -2890,8 +2893,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             ofo = collections.OrderedDict([('iclust', mfo['iclust'])])
             if mfo['seqtype'] == 'observed':
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
-                for kn in ['aa-cfrac', 'shm-aa', 'aa-cdist'] + [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']:
-                    ofo.update([(kn, gsval(mfo, 'p', kn))])
+                for kn in [('aa-cfrac',), ('aa-cdist',), ('tot-shm-aa', 'shm-aa'), ('tot-shm-nuc-pct', 'mut_freqs')] + [(m,) for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']:
+                    ok, lk = kn if len(kn)==2 else (kn[0], kn[0])
+                    ofo.update([(ok, gsval(mfo, 'p', lk))])
             else:
                 def gid(mfo, c):
                     hstr = utils.uidhashstr(getseq(mfo, c, aa=True))[:hash_len]
@@ -2900,8 +2904,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             ofo.update([(c+'_family_size', len(mfo[c]['unique_ids'])) for c in 'hl'])
             ofo.update([(c+'_'+r+'_gene' , mfo[c][r+'_gene']) for r in utils.regions for c in 'hl'])
             ofo.update([(c+'_locus', mfo[c]['loci'][0]) for r in utils.regions for c in 'hl'])
+            altid = gsval(mfo, 'h', 'alternate-uids', no_fail=True)
+            if altid is not None:
+                ofo.update([('alternate-uid', gsval(mfo, 'h', 'alternate-uids', no_fail=True))])
             if mfo['seqtype'] == 'observed':
-                okeys = [('has_shm_indels', None), ('aa-cfrac', None), ('aa-cdist', None), ('shm-aa', None), ('seq_nuc', 'input_seqs'), ('seq_aa', 'input_seqs_aa')]
+                okeys = [('imgt_cdr3_length_aa', None), ('shm_nuc_pct', 'mut_freqs'), ('shm_aa', None), ('has_shm_indels', None), ('aa-cfrac', None), ('aa-cdist', None), ('seq_nuc', 'input_seqs'), ('seq_aa', 'input_seqs_aa')]
                 if any(ctkey() in mfo[c] for c in 'hl'):
                     okeys.insert(1, ('cell_type', ctkey()))
                 for ok, lk in okeys:
