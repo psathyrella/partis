@@ -116,7 +116,7 @@ if args.paired:
     if utils.getsuffix(args.outfile) != '':
         raise Exception('--outfile \'%s\' must be a directory, but it has a non-empty suffix \'%s\'' % (args.outfile, utils.getsuffix(args.outfile)))
 else:
-    assert utils.getsuffix(args.outfile) in ['.csv', '.tsv', '.fa', '.fasta'] or args.airr_input and utils.getsuffix(args.outfile) == '.yaml'
+    assert utils.getsuffix(args.outfile) in ['.csv', '.tsv', '.fa', '.fasta', '.yaml'] # or args.airr_input and utils.getsuffix(args.outfile) == '.yaml'
 
 default_glfo_dir = partis_dir + '/data/germlines/human'
 if utils.getsuffix(args.infile) in ['.csv', '.tsv'] and args.glfo_dir is None:
@@ -245,6 +245,7 @@ with open(args.outfile, 'w') as ofile:
     elif utils.getsuffix(args.outfile) == '.yaml':
         true_partition = None
         if args.simfname is not None:
+            print '    reading true partition from %s' % args.simfname
             _, _, true_cpath = utils.read_output(args.simfname, skip_annotations=True)
             true_partition = true_cpath.best()
         plines = cpath.get_partition_lines(true_partition=true_partition, calc_missing_values='none' if true_partition is None else 'best')
