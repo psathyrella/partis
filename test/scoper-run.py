@@ -18,7 +18,7 @@ ig_or_tr = 'ig'
 
 # ----------------------------------------------------------------------------------------
 def wkdir(locus):
-    return '%s/work/%s' % (args.outdir, locus)
+    return '%s/work%s' % (args.outdir, '' if locus is None else '/'+locus)
 
 # ----------------------------------------------------------------------------------------
 def getifn(locus):
@@ -34,18 +34,24 @@ def glfd(locus):
 
 # ----------------------------------------------------------------------------------------
 def simfn(locus):
+    if args.single_chain:
+        return args.simdir
     return paircluster.paired_fn(args.simdir, locus, suffix='.yaml')
 
 # ----------------------------------------------------------------------------------------
 def getofn(locus, joint=False):
+    if args.single_chain:
+        return '%s/partition.yaml' % args.outdir
     return paircluster.paired_fn(args.outdir, locus, single_chain=not joint, actstr='partition', suffix='.yaml')
 
 # ----------------------------------------------------------------------------------------
 def swfn(locus):
-    return '%s/%s/sw-cache.yaml' % (args.indir, locus)
+    return '%s/%s/sw-cache.yaml' % (args.indir, '' if locus is None else '/'+locus)
 
 # ----------------------------------------------------------------------------------------
 def gloci():  # if no sw file, we probably only made one light locus (or i guess all input is missing, oh well)
+    if args.single_chain:
+        return [None]
     return [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(swfn(l))]
 
 # ----------------------------------------------------------------------------------------
@@ -156,14 +162,19 @@ def install():
 parser = argparse.ArgumentParser()
 parser.add_argument('--indir', required=True)
 parser.add_argument('--outdir', required=True)
-parser.add_argument('--simdir', required=True)
+parser.add_argument('--simdir')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry', action='store_true')
+parser.add_argument('--single-chain', action='store_true')
+parser.add_argument('--infname')  # for use with --single-chain
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 args = parser.parse_args()
+if not args.single_chain:
+    assert args.simdir is not None
 
 get_alignments()
 run_single_chain_scoper()  # note: this doesn't get used in any way for joint scoper, it's just in case we need the single chain results for something
 convert_output()
-run_joint_scoper()
-convert_output(joint=True)
+if not args.single_chain:
+    run_joint_scoper()
+    convert_output(joint=True)
