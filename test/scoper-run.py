@@ -87,7 +87,7 @@ def run_single_chain_scoper():
         rcmds = ['library(scoper)']
         rcmds += ['db <- read.csv("%s", sep="\t")' % getifn(locus)]
         rcmds += ['db <- db[ , !(names(db) %in% c("clone_id"))]']  # it crashes if clone_id is already there UPDATE don't need this any more since i'm removing clone_id column above
-        rcmds += ['results <- spectralClones(db)']  # , method="novj", germline="germline_alignment_d_mask"
+        rcmds += ['results <- spectralClones(db, method="%s")' % ('novj' if args.no_shared_mutation else 'vj')]  # , method="novj", germline="germline_alignment_d_mask"
         rcmds += ['df <- as.data.frame(results)']
         rcmds += ['write.table(df[c("sequence_id", "clone_id")], "%s", sep="\t", quote=FALSE, row.names=FALSE)' % ofn]
 
@@ -102,7 +102,7 @@ def run_joint_scoper():
         return
     utils.merge_csvs(getifn('joint'), [getifn(l) for l in gloci()])
     timecmd = 'time' #'/usr/bin/time -o %s/%s --append' % (wkdir('joint'), 'joint-scoper.log')  # this should append it to the same file, but i end up with two since it writes it before utils deals with stuff (NOTE gdit i got it to work in the mobille run script tho)
-    cmd = '%s Rscript packages/joint-scoper/scoperClones.R %s %s spectral HL vj 10' % (timecmd, getifn('joint'), ofn)
+    cmd = '%s Rscript packages/joint-scoper/scoperClones.R %s %s spectral HL %s 10' % (timecmd, getifn('joint'), ofn, 'novj' if args.no_shared_mutation else 'vj')
     cmdfos += [{
         'cmd_str' : cmd,
         'outfname' : ofn,
@@ -166,6 +166,7 @@ parser.add_argument('--simdir')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--single-chain', action='store_true')
+parser.add_argument('--no-shared-mutation', action='store_true')
 parser.add_argument('--infname')  # for use with --single-chain
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 args = parser.parse_args()
