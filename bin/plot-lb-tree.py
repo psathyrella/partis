@@ -229,7 +229,7 @@ def set_meta_styles(args, etree, tstyle):
         rfsize = 5
         bgcolor = plotting.getgrey()
         if args.meta_info_key_to_color is not None and node.name in mvals:
-            bgcolor = mcolors[mvals[node.name]]
+            bgcolor = mcolors.get(mvals[node.name], bgcolor)
 
         if label_node(node):
             tface = ete3.TextFace(node.name, fsize=3, fgcolor='red')

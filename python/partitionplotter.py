@@ -17,8 +17,9 @@ import treeutils
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
-    def __init__(self, args):
+    def __init__(self, args, glfo=None):
         self.args = args
+        self.glfo = glfo
         import plotting
         self.plotting = sys.modules['plotting']
 
@@ -645,11 +646,10 @@ class PartitionPlotter(object):
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 continue
             treestr = self.get_treestr(annotation, cpath)
-# TODO add other meta emph/info args
             if self.args.meta_info_key_to_color is not None:
                 metafo = {self.args.meta_info_key_to_color : {u : f for u, f in zip(annotation['unique_ids'], annotation[self.args.meta_info_key_to_color])}}
             plotname = 'tree-iclust-%d' % iclust
-            cmdfos += [lbplotting.get_lb_tree_cmd(treestr, '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=metafo, queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color)]
+            cmdfos += [lbplotting.get_lb_tree_cmd(treestr, '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=metafo, queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color, label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node)]
             self.addfname(fnames, plotname)
         if len(cmdfos) > 0:
             start = time.time()

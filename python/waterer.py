@@ -205,9 +205,9 @@ class Waterer(object):
             dupl_str, n_dupes = '', 0
             if just_read_cachefile:
                 n_dupes = sum([len(dupes) for dupes in self.duplicates.values()])
-                dupl_str = ', %d duplicates' % n_dupes
+                dupl_str = ', %d duplicates [removed when cache file was written]' % n_dupes
             tmp_pass_frac = float(len(self.info['queries']) + n_dupes) / len(self.input_info)
-            print '      info for %d / %d = %.3f   (removed: %d failed%s)' % (len(self.info['queries']) + n_dupes, len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
+            print '      info for %d / %d = %.3f   (removed: %d failed%s)' % (len(self.info['queries']), len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
             if tmp_pass_frac < 0.80:
                 print '  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning())
             if len(self.kept_unproductive_queries) > 0:
@@ -256,7 +256,7 @@ class Waterer(object):
         seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']], keys_not_to_overwrite=['multiplicities'] if just_read_cachefile else None)  # need to do this before removing duplicates, so the duplicate info (from waterer) can get combined with multiplicities (from input metafo). And, if we just read the cache file, then we already collapsed duplicates so we don't want to overwrite multiplicity info
         if self.args.is_data and not self.args.dont_remove_framework_insertions:  # it's too much trouble updating reco_info on simulation, and I don't think we can add fwk insertions in simulation atm anyway
             self.remove_framework_insertions()
-        if self.args.collapse_duplicate_sequences:
+        if self.args.collapse_duplicate_sequences and not just_read_cachefile:
             self.remove_duplicate_sequences()
 
         # want to do this *before* we pad sequences, so that when we read the cache file we're reading unpadded sequences and can pad them below

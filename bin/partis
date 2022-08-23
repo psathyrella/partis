@@ -746,7 +746,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             jcp.print_seed_cluster_size(queries_to_include=args.queries_to_include, lstr='joint ')
         partition_lines = jcp.get_partition_lines()
         for pln in partition_lines:
-            pln['ccf_under'], pln['ccf_over'] = ccfs[ltmp]['joint']
+            pln['ccf_under'], pln['ccf_over'] = (-1, -1) if ccfs is None else ccfs[ltmp]['joint']
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
         if not os.path.exists(getpdir(ltmp)) or args.dont_calculate_annotations:  # no parameter dir, so can't get new annotations (or we were told not to get annotations) NOTE in the former case, could maybe just subset the existing annotations according to the joint partition?
             if not os.path.exists(getpdir(ltmp)):
@@ -1018,7 +1018,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
             print '  no paired uids in any annotations, not merging single chain partitions'
             return None
-        true_outfos = {k : read_true_files(merged=mgd, no_plot=True) for k, mgd in [('merged', True), ('lpairs', False)]}
+        true_outfos = None if args.is_data else {k : read_true_files(merged=mgd, no_plot=True) for k, mgd in [('merged', True), ('lpairs', False)]}
         paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_outfos=true_outfos, debug=args.debug_paired_clustering)
         lp_infos = {}
         for lpair in spairs():

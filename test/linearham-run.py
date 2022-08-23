@@ -18,20 +18,28 @@ import utils
 import glutils
 import paircluster
 from clusterpath import ClusterPath
+import treeutils
 
 docker_path = '/linearham/work'
 ig_or_tr = 'ig'
 
 # ----------------------------------------------------------------------------------------
-def finalfn(locus):
-    return paircluster.paired_fn(args.outdir, locus, single_chain=True, actstr='partition', suffix='.yaml')
+def finalfn(locus, inferred_ancestors=False, itree=None):
+    odir = args.outdir
+    if inferred_ancestors:
+        odir += '/with-inferred-ancestors'
+    if itree is not None:
+        odir += '/itree-%d' % itree
+    return paircluster.paired_fn(odir, locus, single_chain=not inferred_ancestors, actstr='partition', suffix='.yaml')
 # ----------------------------------------------------------------------------------------
 def simfn(locus):
     return paircluster.paired_fn(args.simdir, locus, suffix='.yaml')
 # ----------------------------------------------------------------------------------------
 def basedir():
-    assert args.partis_outdir.split('/')[-1] == 'partis'
-    return '/'.join(args.partis_outdir.split('/')[:-1])  # i'm sure there's a better way to get the parent dir
+    if args.partis_outdir.split('/')[-1] == 'partis':  # paired clustering validation (i.e. from cf-paired-loci.py)
+        return '/'.join(args.partis_outdir.split('/')[:-1])  # i'm sure there's a better way to get the parent dir
+    else:
+        return args.partis_outdir  # hmm, maybe?
 # ----------------------------------------------------------------------------------------
 def wkdir(locus, iclust=None):
     return '%s/work/%s%s' % (args.outdir, locus, '' if iclust is None else '/iclust-%d'%iclust)
@@ -43,9 +51,9 @@ def lhodir(locus, iclust=None):
         return glstr
     return utils.get_single_entry(flist)
 # ----------------------------------------------------------------------------------------
-def lnhofn(locus, iclust=None):
+def lnhofn(locus, iclust=None, trees=False):
     # cluster-0/mcmciter10000_mcmcthin10_tuneiter5000_tunethin100_numrates4_rngseed0/burninfrac0.1_subsampfrac0.05/aa_naive_seqs.dnamap
-    return '%s/linearham_annotations_best.yaml' % lhodir(locus, iclust=iclust)
+    return '%s/linearham_%s' % (lhodir(locus, iclust=iclust), 'run.trees' if trees else 'annotations_best.yaml' )
 # ----------------------------------------------------------------------------------------
 def ptnfn(locus):
     return paircluster.paired_fn(args.partis_outdir, locus, actstr='partition', suffix='.yaml')
@@ -63,29 +71,42 @@ def antn_plotdir(locus):
     return '%s/plots/%s/hmm' % (os.path.dirname(finalfn(locus)), locus)
 # ----------------------------------------------------------------------------------------
 def gloci():  # if no sw file, we probably only made one light locus (or i guess all input is missing, oh well)
-    return [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(simfn(l))]
+    return [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(simfn(l) if args.simdir is not None else ptnfn(l))]
+
+# ----------------------------------------------------------------------------------------
+def get_clusters(locus):
+    if args.n_sim_events is not None:
+        return [None for _ in range(args.n_sim_events)]
+    _, _, cpath = utils.read_output(ptnfn(locus), skip_annotations=True)
+    return cpath.best()
 
 # ----------------------------------------------------------------------------------------
 def run_linearham():
-    ofn, cmdfos, n_already_there, n_total = None, [], 0, 0
+    existing_ofns, cmdfos, n_already_there, n_too_small, n_total = [], [], 0, 0, 0
     for locus in gloci():
-        if not os.path.exists(simfn(locus)):
+        if args.simdir is not None and not os.path.exists(simfn(locus)):
             continue
         if not os.path.exists(ptnfn(locus)):
             raise Exception('partition file doesn\'t exist (maybe forgot to run partis \'partition\' action first?) %s' % ptnfn(locus))
-        for iclust in range(args.n_sim_events):
+        for iclust, tclust in enumerate(get_clusters(locus)):
+            if tclust is not None and len(tclust) < args.min_cluster_size:
+                n_too_small += 1
+                continue
             n_total += 1
             ofn = lnhofn(locus, iclust=iclust)
             if utils.output_exists(args, ofn, debug=False): # and not args.dry:  # , offset=8):
                 n_already_there += 1
+                existing_ofns.append(ofn)
                 continue
             if iclust==0 and locus=='igh':
                 print '    workdir: %s' % wkdir(locus, iclust=iclust)
             utils.mkdir(wkdir(locus, iclust=iclust))
             shlines = ['#!/bin/bash']
             # shlines += ['ls -ltrh %s %s' % (dckr_trns(ptnfn(locus)), dckr_trns(prmd(locus)))]
-            # it would be nice to also have an option to run on my local linearham install, which works fine, except that it requires the output dir to be a subdir of the linearham code dir, which would require some linking shenanigans or something so not doing it atm
+            # it would be nice to also have an option to run on my local linearham install (rather than docker), which works fine, except that it requires the output dir to be a subdir of the linearham code dir, which would require some linking shenanigans or something so not doing it atm
             shlines += ['scons --run-linearham --partis-yaml-file=%s --parameter-dir=%s --cluster-index=%d --outdir=%s' % (dckr_trns(ptnfn(locus)), dckr_trns(prmd(locus)), iclust, dckr_trns(wkdir(locus, iclust=iclust)))]
+            if args.fast:
+                shlines[-1] += ' --mcmc-iter=1000 --tune-iter=500'
             bfn = '%s/run.sh' % wkdir(locus, iclust=iclust)  #  NOTE if i'd used utils.simplerun() i couldn've used its cmdfname arg
             with open(bfn, 'w') as bfile:
                 for l in shlines:
@@ -98,31 +119,57 @@ def run_linearham():
             cmdfos += [{
                 'cmd_str' : cmd,
                 'outfname' : ofn,
-                'logdir' : wkdir(locus),
-                'workdir' : wkdir(locus),
+                'logdir' : wkdir(locus, iclust=iclust),
+                'workdir' : wkdir(locus, iclust=iclust),
             }]
-    utils.run_scan_cmds(args, cmdfos, 'linearham.log', n_total, n_already_there, ofn, dbstr='linearham run')
+    if n_too_small > 0:
+        print '    skipped %d clusters smaller than %d (leaving %d)' % (n_too_small, args.min_cluster_size, n_total)
+    utils.run_scan_cmds(args, cmdfos, 'linearham.log', n_total, n_already_there, None, existing_ofns=existing_ofns, dbstr='linearham run')
+
+# ----------------------------------------------------------------------------------------
+def read_lh_trees(treefname, glfo, antn_list):
+    input_antn = utils.get_single_entry(antn_list)  # should just be length 1 i think
+    treestrs = treeutils.get_treestrs_from_file(treefname)
+    new_antns = []
+    for treestr in treestrs:
+        dtree = treeutils.get_dendro_tree(treestr=treestr, debug=False)  # this is super slow because it's got to read all the sequences (although, really, why tf does that have to be slow)
+        # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree))
+        inferred_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label not in input_antn['unique_ids']]
+        new_seqfos = [{'name' : n.taxon.label, 'seq' : n.annotations['ancestral'].value} for n in inferred_nodes]
+        newatn = utils.get_non_implicit_copy(input_antn)
+        utils.add_implicit_info(glfo, newatn)
+        utils.add_seqs_to_line(newatn, new_seqfos, glfo, debug=False)
+        newatn['tree-info'] = {'lb' : {'tree' : dtree.as_string(schema='newick')}}
+        new_antns.append(newatn)
+    return new_antns
 
 # ----------------------------------------------------------------------------------------
 def processs_linearham_output():
-    n_already_there, missing_iclusts, n_total_iclusts, n_total_out = 0, [], 0, 0
+    n_already_there, n_too_small, missing_iclusts, n_total_iclusts, n_total_out = 0, 0, [], 0, 0
     missing_icpaths = []
     for locus in gloci():
-        if not os.path.exists(simfn(locus)):
+        if args.simdir is not None and  not os.path.exists(simfn(locus)):
             continue
+        clusters = get_clusters(locus)
 
-        pwstruct = pwd.getpwuid(os.getuid())
-        utils.simplerun('sudo chown -R %s:%d %s' % (pwstruct.pw_name, pwstruct.pw_gid, wkdir(locus)), dryrun=args.dry)  # NOTE not really the right group
+        if '/fh/fast/' not in wkdir(locus):
+            pwstruct = pwd.getpwuid(os.getuid())
+            utils.simplerun('sudo chown -R %s:%d %s' % (pwstruct.pw_name, pwstruct.pw_gid, wkdir(locus)), dryrun=args.dry)  # NOTE not really the right group
 
         ofn = finalfn(locus)
         n_total_out += 1
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
-            n_total_iclusts += args.n_sim_events
+            n_total_iclusts += utils.non_none([args.n_sim_events, len(clusters) - clusters.count(None)])
             continue
 
-        antn_list = []
-        for iclust in range(args.n_sim_events):
+        glfo = None
+        antn_list = []  # one linearham (best) annotation for each cluster
+        anc_antns = []  # many annotations for each cluster (one for each sampled/inferred linearham tree), each with inferred intermediates added to the annotation
+        for iclust, tclust in enumerate(clusters):
+            if tclust is not None and len(tclust) < args.min_cluster_size:
+                n_too_small += 1
+                continue
             n_total_iclusts += 1
             lhfn = lnhofn(locus, iclust=iclust)
             if not os.path.exists(lhfn):
@@ -132,17 +179,26 @@ def processs_linearham_output():
             if args.dry:
                 antn_list.append(None)  # just to print the right length
                 continue
-            glfo, iclust_antns, _ = utils.read_output(lhfn)
-            antn_list += iclust_antns
+            glfo, iclust_antns, _ = utils.read_output(lhfn, debug=True)
+            antn_list.append(utils.get_single_entry(iclust_antns))
+            anc_antns.append(read_lh_trees(lnhofn(locus, iclust=iclust, trees=True), glfo, iclust_antns))
 
         print '    %s %d clusters to %s' % ('would write' if args.dry else 'writing', len(antn_list), ofn)
         if not args.dry:
             utils.write_annotations(ofn, glfo, antn_list, utils.annotation_headers)
+            n_sampled_trees = set([len(l) for l in anc_antns])
+            if len(n_sampled_trees) > 1:
+                print '  %s different number of sampled trees for different clusters (using smallest, i.e. discarding some): %s' % (utils.wrnstr(), ' '.join(str(n) for n in sorted(n_sampled_trees)))
+            for itree in range(min(n_sampled_trees) if len(n_sampled_trees)>0 else 0):
+                utils.write_annotations(finalfn(locus, inferred_ancestors=True, itree=itree), glfo, [alist[itree] for alist in anc_antns], utils.annotation_headers)
 
-        cmd = './bin/parse-output.py %s %s/x.fa' % (ofn, wkdir(locus))
-        cmd += ' --only-make-plots --simfname %s --plotdir %s --only-csv-plots --only-plot-performance' % (simfn(locus), antn_plotdir(locus))
-        utils.simplerun(cmd, logfname='%s/plot-performance.log'%wkdir(locus), dryrun=args.dry)
+        if args.simdir is not None:
+            cmd = './bin/parse-output.py %s %s/x.fa' % (ofn, wkdir(locus))
+            cmd += ' --only-make-plots --simfname %s --plotdir %s --only-csv-plots --only-plot-performance' % (simfn(locus), antn_plotdir(locus))
+            utils.simplerun(cmd, logfname='%s/plot-performance.log'%wkdir(locus), dryrun=args.dry)
 
+    if n_too_small > 0:
+        print '    skipped %d clusters smaller than %d (leaving %d)' % (n_too_small, args.min_cluster_size, n_total_iclusts)
     if len(missing_iclusts) > 0:
         print '  missing %d / %d: iclusts %s (e.g. %s)' % (len(missing_iclusts), n_total_iclusts, ' '.join(str(i) for i in missing_iclusts), missing_icpaths[0])
     if n_already_there > 0:
@@ -150,16 +206,19 @@ def processs_linearham_output():
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--simdir', required=True)
+parser.add_argument('--simdir')
 parser.add_argument('--outdir', required=True)
 parser.add_argument('--partis-outdir', required=True)
-parser.add_argument('--n-sim-events', type=int, required=True)
+parser.add_argument('--n-sim-events', type=int)
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--docker', action='store_true')
 parser.add_argument('--local-docker-image', action='store_true')
+parser.add_argument('--fast', action='store_true')
+# parser.add_argument('--remove-duplicate-seqs', action='store_true')
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 parser.add_argument('--n-procs', default=1, type=int)
+parser.add_argument('--min-cluster-size', default=5, type=int)
 args = parser.parse_args()
 if not args.docker:
     raise Exception('will crash cause linearham needs output dir as subdir of code dir')
