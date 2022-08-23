@@ -356,7 +356,9 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         markersize = None
         if markersizes is not None:
             imark = ih if len(markersizes) > 1 else 0
-            markersize = markersizes[imark]
+            if imark > len(markersizes) - 1:
+                print '  %s wrapping imark %d to match len of markersizes %d (%s)' % (utils.wrnstr(), imark, len(markersizes), markersizes)
+            markersize = markersizes[imark % len(markersizes)]
         linewidth = None
         if linewidths is None:
             if ih < 6 and len(hists) > 1:

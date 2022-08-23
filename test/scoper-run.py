@@ -167,7 +167,7 @@ parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--dry', action='store_true')
 parser.add_argument('--single-chain', action='store_true')
 parser.add_argument('--no-shared-mutation', action='store_true')
-parser.add_argument('--infname')  # for use with --single-chain
+# parser.add_argument('--infname')  # for use with --single-chain
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 args = parser.parse_args()
 if not args.single_chain:

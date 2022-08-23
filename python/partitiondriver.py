@@ -324,7 +324,7 @@ class PartitionDriver(object):
                 self.write_output(annotations.values(), hmm_failures, cpath=antn_cpath if self.args.annotation_clustering else self.input_cpath)
             if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
                 assert self.input_partition is not None
-                partplotter = PartitionPlotter(self.args)
+                partplotter = PartitionPlotter(self.args, glfo=self.glfo)
                 partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, no_mds_plots=self.args.no_mds_plots) #, cpath=cpath) cpath is only used for laplacian spectra
             if self.args.count_parameters and not self.args.dont_write_parameters:
                 self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
@@ -402,7 +402,7 @@ class PartitionDriver(object):
         seed_uid = self.args.seed_unique_id
         true_partition = None
         restricted_clusters = None
-        if cpath is not None:
+        if cpath is not None and len(cpath.partitions) > 0:
             if len(annotation_list) > 0:  # this is here just so we get a warning if any of the clusters in the best partition are missing from the annotations
                 _ = utils.get_annotation_dict(annotation_list, cpath=cpath)
             # it's expected that sometimes you'll write a seed partition cpath, but then when you read the file you don't bother to seed the seed id on the command line. The reverse, however, shouldn't happen
@@ -527,7 +527,7 @@ class PartitionDriver(object):
             self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'plot-partitions':
-            partplotter = PartitionPlotter(self.args)
+            partplotter = PartitionPlotter(self.args, glfo=self.glfo)
             partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], annotation_dict, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
@@ -936,7 +936,7 @@ class PartitionDriver(object):
         self.current_action = action_cache
 
         if self.args.plotdir is not None and not self.args.no_partition_plots:
-            partplotter = PartitionPlotter(self.args)
+            partplotter = PartitionPlotter(self.args, glfo=self.glfo)
             partplotter.plot(self.args.plotdir + '/partitions', cpath.best(), all_annotations, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
 
         if self.args.seed_unique_id is not None:
