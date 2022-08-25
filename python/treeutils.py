@@ -1018,7 +1018,7 @@ def remove_dummy_branches(dtree, initial_labels, dummy_labels, add_dummy_leaves=
         assert False  # i think it's better to crash at this point, i think i have it working reliably
 
 # ----------------------------------------------------------------------------------------
-def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, debug=False):
+def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=None, aa_mutations=None, debug=False):
     very_different_frac = 0.5
     if debug:
         print '    converting nuc tree (mean depth %.3f) to aa' % get_mean_leaf_height(dtree)
@@ -1052,6 +1052,10 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, debug=False):
         nuc_branch_length = edge.length  # nucleotide distance from parent node (only used for debug, but we have to grab it before we change the edge length)
         aa_mut_frac, aa_n_muts = utils.hamming_fraction(aa_seqs[plabel], aa_seqs[clabel], amino_acid=True, also_return_distance=True)  # should've called it hamming fraction rather than mut frac
         edge.length = aa_mut_frac
+        if aa_mutations is not None:
+            aa_mutations[cnode.taxon.label] = utils.get_mut_codes(aa_seqs[plabel], aa_seqs[clabel], amino_acid=True) #, debug=True)
+        if nuc_mutations is not None:
+            nuc_mutations[cnode.taxon.label] = utils.get_mut_codes(utils.per_seq_val(annotation, 'seqs', plabel), utils.per_seq_val(annotation, 'seqs', clabel)) #, debug=True)
         if debug or n_different > 0:
             nuc_mut_frac, nuc_n_muts = utils.hamming_fraction(nuc_seqs[plabel], nuc_seqs[clabel], also_return_distance=True)
             if nuc_mut_frac > 0 and abs(nuc_branch_length - nuc_mut_frac) / nuc_mut_frac > very_different_frac:
@@ -1082,26 +1086,37 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, debug=False):
 
 # ----------------------------------------------------------------------------------------
 # check whether 1) node depth and 2) node pairwise distances are super different when calculated with tree vs sequences (not really sure why it's so different sometimes, best guess is fasttree sucks, partly because it doesn't put the root node anywhere near the root of the tree)
-def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_check_leaf_depths=False, extra_str=None, iclust=None, debug=False):  # , min_warn_frac=0.1
+def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_check_leaf_depths=False, extra_str=None, iclust=None, n_to_print=10, debug=False):  # , min_warn_frac=0.1
     common_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label in annotation['unique_ids']]
-    tdepths, mfreqs, fracs = {}, {}, {}
+    tdepths, mfreqs, abs_diffs, fracs, ratios = {}, {}, {}, {}, {}
     for node in common_nodes:
         tdepth = node.distance_from_root()
         mfreq = utils.per_seq_val(annotation, 'mut_freqs', node.taxon.label)
-        frac_diff = abs(tdepth - mfreq) / tdepth if tdepth > 0 else 0
+        key = node.taxon.label
+        tdepths[key] = tdepth
+        mfreqs[key] = mfreq
+        frac_diff = abs(tdepth - mfreq) / mfreq if mfreq > 0 else 0
         if frac_diff > max_frac_diff:
-            key = node.taxon.label
-            tdepths[key] = tdepth
-            mfreqs[key] = mfreq
+            abs_diffs[key] = abs(tdepth - mfreq)
             fracs[key] = frac_diff
+            ratios[key] = 1 if mfreq==0 else tdepth / mfreq
     if debug or len(fracs) > 0:
         warnstr = utils.color('yellow', 'warning ') if len(fracs) > 0 else ''  # len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
-            print '        %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s (note that this is expected if these are single chain sequences being compared to a paired h+l tree)' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str)
+            idstr = '(note that this is expected if these are single chain sequences being compared to a paired h+l tree)'
+            print '        %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s %s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str, idstr)
+            print '            mean values:  tree depth %.3f  mfreq %.3f  diff %.3f  abs(frac diff) %.0f%%  ratio %.1f' % (numpy.mean(tdepths.values()), numpy.mean(mfreqs.values()), numpy.mean([tdepths[k] - mfreqs[k] for k in tdepths]),
+                                                                                                                           100*numpy.mean([(tdepths[k] - mfreqs[k])/mfreqs[k] for k in tdepths if mfreqs[k]>0]),
+                                                                                                                           numpy.mean([tdepths[k]/mfreqs[k] for k in tdepths if mfreqs[k]>0]))
         if (debug and len(fracs) > 0) or len(fracs) > 0:
-            print '    tree depth   mfreq      ratio    frac diff'
-            for key, frac in sorted(fracs.items(), key=operator.itemgetter(1), reverse=True):
-                print '      %.4f    %.4f     %.4f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], frac, key)
+            print '  %d with highest abs(diff):' % n_to_print
+            print '    tree depth   mfreq      ratio    diff'
+            for key, adiff in sorted(abs_diffs.items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
+                print '      %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
+            print '  %d with highest+lowest ratios:' % n_to_print
+            srats = sorted(ratios.items(), key=operator.itemgetter(1), reverse=True)
+            for key, ratio in srats[:n_to_print/2] + srats[len(srats) - n_to_print/2:]:
+                print '      %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
 
     if only_check_leaf_depths:  # the pairwise bit is slow
         return len(fracs), None

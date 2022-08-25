@@ -1460,7 +1460,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, seq_len=None,
-                    meta_info_key_to_color=None):
+                    meta_info_key_to_color=None, node_size_key=None, label_mutations=False):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
@@ -1474,7 +1474,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --metafname %s' % metafname
     if queries_to_include is not None:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
-    if label_all_nodes:
+    if label_all_nodes or label_mutations:
         cmdstr += ' --label-all-nodes'
     if label_root_node:
         cmdstr += ' --label-root-node'
@@ -1490,6 +1490,8 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --tree-style %s' % tree_style
     if meta_info_key_to_color is not None:
         cmdstr += ' --meta-info-key-to-color %s' % meta_info_key_to_color
+    if node_size_key is not None:
+        cmdstr += ' --node-size-key %s' % node_size_key
     cmdstr, _ = utils.run_ete_script(cmdstr, ete_path, return_for_cmdfos=True, tmpdir=subworkdir, extra_str='        ')
 
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
