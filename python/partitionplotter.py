@@ -646,7 +646,6 @@ class PartitionPlotter(object):
                 utils.add_seqs_aa(annotation)
                 aa_mutations, nuc_mutations = {}, {}
                 treeutils.get_aa_tree(treeutils.get_dendro_tree(treestr=treestr), annotation, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations)
-                # metafo['labels'] = {u : ', '.join(mfo['str'] for mfo in aa_mutations[u]) for u in annotation['unique_ids'] if u in aa_mutations}
                 metafo['labels'] = {}
                 for uid in annotation['unique_ids']:
                     if uid not in nuc_mutations:
