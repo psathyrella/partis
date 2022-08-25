@@ -2485,6 +2485,8 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
 def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname, no_fail=False):
+        if tch+'_iseq' not in mfo:  # ick
+            return None
         cln, iseq = mfo[tch if tch in 'hl' else tch+'_atn'], mfo[tch+'_iseq']
         return utils.antnval(cln, vname, iseq, use_default=no_fail)
     # ----------------------------------------------------------------------------------------
