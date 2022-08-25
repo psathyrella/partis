@@ -55,8 +55,9 @@ def lnhofn(locus, iclust=None, trees=False):
     # cluster-0/mcmciter10000_mcmcthin10_tuneiter5000_tunethin100_numrates4_rngseed0/burninfrac0.1_subsampfrac0.05/aa_naive_seqs.dnamap
     return '%s/linearham_%s' % (lhodir(locus, iclust=iclust), 'run.trees' if trees else 'annotations_best.yaml' )
 # ----------------------------------------------------------------------------------------
-def ptnfn(locus):
-    return paircluster.paired_fn(args.partis_outdir, locus, actstr='partition', suffix='.yaml')
+def ptnfn(locus, for_work=False):
+    pdir = wkdir(locus) if args.ignore_unmutated_seqs and for_work else args.partis_outdir
+    return paircluster.paired_fn(pdir, locus, actstr='partition', suffix='.yaml')
 # ----------------------------------------------------------------------------------------
 def prmd(locus):
     return '%s/parameters/%s' % (args.partis_outdir, locus)
@@ -75,10 +76,11 @@ def gloci():  # if no sw file, we probably only made one light locus (or i guess
 
 # ----------------------------------------------------------------------------------------
 def get_clusters(locus):
-    if args.n_sim_events is not None:
+    if args.n_sim_events is None:
+        _, _, cpath = utils.read_output(ptnfn(locus), skip_annotations=True)
+        return cpath.best()
+    else:
         return [None for _ in range(args.n_sim_events)]
-    _, _, cpath = utils.read_output(ptnfn(locus), skip_annotations=True)
-    return cpath.best()
 
 # ----------------------------------------------------------------------------------------
 def run_linearham():
@@ -88,6 +90,20 @@ def run_linearham():
             continue
         if not os.path.exists(ptnfn(locus)):
             raise Exception('partition file doesn\'t exist (maybe forgot to run partis \'partition\' action first?) %s' % ptnfn(locus))
+        if args.ignore_unmutated_seqs:
+            glfo, antn_list, cpath = utils.read_output(ptnfn(locus))
+            new_atns = []
+            for atn in antn_list:
+               iseqs_to_keep = [i for i, n in enumerate(atn['n_mutations']) if n>0]
+               new_atn = utils.get_non_implicit_copy(atn)
+               if len(iseqs_to_keep) == 0:
+                   if len(atn['unique_ids']) >= args.min_cluster_size:
+                       print '  %s no mutated seqs in %s cluster with size %d, so keeping all seqs' % (utils.wrnstr(), locus, len(atn['unique_ids']))  #  (yeah yeah this is dumb but whatever, i just don\'t want the indices to get screwed up)
+                   utils.add_implicit_info(glfo, new_atn)  # could probably just keep the original one, but maybe i'll want to modify them at some point
+               else:
+                   utils.restrict_to_iseqs(new_atn, iseqs_to_keep, glfo)
+               new_atns.append(new_atn)
+            utils.write_annotations(ptnfn(locus, for_work=True), glfo, new_atns, utils.annotation_headers)
         for iclust, tclust in enumerate(get_clusters(locus)):
             if tclust is not None and len(tclust) < args.min_cluster_size:
                 n_too_small += 1
@@ -102,9 +118,9 @@ def run_linearham():
                 print '    workdir: %s' % wkdir(locus, iclust=iclust)
             utils.mkdir(wkdir(locus, iclust=iclust))
             shlines = ['#!/bin/bash']
-            # shlines += ['ls -ltrh %s %s' % (dckr_trns(ptnfn(locus)), dckr_trns(prmd(locus)))]
+            # shlines += ['ls -ltrh %s %s' % (dckr_trns(ptnfn(locus, for_work=True)), dckr_trns(prmd(locus)))]
             # it would be nice to also have an option to run on my local linearham install (rather than docker), which works fine, except that it requires the output dir to be a subdir of the linearham code dir, which would require some linking shenanigans or something so not doing it atm
-            shlines += ['scons --run-linearham --partis-yaml-file=%s --parameter-dir=%s --cluster-index=%d --outdir=%s' % (dckr_trns(ptnfn(locus)), dckr_trns(prmd(locus)), iclust, dckr_trns(wkdir(locus, iclust=iclust)))]
+            shlines += ['scons --run-linearham --partis-yaml-file=%s --parameter-dir=%s --cluster-index=%d --outdir=%s' % (dckr_trns(ptnfn(locus, for_work=True)), dckr_trns(prmd(locus)), iclust, dckr_trns(wkdir(locus, iclust=iclust)))]
             if args.fast:
                 shlines[-1] += ' --mcmc-iter=1000 --tune-iter=500'
             bfn = '%s/run.sh' % wkdir(locus, iclust=iclust)  #  NOTE if i'd used utils.simplerun() i couldn've used its cmdfname arg
@@ -128,17 +144,41 @@ def run_linearham():
 
 # ----------------------------------------------------------------------------------------
 def read_lh_trees(treefname, glfo, antn_list):
+    # ----------------------------------------------------------------------------------------
+    def fix_ambig_regions(input_atn, new_seqfos, itree=None):
+        if len(set(len(s) for s in input_atn['seqs'])) > 1:
+            print '  %s seqs not all the same length, so giving up on fixing ambiguous regions' % utils.wrnstr()
+            return
+        ambig_positions = []
+        for ichar in range(len(input_atn['seqs'][0])):
+            chars = [s[ichar] for s in input_atn['seqs']]
+            if set(chars) == set([utils.ambig_base]):
+                ambig_positions.append(ichar)
+        if len(ambig_positions) > 0:
+            if itree == 0:
+                print '  %d entirely ambiguous positions (in %d seqs), so setting those positions to %s in inferred ancestors' % (len(ambig_positions), len(input_atn['seqs']), utils.ambig_base)
+            for sfo in new_seqfos:
+                assert len(sfo['seq']) == len(input_atn['seqs'][0])
+                # utils.color_mutants(sfo['seq'], ''.join([utils.ambig_base if i in ambig_positions else c for i, c in enumerate(sfo['seq'])]), print_result=True)
+                sfo['seq'] = ''.join([utils.ambig_base if i in ambig_positions else c for i, c in enumerate(sfo['seq'])])
+    # ----------------------------------------------------------------------------------------
     input_antn = utils.get_single_entry(antn_list)  # should just be length 1 i think
     treestrs = treeutils.get_treestrs_from_file(treefname)
     new_antns = []
-    for treestr in treestrs:
+    for itree, treestr in enumerate(treestrs):
         dtree = treeutils.get_dendro_tree(treestr=treestr, debug=False)  # this is super slow because it's got to read all the sequences (although, really, why tf does that have to be slow)
         # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree))
         inferred_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label not in input_antn['unique_ids']]
         new_seqfos = [{'name' : n.taxon.label, 'seq' : n.annotations['ancestral'].value} for n in inferred_nodes]
         newatn = utils.get_non_implicit_copy(input_antn)
+        fix_ambig_regions(input_antn, new_seqfos, itree=itree)
         utils.add_implicit_info(glfo, newatn)
         utils.add_seqs_to_line(newatn, new_seqfos, glfo, debug=False)
+        for sfo in new_seqfos:
+            iseq = newatn['unique_ids'].index(sfo['name'])
+            if 'multiplicities' in newatn:
+                assert newatn['multiplicities'][iseq] is None
+                newatn['multiplicities'][iseq] = 1
         newatn['tree-info'] = {'lb' : {'tree' : dtree.as_string(schema='newick')}}
         new_antns.append(newatn)
     return new_antns
@@ -179,7 +219,7 @@ def processs_linearham_output():
             if args.dry:
                 antn_list.append(None)  # just to print the right length
                 continue
-            glfo, iclust_antns, _ = utils.read_output(lhfn, debug=True)
+            glfo, iclust_antns, _ = utils.read_output(lhfn)
             antn_list.append(utils.get_single_entry(iclust_antns))
             anc_antns.append(read_lh_trees(lnhofn(locus, iclust=iclust, trees=True), glfo, iclust_antns))
 
@@ -216,6 +256,7 @@ parser.add_argument('--docker', action='store_true')
 parser.add_argument('--local-docker-image', action='store_true')
 parser.add_argument('--fast', action='store_true')
 # parser.add_argument('--remove-duplicate-seqs', action='store_true')
+parser.add_argument('--ignore-unmutated-seqs', action='store_true')
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 parser.add_argument('--n-procs', default=1, type=int)
 parser.add_argument('--min-cluster-size', default=5, type=int)

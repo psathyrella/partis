@@ -518,10 +518,11 @@ class PartitionPlotter(object):
         # NOTE/TODO this always runs on inferred stuff, even on simulation
         if 'tree-info' in annotation and 'lb' in annotation['tree-info']:
             treestr = annotation['tree-info']['lb']['tree']
-        else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partition
-            print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()  # didn't run this after adding/rewriting this fcn
-            treefo = treeutils.get_trees_for_annotations([annotation], cpath=cpath, debug=debug)[0]
-            print '  %s no tree in annotation, so getting new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
+        else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partitionn
+            print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()
+            treefo = treeutils.get_trees_for_annotations([annotation], treefname=self.args.treefname, cpath=cpath, debug=debug)[0]
+            # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=treefo['tree']))
+            print '  %s no tree in annotation, so got new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
             treestr = treefo['tree'].as_string(schema='newick').strip()
         return treestr
 
@@ -634,6 +635,30 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_tree_plots(self, sorted_clusters, annotations, plotdir, cpath=None):
+        # ----------------------------------------------------------------------------------------
+        def get_metafo(annotation):
+            if self.args.meta_info_key_to_color is None and self.args.node_size_key is None and not self.args.label_mutations:
+                return None
+            metafo = {}
+            for tk in [k for k in [self.args.meta_info_key_to_color, self.args.node_size_key] if k is not None]:
+                metafo[tk] = {u : f for u, f in zip(annotation['unique_ids'], annotation[tk])}
+            if self.args.label_mutations:
+                utils.add_seqs_aa(annotation)
+                aa_mutations, nuc_mutations = {}, {}
+                treeutils.get_aa_tree(treeutils.get_dendro_tree(treestr=treestr), annotation, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations)
+                # metafo['labels'] = {u : ', '.join(mfo['str'] for mfo in aa_mutations[u]) for u in annotation['unique_ids'] if u in aa_mutations}
+                metafo['labels'] = {}
+                for uid in annotation['unique_ids']:
+                    if uid not in nuc_mutations:
+                        continue
+                    if len(nuc_mutations[uid]) == 0:
+                        metafo['labels'][uid] = '0'
+                    else:
+                        metafo['labels'][uid] = '%d nuc, %d aa' % (len(nuc_mutations[uid]), len(aa_mutations[uid]))
+                    if uid in aa_mutations and len(aa_mutations[uid]) > 0:
+                        metafo['labels'][uid] += '\n' + ', '.join(mfo['str'] for mfo in aa_mutations[uid])
+            return metafo
+        # ----------------------------------------------------------------------------------------
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('trees', plotdir)
         workdir = '%s/ete3-plots' % self.args.workdir
@@ -646,10 +671,8 @@ class PartitionPlotter(object):
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 continue
             treestr = self.get_treestr(annotation, cpath)
-            if self.args.meta_info_key_to_color is not None:
-                metafo = {self.args.meta_info_key_to_color : {u : f for u, f in zip(annotation['unique_ids'], annotation[self.args.meta_info_key_to_color])}}
             plotname = 'tree-iclust-%d' % iclust
-            cmdfos += [lbplotting.get_lb_tree_cmd(treestr, '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=metafo, queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color, label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node)]
+            cmdfos += [lbplotting.get_lb_tree_cmd(treestr, '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=get_metafo(annotation), queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color, label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, label_mutations=self.args.label_mutations)]
             self.addfname(fnames, plotname)
         if len(cmdfos) > 0:
             start = time.time()

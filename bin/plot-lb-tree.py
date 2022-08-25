@@ -222,17 +222,25 @@ def set_meta_styles(args, etree, tstyle):
         mvals = args.metafo[args.meta_info_key_to_color]
         all_emph_vals, emph_colors = plotting.meta_emph_init(args.meta_info_key_to_color, None, None, formats=args.meta_emph_formats, all_emph_vals=set(mvals.values()))
         mcolors = {v : c for v, c in emph_colors}
+    if args.node_size_key is not None:
+        nsvals = set(args.metafo[args.node_size_key].values()) - set([None])
+        min_nsval, max_nsval = [mfcn(nsvals) for mfcn in [min, max]]
     for node in etree.traverse():
         node.img_style['size'] = 0
-        rfsize = 0
-        # rfsize = get_size(lb_min, lb_max, lbfo[node.name])
         rfsize = 5
+        if args.node_size_key is not None:
+            rfsize = get_size(min_nsval, max_nsval, args.metafo[args.node_size_key][node.name])
         bgcolor = plotting.getgrey()
         if args.meta_info_key_to_color is not None and node.name in mvals:
             bgcolor = mcolors.get(mvals[node.name], bgcolor)
 
         if label_node(node):
-            tface = ete3.TextFace(node.name, fsize=3, fgcolor='red')
+            nlabel = ''
+            if args.label_all_nodes:
+                nlabel += node.name
+            if 'labels' in args.metafo:
+                nlabel += '%s%s' % (': ' if args.label_all_nodes else '', args.metafo['labels'].get(node.name, ''))
+            tface = ete3.TextFace(nlabel, fsize=3, fgcolor='red')
             node.add_face(tface, column=0)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
@@ -283,6 +291,7 @@ parser.add_argument('--seq-len', type=int)
 parser.add_argument('--meta-info-to-emphasize', help='see partis help')
 parser.add_argument('--meta-info-key-to-color', help='see partis help')
 parser.add_argument('--meta-emph-formats', help='see partis help')
+parser.add_argument('--node-size-key', help='see partis help')
 args = parser.parse_args()
 
 sys.path.insert(1, args.partis_dir + '/python')
