@@ -520,7 +520,7 @@ class PartitionPlotter(object):
             treestr = annotation['tree-info']['lb']['tree']
         else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partitionn
             print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()
-            treefo = treeutils.get_trees_for_annotations([annotation], treefname=self.args.treefname, cpath=cpath, debug=debug)[0]
+            treefo = treeutils.get_trees_for_annotations([annotation], treefname=self.args.treefname, cpath=cpath, workdir=self.args.workdir, debug=debug)[0]
             # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=treefo['tree']))
             print '  %s no tree in annotation, so got new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
             treestr = treefo['tree'].as_string(schema='newick').strip()

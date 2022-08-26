@@ -217,7 +217,7 @@ class Waterer(object):
             if len(self.skipped_unproductive_queries) > 0:
                 print '         skipped %d unproductive' % len(self.skipped_unproductive_queries)
             if len(self.skipped_in_frame_queries) > 0:
-                print '         skipped %d in frame' % len(self.skipped_in_frame_queries)
+                print '         skipped %d with in frame rearrangement (i.e. cdr3 len % 3 == 0)' % len(self.skipped_in_frame_queries)
             if self.debug:
                 if len(self.info['indels']) > 0:
                     print '      indels: %s' % ':'.join(self.info['indels'].keys())
@@ -1050,7 +1050,7 @@ class Waterer(object):
                 return
         if self.args.skip_in_frame_rearrangements and line['cdr3_length'] % 3 == 0:  # NOTE *not* the same as line['in_frames'][0] (since here we're caring if the original rearrangement was productive, whereas 'in_frames' depends also on shm indels)
             if self.debug:
-                print '      skipping in frame'
+                print '      skipping in frame rearrangement'
             self.skipped_in_frame_queries.add(qname)
             self.remaining_queries.remove(qname)
             return
