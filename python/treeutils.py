@@ -791,14 +791,14 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
         # print dtree.as_string(schema='newick').strip()
 
 # ----------------------------------------------------------------------------------------
-# specify <seqfos> or <line> (in latter case we add the naive seq)
-def run_tree_inference(method, seqfos=None, line=None, naive_seq=None, naive_seq_name='naive', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None, redo=False, debug=False):
+# specify <seqfos> or <annotation> (in latter case we add the naive seq)
+def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='naive', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None, redo=False, outfix='out', inferred_seqfos=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def getcmd(ifn):
         if method == 'fasttree':
             cmd = '%s/bin/FastTree -gtr -nt %s' % (utils.get_partis_dir(), ifn)
         elif method == 'iqtree':
-            cmd = '%s/packages/iqtree-1.6.12-Linux/bin/iqtree -s %s -pre %s/out' % (utils.get_partis_dir(), ifn, os.path.dirname(ifn))
+            cmd = '%s/packages/iqtree-1.6.12-Linux/bin/iqtree -asr -s %s -pre %s/%s' % (utils.get_partis_dir(), ifn, os.path.dirname(ifn), outfix)
             if redo:
                 cmd += ' -redo'
         else:
@@ -807,7 +807,7 @@ def run_tree_inference(method, seqfos=None, line=None, naive_seq=None, naive_seq
     # ----------------------------------------------------------------------------------------
     if seqfos is None:
         assert naive_seq is None  # can't specify it two ways
-        seqfos = utils.seqfos_from_line(line, prepend_naive=True, naive_name=naive_seq_name)
+        seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name)
     elif naive_seq is not None:
         seqfos = [{'name' : naive_seq_name, 'seq' : naive_seq}] + seqfos
     if debug:
@@ -815,8 +815,8 @@ def run_tree_inference(method, seqfos=None, line=None, naive_seq=None, naive_seq
     workdir = persistent_workdir
     if workdir is None:
         workdir = utils.choose_random_subdir('/tmp/%s/tree-inference' % os.getenv('USER', default='user'))
-    if method == 'iqtree' and len(glob.glob('%s/out.*'%workdir)) > 0:
-        print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/out.*'%workdir)))
+    if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
+        print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
         redo = True
     uid_list = [sfo['name'] for sfo in seqfos]
     if any(uid_list.count(u) > 1 for u in uid_list):
@@ -827,10 +827,26 @@ def run_tree_inference(method, seqfos=None, line=None, naive_seq=None, naive_seq
     if method == 'fasttree':
         treestr, treefname = out, None
     elif method == 'iqtree':
-        treestr, treefname = None, '%s/out.treefile' % workdir
+        treestr, treefname = None, '%s/%s.treefile' % (workdir, outfix)
+        inf_infos = {}
+        with open('%s/%s.state'%(workdir, outfix)) as afile:  # read inferred ancestral sequences
+            reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter='\t')
+            for line in reader:
+                node = line['Node']
+                if node not in inf_infos:
+                    inf_infos[node] = {}
+                inf_infos[node][int(line['Site'])] = line['State'].replace('-', utils.ambig_base)  # NOTE this has uncertainty info as well, which atm i'm ignoring
+        seq_len = len(seqfos[0]['seq'])
+        if inferred_seqfos is None:
+            print '    note: reading inferred ancestors, but not returning them'
+            inferred_seqfos = []
+        for node, nfo in inf_infos.items():
+            inferred_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
+        if debug:
+            print '      read %d inferred ancestral seqs' % len(inferred_seqfos)
     if debug:
         print '      converting %s newick string to dendro tree' % method
-    dtree = get_dendro_tree(treestr=treestr, treefname=treefname, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)
+    dtree = get_dendro_tree(treestr=treestr, treefname=treefname, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree', suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
@@ -1991,8 +2007,13 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             origin = 'cpath'
         elif tree_inference_method in ['fasttree', 'iqtree']:
             persistent_workdir = None if workdir is None and inf_outdir is None else '%s/%s/iclust-%d' % (utils.non_none([inf_outdir, workdir]), tree_inference_method, iclust)
-            dtree = run_tree_inference(tree_inference_method, line=line, debug=debug, persistent_workdir=persistent_workdir)
+            inferred_seqfos = []
+            dtree = run_tree_inference(tree_inference_method, annotation=line, debug=debug, persistent_workdir=persistent_workdir, inferred_seqfos=inferred_seqfos)
+            if tree_inference_method == 'iqtree':
+                utils.add_seqs_to_line(line, inferred_seqfos, glfo, debug=debug)
             origin = tree_inference_method
+        else:
+            assert False
 
         tree_origin_counts[origin]['count'] += 1
         if dtree is None:
@@ -2194,9 +2215,9 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
             return dumpfo
         with open(outfname, 'w') as tfile:
             json.dump([dumpfo(l) for l in antn_list if 'tree-info' in l], tfile)
-    if args.tree_inference_method == 'gctree' and tree_inference_outdir is not None:
-        anfname = '%s/gctree-annotations.yaml' % tree_inference_outdir
-        print '    writing gctree annotations (with inferred ancestral sequences) to %s' % anfname
+    if args.tree_inference_method in ['gctree', 'iqtree'] and tree_inference_outdir is not None:
+        anfname = '%s/%s-annotations.yaml' % (tree_inference_outdir, args.tree_inference_method)
+        print '    writing annotations with inferred ancestral sequences from %s to %s' % (args.tree_inference_method, anfname)
         utils.write_annotations(anfname, glfo, antn_list, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns))  # NOTE these probably have the fwk insertions removed, which is probably ok?
 
 # ----------------------------------------------------------------------------------------

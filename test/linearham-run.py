@@ -170,15 +170,9 @@ def read_lh_trees(treefname, glfo, antn_list):
         # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree))
         inferred_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label not in input_antn['unique_ids']]
         new_seqfos = [{'name' : n.taxon.label, 'seq' : n.annotations['ancestral'].value} for n in inferred_nodes]
-        newatn = utils.get_non_implicit_copy(input_antn)
         fix_ambig_regions(input_antn, new_seqfos, itree=itree)
-        utils.add_implicit_info(glfo, newatn)
+        newatn = utils.get_full_copy(input_antn)
         utils.add_seqs_to_line(newatn, new_seqfos, glfo, debug=False)
-        for sfo in new_seqfos:
-            iseq = newatn['unique_ids'].index(sfo['name'])
-            if 'multiplicities' in newatn:
-                assert newatn['multiplicities'][iseq] is None
-                newatn['multiplicities'][iseq] = 1
         newatn['tree-info'] = {'lb' : {'tree' : dtree.as_string(schema='newick')}}
         new_antns.append(newatn)
     return new_antns
