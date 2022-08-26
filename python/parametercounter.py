@@ -11,6 +11,7 @@ import hutils
 import plotconfig
 from mutefreqer import MuteFreqer
 from corrcounter import CorrCounter
+import indelutils
 
 # ----------------------------------------------------------------------------------------
 class ParameterCounter(object):
@@ -35,15 +36,17 @@ class ParameterCounter(object):
         self.counts['non_vj_length'] = {}
         self.counts['seq_content'] = {n : 0 for n in utils.nukes}  # now I'm adding the aa content, I wish this had nucleotide in the name, but I don't want to change it since it corresponds to a million existing file paths
         self.counts['cluster_size'] = {}
+        self.counts['net_indel_length'] = {}
         self.init_aa_stuff()
         self.counts['seq_aa_content'] = {a : 0 for a in self.all_aa}
         self.string_columns.add('seq_content')
         self.string_columns.add('seq_aa_content')
 
-        self.no_write_columns = ['aa_cdr3_length', 'non_vj_length', 'seq_aa_content']  # don't write these to the parameter dir, since a) cdr3 length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding them waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding these because I want them plotted)
+        self.no_write_columns = ['aa_cdr3_length', 'non_vj_length', 'seq_aa_content', 'net_indel_length']  # don't write these to the parameter dir, since a) cdr3 length is better viewed as an output of more fundamental parameters (gene choice, insertion + deletion lengths) and b) I"m adding them waaay long after the others, and I don't want to add a new file to the established parameter directory structure. (I'm adding these because I want them plotted)
 
         self.columns_to_subset_by_gene = [e + '_del' for e in utils.all_erosions] + [b + '_insertion' for b in utils.boundaries]
         self.mean_columns = ['aa_cdr3_length', 'non_vj_length']
+        self.log_columns = ['cluster_size', 'net_indel_length']
 
     # ----------------------------------------------------------------------------------------
     def init_aa_stuff(self):
@@ -69,6 +72,12 @@ class ParameterCounter(object):
             self.increment_per_sequence_params(info, iseq)
 
     # ----------------------------------------------------------------------------------------
+    def sub_increment(self, column, index):
+        if index not in self.counts[column]:
+            self.counts[column][index] = 0
+        self.counts[column][index] += 1
+
+    # ----------------------------------------------------------------------------------------
     def increment_per_sequence_params(self, info, iseq):
         """ increment parameters that differ for each sequence within the clonal family """
         self.mute_total += 1
@@ -88,14 +97,11 @@ class ParameterCounter(object):
         for aa in self.all_aa:
             self.counts['seq_aa_content'][aa] += aaseq.count(aa)
 
+        self.sub_increment('net_indel_length', (indelutils.net_length(info['indelfos'][iseq]), ))
+
     # ----------------------------------------------------------------------------------------
     def increment_per_family_params(self, info):
         """ increment parameters that are the same for the entire clonal family """
-        def sub_increment(column, index):
-            if index not in self.counts[column]:
-                self.counts[column][index] = 0
-            self.counts[column][index] += 1
-
         self.reco_total += 1
 
         all_index = self.get_index(info, tuple(list(utils.index_columns) + ['cdr3_length', ]))  # NOTE this cdr3_length is for getting a unique index for the rearrangement event parameters, and is thus unrelated to the key aa_cdr3_length for plotting
@@ -106,12 +112,12 @@ class ParameterCounter(object):
         for deps in utils.column_dependency_tuples:
             column = deps[0]
             index = self.get_index(info, deps)
-            sub_increment(column, index)
+            self.sub_increment(column, index)
 
         # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
-        sub_increment('aa_cdr3_length', (info['cdr3_length'] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
-        sub_increment('non_vj_length', (utils.get_non_vj_len(info), ))
-        sub_increment('cluster_size', (len(info['unique_ids']), ))
+        self.sub_increment('aa_cdr3_length', (info['cdr3_length'] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
+        self.sub_increment('non_vj_length', (utils.get_non_vj_len(info), ))
+        self.sub_increment('cluster_size', (len(info['unique_ids']), ))
 
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:
@@ -172,7 +178,7 @@ class ParameterCounter(object):
 
             hist = hutils.make_hist_from_dict_of_counts(values, var_type, column)
             plotting.draw_no_root(hist, plotname=column, plotdir=overall_plotdir, xtitle=plotconfig.xtitles.get(column, column), plottitle=plotconfig.plot_titles.get(column, column),
-                                  errors=True, write_csv=True, only_csv=only_csv, stats='mean' if column in self.mean_columns else None, normalize=True)
+                                  errors=True, write_csv=True, only_csv=only_csv, stats='mean' if column in self.mean_columns else None, log='y' if column in self.log_columns else '', normalize=True)
 
             if column in self.columns_to_subset_by_gene and not only_overall:
                 thisplotdir = plotdir + '/' + column
