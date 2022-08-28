@@ -125,6 +125,8 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
 def label_node(node):
     if args.label_all_nodes:
         return True
+    if 'labels' in args.metafo:
+        return True
     if args.queries_to_include is not None and node.name in args.queries_to_include:
         return True
     if args.label_root_node and node is etree.get_tree_root():

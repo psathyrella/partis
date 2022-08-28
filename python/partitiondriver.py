@@ -342,7 +342,7 @@ class PartitionDriver(object):
         treeutils.add_smetrics(self.args, self.args.selection_metrics_to_calculate, annotation_dict, self.args.lb_tau, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir,
                                outfname=self.args.selection_metric_fname, only_use_best_partition=self.args.only_print_best_partition, glfo=self.glfo,
-                               tree_inference_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else os.path.dirname(utils.fpath(self.args.outfname)),
+                               tree_inference_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else utils.fpath(utils.get_prefix(self.args.outfname)),
                                debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------

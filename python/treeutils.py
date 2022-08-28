@@ -815,19 +815,24 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     workdir = persistent_workdir
     if workdir is None:
         workdir = utils.choose_random_subdir('/tmp/%s/tree-inference' % os.getenv('USER', default='user'))
-    if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
-        print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
-        redo = True
+    # # eh, turning this off for now:
+    # if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
+    #     print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
+    #     redo = True
     uid_list = [sfo['name'] for sfo in seqfos]
-    if any(uid_list.count(u) > 1 for u in uid_list):
+    if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
-    ifn = '%s/input-seqs.fa' % workdir
-    utils.write_fasta(ifn, seqfos)
-    out, err = utils.simplerun(getcmd(ifn), shell=True, return_out_err=True, debug=debug)
+    iqt_ofn = '%s/%s.treefile' % (workdir, outfix)
+    if method == 'iqtree' and os.path.exists(iqt_ofn):
+        print '  %s output exists, not rerunning' % method
+    else:
+        ifn = '%s/input-seqs.fa' % workdir
+        utils.write_fasta(ifn, seqfos)
+        out, err = utils.simplerun(getcmd(ifn), shell=True, return_out_err=True, extra_str='            ') #debug=debug)
     if method == 'fasttree':
         treestr, treefname = out, None
     elif method == 'iqtree':
-        treestr, treefname = None, '%s/%s.treefile' % (workdir, outfix)
+        treestr, treefname = None, iqt_ofn
         inf_infos = {}
         with open('%s/%s.state'%(workdir, outfix)) as afile:  # read inferred ancestral sequences
             reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter='\t')
@@ -1100,7 +1105,7 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=No
         if aa_mutations is not None:
             aa_mutations[cnode.taxon.label] = utils.get_mut_codes(aa_seqs[plabel], aa_seqs[clabel], amino_acid=True) #, debug=True)
         if nuc_mutations is not None:
-            nuc_mutations[cnode.taxon.label] = utils.get_mut_codes(utils.per_seq_val(annotation, 'seqs', plabel), utils.per_seq_val(annotation, 'seqs', clabel)) #, debug=True)
+            nuc_mutations[cnode.taxon.label] = utils.get_mut_codes(nuc_seqs[plabel], nuc_seqs[clabel]) #, debug=True)
         if debug or n_different > 0:
             nuc_mut_frac, nuc_n_muts = utils.hamming_fraction(nuc_seqs[plabel], nuc_seqs[clabel], also_return_distance=True)
             if nuc_mut_frac > 0 and abs(nuc_branch_length - nuc_mut_frac) / nuc_mut_frac > very_different_frac:
