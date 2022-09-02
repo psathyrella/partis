@@ -78,7 +78,7 @@ class Waterer(object):
         self.vs_indels = set()
         self.indel_reruns = set()  # queries that either failed during indel handling, or had successful indel handling: in both cases we rerun them, with a super large gap open to prevent further indels
 
-        self.skipped_unproductive_queries, self.skipped_in_frame_queries, self.skipped_unmutated_seqs, self.kept_unproductive_queries = set(), set(), set(), set()
+        self.skipped_unproductive_queries, self.skipped_in_frame_queries, self.kept_unproductive_queries = set(), set(), set()
 
         self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
         if self.glfo is None:  # reading cache file from bin/partis, rather than normal operation from python/partitiondriver.py

@@ -391,6 +391,9 @@ def process(args):
         raise Exception('--plot-annotation-performance must be set if you\'re setting --print-worst-annotations')
     if not args.paired_loci and (args.action=='plot-partitions' or args.action=='annotate' and args.plot_partitions) and args.plotdir is None:
         raise Exception('--plotdir must be specified if plotting partitions')
+    if args.input_partition_fname is not None:
+        if args.action != 'annotate':
+            raise Exception('--input-partition-fname only makes sense/has an effect for action \'annotate\' (at least at the moment)')
     if args.action == 'annotate' and args.plot_partitions and args.input_partition_fname is None:  # could set this up to use e.g. --simultaneous-true-clonal-seqs as well, but it can't atm
         print '  %s running annotate with --plot-partitions, but --input-partition-fname is not set, which likely means the partitions will be trivial/singleton partitions' % utils.color('yellow', 'warning')
 
