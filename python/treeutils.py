@@ -2010,8 +2010,10 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         elif tree_inference_method is None and cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
             dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
             origin = 'cpath'
-        elif tree_inference_method in ['fasttree', 'iqtree']:
-            persistent_workdir = None if workdir is None and inf_outdir is None else '%s/%s/iclust-%d' % (utils.non_none([inf_outdir, workdir]), tree_inference_method, iclust)
+        elif tree_inference_method in ['fasttree', 'iqtree', None]:
+            if tree_inference_method is None:
+                tree_inference_method = 'fasttree'  # ick
+            persistent_workdir = None if inf_outdir is None else '%s/%s/iclust-%d' % (inf_outdir, tree_inference_method, iclust)
             inferred_seqfos = []
             dtree = run_tree_inference(tree_inference_method, annotation=line, debug=debug, persistent_workdir=persistent_workdir, inferred_seqfos=inferred_seqfos)
             if tree_inference_method == 'iqtree':
