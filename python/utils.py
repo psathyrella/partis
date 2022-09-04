@@ -1217,7 +1217,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, dont_deep_copy=Fal
 # add seqs in <seqfos_to_add> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary (see bin/add-seqs-to-outputs.py)
 # NOTE see also replace_seqs_in_line()
 # NOTE also that there's no way to add shm indels for seqs in <seqfos_to_add>
-def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, debug=False):
+def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, print_added_str='', debug=False):
     # ----------------------------------------------------------------------------------------
     def align_sfo_seqs(sfos_to_align):
         sfos_to_align['naive_seq'] = line['naive_seq']
@@ -1283,6 +1283,8 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
 
     add_implicit_info(glfo, line)
 
+    if print_added_str:
+        print '    added %d %s seqs to line%s' % (len(seqfos_to_add), print_added_str, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add))
     if debug:
         print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 

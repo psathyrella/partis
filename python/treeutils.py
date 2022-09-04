@@ -789,6 +789,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
         print '    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes))
         # print get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
         # print dtree.as_string(schema='newick').strip()
+    return removed_nodes
 
 # ----------------------------------------------------------------------------------------
 # specify <seqfos> or <annotation> (in latter case we add the naive seq)
@@ -829,15 +830,31 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         ifn = '%s/input-seqs.fa' % workdir
         utils.write_fasta(ifn, seqfos)
         out, err = utils.simplerun(getcmd(ifn), shell=True, return_out_err=True, extra_str='            ') #debug=debug)
+
     if method == 'fasttree':
         treestr, treefname = out, None
     elif method == 'iqtree':
         treestr, treefname = None, iqt_ofn
-        inf_infos = {}
-        with open('%s/%s.state'%(workdir, outfix)) as afile:  # read inferred ancestral sequences
+    if debug:
+        print '      converting %s newick string to dendro tree' % method
+    dtree = get_dendro_tree(treestr=treestr, treefname=treefname, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree', suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
+    naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
+    if naive_node is not None:
+        dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
+
+    removed_nodes = None
+    if not suppress_internal_node_taxa:  # if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards) UPDATE i no longer understand this comment, sigh
+        removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], debug=debug)
+
+    if method == 'iqtree':  # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves)
+        inf_infos, skipped_rm_nodes = {}, set()
+        with open('%s/%s.state'%(workdir, outfix)) as afile:
             reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter='\t')
             for line in reader:
                 node = line['Node']
+                if removed_nodes is not None and node in removed_nodes:
+                    skipped_rm_nodes.add(node)
+                    continue
                 if node not in inf_infos:
                     inf_infos[node] = {}
                 inf_infos[node][int(line['Site'])] = line['State'].replace('-', utils.ambig_base)  # NOTE this has uncertainty info as well, which atm i'm ignoring
@@ -849,15 +866,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             inferred_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
         if debug:
             print '      read %d inferred ancestral seqs' % len(inferred_seqfos)
-    if debug:
-        print '      converting %s newick string to dendro tree' % method
-    dtree = get_dendro_tree(treestr=treestr, treefname=treefname, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree', suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
-    naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
-    if naive_node is not None:
-        dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
-
-    if not suppress_internal_node_taxa:  # if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards)
-        collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], debug=debug)
+        if len(skipped_rm_nodes) > 0:
+            print '      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes))
 
     if debug:
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
@@ -1928,9 +1938,9 @@ def check_lb_values(line, lbvals):
             # raise Exception('uids in annotation not the same as lb info keys\n    missing: %s\n    extra: %s' % (' '.join(set(line['unique_ids']) - set(lbvals[metric])), ' '.join(set(lbvals[metric]) - set(line['unique_ids']))))
             extra = set(lbvals[metric]) - set(line['unique_ids'])
             common = set(line['unique_ids']) & set(lbvals[metric])
-            print '    %s uids in annotation not the same as lb info keys for \'%s\':  %d missing from lb info  %d extra in lb info  (%d in common)'  % (utils.color('red', 'error'), metric, len(missing), len(extra), len(common))
+            print '    %s %s uids in annotation not the same as lb info keys for \'%s\':  %d missing from lb info  %d extra in lb info  (%d in common)'  % (utils.color('red', 'error'), utils.color('blue', metric), metric, len(missing), len(extra), len(common))
             if len(missing) + len(extra) < 35:
-                print '      missing from lb info: %s\n      extra in lb info: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common))
+                print '      missing from lb info: %s\n      missing from annotation: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common))
 
 # ----------------------------------------------------------------------------------------
 def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
@@ -1941,7 +1951,7 @@ def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
     print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
 
 # ----------------------------------------------------------------------------------------
-# gets new tree for each specified annotation, and add a new 'tree-info' key for each (overwriting any that's already there)
+# gets new tree for each specified annotation, and adds a new 'tree-info' key for each (overwriting any that's already there)
 def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def prep_gctree(iclust, line):
@@ -2017,7 +2027,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             inferred_seqfos = []
             dtree = run_tree_inference(tree_inference_method, annotation=line, debug=debug, persistent_workdir=persistent_workdir, inferred_seqfos=inferred_seqfos)
             if tree_inference_method == 'iqtree':
-                utils.add_seqs_to_line(line, inferred_seqfos, glfo, debug=debug)
+                utils.add_seqs_to_line(line, inferred_seqfos, glfo, print_added_str='iqtree inferred', debug=debug)
             origin = tree_inference_method
         else:
             assert False
@@ -2037,7 +2047,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         for iclust, (line, cfo) in enumerate(zip(inf_lines_to_use, cmdfos)):
             dtree = get_dendro_tree(treefname=cfo['outfname'])
             seqfos = utils.read_fastx('%s/inferred-seqs.fa'%os.path.dirname(cfo['outfname']), look_for_tuples=True)
-            utils.add_seqs_to_line(line, seqfos, glfo, debug=debug)  # ok, i guess you need glfo (see above)
+            utils.add_seqs_to_line(line, seqfos, glfo, print_added_str='gctree inferred', debug=debug)  # ok, i guess you need glfo (see above)
             addtree(iclust, line, dtree, 'gctree')
 
     print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
