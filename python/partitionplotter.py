@@ -523,6 +523,7 @@ class PartitionPlotter(object):
             treestr = annotation['tree-info']['lb']['tree']
         else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partitionn
             # print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()
+            # TODO would be better to get trees for all annotations at once
             treefo = treeutils.get_trees_for_annotations([annotation], treefname=self.args.treefname, cpath=cpath, workdir=self.args.workdir, cluster_indices=self.args.cluster_indices,
                                                          tree_inference_method=self.args.tree_inference_method,
                                                          inf_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else utils.fpath(utils.getprefix(self.args.outfname)),

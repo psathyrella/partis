@@ -206,7 +206,7 @@ class Waterer(object):
             if just_read_cachefile:
                 n_dupes = sum([len(dupes) for dupes in self.duplicates.values()])
                 dupl_str = ', %d duplicates [removed when cache file was written]' % n_dupes
-            tmp_pass_frac = float(len(self.info['queries']) + n_dupes) / len(self.input_info)
+            tmp_pass_frac = float(len(self.info['queries']) + n_dupes + len(self.skipped_unproductive_queries) + len(self.skipped_in_frame_queries)) / len(self.input_info)
             print '      info for %d / %d = %.3f   (removed: %d failed%s)' % (len(self.info['queries']), len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
             if tmp_pass_frac < 0.80:
                 print '  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning())
