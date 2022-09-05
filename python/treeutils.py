@@ -2996,7 +2996,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 if any(ctkey() in mfo[c] for c in 'hl'):
                     okeys.insert(1, ('cell_type', ctkey()))
                 for ok, lk in okeys:
-                    ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]))) for c in 'hl'])
+                    ofo.update([(c+'_'+ok, gsval(mfo, c, utils.non_none([lk, ok]), no_fail=True)) for c in 'hl'])
             else:
                 for tch in 'hl':
                     ofo[tch+'_seq_aa'] = getseq(mfo, tch, aa=True)
