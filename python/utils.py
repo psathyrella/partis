@@ -617,7 +617,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'shm_aa', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices', 'min_target_distances'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
@@ -1251,6 +1251,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             return sfo['seq']
 
     # ----------------------------------------------------------------------------------------
+    original_len = len(line['unique_ids'])
     trimmed_seqfos, sfos_to_align = {}, {}
     if try_to_fix_padding:
         for sfo in [s for s in seqfos_to_add if len(s['seq']) > len(line['naive_seq'])]:
@@ -1265,27 +1266,47 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             align_sfo_seqs(sfos_to_align)
     aligned_seqfos = [{'name' : sfo['name'], 'seq' : getseq(sfo)} for sfo in seqfos_to_add]  # NOTE needs to be in same order as <seqfos_to_add>
 
-    remove_all_implicit_info(line)
+    if not line.get('is_fake_paired'):
+        remove_all_implicit_info(line)
 
-    for key in set(line) & set(linekeys['per_seq']):
+    pskeys = set(line) & set(linekeys['per_seq'])
+    other_keys = [k for k in line if k not in pskeys and isinstance(line[k], list) and len(line[k])==len(line['unique_ids'])]  # custom meta info keys (yeah they should get added some other way, but it's hard to do it super reliably
+    if len(other_keys) > 0:
+        print '    %s adding extra per-seq key%s %s when adding seqs to line' % (wrnstr(), plural(len(other_keys)), ', '.join(other_keys))
+        pskeys |= set(other_keys)
+    for key in pskeys:
         if key == 'unique_ids':
             line[key] += [s['name'] for s in aligned_seqfos]
-        elif key == 'input_seqs' or key == 'seqs':  # i think elsewhere these end up pointing to the same list of string objects, but i think that doesn't matter?
-            line[key] += [s['seq'] for s in aligned_seqfos]
+        elif key == 'input_seqs' or key == 'seqs':  # i think elsewhere these end up pointing to the same list of string objects, but i think that doesn't matter? UPDATE of fuck yes it does
+            assert len(line[key]) in [original_len, original_len + len(aligned_seqfos)]
+            if len(line[key]) == original_len:  # if they're pointing at the same list, make sure to only add em once (yes this sucks)
+                line[key] += [s['seq'] for s in aligned_seqfos]
         elif key == 'duplicates':
             line[key] += [[] for _ in aligned_seqfos]
         elif key == 'multiplicities':
             line[key] += [1 for _ in aligned_seqfos]
+        elif key == 'has_shm_indels':
+            line[key] += [False for _ in aligned_seqfos]  # uh, I think?
         elif key == 'indelfos':
             line[key] += [indelutils.get_empty_indel() for _ in aligned_seqfos]
         else:  # I think this should only be for input meta keys like multiplicities, affinities, and timepoints, and hopefully they can all handle None?
             line[key] += [None for _ in aligned_seqfos]
 
-    add_implicit_info(glfo, line)
+    if line.get('is_fake_paired'):
+        if 'seqs_aa' in line:  # fill in the Nones that will have been added above
+            add_seqs_aa(line)
+        if 'n_mutations' in line:
+            line['n_mutations'] = [hamming_distance(line['naive_seq'], line['seqs'][i]) if n is None else n for i, n in enumerate(line['n_mutations'])]
+        if 'mut_freqs' in line:
+            line['mut_freqs'] = [hamming_fraction(line['naive_seq'], line['seqs'][i]) if f is None else f for i, f in enumerate(line['mut_freqs'])]
+        if 'shm_aa' in line:
+            line['shm_aa'] = [shm_aa(line, iseq=i) if n is None else n for i, n in enumerate(line['shm_aa'])]
+    else:
+        add_implicit_info(glfo, line)
 
     if print_added_str:
-        print '    added %d %s seqs to line%s' % (len(seqfos_to_add), print_added_str, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add))
-    if debug:
+        print '    added %d %s seqs to line (originally with %d)%s' % (len(seqfos_to_add), print_added_str, original_len, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add))
+    if debug and not dont_handle_implicit_info:
         print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 
 # ----------------------------------------------------------------------------------------
@@ -3953,17 +3974,25 @@ def pad_seq_for_translation(line, tseq, debug=False):  # this duplicates the ari
     if line['v_5p_del'] % 3 != 0:
         v_5p_xtra = line['v_5p_del'] % 3  # e.g. if there's 1 v 5p deleted base, add 1 N to left side
         tseq = v_5p_xtra * ambig_base + tseq
+    end_amb = ''
+    if len(tseq) % 3 != 0:  # have to pad also the righthand side to allow for smashing h+l seqs together (or at least it's easier to do it here than elsewhere)
+        end_amb = (3 - len(tseq) % 3) * ambig_base
+        tseq += end_amb
+    assert len(tseq) % 3 == 0
     if debug:
         print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
-        print '    %s%s%s' % (color('blue', fv_xtra * ambig_base), color('blue', v_5p_xtra * ambig_base), color_mutants(old_tseq, old_tseq))
+        print '    %s%s%s%s' % (color('blue', fv_xtra * ambig_base), color('blue', v_5p_xtra * ambig_base), color_mutants(old_tseq, old_tseq), color('blue', end_amb))
     return tseq
 
 # ----------------------------------------------------------------------------------------
 def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_column()
-    if 'seqs_aa' in line:
+    if 'seqs_aa' in line and line['seqs_aa'].count(None) == 0:  # if we've just added some seqs to the <line> some will have None aa seqs
         return
-    line['seqs_aa'] = [ltranslate(pad_seq_for_translation(line, s, debug=debug)) for s in line['seqs']]
-    line['input_seqs_aa'] = [ltranslate(pad_seq_for_translation(line, inseq, debug=debug)) if indelutils.has_indels_line(line, iseq) else irseq_aa for iseq, (inseq, irseq_aa) in enumerate(zip(line['input_seqs'], line['seqs_aa']))]
+    line['seqs_aa'] = [ltranslate(pad_seq_for_translation(line, s)) for s in line['seqs']]
+    if debug:
+        print 'seqs', set(len(s) for s in line['seqs']), set(len(s) for s in line['seqs_aa'])
+    if 'input_seqs' in line:
+        line['input_seqs_aa'] = [ltranslate(pad_seq_for_translation(line, inseq)) if indelutils.has_indels_line(line, iseq) else irseq_aa for iseq, (inseq, irseq_aa) in enumerate(zip(line['input_seqs'], line['seqs_aa']))]
     add_naive_seq_aa(line)
     if debug:
         print pad_lines('\n'.join(line['seqs_aa']))

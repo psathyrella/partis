@@ -824,10 +824,10 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
     iqt_ofn = '%s/%s.treefile' % (workdir, outfix)
+    ifn = '%s/input-seqs.fa' % workdir
     if method == 'iqtree' and os.path.exists(iqt_ofn):
-        print '  %s output exists, not rerunning' % method
+        print '  %s output exists, not rerunning: %s' % (method, iqt_ofn)
     else:
-        ifn = '%s/input-seqs.fa' % workdir
         utils.write_fasta(ifn, seqfos)
         out, err = utils.simplerun(getcmd(ifn), shell=True, return_out_err=True, extra_str='            ') #debug=debug)
 
@@ -873,7 +873,10 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
 
     if persistent_workdir is None:
-        utils.clean_files([ifn, workdir])
+        wfns = [ifn, workdir]
+        if method == 'iqtree':
+            wfns += ['%s/%s%s' % (workdir, outfix, s) for s in ['.log', '.state', '.mldist', '.iqtree', '.bionj', '.treefile', '.model.gz', '.ckp.gz']]  # ick
+        utils.clean_files(wfns)
 
     return dtree
 
@@ -3182,24 +3185,26 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             htree.scale_edges(len(h_atn['seqs'][0]) / float(len(p_atn['seqs'][0])))
             return htree, htree.as_string(schema='newick')
         # ----------------------------------------------------------------------------------------
-        p_atn = {}  # make a new fake annotation for the sequences that are in both h+l
+        p_atn = {'is_fake_paired' : True, 'invalid' : True}  # make a new fake annotation for the sequences that are in both h+l (they're not really 'invalid', but they *are* fake, and e.g. the indel info is wrong, so seems safer to call the 'invalid')
         p_atn['unique_ids'] = [combid(m) for m in metric_pairs]
         if any(u in all_pair_ids for u in p_atn['unique_ids']):
             raise Exception('tried to add duplicate uid(s) %s when making paired annotation' % [u for u in p_atn['unique_ids'] if u in all_pair_ids])
         all_pair_ids |= set(p_atn['unique_ids'])
         p_atn['seqs'] = [sumv(m, 'seqs') for m in metric_pairs]
+        p_atn['input_seqs'] = [s for s in p_atn['seqs']]  # NOTE do *not* let 'seqs' and 'input_seqs' point to the same list (we only need 'input_seqs' since they're what gets written to the output file)
         p_atn['seqs_aa'] = [sumv(m, 'seqs_aa') for m in metric_pairs]
         p_atn['naive_seq'] = sumv(metric_pairs[0], 'naive_seq')
         p_atn['naive_seq_aa'] = sumv(metric_pairs[0], 'naive_seq_aa')  # NOTE it's *really* important you don't end up translating the sum'd naive seq since i don't think they necessarily get concat'd in frame
         p_atn['n_mutations'] = [sumv(m, 'n_mutations') for m in metric_pairs]
         p_atn['shm_aa'] = [sumv(m, 'shm_aa') for m in metric_pairs]
         p_atn['mut_freqs'] = [n / float(len(s)) for n, s in zip(p_atn['n_mutations'], p_atn['seqs'])]
+        p_atn['has_shm_indels'] = [False for _ in metric_pairs]  # ick ick ick
         if 'multiplicities' in h_atn:  # <h_atn> is the same as m['h'], i should really settle on one of them
             h_mults, l_mults = [[utils.get_multiplicity(m[c], uid=gsval(m, c, 'unique_ids')) for m in metric_pairs] for c in 'hl']
             if h_mults != l_mults:
                 raise Exception('h and l multiplicities not the same:\n    %s\n    %s' % (h_mults, l_mults))
             p_atn['multiplicities'] = h_mults
-        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]
+        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq copy keys
         if is_simu:
             _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
@@ -3207,6 +3212,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             cpkeys.append(args.meta_info_key_to_color)
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
+        p_atn['fv_insertion'] = ''  # this stuff for left side of v is only needed so when we add aa seqs corresponding to any inferred ancestral seqs it doesn't crash trying to pad (we don't want it to pad, since it's already padded above)
+        p_atn['v_5p_del'] = 0
         for iseq, mfo in enumerate(metric_pairs):
             mfo['p_atn'] = p_atn
             mfo['p_iseq'] = iseq
@@ -3260,6 +3267,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         all_chosen_mfos[iclust] = icl_mfos
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
+                 tree_inference_outdir=None if args.paired_outdir is None or args.tree_inference_method is None else utils.fpath(args.paired_outdir),
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=debug)
 # TODO will need these args in order to run gctree
                  # glfo=, gctree_outdir=None if args.outfname is None or not args.tree_inference_method == 'gctree' else os.path.dirname(utils.fpath(args.outfname)),

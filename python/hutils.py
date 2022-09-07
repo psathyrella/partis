@@ -100,8 +100,14 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
             if debug > 1: print '  %3d %5.1f  adding hi edge for bin with %d entries'  % (len(values) - 1, values[-1] + 0.5, n_this_bin)
         n_bins = len(xbins) - 1
     else:
-        ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]  # indices (in sorted values) of bin boundaries that have ~equal entries per bin
-        xbins = [values[i] for i in ibins]
+        if len(set(values)) > n_bins:
+            ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]  # indices (in sorted values) of bin boundaries that have ~equal entries per bin
+            xbins = [values[i] for i in ibins]
+        else:
+            print '    %s number of distinct values %d less than or equal to requested number of bins %d, so using one bin (n_bins = 2) in/instead of auto volume bins' % (utils.wrnstr(), len(set(values)), n_bins)
+            xbins = [values[0], values[-1]]
+            n_bins = 1
+            debug = True  # turn debug on just to make more clear what's going on
         dxmin, dxmax = [abs(float(xbins[ist+1] - xbins[ist])) for ist in (0, len(xbins) - 2)]  # width of (first, last) bin [not under/overflows]
         xbins[0], xbins[-1] = get_expanded_bounds(values, dxmin, dxmax=dxmax)
     if debug:
