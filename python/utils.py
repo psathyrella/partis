@@ -1279,7 +1279,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             line[key] += [s['name'] for s in aligned_seqfos]
         elif key == 'input_seqs' or key == 'seqs':  # i think elsewhere these end up pointing to the same list of string objects, but i think that doesn't matter? UPDATE of fuck yes it does
             assert len(line[key]) in [original_len, original_len + len(aligned_seqfos)]
-            if len(line[key]) == original_len:  # if they're pointing at the same list, make sure to only add em once (yes this sucks)
+            if len(line[key]) == original_len:  # if they're pointing at the same list, make sure to only add em once (yes this sucks, and yes they shouldn't be pointing at the same list, but if it does happen this keeps it from being a disaster)
                 line[key] += [s['seq'] for s in aligned_seqfos]
         elif key == 'duplicates':
             line[key] += [[] for _ in aligned_seqfos]
@@ -1306,7 +1306,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
 
     if print_added_str:
         print '    added %d %s seqs to line (originally with %d)%s' % (len(seqfos_to_add), print_added_str, original_len, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add))
-    if debug and not dont_handle_implicit_info:
+    if debug:
         print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 
 # ----------------------------------------------------------------------------------------
@@ -3989,8 +3989,6 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
     if 'seqs_aa' in line and line['seqs_aa'].count(None) == 0:  # if we've just added some seqs to the <line> some will have None aa seqs
         return
     line['seqs_aa'] = [ltranslate(pad_seq_for_translation(line, s)) for s in line['seqs']]
-    if debug:
-        print 'seqs', set(len(s) for s in line['seqs']), set(len(s) for s in line['seqs_aa'])
     if 'input_seqs' in line:
         line['input_seqs_aa'] = [ltranslate(pad_seq_for_translation(line, inseq)) if indelutils.has_indels_line(line, iseq) else irseq_aa for iseq, (inseq, irseq_aa) in enumerate(zip(line['input_seqs'], line['seqs_aa']))]
     add_naive_seq_aa(line)
