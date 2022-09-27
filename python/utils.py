@@ -2750,21 +2750,30 @@ def get_null_linearham_info():
 
 # ----------------------------------------------------------------------------------------
 def add_linearham_info(sw_info, annotation_list, min_cluster_size=None, debug=False):
-    n_already_there = 0
+    print '  adding linearham info'
+    n_already_there, n_size_skipped, n_added = 0, 0, 0
     for line in annotation_list:
         if min_cluster_size is not None and len(line['unique_ids']) < min_cluster_size:
-            print '       %s adding null linearham info to line: %s, because cluster is less than the passed <min_cluster_size> value of %d' % (color('yellow', 'warning'), ':'.join(line['unique_ids']), min_cluster_size)
+            if debug:
+                print '       %s adding null linearham info to line: %s, because cluster is less than the passed <min_cluster_size> value of %d' % (color('yellow', 'warning'), ':'.join(line['unique_ids']), min_cluster_size)
             line['linearham-info'] = get_null_linearham_info()
+            n_size_skipped += 1
             continue
         if 'linearham-info' in line:
             if debug:
                 print '       %s overwriting linearham info that was already in line: %s' % (color('yellow', 'warning'), ':'.join(line['unique_ids']))
             n_already_there += 1
+        else:
+            n_added += 1
         line['linearham-info'] = get_linearham_bounds(sw_info, line, debug=debug)  # note that we don't skip ones that fail, since we don't want to just silently ignore some of the input sequences -- skipping should happen elsewhere where it can be more explicit
     if n_already_there > 0:
         print '    %s overwriting %d / %d that already had linearham info' % (color('yellow', 'warning'), n_already_there, len(annotation_list))
-    if len(annotation_list) > n_already_there:
-        print '    added new linearham info for %d clusters' % (len(annotation_list) - n_already_there)
+    if n_size_skipped > 0:
+        print '    skipped %d / %d with size less than %d' % (n_size_skipped, len(annotation_list), min_cluster_size)
+    if n_added > 0:
+        print '    added linearham info for %d clusters' % n_added
+    else:
+        print '    %s didn\'t add any linearham info' % wrnstr()
 
 # ----------------------------------------------------------------------------------------
 def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
@@ -4019,8 +4028,10 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         outfo[key] = [None for _ in info['unique_ids']]
     elif key == 'has_shm_indels':
         outfo[key] = [indelutils.has_indels_line(info, i) for i in range(len(info['unique_ids']))]
-    else:  # shouldn't actually get to here, since we already enforce utils.extra_annotation_headers as the choices for args.extra_annotation_columns
-        raise Exception('column \'%s\' missing from annotation' % key)
+    else:  # this happens all the time now
+        # raise Exception('column \'%s\' missing from annotation' % key)
+        # print '    %s column \'%s\' missing from annotation' % (wrnstr(), key)
+        pass
 
 # ----------------------------------------------------------------------------------------
 def transfer_indel_reversed_seqs(line):
