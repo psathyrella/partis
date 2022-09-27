@@ -296,7 +296,7 @@ class PartitionDriver(object):
         # get and write hmm parameters
         print 'hmm'
         sys.stdout.flush()
-        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True, partition=self.input_partition)
+        _, annotations, hmm_failures = self.run_hmm('viterbi', self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True, partition=self.input_partition)
         if self.args.outfname is not None and self.current_action == self.all_actions[-1]:
             self.write_output(annotations.values(), hmm_failures, cpath=self.input_cpath)
         self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
@@ -311,7 +311,7 @@ class PartitionDriver(object):
                 self.write_output(None, set(), write_sw=True)  # note that if you're auto-parameter caching, this will just be rewriting an sw output file that's already there from parameter caching, but oh, well. If you're setting --only-smith-waterman and not using cache-parameters, you have only yourself to blame
             return
         print 'hmm'
-        _, annotations, hmm_failures = self.run_hmm('viterbi', parameter_in_dir=self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, partition=self.input_partition)
+        annotations, hmm_failures = self.actually_get_annotations_for_clusters(clusters_to_annotate=self.input_partition)
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.annotation_clustering:  # VJ CDR3 clustering (NOTE it would probably be better to have this under 'partition' action, but it's historical and also not very important)
@@ -341,7 +341,8 @@ class PartitionDriver(object):
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=cpath.partitions[cpath.i_best])  # replace <cpath> with a new <cpath> that only has the best partition. The cpath will in general have duplicate uids in different clusters when seed partitioning, so it's better to just use the best partition and use fasttree for everything
         treeutils.add_smetrics(self.args, self.args.selection_metrics_to_calculate, annotation_dict, self.args.lb_tau, cpath=cpath, reco_info=self.reco_info, treefname=self.args.treefname,
                                use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir,
-                               outfname=self.args.selection_metric_fname, only_use_best_partition=self.args.only_print_best_partition, glfo=self.glfo, gctree_outdir=None if self.args.outfname is None or not self.args.run_gctree else os.path.dirname(utils.fpath(self.args.outfname)),
+                               outfname=self.args.selection_metric_fname, only_use_best_partition=self.args.only_print_best_partition, glfo=self.glfo,
+                               tree_inference_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else utils.fpath(utils.getprefix(self.args.outfname)),
                                debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
@@ -522,7 +523,7 @@ class PartitionDriver(object):
             seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities', 'paired-uids'])  # these keys are modified by sw (multiplicities) or paired clustering (paired-uids), so if you want to update them with this action here you're out of luck
         if tmpact == 'update-meta-info' or (tmpact == 'get-selection-metrics' and self.args.add_selection_metrics_to_outfname):
             print '  rewriting output file with %s: %s' % ('newly-calculated selection metrics' if tmpact=='get-selection-metrics' else 'updated input meta info', outfname)
-            if self.args.add_selection_metrics_to_outfname and self.args.run_gctree:
+            if self.args.add_selection_metrics_to_outfname and self.args.tree_inference_method == 'gctree':
                 print '  %s writing gctree annotations (with inferred ancestral sequences added) to original output file, which means that if you rerun gctree things may crash/be messed up since the inferred ancestral sequences are already in the annotation' % utils.wrnstr()
             self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
@@ -562,6 +563,9 @@ class PartitionDriver(object):
             print '  --simultaneous-true-clonal-seqs: using true clusters instead of partitioning'
             true_partition = [[uid for uid in cluster if uid in self.sw_info] for cluster in utils.get_partition_from_reco_info(self.reco_info)]  # mostly just to remove duplicates, although I think there might be other reasons why a uid would be missing
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=true_partition)
+        elif self.input_partition is not None:
+            print '  --input-partition-fname: using input cpath instead of running partitioning'
+            cpath = self.input_cpath
         elif self.args.naive_vsearch: # or self.args.naive_swarm:
             cpath = self.cluster_with_naive_vsearch_or_swarm(parameter_dir=self.sub_param_dir)
         else:
@@ -856,7 +860,9 @@ class PartitionDriver(object):
     #     return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
-    def convert_sw_annotations(self, partition):
+    def convert_sw_annotations(self, partition=None):
+        if partition is None:
+            partition = self.get_nsets('viterbi', partition)
         antn_dict = OrderedDict()
         for cluster in partition:
             antn = utils.synthesize_multi_seq_line_from_reco_info(cluster, self.sw_info)
@@ -865,6 +871,15 @@ class PartitionDriver(object):
             antn_dict[':'.join(cluster)] = antn
         self.glfo = self.sw_glfo  # this is ugly, but we do need to replace it (i'm just a bit worried about doing it so bluntly, but otoh the idea is that we don't really even use these annotations for anything except passing around the pair info)
         return antn_dict, set()  # maybe empty set for hmm failures makes sense since we're not actually running hmm?
+
+    # ----------------------------------------------------------------------------------------
+    def actually_get_annotations_for_clusters(self, clusters_to_annotate=None, n_procs=None, dont_print_annotations=False):  # yeah yeah this name sucks
+        if self.args.use_sw_annotations or self.args.naive_vsearch:
+            print '    using sw annotations (to make a multi-seq annotation for each cluster) instead of running hmm since either --use-sw-annotations or --naive-vsearch/--fast were set'
+            all_annotations, hmm_failures = self.convert_sw_annotations(partition=clusters_to_annotate)
+        else:
+            _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, partition=clusters_to_annotate, n_procs=n_procs, dont_print_annotations=dont_print_annotations)
+        return all_annotations, hmm_failures
 
     # ----------------------------------------------------------------------------------------
     def get_annotations_for_partitions(self, cpath):  # we used to try to have glomerator.cc try to guess what annoations to write (using ::WriteAnnotations()), but now we go back and rerun a separate bcrham process just to get the annotations we want, partly for that control, but also partly because we typically want all these annotations calculated without any uid translation.
@@ -911,11 +926,7 @@ class PartitionDriver(object):
         clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print 'getting annotations for final partition%s%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '', ' (with star tree annotation since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else '')
-        if self.args.use_sw_annotations or self.args.naive_vsearch:
-            print '    using sw annotations (to make a multi-seq annotation for each cluster) instead of running hmm since either --use-sw-annotations or --naive-vsearch/--fast were set'
-            all_annotations, hmm_failures = self.convert_sw_annotations(clusters_to_annotate)
-        else:
-            _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, n_procs=n_procs, partition=clusters_to_annotate, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
+        all_annotations, hmm_failures = self.actually_get_annotations_for_clusters(clusters_to_annotate=clusters_to_annotate, n_procs=n_procs, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 

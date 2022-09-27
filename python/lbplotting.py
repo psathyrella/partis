@@ -1474,7 +1474,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --metafname %s' % metafname
     if queries_to_include is not None:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
-    if label_all_nodes or label_mutations:
+    if label_all_nodes: # or label_mutations:
         cmdstr += ' --label-all-nodes'
     if label_root_node:
         cmdstr += ' --label-root-node'

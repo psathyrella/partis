@@ -6,6 +6,7 @@ import itertools
 import sys
 import time
 import collections
+import operator
 
 from hist import Hist
 import hutils
@@ -155,6 +156,8 @@ class PartitionPlotter(object):
             return False
         if plottype == 'mds' and len(sorted_clusters[iclust]) > self.mds_max_cluster_size:
             print '     skipping mds plots for cluster with size %d > %d' % (len(sorted_clusters[iclust]), self.mds_max_cluster_size)
+            return False
+        if plottype == 'trees' and len(sorted_clusters[iclust]) < self.args.min_selection_metric_cluster_size:
             return False
         if self.args.cluster_indices is not None and iclust not in self.args.cluster_indices:
             return False
@@ -519,8 +522,12 @@ class PartitionPlotter(object):
         if 'tree-info' in annotation and 'lb' in annotation['tree-info']:
             treestr = annotation['tree-info']['lb']['tree']
         else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partitionn
-            print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()
-            treefo = treeutils.get_trees_for_annotations([annotation], treefname=self.args.treefname, cpath=cpath, debug=debug)[0]
+            # print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()
+            # TODO would be better to get trees for all annotations at once
+            treefo = treeutils.get_trees_for_annotations([annotation], treefname=self.args.treefname, cpath=cpath, workdir=self.args.workdir, cluster_indices=self.args.cluster_indices,
+                                                         tree_inference_method=self.args.tree_inference_method,
+                                                         inf_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else utils.fpath(utils.getprefix(self.args.outfname)),
+                                                         glfo=self.glfo, debug=debug)[0]
             # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=treefo['tree']))
             print '  %s no tree in annotation, so got new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
             treestr = treefo['tree'].as_string(schema='newick').strip()
@@ -646,7 +653,19 @@ class PartitionPlotter(object):
                 utils.add_seqs_aa(annotation)
                 aa_mutations, nuc_mutations = {}, {}
                 treeutils.get_aa_tree(treeutils.get_dendro_tree(treestr=treestr), annotation, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations)
-                # metafo['labels'] = {u : ', '.join(mfo['str'] for mfo in aa_mutations[u]) for u in annotation['unique_ids'] if u in aa_mutations}
+                tkeys = {'pos' : 'position', 'str' : 'mutation'}
+                mcounts = {k : {} for k in tkeys}
+                for mfos in aa_mutations.values():
+                    for mfo in mfos:
+                        for tkey in mcounts:
+                            if mfo[tkey] not in mcounts[tkey]:
+                                mcounts[tkey][mfo[tkey]] = 0
+                            mcounts[tkey][mfo[tkey]] += 1
+                n_to_print = 10
+                for tkey in mcounts:
+                    print '      count   %s' % tkeys[tkey]
+                    for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
+                        print '       %3d     %s' % (mct, mstr)
                 metafo['labels'] = {}
                 for uid in annotation['unique_ids']:
                     if uid not in nuc_mutations:
@@ -665,7 +684,7 @@ class PartitionPlotter(object):
         fnames = [[]]
         cmdfos = []
         for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust, annotations):
+            if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='trees'):
                 continue
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:

@@ -1070,6 +1070,9 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         print '  %s consolidating info for %d loci with family/sequence counts: %s' % (utils.color('blue', '+'.join(sorted(cpaths))), len(cpaths), '  '.join('%s: %d/%d'%(l, len(cpaths[l].best()), sum(len(c) for c in cpaths[l].best())) for l in sorted(cpaths)))
     for ltmp in sorted(cpaths):
         for cluster in cpaths[ltmp].best():
+            if ':'.join(cluster) not in antn_dicts[ltmp]:
+                print '  %s no annotation for %s' % (utils.color('yellow', 'warning'), ':'.join(cluster))
+                continue
             cline = antn_dicts[ltmp][':'.join(cluster)]
             if 'paired-uids' not in cline:
                 print '  %s no paired uids in line' % utils.color('yellow', 'warning')

@@ -78,7 +78,7 @@ class Waterer(object):
         self.vs_indels = set()
         self.indel_reruns = set()  # queries that either failed during indel handling, or had successful indel handling: in both cases we rerun them, with a super large gap open to prevent further indels
 
-        self.skipped_unproductive_queries, self.kept_unproductive_queries = set(), set()
+        self.skipped_unproductive_queries, self.skipped_in_frame_queries, self.kept_unproductive_queries = set(), set(), set()
 
         self.my_gldir = self.args.workdir + '/sw-' + glutils.glfo_dir
         if self.glfo is None:  # reading cache file from bin/partis, rather than normal operation from python/partitiondriver.py
@@ -206,7 +206,7 @@ class Waterer(object):
             if just_read_cachefile:
                 n_dupes = sum([len(dupes) for dupes in self.duplicates.values()])
                 dupl_str = ', %d duplicates [removed when cache file was written]' % n_dupes
-            tmp_pass_frac = float(len(self.info['queries']) + n_dupes) / len(self.input_info)
+            tmp_pass_frac = float(len(self.info['queries']) + n_dupes + len(self.skipped_unproductive_queries) + len(self.skipped_in_frame_queries)) / len(self.input_info)
             print '      info for %d / %d = %.3f   (removed: %d failed%s)' % (len(self.info['queries']), len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
             if tmp_pass_frac < 0.80:
                 print '  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning())
@@ -216,6 +216,8 @@ class Waterer(object):
         if not just_read_cachefile:  # it's past tense!
             if len(self.skipped_unproductive_queries) > 0:
                 print '         skipped %d unproductive' % len(self.skipped_unproductive_queries)
+            if len(self.skipped_in_frame_queries) > 0:
+                print '         skipped %d with in frame rearrangement (i.e. cdr3 len % 3 == 0)' % len(self.skipped_in_frame_queries)
             if self.debug:
                 if len(self.info['indels']) > 0:
                     print '      indels: %s' % ':'.join(self.info['indels'].keys())
@@ -226,7 +228,7 @@ class Waterer(object):
                         for qry in self.info['failed-queries']:
                             utils.print_reco_event(self.reco_info[qry], extra_str='      ', label='true:')
 
-            assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.info['failed-queries']) == len(self.input_info)
+            assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.skipped_in_frame_queries) + len(self.info['failed-queries']) == len(self.input_info)
 
         if self.count_parameters:
             pcounter = ParameterCounter(self.glfo, self.args, count_correlations=self.args.count_correlations)
@@ -1046,8 +1048,12 @@ class Waterer(object):
                 self.skipped_unproductive_queries.add(qname)
                 self.remaining_queries.remove(qname)
                 return
-            else:
-                pass  # this is here so you don't forget that if neither of the above is true, we fall through and add the query to self.info
+        if self.args.skip_in_frame_rearrangements and line['cdr3_length'] % 3 == 0:  # NOTE *not* the same as line['in_frames'][0] (since here we're caring if the original rearrangement was productive, whereas 'in_frames' depends also on shm indels)
+            if self.debug:
+                print '      skipping in frame rearrangement'
+            self.skipped_in_frame_queries.add(qname)
+            self.remaining_queries.remove(qname)
+            return
 
         kbounds = self.get_kbounds(line, qinfo, best)  # gets the boundaries of the non-best matches from <qinfo>
         if kbounds is None:

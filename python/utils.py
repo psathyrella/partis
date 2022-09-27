@@ -1217,7 +1217,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, dont_deep_copy=Fal
 # add seqs in <seqfos_to_add> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary (see bin/add-seqs-to-outputs.py)
 # NOTE see also replace_seqs_in_line()
 # NOTE also that there's no way to add shm indels for seqs in <seqfos_to_add>
-def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, debug=False):
+def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, print_added_str='', debug=False):
     # ----------------------------------------------------------------------------------------
     def align_sfo_seqs(sfos_to_align):
         sfos_to_align['naive_seq'] = line['naive_seq']
@@ -1274,6 +1274,8 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             line[key] += [s['seq'] for s in aligned_seqfos]
         elif key == 'duplicates':
             line[key] += [[] for _ in aligned_seqfos]
+        elif key == 'multiplicities':
+            line[key] += [1 for _ in aligned_seqfos]
         elif key == 'indelfos':
             line[key] += [indelutils.get_empty_indel() for _ in aligned_seqfos]
         else:  # I think this should only be for input meta keys like multiplicities, affinities, and timepoints, and hopefully they can all handle None?
@@ -1281,6 +1283,8 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
 
     add_implicit_info(glfo, line)
 
+    if print_added_str:
+        print '    added %d %s seqs to line%s' % (len(seqfos_to_add), print_added_str, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add))
     if debug:
         print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 
@@ -2714,6 +2718,20 @@ def remove_all_implicit_info(line):
 # ----------------------------------------------------------------------------------------
 def get_non_implicit_copy(line):  # return a deep copy of <line> with only non-implicit info
     return {col : copy.deepcopy(line[col]) for col in line if col not in implicit_linekeys}
+
+# ----------------------------------------------------------------------------------------
+def get_full_copy(line, glfo):  # NOTE this doesn't really make much sense (see next [commented] fcn)
+    new_atn = get_non_implicit_copy(line)
+    add_implicit_info(glfo, new_atn)
+    return new_atn
+
+# # ----------------------------------------------------------------------------------------
+# deepcopy is just so freaking slow, it'd be nice to write something like this eventually
+# def get_full_copy(line):
+#     new_atn = {}
+#     for key, val in line.items():
+#         if isinstance(val, str) or isinstance(val, int) or isinstance(val, float):
+#             new_atn[key] = val
 
 # ----------------------------------------------------------------------------------------
 def process_per_gene_support(line, debug=False):
