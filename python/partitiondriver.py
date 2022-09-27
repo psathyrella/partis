@@ -503,7 +503,7 @@ class PartitionDriver(object):
             print 'zero annotations to print, exiting'
             return
         annotation_dict = utils.get_annotation_dict(annotation_list)  # returns none type if there's duplicate annotations
-        extra_headers = list(set([h for l in annotation_list for h in l.keys() if h not in utils.annotation_headers]))
+        extra_headers = list(set([h for l in annotation_list for h in l.keys() if h not in utils.annotation_headers]))  # note that this basically has to be hackey/wrong, since we're trying to guess what the headers were when the file was written
 
         if tmpact == 'get-linearham-info':
             self.input_info = OrderedDict([(u, {'unique_ids' : [u], 'seqs' : [s]}) for l in annotation_list for u, s in zip(l['unique_ids'], l['input_seqs'])])  # this is hackey, but I think is ok (note that the order won't be the same as it would've been before)
@@ -2375,8 +2375,7 @@ class PartitionDriver(object):
             partition_lines = cpath.get_partition_lines(reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'), fail_frac=self.args.max_ccf_fail_frac)
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
-            print '  %s no longer applying --min-selection-metric-cluster-size' % utils.wrnstr()
-            utils.add_linearham_info(self.sw_info, annotation_list)
+            utils.add_linearham_info(self.sw_info, annotation_list, min_cluster_size=5)  # NOTE not really worth trying to propagate through --cluster-indices or --seed/lineage-unique-ids here (i.e. propagate from linearham scons file) (setting hard coded 5 will fuck you if you want linearham on a tree with 4 seqs, but you probably don't really, and both not having a threshold here, and using --min-selection-metric-cluster-size suck [yes i tried both])
 
         headers = utils.sw_cache_headers if write_sw else utils.annotation_headers
         if extra_headers is not None:
