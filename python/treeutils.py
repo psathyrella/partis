@@ -2606,7 +2606,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 return '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
         else:  # but if they're mispaired in simulation (i.e. have different "droplet ids") then keep all the info
             assert len(set(dids)) == 2
-            return '%s-%s+%s-%s' % (dids[0], lpair[0], dids[1], lpair[1])
+            return '%s-%s+%s-%s' % (dids[0], mfo['h']['loci'][0], dids[1], mfo['l']['loci'][0])
     # ----------------------------------------------------------------------------------------
     def get_didstr(dids, cids, mpfo):
         if len(set(dids)) == 1:  # make sure they're from the same droplet
