@@ -1365,6 +1365,7 @@ parent_args.append({'name' : '--no-sw-vsearch', 'kwargs' : {'action' : 'store_tr
 
 parent_args.append({'name' : '--collapse-similar-paired-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'if set, when cleaning heavy/light pair info we collapse highly similar sequences within droplets (i.e. extra seqs that likely result from sequencing error).'}})
 parent_args.append({'name' : '--pair-unpaired-seqs-with-paired-family', 'kwargs' : {'action' : 'store_true', 'help' : 'After finishing normal paired clustering, continue by pairing any unpaired sequences in each heavy/light family pair with the partner of their nearest paired family member. This is designed for use when you have both single cell and bulk samples, and you want to use the single seq pairing info to arrive at some approximate pair info for the bulk sample.'}})
+parent_args.append({'name' : '--add-unpaired-seqs-for-paired-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'when calculating selection metrics (including tree inference) on the fake "paired" annotation (i.e. smashing h+l seqs together), by default we ignore unpaired seqs. This option includes them, with Ns for the missing opposite-chain sequence.'}})
 
 parent_args.append({'name' : '--max-ccf-fail-frac', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'when calculating clustering performance metrics (correct cluster fractions, purity/completeness), crash if more than this fraction of sequences are missing from the inferred partition'}})
 

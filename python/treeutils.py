@@ -383,7 +383,7 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     if dtree.seed_node.edge_length > 0 and not no_warn:
         # this would be easy to fix, but i think it only happens from simulation trees from treegenerator UPDATE ok also happens for trees from the linearham paper
         print '  %s seed/root node has non-zero edge length (i.e. there\'s a branch above it)' % utils.color('red', 'warning')
-    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=debug)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
+    label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=False)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
 
     # # uncomment for more verbosity: NOTE node label check will likely fail if suppress_internal_node_taxa is set
     # check_node_labels(dtree, debug=debug)  # makes sure that for all nodes, node.taxon is not None, and node.label *is* None (i.e. that label_nodes did what it was supposed to, as long as suppress_internal_node_taxa wasn't set)
@@ -3177,13 +3177,62 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
     # ----------------------------------------------------------------------------------------
-    def get_pantn(metric_pairs, h_atn, all_pair_ids):  # return a fake annotation <p_atn> with the sum/joint metrics in it
+    def get_pantn(metric_pairs, h_atn, l_atn, all_pair_ids, tdbg=True):  # return a fake annotation <p_atn> with the sum/joint metrics in it
         # ----------------------------------------------------------------------------------------
         def translate_heavy_tree(htree):
             trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
             translate_labels(htree, trns)
             htree.scale_edges(len(h_atn['seqs'][0]) / float(len(p_atn['seqs'][0])))
             return htree, htree.as_string(schema='newick')
+        # ----------------------------------------------------------------------------------------
+        def add_unp_seqs():
+            # ----------------------------------------------------------------------------------------
+            def ambig_seq(tch, t_atn, iseq, aa=False):
+                # ----------------------------------------------------------------------------------------
+                def aseq():
+                    achar = utils.ambiguous_amino_acids[0] if aa else utils.ambig_base
+                    return achar * len((l_atn if tch=='h' else h_atn)[tkey][0])  # NOTE doesn't account for indels
+                # ----------------------------------------------------------------------------------------
+                tkey = 'seqs'
+                if aa:
+                    tkey += '_aa'
+                tseq = t_atn[tkey][iseq]
+                hseq, lseq = (tseq, aseq()) if tch=='h' else (aseq(), tseq)
+                if not aa:
+                    hseq, lseq = [utils.pad_seq_for_translation(l, s) for l, s in zip((h_atn, l_atn), (hseq, lseq))]  # NOTE kind of duplicates code in sumv()
+                return hseq + lseq
+            # ----------------------------------------------------------------------------------------
+            def print_amb_seqs(all_unp_ids):  # print all seqs after adding the unpaired ones (which will have ambiguous sections)
+                for tstr, aa in zip(('', '_aa'), (False, True)):
+                    print '       naive %s' % p_atn['naive_seq%s'%tstr]
+                    for u, s in zip(p_atn['unique_ids'], p_atn['seqs%s'%tstr]):
+                        utils.color_mutants(p_atn['naive_seq%s'%tstr], s, amino_acid=aa, extra_str='      %s' % (utils.color('purple', '  unp. ') if u in all_unp_ids else '       '), post_str=' '+u, print_result=True, only_print_seq=True)
+            mfo_ids = [gsval(m, c, 'unique_ids') for m in metric_pairs for c in 'hl']
+            all_unp_ids, n_unp_added = [], {c : 0 for c in 'hl'}
+            if tdbg:
+                print '  iclust %d: adding unpaired seqs for paired selection metrics' % iclust
+            for tch, och, t_atn in zip('hl', 'lh', (h_atn, l_atn)):
+                unp_ids = [u for u in t_atn['unique_ids'] if u not in mfo_ids]
+                if tdbg:
+                    print '    %s: %s' % (tch, unp_ids)
+                for tid in unp_ids:
+                    icseq = t_atn['unique_ids'].index(tid)  # index in h/l antn
+                    ipseq = len(p_atn['seqs'])  # index in fake paired annotation (to which we're adding the unpaired seq)
+                    p_atn['seqs'].append(ambig_seq(tch, t_atn, icseq))
+                    p_atn['input_seqs'].append(p_atn['seqs'][ipseq])
+                    p_atn['seqs_aa'].append(ambig_seq(tch, t_atn, icseq, aa=True))
+                    p_atn['shm_aa'].append(utils.antnval(t_atn, 'shm_aa', icseq))
+                    tmpkeys = ['unique_ids', 'n_mutations', 'mut_freqs'] + cpkeys
+                    if 'multiplicities' in t_atn:
+                        tmpkeys.append('multiplicities')
+                    for tk in [k for k in tmpkeys if k in t_atn]:
+                        p_atn[tk].append(t_atn[tk][icseq])
+                    p_atn['has_shm_indels'].append(False)  # ick ick ick
+                all_unp_ids += unp_ids
+                n_unp_added[tch] += len(unp_ids)
+            if tdbg:
+                print_amb_seqs(all_unp_ids)
+            print '    added unpaired seqs to fake paired annotation: %s %d  %s %d' % (utils.locstr(h_atn['loci'][0]), n_unp_added['h'], utils.locstr(l_atn['loci'][0]), n_unp_added['l'])
         # ----------------------------------------------------------------------------------------
         p_atn = {'is_fake_paired' : True, 'invalid' : True}  # make a new fake annotation for the sequences that are in both h+l (they're not really 'invalid', but they *are* fake, and e.g. the indel info is wrong, so seems safer to call the 'invalid')
         p_atn['unique_ids'] = [combid(m) for m in metric_pairs]
@@ -3199,6 +3248,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         p_atn['shm_aa'] = [sumv(m, 'shm_aa') for m in metric_pairs]
         p_atn['mut_freqs'] = [n / float(len(s)) for n, s in zip(p_atn['n_mutations'], p_atn['seqs'])]
         p_atn['has_shm_indels'] = [False for _ in metric_pairs]  # ick ick ick
+        # NOTE if you add a key here, it also has to be added below in the args.add_unpaired_seqs_for_paired_selection_metrics block
         if 'multiplicities' in h_atn:  # <h_atn> is the same as m['h'], i should really settle on one of them
             h_mults, l_mults = [[utils.get_multiplicity(m[c], uid=gsval(m, c, 'unique_ids')) for m in metric_pairs] for c in 'hl']
             if h_mults != l_mults:
@@ -3206,12 +3256,15 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             p_atn['multiplicities'] = h_mults
         cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq copy keys
         if is_simu:
+            assert not args.add_unpaired_seqs_for_paired_selection_metrics  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
             _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
         if args.meta_info_key_to_color is not None:
             cpkeys.append(args.meta_info_key_to_color)
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
+        if args.add_unpaired_seqs_for_paired_selection_metrics:
+            add_unp_seqs()
         p_atn['fv_insertion'] = ''  # this stuff for left side of v is only needed so when we add aa seqs corresponding to any inferred ancestral seqs it doesn't crash trying to pad (we don't want it to pad, since it's already padded above)
         p_atn['v_5p_del'] = 0
         for iseq, mfo in enumerate(metric_pairs):
@@ -3259,7 +3312,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
             metric_pairs.append(mpfo)
         mpfo_lists[iclust] = metric_pairs
-        pair_antns.append(get_pantn(metric_pairs, h_atn, all_pair_ids))
+        pair_antns.append(get_pantn(metric_pairs, h_atn, l_atn, all_pair_ids))
         if len(metric_pairs) == 0:
             continue
         mtpys[iclust] = get_mtpys(metric_pairs)  #  NOTE these get used by scope in several fcns
@@ -3268,7 +3321,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
                  tree_inference_outdir=None if args.paired_outdir is None or args.tree_inference_method is None else utils.fpath(args.paired_outdir),
-                 workdir=args.workdir, outfname=args.selection_metric_fname, debug=debug)
+                 workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
 # TODO will need these args in order to run gctree
                  # glfo=, gctree_outdir=None if args.outfname is None or not args.tree_inference_method == 'gctree' else os.path.dirname(utils.fpath(args.outfname)),
     if args.plot_partitions:  # ok this kinda maybe shouldn't work, but seems ok?
