@@ -273,6 +273,9 @@ class PartitionPlotter(object):
             for line in reader:
                 bubble_positions.append({k : cfn(k, v) for k, v in line.items()})
         fig, ax = self.plotting.mpl_init()
+        if len(bubble_positions) == 0:
+            print '  %s no bubble positions, returning' % utils.wrnstr()
+            return 'not-plotted.svg'
         lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubble_positions)
         plt.xlim(-lim, lim)
         plt.ylim(-lim, lim)
@@ -678,6 +681,9 @@ class PartitionPlotter(object):
                         metafo['labels'][uid] += '\n' + ', '.join(mfo['str'] for mfo in aa_mutations[uid])
             return metafo
         # ----------------------------------------------------------------------------------------
+        if len(sorted_clusters) == 0:
+            print '  %s no clusters to plot' % utils.wrnstr()
+            return [['x.svg']]
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('trees', plotdir)
         workdir = '%s/ete3-plots' % self.args.workdir
@@ -714,6 +720,13 @@ class PartitionPlotter(object):
         for cluster in partition:
             if ':'.join(cluster) not in annotations:
                 print '    %s cluster %s not in annotations' % (utils.color('red', 'warning'), ':'.join(cluster))
+                # # this prints overlap/extra/missing:
+                # for clstr in annotations:
+                #     x = clstr.split(':')
+                #     if len(set(x) & set(cluster)) > 0:
+                #         print '    common: %s' % ' '.join(set(x) & set(cluster))
+                #         print '    not in cluster in partition: %s' % ' '.join(set(x) - set(cluster))
+                #         print '    not in annotation: %s' % ' '.join(set(cluster) - set(x))
                 failed_clusters.append(cluster)
         for fclust in failed_clusters:
             partition.remove(fclust)
@@ -726,7 +739,7 @@ class PartitionPlotter(object):
         if not utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):
             no_mds_plots = True
             print '  note: R does not seem to be installed, so skipping mds partition plots'
-        print '  plotting partitions'
+        print '  plotting partitions to %s' % plotdir
         sys.stdout.flush()
         start = time.time()
         subdirs = ['shm-vs-size', 'mds', 'bubble', 'diversity'] #, 'laplacian-spectra']  # , 'sfs

@@ -273,6 +273,9 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
     if more_hists is not None:
         hists = hists + more_hists
+    if sum(h.integral(True) for h in hists) == 0:
+        print '  %s total integral of %d hists is zero, so not plotting anything' % (utils.wrnstr(), len(hists))
+        return 'not-plotted.svg'
 
     multiply_by_bin_width = False
     if normalize and len(set((h.n_bins, h.xmin, h.xmax) for h in hists)) > 1:
@@ -289,7 +292,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                 htmp.errors[ibin] *= factor
         if normalize:  # NOTE removed <normalization_bounds> option, hopefully I'm not using it any more
             htmp.normalize(multiply_by_bin_width=multiply_by_bin_width)
-        if ymin is None or htmp.get_minimum(xbounds=bounds, exclude_empty='y' in log) < ymin:  # adding this afterwards, so might screw up something below
+        if htmp.integral(True)>0 and (ymin is None or htmp.get_minimum(xbounds=bounds, exclude_empty='y' in log) < ymin):  # adding this afterwards, so might screw up something below
             ymin = htmp.get_minimum(xbounds=bounds, exclude_empty='y' in log)
         if ymax is None or htmp.get_maximum(xbounds=bounds) > ymax:
             ymax = htmp.get_maximum(xbounds=bounds)
@@ -319,7 +322,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
             hist.write(csv_fname)
 
     if only_csv:
-        return
+        return 'not-plotted.svg'
 
     # this is the slow part of plotting (well, writing the svg is also slow)
     fig, ax = mpl_init(figsize=figsize)

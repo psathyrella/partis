@@ -2097,6 +2097,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
         inf_lines_to_use = None
     else:  # called from python/partitiondriver.py (with reco_info set, which needs to be turned into true_lines_to_use)
         inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, only_use_best_partition=only_use_best_partition, glfo=glfo)  # NOTE these continue to be modified (by removing clusters we don't want) further down, and then they get passed to the plotting functions
+        # NOTE that if running a tree inference method that infers ancestral seqs, and we add those seqs to annotations, the keys in <annotations> will no longer be correct (but i think i'd rather fix this in the calling fcn than here, since i don't use <annotations> afte rthis atm). Yes, this sucks and is dangerous
 
     # get tree and calculate metrics for inferred lines
     if inf_lines_to_use is not None and true_lines_to_use is None:  # if we have true lines, we don't run anything on inferred lines (at least atm)
@@ -3177,7 +3178,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
     # ----------------------------------------------------------------------------------------
-    def get_pantn(metric_pairs, h_atn, l_atn, all_pair_ids, tdbg=True):  # return a fake annotation <p_atn> with the sum/joint metrics in it
+    def get_pantn(metric_pairs, h_atn, l_atn, all_pair_ids, tdbg=False):  # return a fake annotation <p_atn> with the sum/joint metrics in it
         # ----------------------------------------------------------------------------------------
         def translate_heavy_tree(htree):
             trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
@@ -3319,11 +3320,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         icl_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
         all_chosen_mfos[iclust] = icl_mfos
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
-    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,
+    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
                  tree_inference_outdir=None if args.paired_outdir is None or args.tree_inference_method is None else utils.fpath(args.paired_outdir),
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
-# TODO will need these args in order to run gctree
-                 # glfo=, gctree_outdir=None if args.outfname is None or not args.tree_inference_method == 'gctree' else os.path.dirname(utils.fpath(args.outfname)),
+    inf_lines = utils.get_annotation_dict(inf_lines.values())  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
     if args.plot_partitions:  # ok this kinda maybe shouldn't work, but seems ok?
         from partitionplotter import PartitionPlotter
         partplotter = PartitionPlotter(args)
