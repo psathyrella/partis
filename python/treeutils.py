@@ -763,10 +763,11 @@ def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=
 
 # ----------------------------------------------------------------------------------------
 def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence_uids> is uids for which we have actual sequences (i.e. not internal nodes inferred by the tree program without sequences)
-    if debug > 1:
-        print '  merging trivially-dangling leaves into parent internal nodes'
-        print '           distance       leaf                     parent'
-    removed_nodes = []
+    if debug:
+        nlen = max(len(n.taxon.label) for n in dtree.preorder_node_iter())
+        print '  merging trivially-dangling leaves into parent internal nodes:'
+        print '           distance       %s                     parent' % utils.wfmt('leaf', nlen, jfmt='-')
+    removed_nodes, missing_seq_ids = [], set(sequence_uids)
     for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
         recursed = False
 # TODO this shouldn't really use typical_bcr_seq_len any more since we have h seqs, l seqs, and h+l seqs
@@ -775,20 +776,23 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
                 break
             if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in sequence_uids:  # only want to do it if the parent node is a (spurious) internal node added by fasttree (this parent's taxon will be None if suppress_internal_node_taxa was set)
                 break
-            if debug > 1:
-                print '            %8.5f      %-20s    %-20s' % (leaf.edge_length, ' " ' if recursed else leaf.taxon.label, 'none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label)
+            if debug:
+                print '            %8.5f      %s    %s' % (leaf.edge_length, utils.wfmt(' " ' if recursed else leaf.taxon.label, nlen, jfmt='-'), utils.wfmt('none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label, nlen, jfmt='-'))
 
             parent_node = leaf.parent_node
             removed_nodes.append(parent_node.taxon.label if parent_node.taxon is not None else None)
             collapse_nodes(dtree, leaf.taxon.label, None, keep_name_node=leaf, remove_name_node=leaf.parent_node)
             leaf = parent_node
             recursed = True
+            missing_seq_ids -= set([parent_node.taxon.label, leaf.taxon.label])
     dtree.update_bipartitions(suppress_unifurcations=False)
     dtree.purge_taxon_namespace()
+    if len(missing_seq_ids) > 0:
+        print '    %s didn\'t find %d / %d sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree?)' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids))
     if debug:
         print '    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes))
-        # print get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
-        # print dtree.as_string(schema='newick').strip()
+    #     print get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
+    #     print dtree.as_string(schema='newick').strip()
     return removed_nodes
 
 # ----------------------------------------------------------------------------------------
@@ -820,6 +824,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     # if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
     #     print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
     #     redo = True
+    uid_list = [sfo['name'] for sfo in seqfos]
     if method == 'iqtree':  # iqtree silently replaces + with _, so we have to do some translation
         translations = {}
         for sfo in seqfos:
@@ -828,7 +833,6 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 old_name = sfo['name']
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
-    uid_list = [sfo['name'] for sfo in seqfos]
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
     iqt_ofn = '%s/%s.treefile' % (workdir, outfix)
@@ -847,14 +851,14 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         print '      converting %s newick string to dendro tree' % method
     dtree = get_dendro_tree(treestr=treestr, treefname=treefname, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree', suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
     if method == 'iqtree':
-        translate_labels(dtree, translations.items(), debug=True)
+        translate_labels(dtree, translations.items(), debug=False)
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
 
     removed_nodes = None
-    if not suppress_internal_node_taxa:  # if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards) UPDATE i no longer understand this comment, sigh
-        removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], debug=debug)
+    if method == 'fasttree' and not suppress_internal_node_taxa:  # fasttree puts all observed seqs as leaves, so we want to collapse zero-length leaves onto their internal node parent (if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards) UPDATE i no longer understand this comment, sigh)
+        removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name])
 
     if method == 'iqtree':  # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves)
         inf_infos, skipped_rm_nodes = {}, set()
