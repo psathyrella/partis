@@ -771,10 +771,10 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
     for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
         recursed = False
 # TODO this shouldn't really use typical_bcr_seq_len any more since we have h seqs, l seqs, and h+l seqs
-        while leaf.edge_length is not None and leaf.edge_length < 1./(2*typical_bcr_seq_len):  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree dangling an internal node as a leaf
+        while leaf.edge_length is not None and leaf.edge_length < 1./(2*typical_bcr_seq_len):  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree/iqtree dangling an internal node as a leaf
             if leaf.parent_node is None:  # why tf can i get the root node here?
                 break
-            if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in sequence_uids:  # only want to do it if the parent node is a (spurious) internal node added by fasttree (this parent's taxon will be None if suppress_internal_node_taxa was set)
+            if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in sequence_uids:  # only want to do it if the parent node is a (spurious) internal node added by fasttree/iqtree (this parent's taxon will be None if suppress_internal_node_taxa was set)
                 break
             if debug:
                 print '            %8.5f      %s    %s' % (leaf.edge_length, utils.wfmt(' " ' if recursed else leaf.taxon.label, nlen, jfmt='-'), utils.wfmt('none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label, nlen, jfmt='-'))
@@ -788,7 +788,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
     dtree.update_bipartitions(suppress_unifurcations=False)
     dtree.purge_taxon_namespace()
     if len(missing_seq_ids) > 0:
-        print '    %s didn\'t find %d / %d sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree?)' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids))
+        print '    %s didn\'t find %d / %d sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?)' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids))
     if debug:
         print '    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes))
     #     print get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
@@ -857,7 +857,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
 
     removed_nodes = None
-    if method == 'fasttree' and not suppress_internal_node_taxa:  # fasttree puts all observed seqs as leaves, so we want to collapse zero-length leaves onto their internal node parent (if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards) UPDATE i no longer understand this comment, sigh)
+    if not suppress_internal_node_taxa:  # fasttree and iqtree put all observed seqs as leaves, so we want to collapse zero-length leaves onto their internal node parent (if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards) UPDATE i no longer understand this comment, sigh)
         removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name])
 
     if method == 'iqtree':  # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves)
