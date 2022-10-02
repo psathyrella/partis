@@ -940,7 +940,8 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
     if debug:
         did_fcn(seqfos[0]['name'], debug=True)
     count_info = {}
-    for dlist in droplet_ids.values():
+    for did, dlist in droplet_ids.items():
+        # print did, dlist
         if len(dlist) not in count_info:
             count_info[len(dlist)] = 0
         count_info[len(dlist)] += 1

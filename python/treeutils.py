@@ -820,6 +820,14 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     # if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
     #     print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
     #     redo = True
+    if method == 'iqtree':  # iqtree silently replaces + with _, so we have to do some translation
+        translations = {}
+        for sfo in seqfos:
+            if '+' in sfo['name']:  # there may be other characters it doesn't like, but this is the only one i've run into
+                assert 'PLUS' not in sfo['name']
+                old_name = sfo['name']
+                sfo['name'] = sfo['name'].replace('+', 'PLUS')
+                translations[sfo['name']] = old_name
     uid_list = [sfo['name'] for sfo in seqfos]
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
@@ -838,6 +846,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     if debug:
         print '      converting %s newick string to dendro tree' % method
     dtree = get_dendro_tree(treestr=treestr, treefname=treefname, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree', suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
+    if method == 'iqtree':
+        translate_labels(dtree, translations.items(), debug=True)
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
