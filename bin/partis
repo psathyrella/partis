@@ -1164,7 +1164,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for lpair in spairs():
                     for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
                         run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
-            print '  getting combined h/l selection metrics'
+            print '%s' % utils.color('blue_bkg', 'getting combined h/l selection metrics')
             if not args.is_data:
                 if args.paired_indir is None:
                     raise Exception('can\'t get simulation selection metrics without setting --paired-indir')
