@@ -767,7 +767,10 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
         nlen = max(len(n.taxon.label) for n in dtree.preorder_node_iter())
         print '  merging trivially-dangling leaves into parent internal nodes:'
         print '           distance       %s                     parent' % utils.wfmt('leaf', nlen, jfmt='-')
-    removed_nodes, missing_seq_ids = [], set(sequence_uids)
+    missing_seq_ids = set(sequence_uids) - set([n.taxon.label for n in dtree.preorder_node_iter()])
+    if len(missing_seq_ids) > 0:  # ok maybe i don't need this, but once i missed a translation step, so <sequence_uids> didn't correspond to the node labels, which meant i was collapsing a bunch of things i didn't want (i.e. removing from the tree) to with no other warning.
+        print '    %s didn\'t find %d / %d sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?)' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids))
+    removed_nodes = []
     for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
         recursed = False
 # TODO this shouldn't really use typical_bcr_seq_len any more since we have h seqs, l seqs, and h+l seqs
@@ -784,11 +787,8 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
             collapse_nodes(dtree, leaf.taxon.label, None, keep_name_node=leaf, remove_name_node=leaf.parent_node)
             leaf = parent_node
             recursed = True
-            missing_seq_ids -= set([parent_node.taxon.label, leaf.taxon.label])
     dtree.update_bipartitions(suppress_unifurcations=False)
     dtree.purge_taxon_namespace()
-    if len(missing_seq_ids) > 0:
-        print '    %s didn\'t find %d / %d sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?)' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids))
     if debug:
         print '    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes))
     #     print get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
@@ -3339,6 +3339,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
     inf_lines = utils.get_annotation_dict(inf_lines.values())  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
     if args.plot_partitions:  # ok this kinda maybe shouldn't work, but seems ok?
+        print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
         from partitionplotter import PartitionPlotter
         partplotter = PartitionPlotter(args)
         partplotter.plot(args.plotdir + '/partitions', [l['unique_ids'] for l in inf_lines.values()], inf_lines, no_mds_plots=args.no_mds_plots)
