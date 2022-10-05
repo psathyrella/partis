@@ -697,7 +697,7 @@ class PartitionPlotter(object):
                 continue
             treestr = self.get_treestr(annotation, cpath)
             plotname = 'tree-iclust-%d' % iclust
-            cmdfos += [lbplotting.get_lb_tree_cmd(treestr, '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=get_metafo(annotation), queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color, label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, label_mutations=self.args.label_mutations)]
+            cmdfos += [lbplotting.get_lb_tree_cmd(treestr, '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=get_metafo(annotation), queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color, label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key)]
             self.addfname(fnames, plotname)
         if len(cmdfos) > 0:
             start = time.time()

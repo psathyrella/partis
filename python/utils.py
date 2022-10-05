@@ -3096,7 +3096,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
                 assert ikey in new_keys  # only really checks the logic of the previous few lines
 
 # ----------------------------------------------------------------------------------------
-def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):  # could have called it subset_seqs_in_line, or at least i always seem to search for that when i'm trying to find this
+def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):  # could have called it subset_seqs_in_line, or at least i always seem to search for that when i'm trying to find this (or subset_iseqs or subset_to_iseqs)
     # NOTE if you want to return a new one rather than modifying <line>, call get_non_implicit_copy() on <line> as you pass it in
     """ remove from <line> any sequences corresponding to indices not in <iseqs_to_keep>. modifies line. """
     if len(iseqs_to_keep) < 1:  # NOTE we could also return if we're keeping all of them, but then we have to mess with maybe adding implicit info

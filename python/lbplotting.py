@@ -1460,7 +1460,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, seq_len=None,
-                    meta_info_key_to_color=None, node_size_key=None, label_mutations=False):
+                    meta_info_key_to_color=None, node_size_key=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
@@ -1474,7 +1474,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --metafname %s' % metafname
     if queries_to_include is not None:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
-    if label_all_nodes: # or label_mutations:
+    if label_all_nodes:
         cmdstr += ' --label-all-nodes'
     if label_root_node:
         cmdstr += ' --label-root-node'
