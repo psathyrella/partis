@@ -222,7 +222,7 @@ def set_meta_styles(args, etree, tstyle):
     all_emph_vals, emph_colors = None, None
     if args.meta_info_key_to_color is not None:
         mvals = args.metafo[args.meta_info_key_to_color]
-        all_emph_vals, emph_colors = plotting.meta_emph_init(args.meta_info_key_to_color, None, None, formats=args.meta_emph_formats, all_emph_vals=set(mvals.values()))
+        all_emph_vals, emph_colors = plotting.meta_emph_init(args.meta_info_key_to_color, formats=args.meta_emph_formats, all_emph_vals=set(mvals.values()))
         mcolors = {v : c for v, c in emph_colors}
     if args.node_size_key is not None:
         nsvals = set(args.metafo[args.node_size_key].values()) - set([None])

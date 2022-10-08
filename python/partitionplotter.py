@@ -192,7 +192,7 @@ class PartitionPlotter(object):
             print '  shm vs size joyplots: divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
         all_emph_vals, emph_colors = None, None
         if self.args.meta_info_key_to_color is not None:  # have to do this out here before the loop so that the colors are synchronized (and all plots include all possible values)
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=sorted_clusters, antn_dict=annotations, formats=self.args.meta_emph_formats)
         for subclusters in sorted_cluster_groups:
             if iclustergroup > self.n_max_joy_plots:  # note that when this is activated, the high mutation plot is no longer guaranteed to have every high mutation cluster (but it should have every high mutation cluster that was bigger than the cluster size when we started skipping here)
                 continue
@@ -282,7 +282,7 @@ class PartitionPlotter(object):
         ax.axis('off')
         plt.gca().set_aspect('equal')
         if self.args.meta_info_key_to_color is not None:
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=sorted_clusters, antn_dict=annotations, formats=self.args.meta_emph_formats)
             hcolors = {v : c for v, c in emph_colors}
         def getclust(idl): return sorted_clusters[int(idl)] if idl!='fake' else fake_cluster
         for bfo in sorted(bubble_positions, key=lambda b: len(getclust(b['id'])), reverse=True):
@@ -612,7 +612,7 @@ class PartitionPlotter(object):
         if self.args.meta_info_key_to_color is not None:  # plot mean fraction of cluster that's X for each cluster size
             fname = 'cluster-size-fractions'
             mekey = self.args.meta_info_key_to_color
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=sorted_clusters, antn_dict=annotations, formats=self.args.meta_emph_formats)
             hcolors = {v : c for v, c in emph_colors}
             plotvals = {v : [] for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
             for csize, cluster_group in itertools.groupby(sorted_clusters, key=len):
@@ -707,7 +707,7 @@ class PartitionPlotter(object):
 
         if self.args.meta_info_key_to_color is not None:
             mekey = self.args.meta_info_key_to_color
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, sorted_clusters, annotations, formats=self.args.meta_emph_formats)
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=sorted_clusters, antn_dict=annotations, formats=self.args.meta_emph_formats)
             self.plotting.make_meta_info_legend(plotdir, 'tree', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
             self.addfname(fnames, 'tree-legend')
 

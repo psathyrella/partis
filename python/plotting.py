@@ -56,13 +56,14 @@ plot_ratios = {
 }
 
 # ----------------------------------------------------------------------------------------
-def meta_emph_init(meta_info_key_to_color, sorted_clusters, antn_dict, all_emph_vals=None, formats=None):
+# specify either all_emph_vals or clusters and antn_dict
+def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_emph_vals=None, formats=None):
     # tme_colors = alt_colors + [c for c in frozen_pltcolors if c not in alt_colors]
     tme_colors = [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
     if all_emph_vals is None:
-        all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats) for c in sorted_clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [None for _ in c]))  # set of all possible values that this meta info key takes on in any cluster
+        all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats) for c in clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [None for _ in c]))  # set of all possible values that this meta info key takes on in any cluster
     else:  # NOTE all_emph_vals needs to be a set if you pass it in
-        assert sorted_clusters is None and antn_dict is None
+        assert clusters is None and antn_dict is None
     def cfcn(i, v): return 'grey' if v in [None, 'None'] else tme_colors[i%len(tme_colors)]
     emph_colors = [(v, cfcn(i, v)) for i, v in enumerate(sorted(all_emph_vals - set([None, 'None'])))] + [('None', 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
     return all_emph_vals, emph_colors
@@ -273,6 +274,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
     if more_hists is not None:
         hists = hists + more_hists
+    if hist is None:  # gets used below for some label stuff, and yes this sucks and is ugly
+        hist = hists[0]
     if sum(h.integral(True) for h in hists) == 0:
         print '  %s total integral of %d hists is zero, so not plotting anything' % (utils.wrnstr(), len(hists))
         return 'not-plotted.svg'
@@ -297,10 +300,11 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         if ymax is None or htmp.get_maximum(xbounds=bounds) > ymax:
             ymax = htmp.get_maximum(xbounds=bounds)
         if htmp.integral(True) > 0:
-            if xmin is None or htmp.xmin < xmin:  # overridden by <bounds> below
-                xmin = htmp.get_filled_bin_xbounds()[0] #.xmin
-            if xmax is None or htmp.xmax > xmax:
-                xmax = htmp.get_filled_bin_xbounds()[1] #.xmax
+            fbmin, fbmax = htmp.get_filled_bin_xbounds()
+            if xmin is None or fbmin < xmin:  # overridden by <bounds> below
+                xmin = fbmin
+            if xmax is None or fbmax > xmax:
+                xmax = fbmax
 
     if bounds is not None:
         xmin, xmax = bounds

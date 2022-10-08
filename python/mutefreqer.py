@@ -11,10 +11,11 @@ import hutils
 
 # ----------------------------------------------------------------------------------------
 class MuteFreqer(object):
-    def __init__(self, glfo, exclusions, calculate_uncertainty=True):
+    def __init__(self, glfo, exclusions, calculate_uncertainty=True, args=None):
         self.glfo = glfo
         self.exclusions = exclusions
         self.calculate_uncertainty = calculate_uncertainty
+        self.args = args
 
         self.counts, self.freqs = {}, {}  # per-gene, per-position counts/rates
         tkeys = ['all', 'cdr3'] + utils.regions
@@ -28,6 +29,10 @@ class MuteFreqer(object):
                              for n in ['all', 'cdr3'] + utils.regions}
         self.per_gene_mean_rates = {}
 
+        self.mekey = self.args.meta_info_key_to_color
+        if self.mekey is not None:
+            self.meta_hists = {k : {'all' : {}} for k in ['mean_n_muted', 'mean_rates']} #v : {n : h for n, h in self.mean_n_muted.items()} for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
+
         self.finalized = False
         self.n_cached, self.n_not_cached = 0, 0
 
@@ -38,6 +43,13 @@ class MuteFreqer(object):
         freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq)
         self.mean_rates['all'].fill(freq)  # mean freq over whole sequence (excluding insertions)
         self.mean_n_muted['all'].fill(n_muted)
+        if self.mekey is not None and self.mekey in info:
+            meval = info[self.mekey][iseq]
+            for hkey, ohists, tval in zip(['mean_n_muted', 'mean_rates'], [self.mean_n_muted, self.mean_rates], [n_muted, freq]):
+                hdct = self.meta_hists[hkey]
+                if meval not in hdct['all']:
+                    hdct['all'][meval] = Hist(template_hist=ohists['all'], title=str(meval))
+                hdct['all'][meval].fill(tval)
 
         freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region='cdr3')
         self.mean_rates['cdr3'].fill(freq)
@@ -182,6 +194,14 @@ class MuteFreqer(object):
                 bounds = (0.0, 0.6 if rstr == 'd' else 0.4)
             plotting.draw_no_root(self.mean_rates[rstr], plotname=rstr+'_mean-freq', plotdir=overall_plotdir, stats='mean', bounds=bounds, write_csv=True, only_csv=only_csv, shift_overflows=True)
             plotting.draw_no_root(self.mean_n_muted[rstr], plotname=rstr+'_mean-n-muted', plotdir=overall_plotdir, stats='mean', write_csv=True, only_csv=only_csv, shift_overflows=True)
+            if self.mekey is not None and rstr == 'all':
+                for hkey, hdct in self.meta_hists.items():
+                    all_emph_vals, emph_colors = plotting.meta_emph_init(self.mekey, formats=self.args.meta_emph_formats, all_emph_vals=set(hdct[rstr]))
+                    mcolors = {v : c for v, c in emph_colors}
+                    hist_list, hist_colors = zip(*[(h, mcolors[m]) for m, h in hdct[rstr].items()])
+                    for htmp in hist_list:
+                        htmp.title = '%s (%s)' % (htmp.title, utils.round_to_n_digits(htmp.get_mean(), 2))
+                    plotting.draw_no_root(None, more_hists=list(hist_list), plotname='%s_%s_%s'%(rstr, self.mekey, hkey), colors=list(hist_colors), plotdir=overall_plotdir, only_csv=only_csv, shift_overflows=True, leg_title='%s (mean)'%self.mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, normalize=True)
 
         if not only_csv:  # write html file and fix permissiions
             for substr in self.subplotdirs:
