@@ -1320,6 +1320,19 @@ def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, re
     restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
 # ----------------------------------------------------------------------------------------
+# NOTE doesn't handle indels
+def combine_events(glfo, evt_list, meta_key=None, meta_vals=None, debug=False):  # combine events in <evt_list> into a single annotation. If set, add input meta info values <meta_vals> for each event to <meta_key>
+    if any(indelutils.has_indels_line(l, i) for l in evt_list for i in range(len(l['unique_ids']))):
+        raise Exception('can\'t handle indels (needs implementing')
+    combo_evt = get_full_copy(evt_list[0], glfo)
+    seqfos_to_add = [{'name' : u, 'seq' : s} for l in evt_list[1:] for u, s in zip(l['unique_ids'], l['seqs'])]
+    add_seqs_to_line(combo_evt, seqfos_to_add, glfo, debug=debug)
+    if meta_key is not None:
+        assert len(meta_vals) == len(evt_list)
+        combo_evt[meta_key] = [v for v, l in zip(meta_vals, evt_list) for _ in l['unique_ids']]
+    return combo_evt
+
+# ----------------------------------------------------------------------------------------
 def get_repfracstr(csize, repertoire_size):  # return a concise string representing <csize> / <repertoire_size>
     if csize > repertoire_size:
         return '1.'  # this seems to mean the repertoire is just one cluster (maybe with one sequence?) and i can't be bothered to fix it
@@ -2742,7 +2755,7 @@ def get_non_implicit_copy(line):  # return a deep copy of <line> with only non-i
     return {col : copy.deepcopy(line[col]) for col in line if col not in implicit_linekeys}
 
 # ----------------------------------------------------------------------------------------
-def get_full_copy(line, glfo):  # NOTE this doesn't really make much sense (see next [commented] fcn)
+def get_full_copy(line, glfo):  # NOTE this doesn't really make much sense (see next [commented] fcn), it's a placeholder til i get around to writing a cp fcn that avoids so many deepcopy() calls
     new_atn = get_non_implicit_copy(line)
     add_implicit_info(glfo, new_atn)
     return new_atn

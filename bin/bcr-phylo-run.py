@@ -363,6 +363,9 @@ def read_rearrangements():
 
 # ----------------------------------------------------------------------------------------
 def write_simulation(glfos, mutated_events):
+    headers = utils.simulation_headers
+    if args.n_gc_rounds is not None:
+        headers.append('gc-rounds')
     if args.paired_loci:
         lp_infos = {}
         for lpair in lpairs():
@@ -372,13 +375,35 @@ def write_simulation(glfos, mutated_events):
                 lpfos['antn_lists'][ltmp] = levents
                 lpfos['glfos'][ltmp] = glfos[ltmp]
             lp_infos[tuple(lpair)] = lpfos
-        paircluster.write_lpair_output_files(lpairs(), lp_infos, simfname, utils.simulation_headers)
+        paircluster.write_lpair_output_files(lpairs(), lp_infos, simfname, headers)
         glfos, antn_lists, _ = paircluster.concat_heavy_chain(lpairs(), lp_infos)  # per-locus glfos with concat'd heavy chain
-        paircluster.write_concatd_output_files(glfos, antn_lists, simfname, utils.simulation_headers)
+        paircluster.write_concatd_output_files(glfos, antn_lists, simfname, headers)
         outfos, metafos = paircluster.get_combined_outmetafos(antn_lists)
         paircluster.write_combined_fasta_and_meta(spath('mutated')+'/all-seqs.fa', spath('mutated')+'/meta.yaml', outfos, metafos)
     else:
-        utils.write_annotations(spath('mutated'), glfos[0], mutated_events, utils.simulation_headers)
+        utils.write_annotations(spath('mutated'), glfos[0], mutated_events, headers)
+
+# ----------------------------------------------------------------------------------------
+def combine_gc_rounds(glfos, mevt_lists):
+    if utils.output_exists(args, simfname('igh'), outlabel='mutated simu', offset=4):
+        return
+    assert len(mevt_lists) == args.n_gc_rounds
+    assert len(set(len(l) for l in mevt_lists)) == 1  # all rounds should have the same number of events
+    merged_events = []
+    for ievt in range(len(mevt_lists[0])):
+        if args.paired_loci:
+            mpair = []
+            lpair = [l['loci'][0] for l in mevt_lists[0][0]]
+            for ilocus, ltmp in enumerate(lpair):
+                mgevt = utils.combine_events(glfos[ltmp], [evts[ievt][ilocus] for evts in mevt_lists], meta_key='gc-rounds', meta_vals=[str(i) for i in range(args.n_gc_rounds)])
+                mpair.append(mgevt)
+            merged_events.append(mpair)
+        else:
+            mgevt = utils.combine_events(glfos[0], [evts[ievt] for evts in mevt_lists], meta_key='gc-rounds', meta_vals=[str(i) for i in range(args.n_gc_rounds)])
+            merged_events.append(mgevt)
+
+    print '  writing annotations to %s' % spath('mutated')
+    write_simulation(glfos, merged_events)
 
 # ----------------------------------------------------------------------------------------
 def simulate(igcr=None):
@@ -417,7 +442,7 @@ def simulate(igcr=None):
     print '  bcr-phylo run time: %.1fs' % (time.time() - start)
 
     if utils.output_exists(args, simfname('igh'), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
-        return
+        return None, None
 
     start = time.time()
     uid_info = {'all_uids' : set(), 'n_duplicate_uids' : 0}  # stuff just for dealing with duplicate uids
@@ -428,7 +453,7 @@ def simulate(igcr=None):
         print '  %s renamed %d duplicate uids from %d bcr-phylo events' % (utils.color('yellow', 'warning'), uid_info['n_duplicate_uids'], len(mutated_events))
     print '  parsing time: %.1fs' % (time.time() - start)
 
-    if igcr is None or igcr == args.n_gc_rounds - 1:  # only write final output for last round
+    if igcr is None:
         print '  writing annotations to %s' % spath('mutated')
         write_simulation(glfos, mutated_events)
 
@@ -443,6 +468,8 @@ def simulate(igcr=None):
                 evtlist = [mutated_events[ievent]]
             lbplotting.plot_bcr_phylo_simulation(outdir + '/plots', outdir, evtlist, args.extrastr, lbplotting.metric_for_target_distance_labels[args.metric_for_target_distance], lpair=lpair)
         # utils.simplerun('cp -v %s/simu_collapsed_runstat_color_tree.svg %s/plots/' % (outdir, outdir))
+
+    return glfos, mutated_events
 
 # ----------------------------------------------------------------------------------------
 def cache_parameters():
@@ -512,7 +539,7 @@ parser.add_argument('--n-sim-events', type=int, default=1, help='number of simul
 parser.add_argument('--n-max-queries', type=int, help='during parameter caching and partitioning, stop after reading this many queries from simulation file (useful for dtr training samples where we need massive samples to actually train the dtr, but for testing various metrics need far smaller samples).')
 parser.add_argument('--obs-times', default='100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
 parser.add_argument('--n-naive-seq-copies', type=int, help='see bcr-phylo docs')
-parser.add_argument('--n-gc-rounds', type=int, help='number of rounds of gc entry')
+parser.add_argument('--n-gc-rounds', type=int, help='number of rounds of gc entry, i.e. if set, upon gc completion  we choose --n-reentry-seqs sampled seqs with which to seed a new (otherwise identical) gc reaction. So note that, for instance, cells are sampled at --obs-times within every gc cycle. Results for each gc round N are written to subdirs round-N/ for each event, then all sampled sequences from all reactions are collected into the normal output file locations, with input meta info key \'gc-rounds\' specifying their gc round.')
 parser.add_argument('--n-reentry-seqs', type=int, help='number of sampled seqs from previous round (chosen randomly) to inject into the next gc round (if not set, we take all of them).')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
@@ -575,8 +602,11 @@ if 'simu' in args.actions:
     if args.n_gc_rounds is None:
         simulate()
     else:
+        mevt_lists = []  # list (for each gc round) of [sub]lists, where each sublist is the sampled seqs from that round for each event
         for igcr in range(args.n_gc_rounds):
-            simulate(igcr=igcr)
+            glfos, mevts = simulate(igcr=igcr)
+            mevt_lists.append(mevts)
+        combine_gc_rounds(glfos, mevt_lists)
 if 'cache-parameters' in args.actions:
     cache_parameters()
 if 'partition' in args.actions:
