@@ -29,7 +29,7 @@ class MuteFreqer(object):
                              for n in ['all', 'cdr3'] + utils.regions}
         self.per_gene_mean_rates = {}
 
-        self.mekey = self.args.meta_info_key_to_color
+        self.mekey = self.args.meta_info_key_to_color if self.args is not None else None
         if self.mekey is not None:
             self.meta_hists = {k : {'all' : {}} for k in ['mean_n_muted', 'mean_rates']} #v : {n : h for n, h in self.mean_n_muted.items()} for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
 

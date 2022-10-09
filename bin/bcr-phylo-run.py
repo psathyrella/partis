@@ -29,8 +29,8 @@ def simdir():
     return '%s/selection/simu' % args.base_outdir
 def infdir():
     return '%s/selection/partis' % args.base_outdir
-def evtdir(i):
-    return '%s/event-%d' % (simdir(), i)
+def evtdir(i, igcr=None):
+    return '%s/event-%d%s' % (simdir(), i, '' if igcr is None else '/round-%d'%igcr)
 def spath(tstr):  # use spath() for building command line args, whereas use simfname() to get [an] inidivudal file e.g. for utils.output_exists(), as well as for passing to fcns in paircluster.py
     if args.mutated_outpath and tstr == 'mutated':
         opth = args.base_outdir
@@ -125,7 +125,7 @@ def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command lin
     return return_val
 
 # ----------------------------------------------------------------------------------------
-def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
+def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None, igcr=None):
     if utils.output_exists(args, bcr_phylo_fasta_fname(outdir), outlabel='bcr-phylo', offset=4):
         return None
 
@@ -171,8 +171,17 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
             cmd += ' --min_target_distance %d' % args.min_target_distance
         if args.min_effective_kd is not None:
             cmd += ' --min_effective_kd %d' % args.min_effective_kd
-        if args.n_initial_seqs is not None:
-            cmd += ' --n_initial_seqs %d' % args.n_initial_seqs
+        if args.n_naive_seq_copies is not None:
+            cmd += ' --n_naive_seq_copies %d' % args.n_naive_seq_copies
+        if args.n_gc_rounds is not None and igcr > 0:
+            isfos = utils.read_fastx(bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1)))
+            if args.n_reentry_seqs is not None:
+                if args.n_reentry_seqs > len(isfos):
+                    print '  %s --n-reentry-seqs %d greater than number of observed seqs %d in %s' % (utils.wrnstr(), args.n_reentry_seqs, len(isfos), bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1)))
+                isfos = numpy.random.choice(isfos, size=args.n_reentry_seqs, replace=False)
+            init_fn = '%s/init-seqs.fa' % outdir
+            utils.write_fasta(init_fn, isfos)
+            cmd += ' --initial_seq_file %s' % init_fn
 
     cmd += ' --debug %d' % args.debug
     cmd += ' --n_tries 1000'
@@ -182,7 +191,7 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None):
     if args.only_csv_plots:
         cmd += ' --dont_write_hists'
     cmd += ' --outbase %s/%s' % (outdir, args.extrastr)
-    cmd += ' --random_seed %d' % (args.seed + ievent)
+    cmd += ' --random_seed %d' % (args.seed + ievent)  # NOTE if args.n_gc_rounds is set, it's *really* important that this is the same for each round since it ensures we have the same target sequence
     if uid_str_len is not None:
         cmd += ' --uid_str_len %d' % uid_str_len
     cmd += ' --naive_seq %s' % naive_seq
@@ -372,18 +381,19 @@ def write_simulation(glfos, mutated_events):
         utils.write_annotations(spath('mutated'), glfos[0], mutated_events, utils.simulation_headers)
 
 # ----------------------------------------------------------------------------------------
-def simulate():
+def simulate(igcr=None):
 
-    rearrange()
+    if igcr in [None, 0]:
+        rearrange()
 
     glfos, naive_events = read_rearrangements()
     if args.dry_run:
         for ievent in range(args.n_sim_events):
-            _ = run_bcr_phylo('<NAIVE_SEQ>', evtdir(ievent), ievent)
+            _ = run_bcr_phylo('<NAIVE_SEQ>', evtdir(ievent, igcr=igcr), ievent, igcr=igcr)
         return
     assert len(naive_events) == args.n_sim_events
 
-    outdirs = [evtdir(i) for i in range(len(naive_events))]
+    outdirs = [evtdir(i, igcr=igcr) for i in range(len(naive_events))]
 
     start = time.time()
     cmdfos = []
@@ -398,7 +408,7 @@ def simulate():
             naive_seq = utils.pad_nuc_seq(hnseq) + lnseq
         else:
             naive_seq = naive_events[ievent]['naive_seq']
-        cfo = run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=uid_str_len)  # if n_procs > 1, doesn't run, just returns cfo
+        cfo = run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=uid_str_len, igcr=igcr)  # if n_procs > 1, doesn't run, just returns cfo
         if cfo is not None:
             print '      %s %s' % (utils.color('red', 'run'), cfo['cmd_str'])
             cmdfos.append(cfo)
@@ -418,8 +428,9 @@ def simulate():
         print '  %s renamed %d duplicate uids from %d bcr-phylo events' % (utils.color('yellow', 'warning'), uid_info['n_duplicate_uids'], len(mutated_events))
     print '  parsing time: %.1fs' % (time.time() - start)
 
-    print '  writing annotations to %s' % spath('mutated')
-    write_simulation(glfos, mutated_events)
+    if igcr is None or igcr == args.n_gc_rounds - 1:  # only write final output for last round
+        print '  writing annotations to %s' % spath('mutated')
+        write_simulation(glfos, mutated_events)
 
     if not args.only_csv_plots:
         import lbplotting
@@ -500,6 +511,9 @@ parser.add_argument('--n-sim-seqs-per-generation', default='100', help='Number o
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
 parser.add_argument('--n-max-queries', type=int, help='during parameter caching and partitioning, stop after reading this many queries from simulation file (useful for dtr training samples where we need massive samples to actually train the dtr, but for testing various metrics need far smaller samples).')
 parser.add_argument('--obs-times', default='100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
+parser.add_argument('--n-naive-seq-copies', type=int, help='see bcr-phylo docs')
+parser.add_argument('--n-gc-rounds', type=int, help='number of rounds of gc entry')
+parser.add_argument('--n-reentry-seqs', type=int, help='number of sampled seqs from previous round (chosen randomly) to inject into the next gc round (if not set, we take all of them).')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
 parser.add_argument('--tdist-scale', type=int, help='see bcr-phylo docs')
@@ -510,7 +524,6 @@ parser.add_argument('--n-target-clusters', type=int, help='number of cluster int
 parser.add_argument('--min-target-distance', type=int, help='see bcr-phylo docs')
 parser.add_argument('--min-effective-kd', type=float, help='see bcr-phylo docs')
 parser.add_argument('--affinity-measurement-error', type=float, help='Fractional measurement error on affinity: if set, replace \'affinities\' in final partis line with new values smeared with a normal distribution with this fractional width, i.e. <a> is replaced with a value drawn from a normal distribution with mean <a> and width <f>*<a> for this fraction <f>.')
-parser.add_argument('--n-initial-seqs', type=int, help='see bcr-phylo docs')
 parser.add_argument('--base-mutation-rate', type=float, default=0.365, help='see bcr-phylo docs')
 parser.add_argument('--selection-strength', type=float, default=1., help='see bcr-phylo docs')
 parser.add_argument('--context-depend', type=int, default=0, choices=[0, 1])  # i wish this could be a boolean, but having it int makes it much much easier to interface with the scan infrastructure in cf-tree-metrics.py
@@ -559,7 +572,11 @@ assert args.extrastr == 'simu'  # I think at this point this actually can't be c
 
 # ----------------------------------------------------------------------------------------
 if 'simu' in args.actions:
-    simulate()
+    if args.n_gc_rounds is None:
+        simulate()
+    else:
+        for igcr in range(args.n_gc_rounds):
+            simulate(igcr=igcr)
 if 'cache-parameters' in args.actions:
     cache_parameters()
 if 'partition' in args.actions:
