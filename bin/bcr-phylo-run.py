@@ -395,11 +395,11 @@ def combine_gc_rounds(glfos, mevt_lists):
             mpair = []
             lpair = [l['loci'][0] for l in mevt_lists[0][0]]
             for ilocus, ltmp in enumerate(lpair):
-                mgevt = utils.combine_events(glfos[ltmp], [evts[ievt][ilocus] for evts in mevt_lists], meta_key='gc-rounds', meta_vals=[str(i) for i in range(args.n_gc_rounds)])
+                mgevt = utils.combine_events(glfos[ltmp], [evts[ievt][ilocus] for evts in mevt_lists], meta_key='gc-rounds', meta_vals=[str(i) for i in range(args.n_gc_rounds, add_meta_val_to_uids=True)])  # kind of annoying to add the gc round to the uid, but otherwise we get duplicate uids in different rounds (and we can't change the random seed atm, or else the target seqs will be out of whack)
                 mpair.append(mgevt)
             merged_events.append(mpair)
         else:
-            mgevt = utils.combine_events(glfos[0], [evts[ievt] for evts in mevt_lists], meta_key='gc-rounds', meta_vals=[str(i) for i in range(args.n_gc_rounds)])
+            mgevt = utils.combine_events(glfos[0], [evts[ievt] for evts in mevt_lists], meta_key='gc-rounds', meta_vals=[str(i) for i in range(args.n_gc_rounds)], add_meta_val_to_uids=True)
             merged_events.append(mgevt)
 
     print '  writing annotations to %s' % spath('mutated')
