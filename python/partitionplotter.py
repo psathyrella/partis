@@ -521,8 +521,10 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def get_treestr(self, annotation, cpath, debug=False):
-        if not self.args.is_data and 'tree' not in annotations:
+        if not self.args.is_data and 'tree' not in annotation:
             print '  %s true tree missing from annotation, but --is-simu was set' % utils.wrnstr()
+        if self.args.is_data and 'tree' in annotation:
+            print '  %s true tree in annotation, but --is-simu was not set (so we\'re not using it)' % utils.wrnstr()
         if 'tree' in annotation and not self.args.is_data:
             treestr = annotation['tree']
             print '    using true tree'
