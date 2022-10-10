@@ -352,6 +352,49 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
     plotting.make_html(plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
+def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph_formats=None, only_csv=False):
+    st_nodes, st_stats = treeutils.find_pure_subtrees(dtree, antn, meta_key)
+    all_emph_vals = set(st_stats)
+    all_emph_vals, emph_colors = plotting.meta_emph_init(meta_key, formats=meta_emph_formats, all_emph_vals=all_emph_vals)
+    mcolors = {v : c for v, c in emph_colors}
+    hkeys = {'size' : 'subtree size', 'mean-depth' : 'mean subtree depth'}
+    int_keys = ['size']
+
+    # first do hists
+    hist_lists, hist_colors = {tk : [] for tk in hkeys}, []
+    for mval, tstats in st_stats.items():
+        for tkey, tstr in hkeys.items():
+            vlist = [s[tkey] for s in tstats]
+            if tkey in int_keys:
+                thist = Hist(init_int_bins=True, value_list=vlist, xtitle=tstr, title=mval)
+            else:
+                n_bins = 15
+                xbins = hutils.autobins(vlist, n_bins)
+                thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=vlist, xtitle=tstr, title=mval)
+                # Hist(n_bins=15, xmin=min(vlist), xmax=max(vlist), value_list=vlist, xtitle=tstr, title=mval)
+            hist_lists[tkey].append(thist)
+        hist_colors.append(mcolors[mval])
+    fnames = []
+    for tkey, hlist in hist_lists.items():
+        plotname = '%s-%s'%(base_plotname, tkey)
+        plotting.draw_no_root(None, more_hists=hlist, plotname=plotname, colors=list(hist_colors), plotdir=plotdir, only_csv=only_csv, shift_overflows=True,
+                              leg_title='%s'%meta_key.rstrip('s'), alphas=[0.7 for _ in hlist], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y') #, normalize=True)
+        fnames.append(plotname)
+
+    # then 2d plot
+    fig, ax = plotting.mpl_init()
+    for mval, tstats in st_stats.items():
+        for sub_stat in tstats:
+            ax.scatter([sub_stat['size']], [sub_stat['mean-depth']], facecolor=mcolors[mval], alpha=0.7)
+    fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-depth' % base_plotname, title='', xlabel=hkeys['size'], ylabel=hkeys['mean-depth'])
+    fnames.append(os.path.basename(fn).replace('.svg', ''))
+
+    fn = plotting.make_meta_info_legend(plotdir, 'subtree-size', meta_key.rstrip('s'), emph_colors, all_emph_vals, meta_emph_formats=meta_emph_formats, alpha=0.7)
+    fnames.append(fn)
+
+    return fnames
+
+# ----------------------------------------------------------------------------------------
 def get_tree_in_line(line, is_true_line, aa=False):  # NOTE unlike treeutils.get_trees_for_annotations() this just looks to see if there's a tree already in the line
     if is_true_line and not aa:  # this is weird and ugly
         return line['tree']

@@ -1281,6 +1281,64 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
     return lbvals
 
 # ----------------------------------------------------------------------------------------
+def find_pure_subtrees(dtree, antn, meta_key, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def get_purity(sub_root_node, mval):  # return true if all nodes in subtree starting at "subroot" node <srnode> have <meta_key> value <mval> (or None)
+        for snode in sub_root_node.ageorder_iter():  # note that this iterator includes <snode>
+            sval = meta_vals[snode.taxon.label]
+            if sval is not None and sval != mval:
+                return False
+        return True
+    # ----------------------------------------------------------------------------------------
+    meta_vals = {u : v for u, v in zip(antn['unique_ids'], antn[meta_key])}
+    missing = set(n.taxon.label for n in dtree.preorder_node_iter()) - set(meta_vals)
+    if len(missing) > 0:
+        print '    note: missing %d / %d %s values (adding as None): %s' % (len(missing), len(list(dtree.preorder_node_iter())), meta_key, ' '.join(missing))
+        meta_vals.update({u : None for u in missing})
+    subtree_nodes, subtree_stats = [], {}  # list of all [nodes defining] subtrees in <dtree> whose nodes all have the same <meta_key> value (or None), and that include all of their descendent leaves (maybe this is redundant)
+    assigned_leaves = []  # leaves that we've already assigned to a subtree
+    if debug:
+        print '    finding pure subtrees with meta key: %s' % meta_key
+        # print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+        print '            leaf              meta val   N nodes    other leaves  (%s: already assigned)' % utils.color('blue', '-')
+    for tleaf in dtree.leaf_node_iter():
+        mval = meta_vals[tleaf.taxon.label]
+        if mval is None:
+            print '    %s None type leaf (wtf)' % utils.wrnstr()
+            continue
+        if debug:
+            print '   %20s  %10s' % (tleaf.taxon.label, mval),
+        if tleaf in assigned_leaves:
+            if debug:
+                print '        %s' % utils.color('blue', '-')
+            continue
+        is_pure, n_steps = True, 0
+        srnode = tleaf
+        while is_pure:  # find the largest pure subtree that includes <tleaf>
+            next_sn = srnode.parent_node
+            is_pure = get_purity(next_sn, mval)
+            # print '           next: ', is_pure, srnode.parent_node.taxon.label
+            if is_pure:
+                srnode = next_sn
+                n_steps += 1
+        subtree_nodes.append(srnode)
+        st_nodes = list(srnode.ageorder_iter())  # includes <srnode>
+        other_leaves = [n for n in st_nodes if n.is_leaf and n is not tleaf]
+        assigned_leaves += [tleaf] + other_leaves
+        if mval not in subtree_stats:
+            subtree_stats[mval] = []
+        subtree_stats[mval].append({'size' : len(st_nodes), 'mean-depth' : numpy.mean([n.distance_from_root() for n in st_nodes])})
+        if debug:
+            print '     %4d       %s' % (len(st_nodes), ' '.join(l.taxon.label for l in other_leaves))
+    assert len(st_nodes) == len(set(st_nodes))  # make sure there aren't any duplicates
+    if debug:
+        print '      found %d subtrees with sizes:' % len(subtree_nodes)
+        print '              meta val    sizes'
+        for mv, tstats in subtree_stats.items():
+            print '         %10s        %s' % (mv, ' '.join([str(s) for s in sorted([s['size'] for s in tstats], reverse=True)]))
+    return subtree_nodes, subtree_stats
+
+# ----------------------------------------------------------------------------------------
 def set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=False):
     if n_generations is None:
         assert n_tau_lengths is not None  # have to specify one or the other

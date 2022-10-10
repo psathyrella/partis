@@ -521,8 +521,12 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def get_treestr(self, annotation, cpath, debug=False):
-        # NOTE/TODO this always runs on inferred stuff, even on simulation
-        if 'tree-info' in annotation and 'lb' in annotation['tree-info']:
+        if not self.args.is_data and 'tree' not in annotations:
+            print '  %s true tree missing from annotation, but --is-simu was set' % utils.wrnstr()
+        if 'tree' in annotation and not self.args.is_data:
+            treestr = annotation['tree']
+            print '    using true tree'
+        elif 'tree-info' in annotation and 'lb' in annotation['tree-info']:
             treestr = annotation['tree-info']['lb']['tree']
         else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partitionn
             # print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()
@@ -714,6 +718,28 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
+    def make_subtree_purity_plots(self, sorted_clusters, annotations, plotdir, cpath=None):
+
+        if len(sorted_clusters) == 0:
+            print '  %s no clusters to plot' % utils.wrnstr()
+            return [['x.svg']]
+        import lbplotting  # this is really slow because of the scipy stats import
+        subd, plotdir = self.init_subd('subtree-purity', plotdir)
+        fnames = [[]]
+        for iclust in range(len(sorted_clusters)):
+            if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='trees'):
+                continue
+            annotation = annotations[':'.join(sorted_clusters[iclust])]
+            if len(annotation['unique_ids']) < self.min_tree_cluster_size:
+                continue
+            treestr = self.get_treestr(annotation, cpath)
+            ifns = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, treeutils.get_dendro_tree(treestr=treestr), annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
+            for fn in ifns:
+                self.addfname(fnames, fn)
+
+        return [[subd + '/' + fn for fn in fnames[0]]]
+
+    # ----------------------------------------------------------------------------------------
     def remove_failed_clusters(self, partition, annotations):
         # remove clusters with failed annotations
         failed_clusters = []
@@ -754,6 +780,7 @@ class PartitionPlotter(object):
         if self.args.meta_info_key_to_color is not None:
             subdirs.append('trees')
             fnames += self.make_tree_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+            fnames += self.make_subtree_purity_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
         # if not no_mds_plots:
         #     fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
         csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)
