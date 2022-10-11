@@ -1321,18 +1321,15 @@ def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, re
 
 # ----------------------------------------------------------------------------------------
 # NOTE doesn't handle indels
-def combine_events(glfo, evt_list, meta_key=None, meta_vals=None, add_meta_val_to_uids=False, debug=False):  # combine events in <evt_list> into a single annotation. If set, add input meta info values <meta_vals> for each event to <meta_key>
+def combine_events(glfo, evt_list, meta_keys=None, debug=False):  # combine events in <evt_list> into a single annotation (could also [used to] pass in meta info values, but don't need it atm)
     if any(indelutils.has_indels_line(l, i) for l in evt_list for i in range(len(l['unique_ids']))):
         raise Exception('can\'t handle indels (needs implementing')
     combo_evt = get_full_copy(evt_list[0], glfo)
     seqfos_to_add = [{'name' : u, 'seq' : s} for l in evt_list[1:] for u, s in zip(l['unique_ids'], l['seqs'])]
     add_seqs_to_line(combo_evt, seqfos_to_add, glfo, debug=debug)
-    if meta_key is not None:
-        assert len(meta_vals) == len(evt_list)
-        combo_evt[meta_key] = [v for v, l in zip(meta_vals, evt_list) for _ in l['unique_ids']]
-    if add_meta_val_to_uids:
-        assert meta_key is not None
-        combo_evt['unique_ids'] = ['%s-%s' % (u, v) for u, v in zip(combo_evt['unique_ids'], combo_evt[meta_key])]
+    if meta_keys is not None:
+        for mkey in meta_keys:
+            combo_evt[mkey] = [v for l in evt_list for v in l[mkey]]
     return combo_evt
 
 # ----------------------------------------------------------------------------------------

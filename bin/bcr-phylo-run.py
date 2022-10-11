@@ -97,6 +97,8 @@ def rearrange():
 def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command line arg that is allowed to (but may not at the moment) be drawn from a variable distribution (note we have to pass in <pval> for args that are lists)
     if args.parameter_variances is None or parg not in args.parameter_variances:  # default: just use the single, fixed value from the command line
         return pval
+    if args.n_gc_rounds is not None and parg in ['obs-times', 'n-sim-seqs-per-generation']:
+        raise Exception('shouldn\'t get here (see exception elsewhere)')
     def sfcn(x):  # just for dbg/exceptions
         return str(int(x)) if parg != 'selection-strength' else ('%.2f' % x)
     pvar = args.parameter_variances[parg]
@@ -138,8 +140,10 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None, igcr=None):
             cmd += ' --no_selection'
         else:
             cmd += ' --selection_strength %f' % get_vpar_val('selection-strength', args.selection_strength)
-        cmd += ' --obs_times %s' % ' '.join(['%d' % get_vpar_val('obs-times', t) for t in args.obs_times])
-        cmd += ' --n_to_sample %s' % ' '.join('%d' % get_vpar_val('n-sim-seqs-per-generation', n) for n in args.n_sim_seqs_per_generation)
+        for astr in ['obs-times', 'n-sim-seqs-per-generation']:
+            aval = getattr(args, astr.replace('-', '_'))
+            tstr = ' '.join('%d' % get_vpar_val(astr, t) for t in (aval if args.n_gc_rounds is None else aval[igcr]))
+            cmd += ' --%s %s' % (astr.replace('n-sim-seqs-per-generation', 'n-to-sample').replace('-', '_'), tstr)  # ick
         cmd += ' --metric_for_target_dist %s' % args.metric_for_target_distance
         if args.multifurcating_tree:
             cmd += ' --multifurcating_tree'
@@ -174,13 +178,14 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None, igcr=None):
         if args.n_naive_seq_copies is not None:
             cmd += ' --n_naive_seq_copies %d' % args.n_naive_seq_copies
         if args.n_gc_rounds is not None and igcr > 0:
-            isfos = utils.read_fastx(bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1)))
-            if args.n_reentry_seqs is not None:
-                if args.n_reentry_seqs > len(isfos):
-                    print '  %s --n-reentry-seqs %d greater than number of observed seqs %d in %s' % (utils.wrnstr(), args.n_reentry_seqs, len(isfos), bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1)))
-                isfos = numpy.random.choice(isfos, size=args.n_reentry_seqs, replace=False)
             init_fn = '%s/init-seqs.fa' % outdir
-            utils.write_fasta(init_fn, isfos)
+            if not args.dry_run:
+                isfos = utils.read_fastx(bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1)))
+                if args.n_reentry_seqs is not None:
+                    if args.n_reentry_seqs > len(isfos):
+                        print '  %s --n-reentry-seqs %d greater than number of observed seqs %d in %s' % (utils.wrnstr(), args.n_reentry_seqs, len(isfos), bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1)))
+                    isfos = numpy.random.choice(isfos, size=args.n_reentry_seqs, replace=False)
+                utils.write_fasta(init_fn, isfos)
             cmd += ' --initial_seq_file %s' % init_fn
 
     cmd += ' --debug %d' % args.debug
@@ -232,6 +237,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
                     'lambda' : float(line['lambda']) if line['lambda'] != '' else None,  # bcr-phylo used to not run the lambda update fcn after last iteratio, which resulted in empty lambda values, but it shouldn't happen any more (but leaving here for backwards compatibility)
                     'target_index' : int(line['target_index']),
                     'target_distance' : float(line['target_distance']),
+                    'time' : int(line['time']),
                 }
         return nodefo
     # ----------------------------------------------------------------------------------------
@@ -305,6 +311,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
         final_line['nearest_target_indices'] = [nodefo[u]['target_index'] for u in final_line['unique_ids']]
         final_line['min_target_distances'] = [nodefo[u]['target_distance'] for u in final_line['unique_ids']]
+        final_line['timepoints'] = [nodefo[u]['time'] for u in final_line['unique_ids']]
         ftree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))  # note that if --paired-loci is set then most edges will still be the wrong length (compared to the mutations in the single-locus sequences), i.e. best not to use this much until treeutils.combine_selection_metrics(), where we rescale to the full h+l length
         # treeutils.compare_tree_distance_to_shm(ftree, final_line, debug=True)
         if args.debug:
@@ -365,7 +372,7 @@ def read_rearrangements():
 def write_simulation(glfos, mutated_events):
     headers = utils.simulation_headers
     if args.n_gc_rounds is not None:
-        headers.append('gc-rounds')
+        headers += ['gc-rounds', 'timepoints']
     if args.paired_loci:
         lp_infos = {}
         for lpair in lpairs():
@@ -389,17 +396,25 @@ def combine_gc_rounds(glfos, mevt_lists):
         return
     assert len(mevt_lists) == args.n_gc_rounds
     assert len(set(len(l) for l in mevt_lists)) == 1  # all rounds should have the same number of events
+    sum_time = 0
+    assert len(args.obs_times) == args.n_gc_rounds  # also checked elsewhere
+    for igcr in range(args.n_gc_rounds):
+        for evt in mevt_lists[igcr]:
+            evt['timepoints'] = [t + sum_time for t in evt['timepoints']]
+            evt['gc-rounds'] = [igcr for _ in evt['unique_ids']]
+            utils.translate_uids([evt], trns={u : '%s-%s'%(u, t) for u, t in zip(evt['unique_ids'], evt['timepoints'])})  # kind of annoying to add the timepoint to the uid, but otherwise we get duplicate uids in different rounds (and we can't change the random seed atm, or else the target seqs will be out of whack)
+        sum_time += args.obs_times[igcr][-1]
     merged_events = []
     for ievt in range(len(mevt_lists[0])):
         if args.paired_loci:
             mpair = []
             lpair = [l['loci'][0] for l in mevt_lists[0][0]]
             for ilocus, ltmp in enumerate(lpair):
-                mgevt = utils.combine_events(glfos[ltmp], [evts[ievt][ilocus] for evts in mevt_lists], meta_key='gc-rounds', meta_vals=[str(i) for i in range(args.n_gc_rounds, add_meta_val_to_uids=True)])  # kind of annoying to add the gc round to the uid, but otherwise we get duplicate uids in different rounds (and we can't change the random seed atm, or else the target seqs will be out of whack)
+                mgevt = utils.combine_events(glfos[ltmp], [evts[ievt][ilocus] for evts in mevt_lists], meta_keys=['gc-rounds', 'timepoints'])
                 mpair.append(mgevt)
             merged_events.append(mpair)
         else:
-            mgevt = utils.combine_events(glfos[0], [evts[ievt] for evts in mevt_lists], meta_key='gc-rounds', meta_vals=[str(i) for i in range(args.n_gc_rounds)], add_meta_val_to_uids=True)
+            mgevt = utils.combine_events(glfos[0], [evts[ievt] for evts in mevt_lists], meta_keys=['gc-rounds', 'timepoints'])
             merged_events.append(mgevt)
 
     print '  writing annotations to %s' % spath('mutated')
@@ -415,7 +430,7 @@ def simulate(igcr=None):
     if args.dry_run:
         for ievent in range(args.n_sim_events):
             _ = run_bcr_phylo('<NAIVE_SEQ>', evtdir(ievent, igcr=igcr), ievent, igcr=igcr)
-        return
+        return None, None
     assert len(naive_events) == args.n_sim_events
 
     outdirs = [evtdir(i, igcr=igcr) for i in range(len(naive_events))]
@@ -581,8 +596,8 @@ args = parser.parse_args()
 
 if args.seed is not None:
     numpy.random.seed(args.seed)
-args.obs_times = utils.get_arg_list(args.obs_times, intify=True)
-args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generation, intify=True)
+args.obs_times = utils.get_arg_list(args.obs_times, intify=True, list_of_lists=args.n_gc_rounds is not None)
+args.n_sim_seqs_per_generation = utils.get_arg_list(args.n_sim_seqs_per_generation, intify=True, list_of_lists=args.n_gc_rounds is not None)
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
 args.parameter_variances = utils.get_arg_list(args.parameter_variances, key_val_pairs=True, choices=['selection-strength', 'obs-times', 'n-sim-seqs-per-generation', 'carry-cap', 'metric-for-target-distance'])  # if you add more, make sure the bounds enforcement and conversion stuff in get_vpar_val() are still ok
 args.extra_smetric_plots = utils.get_arg_list(args.extra_smetric_plots, choices=treeutils.all_plot_cfg)
@@ -594,6 +609,12 @@ if args.affinity_measurement_error is not None:
     assert args.affinity_measurement_error >= 0
     if args.affinity_measurement_error > 1:
         print '  note: --affinity-measurement-error %.2f is greater than 1 -- this is fine as long as it\'s on purpose, but will result in smearing by a normal with width larger than each affinity value (and probably result in some negative values).' % args.affinity_measurement_error
+if args.n_gc_rounds is not None:
+    assert len(args.obs_times) == args.n_gc_rounds
+    assert len(args.n_sim_seqs_per_generation) == args.n_gc_rounds
+    if args.parameter_variances is not None:  # don't feel like implementing this atm
+        if any(a in args.parameter_variances for a in ['obs-times', 'n-sim-seqs-per-generation']):
+            raise Exception('haven\'t implemented parameter variances for --obs-times/--n-sim-seqs-per-generation with multiple gc rounds')
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 
@@ -606,7 +627,8 @@ if 'simu' in args.actions:
         for igcr in range(args.n_gc_rounds):
             glfos, mevts = simulate(igcr=igcr)
             mevt_lists.append(mevts)
-        combine_gc_rounds(glfos, mevt_lists)
+        if not args.dry_run:
+            combine_gc_rounds(glfos, mevt_lists)
 if 'cache-parameters' in args.actions:
     cache_parameters()
 if 'partition' in args.actions:
