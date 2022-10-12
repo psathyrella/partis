@@ -648,6 +648,12 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
 
 linekeys['extra'] = extra_annotation_headers
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
+def add_per_seq_keys(line):
+    pskeys = set(line) & set(linekeys['per_seq'])
+    other_keys = [k for k in line if k not in pskeys and isinstance(line[k], list) and len(line[k])==len(line['unique_ids'])]  # custom meta info keys (yeah they should get added some other way, but it's hard to do it super reliably
+    if len(other_keys) > 0:
+        print '    %s adding missing per-seq key%s: %s' % (wrnstr(), plural(len(other_keys)), ', '.join(other_keys))
+        linekeys['per_seq'] += other_keys
 
 # ----------------------------------------------------------------------------------------
 forbidden_metafile_keys = ['name', 'seq']  # these break things if you add them
@@ -1270,12 +1276,8 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
     if not line.get('is_fake_paired'):
         remove_all_implicit_info(line)
 
-    pskeys = set(line) & set(linekeys['per_seq'])
-    other_keys = [k for k in line if k not in pskeys and isinstance(line[k], list) and len(line[k])==len(line['unique_ids'])]  # custom meta info keys (yeah they should get added some other way, but it's hard to do it super reliably
-    if len(other_keys) > 0:
-        print '    %s adding extra per-seq key%s %s when adding seqs to line' % (wrnstr(), plural(len(other_keys)), ', '.join(other_keys))
-        pskeys |= set(other_keys)
-    for key in pskeys:
+    add_per_seq_keys(line)
+    for key in set(line) & set(linekeys['per_seq']):
         if key == 'unique_ids':
             line[key] += [s['name'] for s in aligned_seqfos]
         elif key == 'input_seqs' or key == 'seqs':  # i think elsewhere these end up pointing to the same list of string objects, but i think that doesn't matter? UPDATE of fuck yes it does
@@ -3115,6 +3117,7 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):  # could have ca
     if len(iseqs_to_keep) < 1:  # NOTE we could also return if we're keeping all of them, but then we have to mess with maybe adding implicit info
         raise Exception('must be called with at least one sequence to keep (got %s)' % iseqs_to_keep)
     remove_all_implicit_info(line)
+    add_per_seq_keys(line)
     for tkey in set(linekeys['per_seq']) & set(line):
         line[tkey] = [line[tkey][iseq] for iseq in iseqs_to_keep]
     add_implicit_info(glfo, line)

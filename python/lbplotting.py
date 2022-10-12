@@ -377,7 +377,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     for tkey, hlist in hist_lists.items():
         plotname = '%s-%s'%(base_plotname, tkey)
         plotting.draw_no_root(None, more_hists=hlist, plotname=plotname, colors=list(hist_colors), plotdir=plotdir, only_csv=only_csv, shift_overflows=True,
-                              leg_title='%s'%meta_key.rstrip('s'), alphas=[0.7 for _ in hlist], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y') #, normalize=True)
+                              leg_title='%s'%meta_key.rstrip('s'), alphas=[0.7 for _ in hlist], linewidths=[5, 3, 1], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y') #, normalize=True)
         fnames.append(plotname)
 
     # then 2d plot

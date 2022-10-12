@@ -11,6 +11,7 @@ import math
 import time
 import traceback
 import itertools
+import yaml
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
 sys.path.insert(1, current_script_dir)
@@ -31,21 +32,23 @@ def infdir():
     return '%s/selection/partis' % args.base_outdir
 def evtdir(i, igcr=None):
     return '%s/event-%d%s' % (simdir(), i, '' if igcr is None else '/round-%d'%igcr)
-def spath(tstr):  # use spath() for building command line args, whereas use simfname() to get [an] inidivudal file e.g. for utils.output_exists(), as well as for passing to fcns in paircluster.py
+def spath(tstr, tpsampled=False):  # use spath() for building command line args, whereas use get_simfn() to get [an] inidivudal file e.g. for utils.output_exists(), as well as for passing to fcns in paircluster.py
     if args.mutated_outpath and tstr == 'mutated':
         opth = args.base_outdir
     else:
         opth = '%s/%s-simu' % (simdir(), tstr)
-    return '%s%s' % (opth, '' if args.paired_loci else '.yaml')
-def sfname(tstr, ltmp, lpair=None):
+    return '%s%s%s' % (opth, '' if not tpsampled else '-timepoint-sampled', '' if args.paired_loci else '.yaml')
+def sfname(tstr, ltmp, lpair=None, tpsampled=False):
     if ltmp is None: assert not args.paired_loci
-    return paircluster.paired_fn(spath(tstr), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath(tstr)
+    return paircluster.paired_fn(spath(tstr, tpsampled=tpsampled), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath(tstr, tpsampled=tpsampled)
 def naive_fname(ltmp, lpair=None):  # args are only used for paired loci (but we pass the whole fcn to another fcn, so we need the signature like this)
     return sfname('naive', ltmp, lpair=lpair) #paircluster.paired_fn(spath('naive'), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath('naive')
 def bcr_phylo_fasta_fname(outdir):
     return '%s/%s.fasta' % (outdir, args.extrastr)
-def simfname(ltmp, lpair=None, joint=False):  # NOTE joint has no effect, but is needed for passing to paircluster.write_concatd_output_files()
+def get_simfn(ltmp, lpair=None, joint=False):  # NOTE joint has no effect, but is needed for passing to paircluster.write_concatd_output_files()
     return sfname('mutated', ltmp, lpair=lpair)
+def get_tpsampled_simfn(ltmp, lpair=None, joint=False):  # ugly to have this, but signature has to be this so we can pass it to fcns in paircluster
+    return sfname('mutated', ltmp, lpair=lpair, tpsampled=True)
 # ----------------------------------------------------------------------------------------
 def ipath(stype):  # path/file name for building command line args
     rpath = infdir()
@@ -311,7 +314,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         final_line['lambdas'] = [nodefo[u]['lambda'] for u in final_line['unique_ids']]
         final_line['nearest_target_indices'] = [nodefo[u]['target_index'] for u in final_line['unique_ids']]
         final_line['min_target_distances'] = [nodefo[u]['target_distance'] for u in final_line['unique_ids']]
-        final_line['timepoints'] = [nodefo[u]['time'] for u in final_line['unique_ids']]
+        final_line['generation-times'] = [nodefo[u]['time'] for u in final_line['unique_ids']]
         ftree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))  # note that if --paired-loci is set then most edges will still be the wrong length (compared to the mutations in the single-locus sequences), i.e. best not to use this much until treeutils.combine_selection_metrics(), where we rescale to the full h+l length
         # treeutils.compare_tree_distance_to_shm(ftree, final_line, debug=True)
         if args.debug:
@@ -369,10 +372,12 @@ def read_rearrangements():
     return glfos, naive_events
 
 # ----------------------------------------------------------------------------------------
-def write_simulation(glfos, mutated_events):
+def write_simulation(glfos, mutated_events, tpsampled=False):
+    opath = spath('mutated', tpsampled=tpsampled)
+    print '  writing%s annotations to %s' % (' timepoint sampled' if tpsampled else '', opath)
     headers = utils.simulation_headers
     if args.n_gc_rounds is not None:
-        headers += ['gc-rounds', 'timepoints']
+        headers += ['gc-rounds', 'generation-times']
     if args.paired_loci:
         lp_infos = {}
         for lpair in lpairs():
@@ -382,43 +387,115 @@ def write_simulation(glfos, mutated_events):
                 lpfos['antn_lists'][ltmp] = levents
                 lpfos['glfos'][ltmp] = glfos[ltmp]
             lp_infos[tuple(lpair)] = lpfos
-        paircluster.write_lpair_output_files(lpairs(), lp_infos, simfname, headers)
+        sfcn = get_tpsampled_simfn if tpsampled else get_simfn
+        paircluster.write_lpair_output_files(lpairs(), lp_infos, sfcn, headers)
         glfos, antn_lists, _ = paircluster.concat_heavy_chain(lpairs(), lp_infos)  # per-locus glfos with concat'd heavy chain
-        paircluster.write_concatd_output_files(glfos, antn_lists, simfname, headers)
+        paircluster.write_concatd_output_files(glfos, antn_lists, sfcn, headers)
         outfos, metafos = paircluster.get_combined_outmetafos(antn_lists)
-        paircluster.write_combined_fasta_and_meta(spath('mutated')+'/all-seqs.fa', spath('mutated')+'/meta.yaml', outfos, metafos)
+        paircluster.write_combined_fasta_and_meta(opath+'/all-seqs.fa', opath+'/meta.yaml', outfos, metafos)
     else:
-        utils.write_annotations(spath('mutated'), glfos[0], mutated_events, headers)
+        utils.write_annotations(opath, glfos[0], mutated_events, headers)
 
 # ----------------------------------------------------------------------------------------
 def combine_gc_rounds(glfos, mevt_lists):
-    if utils.output_exists(args, simfname('igh'), outlabel='mutated simu', offset=4):
-        return
+    # ----------------------------------------------------------------------------------------
+    def fix_evt(igcr, sum_time, evt, all_gtimes, ltmp=None):
+        evt['generation-times'] = [t + sum_time for t in evt['generation-times']]
+        evt['gc-rounds'] = [igcr for _ in evt['unique_ids']]
+        def tfcn(u, t): return '%s-%s'%(u, t) if ltmp is None else u.replace('-'+ltmp, '-%s-%s'%(t, ltmp))
+        utils.translate_uids([evt], trns={u : tfcn(u, t) for u, t in zip(evt['unique_ids'], evt['generation-times'])})  # kind of annoying to add the timepoint to the uid, but otherwise we get duplicate uids in different rounds (and we can't change the random seed atm, or else the target seqs will be out of whack)
+        all_gtimes |= set(evt['generation-times'])
+    # ----------------------------------------------------------------------------------------
+    if utils.output_exists(args, get_simfn('igh'), outlabel='mutated simu', offset=4):
+        return None
     assert len(mevt_lists) == args.n_gc_rounds
     assert len(set(len(l) for l in mevt_lists)) == 1  # all rounds should have the same number of events
     sum_time = 0
     assert len(args.obs_times) == args.n_gc_rounds  # also checked elsewhere
+    all_gtimes = set()
     for igcr in range(args.n_gc_rounds):
-        for evt in mevt_lists[igcr]:
-            evt['timepoints'] = [t + sum_time for t in evt['timepoints']]
-            evt['gc-rounds'] = [igcr for _ in evt['unique_ids']]
-            utils.translate_uids([evt], trns={u : '%s-%s'%(u, t) for u, t in zip(evt['unique_ids'], evt['timepoints'])})  # kind of annoying to add the timepoint to the uid, but otherwise we get duplicate uids in different rounds (and we can't change the random seed atm, or else the target seqs will be out of whack)
+        if args.paired_loci:
+            for epair in mevt_lists[igcr]:
+                for evt in epair:
+                    fix_evt(igcr, sum_time, evt, all_gtimes, ltmp=evt['loci'][0])
+        else:
+            for evt in mevt_lists[igcr]:
+                fix_evt(igcr, sum_time, evt, all_gtimes)
         sum_time += args.obs_times[igcr][-1]
+    print '    merging %d events over %d gc rounds with final generation times: %s' % (len(mevt_lists[0]), args.n_gc_rounds, ' '.join(str(t) for t in sorted(all_gtimes)))
     merged_events = []
     for ievt in range(len(mevt_lists[0])):
         if args.paired_loci:
             mpair = []
             lpair = [l['loci'][0] for l in mevt_lists[0][0]]
             for ilocus, ltmp in enumerate(lpair):
-                mgevt = utils.combine_events(glfos[ltmp], [evts[ievt][ilocus] for evts in mevt_lists], meta_keys=['gc-rounds', 'timepoints'])
+                mgevt = utils.combine_events(glfos[ltmp], [evts[ievt][ilocus] for evts in mevt_lists], meta_keys=['gc-rounds', 'generation-times'])
                 mpair.append(mgevt)
             merged_events.append(mpair)
         else:
-            mgevt = utils.combine_events(glfos[0], [evts[ievt] for evts in mevt_lists], meta_keys=['gc-rounds', 'timepoints'])
+            mgevt = utils.combine_events(glfos[0], [evts[ievt] for evts in mevt_lists], meta_keys=['gc-rounds', 'generation-times'])
             merged_events.append(mgevt)
 
-    print '  writing annotations to %s' % spath('mutated')
     write_simulation(glfos, merged_events)
+
+    return merged_events
+
+# ----------------------------------------------------------------------------------------
+def sample_tp_seqs(glfos, evt_list, l_evts=None, ltmp=None):
+    id_list = [u for l in evt_list for u in l['unique_ids']]
+    if len(set(id_list)) != len(id_list):
+        raise Exception('duplicate ids in final events')  # shouldn't be able to get to here, but if it does it'll break stuff below
+    for fevt in evt_list:
+        if 'timepoints' in fevt:  # shouldn't be in there
+            print '  %s \'timepoints\' already in event (overwriting)' % utils.wrnstr()
+        fevt['timepoints'] = [None for _ in fevt['unique_ids']]
+    all_gtimes = set(t for l in evt_list for t in l['generation-times'])
+    gt_ids = {t : [] for t in all_gtimes}  # map from each generation time to list of all remaining uids with that time
+    for tline in evt_list:
+        for tid, gtime in zip(tline['unique_ids'], tline['generation-times']):
+            gt_ids[gtime].append(tid)
+    print '                       N      generation     N          N'
+    print '         timepoint   total      time       chosen   remaining'
+    for tpfo in args.sequence_sample_times:
+        if any(t not in all_gtimes for t in tpfo['times']):
+            raise Exception('generation time %s not among actual final times: %s' % (' '.join(str(t) for t in tpfo['times'] if t not in all_gtimes), ' '.join(str(t) for t in sorted(all_gtimes))))
+        allowed_uids = [u for gt in tpfo['times'] for u in gt_ids[gt]]
+        if tpfo['n'] > len(allowed_uids):
+            print '  %s not enough allowed seqs remain (%d > %d)' % (utils.wrnstr(), tpfo['n'], len(allowed_uids))
+        chosen_ids = numpy.random.choice(allowed_uids, size=tpfo['n'], replace=False)
+        if len(chosen_ids) != tpfo['n']:
+            print '  %s couldn\'t choose enough seqs (only got %d)' % (utils.wrnstr(), len(chosen_ids))
+        rmids = set(allowed_uids) - set(chosen_ids)
+        n_chosen = {}
+        for gtime in tpfo['times']:
+            n_before = len(gt_ids[gtime])
+            gt_ids[gtime] = [u for u in gt_ids[gtime] if u not in chosen_ids]
+            n_chosen[gtime] = n_before - len(gt_ids[gtime])
+        for igt, gtime in enumerate(tpfo['times']):
+            print '    %12s      %3s      %3d         %4d       %4d' % (tpfo['name'] if igt==0 else '', '%d'%tpfo['n'] if igt==0 else '', gtime, n_chosen[gtime], len(gt_ids[gtime]))
+        for fevt in evt_list:
+            fevt['timepoints'] = [tpfo['name'] if u in chosen_ids else t for u, t in zip(fevt['unique_ids'], fevt['timepoints'])]
+    for ievt, fevt in enumerate(evt_list):
+        iseqs_to_keep = [i for i, t in enumerate(fevt['timepoints']) if t is not None]
+        if l_evts is not None:
+            hevt, levt = fevt, l_evts[ievt]
+            hloc, lloc = [e['loci'][0] for e in [hevt, levt]]
+            def htrans(u, hloc, lloc): return u.replace('-'+hloc, '-'+lloc)
+            assert [htrans(u, hloc, lloc) for u in hevt['unique_ids']] == levt['unique_ids']
+            levt['timepoints'] = [t for t in hevt['timepoints']]  # NOTE *has* to happen before restrict_to_iseqs() (duh)
+            utils.restrict_to_iseqs(levt, iseqs_to_keep, glfos[levt['loci'][0]])
+        utils.restrict_to_iseqs(fevt, iseqs_to_keep, glfos[0 if ltmp is None else ltmp])
+    # utils.print_reco_event(levt, extra_print_keys=['timepoints', 'gc-rounds', 'generation-times'])
+
+# ----------------------------------------------------------------------------------------
+def write_timepoint_sampled_sequences(glfos, final_events):
+    if args.paired_loci:
+        h_evts, l_evts = zip(*final_events)
+        sample_tp_seqs(glfos, h_evts, l_evts=l_evts, ltmp=h_evts[0]['loci'][0])
+    else:
+        sample_tp_seqs(glfos, final_events)
+
+    write_simulation(glfos, final_events, tpsampled=True)
 
 # ----------------------------------------------------------------------------------------
 def simulate(igcr=None):
@@ -469,7 +546,6 @@ def simulate(igcr=None):
     print '  parsing time: %.1fs' % (time.time() - start)
 
     if igcr is None:
-        print '  writing annotations to %s' % spath('mutated')
         write_simulation(glfos, mutated_events)
 
     if not args.only_csv_plots:
@@ -552,7 +628,8 @@ parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anyth
 parser.add_argument('--n-sim-seqs-per-generation', default='100', help='Number of sequences to sample at each time in --obs-times.')
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
 parser.add_argument('--n-max-queries', type=int, help='during parameter caching and partitioning, stop after reading this many queries from simulation file (useful for dtr training samples where we need massive samples to actually train the dtr, but for testing various metrics need far smaller samples).')
-parser.add_argument('--obs-times', default='100:120', help='Times (reproductive rounds) at which to selection sequences for observation.')
+parser.add_argument('--obs-times', default='100:120', help='Times (generations) at which to select sequences for observation. Note that this is the time that the sequences existed in/exited the gc, not necessarily the time at which we "sequenced" them.')
+parser.add_argument('--sequence-sample-time-fname', help='Times at which we "sample" for sequencing, i.e. at which we draw blood (as opposed to --obs-times, which is the generation time at which a cell leaves the gc). Specified in a yaml file as a list of key : val pairs, with key the timepoint label and values a dict with keys \'n\' (total number of sequences) and \'times\' (list of final [i.e. if --n-gc-rounds is set, this is cumulative time, not the "local" time specified in --obs-times] generation times from which to sample those \'n\' sequences uniformly at random). If set, a new output file/dir is created by inserting \'timepoint-sampled\' at end of regular output file. See example in data/sample-seqs.yaml.')
 parser.add_argument('--n-naive-seq-copies', type=int, help='see bcr-phylo docs')
 parser.add_argument('--n-gc-rounds', type=int, help='number of rounds of gc entry, i.e. if set, upon gc completion  we choose --n-reentry-seqs sampled seqs with which to seed a new (otherwise identical) gc reaction. So note that, for instance, cells are sampled at --obs-times within every gc cycle. Results for each gc round N are written to subdirs round-N/ for each event, then all sampled sequences from all reactions are collected into the normal output file locations, with input meta info key \'gc-rounds\' specifying their gc round.')
 parser.add_argument('--n-reentry-seqs', type=int, help='number of sampled seqs from previous round (chosen randomly) to inject into the next gc round (if not set, we take all of them).')
@@ -615,20 +692,28 @@ if args.n_gc_rounds is not None:
     if args.parameter_variances is not None:  # don't feel like implementing this atm
         if any(a in args.parameter_variances for a in ['obs-times', 'n-sim-seqs-per-generation']):
             raise Exception('haven\'t implemented parameter variances for --obs-times/--n-sim-seqs-per-generation with multiple gc rounds')
+setattr(args, 'sequence_sample_times', None)
+if args.sequence_sample_time_fname is not None:
+    print '  reading timepoint sample times from %s' % args.sequence_sample_time_fname
+    with open(args.sequence_sample_time_fname) as sfile:
+        yamlfo = yaml.load(sfile, Loader=yaml.CLoader)
+    args.sequence_sample_times = yamlfo
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 
 # ----------------------------------------------------------------------------------------
 if 'simu' in args.actions:
     if args.n_gc_rounds is None:
-        simulate()
+        _, final_events = simulate()
     else:
         mevt_lists = []  # list (for each gc round) of [sub]lists, where each sublist is the sampled seqs from that round for each event
         for igcr in range(args.n_gc_rounds):
             glfos, mevts = simulate(igcr=igcr)
             mevt_lists.append(mevts)
         if not args.dry_run:
-            combine_gc_rounds(glfos, mevt_lists)
+            final_events = combine_gc_rounds(glfos, mevt_lists)
+    if not args.dry_run and args.sequence_sample_times is not None:
+        write_timepoint_sampled_sequences(glfos, final_events)
 if 'cache-parameters' in args.actions:
     cache_parameters()
 if 'partition' in args.actions:
