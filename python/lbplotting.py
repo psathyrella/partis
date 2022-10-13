@@ -357,7 +357,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     all_emph_vals = set(st_stats)
     all_emph_vals, emph_colors = plotting.meta_emph_init(meta_key, formats=meta_emph_formats, all_emph_vals=all_emph_vals)
     mcolors = {v : c for v, c in emph_colors}
-    hkeys = {'size' : 'subtree size', 'mean-depth' : 'mean subtree depth'}
+    hkeys = {'size' : 'subtree size', 'mean-ancestor-distance' : 'mean distance to ancestor'}
     int_keys = ['size']
 
     # first do hists
@@ -384,8 +384,8 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     fig, ax = plotting.mpl_init()
     for mval, tstats in st_stats.items():
         for sub_stat in tstats:
-            ax.scatter([sub_stat['size']], [sub_stat['mean-depth']], facecolor=mcolors[mval], alpha=0.7)
-    fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-depth' % base_plotname, title='', xlabel=hkeys['size'], ylabel=hkeys['mean-depth'])
+            ax.scatter([sub_stat['size']], [sub_stat['mean-ancestor-distance']], facecolor=mcolors[mval], alpha=0.7)
+    fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-depth' % base_plotname, title='', xlabel=hkeys['size'], ylabel=hkeys['mean-ancestor-distance'])
     fnames.append(os.path.basename(fn).replace('.svg', ''))
 
     fn = plotting.make_meta_info_legend(plotdir, 'subtree-size', meta_key.rstrip('s'), emph_colors, all_emph_vals, meta_emph_formats=meta_emph_formats, alpha=0.7)

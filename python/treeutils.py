@@ -1323,13 +1323,16 @@ def find_pure_subtrees(dtree, antn, meta_key, debug=False):
                 n_steps += 1
         subtree_nodes.append(srnode)
         st_nodes = list(srnode.ageorder_iter())  # includes <srnode>
-        other_leaves = [n for n in st_nodes if n.is_leaf and n is not tleaf]
+        obs_nodes = [n for n in st_nodes if meta_vals[n.taxon.label] is not None]  # we're mostly only interested in observed seqs (i.e. presumably with meta info)
+        other_leaves = [n for n in st_nodes if n.is_leaf and n is not tleaf]  # other leaves from this subtree
         assigned_leaves += [tleaf] + other_leaves
         if mval not in subtree_stats:
             subtree_stats[mval] = []
-        subtree_stats[mval].append({'size' : len(st_nodes), 'mean-depth' : numpy.mean([n.distance_from_root() for n in st_nodes])})
+        ndepths = [n.distance_from_root() for n in obs_nodes]
+        parent_depth = srnode.parent_node.distance_from_root()
+        subtree_stats[mval].append({'size' : len(obs_nodes), 'mean-root-depth' : numpy.mean(ndepths), 'mean-ancestor-distance' : numpy.mean([d - parent_depth for d in ndepths])})
         if debug:
-            print '     %4d       %s' % (len(st_nodes), ' '.join(l.taxon.label for l in other_leaves))
+            print '     %4d       %s' % (len(obs_nodes), ' '.join(l.taxon.label for l in other_leaves))
     assert len(st_nodes) == len(set(st_nodes))  # make sure there aren't any duplicates
     if debug:
         print '      found %d subtrees with sizes:' % len(subtree_nodes)

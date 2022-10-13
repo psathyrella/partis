@@ -461,11 +461,10 @@ def sample_tp_seqs(glfos, evt_list, l_evts=None, ltmp=None):
             raise Exception('generation time %s not among actual final times: %s' % (' '.join(str(t) for t in tpfo['times'] if t not in all_gtimes), ' '.join(str(t) for t in sorted(all_gtimes))))
         allowed_uids = [u for gt in tpfo['times'] for u in gt_ids[gt]]
         if tpfo['n'] > len(allowed_uids):
-            print '  %s not enough allowed seqs remain (%d > %d)' % (utils.wrnstr(), tpfo['n'], len(allowed_uids))
+            print '  %s not enough allowed seqs remain (%d > %d, probably didn\'t sample enough sequences at allowed times %s)' % (utils.wrnstr(), tpfo['n'], len(allowed_uids), ' '.join(str(t) for t in tpfo['times']))
         chosen_ids = numpy.random.choice(allowed_uids, size=tpfo['n'], replace=False)
         if len(chosen_ids) != tpfo['n']:
             print '  %s couldn\'t choose enough seqs (only got %d)' % (utils.wrnstr(), len(chosen_ids))
-        rmids = set(allowed_uids) - set(chosen_ids)
         n_chosen = {}
         for gtime in tpfo['times']:
             n_before = len(gt_ids[gtime])
@@ -629,7 +628,7 @@ parser.add_argument('--n-sim-seqs-per-generation', default='100', help='Number o
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
 parser.add_argument('--n-max-queries', type=int, help='during parameter caching and partitioning, stop after reading this many queries from simulation file (useful for dtr training samples where we need massive samples to actually train the dtr, but for testing various metrics need far smaller samples).')
 parser.add_argument('--obs-times', default='100:120', help='Times (generations) at which to select sequences for observation. Note that this is the time that the sequences existed in/exited the gc, not necessarily the time at which we "sequenced" them.')
-parser.add_argument('--sequence-sample-time-fname', help='Times at which we "sample" for sequencing, i.e. at which we draw blood (as opposed to --obs-times, which is the generation time at which a cell leaves the gc). Specified in a yaml file as a list of key : val pairs, with key the timepoint label and values a dict with keys \'n\' (total number of sequences) and \'times\' (list of final [i.e. if --n-gc-rounds is set, this is cumulative time, not the "local" time specified in --obs-times] generation times from which to sample those \'n\' sequences uniformly at random). If set, a new output file/dir is created by inserting \'timepoint-sampled\' at end of regular output file. See example in data/sample-seqs.yaml.')
+parser.add_argument('--sequence-sample-time-fname', help='Times at which we "sample" for sequencing, i.e. at which we draw blood (as opposed to --obs-times, which is the generation time at which a cell leaves the gc). Specified in a yaml file as a list of key : val pairs, with key the timepoint label and values a dict with keys \'n\' (total number of sequences) and \'times\' (dict keyed by gc round time (if --n-gc-rounds is set, otherwise just a list) of generation times from which to sample those \'n\' sequences uniformly at random). If set, a new output file/dir is created by inserting \'timepoint-sampled\' at end of regular output file. See example in data/sample-seqs.yaml.')
 parser.add_argument('--n-naive-seq-copies', type=int, help='see bcr-phylo docs')
 parser.add_argument('--n-gc-rounds', type=int, help='number of rounds of gc entry, i.e. if set, upon gc completion  we choose --n-reentry-seqs sampled seqs with which to seed a new (otherwise identical) gc reaction. So note that, for instance, cells are sampled at --obs-times within every gc cycle. Results for each gc round N are written to subdirs round-N/ for each event, then all sampled sequences from all reactions are collected into the normal output file locations, with input meta info key \'gc-rounds\' specifying their gc round.')
 parser.add_argument('--n-reentry-seqs', type=int, help='number of sampled seqs from previous round (chosen randomly) to inject into the next gc round (if not set, we take all of them).')
@@ -688,6 +687,8 @@ if args.affinity_measurement_error is not None:
         print '  note: --affinity-measurement-error %.2f is greater than 1 -- this is fine as long as it\'s on purpose, but will result in smearing by a normal with width larger than each affinity value (and probably result in some negative values).' % args.affinity_measurement_error
 if args.n_gc_rounds is not None:
     assert len(args.obs_times) == args.n_gc_rounds
+    for otlist in args.obs_times:
+        assert otlist == sorted(otlist)  # various things assume it's sorted
     assert len(args.n_sim_seqs_per_generation) == args.n_gc_rounds
     if args.parameter_variances is not None:  # don't feel like implementing this atm
         if any(a in args.parameter_variances for a in ['obs-times', 'n-sim-seqs-per-generation']):
@@ -697,6 +698,16 @@ if args.sequence_sample_time_fname is not None:
     print '  reading timepoint sample times from %s' % args.sequence_sample_time_fname
     with open(args.sequence_sample_time_fname) as sfile:
         yamlfo = yaml.load(sfile, Loader=yaml.CLoader)
+    if args.n_gc_rounds is not None:  # have to translate the "local" gc round times to final times, then also concatenate them into ones list for all gc rounds
+        sum_time = 0
+        for igcr in range(args.n_gc_rounds):
+            for tpfo in yamlfo:
+                if igcr not in tpfo['times']:
+                    continue
+                tpfo['times'][igcr] = [t + sum_time for t in tpfo['times'][igcr]]
+            sum_time += args.obs_times[igcr][-1]
+        for tpfo in yamlfo:
+            tpfo['times'] = sorted(t for tlist in tpfo['times'].values() for t in tlist)  # should already be sorted, but whatever
     args.sequence_sample_times = yamlfo
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
@@ -704,7 +715,7 @@ assert args.extrastr == 'simu'  # I think at this point this actually can't be c
 # ----------------------------------------------------------------------------------------
 if 'simu' in args.actions:
     if args.n_gc_rounds is None:
-        _, final_events = simulate()
+        glfos, final_events = simulate()
     else:
         mevt_lists = []  # list (for each gc round) of [sub]lists, where each sublist is the sampled seqs from that round for each event
         for igcr in range(args.n_gc_rounds):
