@@ -3399,7 +3399,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                  tree_inference_outdir=None if args.paired_outdir is None or args.tree_inference_method is None else utils.fpath(args.paired_outdir),
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
     inf_lines = utils.get_annotation_dict(inf_lines.values())  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
-    if args.plot_partitions:  # ok this kinda maybe shouldn't work, but seems ok?
+    if args.plot_partitions or args.action in ['partition', 'merge-paired-partitions']:  # ok this kinda maybe shouldn't work, but seems ok?
         print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
         from partitionplotter import PartitionPlotter
         partplotter = PartitionPlotter(args)

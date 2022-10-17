@@ -196,6 +196,8 @@ class MuteFreqer(object):
             plotting.draw_no_root(self.mean_n_muted[rstr], plotname=rstr+'_mean-n-muted', plotdir=overall_plotdir, stats='mean', write_csv=True, only_csv=only_csv, shift_overflows=True)
             if self.mekey is not None and rstr == 'all':
                 for hkey, hdct in self.meta_hists.items():
+                    if len(hdct[rstr]) == 0:
+                        continue
                     all_emph_vals, emph_colors = plotting.meta_emph_init(self.mekey, formats=self.args.meta_emph_formats, all_emph_vals=set(hdct[rstr]))
                     mcolors = {v : c for v, c in emph_colors}
                     hist_list, hist_colors = zip(*[(h, mcolors[m]) for m, h in hdct[rstr].items()])

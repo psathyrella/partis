@@ -32,23 +32,23 @@ def infdir():
     return '%s/selection/partis' % args.base_outdir
 def evtdir(i, igcr=None):
     return '%s/event-%d%s' % (simdir(), i, '' if igcr is None else '/round-%d'%igcr)
-def spath(tstr, tpsampled=False):  # use spath() for building command line args, whereas use get_simfn() to get [an] inidivudal file e.g. for utils.output_exists(), as well as for passing to fcns in paircluster.py
+def spath(tstr, unsampled=False):  # use spath() for building command line args, whereas use get_simfn() to get [an] inidivudal file e.g. for utils.output_exists(), as well as for passing to fcns in paircluster.py
     if args.mutated_outpath and tstr == 'mutated':
         opth = args.base_outdir
     else:
         opth = '%s/%s-simu' % (simdir(), tstr)
-    return '%s%s%s' % (opth, '' if not tpsampled else '-timepoint-sampled', '' if args.paired_loci else '.yaml')
-def sfname(tstr, ltmp, lpair=None, tpsampled=False):
+    return '%s%s%s' % (opth, '-unsampled' if (args.tpsample and unsampled) else '', '' if args.paired_loci else '.yaml')
+def sfname(tstr, ltmp, lpair=None, unsampled=False):
     if ltmp is None: assert not args.paired_loci
-    return paircluster.paired_fn(spath(tstr, tpsampled=tpsampled), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath(tstr, tpsampled=tpsampled)
+    return paircluster.paired_fn(spath(tstr, unsampled=unsampled), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath(tstr, unsampled=unsampled)
 def naive_fname(ltmp, lpair=None):  # args are only used for paired loci (but we pass the whole fcn to another fcn, so we need the signature like this)
     return sfname('naive', ltmp, lpair=lpair) #paircluster.paired_fn(spath('naive'), ltmp, lpair=lpair, suffix='.yaml') if args.paired_loci else spath('naive')
 def bcr_phylo_fasta_fname(outdir):
     return '%s/%s.fasta' % (outdir, args.extrastr)
 def get_simfn(ltmp, lpair=None, joint=False):  # NOTE joint has no effect, but is needed for passing to paircluster.write_concatd_output_files()
     return sfname('mutated', ltmp, lpair=lpair)
-def get_tpsampled_simfn(ltmp, lpair=None, joint=False):  # ugly to have this, but signature has to be this so we can pass it to fcns in paircluster
-    return sfname('mutated', ltmp, lpair=lpair, tpsampled=True)
+def get_unsampled_simfn(ltmp, lpair=None, joint=False):  # ugly to have this, but signature has to be this so we can pass it to fcns in paircluster
+    return sfname('mutated', ltmp, lpair=lpair, unsampled=True)
 # ----------------------------------------------------------------------------------------
 def ipath(stype):  # path/file name for building command line args
     rpath = infdir()
@@ -372,12 +372,15 @@ def read_rearrangements():
     return glfos, naive_events
 
 # ----------------------------------------------------------------------------------------
-def write_simulation(glfos, mutated_events, tpsampled=False):
-    opath = spath('mutated', tpsampled=tpsampled)
-    print '  writing%s annotations to %s' % (' timepoint sampled' if tpsampled else '', opath)
-    headers = utils.simulation_headers
+def write_simulation(glfos, mutated_events, unsampled=False):
+    opath = spath('mutated', unsampled=unsampled)
+    print '  writing%s annotations to %s' % ('' if not args.tpsample else (' unsampled' if unsampled else ' timepoint sampled'), opath)
+    mheads = []
     if args.n_gc_rounds is not None:
-        headers += ['gc-rounds', 'generation-times']
+        mheads += ['gc-rounds', 'generation-times']
+    if args.tpsample:
+        mheads += ['timepoint']
+    headers = utils.simulation_headers + mheads
     if args.paired_loci:
         lp_infos = {}
         for lpair in lpairs():
@@ -387,11 +390,11 @@ def write_simulation(glfos, mutated_events, tpsampled=False):
                 lpfos['antn_lists'][ltmp] = levents
                 lpfos['glfos'][ltmp] = glfos[ltmp]
             lp_infos[tuple(lpair)] = lpfos
-        sfcn = get_tpsampled_simfn if tpsampled else get_simfn
+        sfcn = get_unsampled_simfn if (args.tpsample and unsampled) else get_simfn
         paircluster.write_lpair_output_files(lpairs(), lp_infos, sfcn, headers)
         glfos, antn_lists, _ = paircluster.concat_heavy_chain(lpairs(), lp_infos)  # per-locus glfos with concat'd heavy chain
         paircluster.write_concatd_output_files(glfos, antn_lists, sfcn, headers)
-        outfos, metafos = paircluster.get_combined_outmetafos(antn_lists)
+        outfos, metafos = paircluster.get_combined_outmetafos(antn_lists, extra_meta_headers=mheads)
         paircluster.write_combined_fasta_and_meta(opath+'/all-seqs.fa', opath+'/meta.yaml', outfos, metafos)
     else:
         utils.write_annotations(opath, glfos[0], mutated_events, headers)
@@ -402,8 +405,14 @@ def combine_gc_rounds(glfos, mevt_lists):
     def fix_evt(igcr, sum_time, evt, all_gtimes, ltmp=None):
         evt['generation-times'] = [t + sum_time for t in evt['generation-times']]
         evt['gc-rounds'] = [igcr for _ in evt['unique_ids']]
-        def tfcn(u, t): return '%s-%s'%(u, t) if ltmp is None else u.replace('-'+ltmp, '-%s-%s'%(t, ltmp))
-        utils.translate_uids([evt], trns={u : tfcn(u, t) for u, t in zip(evt['unique_ids'], evt['generation-times'])})  # kind of annoying to add the timepoint to the uid, but otherwise we get duplicate uids in different rounds (and we can't change the random seed atm, or else the target seqs will be out of whack)
+        if ltmp is None:
+            def tfcn(u, t): return '%s-%s'%(u, t)
+        else:
+            def tfcn(u, t): lstr = u.split('-')[-1]; assert lstr in utils.loci; return u.replace('-'+lstr, '-%s-%s'%(t, lstr))
+        trns = {u : tfcn(u, t) for u, t in zip(evt['unique_ids'], evt['generation-times'])}
+        if ltmp is not None:
+            trns.update({p : tfcn(p, t) for pids, t in zip(evt['paired-uids'], evt['generation-times']) for p in pids})
+        utils.translate_uids([evt], trns=trns, translate_pids=args.paired_loci)  # kind of annoying to add the timepoint to the uid, but otherwise we get duplicate uids in different rounds (and we can't change the random seed atm, or else the target seqs will be out of whack)
         all_gtimes |= set(evt['generation-times'])
     # ----------------------------------------------------------------------------------------
     if utils.output_exists(args, get_simfn('igh'), outlabel='mutated simu', offset=4):
@@ -436,7 +445,7 @@ def combine_gc_rounds(glfos, mevt_lists):
             mgevt = utils.combine_events(glfos[0], [evts[ievt] for evts in mevt_lists], meta_keys=['gc-rounds', 'generation-times'])
             merged_events.append(mgevt)
 
-    write_simulation(glfos, merged_events)
+    write_simulation(glfos, merged_events, unsampled=args.tpsample)
 
     return merged_events
 
@@ -494,7 +503,7 @@ def write_timepoint_sampled_sequences(glfos, final_events):
     else:
         sample_tp_seqs(glfos, final_events)
 
-    write_simulation(glfos, final_events, tpsampled=True)
+    write_simulation(glfos, final_events)
 
 # ----------------------------------------------------------------------------------------
 def simulate(igcr=None):
@@ -532,7 +541,7 @@ def simulate(igcr=None):
         utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None, allow_failure=True, debug='print')
     print '  bcr-phylo run time: %.1fs' % (time.time() - start)
 
-    if utils.output_exists(args, simfname('igh'), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
+    if utils.output_exists(args, get_simfn('igh'), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
         return None, None
 
     start = time.time()
@@ -545,7 +554,7 @@ def simulate(igcr=None):
     print '  parsing time: %.1fs' % (time.time() - start)
 
     if igcr is None:
-        write_simulation(glfos, mutated_events)
+        write_simulation(glfos, mutated_events, unsampled=args.tpsample)
 
     if not args.only_csv_plots:
         import lbplotting
@@ -565,11 +574,17 @@ def simulate(igcr=None):
 def cache_parameters():
     if utils.output_exists(args, ifname('params'), outlabel='parameters', offset=4):
         return
-    cmd = './bin/partis cache-parameters --simultaneous-true-clonal-seqs --is-simu --random-seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
+    cmd = './bin/partis cache-parameters --random-seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
+    if args.n_gc_rounds is None:
+        cmd += ' --simultaneous-true-clonal-seqs --is-simu'
+    else:
+        print '  %s not using --is-simu or --simultaneous-true-clonal-seqs since --n-gc-rounds is set, so the true tree isn\'t set' % utils.wrnstr()
     fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else ' --infname %s --parameter-dir %s'
     cmd += fstr % (spath('mutated'), ipath('params'))
-    if args.parameter_plots:
+    if args.all_inference_plots:
         cmd += ' --plotdir %s' % ('paired-outdir' if args.paired_loci else ipath('plots'))
+    if args.meta_info_key_to_color is not None:
+        cmd += ' --meta-info-key-to-color %s' % args.meta_info_key_to_color
     if args.inf_extra_args is not None:
         cmd += ' %s' % args.inf_extra_args
     if args.n_procs > 1:
@@ -585,12 +600,22 @@ def cache_parameters():
 def partition():
     if utils.output_exists(args, ifname('partition'), outlabel='partition', offset=4):
         return
-    cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --random-seed %d' % args.seed
+    cmd = './bin/partis partition --random-seed %d' % args.seed
+    if args.n_gc_rounds is None:
+        cmd += ' --simultaneous-true-clonal-seqs --is-simu'
+    else:
+        print '  %s not using --is-simu or --simultaneous-true-clonal-seqs since --n-gc-rounds is set, so the true tree isn\'t set' % utils.wrnstr()
     fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else (' --infname %%s --parameter-dir %s --outfname %%s' % ipath('params'))
     cmd += fstr % (spath('mutated'), ipath('partition'))
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
     if not args.dont_get_tree_metrics:
-        cmd += ' --get-selection-metrics --plotdir %s --no-partition-plots' % ('paired-outdir' if args.paired_loci else ipath('plots'))
+        cmd += ' --get-selection-metrics'
+    if not args.dont_get_tree_metrics or args.all_inference_plots:
+        cmd += ' --plotdir %s' % ('paired-outdir' if args.paired_loci else ipath('plots'))
+    if not args.all_inference_plots:
+        cmd += ' --no-partition-plots'
+    if args.meta_info_key_to_color is not None:
+        cmd += ' --meta-info-key-to-color %s' % args.meta_info_key_to_color
     if args.inf_extra_args is not None:
         cmd += ' %s' % args.inf_extra_args
     if args.lb_tau is not None:
@@ -659,7 +684,9 @@ parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')
 parser.add_argument('--parameter-variances', help='if set, parameters vary from family to family in one of two ways 1) the specified parameters are drawn from a uniform distribution of the specified width (with mean from the regular argument) for each family. Format example: n-sim-seqs-per-generation,10:carry-cap,150 would give --n-sim-seqs-per-generation +/-5 and --carry-cap +/-75, or 2) parameters for each family are chosen from a \'..\'-separated list, e.g. obs-times,75..100..150')
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--paired-loci', action='store_true')
-parser.add_argument('--parameter-plots', action='store_true')
+parser.add_argument('--parameter-plots', action='store_true', help='DEPRECATED')
+parser.add_argument('--all-inference-plots', action='store_true')
+parser.add_argument('--meta-info-key-to-color')
 parser.add_argument('--single-light-locus', help='set to igk or igl if you want only that one; otherwise each event is chosen at random (see partis help)')
 parser.add_argument('--rearr-extra-args', help='')
 parser.add_argument('--inf-extra-args', help='')
@@ -670,6 +697,10 @@ parser.add_argument('--min-ustr-len', type=int, default=5, help='min length of h
 
 args = parser.parse_args()
 
+if args.parameter_plots:
+    print '  %s transferring deprecated arg --parameter-plots to --all-inference-plots' % utils.wrnstr()
+    args.all_inference_plots = True
+    delattr(args, 'parameter_plots')
 if args.seed is not None:
     numpy.random.seed(args.seed)
 args.obs_times = utils.get_arg_list(args.obs_times, intify=True, list_of_lists=args.n_gc_rounds is not None)
@@ -694,6 +725,7 @@ if args.n_gc_rounds is not None:
         if any(a in args.parameter_variances for a in ['obs-times', 'n-sim-seqs-per-generation']):
             raise Exception('haven\'t implemented parameter variances for --obs-times/--n-sim-seqs-per-generation with multiple gc rounds')
 setattr(args, 'sequence_sample_times', None)
+setattr(args, 'tpsample', False)
 if args.sequence_sample_time_fname is not None:
     print '  reading timepoint sample times from %s' % args.sequence_sample_time_fname
     with open(args.sequence_sample_time_fname) as sfile:
@@ -709,6 +741,8 @@ if args.sequence_sample_time_fname is not None:
         for tpfo in yamlfo:
             tpfo['times'] = sorted(t for tlist in tpfo['times'].values() for t in tlist)  # should already be sorted, but whatever
     args.sequence_sample_times = yamlfo
+    args.tpsample = True  # just a shorthand
+    delattr(args, 'sequence_sample_time_fname')
 
 assert args.extrastr == 'simu'  # I think at this point this actually can't be changed without changing some other things
 
@@ -723,7 +757,7 @@ if 'simu' in args.actions:
             mevt_lists.append(mevts)
         if not args.dry_run:
             final_events = combine_gc_rounds(glfos, mevt_lists)
-    if not args.dry_run and args.sequence_sample_times is not None:
+    if not args.dry_run and args.tpsample:
         write_timepoint_sampled_sequences(glfos, final_events)
 if 'cache-parameters' in args.actions:
     cache_parameters()

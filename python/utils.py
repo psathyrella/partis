@@ -670,6 +670,8 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     'umis' : 'umis',
     'reads' : 'reads',
     'c_gene' : 'c_genes',
+    'gc-round' : 'gc-rounds',
+    'generation-time' : 'generation-times',
     # 'chosen' : 'chosens',
     # 'paired' : 'paireds',
 }
@@ -1111,14 +1113,14 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
 # ----------------------------------------------------------------------------------------
 # translate the uids in each line in <antn_list> using translation dict <trns>
 # specify *either* <trns> (a dict from old to new uid) or <trfcn> (a fcn from old to new uid)
-def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='translation', no_fail=False, debug=False):
+def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='translation', no_fail=False, translate_pids=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def tr_tree(line, treestr, dbgstr):
         dtree = treeutils.get_dendro_tree(treestr=treestr)
         treeutils.translate_labels(dtree, [(u, trfn(u)) for u in line['unique_ids']], dont_fail=True, dbgstr=dbgstr, debug=debug)
         return treeutils.as_str(dtree)
     # ----------------------------------------------------------------------------------------
-    def trfn(uid):
+    def trfn(uid, pid=False):
         if trfcn is not None:
             tid = trfcn(uid)
             if tid in revrns:
@@ -1142,6 +1144,8 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
             else:
                 lbfo[mtmp] = {trfn(u) : mtfo[u] for u in mtfo}
     # ----------------------------------------------------------------------------------------
+    if 'paired-uids' in antn_list[0] and not translate_pids:
+        print '  %s paired uids in line, but <translate_pids> wasn\'t set, so they won\'t be translated' % wrnstr()
     missing_translations = set()
     revrns = {}  # reverse translations
     for line in antn_list:
@@ -1155,6 +1159,8 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
             new_id = trfn(old_id)
             line['unique_ids'][iseq] = new_id
             revrns[new_id] = old_id
+            if 'paired-uids' in line and translate_pids:
+                line['paired-uids'][iseq] = [trfn(p, pid=True) for p in line['paired-uids'][iseq]]
     if cpath is not None:
         if cpath.seed_unique_id is not None:
             cpath.seed_unique_id = trfn(cpath.seed_unique_id)
@@ -1322,16 +1328,20 @@ def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, re
     restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
 # ----------------------------------------------------------------------------------------
-# NOTE doesn't handle indels
+# NOTE doesn't handle indels UPDATE maybe it does now? needs testing
 def combine_events(glfo, evt_list, meta_keys=None, debug=False):  # combine events in <evt_list> into a single annotation (could also [used to] pass in meta info values, but don't need it atm)
     if any(indelutils.has_indels_line(l, i) for l in evt_list for i in range(len(l['unique_ids']))):
         raise Exception('can\'t handle indels (needs implementing')
     combo_evt = get_full_copy(evt_list[0], glfo)
     seqfos_to_add = [{'name' : u, 'seq' : s} for l in evt_list[1:] for u, s in zip(l['unique_ids'], l['seqs'])]
     add_seqs_to_line(combo_evt, seqfos_to_add, glfo, debug=debug)
+    for tkey in set(combo_evt) & set(linekeys['per_seq']) - set(implicit_linekeys) - set(['unique_ids', 'seqs']):
+        combo_evt[tkey] = [copy.deepcopy(v) for l in evt_list for v in l[tkey]]  # ick, would be nice to avoid the deepcopy
     if meta_keys is not None:
         for mkey in meta_keys:
             combo_evt[mkey] = [v for l in evt_list for v in l[mkey]]
+    if 'tree' in combo_evt:  # would not be easy to merge the trees from different events, so give up for now
+        combo_evt['tree'] = None
     return combo_evt
 
 # ----------------------------------------------------------------------------------------

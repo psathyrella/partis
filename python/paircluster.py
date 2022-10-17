@@ -395,13 +395,18 @@ def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
     return outfos, uids_to_remove
 
 # ----------------------------------------------------------------------------------------
-def get_combined_outmetafos(antn_lists):  # merge together info from all loci into <outfos> and <metafos>
+# merge together info from all loci into <outfos> and <metafos>
+def get_combined_outmetafos(antn_lists, extra_meta_headers=None):  # <extra_meta_headers>: pass in the annotation (usually plural) version
     outfos, metafos = [], {}
     for ltmp in antn_lists:
         for tline in antn_lists[ltmp]:
-            for uid, seq, pids in zip(tline['unique_ids'], tline['input_seqs'], tline['paired-uids']):
+            for iseq, (uid, seq, pids) in enumerate(zip(tline['unique_ids'], tline['input_seqs'], tline['paired-uids'])):
                 outfos.append({'name' : uid, 'seq' : seq})
                 metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
+                if extra_meta_headers is not None:
+                    if any(h not in utils.input_metafile_keys.values() for h in extra_meta_headers):  # they have to be in utils.input_metafile_keys so we know what the "meta file" (i.e. usually singular) version is
+                        raise Exception('extra meta headers have to be in utils.input_metafile_keys, but got unknown ones: %s' % list((h for h in extra_meta_headers if h not in utils.input_metafile_keys.values())))
+                    metafos[uid].update({utils.reversed_input_metafile_keys[h] : tline[h][iseq] for h in extra_meta_headers})
     return outfos, metafos
 
 # ----------------------------------------------------------------------------------------

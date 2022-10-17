@@ -656,7 +656,7 @@ class PartitionPlotter(object):
             if self.args.meta_info_key_to_color is None and self.args.node_size_key is None and not self.args.label_mutations:
                 return None
             metafo = {}
-            for tk in [k for k in [self.args.meta_info_key_to_color, self.args.node_size_key] if k is not None]:
+            for tk in [k for k in [self.args.meta_info_key_to_color, self.args.node_size_key] if k is not None and k in annotation]:
                 metafo[tk] = {u : f for u, f in zip(annotation['unique_ids'], annotation[tk])}
             if self.args.label_mutations:
                 utils.add_seqs_aa(annotation)
