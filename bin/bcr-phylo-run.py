@@ -379,7 +379,7 @@ def write_simulation(glfos, mutated_events, unsampled=False):
     if args.n_gc_rounds is not None:
         mheads += ['gc-rounds', 'generation-times']
     if args.tpsample:
-        mheads += ['timepoint']
+        mheads += ['timepoints']
     headers = utils.simulation_headers + mheads
     if args.paired_loci:
         lp_infos = {}

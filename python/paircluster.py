@@ -406,7 +406,7 @@ def get_combined_outmetafos(antn_lists, extra_meta_headers=None):  # <extra_meta
                 if extra_meta_headers is not None:
                     if any(h not in utils.input_metafile_keys.values() for h in extra_meta_headers):  # they have to be in utils.input_metafile_keys so we know what the "meta file" (i.e. usually singular) version is
                         raise Exception('extra meta headers have to be in utils.input_metafile_keys, but got unknown ones: %s' % list((h for h in extra_meta_headers if h not in utils.input_metafile_keys.values())))
-                    metafos[uid].update({utils.reversed_input_metafile_keys[h] : tline[h][iseq] for h in extra_meta_headers})
+                    metafos[uid].update({utils.reversed_input_metafile_keys[h] : tline[h][iseq] for h in extra_meta_headers if h in tline})
     return outfos, metafos
 
 # ----------------------------------------------------------------------------------------

@@ -788,9 +788,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             for ltmp in lpair:  # replace the old cpaths with new ones using the new uids (this should be faster than translating individual uids as we go)
                 lpfos['cpaths'][ltmp] = ClusterPath(partition=utils.get_partition_from_annotation_list(lpfos['antn_lists'][ltmp]), seed_unique_id=seedid(ltmp))
         concat_lpfos = handle_concatd_heavy_chain(lp_infos)
-        outfos, metafos = paircluster.get_combined_outmetafos(concat_lpfos['antn_lists'])
-        outfos = paircluster.modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos)
         headers = utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns)
+        outfos, metafos = paircluster.get_combined_outmetafos(concat_lpfos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
+        outfos = paircluster.modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos)
         paircluster.write_lpair_output_files(spairs(), lp_infos, getofn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)  # NOTE this rewrites the files we just read, which isn't really great in terms of resiliency to crashing partway through things
         paircluster.write_concatd_output_files(concat_lpfos['glfos'], concat_lpfos['antn_lists'], getofn, headers, use_pyyaml=args.write_full_yaml_output, work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], dont_write_git_info=args.dont_write_git_info)
         paircluster.write_combined_fasta_and_meta(get_merged_fn('all-seqs'), get_merged_fn('meta'), outfos, metafos)
