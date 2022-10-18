@@ -15,6 +15,7 @@ import colored_traceback.always
 from collections import OrderedDict
 import numpy
 import math
+import re
 try:
     import ete3
 except ImportError:
@@ -138,6 +139,15 @@ def label_node(node):
     return False
 
 # ----------------------------------------------------------------------------------------
+def rename(name):
+    if args.node_label_regex is None:
+        return name
+    mstrs = re.findall(args.node_label_regex, name)
+    if len(mstrs) == 0:
+        return name
+    return '+'.join(mstrs)
+
+# ----------------------------------------------------------------------------------------
 def set_lb_styles(args, etree, tstyle):
     # ----------------------------------------------------------------------------------------
     lbfo = args.metafo[args.lb_metric]
@@ -197,7 +207,7 @@ def set_lb_styles(args, etree, tstyle):
                 else:
                     node.img_style['hz_line_color'] = plotting.getgrey()
         if label_node(node):
-            tface = ete3.TextFace(node.name, fsize=3, fgcolor='red')
+            tface = ete3.TextFace(rename(node.name), fsize=3, fgcolor='red')
             node.add_face(tface, column=0)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
@@ -242,7 +252,7 @@ def set_meta_styles(args, etree, tstyle):
                 nlabel += node.name
             if 'labels' in args.metafo:
                 nlabel += '%s%s' % (': ' if args.label_all_nodes else '', args.metafo['labels'].get(node.name, ''))
-            tface = ete3.TextFace(nlabel, fsize=3, fgcolor='red')
+            tface = ete3.TextFace(rename(nlabel), fsize=3, fgcolor='red')
             node.add_face(tface, column=0)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
@@ -286,6 +296,7 @@ parser.add_argument('--metafname')
 parser.add_argument('--queries-to-include')
 parser.add_argument('--label-all-nodes', action='store_true')
 parser.add_argument('--label-root-node', action='store_true')
+parser.add_argument('--node-label-regex', help='portion of node label to keep (rest is discarded if regex is found, if no regex label is left unchanged). E.g. \'ig.\' reduces them all to the locus')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
 parser.add_argument('--partis-dir', default=os.path.dirname(os.path.realpath(__file__)).replace('/bin', ''), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
