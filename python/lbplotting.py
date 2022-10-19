@@ -354,6 +354,8 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
 # ----------------------------------------------------------------------------------------
 def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph_formats=None, only_csv=False):
     st_nodes, st_stats = treeutils.find_pure_subtrees(dtree, antn, meta_key)
+    if st_nodes is None:
+        return ['none']
     all_emph_vals = set(st_stats)
     all_emph_vals, emph_colors = plotting.meta_emph_init(meta_key, formats=meta_emph_formats, all_emph_vals=all_emph_vals)
     mcolors = {v : c for v, c in emph_colors}
@@ -376,7 +378,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     fnames = []
     for tkey, hlist in hist_lists.items():
         plotname = '%s-%s'%(base_plotname, tkey)
-        plotting.draw_no_root(None, more_hists=hlist, plotname=plotname, colors=list(hist_colors), plotdir=plotdir, only_csv=only_csv, shift_overflows=True,
+        plotting.draw_no_root(None, more_hists=hlist, plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, shift_overflows=True,
                               leg_title='%s'%meta_key.rstrip('s'), alphas=[0.7 for _ in hlist], linewidths=[5, 3, 1], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y') #, normalize=True)
         fnames.append(plotname)
 

@@ -201,9 +201,11 @@ class MuteFreqer(object):
                     all_emph_vals, emph_colors = plotting.meta_emph_init(self.mekey, formats=self.args.meta_emph_formats, all_emph_vals=set(hdct[rstr]))
                     mcolors = {v : c for v, c in emph_colors}
                     hist_list, hist_colors = zip(*[(h, mcolors[m]) for m, h in hdct[rstr].items()])
+                    hfile_labels = [h.title for h in hist_list]
                     for htmp in hist_list:
                         htmp.title = '%s (%s)' % (htmp.title, utils.round_to_n_digits(htmp.get_mean(), 2))
-                    plotting.draw_no_root(None, more_hists=list(hist_list), plotname='%s_%s_%s'%(rstr, self.mekey, hkey), colors=list(hist_colors), plotdir=overall_plotdir, only_csv=only_csv, shift_overflows=True, leg_title='%s (mean)'%self.mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, normalize=True)
+                    plotting.draw_no_root(None, more_hists=list(hist_list), plotname='%s_%s_%s'%(rstr, self.mekey, hkey), colors=list(hist_colors), plotdir=overall_plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
+                                          shift_overflows=True, leg_title='%s (mean)'%self.mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, normalize=True)
 
         if not only_csv:  # write html file and fix permissiions
             for substr in self.subplotdirs:

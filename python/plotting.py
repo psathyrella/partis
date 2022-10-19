@@ -268,7 +268,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
-                 square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None, no_legend=False):
+                 square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None, no_legend=False, hfile_labels=None):
     assert os.path.exists(plotdir)
 
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
@@ -319,11 +319,11 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
         # assert '_vs_per_gene_support' not in plotname and '_fraction_correct_vs_mute_freq' not in plotname and plotname.find('_gene') != 1  # really, really, really don't want to shift overflows for these
 
     if write_csv:
-        assert more_hists is None  # can't write a superposition on multiple hists to a single csv
-        if csv_fname is None:
-            hist.write(plotdir + '/' + plotname + '.csv')
-        else:
-            hist.write(csv_fname)
+        for ih, htmp in enumerate(hists):
+            fn = utils.non_none([csv_fname, plotdir + '/' + plotname + '.csv'])
+            if len(hists) > 1:
+                fn = utils.insert_before_suffix('-'+(hfile_labels[ih] if hfile_labels is not None else htmp.title), fn)
+            htmp.write(fn)
 
     if only_csv:
         return 'not-plotted.svg'

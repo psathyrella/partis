@@ -538,7 +538,7 @@ class PartitionPlotter(object):
                                                          inf_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else utils.fpath(utils.getprefix(self.args.outfname)),
                                                          glfo=self.glfo, debug=debug)[0]
             # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=treefo['tree']))
-            print '  %s no tree in annotation, so got new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
+            print '  partitionplotter: no tree in annotation, so got new tree from/with \'%s\'' % (utils.color('yellow', 'warning'), treefo['origin'])
             treestr = treefo['tree'].as_string(schema='newick').strip()
         return treestr
 
