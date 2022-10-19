@@ -497,6 +497,8 @@ def sample_tp_seqs(glfos, evt_list, l_evts=None, ltmp=None):
 
 # ----------------------------------------------------------------------------------------
 def write_timepoint_sampled_sequences(glfos, final_events):
+    if utils.output_exists(args, get_simfn('igh'), outlabel='mutated simu', offset=4):
+        return None
     if args.paired_loci:
         h_evts, l_evts = zip(*final_events)
         sample_tp_seqs(glfos, h_evts, l_evts=l_evts, ltmp=h_evts[0]['loci'][0])
@@ -571,14 +573,21 @@ def simulate(igcr=None):
     return glfos, mutated_events
 
 # ----------------------------------------------------------------------------------------
+def simulseq_args():
+    if args.n_gc_rounds is None and not args.tpsample:
+        return ' --simultaneous-true-clonal-seqs --is-simu'
+    elif args.n_sim_events == 1:
+        return ' --all-seqs-simultaneous'
+    else:
+        print '  %s not using --is-simu or --simultaneous-true-clonal-seqs or --all-seqs-simultaneous since --n-gc-rounds is set, so the true tree isn\'t set' % utils.wrnstr()
+        return ''
+
+# ----------------------------------------------------------------------------------------
 def cache_parameters():
     if utils.output_exists(args, ifname('params'), outlabel='parameters', offset=4):
         return
     cmd = './bin/partis cache-parameters --random-seed %d --no-indels' % args.seed  # forbid indels because in the very rare cases when we call them, they're always wrong, and then they screw up the simultaneous true clonal seqs option
-    if args.n_gc_rounds is None:
-        cmd += ' --simultaneous-true-clonal-seqs --is-simu'
-    else:
-        print '  %s not using --is-simu or --simultaneous-true-clonal-seqs since --n-gc-rounds is set, so the true tree isn\'t set' % utils.wrnstr()
+    cmd += simulseq_args()
     fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else ' --infname %s --parameter-dir %s'
     cmd += fstr % (spath('mutated'), ipath('params'))
     if args.all_inference_plots:
@@ -601,10 +610,7 @@ def partition():
     if utils.output_exists(args, ifname('partition'), outlabel='partition', offset=4):
         return
     cmd = './bin/partis partition --random-seed %d' % args.seed
-    if args.n_gc_rounds is None:
-        cmd += ' --simultaneous-true-clonal-seqs --is-simu'
-    else:
-        print '  %s not using --is-simu or --simultaneous-true-clonal-seqs since --n-gc-rounds is set, so the true tree isn\'t set' % utils.wrnstr()
+    cmd += simulseq_args()
     fstr = ' --paired-loci --paired-indir %s --paired-outdir %s' if args.paired_loci else (' --infname %%s --parameter-dir %s --outfname %%s' % ipath('params'))
     cmd += fstr % (spath('mutated'), ipath('partition'))
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this

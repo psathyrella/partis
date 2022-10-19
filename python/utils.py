@@ -3131,6 +3131,8 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None):  # could have ca
     for tkey in set(linekeys['per_seq']) & set(line):
         line[tkey] = [line[tkey][iseq] for iseq in iseqs_to_keep]
     add_implicit_info(glfo, line)
+    if 'tree' in line:  # would need to collapse a bunch of nodes in the tree, too hard to do right now
+        line['tree'] = None
     if line.get('linearham-info') is not None:
         if sw_info is not None:
             add_linearham_info(sw_info, [line])

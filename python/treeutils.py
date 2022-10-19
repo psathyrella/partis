@@ -556,10 +556,13 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
         # print utils.pad_lines(get_ascii_tree(dendro_tree))
 
 # ----------------------------------------------------------------------------------------
-def translate_labels(dendro_tree, translation_pairs, dbgstr='', dont_fail=False, debug=False):
+def translate_labels(dendro_tree, translation_pairs, dbgstr='', dont_fail=False, expect_missing=False, debug=False):
     if debug:
         print '    translating %stree:' % ('' if dbgstr=='' else dbgstr+' ')
         print get_ascii_tree(dendro_tree=dendro_tree, extra_str='      ')
+    missing_trns = set(n.taxon.label for n in dendro_tree.preorder_node_iter() if n.taxon is not None) - set(u for u, _ in translation_pairs)
+    if len(missing_trns) > 0 and not expect_missing:
+        print '  %s missing %d / %d translations when translating tree labels: %s' % (utils.wrnstr(), len(missing_trns), len(list(dendro_tree.preorder_node_iter())), ' '.join(missing_trns))
     for old_label, new_label in translation_pairs:
         taxon = dendro_tree.taxon_namespace.get_taxon(old_label)
         if taxon is None:
@@ -3398,12 +3401,13 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
                  tree_inference_outdir=None if args.paired_outdir is None or args.tree_inference_method is None else utils.fpath(args.paired_outdir),
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
-    inf_lines = utils.get_annotation_dict(inf_lines.values())  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
+    if inf_lines is not None:
+        inf_lines = utils.get_annotation_dict(inf_lines.values())  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
     if args.plot_partitions or args.action in ['partition', 'merge-paired-partitions']:  # ok this kinda maybe shouldn't work, but seems ok?
         print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
         from partitionplotter import PartitionPlotter
         partplotter = PartitionPlotter(args)
-        partplotter.plot(args.plotdir + '/partitions', [l['unique_ids'] for l in inf_lines.values()], inf_lines, no_mds_plots=args.no_mds_plots)
+        partplotter.plot('%s/partitions/%s'%(args.plotdir, 'true' if is_simu else 'inferred'), [l['unique_ids'] for l in (true_lines if is_simu else inf_lines.values())], utils.get_annotation_dict(true_lines) if is_simu else inf_lines, no_mds_plots=args.no_mds_plots)
     if debug:
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
             print_dbg(iclust, metric_pairs, icl_mfos)  # note: relies on mtpys being in scope

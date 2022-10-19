@@ -563,6 +563,10 @@ class PartitionDriver(object):
             print '  --simultaneous-true-clonal-seqs: using true clusters instead of partitioning'
             true_partition = [[uid for uid in cluster if uid in self.sw_info] for cluster in utils.get_partition_from_reco_info(self.reco_info)]  # mostly just to remove duplicates, although I think there might be other reasons why a uid would be missing
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=true_partition)
+        elif self.args.all_seqs_simultaneous:
+            print '  --all-seqs-simultaneous: using single cluster instead of partitioning'
+            one_clust_ptn = [[u for u in self.sw_info['queries']]]
+            cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=one_clust_ptn)
         elif self.input_partition is not None:
             print '  --input-partition-fname: using input cpath instead of running partitioning'
             cpath = self.input_cpath

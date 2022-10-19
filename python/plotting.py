@@ -1399,6 +1399,8 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return offcolors[offset]
     # ----------------------------------------------------------------------------------------
     def bexpand(bpair, fuzz=0.02):
+        if bpair[0] == bpair[1]:
+            return expand_bounds(bpair)  # ok this sucks, i should really use this for all cases here, but i don't want to run through all possibilities and all calls right now, so just using it for the edge case where things are breaking right now
         diff = max(fuzz, bpair[-1] - bpair[0])  # if max and min are the same, use <fuzz> for <diff>
         return [bpair[0] - fuzz * diff, bpair[1] + fuzz * diff]
     # ----------------------------------------------------------------------------------------
