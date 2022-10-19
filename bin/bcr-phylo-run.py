@@ -577,9 +577,10 @@ def simulseq_args():
     if args.n_gc_rounds is None and not args.tpsample:
         return ' --simultaneous-true-clonal-seqs --is-simu'
     elif args.n_sim_events == 1:
+        print '  %s not using --is-simu since --n-gc-rounds or --sequence-sample-time-fname are set, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr()
         return ' --all-seqs-simultaneous'
     else:
-        print '  %s not using --is-simu or --simultaneous-true-clonal-seqs or --all-seqs-simultaneous since --n-gc-rounds is set, so the true tree isn\'t set' % utils.wrnstr()
+        print '  %s not using any of --is-simu or --simultaneous-true-clonal-seqs or --all-seqs-simultaneous since either --n-gc-rounds or --sequence-sample-time-fname are set with more than one event, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr()
         return ''
 
 # ----------------------------------------------------------------------------------------
