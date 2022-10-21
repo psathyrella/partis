@@ -727,6 +727,8 @@ if args.n_gc_rounds is not None:
     assert len(args.obs_times) == args.n_gc_rounds
     for otlist in args.obs_times:
         assert otlist == sorted(otlist)  # various things assume it's sorted
+    if len(args.n_sim_seqs_per_generation) != args.n_gc_rounds and len(args.n_sim_seqs_per_generation) == 1:
+        args.n_sim_seqs_per_generation = [args.n_sim_seqs_per_generation[0] for _ in range(args.n_gc_rounds)]
     assert len(args.n_sim_seqs_per_generation) == args.n_gc_rounds
     if args.parameter_variances is not None:  # don't feel like implementing this atm
         if any(a in args.parameter_variances for a in ['obs-times', 'n-sim-seqs-per-generation']):
