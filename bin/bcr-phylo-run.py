@@ -519,6 +519,9 @@ def simulate(igcr=None):
             _ = run_bcr_phylo('<NAIVE_SEQ>', evtdir(ievent, igcr=igcr), ievent, igcr=igcr)
         return None, None
     assert len(naive_events) == args.n_sim_events
+    if args.restrict_to_single_naive_seq:
+        print '  --restrict-to-single-naive-seq: using same naive event for all mutation simulations'
+        naive_events = [naive_events[0] for _ in naive_events]
 
     outdirs = [evtdir(i, igcr=igcr) for i in range(len(naive_events))]
 
@@ -685,6 +688,7 @@ parser.add_argument('--allow-stops', action='store_true', help='see bcr-phylo do
 parser.add_argument('--no-selection', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--multifurcating-tree', action='store_true', help='see bcr-phylo docs')
 parser.add_argument('--restrict-available-genes', action='store_true', help='restrict v and j gene choice to one each (so context dependence is easier to plot)')
+parser.add_argument('--restrict-to-single-naive-seq', action='store_true', help='restrict all events to use the same naive sequence')
 parser.add_argument('--lb-tau', type=float, help='')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--leaf-sampling-scheme', help='see bcr-phylo help')

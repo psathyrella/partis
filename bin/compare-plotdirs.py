@@ -72,7 +72,9 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         xtitle = None
     if '-mean-bins' in varname:
         raise Exception('darn, I was hoping I wasn\'t making these plots any more')
-    plottitle = ptitledict.get(varname, varname)
+    plottitle = args.plottitle
+    if plottitle is None:
+        plottitle = ptitledict.get(varname, varname)
 
     ytitle = 'frequency' if args.normalize else 'counts'
 
@@ -167,12 +169,15 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             stats = 'mean'
     # draw that little #$*(!
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
-    alphas = [0.6 for _ in range(len(hlist))]
+    if args.alphas is None or len(args.alphas) != len(hlist):
+        if len(args.alphas) != len(hlist):
+            print '  %s --alphas wrong length, using first entry for all' % utils.wrnstr()
+        args.alphas = [0.6 if args.alphas is None else args.alphas[0] for _ in range(len(hlist))]
     shift_overflows = os.path.basename(outdir) != 'gene-call' and 'func-per-drop' not in varname
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds, ybounds=args.ybounds,
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle if args.xtitle is None else args.xtitle, ytitle=ytitle if args.ytitle is None else args.ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                          linewidths=linewidths, alphas=alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
+                          linewidths=linewidths, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins)
 
 # ----------------------------------------------------------------------------------------
@@ -189,6 +194,7 @@ parser.add_argument('--plotdirs', required=True, help='Colon-separated list of i
 parser.add_argument('--names', required=True, help='colon-separated list of names/labels corresponding to --plotdirs (use @ as space)')
 parser.add_argument('--performance-plots', action='store_true', help='set to true if these are annotation performance plots, i.e. made with --plot-annotation-performance (this makes the axis labels more sensible)')
 parser.add_argument('--colors', default=':'.join(plotting.default_colors), help='color-separated list of colors to cycle through for the plotdirs')
+parser.add_argument('--alphas')
 parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths), help='colon-separated list of linewidths to cycle through')
 parser.add_argument('--gldirs', help='On plots showing mutation vs individual gene positions, if you\'d like a dashed veritcal line showing conserved codon positions, set this as a colon-separated list of germline info dirs corresponding to each plotdir') #, default=['data/germlines/human'])
 parser.add_argument('--locus', default='igh')
@@ -203,6 +209,7 @@ parser.add_argument('--file-replace-str', default='.csv', help='string to remove
 parser.add_argument('--xbounds')
 parser.add_argument('--ybounds')
 parser.add_argument('--xticks')
+parser.add_argument('--plottitle')
 parser.add_argument('--xtitle')
 parser.add_argument('--ytitle')
 parser.add_argument('--no-errors', action='store_true')
@@ -212,6 +219,7 @@ parser.add_argument('--square-bins', action='store_true')
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
 args.names = utils.get_arg_list(args.names)
+args.alphas = utils.get_arg_list(args.alphas, floatify=True)
 args.colors = utils.get_arg_list(args.colors)
 args.linewidths = utils.get_arg_list(args.linewidths, intify=True)
 args.gldirs = utils.get_arg_list(args.gldirs)
