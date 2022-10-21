@@ -7,6 +7,7 @@ from hist import Hist
 import utils
 import glutils
 import hutils
+import plotconfig
 # import paramutils
 
 # ----------------------------------------------------------------------------------------
@@ -31,7 +32,7 @@ class MuteFreqer(object):
 
         self.mekey = self.args.meta_info_key_to_color if self.args is not None else None
         if self.mekey is not None:
-            self.meta_hists = {k : {'all' : {}} for k in ['mean_n_muted', 'mean_rates']} #v : {n : h for n, h in self.mean_n_muted.items()} for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
+            self.meta_hists = {k : {'all' : {}} for k in ['mean-n-muted', 'mean-rates']} #v : {n : h for n, h in self.mean_n_muted.items()} for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
 
         self.finalized = False
         self.n_cached, self.n_not_cached = 0, 0
@@ -45,10 +46,10 @@ class MuteFreqer(object):
         self.mean_n_muted['all'].fill(n_muted)
         if self.mekey is not None and self.mekey in info:
             meval = info[self.mekey][iseq]
-            for hkey, ohists, tval in zip(['mean_n_muted', 'mean_rates'], [self.mean_n_muted, self.mean_rates], [n_muted, freq]):
+            for hkey, ohists, tval, pltck in zip(['mean-n-muted', 'mean-rates'], [self.mean_n_muted, self.mean_rates], [n_muted, freq], ['all_mean-n-muted', 'mute_freqs']):
                 hdct = self.meta_hists[hkey]
                 if meval not in hdct['all']:
-                    hdct['all'][meval] = Hist(template_hist=ohists['all'], title=str(meval))
+                    hdct['all'][meval] = Hist(template_hist=ohists['all'], title=str(meval), xtitle=plotconfig.xtitles[pltck])
                 hdct['all'][meval].fill(tval)
 
         freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region='cdr3')

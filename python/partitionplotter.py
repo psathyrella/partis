@@ -727,7 +727,7 @@ class PartitionPlotter(object):
             return [['x.svg']]
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('subtree-purity', plotdir)
-        fnames = [[]]
+        fnames = []
         for iclust in range(len(sorted_clusters)):
             if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='trees'):
                 continue
@@ -736,10 +736,11 @@ class PartitionPlotter(object):
                 continue
             treestr = self.get_treestr(annotation, cpath)
             ifns = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, treeutils.get_dendro_tree(treestr=treestr), annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
-            for fn in ifns:
-                self.addfname(fnames, fn)
+            fnames += ifns
+            # for fn in ifns:
+            #     self.addfname(fnames, fn)
 
-        return [[subd + '/' + fn for fn in fnames[0]]]
+        return [[subd + '/' + fn + '.svg' for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
     def remove_failed_clusters(self, partition, annotations):

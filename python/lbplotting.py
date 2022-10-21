@@ -353,13 +353,30 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
 
 # ----------------------------------------------------------------------------------------
 def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph_formats=None, only_csv=False):
+    # ----------------------------------------------------------------------------------------
+    def make_scatter_plot(yvar):
+        add_jitter = True
+        szvals = [sub_stat['size'] for tstats in st_stats.values() for sub_stat in tstats]
+        djit = 0.2 #0.01 * (max(szvals) - min(szvals))
+        fig, ax = plotting.mpl_init()
+        for im, (mval, tstats) in enumerate(st_stats.items()):
+            jitval = ((im+1) / 2) * djit * (-1)**im if add_jitter else 0
+            for sub_stat in tstats:
+                ax.scatter([sub_stat['size'] + jitval], [sub_stat[yvar]], facecolor=mcolors[mval], alpha=0.6) #, s=10)
+        if max(szvals) <= 5:
+            xticks = [1, 2, 3, 4, 5]
+        else:
+            xticks = [1, 3, 5] + list(range(10, max(szvals)-1, 5)) + [max(szvals)]
+        fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-%s'%(base_plotname, yvar), title='', xlabel=hkeys['size']+(' (+offset)' if add_jitter else ''), ylabel=hkeys[yvar], xticks=xticks)
+        fnames[1].append(os.path.basename(fn).replace('.svg', ''))
+    # ----------------------------------------------------------------------------------------
     st_nodes, st_stats = treeutils.find_pure_subtrees(dtree, antn, meta_key)
     if st_nodes is None:
         return ['none']
     all_emph_vals = set(st_stats)
     all_emph_vals, emph_colors = plotting.meta_emph_init(meta_key, formats=meta_emph_formats, all_emph_vals=all_emph_vals)
     mcolors = {v : c for v, c in emph_colors}
-    hkeys = {'size' : 'subtree size', 'mean-ancestor-distance' : 'mean distance to ancestor'}
+    hkeys = {'size' : 'subtree size', 'mean-ancestor-distance' : 'mean dist. to ancestor', 'mean-root-depth' : 'mean dist. to root'}
     int_keys = ['size']
 
     # first do hists
@@ -370,28 +387,24 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
             if tkey in int_keys:
                 thist = Hist(init_int_bins=True, value_list=vlist, xtitle=tstr, title=str(mval))
             else:
-                n_bins = 15
+                n_bins = 10
                 xbins = hutils.autobins(vlist, n_bins)
                 thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=vlist, xtitle=tstr, title=str(mval))
             hist_lists[tkey].append(thist)
         hist_colors.append(mcolors[mval])
-    fnames = []
+    fnames = [[], []]
     for tkey, hlist in hist_lists.items():
         plotname = '%s-%s'%(base_plotname, tkey)
         plotting.draw_no_root(None, more_hists=hlist, plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, shift_overflows=True,
-                              leg_title='%s'%meta_key.rstrip('s'), alphas=[0.7 for _ in hlist], linewidths=[5, 3, 1], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y') #, normalize=True)
-        fnames.append(plotname)
+                              leg_title='%s'%meta_key.rstrip('s'), alphas=[0.7 for _ in hlist], linewidths=[5, 3, 2], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y' if tkey=='size' else '', plottitle='') #, normalize=True)
+        fnames[0].append(plotname)
 
-    # then 2d plot
-    fig, ax = plotting.mpl_init()
-    for mval, tstats in st_stats.items():
-        for sub_stat in tstats:
-            ax.scatter([sub_stat['size']], [sub_stat['mean-ancestor-distance']], facecolor=mcolors[mval], alpha=0.7)
-    fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-depth' % base_plotname, title='', xlabel=hkeys['size'], ylabel=hkeys['mean-ancestor-distance'])
-    fnames.append(os.path.basename(fn).replace('.svg', ''))
+    # then 2d plots
+    for yvar in ['mean-ancestor-distance', 'mean-root-depth']:
+        make_scatter_plot(yvar)
 
     fn = plotting.make_meta_info_legend(plotdir, 'subtree-size', meta_key.rstrip('s'), emph_colors, all_emph_vals, meta_emph_formats=meta_emph_formats, alpha=0.7)
-    fnames.append(fn)
+    fnames[1].append(fn)
 
     return fnames
 
