@@ -30,12 +30,14 @@ ptitledict.update(treeutils.legtexts)
 def get_hists_from_dir(dirname, histname, string_to_ignore=None):
     hists = {}
     for fname in glob.glob('%s/%s' % (dirname, args.file_glob_str)):
-        varname = os.path.basename(fname).replace(args.file_replace_str, '')
+        varname = os.path.basename(fname)
+        for rstr in args.file_replace_strs:
+            varname = varname.replace(rstr, '')
         if string_to_ignore is not None:
             varname = varname.replace(string_to_ignore, '')
         hists[varname] = Hist(fname=fname, title=histname)
     if len(hists) == 0:
-        print '    no csvs found in %s' % dirname
+        print '    no csvs found%s in %s' % ('' if args.file_glob_str is None else ' with --file-glob-str \'%s\''%args.file_glob_str, dirname)
     return hists
 
 
@@ -150,6 +152,10 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         import matplotlib.pyplot as plt
     if varname in ['func-per-drop', 'nonfunc-per-drop']:
         bounds = (-0.5, 15.5)
+    if 'subtree-purity' in varname:
+        if 'size' in varname and args.log == '':
+            args.log = 'xy'
+
     if xtitle is None:
         xtitle = xtitledict.get(varname)
 
@@ -170,14 +176,14 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     # draw that little #$*(!
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
     if args.alphas is None or len(args.alphas) != len(hlist):
-        if len(args.alphas) != len(hlist):
+        if args.alphas is not None and len(args.alphas) != len(hlist):
             print '  %s --alphas wrong length, using first entry for all' % utils.wrnstr()
         args.alphas = [0.6 if args.alphas is None else args.alphas[0] for _ in range(len(hlist))]
     shift_overflows = os.path.basename(outdir) != 'gene-call' and 'func-per-drop' not in varname
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds, ybounds=args.ybounds,
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle if args.xtitle is None else args.xtitle, ytitle=ytitle if args.ytitle is None else args.ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                          linewidths=linewidths, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
+                          linewidths=linewidths, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins)
 
 # ----------------------------------------------------------------------------------------
@@ -196,6 +202,7 @@ parser.add_argument('--performance-plots', action='store_true', help='set to tru
 parser.add_argument('--colors', default=':'.join(plotting.default_colors), help='color-separated list of colors to cycle through for the plotdirs')
 parser.add_argument('--alphas')
 parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths), help='colon-separated list of linewidths to cycle through')
+parser.add_argument('--markersizes', default=':'.join(plotting.default_markersizes), help='colon-separated list of linewidths to cycle through')
 parser.add_argument('--gldirs', help='On plots showing mutation vs individual gene positions, if you\'d like a dashed veritcal line showing conserved codon positions, set this as a colon-separated list of germline info dirs corresponding to each plotdir') #, default=['data/germlines/human'])
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true', help='If set, the histograms from each plotdir are normalized (each bin contents divided by the integral) before making the comparison (e.g. for comparing different size samples).')
@@ -205,7 +212,7 @@ parser.add_argument('--log', default='', help='Display these axes on a log scale
 parser.add_argument('--make-parent-html', action='store_true', help='after doing everything within subdirs, make a single html in the main/parent dir with all plots from subdirs')
 parser.add_argument('--add-to-title', help='string to append to existing title (use @ as space)')
 parser.add_argument('--file-glob-str', default='*.csv', help='shell glob style regex for matching plot files')
-parser.add_argument('--file-replace-str', default='.csv', help='string to remove frome file base name to get variable name')
+parser.add_argument('--file-replace-strs', default='.csv', help='colon-separated list of strings to remove frome file base name to get variable name')
 parser.add_argument('--xbounds')
 parser.add_argument('--ybounds')
 parser.add_argument('--xticks')
@@ -222,11 +229,13 @@ args.names = utils.get_arg_list(args.names)
 args.alphas = utils.get_arg_list(args.alphas, floatify=True)
 args.colors = utils.get_arg_list(args.colors)
 args.linewidths = utils.get_arg_list(args.linewidths, intify=True)
+args.markersizes = utils.get_arg_list(args.markersizes, intify=True)
 args.gldirs = utils.get_arg_list(args.gldirs)
 args.translegend = utils.get_arg_list(args.translegend, floatify=True)
 args.xbounds = utils.get_arg_list(args.xbounds, floatify=True)
 args.ybounds = utils.get_arg_list(args.ybounds, floatify=True)
 args.xticks = utils.get_arg_list(args.xticks, floatify=True)
+args.file_replace_strs = utils.get_arg_list(args.file_replace_strs)
 for iname in range(len(args.names)):
     args.names[iname] = args.names[iname].replace('@', ' ')
 if args.add_to_title is not None:

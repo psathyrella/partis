@@ -24,6 +24,7 @@ import plotting
 import hutils
 import scanplot
 import mds
+import plotconfig
 
 # ----------------------------------------------------------------------------------------
 # this name is terrible, but it's complicated and I can't think of a better one
@@ -354,6 +355,9 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
 # ----------------------------------------------------------------------------------------
 def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph_formats=None, only_csv=False):
     # ----------------------------------------------------------------------------------------
+    def vlabel(var):
+        return plotconfig.xtitles.get('subtree-purity-'+var)
+    # ----------------------------------------------------------------------------------------
     def make_scatter_plot(yvar):
         add_jitter = True
         szvals = [sub_stat['size'] for tstats in st_stats.values() for sub_stat in tstats]
@@ -367,7 +371,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
             xticks = [1, 2, 3, 4, 5]
         else:
             xticks = [1, 3, 5] + list(range(10, max(szvals)-1, 5)) + [max(szvals)]
-        fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-%s'%(base_plotname, yvar), title='', xlabel=hkeys['size']+(' (+offset)' if add_jitter else ''), ylabel=hkeys[yvar], xticks=xticks)
+        fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-%s'%(base_plotname, yvar), title='', xlabel=vlabel('size')+(' (+offset)' if add_jitter else ''), ylabel=vlabel(yvar), xticks=xticks)
         fnames[1].append(os.path.basename(fn).replace('.svg', ''))
     # ----------------------------------------------------------------------------------------
     st_nodes, st_stats = treeutils.find_pure_subtrees(dtree, antn, meta_key)
@@ -376,20 +380,20 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     all_emph_vals = set(st_stats)
     all_emph_vals, emph_colors = plotting.meta_emph_init(meta_key, formats=meta_emph_formats, all_emph_vals=all_emph_vals)
     mcolors = {v : c for v, c in emph_colors}
-    hkeys = {'size' : 'subtree size', 'mean-ancestor-distance' : 'mean dist. to ancestor', 'mean-root-depth' : 'mean dist. to root'}
+    hkeys = ['size', 'mean-ancestor-distance', 'mean-root-depth']
     int_keys = ['size']
 
     # first do hists
     hist_lists, hist_colors = {tk : [] for tk in hkeys}, []
     for mval, tstats in st_stats.items():
-        for tkey, tstr in hkeys.items():
+        for tkey in hkeys:
             vlist = [s[tkey] for s in tstats]
             if tkey in int_keys:
-                thist = Hist(init_int_bins=True, value_list=vlist, xtitle=tstr, title=str(mval))
+                thist = Hist(init_int_bins=True, value_list=vlist, xtitle=vlabel(tkey), title=str(mval))
             else:
                 n_bins = 10
                 xbins = hutils.autobins(vlist, n_bins)
-                thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=vlist, xtitle=tstr, title=str(mval))
+                thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=vlist, xtitle=vlabel(tkey), title=str(mval))
             hist_lists[tkey].append(thist)
         hist_colors.append(mcolors[mval])
     fnames = [[], []]

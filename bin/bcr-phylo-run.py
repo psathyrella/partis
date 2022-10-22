@@ -78,7 +78,7 @@ def rearrange():
     if utils.output_exists(args, naive_fname('igh'), outlabel='naive simu', offset=4):  # just look for the merged igh file, since it's about the last to be written (and both paired subdirs may not be there)
         return
     cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
-    cmd += ' --debug %d --random-seed %d --n-sim-events %d' % (int(args.debug), args.seed, args.n_sim_events)
+    cmd += ' --debug %d --random-seed %d --n-sim-events %d' % (int(args.debug), args.seed, args.n_sim_events if not args.restrict_to_single_naive_seq else 1)
     if args.paired_loci:
         cmd += ' --paired-loci --paired-outdir %s' % spath('naive')
     else:
@@ -518,10 +518,12 @@ def simulate(igcr=None):
         for ievent in range(args.n_sim_events):
             _ = run_bcr_phylo('<NAIVE_SEQ>', evtdir(ievent, igcr=igcr), ievent, igcr=igcr)
         return None, None
-    assert len(naive_events) == args.n_sim_events
     if args.restrict_to_single_naive_seq:
         print '  --restrict-to-single-naive-seq: using same naive event for all mutation simulations'
-        naive_events = [naive_events[0] for _ in naive_events]
+        assert len(naive_events) == 1
+        naive_events = [naive_events[0] for _ in range(args.n_sim_events)]
+    else:
+        assert len(naive_events) == args.n_sim_events
 
     outdirs = [evtdir(i, igcr=igcr) for i in range(len(naive_events))]
 
@@ -577,14 +579,21 @@ def simulate(igcr=None):
 
 # ----------------------------------------------------------------------------------------
 def simulseq_args():
+    cstr = ''
+    if args.restrict_to_single_naive_seq:
+        print '  note: using --all-seqs-simultaneous because --restrict-to-single-naive-seq was set'
+        cstr += ' --all-seqs-simultaneous'
     if args.n_gc_rounds is None and not args.tpsample:
-        return ' --simultaneous-true-clonal-seqs --is-simu'
+        cstr += ' --is-simu'
+        if '--all-seqs-simultaneous' not in cstr:
+            cstr += ' --simultaneous-true-clonal-seqs'
     elif args.n_sim_events == 1:
         print '  %s not using --is-simu since --n-gc-rounds or --sequence-sample-time-fname are set, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr()
-        return ' --all-seqs-simultaneous'
+        if '--all-seqs-simultaneous' not in cstr:
+            cstr += ' --all-seqs-simultaneous'
     else:
-        print '  %s not using any of --is-simu or --simultaneous-true-clonal-seqs or --all-seqs-simultaneous since either --n-gc-rounds or --sequence-sample-time-fname are set with more than one event, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr()
-        return ''
+        print '  %s not using any of --is-simu or --simultaneous-true-clonal-seqs since either --n-gc-rounds or --sequence-sample-time-fname are set with more than one event, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr()
+    return cstr
 
 # ----------------------------------------------------------------------------------------
 def cache_parameters():
@@ -620,6 +629,8 @@ def partition():
     #  --write-additional-cluster-annotations 0:5  # I don't think there was really a good reason for having this
     if not args.dont_get_tree_metrics:
         cmd += ' --get-selection-metrics'
+    if args.tree_inference_method is not None:
+        cmd += ' --tree-inference-method %s' % args.tree_inference_method
     if not args.dont_get_tree_metrics or args.all_inference_plots:
         cmd += ' --plotdir %s' % ('paired-outdir' if args.paired_loci else ipath('plots'))
     if not args.all_inference_plots:
@@ -656,6 +667,7 @@ parser.add_argument('--run-help', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true')
 parser.add_argument('--dont-get-tree-metrics', action='store_true', help='Partition without getting tree metrics, presumably because you want to run them yourself later')
+parser.add_argument('--tree-inference-method')
 parser.add_argument('--seed', type=int, default=1, help='random seed (note that bcr-phylo doesn\'t seem to support setting its random seed)')
 parser.add_argument('--n-procs', type=int, default=1)
 parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anything, but it\'s required by bcr-phylo EDIT ok it actually doesn\'t need it, it\'s just that the output files look weird without it because they start with \'_\' if it\'s empty')

@@ -21,9 +21,11 @@ xtitles = {
     'dj_insertion_content' : '',
     'vd_insertion_content' : '',
     'mute_freqs' : 'mutation freq (nuc)',
+    'mean-rates' : 'mutation freq (nuc)',
     'v_mute_freqs' : 'mutation freq (nuc)',
     'd_mute_freqs' : 'mutation freq (nuc)',
     'j_mute_freqs' : 'mutation freq (nuc)',
+    'mean-n-muted' : 'N mutations (nuc)',
     'all_mean-n-muted' : 'N mutations (nuc)',
     'v_mean-n-muted' : 'N mutations (nuc)',
     'd_mean-n-muted' : 'N mutations (nuc)',
@@ -54,6 +56,9 @@ xtitles = {
     'n_muts' : 'N observations',
     'paired-seqs-per-seq' : 'N paired seqs per seq',
     'cluster_size' : 'family size',
+    'subtree-purity-mean-ancestor-distance' : 'subtree dist. to ancestor',
+    'subtree-purity-mean-root-depth' : 'subtree dist. to root',
+    'subtree-purity-size' : 'subtree size',
 }
 for rstr in [r + '_' for r in utils.regions] + ['', ]:
     xtitles[rstr + 'hamming_to_true_naive'] = 'hamming distance'
