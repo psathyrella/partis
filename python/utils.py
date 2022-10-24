@@ -1561,6 +1561,11 @@ for rtmp in regions:
     airr_headers[rtmp+'_germline_start'] = None
     airr_headers[rtmp+'_germline_end'] = None
 
+invalid_airr_heads = OrderedDict([
+    ('sequence_id', 'unique_ids'),
+    ('sequence', 'input_seqs'),
+])
+
 linearham_headers = OrderedDict((
     ('Iteration', None),
     ('RBLogLikelihood', None),
@@ -1658,6 +1663,9 @@ def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_co
         assert rgn in regions
         return rgn
     # ----------------------------------------------------------------------------------------
+    if pline['invalid']:
+        return {akey : pline[pkey][iseq] if pkey in linekeys['per_seq'] else pline[pkey] for akey, pkey in invalid_airr_heads.items()}
+
     qr_gap_seq = pline['seqs'][iseq]
     gl_gap_seq = pline['naive_seq']
     if indelutils.has_indels(pline['indelfos'][iseq]):
