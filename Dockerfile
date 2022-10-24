@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y \
   libyaml-cpp-dev \
   libyaml-dev \
   libz-dev \
-  python-pyqt5
+  python-pyqt5 \
+  vim
 
 RUN conda install -y -cbioconda -cbiocore python=2.7 biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn mafft # -cbioconda is for pysam, -cbiocore is for mafft
 RUN conda update -y numpy  # the previous command downgrades numpy (I'm not sure why), which breaks the seaborn import
