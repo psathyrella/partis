@@ -6063,33 +6063,37 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
     return finfo
 
 # ----------------------------------------------------------------------------------------
-def output_exists(args, outfname, outlabel=None, leave_zero_len=False, offset=None, debug=True):
+def output_exists(args, outfname, outlabel=None, leave_zero_len=False, read_existing_output=False, offset=None, debug=True):
     outlabel = '' if outlabel is None else ('%s ' % outlabel)
-    if offset is None: offset = 22  # weird default setting method so we can call it also with the fcn below
-    if os.path.exists(outfname):
-        if not leave_zero_len and os.stat(outfname).st_size == 0:
-            if debug:
-                print '%sdeleting zero length %s' % (offset * ' ', outfname)
-            os.rmdir(outfname) if os.path.isdir(outfname) else os.remove(outfname)  # zero len dir means it's empty
-            return False
-        elif args.overwrite:
-            if debug:
-                print '%soverwriting %s%s' % (offset * ' ', outlabel, outfname)
-            if os.path.isdir(outfname):
-                raise Exception('output %s is a directory, rm it by hand' % outfname)
-            else:
-                os.remove(outfname)
-            return False
-        else:
-            if debug:
-                print '%s%soutput exists, skipping (%s)' % (offset * ' ', outlabel, outfname)
-            return True
-    else:
+    if offset is None: offset = 22  # weird default setting method so we can call it also with the fcn below (without setting default value in two places)
+
+    if not os.path.exists(outfname):
         return False
 
+    if not leave_zero_len and os.stat(outfname).st_size == 0:
+        if debug:
+            print '%sdeleting zero length %s' % (offset * ' ', outfname)
+        os.rmdir(outfname) if os.path.isdir(outfname) else os.remove(outfname)  # zero len dir means it's empty
+        return False
+    elif args.overwrite:
+        if debug:
+            print '%soverwriting %s%s' % (offset * ' ', outlabel, outfname)
+        if os.path.isdir(outfname):
+            raise Exception('output %s is a directory, rm it by hand' % outfname)
+        else:
+            os.remove(outfname)
+        return False
+    elif read_existing_output:
+        print '%soutput exists, proceeding to read: %s' % (offset * ' ', outfname)
+        return False  # because it's not the output now, it's the input, see...
+    else:
+        if debug:
+            print '%s%soutput exists, skipping (%s)' % (offset * ' ', outlabel, outfname)
+        return True
+
 # ----------------------------------------------------------------------------------------
-def all_outputs_exist(args, outfnames, outlabel=None, leave_zero_len=False, offset=None, dbgpathstr=None, debug=True):
-    o_exist_list = [output_exists(args, ofn, outlabel=outlabel, leave_zero_len=leave_zero_len, offset=offset, debug=debug) for ofn in outfnames]
+def all_outputs_exist(args, outfnames, outlabel=None, leave_zero_len=False, read_existing_output=False, offset=None, dbgpathstr=None, debug=True):
+    o_exist_list = [output_exists(args, ofn, outlabel=outlabel, leave_zero_len=leave_zero_len, read_existing_output=read_existing_output, offset=offset, debug=debug) for ofn in outfnames]
     n_exist = o_exist_list.count(True)
     if debug:
         ostr = '' if outlabel is None else ('%s ' % outlabel)
@@ -6100,6 +6104,25 @@ def all_outputs_exist(args, outfnames, outlabel=None, leave_zero_len=False, offs
 # # ----------------------------------------------------------------------------------------
 # def any_output_exists(args, outfnames, outlabel=None, offset=None, debug=True):
 #     return any(output_exists(args, ofn, outlabel=outlabel, offset=offset, debug=debug) for ofn in outfnames)
+
+# ----------------------------------------------------------------------------------------
+# true if heavy and at least one light exist (note that this will still give the wrong answer if e.g. parameter writing fails between writing igk and igl, but i think it's better than the alternatives)
+def lpair_outputs_exist(args, outfcn, outlabel=None, leave_zero_len=False, read_existing_output=False, offset=None, dbgpathstr=None, ig_or_tr='ig', debug=True):
+    existing_loci = []
+    for lpr in locus_pairs[ig_or_tr]:  # note that we're use a locus pair here, but then only looking at the merged/non-pair parent dir (not the locus pair subdir)
+        if all_outputs_exist(args, [outfcn(l) for l in lpr], outlabel=outlabel, leave_zero_len=leave_zero_len, read_existing_output=read_existing_output, offset=offset, dbgpathstr=dbgpathstr, debug=False):
+            existing_loci += [l for l in lpr if l not in existing_loci]  # could use a set, but then i lose the order, so whatever
+    if len(existing_loci) > 0:
+        mstr = ''
+        if len(existing_loci) < 3:
+            missing_loci = [l for lp in locus_pairs[ig_or_tr] for l in lp if l not in existing_loci]
+            mstr = ', %s %d %s: %s' % (color('yellow', 'missing'), len(missing_loci), 'locus' if len(missing_loci)==1 else 'loci', ' '.join(missing_loci))
+        if debug:
+            print '    %d / 3 locus outputs exist (%s%s), skipping (e.g. %s)' % (len(existing_loci), ' '.join(existing_loci), mstr, outfcn(existing_loci[0]))
+        else:
+            print '    %s' % mstr
+        return True
+    return False
 
 # ----------------------------------------------------------------------------------------
 def getprefix(fname):  # basename before the dot
