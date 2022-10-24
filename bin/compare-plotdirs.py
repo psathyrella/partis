@@ -153,8 +153,11 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if varname in ['func-per-drop', 'nonfunc-per-drop']:
         bounds = (-0.5, 15.5)
     if 'subtree-purity' in varname:
-        if 'size' in varname and args.log == '':
-            args.log = 'xy'
+        if 'size' in varname:
+            if args.log == '':
+                args.log = 'xy'
+            xticks = [1, 2, 3, 5, 10, 15, 20]
+            xticklabels = ['1', '2', '3', '5', '10', '15', '20']
 
     if xtitle is None:
         xtitle = xtitledict.get(varname)
