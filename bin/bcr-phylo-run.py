@@ -491,8 +491,8 @@ def sample_tp_seqs(glfos, evt_list, l_evts=None, ltmp=None):
             def htrans(u, hloc, lloc): return u.replace('-'+hloc, '-'+lloc)
             assert [htrans(u, hloc, lloc) for u in hevt['unique_ids']] == levt['unique_ids']
             levt['timepoints'] = [t for t in hevt['timepoints']]  # NOTE *has* to happen before restrict_to_iseqs() (duh)
-            utils.restrict_to_iseqs(levt, iseqs_to_keep, glfos[levt['loci'][0]])
-        utils.restrict_to_iseqs(fevt, iseqs_to_keep, glfos[0 if ltmp is None else ltmp])
+            utils.restrict_to_iseqs(levt, iseqs_to_keep, glfos[levt['loci'][0]], remove_tree=True)
+        utils.restrict_to_iseqs(fevt, iseqs_to_keep, glfos[0 if ltmp is None else ltmp], remove_tree=True)
     # utils.print_reco_event(levt, extra_print_keys=['timepoints', 'gc-rounds', 'generation-times'])
 
 # ----------------------------------------------------------------------------------------
