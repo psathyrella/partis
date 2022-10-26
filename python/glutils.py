@@ -1259,8 +1259,7 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
     return new_name, snpfo
 
 # ----------------------------------------------------------------------------------------
-def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, debug=False):  # NOTE should really be merged with find_nearest_gene_with_same_cpos()
-    region = 'v'
+def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, region='v', debug=False):  # NOTE should really be merged with find_nearest_gene_with_same_cpos()
     if new_seq in glfo['seqs'][region].values():
         raise Exception('exact sequence already in glfo')
     seqfos = [{'name' : g, 'seq' : s} for g, s in glfo['seqs'][region].items()]
@@ -1278,7 +1277,7 @@ def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, d
 
     if debug:
         colored_realigned_new_seq, colored_realigned_nearest_seq = utils.color_mutants(realigned_new_seq, realigned_nearest_seq, return_ref=True)  # have to re-align 'em in order to get rid of extraneous gaps from other seqs in the previous alignment
-        print '      nearest is %s (%d snp%s, %d indel%s):' % (utils.color_gene(nearest_gene), n_snps, utils.plural(n_snps), n_indels, utils.plural(n_indels))
+        print '      %s: nearest is %s (%d snp%s, %d indel%s):' % (utils.color_gene(new_name), utils.color_gene(nearest_gene), n_snps, utils.plural(n_snps), n_indels, utils.plural(n_indels))
         print '            %s %s' % (colored_realigned_new_seq, utils.color_gene(new_name) if new_name is not None else '')
         print '            %s %s' % (colored_realigned_nearest_seq, utils.color_gene(nearest_gene))
 

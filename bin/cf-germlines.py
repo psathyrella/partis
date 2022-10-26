@@ -20,26 +20,36 @@ parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 args.names = utils.get_arg_list(args.names)
 
+# ----------------------------------------------------------------------------------------
+def gkey(name, seq):
+    return hash(name + seq)
+# ----------------------------------------------------------------------------------------
+def clrname(name):
+    return utils.color('blue', name)
+
+# ----------------------------------------------------------------------------------------
 glfos = []
 for name, gldir in zip(args.names, [args.gldir1, args.gldir2]):
-    print '%s:' % utils.color('yellow', name)
+    print '%s:' % clrname(name)
     glfos.append(glutils.read_glfo(gldir, args.locus, debug=True))
 
-for region in [r for r in utils.regions if r in glfos[0]['seqs']]:
-    aset, bset = [set(g['seqs'][region]) for g in glfos]
+for region in ['j']: #[r for r in utils.regions if r in glfos[0]['seqs']]:
+    aseqs, bseqs = [{s : n for n, s in g['seqs'][region].items()} for g in glfos]  # dict of names keyed by seqs
+    a_only_seqs, b_only_seqs = set(aseqs) - set(bseqs), set(bseqs) - set(aseqs)
+
+    print '%s' % utils.color('green', region)
+
+    common_seqs = set(aseqs) & set(bseqs)
+    common_name_seqs = [aseqs[s] for s in common_seqs if aseqs[s]==bseqs[s]]
+    print '    %3d seqs in common with same name: %s' % (len(common_name_seqs), utils.color_genes(sorted(common_name_seqs)))
+    dnamed_seqs = [(aseqs[s], bseqs[s]) for s in common_seqs if aseqs[s] != bseqs[s]]
+    if len(dnamed_seqs) > 0:
+        print '      %s %d common seq%s with different names: %s' % (utils.wrnstr(), len(dnamed_seqs), utils.plural(len(dnamed_seqs)), ',  '.join(utils.color_genes([an,bn]) for an, bn in dnamed_seqs))
+    print '    only in:\n      %12s: %3d  %s\n      %12s: %3d  %s' % (clrname(args.names[0]), len(a_only_seqs), utils.color_genes(sorted(aseqs[s] for s in a_only_seqs)),
+                                                                      clrname(args.names[1]), len(b_only_seqs), utils.color_genes(sorted(bseqs[s] for s in b_only_seqs)))
 
     tmpfo = glutils.get_empty_glfo(args.locus)  # make a new glfo that will only have non-shared genes
-    for glabel, gset, gfo in zip(args.names, [aset - bset, bset - aset], glfos):  # <gset> is the genes that're only in <glabel>
-        for ogene in gset:
-            glutils.add_new_allele(tmpfo, {'gene' : '+'.join([ogene, glabel]), 'seq' : gfo['seqs'][region][ogene], 'cpos' : utils.cdn_pos(gfo, region, ogene)}, use_template_for_codon_info=False)
-
-    # eh, maybe this doesn't really add anything?
-    # # add the nearest genes that they both have for comparison NOTE this gives one comparison gene for *each* gene, so usually you get a bunch of comparison/'both' genes in each block in the ascii output
-    # for bgene in aset & bset:
-    #     _, nearest_gene, _ = glutils.find_nearest_gene_with_same_cpos(glfos[0], glfos[0]['seqs'][region][bgene], new_cpos=utils.cdn_pos(glfos[0], region, bgene))  # i think it doesn't matter which glfo we get it from, so arbitrarily choose the first one
-    #     glutils.add_new_allele(tmpfo, {'gene' : '+'.join([nearest_gene, 'both']), 'seq' : glfos[0]['seqs'][region][nearest_gene], 'cpos' : utils.cdn_pos(glfos[0], region, bgene)}, use_template_for_codon_info=False)
-
-    print '%s: only in:\n      %12s: %2d  %s\n      %12s: %2d  %s' % (utils.color('green', region), args.names[0], len(aset - bset), utils.color_genes(sorted(aset - bset)), args.names[1], len(bset - aset), utils.color_genes(sorted(bset - aset)))
-    if len(tmpfo['seqs'][region]) > 0:
-        print ' comparing to nearest genes that were in both (labeled \'both\'):'
-        glutils.print_glfo(tmpfo, only_region=region)
+    for gname, oname, only_seqs, allseqs, ogfo in zip(args.names, reversed(args.names), [a_only_seqs, b_only_seqs], [aseqs, bseqs], reversed(glfos)):  # <gset> is the genes that're only in <gname>
+        print '  finding nearest seq in %s for %d seqs only in %s' % (clrname(oname), len(only_seqs), gname)
+        for oseq in only_seqs:
+            glutils.find_nearest_gene_in_glfo(ogfo, oseq, new_name=allseqs[oseq], region=region, debug=True)
