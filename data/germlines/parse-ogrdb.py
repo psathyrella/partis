@@ -16,18 +16,17 @@ sys.path.insert(1, partis_dir + '/python')
 import utils
 import glutils
 
+debug = False
 for locus in ['igh', 'igk', 'igl']:
     print utils.color('blue', locus)
     merged_glfo = None  # glfo merged from original (imgt) mouse/ plus c57bl and balbc
     for mouse_type in ['c57bl', 'balbc']:
         print '  %s' % utils.color('blue_bkg', mouse_type)
-        rglfo = glutils.read_glfo('data/germlines/mouse', locus, debug=True)
+        old_glfo = glutils.read_glfo('data/germlines/mouse', locus, debug=debug)
         ogdir = 'data/germlines/ogrdb-download/%s' % mouse_type
-        # if not os.path.exists(glutils.get_fname(ogdir, locus, 'v')):
-        nglfo = glutils.read_glfo(ogdir, locus, template_glfo=rglfo, add_dummy_name_components=True, debug=True)
-        glutils.write_glfo('data/germlines/%s' % mouse_type, nglfo, debug=True)
+        new_glfo = glutils.read_glfo(ogdir, locus, template_glfo=old_glfo, add_dummy_name_components=True, debug=debug)
+        glutils.write_glfo('data/germlines/%s' % mouse_type, new_glfo, debug=debug)
         if merged_glfo is None:
-            merged_glfo = rglfo
-        else:
-            merged_glfo = glutils.get_merged_glfo(merged_glfo, rglfo, debug=True)
-    glutils.write_glfo('data/germlines/merged-mouse', merged_glfo, debug=True)
+            merged_glfo = old_glfo
+        merged_glfo = glutils.get_merged_glfo(merged_glfo, new_glfo, debug=True)
+    glutils.write_glfo('data/germlines/merged-mouse', merged_glfo, debug=debug)

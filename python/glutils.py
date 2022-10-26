@@ -459,7 +459,7 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
 
         check_a_bunch_of_codons(codon, seqons, extra_str='          ', debug=debug)  # kind of redundant with the check that happens in the loop above, but prints some summary info
         if len(bad_codons) > 0:
-            print '%s %d bad %s positions' % (utils.color('red', 'warning'), len(bad_codons), codon)
+            print '    %s %d bad %s positions (%s)' % (utils.wrnstr(), len(bad_codons), codon, 'removing those genes, since <remove_bad_genes>' if remove_bad_genes else 'leaving, since <remove_bad_genes> isn\'t set')
             if remove_bad_genes:
                 remove_genes(glfo, bad_codons, debug=True)
         if debug:
