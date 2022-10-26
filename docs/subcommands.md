@@ -230,8 +230,7 @@ These defaults should ensure that with typical workflows, smith-waterman only ru
 If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
 
 #### germline sets
-
-By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in `data/germlines/<--species>`.
+By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in `data/germlines/<--species>` (see also data/germlines/README.md).
 The resulting per-sample germline sets are written both to the output yaml file (if you've set `--outfname`), and to `<--parameter-dir>/hmm/germline-sets` (as three fasta files and a meta-info csv).
 To start from a non-default germline set, use `--initial-germline-dir <dir>.`
 This dir must use the same format as `data/germlines/<--species>`, i.e. have a subdir for the `--locus` you want to run, and in that subdir have a fasta file for v, d, and j, and a csv file with the (zero-indexed!) conserved codon positions for each v/j gene.

@@ -1,5 +1,6 @@
 
 mouse/ is merged from imgt, ogrdb c57bl, and ogrdb balbc
+
 c57bl/ and balbc/ are just from ogrdb
 
 to update mouse germlines, download from: https://ogrdb.airr-community.org/germline_sets/Mouse
