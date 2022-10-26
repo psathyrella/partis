@@ -6,7 +6,7 @@ The following command will first infer a set of parameters (including germline g
 ```/path/to/<partis_dir>/bin/partis partition --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.yaml```.
 
 This by default assumes input of single-chain positive sense human igh.
-If you have another species or locus, set the `--species {human,mouse,macaque}` and/or `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
+If you have another species or locus, set the `--species {human,mouse,macaque,c57bl,balbc}` (details [here](../data/germlines/README.md) and/or `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
 If you have different loci mixed together, you'll need to either set `--paired-loci`, or first run `./bin/split-loci.py`, both of which split different loci into separate files (the former runs the latter in the course of handling data with pairing information).
 Both of these take the argument `--reverse-negative-strands` if you have a mix of positive and negative sense sequences.
 If you have heavy/light pairing information, for instance from 10x single cell data, it is important to incorporate it as described [here](paired-loci.md) in order to take advantage of (among other things) dramatically improved partitioning accuracy.

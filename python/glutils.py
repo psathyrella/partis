@@ -149,7 +149,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
     seq_to_gene_map = {}
     renamed_genes = []
     is_imgt_file = None
-    for seqfo in utils.read_fastx(fname, dont_split_infostrs=True):
+    for seqfo in utils.read_fastx(fname, dont_split_infostrs=True, sanitize_seqs=True):
         if is_imgt_file is None:
             is_imgt_file = get_is_imgt_file(seqfo['infostrs'])  # if the fasta lines aren't all formatted the same, who cares it, should crash somewhere
         # first get gene name
