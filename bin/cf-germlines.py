@@ -33,7 +33,7 @@ for name, gldir in zip(args.names, [args.gldir1, args.gldir2]):
     print '%s:' % clrname(name)
     glfos.append(glutils.read_glfo(gldir, args.locus, debug=True))
 
-for region in ['j']: #[r for r in utils.regions if r in glfos[0]['seqs']]:
+for region in [r for r in utils.regions if r in glfos[0]['seqs']]:
     aseqs, bseqs = [{s : n for n, s in g['seqs'][region].items()} for g in glfos]  # dict of names keyed by seqs
     a_only_seqs, b_only_seqs = set(aseqs) - set(bseqs), set(bseqs) - set(aseqs)
 
