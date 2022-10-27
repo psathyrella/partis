@@ -50,6 +50,6 @@ for region in [r for r in utils.regions if r in glfos[0]['seqs']]:
 
     tmpfo = glutils.get_empty_glfo(args.locus)  # make a new glfo that will only have non-shared genes
     for gname, oname, only_seqs, allseqs, ogfo in zip(args.names, reversed(args.names), [a_only_seqs, b_only_seqs], [aseqs, bseqs], reversed(glfos)):  # <gset> is the genes that're only in <gname>
-        print '  finding nearest seq in %s for %d seqs only in %s' % (clrname(oname), len(only_seqs), gname)
+        print '  finding nearest seq in %s for %d seqs only in %s' % (clrname(oname), len(only_seqs), clrname(gname))
         for oseq in only_seqs:
             glutils.find_nearest_gene_in_glfo(ogfo, oseq, new_name=allseqs[oseq], region=region, debug=True)
