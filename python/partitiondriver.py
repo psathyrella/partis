@@ -1376,8 +1376,6 @@ class PartitionDriver(object):
         if self.args.calculate_alternative_annotations:
             print '    --calculate-alternative-annotations: adding annotations for initial subcluster annotation step (each with size ~%d)' % self.args.subcluster_annotation_size
             annotation_list += [l for l in final_annotations.values() if l not in annotation_list]
-        if self.args.skip_unmutated_sequences:
-            annotation_list = self.remove_unmutated_seqs(annotation_list, all_hmm_failures)
         self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug and not dont_print_annotations)
         print '    subcluster annotation time %.1f' % (time.time() - subc_start)
 
@@ -1984,31 +1982,6 @@ class PartitionDriver(object):
         return nsets
 
     # ----------------------------------------------------------------------------------------
-    def remove_unmutated_seqs(self, annotation_list, hmm_failures):
-        new_alist = []
-        n_skipped_seqs, n_reduced_antns, n_skipped_antns = 0, 0, 0
-        for tline in annotation_list:
-            if 0 not in tline['n_mutations']:
-                new_alist.append(tline)
-                continue
-            iseqs_to_keep = [i for i, n in enumerate(tline['n_mutations']) if n > 0]
-            i_to_remove = [i for i in range(len(tline['unique_ids'])) if i not in iseqs_to_keep]
-            n_skipped_seqs += len(i_to_remove)
-            n_reduced_antns += 1
-            if len(iseqs_to_keep) == 0:
-                hmm_failures |= set(tline['unique_ids'])
-                n_skipped_antns += 1
-                continue
-            hmm_failures |= set(tline['unique_ids'][i] for i in i_to_remove)
-            utils.restrict_to_iseqs(tline, iseqs_to_keep, self.glfo)
-            new_alist.append(tline)
-
-        if n_skipped_seqs > 0:
-            print '    --skip-unmutated-sequences: removed %d unmutated sequence%s in %d annotation%s (removed %d entire annotation%s)' % (n_skipped_seqs, utils.plural(n_skipped_seqs), n_reduced_antns, utils.plural(n_reduced_antns), n_skipped_antns, utils.plural(n_skipped_antns))
-
-        return new_alist
-
-    # ----------------------------------------------------------------------------------------
     def check_did_bcrham_fail(self, line, errorfo):
         if line['errors'] == '':  # no problems
             return False
@@ -2336,8 +2309,6 @@ class PartitionDriver(object):
                 print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
         annotation_list = eroded_annotations.values() if self.args.mimic_data_read_length else padded_annotations.values()
-        if self.args.skip_unmutated_sequences and not is_subcluster_recursed:  # for subcluster annotation we have to remove 'em afterwards, since it's too hard to figure out which of them here are final vs intermediate ones
-            annotation_list = self.remove_unmutated_seqs(annotation_list, hmm_failures)
         seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities'])  # don't overwrite any info that's already in there (presumably multiplicities) since it will have been updated in waterer after collapsing duplicates NOTE/UPDATE if you screw something up though, this may end up not overwriting 'paired-uids' that you *do* want it to overwrite
         if not is_subcluster_recursed:
             self.process_annotation_output(annotation_list, hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=print_annotations)
