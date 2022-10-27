@@ -287,7 +287,7 @@ class Hist(object):
             check_sum += self.bin_contents[ib] * (self.binwidth(ib) if multiply_by_bin_width else 1)
         if not utils.is_normed(check_sum, this_eps=1e-10):
             raise Exception('not normalized: %f' % check_sum)
-        self.ytitle = 'freq (%.0f total)' % sum_value
+        self.ytitle = 'fraction of %.0f' % sum_value
 
     # ----------------------------------------------------------------------------------------
     def sample(self, n_vals, include_overflows=False, debug_plot=False):  # draw <n_vals> random numbers from the x axis, according to the probabilities given by the bin contents NOTE similarity to recombinator.choose_vdj_combo()
