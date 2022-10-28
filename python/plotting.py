@@ -737,7 +737,7 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
                  bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8])
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefname=None, only_csv=False, fnames=None):
+def plot_tree_mut_stats(args, plotdir, antn_list, is_simu, only_leaves=False, only_csv=False, fnames=None):
     # ----------------------------------------------------------------------------------------
     def add_to_distr_dict(ucounts, udistr):
         for scount in ucounts.values():
@@ -745,25 +745,11 @@ def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefnam
                 udistr[scount] = 0
             udistr[scount] += 1
     # ----------------------------------------------------------------------------------------
-    def add_antn(line):
-        if only_leaves:
-            if is_simu:
-                dtree = treeutils.get_dendro_tree(treestr=lbplotting.get_tree_from_line(line, is_simu)) #, aa='aa-lb' in lb_metric))
-            else:
-                if 'tree-info' in line:
-                    print '    getting tree from existing lb info'
-                    dtree = treeutils.get_dendro_tree(treestr=line['tree-info']['lb']['tree'])
-                else:
-                    print '  %s may need testing' % utils.wrnstr()  # didn't run this after adding/rewriting this fcn
-                    dtree = treeutils.get_trees_for_annotations([line], treefname=treefname, debug=True)[0]['tree']  # NOTE if you pass in a persistent workdir/inf_outdir, you'll need to do all annotations at once, *not* just <line>
-            if dtree is None:
-                raise Exception('plot_tree_mut_stats(): only_leaves was set, so we need the tree, but we couldn\'t get it from the annotation')
-        else:  # default: include everybody
-            dtree = None
+    def add_antn(iln, line):
         unique_seqs, unique_muts = {}, {}
         for uid, mseq in zip(line['unique_ids'], line['seqs']):
             if only_leaves:
-                node = dtree.find_node_with_taxon_label(uid)
+                node = treefos[iln]['tree'].find_node_with_taxon_label(uid)
                 if not node.is_leaf():
                     continue
             if mseq not in unique_seqs:
@@ -793,8 +779,9 @@ def plot_tree_mut_stats(plotdir, antn_list, is_simu, only_leaves=False, treefnam
     if fnames is not None:
         fnames.append([])
     useq_distr, umut_distr, n_mut_dict = {}, {}, {}
-    for line in antn_list:
-        add_antn(line)
+    treefos = treeutils.get_treefos(args, antn_list) if only_leaves else None  # missing some args to this fcn here since i don't want to propagate them, but i don't think it matters
+    for iln, line in enumerate(antn_list):
+        add_antn(iln, line)
     for ulabel, udistr in zip(['seq', 'mut'], (useq_distr, umut_distr)):
         finalize(udistr, 'u%s_distr'%ulabel, 'unique %s distr'%ulabel)
     finalize(n_mut_dict, 'n_muts', 'distance to root')

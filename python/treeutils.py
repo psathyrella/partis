@@ -2001,7 +2001,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     lbplotting.add_fn(fnames, new_row=True)
 
     if 'tree-mut-stats' in plot_cfg:
-        plotting.plot_tree_mut_stats(plotdir + '/tree-mut-stats', antn_list, is_simu, only_csv=args.only_csv_plots, fnames=fnames)  # only_leaves=True
+        plotting.plot_tree_mut_stats(args, plotdir + '/tree-mut-stats', antn_list, is_simu, only_csv=args.only_csv_plots, fnames=fnames)  # only_leaves=True
 
     if not args.only_csv_plots:  # all the various scatter plots are really slow
         if 'lb-scatter' in plot_cfg:
@@ -2043,7 +2043,24 @@ def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
     print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
 
 # ----------------------------------------------------------------------------------------
-# def get_single_tree_for_annotation(antn, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, debug=False):
+# NOTE partially duplicates lbplotting.get_tree_in_line()
+def get_treefos(args, antn_list, cpath=None, glfo=None, debug=False):  # note that <antn_list> is expected to have None values (in order to ensure iclust values stay consistent)
+    if not args.is_data and any('tree' not in l for l in antn_list if l is not None):
+        print '  %s true tree missing from at least one annotation, but --is-simu was set (probably bcr-phylo simulation with multiple gc rounds, where we remove the tree since it\'s no longer correct [need to implement tree merging for multiple rounds])' % utils.wrnstr()
+    if args.is_data and any('tree' in l for l in antn_list if l is not None):
+        print '  %s true tree in at least one annotation, but --is-simu was not set (so we\'re not using it)' % utils.wrnstr()
+
+    if any('tree' in l for l in antn_list if l is not None) and not args.is_data:
+        treefos = [{'tree' : get_dendro_tree(treestr=l['tree'])} if l is not None else None for l in antn_list]  # needs to be same length as antn_list
+        print '    using true trees'
+    elif any('tree-info' in l and 'lb' in l['tree-info'] for l in antn_list if l is not None):  # this block may need testing
+        treefos = [{'tree' : get_dendro_tree(treestr=l['tree-info']['lb']['tree'])} if l is not None else None for l in antn_list]  # needs to be same length as antn_list
+        print '    using existing inferred trees in lb info'
+    else:
+        treefos = get_trees_for_annotations(antn_list, treefname=args.treefname, cpath=cpath, workdir=args.workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
+                                            inf_outdir=None if args.outfname is None or args.tree_inference_method is None else utils.fpath(utils.getprefix(args.outfname)), glfo=glfo, debug=debug)
+    return treefos
+
 # ----------------------------------------------------------------------------------------
 # gets new tree for each specified annotation, and adds a new 'tree-info' key for each (overwriting any that's already there)
 # NOTE <inf_lines_to_use> should be *all* your annotations (so the subclust workdirs are correct), *not* just one cluster at a time
@@ -2080,12 +2097,13 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         print '      read %d trees from %s' % (len(filetrees), treefname)
     check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('iqtree', 'ran iqtree'), ('gctree', 'ran gctree'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr'))}
-    n_already_there, n_skipped_uid, n_skipped_size = 0, 0, 0
+    n_already_there, n_skipped_uid, n_skipped_line, n_skipped_size = 0, 0, 0, 0
     cmdfos, treefos = [None for _ in inf_lines_to_use], [None for _ in inf_lines_to_use]
     for iclust, line in enumerate(inf_lines_to_use):
         if cluster_indices is not None and iclust not in cluster_indices:
             continue
         if line is None:
+            n_skipped_line += 1
             continue
         if len(line['unique_ids']) < hard_min_cluster_size:
             n_skipped_size += 1
@@ -2155,6 +2173,8 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, len(inf_lines_to_use), treefname)
     if n_already_there > 0:
         print '    %s overwriting %d / %d that already had trees' % (utils.color('yellow', 'warning'), n_already_there, ntot)
+    if n_skipped_line > 0:
+        print '    skipped %d/%d clusters with None type annotations' % (n_skipped_line, len(inf_lines_to_use))
     if n_skipped_size > 0:
         print '    skipped %d/%d clusters smaller than %d (should maybe be applying min cluster size before calling this fcn)' % (n_skipped_size, len(inf_lines_to_use), hard_min_cluster_size)
 
@@ -3419,7 +3439,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         icl_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
         all_chosen_mfos[iclust] = icl_mfos
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
-    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, treefname=args.treefname, base_plotdir=plotdir, ete_path=args.ete_path,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
+    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, base_plotdir=plotdir, ete_path=args.ete_path,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
                  tree_inference_outdir=None if args.paired_outdir is None or args.tree_inference_method is None else utils.fpath(args.paired_outdir),
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
     if inf_lines is not None:

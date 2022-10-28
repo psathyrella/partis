@@ -43,11 +43,11 @@ class PartitionPlotter(object):
 
         self.n_mds_components = 2
 
-        self.treefos = None
+        self.sclusts, self.antn_dict, self.treefos, self.base_plotdir = None, None, None, None
 
     # ----------------------------------------------------------------------------------------
-    def init_subd(self, subd, base_plotdir):
-        plotdir = base_plotdir + '/' + subd
+    def init_subd(self, subd):
+        plotdir = self.base_plotdir + '/' + subd
         utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
         return subd, plotdir
 
@@ -63,7 +63,7 @@ class PartitionPlotter(object):
         return title
 
     # ----------------------------------------------------------------------------------------
-    def make_cluster_scatter(self, plotdir, plotname, xfcn, yfcn, clusters_to_use, annotations, repertoire_size, min_csize, dxy=0.1, log_cluster_size=False, xlabel='?', xbounds=None, repfrac_ylabel=True, colorfcn=None, leg_title=None,
+    def make_cluster_scatter(self, plotdir, plotname, xfcn, yfcn, clusters_to_use, repertoire_size, min_csize, dxy=0.1, log_cluster_size=False, xlabel='?', xbounds=None, repfrac_ylabel=True, colorfcn=None, leg_title=None,
                              alpha=0.65, title=''):
         # ----------------------------------------------------------------------------------------
         def add_emph_clusters():
@@ -71,7 +71,7 @@ class PartitionPlotter(object):
                 tqtis = set()  # queries to emphasize in this cluster
                 if self.args.queries_to_include is not None:
                     tqtis |= set(cluster) & set(self.args.queries_to_include)
-                if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(annotations, cluster):
+                if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(cluster):
                     key, val = self.args.meta_info_to_emphasize.items()[0]
                     tqtis.add(utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats))
                 if len(tqtis) == 0:
@@ -128,12 +128,12 @@ class PartitionPlotter(object):
         self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=(ymin, 1.05 * ymax), yticks=yticks, yticklabels=yticklabels, title=title, leg_title=leg_title)
 
     # ----------------------------------------------------------------------------------------
-    def make_single_hexbin_size_vs_shm_plot(self, sorted_clusters, annotations, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
+    def make_single_hexbin_size_vs_shm_plot(self, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
         def mean_mutations(cluster):
-            return numpy.mean(annotations[':'.join(cluster)]['n_mutations'])
+            return numpy.mean(self.antn_dict[':'.join(cluster)]['n_mutations'])
 
-        clusters_to_use = [cluster for cluster in sorted_clusters if mean_mutations(cluster) < self.n_max_mutations]  # have to do it as a separate line so the zip/* don't crash if no clusters pass the criterion
-        self.make_cluster_scatter(plotdir, plotname, mean_mutations, len, clusters_to_use, annotations, repertoire_size, self.size_vs_shm_min_cluster_size, log_cluster_size=log_cluster_size, xlabel='mean N mutations', xbounds=(0, self.n_max_mutations))
+        clusters_to_use = [cluster for cluster in self.sclusts if mean_mutations(cluster) < self.n_max_mutations]  # have to do it as a separate line so the zip/* don't crash if no clusters pass the criterion
+        self.make_cluster_scatter(plotdir, plotname, mean_mutations, len, clusters_to_use, repertoire_size, self.size_vs_shm_min_cluster_size, log_cluster_size=log_cluster_size, xlabel='mean N mutations', xbounds=(0, self.n_max_mutations))
 
     # ----------------------------------------------------------------------------------------
     def addfname(self, fnames, fname, force_new_row=False):
@@ -144,34 +144,34 @@ class PartitionPlotter(object):
             fnames[-1].append(fname)
 
     # ----------------------------------------------------------------------------------------
-    def meta_emph(self, annotations, cluster, uid):  # return True if <uid> from <cluster> satisfies criteria in self.args.meta_info_to_emphasize
-        antn = annotations[':'.join(cluster)]
+    def meta_emph(self, cluster, uid):  # return True if <uid> from <cluster> satisfies criteria in self.args.meta_info_to_emphasize
+        antn = self.antn_dict[':'.join(cluster)]
         key, val = self.args.meta_info_to_emphasize.items()[0]
         return key in antn and utils.meta_info_equal(key, val, utils.per_seq_val(antn, key, uid), formats=self.args.meta_emph_formats)
 
     # ----------------------------------------------------------------------------------------
-    def any_meta_emph(self, annotations, cluster):
-        return any(self.meta_emph(annotations, cluster, u) for u in cluster)
+    def any_meta_emph(self, cluster):
+        return any(self.meta_emph(cluster, u) for u in cluster)
 
     # ----------------------------------------------------------------------------------------
-    def plot_this_cluster(self, sorted_clusters, iclust, annotations, plottype=None):
-        if len(sorted_clusters[iclust]) == 1:
+    def plot_this_cluster(self, iclust, plottype=None):
+        if len(self.sclusts[iclust]) == 1:
             return False
-        if plottype == 'mds' and len(sorted_clusters[iclust]) > self.mds_max_cluster_size:
-            print '     skipping mds plots for cluster with size %d > %d' % (len(sorted_clusters[iclust]), self.mds_max_cluster_size)
+        if plottype == 'mds' and len(self.sclusts[iclust]) > self.mds_max_cluster_size:
+            print '     skipping mds plots for cluster with size %d > %d' % (len(self.sclusts[iclust]), self.mds_max_cluster_size)
             return False
-        if plottype == 'trees' and len(sorted_clusters[iclust]) < self.args.min_selection_metric_cluster_size:
+        if plottype == 'trees' and len(self.sclusts[iclust]) < self.args.min_selection_metric_cluster_size:
             return False
         if self.args.cluster_indices is not None and iclust not in self.args.cluster_indices:
             return False
         if iclust < self.n_biggest_to_plot:
             return True
-        if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:  # seed is added to <args.queries_to_include> in bin/partis
+        if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(self.sclusts[iclust])) > 0:  # seed is added to <args.queries_to_include> in bin/partis
             return True
         return False  # falls through if <iclust> is too big, or if there's no --queries-to-include (which includes the seed)
 
     # ----------------------------------------------------------------------------------------
-    def make_shm_vs_cluster_size_plots(self, sorted_clusters, annotations, base_plotdir, debug=False):
+    def make_shm_vs_cluster_size_plots(self, debug=False):
         def get_fname(iclustergroup=None, high_mutation=False, hexbin=False):
             if iclustergroup is not None:  # index of this group of clusters
                 return 'size-vs-shm-%d' % iclustergroup
@@ -181,28 +181,28 @@ class PartitionPlotter(object):
                 return 'size-vs-shm-hexbin'
             else:
                 assert False
-        subd, plotdir = self.init_subd('shm-vs-size', base_plotdir)
+        subd, plotdir = self.init_subd('shm-vs-size')
 
-        repertoire_size = sum([len(c) for c in sorted_clusters])
-        cluster_indices = {':'.join(sorted_clusters[i]) : i for i in range(len(sorted_clusters))}  # index over all clusters, in the order that the mds plots will appear (compare to the two other indices I need within plotting.make_single_joyplot())
+        repertoire_size = sum([len(c) for c in self.sclusts])
+        cluster_indices = {':'.join(self.sclusts[i]) : i for i in range(len(self.sclusts))}  # index over all clusters, in the order that the mds plots will appear (compare to the two other indices I need within plotting.make_single_joyplot())
 
         # size vs shm joy plots
         iclustergroup = 0
         fnd = {'joy' : [], 'hex' : []}
         high_mutation_clusters = []
-        sorted_cluster_groups = [sorted_clusters[i : i + self.n_clusters_per_joy_plot] for i in range(0, len(sorted_clusters), self.n_clusters_per_joy_plot)]
+        sorted_cluster_groups = [self.sclusts[i : i + self.n_clusters_per_joy_plot] for i in range(0, len(self.sclusts), self.n_clusters_per_joy_plot)]
         if debug:
-            print '  shm vs size joyplots: divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(sorted_clusters), len(sorted_cluster_groups))
+            print '  shm vs size joyplots: divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(self.sclusts), len(sorted_cluster_groups))
         all_emph_vals, emph_colors = None, None
         if self.args.meta_info_key_to_color is not None:  # have to do this out here before the loop so that the colors are synchronized (and all plots include all possible values)
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=sorted_clusters, antn_dict=annotations, formats=self.args.meta_emph_formats)
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
         for subclusters in sorted_cluster_groups:
             if iclustergroup > self.n_max_joy_plots:  # note that when this is activated, the high mutation plot is no longer guaranteed to have every high mutation cluster (but it should have every high mutation cluster that was bigger than the cluster size when we started skipping here)
                 continue
             if debug:
                 print '    %d: making joyplot with %d clusters' % (iclustergroup, len(subclusters))
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
-            high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, annotations, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations,
+            high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, self.antn_dict, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations,
                                                                         queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, all_emph_vals=all_emph_vals, emph_colors=emph_colors,
                                                                         make_legend=self.args.meta_info_key_to_color is not None, debug=debug)  # have to make legend for every plot
             if len(fnd['joy']) < self.n_joyplots_in_html['shm-vs-size']:
@@ -212,15 +212,15 @@ class PartitionPlotter(object):
             fnd['leg'] = [get_fname(iclustergroup=0)+'-legend']
         if len(high_mutation_clusters) > 0 and len(high_mutation_clusters[0]) > self.min_high_mutation_cluster_size:
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
-            self.plotting.make_single_joyplot(high_mutation_clusters, annotations, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations,
+            self.plotting.make_single_joyplot(high_mutation_clusters, self.antn_dict, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations,
                                               high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, all_emph_vals=all_emph_vals, emph_colors=emph_colors,
                                               make_legend=self.args.meta_info_key_to_color is not None, debug=debug)
             fnd['high'] = [get_fname(high_mutation=True)]
 
         # size vs shm hexbin plots
-        self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, plotdir, get_fname(hexbin=True))
+        self.make_single_hexbin_size_vs_shm_plot(repertoire_size, plotdir, get_fname(hexbin=True))
         fnd['hex'].append(get_fname(hexbin=True))
-        self.make_single_hexbin_size_vs_shm_plot(sorted_clusters, annotations, repertoire_size, plotdir, get_fname(hexbin=True), log_cluster_size=True)
+        self.make_single_hexbin_size_vs_shm_plot(repertoire_size, plotdir, get_fname(hexbin=True), log_cluster_size=True)
         fnd['hex'].append(get_fname(hexbin=True) + '-log')
 
         fnames, rfnames = [[]], [[]]
@@ -244,25 +244,25 @@ class PartitionPlotter(object):
         return rfnames
 
     # ----------------------------------------------------------------------------------------
-    def make_bubble_plots(self, sorted_clusters, annotations, base_plotdir, alpha=0.4, n_to_write_size=10, debug=False):
+    def make_bubble_plots(self, alpha=0.4, n_to_write_size=10, debug=False):
         import matplotlib.pyplot as plt
-        subd, plotdir = self.init_subd('bubble', base_plotdir)
-        rfn = '%s/csize-radii.csv' % base_plotdir
-        bpfn = '%s/bubble-positions.csv' % base_plotdir
+        subd, plotdir = self.init_subd('bubble')
+        rfn = '%s/csize-radii.csv' % self.base_plotdir
+        bpfn = '%s/bubble-positions.csv' % self.base_plotdir
         workfnames = [rfn, bpfn]
         mekey = self.args.meta_info_key_to_color
         fake_cluster, fake_antn = [], {'unique_ids' : [], mekey : []} # make a fake cluster with all sequences from all skipped clusters (circlify is too slow to run on all the smaller clusters)
         with open(rfn, 'w') as rfile:
             writer = csv.DictWriter(rfile, ['id', 'radius'])
             writer.writeheader()
-            for iclust, cluster in enumerate(sorted_clusters):
+            for iclust, cluster in enumerate(self.sclusts):
                 if iclust < self.n_max_bubbles:
                     writer.writerow({'id' : iclust, 'radius' : len(cluster)})
                 else:
                     fake_cluster += cluster
                     fake_antn['unique_ids'] += cluster
                     if mekey is not None:
-                        antn = annotations.get(':'.join(cluster))
+                        antn = self.antn_dict.get(':'.join(cluster))
                         fake_antn[mekey] += antn[mekey] if antn is not None and mekey in antn else [None for _ in cluster]
             if len(fake_cluster) > 0:
                 writer.writerow({'id' : 'fake', 'radius' : len(fake_cluster)})
@@ -285,15 +285,15 @@ class PartitionPlotter(object):
         ax.axis('off')
         plt.gca().set_aspect('equal')
         if self.args.meta_info_key_to_color is not None:
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=sorted_clusters, antn_dict=annotations, formats=self.args.meta_emph_formats)
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
             hcolors = {v : c for v, c in emph_colors}
-        def getclust(idl): return sorted_clusters[int(idl)] if idl!='fake' else fake_cluster
+        def getclust(idl): return self.sclusts[int(idl)] if idl!='fake' else fake_cluster
         for bfo in sorted(bubble_positions, key=lambda b: len(getclust(b['id'])), reverse=True):
             cluster = getclust(bfo['id'])
             if bfo['id']=='fake' or int(bfo['id']) < n_to_write_size:
                 tstr, fsize, tcol, dx = ('small clusters', 12, 'red', -0.3) if bfo['id']=='fake' else (len(cluster), 8, 'black', -0.04)
                 ax.text(bfo['x']+dx, bfo['y'], tstr, fontsize=fsize, alpha=0.4, color=tcol)
-            antn = annotations.get(':'.join(cluster)) if bfo['id'] != 'fake' else fake_antn
+            antn = self.antn_dict.get(':'.join(cluster)) if bfo['id'] != 'fake' else fake_antn
             if antn is None or mekey is None:
                 ax.add_patch(plt.Circle((bfo['x'], bfo['y']), bfo['r'], alpha=alpha, linewidth=2, fill=True))  # plain circle
             else:
@@ -301,13 +301,13 @@ class PartitionPlotter(object):
                 self.plotting.plot_pie_chart_marker(ax, bfo['x'], bfo['y'], bfo['r'], [{'label' : v, 'fraction' : f, 'color' : hcolors[v]} for v, f in emph_fracs.items()], alpha=alpha)
         fname = 'bubbles'
         total_bubble_seqs = sum(len(getclust(b['id'])) for b in bubble_positions if b['id']!='fake')
-        repertoire_size = sum([len(c) for c in sorted_clusters])
+        repertoire_size = sum([len(c) for c in self.sclusts])
         nbub = len(bubble_positions)
         if len(fake_cluster) > 0:
             nbub -= 1
-        title = 'bubbles for %d/%d clusters (%d/%d seqs)' % (nbub, len(sorted_clusters), total_bubble_seqs, repertoire_size)
+        title = 'bubbles for %d/%d clusters (%d/%d seqs)' % (nbub, len(self.sclusts), total_bubble_seqs, repertoire_size)
         if len(fake_cluster) > 0:
-            fig.text(0.2, 0.85, 'small clusters: %d seqs in %d clusters smaller than %d' % (len(fake_cluster), len(sorted_clusters) - len(bubble_positions), len(sorted_clusters[self.n_max_bubbles - 1])), fontsize=8, color='green')
+            fig.text(0.2, 0.85, 'small clusters: %d seqs in %d clusters smaller than %d' % (len(fake_cluster), len(self.sclusts) - len(bubble_positions), len(self.sclusts[self.n_max_bubbles - 1])), fontsize=8, color='green')
         self.plotting.mpl_finish(ax, plotdir, fname, title=title)
         fnames = [[]]
         self.addfname(fnames, fname)
@@ -320,12 +320,12 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_pairwise_diversity_plots(self, base_plotdir, sorted_clusters, annotations):
-        def antn(c): return annotations[':'.join(c)]
-        subd, plotdir = self.init_subd('diversity', base_plotdir)
+    def make_pairwise_diversity_plots(self):
+        def antn(c): return self.antn_dict[':'.join(c)]
+        subd, plotdir = self.init_subd('diversity')
 
-        repertoire_size = sum([len(c) for c in sorted_clusters])
-        for cluster in sorted_clusters:
+        repertoire_size = sum([len(c) for c in self.sclusts])
+        for cluster in self.sclusts:
             utils.add_seqs_aa(antn(cluster))
 
         fnlist = []
@@ -334,13 +334,13 @@ class PartitionPlotter(object):
             def pwfcn(c): return utils.mean_pairwise_hdist(antn(c)['seqs%s'%skey], amino_acid=tstr=='aa')
             def mean_mutations(c): return numpy.mean(antn(c)['n_mutations'] if tstr=='nuc' else [utils.shm_aa(antn(c), iseq=i) for i in range(len(antn(c)['unique_ids']))])
             fname = 'mean-pairwise-hdist-%s' % tstr
-            self.make_cluster_scatter(plotdir, fname, pwfcn, len, sorted_clusters, annotations, repertoire_size, self.min_pairwise_cluster_size, dxy=0.003, log_cluster_size=True,
+            self.make_cluster_scatter(plotdir, fname, pwfcn, len, self.sclusts, repertoire_size, self.min_pairwise_cluster_size, dxy=0.003, log_cluster_size=True,
                                       xlabel='mean pairwise %s distance'%tstr, colorfcn=mean_mutations, title='pairwise %s diversity'%tstr, leg_title='N %s muts'%tstr) #, xbounds=(0, self.n_max_mutations))
             fnlist += ['%s/%s-%s.svg' % (subd, fname, fstr) for fstr in ['legend', 'log']]
         return [fnlist]
 
     # ----------------------------------------------------------------------------------------
-    def make_mds_plots(self, sorted_clusters, annotations, base_plotdir, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, aa=False, debug=False):
+    def make_mds_plots(self, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, aa=False, debug=False):
         debug = True
         # ----------------------------------------------------------------------------------------
         def get_fname(ic):
@@ -369,7 +369,7 @@ class PartitionPlotter(object):
                     else:
                         tqtis[uid] = '_%s' % val
             # ----------------------------------------------------------------------------------------
-            full_info = annotations[':'.join(full_cluster)]
+            full_info = self.antn_dict[':'.join(full_cluster)]
             # title = '%s   (size: %d)' % (self.get_cdr3_title(full_info), len(full_cluster))
             title = '%sMDS (index %d size %d)' % ('AA ' if aa else '', iclust, len(full_cluster))
             leg_title = 'N %s mutations' % ('AA' if aa else 'nuc')
@@ -381,7 +381,7 @@ class PartitionPlotter(object):
                 if self.args.queries_to_include is not None:
                     uids_to_choose_from -= set(self.args.queries_to_include)
                 if self.args.meta_info_to_emphasize is not None:
-                    uids_to_choose_from -= set([u for u in uids_to_choose_from if self.meta_emph(annotations, full_cluster, u)])
+                    uids_to_choose_from -= set([u for u in uids_to_choose_from if self.meta_emph(full_cluster, u)])
                 n_to_remove = len(kept_indices) - max_cluster_size
                 if n_to_remove >= len(uids_to_choose_from):  # i.e. if we'd have to start removing queries that are in <self.args.queries_to_include>
                     removed_uids = uids_to_choose_from
@@ -401,7 +401,7 @@ class PartitionPlotter(object):
                 addqtis(tqtis, {u : u for u in self.args.queries_to_include})
             if self.args.meta_info_to_emphasize is not None:
                 key, val = self.args.meta_info_to_emphasize.items()[0]
-                addqtis(tqtis, {full_cluster[i] : utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats) for i in kept_indices if self.meta_emph(annotations, full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
+                addqtis(tqtis, {full_cluster[i] : utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats) for i in kept_indices if self.meta_emph(full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
             addseq('_naive', full_info['naive_seq%s'%tstr])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
             addseq('_consensus', utils.cons_seq_of_line(full_info, aa=aa))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
 
@@ -430,7 +430,7 @@ class PartitionPlotter(object):
 
         # ----------------------------------------------------------------------------------------
         def get_labels_for_coloring(full_cluster, color_rule):
-            full_info = annotations[':'.join(full_cluster)]
+            full_info = self.antn_dict[':'.join(full_cluster)]
             if color_rule == 'nearest-target':  # color by the index of the nearest cluster index (bcr-phylo simulation only)
                 if 'target_seqs' not in reco_info[full_cluster[0]]:
                     return
@@ -465,36 +465,36 @@ class PartitionPlotter(object):
             return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : '%s/%s.svg' % (plotdir, get_fname(iclust)), 'workfnames' : [tmpfname]}
 
         # ----------------------------------------------------------------------------------------
-        subd, plotdir = self.init_subd('mds', base_plotdir)
+        subd, plotdir = self.init_subd('mds')
 
         start = time.time()
         if debug:
             if not run_in_parallel:
-                print '    making mds plots starting with %d clusters' % len(sorted_clusters)
+                print '    making mds plots starting with %d clusters' % len(self.sclusts)
                 print '       size (+naive)   mds    plot   total'
         plotted_cluster_lengths, skipped_cluster_lengths = [], []
         fnames = [[]]
         cmdfos = []
         self.addfname(fnames, 'mds-legend')
-        for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='mds'):
-                skipped_cluster_lengths.append(len(sorted_clusters[iclust]))
+        for iclust in range(len(self.sclusts)):
+            if not self.plot_this_cluster(iclust, plottype='mds'):
+                skipped_cluster_lengths.append(len(self.sclusts[iclust]))
                 continue
-            plotted_cluster_lengths.append(len(sorted_clusters[iclust]))
+            plotted_cluster_lengths.append(len(self.sclusts[iclust]))
 
-            seqfos, color_scale_vals, tqtis, title, leg_title = get_cluster_info(sorted_clusters[iclust], iclust)
+            seqfos, color_scale_vals, tqtis, title, leg_title = get_cluster_info(self.sclusts[iclust], iclust)
 
             labels = None
             if color_rule is not None:
-                labels = get_labels_for_coloring(sorted_clusters[iclust], color_rule)
+                labels = get_labels_for_coloring(self.sclusts[iclust], color_rule)
                 # print '   %s setting color_scale_vals to None so we can use colors for nearest target seq index' % utils.color('red', 'note')
                 color_scale_vals = None  # not sure this is really the best way to do this
 
             if debug and not run_in_parallel:
                 substart = time.time()
-                subset_str = '' if len(sorted_clusters[iclust]) <= max_cluster_size else utils.color('red', '/%d' % len(sorted_clusters[iclust]), width=6, padside='right')  # -1 is for the added naive seq
-                tmpfo = annotations[':'.join(sorted_clusters[iclust])]
-                # n_naive_in_cluster = len([iseq for iseq in range(len(sorted_clusters[iclust])) if tmpfo['n_mutations'][iseq] == 0])  # work out if there was a sequence already in the cluster that was the same as the naive sequence
+                subset_str = '' if len(self.sclusts[iclust]) <= max_cluster_size else utils.color('red', '/%d' % len(self.sclusts[iclust]), width=6, padside='right')  # -1 is for the added naive seq
+                tmpfo = self.antn_dict[':'.join(self.sclusts[iclust])]
+                # n_naive_in_cluster = len([iseq for iseq in range(len(self.sclusts[iclust])) if tmpfo['n_mutations'][iseq] == 0])  # work out if there was a sequence already in the cluster that was the same as the naive sequence
                 # print '      %4d%6s' % (len(seqfos) - 1 + n_naive_in_cluster, subset_str),
                 print '      %4d%6s' % (len(seqfos), subset_str),
 
@@ -523,45 +523,30 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 
     # ----------------------------------------------------------------------------------------
-    # NOTE partially duplicates lbplotting.get_tree_in_line()
-    def get_treefos(self, sorted_clusters, annotations, cpath=None, debug=False):
-        if not self.args.is_data and any('tree' not in l for l in annotations.values()):
-            print '  %s true tree missing from at least one annotation, but --is-simu was set (probably bcr-phylo simulation with multiple gc rounds, where we remove the tree since it\'s no longer correct [need to implement tree merging for multiple rounds])' % utils.wrnstr()
-        if self.args.is_data and any('tree' in l for l in annotations.values()):
-            print '  %s true tree in at least one annotation, but --is-simu was not set (so we\'re not using it)' % utils.wrnstr()
-
-        if any('tree' in l for l in annotations.values()) and not self.args.is_data:
-            self.treefos = [annotations.get(':'.join(c)) for c in sorted_clusters]
-            print '    using true trees'
-        elif any('tree-info' in l and 'lb' in l['tree-info'] for l in annotations.values()):
-            self.treefos = [None for _ in sorted_clusters]
-            for iclust, cluster in enumerate(c for c in sorted_clusters if ':'.join(c) in annotations):
-                self.treefos[iclust] = annotations[':'.join(cluster)]['tree-info']['lb']['tree']
-            print '    using existing inferred trees in lb info'
-        else:
-            self.treefos = treeutils.get_trees_for_annotations([annotations.get(':'.join(c)) for c in sorted_clusters], treefname=self.args.treefname, cpath=cpath, workdir=self.args.workdir, cluster_indices=self.args.cluster_indices,
-                                                               tree_inference_method=self.args.tree_inference_method,
-                                                               inf_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else utils.fpath(utils.getprefix(self.args.outfname)),
-                                                               glfo=self.glfo, debug=debug)
+    def set_treefos(self):
+        if self.treefos is not None:
+            return
+        antn_list = [self.antn_dict.get(':'.join(c)) for c in self.sclusts]  # NOTE we *need* cluster indices here to match those in all the for loops in this file
+        self.treefos = treeutils.get_treefos(self.args, antn_list, cpath=self.cpath, glfo=self.glfo)
 
     # ----------------------------------------------------------------------------------------
     def get_treestr(self, iclust):  # at some point i'll probably need to handle None type trees, but that day is not today
         return self.treefos[iclust]['tree'].as_string(schema='newick').strip()
 
     # ----------------------------------------------------------------------------------------
-    def make_laplacian_spectra_plots(self, sorted_clusters, annotations, plotdir, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
-        subd, plotdir = self.init_subd('laplacian-spectra', plotdir)
-        self.get_treefos(sorted_clusters, annotations, cpath=cpath)
+    def make_laplacian_spectra_plots(self, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
+        subd, plotdir = self.init_subd('laplacian-spectra')
+        self.set_treefos()
 
         fnames = [[]]
-        for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust, annotations):
+        for iclust in range(len(self.sclusts)):
+            if not self.plot_this_cluster(iclust):
                 continue
-            annotation = annotations[':'.join(sorted_clusters[iclust])]
+            annotation = self.antn_dict[':'.join(self.sclusts[iclust])]
             if len(annotation['unique_ids']) < self.laplacian_spectra_min_clusters_size:
                 continue
-            if len(set(sorted_clusters[iclust])) < len(sorted_clusters[iclust]):
-                repeated_uids = [u for u, count in collections.Counter(sorted_clusters[iclust]).items() if count > 1]
+            if len(set(self.sclusts[iclust])) < len(self.sclusts[iclust]):
+                repeated_uids = [u for u, count in collections.Counter(self.sclusts[iclust]).items() if count > 1]
                 print '  skipping laplacian spectra plotting for cluster with %d duplicate uids (%s)' % (len(repeated_uids), ' '.join(repeated_uids))
                 continue
             treeutils.run_laplacian_spectra(self.get_treestr(iclust), plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))
@@ -574,7 +559,7 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_sfs_plots(self, sorted_clusters, annotations, base_plotdir, restrict_to_region=None, debug=False):
+    def make_sfs_plots(self, restrict_to_region=None, debug=False):
         def addplot(oindexlist, ofracslist, n_seqs, fname, cdr3titlestr, red_text=None):
             hist = Hist(30, 0., 1.)
             for ofracs in ofracslist:
@@ -590,19 +575,19 @@ class PartitionPlotter(object):
             self.plotting.mpl_finish(ax, plotdir, fname, title=titlestr, xlabel=regionstr + 'mutation frequency', ylabel=regionstr + 'density of mutations', xticks=[0, 1], log='')  # xticks=[min(occurence_fractions), max(occurence_fractions)], 
             self.addfname(fnames, fname)
 
-        subd, plotdir = self.init_subd('sfs', base_plotdir)
+        subd, plotdir = self.init_subd('sfs')
 
         fnames = [[]]
-        for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust, annotations):
+        for iclust in range(len(self.sclusts)):
+            if not self.plot_this_cluster(iclust):
                 continue
-            annotation = annotations[':'.join(sorted_clusters[iclust])]
+            annotation = self.antn_dict[':'.join(self.sclusts[iclust])]
             occurence_indices, occurence_fractions = utils.get_sfs_occurence_info(annotation, restrict_to_region=restrict_to_region)
             red_text = None
-            assert args.meta_info_to_emphasize is None  # would need to be implemented
-            if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(sorted_clusters[iclust])) > 0:
-                red_text = '%s' % ' '.join(set(self.args.queries_to_include) & set(sorted_clusters[iclust]))
-            addplot(occurence_indices, occurence_fractions, len(sorted_clusters[iclust]), 'icluster-%d' % iclust, self.get_cdr3_title(annotation), red_text=red_text)
+            assert self.args.meta_info_to_emphasize is None  # would need to be implemented
+            if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(self.sclusts[iclust])) > 0:
+                red_text = '%s' % ' '.join(set(self.args.queries_to_include) & set(self.sclusts[iclust]))
+            addplot(occurence_indices, occurence_fractions, len(self.sclusts[iclust]), 'icluster-%d' % iclust, self.get_cdr3_title(annotation), red_text=red_text)
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
@@ -610,11 +595,11 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_cluster_size_distribution(self, base_plotdir, sorted_clusters, annotations):
-        subd, plotdir = self.init_subd('sizes', base_plotdir)
+    def make_cluster_size_distribution(self):
+        subd, plotdir = self.init_subd('sizes')
         fname = 'cluster-sizes'
         hcolors = None
-        cslist = [len(c) for c in sorted_clusters]
+        cslist = [len(c) for c in self.sclusts]
         # is_log_x = len(cslist) > 100 # and len([s for s in cslist if s>50]) > 30
         csize_hists = {'best' : hutils.make_hist_from_list_of_values(cslist, 'int', fname, is_log_x=True)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want UPDATE ok now sometimes using log bins, for aesthetic plotting reasons, but maybe also ok for sampling?
         self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists)
@@ -624,12 +609,12 @@ class PartitionPlotter(object):
         if self.args.meta_info_key_to_color is not None:  # plot mean fraction of cluster that's X for each cluster size
             fname = 'cluster-size-fractions'
             mekey = self.args.meta_info_key_to_color
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=sorted_clusters, antn_dict=annotations, formats=self.args.meta_emph_formats)
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
             hcolors = {v : c for v, c in emph_colors}
             plotvals = {v : [] for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
-            for csize, cluster_group in itertools.groupby(sorted_clusters, key=len):
+            for csize, cluster_group in itertools.groupby(self.sclusts, key=len):
                 for tclust in cluster_group:
-                    antn = annotations.get(':'.join(tclust))
+                    antn = self.antn_dict.get(':'.join(tclust))
                     if antn is None:
                         continue
                     emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, tclust, antn, formats=self.args.meta_emph_formats)
@@ -656,7 +641,7 @@ class PartitionPlotter(object):
         return [fnlist]
 
     # ----------------------------------------------------------------------------------------
-    def make_tree_plots(self, sorted_clusters, annotations, plotdir, cpath=None):
+    def make_tree_plots(self, cpath=None):
         # ----------------------------------------------------------------------------------------
         def get_metafo(annotation):
             if self.args.meta_info_key_to_color is None and self.args.node_size_key is None and not self.args.label_mutations:
@@ -693,19 +678,19 @@ class PartitionPlotter(object):
                         metafo['labels'][uid] += '\n' + ', '.join(mfo['str'] for mfo in aa_mutations[uid])
             return metafo
         # ----------------------------------------------------------------------------------------
-        if len(sorted_clusters) == 0:
+        if len(self.sclusts) == 0:
             print '  %s no clusters to plot' % utils.wrnstr()
             return [['x.svg']]
         import lbplotting  # this is really slow because of the scipy stats import
-        subd, plotdir = self.init_subd('trees', plotdir)
-        self.get_treefos(sorted_clusters, annotations, cpath=cpath)
+        subd, plotdir = self.init_subd('trees')
+        self.set_treefos()
         workdir = '%s/ete3-plots' % self.args.workdir
         fnames = [[]]
         cmdfos = []
-        for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='trees'):
+        for iclust in range(len(self.sclusts)):
+            if not self.plot_this_cluster(iclust, plottype='trees'):
                 continue
-            annotation = annotations[':'.join(sorted_clusters[iclust])]
+            annotation = self.antn_dict[':'.join(self.sclusts[iclust])]
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 continue
             plotname = 'tree-iclust-%d' % iclust
@@ -719,26 +704,27 @@ class PartitionPlotter(object):
 
         if self.args.meta_info_key_to_color is not None:
             mekey = self.args.meta_info_key_to_color
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=sorted_clusters, antn_dict=annotations, formats=self.args.meta_emph_formats)
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
             self.plotting.make_meta_info_legend(plotdir, 'tree', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
             self.addfname(fnames, 'tree-legend')
 
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_subtree_purity_plots(self, sorted_clusters, annotations, plotdir, cpath=None):
+    def make_subtree_purity_plots(self, cpath=None):
 
-        if len(sorted_clusters) == 0:
+        if len(self.sclusts) == 0:
             print '  %s no clusters to plot' % utils.wrnstr()
             return [['x.svg']]
         import lbplotting  # this is really slow because of the scipy stats import
-        subd, plotdir = self.init_subd('subtree-purity', plotdir)
-        self.get_treefos(sorted_clusters, annotations, cpath=cpath)
+        subd, plotdir = self.init_subd('subtree-purity')
+        if self.treefos is None:
+            self.set_treefos()
         fnames = []
-        for iclust in range(len(sorted_clusters)):
-            if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='trees'):
+        for iclust in range(len(self.sclusts)):
+            if not self.plot_this_cluster(iclust, plottype='trees'):
                 continue
-            annotation = annotations[':'.join(sorted_clusters[iclust])]
+            annotation = self.antn_dict[':'.join(self.sclusts[iclust])]
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 continue
             ifns = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, self.treefos[iclust]['tree'], annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
@@ -782,34 +768,35 @@ class PartitionPlotter(object):
 
         fnames = []
         self.remove_failed_clusters(partition, annotations)
-        sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
+        self.sclusts, self.antn_dict, self.cpath, self.base_plotdir = sorted(partition, key=lambda c: len(c), reverse=True), annotations, cpath, plotdir
 
         if 'shm-vs-size' in plot_cfg:
-            fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
+            fnames += self.make_shm_vs_cluster_size_plots()
         if 'diversity' in plot_cfg:
-            fnames += self.make_pairwise_diversity_plots(plotdir, sorted_clusters, annotations)
+            fnames += self.make_pairwise_diversity_plots()
         if 'bubble' in plot_cfg:
-            fnames += self.make_bubble_plots(sorted_clusters, annotations, plotdir)
+            fnames += self.make_bubble_plots()
         if 'trees' in plot_cfg: # and self.args.meta_info_key_to_color is not None:
-            fnames += self.make_tree_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+            fnames += self.make_tree_plots()
             if args is not None and args.meta_info_key_to_color is not None:
-                fnames += self.make_subtree_purity_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+                fnames += self.make_subtree_purity_plots()
         if 'mds' in plot_cfg:
             if utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):
-                fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
+                fnames += self.make_mds_plots(reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
             else:
                 print '  note: R does not seem to be installed, so skipping mds partition plots'
         if 'sizes' in plot_cfg:
-            csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)
+            csfns = self.make_cluster_size_distribution()
             if len(fnames) == 0: fnames.append([])
             fnames[0] += csfns[0]
 
+        # these probably needs testing/updating
         if 'laplacian-spectra' in plot_cfg:
-            fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+            fnames += self.make_laplacian_spectra_plots()
         if 'sfs' in plot_cfg:
-            fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
+            fnames += self.make_sfs_plots()
 
         if not self.args.only_csv_plots:
-            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd if os.path.exists('%s/%s.html'%(plotdir,subd)) else subd) for subd in subdirs], bgcolor='#FFFFFF')
+            self.plotting.make_html(self.base_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=self.base_plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd if os.path.exists('%s/%s.html'%(self.base_plotdir,subd)) else subd) for subd in subdirs], bgcolor='#FFFFFF')
 
         print '    partition plotting time: %.1f sec' % (time.time()-start)
