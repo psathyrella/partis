@@ -325,7 +325,7 @@ class PartitionDriver(object):
             if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
                 assert self.input_partition is not None
                 partplotter = PartitionPlotter(self.args, glfo=self.glfo)
-                partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, no_mds_plots=self.args.no_mds_plots) #, cpath=cpath) cpath is only used for laplacian spectra
+                partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, args=self.args) #, cpath=cpath) cpath is only used for laplacian spectra
             if self.args.count_parameters and not self.args.dont_write_parameters:
                 self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
 
@@ -529,7 +529,7 @@ class PartitionDriver(object):
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args, glfo=self.glfo)
-            partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], annotation_dict, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
+            partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], annotation_dict, reco_info=self.reco_info, cpath=cpath, args=self.args)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotation_list)
@@ -952,7 +952,7 @@ class PartitionDriver(object):
 
         if self.args.plotdir is not None and not self.args.no_partition_plots:
             partplotter = PartitionPlotter(self.args, glfo=self.glfo)
-            partplotter.plot(self.args.plotdir + '/partitions', cpath.best(), all_annotations, reco_info=self.reco_info, cpath=cpath, no_mds_plots=self.args.no_mds_plots)
+            partplotter.plot(self.args.plotdir + '/partitions', cpath.best(), all_annotations, reco_info=self.reco_info, cpath=cpath, args=self.args)
 
         if self.args.seed_unique_id is not None:
             cpath.print_seed_cluster_size(queries_to_include=self.args.queries_to_include)

@@ -3418,7 +3418,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
         from partitionplotter import PartitionPlotter
         partplotter = PartitionPlotter(args)
-        partplotter.plot('%s/partitions/%s'%(args.plotdir, 'true' if is_simu else 'inferred'), [l['unique_ids'] for l in (true_lines if is_simu else inf_lines.values())], utils.get_annotation_dict(true_lines) if is_simu else inf_lines, no_mds_plots=args.no_mds_plots)
+        partplotter.plot('%s/partitions/%s'%(args.plotdir, 'true' if is_simu else 'inferred'), [l['unique_ids'] for l in (true_lines if is_simu else inf_lines.values())], utils.get_annotation_dict(true_lines) if is_simu else inf_lines, args=args)
     if debug:
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
             print_dbg(iclust, metric_pairs, icl_mfos)  # note: relies on mtpys being in scope

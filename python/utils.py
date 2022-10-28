@@ -33,6 +33,9 @@ import indelutils
 import clusterpath
 import treeutils
 
+all_ptn_plot_cfg = ['shm-vs-size', 'bubble', 'diversity', 'sizes', 'trees', 'mds', 'laplacian-spectra', 'sfs']
+default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'bubble', 'sizes', 'trees']
+
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
     return os.path.dirname(os.path.realpath(__file__)).replace('/python', '')

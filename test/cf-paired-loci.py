@@ -272,7 +272,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         if args.make_plots and action != 'cache-parameters':
             cmd += ' --plotdir paired-outdir'
             if action in ptn_actions:
-                cmd += ' --no-partition-plots' #--no-mds-plots' #
+                cmd += ' --no-partition-plots'
             if args.antn_perf:
                 cmd += ' --plot-annotation-performance --only-csv-plots'
         if args.inference_extra_args is not None:

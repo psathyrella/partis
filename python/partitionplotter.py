@@ -7,6 +7,7 @@ import sys
 import time
 import collections
 import operator
+import copy
 
 from hist import Hist
 import hutils
@@ -761,37 +762,49 @@ class PartitionPlotter(object):
             partition.remove(fclust)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, partition, annotations, reco_info=None, cpath=None, no_mds_plots=False):
+    def plot(self, plotdir, partition, annotations, reco_info=None, cpath=None, args=None):
         if self.args.only_csv_plots:
             print '  --only-csv-plots not implemented for partition plots, so returning without plotting'
             return
-        if not utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):
-            no_mds_plots = True
-            print '  note: R does not seem to be installed, so skipping mds partition plots'
         print '  plotting partitions to %s' % plotdir
         sys.stdout.flush()
         start = time.time()
-        subdirs = ['shm-vs-size', 'mds', 'bubble', 'diversity'] #, 'laplacian-spectra']  # , 'sfs
+        if args is None or args.partition_plot_cfg is None:
+            plot_cfg = utils.default_ptn_plot_cfg
+        else:
+            plot_cfg = args.partition_plot_cfg
+        subdirs = copy.deepcopy(plot_cfg)
 
         fnames = []
         self.remove_failed_clusters(partition, annotations)
         sorted_clusters = sorted(partition, key=lambda c: len(c), reverse=True)
 
-        fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
-        fnames += self.make_pairwise_diversity_plots(plotdir, sorted_clusters, annotations)
-        fnames += self.make_bubble_plots(sorted_clusters, annotations, plotdir)
-        if self.args.meta_info_key_to_color is not None:
-            subdirs.append('trees')
+        if 'shm-vs-size' in plot_cfg:
+            fnames += self.make_shm_vs_cluster_size_plots(sorted_clusters, annotations, plotdir)
+        if 'diversity' in plot_cfg:
+            fnames += self.make_pairwise_diversity_plots(plotdir, sorted_clusters, annotations)
+        if 'bubble' in plot_cfg:
+            fnames += self.make_bubble_plots(sorted_clusters, annotations, plotdir)
+        if 'trees' in plot_cfg: # and self.args.meta_info_key_to_color is not None:
             fnames += self.make_tree_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
-            fnames += self.make_subtree_purity_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
-        # if not no_mds_plots:
-        #     fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
-        csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)
-        fnames[0] += csfns[0]
-        # fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
-        # fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
+            if args is not None and args.meta_info_key_to_color is not None:
+                fnames += self.make_subtree_purity_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+        if 'mds' in plot_cfg:
+            if utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):
+                fnames += self.make_mds_plots(sorted_clusters, annotations, plotdir, reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
+            else:
+                print '  note: R does not seem to be installed, so skipping mds partition plots'
+        if 'sizes' in plot_cfg:
+            csfns = self.make_cluster_size_distribution(plotdir, sorted_clusters, annotations)
+            if len(fnames) == 0: fnames.append([])
+            fnames[0] += csfns[0]
+
+        if 'laplacian-spectra' in plot_cfg:
+            fnames += self.make_laplacian_spectra_plots(sorted_clusters, annotations, plotdir, cpath=cpath)
+        if 'sfs' in plot_cfg:
+            fnames += self.make_sfs_plots(sorted_clusters, annotations, plotdir)
 
         if not self.args.only_csv_plots:
-            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd) for subd in subdirs], bgcolor='#FFFFFF')
+            self.plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd if os.path.exists('%s/%s.html'%(plotdir,subd)) else subd) for subd in subdirs], bgcolor='#FFFFFF')
 
         print '    partition plotting time: %.1f sec' % (time.time()-start)
