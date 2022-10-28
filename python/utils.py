@@ -1317,7 +1317,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
         add_implicit_info(glfo, line)
 
     if print_added_str:
-        print '    added %d %s seqs to line (originally with %d)%s' % (len(seqfos_to_add), print_added_str, original_len, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add))
+        print '      added %d %s seqs to line (originally with %d)%s' % (len(seqfos_to_add), print_added_str, original_len, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add))
     if debug:
         print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 

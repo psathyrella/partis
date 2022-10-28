@@ -43,6 +43,8 @@ class PartitionPlotter(object):
 
         self.n_mds_components = 2
 
+        self.treefos = None
+
     # ----------------------------------------------------------------------------------------
     def init_subd(self, subd, base_plotdir):
         plotdir = base_plotdir + '/' + subd
@@ -521,31 +523,35 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 
     # ----------------------------------------------------------------------------------------
-    def get_treestr(self, annotation, cpath, debug=False):
-        if not self.args.is_data and 'tree' not in annotation:
-            print '  %s true tree missing from annotation, but --is-simu was set' % utils.wrnstr()
-        if self.args.is_data and 'tree' in annotation:
-            print '  %s true tree in annotation, but --is-simu was not set (so we\'re not using it)' % utils.wrnstr()
-        if 'tree' in annotation and not self.args.is_data:
-            treestr = annotation['tree']
-            print '    using true tree'
-        elif 'tree-info' in annotation and 'lb' in annotation['tree-info']:
-            treestr = annotation['tree-info']['lb']['tree']
-        else:  # if this is simulation, and add_smetrics() was called with use_true_clusters=True, then we probably have to get our own trees here for the actual clusters in the best partitionn
-            # print '  %s partitionplotter.get_treestr(): may need testing' % utils.wrnstr()
-            # TODO would be better to get trees for all annotations at once
-            treefo = treeutils.get_trees_for_annotations([annotation], treefname=self.args.treefname, cpath=cpath, workdir=self.args.workdir, cluster_indices=self.args.cluster_indices,
-                                                         tree_inference_method=self.args.tree_inference_method,
-                                                         inf_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else utils.fpath(utils.getprefix(self.args.outfname)),
-                                                         glfo=self.glfo, debug=debug)[0]
-            # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=treefo['tree']))
-            print '  partitionplotter: no tree in annotation, so got new tree from/with \'%s\'' % treefo['origin']
-            treestr = treefo['tree'].as_string(schema='newick').strip()
-        return treestr
+    # NOTE partially duplicates lbplotting.get_tree_in_line()
+    def get_treefos(self, sorted_clusters, annotations, cpath=None, debug=False):
+        if not self.args.is_data and any('tree' not in l for l in annotations.values()):
+            print '  %s true tree missing from at least one annotation, but --is-simu was set (probably bcr-phylo simulation with multiple gc rounds, where we remove the tree since it\'s no longer correct [need to implement tree merging for multiple rounds])' % utils.wrnstr()
+        if self.args.is_data and any('tree' in l for l in annotations.values()):
+            print '  %s true tree in at least one annotation, but --is-simu was not set (so we\'re not using it)' % utils.wrnstr()
+
+        if any('tree' in l for l in annotations.values()) and not self.args.is_data:
+            self.treefos = [annotations.get(':'.join(c)) for c in sorted_clusters]
+            print '    using true trees'
+        elif any('tree-info' in l and 'lb' in l['tree-info'] for l in annotations.values()):
+            self.treefos = [None for _ in sorted_clusters]
+            for iclust, cluster in enumerate(c for c in sorted_clusters if ':'.join(c) in annotations):
+                self.treefos[iclust] = annotations[':'.join(cluster)]['tree-info']['lb']['tree']
+            print '    using existing inferred trees in lb info'
+        else:
+            self.treefos = treeutils.get_trees_for_annotations([annotations.get(':'.join(c)) for c in sorted_clusters], treefname=self.args.treefname, cpath=cpath, workdir=self.args.workdir, cluster_indices=self.args.cluster_indices,
+                                                               tree_inference_method=self.args.tree_inference_method,
+                                                               inf_outdir=None if self.args.outfname is None or self.args.tree_inference_method is None else utils.fpath(utils.getprefix(self.args.outfname)),
+                                                               glfo=self.glfo, debug=debug)
+
+    # ----------------------------------------------------------------------------------------
+    def get_treestr(self, iclust):  # at some point i'll probably need to handle None type trees, but that day is not today
+        return self.treefos[iclust]['tree'].as_string(schema='newick').strip()
 
     # ----------------------------------------------------------------------------------------
     def make_laplacian_spectra_plots(self, sorted_clusters, annotations, plotdir, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
         subd, plotdir = self.init_subd('laplacian-spectra', plotdir)
+        self.get_treefos(sorted_clusters, annotations, cpath=cpath)
 
         fnames = [[]]
         for iclust in range(len(sorted_clusters)):
@@ -558,8 +564,7 @@ class PartitionPlotter(object):
                 repeated_uids = [u for u, count in collections.Counter(sorted_clusters[iclust]).items() if count > 1]
                 print '  skipping laplacian spectra plotting for cluster with %d duplicate uids (%s)' % (len(repeated_uids), ' '.join(repeated_uids))
                 continue
-            treestr = self.get_treestr(annotation, cpath, debug=debug)
-            treeutils.run_laplacian_spectra(treestr, plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))
+            treeutils.run_laplacian_spectra(self.get_treestr(iclust), plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))
             if len(fnames[-1]) < self.n_plots_per_row:
                 self.addfname(fnames, 'icluster-%d' % iclust)
 
@@ -693,6 +698,7 @@ class PartitionPlotter(object):
             return [['x.svg']]
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('trees', plotdir)
+        self.get_treefos(sorted_clusters, annotations, cpath=cpath)
         workdir = '%s/ete3-plots' % self.args.workdir
         fnames = [[]]
         cmdfos = []
@@ -702,9 +708,8 @@ class PartitionPlotter(object):
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 continue
-            treestr = self.get_treestr(annotation, cpath)
             plotname = 'tree-iclust-%d' % iclust
-            cmdfos += [lbplotting.get_lb_tree_cmd(treestr, '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=get_metafo(annotation), queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color, label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key)]
+            cmdfos += [lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=get_metafo(annotation), queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color, label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key)]
             self.addfname(fnames, plotname)
         if len(cmdfos) > 0:
             start = time.time()
@@ -728,6 +733,7 @@ class PartitionPlotter(object):
             return [['x.svg']]
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('subtree-purity', plotdir)
+        self.get_treefos(sorted_clusters, annotations, cpath=cpath)
         fnames = []
         for iclust in range(len(sorted_clusters)):
             if not self.plot_this_cluster(sorted_clusters, iclust, annotations, plottype='trees'):
@@ -735,8 +741,7 @@ class PartitionPlotter(object):
             annotation = annotations[':'.join(sorted_clusters[iclust])]
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 continue
-            treestr = self.get_treestr(annotation, cpath)
-            ifns = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, treeutils.get_dendro_tree(treestr=treestr), annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
+            ifns = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, self.treefos[iclust]['tree'], annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
             fnames += ifns
             # for fn in ifns:
             #     self.addfname(fnames, fn)

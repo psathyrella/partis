@@ -413,6 +413,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     return fnames
 
 # ----------------------------------------------------------------------------------------
+# NOTE partially duplicates partitionplotter.get_treefos()
 def get_tree_in_line(line, is_true_line, aa=False):  # NOTE unlike treeutils.get_trees_for_annotations() this just looks to see if there's a tree already in the line
     if is_true_line and not aa:  # this is weird and ugly
         return line['tree']

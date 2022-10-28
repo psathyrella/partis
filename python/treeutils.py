@@ -841,7 +841,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     iqt_ofn = '%s/%s.treefile' % (workdir, outfix)
     ifn = '%s/input-seqs.fa' % workdir
     if method == 'iqtree' and os.path.exists(iqt_ofn):
-        print '  %s output exists, not rerunning: %s' % (method, iqt_ofn)
+        print '      %s output exists, not rerunning: %s' % (method, iqt_ofn)
     else:
         utils.write_fasta(ifn, seqfos)
         out, err = utils.simplerun(getcmd(ifn), shell=True, return_out_err=True, extra_str='            ') #debug=debug)
@@ -854,7 +854,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         print '      converting %s newick string to dendro tree' % method
     dtree = get_dendro_tree(treestr=treestr, treefname=treefname, taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree', suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
     if method == 'iqtree':
-        translate_labels(dtree, translations.items(), debug=False)
+        translate_labels(dtree, translations.items(), expect_missing=True)  # we only need to replace ones with '+'s, so in general lots will be missing
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
@@ -2043,8 +2043,11 @@ def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
     print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
 
 # ----------------------------------------------------------------------------------------
+# def get_single_tree_for_annotation(antn, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, debug=False):
+# ----------------------------------------------------------------------------------------
 # gets new tree for each specified annotation, and adds a new 'tree-info' key for each (overwriting any that's already there)
-def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, debug=False):
+# NOTE <inf_lines_to_use> should be *all* your annotations (so the subclust workdirs are correct), *not* just one cluster at a time
+def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, hard_min_cluster_size=3, debug=False):
     # ----------------------------------------------------------------------------------------
     def prep_gctree(iclust, line):
         if glfo is not None:  # if you don't pass in glfo, your sequences better not have fwk insertions since gctree barfs on ambiguous bases
@@ -2077,14 +2080,19 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         print '      read %d trees from %s' % (len(filetrees), treefname)
     check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
     tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in (('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('fasttree', 'ran fasttree'), ('iqtree', 'ran iqtree'), ('gctree', 'ran gctree'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr'))}
-    n_already_there, n_skipped_uid = 0, 0
+    n_already_there, n_skipped_uid, n_skipped_size = 0, 0, 0
     cmdfos, treefos = [None for _ in inf_lines_to_use], [None for _ in inf_lines_to_use]
     for iclust, line in enumerate(inf_lines_to_use):
         if cluster_indices is not None and iclust not in cluster_indices:
             continue
+        if line is None:
+            continue
+        if len(line['unique_ids']) < hard_min_cluster_size:
+            n_skipped_size += 1
+            continue
         if debug:
             print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
-        if 'tree-info' in line:  # overwrite any existing trees (although we could go back to skipping them) NOTE doesn't rerun gctree though if the output files are already there
+        if 'tree-info' in line:  # overwrite any existing trees (although we could go back to skipping them) NOTE doesn't rerun gctree or iqtree though if the output files are already there
             if debug:
                 print '       %s overwriting tree that was already in <line>' % utils.color('yellow', 'warning')
             n_already_there += 1
@@ -2142,11 +2150,13 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             utils.add_seqs_to_line(line, seqfos, glfo, print_added_str='gctree inferred', debug=debug)  # ok, i guess you need glfo (see above)
             addtree(iclust, line, dtree, 'gctree')
 
-    print '      tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
+    print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
     if n_skipped_uid > 0:
         print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, len(inf_lines_to_use), treefname)
     if n_already_there > 0:
         print '    %s overwriting %d / %d that already had trees' % (utils.color('yellow', 'warning'), n_already_there, ntot)
+    if n_skipped_size > 0:
+        print '    skipped %d/%d clusters smaller than %d (should maybe be applying min cluster size before calling this fcn)' % (n_skipped_size, len(inf_lines_to_use), hard_min_cluster_size)
 
     return treefos
 
@@ -2167,7 +2177,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, dont_normalize_lbi=False, extra_s
         line['tree-info']['lb']['aa-'+nuc_metric] = aa_lb_info[nuc_metric]
 
 # ----------------------------------------------------------------------------------------
-def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefname=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
+def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                  train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, only_use_best_partition=False, glfo=None, tree_inference_outdir=None, debug=False):
     min_cluster_size = args.min_selection_metric_cluster_size  # default_min_selection_metric_cluster_size
     print '  getting selection metrics: %s' % ' '.join(metrics_to_calc)
@@ -2198,7 +2208,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
             return
         treefos = None
         if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
-            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method, inf_outdir=tree_inference_outdir, glfo=glfo, debug=debug)
+            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method, inf_outdir=tree_inference_outdir, glfo=glfo, debug=debug)
         print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
         check_cluster_indices(args.cluster_indices, n_after, inf_lines_to_use)
@@ -2243,7 +2253,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, treefna
             final_inf_lines.append(line)
 
         if n_skipped_uid > 0:
-            print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, n_after, treefname)
+            print '    skipped %d/%d clusters that had no uids in common with tree' % (n_skipped_uid, n_after)
         if n_already_there > 0:
             print '    %s replaced tree info in %d / %d that already had it' % (utils.color('yellow', 'warning'), n_already_there, n_after)
 
