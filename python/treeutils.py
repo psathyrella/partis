@@ -2058,13 +2058,13 @@ def get_treefos(args, antn_list, cpath=None, glfo=None, debug=False):  # note th
         print '    using existing inferred trees in lb info'
     else:
         treefos = get_trees_for_annotations(antn_list, treefname=args.treefname, cpath=cpath, workdir=args.workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
-                                            inf_outdir=None if args.outfname is None or args.tree_inference_method is None else utils.fpath(utils.getprefix(args.outfname)), glfo=glfo, debug=debug)
+                                            inf_outdir=None if args.outfname is None or args.tree_inference_method is None else utils.fpath(utils.getprefix(args.outfname)), glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, debug=debug)
     return treefos
 
 # ----------------------------------------------------------------------------------------
 # gets new tree for each specified annotation, and adds a new 'tree-info' key for each (overwriting any that's already there)
 # NOTE <inf_lines_to_use> should be *all* your annotations (so the subclust workdirs are correct), *not* just one cluster at a time
-def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, hard_min_cluster_size=3, debug=False):
+def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, min_cluster_size=4, debug=False):
     # ----------------------------------------------------------------------------------------
     def prep_gctree(iclust, line):
         if glfo is not None:  # if you don't pass in glfo, your sequences better not have fwk insertions since gctree barfs on ambiguous bases
@@ -2086,7 +2086,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         treefos[iclust] = {'tree' : dtree, 'origin' : origin}
     # ----------------------------------------------------------------------------------------
     ntot = len(inf_lines_to_use)
-    print '    getting trees for %d cluster%s with size%s: %s' % (ntot, utils.plural(ntot), utils.plural(ntot), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
+    print '    getting trees for %d cluster%s with size%s: %s' % (ntot, utils.plural(ntot), utils.plural(ntot), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size))
     filetrees = None
     if treefname is not None:
         filetrees = []
@@ -2105,7 +2105,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         if line is None:
             n_skipped_line += 1
             continue
-        if len(line['unique_ids']) < hard_min_cluster_size:
+        if len(line['unique_ids']) < min_cluster_size:
             n_skipped_size += 1
             continue
         if debug:
@@ -2159,10 +2159,13 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
 
     if cmdfos.count(None) != len(cmdfos):
         start = time.time()
-        utils.run_cmds(cmdfos, n_max_procs=utils.auto_n_procs(), proc_limit_str='gctree-run.py', debug='print')
-        print '    made %d gctrees (%.1fs)' % (len(cmdfos), time.time() - start)
+        non_none_cfos = [c for c in cmdfos if c is not None]  # only the non-None ones NOTE indices no longer correspond to inf_lines_to_use
+        utils.run_cmds(non_none_cfos, n_max_procs=utils.auto_n_procs(), proc_limit_str='gctree-run.py', debug='print')
+        print '    made %d gctrees (%.1fs)' % (len(non_none_cfos), time.time() - start)
         assert len(inf_lines_to_use) == len(cmdfos)
         for iclust, (line, cfo) in enumerate(zip(inf_lines_to_use, cmdfos)):
+            if cfo is None:
+                continue
             dtree = get_dendro_tree(treefname=cfo['outfname'])
             seqfos = utils.read_fastx('%s/inferred-seqs.fa'%os.path.dirname(cfo['outfname']), look_for_tuples=True)
             utils.add_seqs_to_line(line, seqfos, glfo, print_added_str='gctree inferred', debug=debug)  # ok, i guess you need glfo (see above)
@@ -2176,7 +2179,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
     if n_skipped_line > 0:
         print '    skipped %d/%d clusters with None type annotations' % (n_skipped_line, len(inf_lines_to_use))
     if n_skipped_size > 0:
-        print '    skipped %d/%d clusters smaller than %d (should maybe be applying min cluster size before calling this fcn)' % (n_skipped_size, len(inf_lines_to_use), hard_min_cluster_size)
+        print '    skipped %d/%d clusters smaller than %d' % (n_skipped_size, len(inf_lines_to_use), min_cluster_size)
 
     return treefos
 
