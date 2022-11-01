@@ -468,7 +468,6 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
         mpl_finish(ax, plotdir, 'violin-'+plotname, xticklabels=xticklabels, xlabel=mekey.rstrip('s'), ylabel=xtitle)
 
     if swarm_plots:
-        sns = sys.modules['seaborn']
         ax = sns.swarmplot(data=vlnvals)
         if colors is not None:  # should really apply these to the violin and hist plots as well
             assert len(colors) == len(ax.collections)

@@ -191,7 +191,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
 
     if args.swarm_meta_key is not None:
         plotvals = {h.title : [h.get_bin_centers()[i] for i in h.ibiniter(True) for _ in range(int(h.bin_contents[i]))] for h in hlist}
-    plotting.stack_meta_hists(varname, outdir, args.swarm_meta_key, plotvals, colors={h.title : c for h, c in zip(hlist, args.colors)}, xtitle=xtitle, swarm_plots=True, no_hist=True, xticks=xticks)
+        plotting.stack_meta_hists(varname, outdir, args.swarm_meta_key, plotvals, colors={h.title : c for h, c in zip(hlist, args.colors)}, xtitle=xtitle, swarm_plots=True, no_hist=True, xticks=xticks)
 
 # ----------------------------------------------------------------------------------------
 helpstr = """
