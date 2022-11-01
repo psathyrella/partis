@@ -32,10 +32,10 @@ class MuteFreqer(object):
 
         self.mekey = self.args.meta_info_key_to_color if self.args is not None else None
         if self.mekey is not None:
-            self.meta_hists = {k : {'all' : {}} for k in ['mean-n-muted', 'mean-rates']} #v : {n : h for n, h in self.mean_n_muted.items()} for v in all_emph_vals}  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
+            self.vln_values = {k : {} for k in ['mean-n-muted', 'mean-rates']}  # damnit, need to keep around all values to do violin plots
 
         self.finalized = False
-        self.n_cached, self.n_not_cached = 0, 0
+        # self.n_cached, self.n_not_cached = 0, 0
 
         self.subplotdirs = ['overall', ] + ['per-gene/' + r for r in utils.regions] + ['per-gene-per-position/' + r for r in utils.regions]  # + ['per-gene-per-position-per-base/' + r for r in utils.regions]
 
@@ -46,11 +46,10 @@ class MuteFreqer(object):
         self.mean_n_muted['all'].fill(n_muted)
         if self.mekey is not None and self.mekey in info:
             meval = info[self.mekey][iseq]
-            for hkey, ohists, tval, pltck in zip(['mean-n-muted', 'mean-rates'], [self.mean_n_muted, self.mean_rates], [n_muted, freq], ['all_mean-n-muted', 'mute_freqs']):
-                hdct = self.meta_hists[hkey]
-                if meval not in hdct['all']:
-                    hdct['all'][meval] = Hist(template_hist=ohists['all'], title=str(meval), xtitle=plotconfig.xtitles[pltck])
-                hdct['all'][meval].fill(tval)
+            for hkey, tval in zip(['mean-n-muted', 'mean-rates'], [n_muted, freq]):
+                if meval not in self.vln_values[hkey]:
+                    self.vln_values[hkey][meval] = []
+                self.vln_values[hkey][meval].append(tval)
 
         freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region='cdr3')
         self.mean_rates['cdr3'].fill(freq)
@@ -196,18 +195,10 @@ class MuteFreqer(object):
             plotting.draw_no_root(self.mean_rates[rstr], plotname=rstr+'_mean-freq', plotdir=overall_plotdir, stats='mean', bounds=bounds, write_csv=True, only_csv=only_csv, shift_overflows=True)
             plotting.draw_no_root(self.mean_n_muted[rstr], plotname=rstr+'_mean-n-muted', plotdir=overall_plotdir, stats='mean', write_csv=True, only_csv=only_csv, shift_overflows=True)
             if self.mekey is not None and rstr == 'all':
-                for hkey, hdct in self.meta_hists.items():
-                    if len(hdct[rstr]) == 0:
+                for hkey, ohists, pltck in zip(['mean-n-muted', 'mean-rates'], [self.mean_n_muted, self.mean_rates], ['all_mean-n-muted', 'mute_freqs']):
+                    if len(self.vln_values[hkey]) == 0:
                         continue
-                    all_emph_vals, emph_colors = plotting.meta_emph_init(self.mekey, formats=self.args.meta_emph_formats, all_emph_vals=set(hdct[rstr]))
-                    mcolors = {v : c for v, c in emph_colors}
-                    hist_list, hist_colors = zip(*[(h, mcolors[m]) for m, h in hdct[rstr].items()])
-                    hfile_labels = [h.title for h in hist_list]
-                    for htmp in hist_list:
-                        htmp.title = '%s (%s)' % (htmp.title, utils.round_to_n_digits(htmp.get_mean(), 2))
-                    plotting.draw_no_root(None, more_hists=list(hist_list), plotname='%s_%s_%s'%(rstr, self.mekey, hkey), colors=list(hist_colors), plotdir=overall_plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
-                                          shift_overflows=True, leg_title='%s (mean)'%self.mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, normalize=True)
-
+                    plotting.stack_meta_hists('%s_%s_%s'%(rstr, self.mekey, hkey), overall_plotdir, self.mekey, self.vln_values[hkey], template_hist=ohists['all'], formats=self.args.meta_emph_formats, only_csv=only_csv, xtitle=plotconfig.xtitles[pltck])
         if not only_csv:  # write html file and fix permissiions
             for substr in self.subplotdirs:
                 plotting.make_html(plotdir + '/' + substr)

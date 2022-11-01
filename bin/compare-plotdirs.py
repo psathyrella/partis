@@ -78,7 +78,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if plottitle is None:
         plottitle = ptitledict.get(varname, varname)
 
-    ytitle = 'frequency' if args.normalize else 'counts'
+    ytitle = 'fraction of total' if args.normalize else 'counts'
 
     if 'mute-freqs/v' in pathnameclues or 'mute-freqs/d' in pathnameclues or 'mute-freqs/j' in pathnameclues:
         assert not args.normalize

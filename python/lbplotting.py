@@ -377,7 +377,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     st_nodes, st_stats = treeutils.find_pure_subtrees(dtree, antn, meta_key)
     if st_nodes is None:
         return ['none']
-    all_emph_vals = set(st_stats)
+    all_emph_vals = set(st_stats)  # a lot of this stuff duplicates plotting.stack_meta_hists()
     all_emph_vals, emph_colors = plotting.meta_emph_init(meta_key, formats=meta_emph_formats, all_emph_vals=all_emph_vals)
     mcolors = {v : c for v, c in emph_colors}
     hkeys = ['size', 'mean-ancestor-distance', 'mean-root-depth']
@@ -385,7 +385,8 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
 
     # first do hists
     hist_lists, hist_colors = {tk : [] for tk in hkeys}, []
-    for mval, tstats in st_stats.items():
+    for mval in sorted(st_stats):
+        tstats = st_stats[mval]
         for tkey in hkeys:
             vlist = [s[tkey] for s in tstats]
             if tkey in int_keys:
@@ -400,7 +401,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     for tkey, hlist in hist_lists.items():
         plotname = '%s-%s'%(base_plotname, tkey)
         plotting.draw_no_root(None, more_hists=hlist, plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, shift_overflows=True,
-                              leg_title='%s'%meta_key.rstrip('s'), alphas=[0.7 for _ in hlist], linewidths=[5, 3, 2], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y' if tkey=='size' else '', plottitle='') #, normalize=True)
+                              leg_title='%s'%meta_key.rstrip('s'), alphas=[0.6 for _ in hlist], linewidths=[5, 3, 2], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y' if tkey=='size' else '', plottitle='') #, normalize=True)
         fnames[0].append(plotname)
 
     # then 2d plots

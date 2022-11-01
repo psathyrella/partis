@@ -102,6 +102,9 @@ parser.add_argument('--only-plot-leaves', action='store_true', help='only affect
 parser.add_argument('--is-simu', action='store_true', help='only affects --plot-tree-mut-stats')
 parser.add_argument('--only-overall-plots', action='store_true', help='TODO')
 parser.add_argument('--treefname', help='only affects --plot-tree-mut-stats')
+parser.add_argument('--meta-info-key-to-color', help='see partis help')
+parser.add_argument('--meta-emph-formats', help='see partis help')
+parser.add_argument('--meta-info-to-emphasize', help='see partis help')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
     print '  note: running deprecated script %s, which currently is just a link pointing to %s' % (os.path.basename(sys.argv[0]), os.path.basename(os.path.realpath( __file__)))
@@ -112,6 +115,8 @@ if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old scrip
 
 args = parser.parse_args()
 args.extra_columns = utils.get_arg_list(args.extra_columns)
+args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
+utils.meta_emph_arg_process(args)
 if args.paired:
     if utils.getsuffix(args.outfile) != '':
         raise Exception('--outfile \'%s\' must be a directory, but it has a non-empty suffix \'%s\'' % (args.outfile, utils.getsuffix(args.outfile)))
