@@ -439,31 +439,44 @@ def draw_no_root(hist, log='', plotdir=None, plotname='foop', more_hists=None, s
     return fn
 
 # ----------------------------------------------------------------------------------------
-def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, formats=None, only_csv=False, xtitle=None, normalize=False, violin_plots=False):
+def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, colors=None, formats=None, only_csv=False, xtitle=None, normalize=False, swarm_plots=False, violin_plots=False, no_hist=False, xticks=None):
     all_emph_vals, emph_colors = meta_emph_init(mekey, formats=formats, all_emph_vals=set(plotvals))
     all_emph_vals = sorted(all_emph_vals)
-    hdict = collections.OrderedDict()
-    for meval in all_emph_vals:
-        hdict[meval] = Hist(value_list=plotvals[meval], template_hist=template_hist, title=str(meval), xtitle=xtitle)
-    mcolors = {v : c for v, c in emph_colors}
-    hist_list, hist_colors = zip(*[(h, mcolors[m]) for m, h in hdict.items()])
-    hfile_labels = [h.title for h in hist_list]
-    for htmp in hist_list:
-        htmp.title = '%s (%s)' % (htmp.title, utils.round_to_n_digits(htmp.get_mean(), 2))
-    draw_no_root(None, more_hists=list(hist_list), plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
-                 shift_overflows=True, leg_title='%s (mean)'%mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, #square_bins=True, #errors=True,
-                 remove_empty_bins=True, ytitle='fraction of total' if normalize else 'counts', plottitle='') # , normalize=True
+
+    if not no_hist:
+        hdict = collections.OrderedDict()
+        for meval in all_emph_vals:
+            hdict[meval] = Hist(value_list=plotvals[meval], template_hist=template_hist, title=str(meval), xtitle=xtitle)
+        mcolors = {v : c for v, c in emph_colors}
+        hist_list, hist_colors = zip(*[(h, mcolors[m]) for m, h in hdict.items()])
+        hfile_labels = [h.title for h in hist_list]
+        for htmp in hist_list:
+            htmp.title = '%s (%s)' % (htmp.title, utils.round_to_n_digits(htmp.get_mean(), 2))
+        draw_no_root(None, more_hists=list(hist_list), plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
+                     shift_overflows=True, leg_title='%s (mean)'%mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, #square_bins=True, #errors=True,
+                     remove_empty_bins=True, ytitle='fraction of total' if normalize else 'counts', plottitle='') # , normalize=True
+
+    if violin_plots or swarm_plots:
+        mvals, vlnvals = zip(*[(v, plotvals[v]) for v in all_emph_vals if v in plotvals])  # get order right
+        if 'seaborn' not in sys.modules:
+            import seaborn
+        sns = sys.modules['seaborn']
 
     if violin_plots:
-        fig, ax = mpl_init()
-        mvals, vlnvals = zip(*[(v, plotvals[v]) for v in all_emph_vals if v in plotvals])  # get order right
-        vln_data = ax.violinplot(vlnvals)
-        for pc, mv in zip(vln_data['bodies'], mvals):
-            pc.set_facecolor(mcolors[mv])
-        assert len(ax.get_xticks()) == len(mvals) + 2
-        xticklabels = ['' for _ in ax.get_xticks()]
-        xticklabels = [''] + [mvals[(i)/2] if i%2==0 else '' for i, v in enumerate(ax.get_xticks())]  # this doesn't make any sense if you check what ax.get_xticks() is, but it puts the ticks in the right place
-        mpl_finish(ax, plotdir, 'violin-'+plotname, xticklabels=xticklabels, xlabel=mekey.rstrip('s'), ylabel=xtitle) #, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
+        ax = sns.violinplot(data=vlnvals)
+        xticklabels = [str(v) for v in mvals]
+        mpl_finish(ax, plotdir, 'violin-'+plotname, xticklabels=xticklabels, xlabel=mekey.rstrip('s'), ylabel=xtitle)
+
+    if swarm_plots:
+        sns = sys.modules['seaborn']
+        ax = sns.swarmplot(data=vlnvals)
+        if colors is not None:  # should really apply these to the violin and hist plots as well
+            assert len(colors) == len(ax.collections)
+            for swrm, mval in zip(ax.collections, sorted(colors)):
+                swrm.set_facecolors(colors[mval])
+        xticklabels = [str(v) for v in mvals]
+        ax.set_xticklabels(xticklabels) #, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
+        mpl_finish(ax, plotdir, 'swarm-'+plotname, xlabel=mekey.rstrip('s'), ylabel=xtitle, yticks=xticks)  # , xticklabels=xticklabels
 
 # ----------------------------------------------------------------------------------------
 def get_unified_bin_hist(hists):

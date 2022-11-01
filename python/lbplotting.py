@@ -353,7 +353,7 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
     plotting.make_html(plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
-def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph_formats=None, only_csv=False):
+def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph_formats=None, only_csv=False, swarm_plots=False):
     # ----------------------------------------------------------------------------------------
     def vlabel(var):
         return plotconfig.xtitles.get('subtree-purity-'+var)
@@ -385,6 +385,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
 
     # first do hists
     hist_lists, hist_colors = {tk : [] for tk in hkeys}, []
+    plotvals = {tk : {} for tk in hkeys}
     for mval in sorted(st_stats):
         tstats = st_stats[mval]
         for tkey in hkeys:
@@ -396,13 +397,18 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
                 xbins = hutils.autobins(vlist, n_bins)
                 thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=vlist, xtitle=vlabel(tkey), title=str(mval))
             hist_lists[tkey].append(thist)
+            plotvals[tkey][mval] = vlist
         hist_colors.append(mcolors[mval])
-    fnames = [[], []]
-    for tkey, hlist in hist_lists.items():
+    fnames = [[], [], []]
+    for tkey, hlist in hist_lists.items():  # would be nice to use stack_meta_hists() also for the hists here
         plotname = '%s-%s'%(base_plotname, tkey)
         plotting.draw_no_root(None, more_hists=hlist, plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, shift_overflows=True,
                               leg_title='%s'%meta_key.rstrip('s'), alphas=[0.6 for _ in hlist], linewidths=[5, 3, 2], markersizes=[15, 10, 8], errors=True, remove_empty_bins=True, log='y' if tkey=='size' else '', plottitle='') #, normalize=True)
         fnames[0].append(plotname)
+
+        if swarm_plots:
+            plotting.stack_meta_hists(plotname, plotdir, meta_key, plotvals[tkey], formats=meta_emph_formats, no_hist=True, swarm_plots=True, xtitle=vlabel(tkey))
+            fnames[-1].append('swarm-'+plotname)
 
     # then 2d plots
     for yvar in ['mean-ancestor-distance', 'mean-root-depth']:

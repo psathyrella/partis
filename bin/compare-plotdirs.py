@@ -189,6 +189,10 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                           linewidths=linewidths, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins)
 
+    if args.swarm_meta_key is not None:
+        plotvals = {h.title : [h.get_bin_centers()[i] for i in h.ibiniter(True) for _ in range(int(h.bin_contents[i]))] for h in hlist}
+    plotting.stack_meta_hists(varname, outdir, args.swarm_meta_key, plotvals, colors={h.title : c for h, c in zip(hlist, args.colors)}, xtitle=xtitle, swarm_plots=True, no_hist=True, xticks=xticks)
+
 # ----------------------------------------------------------------------------------------
 helpstr = """
 Compare csv histogram plot files across multiple directories
@@ -225,6 +229,7 @@ parser.add_argument('--ytitle')
 parser.add_argument('--no-errors', action='store_true')
 parser.add_argument('--single-plotdir', action='store_true')
 parser.add_argument('--square-bins', action='store_true')
+parser.add_argument('--swarm-meta-key', default='timepoints', help='if set, also make swarm plots, pretending that each hist\'s title is the value for this "fake" meta info key, and treat each bin\'s entries as observations at the bin center\'s value')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
