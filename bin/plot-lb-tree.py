@@ -280,6 +280,8 @@ def plot_trees(args):
             set_lb_styles(args, etree, tstyle)
         if args.meta_info_key_to_color is not None or args.meta_info_to_emphasize:
             set_meta_styles(args, etree, tstyle)
+    else:
+        print '  %s --metafo is not set, so no node formats (e.g. labels) will be set)' % utils.wrnstr()
 
     # print '      %s' % args.outfname
     tstyle.show_leaf_name = False
