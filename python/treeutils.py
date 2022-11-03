@@ -917,7 +917,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         if method == 'iqtree':
             wfns += ['%s/%s%s' % (workdir, outfix, s) for s in ['.log', '.state', '.mldist', '.iqtree', '.bionj', '.treefile', '.model.gz', '.ckp.gz']]  # ick
         if method == 'fasttree':
-            wfns.append(ofn(workdir))
+            wfns += [ofn(workdir), '%s/log'%workdir]
         utils.clean_files(wfns)
 
     return dtree
@@ -2110,6 +2110,11 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
     def addtree(iclust, dtree, origin):
         treefos[iclust] = {'tree' : dtree, 'origin' : origin}
     # ----------------------------------------------------------------------------------------
+    def perswdir(iclust):
+        if inf_outdir is None:
+            return None
+        return '%s/%s/iclust-%d' % (inf_outdir, tree_inference_method, iclust)
+    # ----------------------------------------------------------------------------------------
     ntot = len(inf_lines_to_use)
     print '    getting trees for %d cluster%s with size%s: %s' % (ntot, utils.plural(ntot), utils.plural(ntot), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size))
     filetrees = None
@@ -2166,8 +2171,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         elif tree_inference_method in ['fasttree', 'iqtree', None]:
             if tree_inference_method is None:
                 tree_inference_method = 'fasttree'  # ick
-            persistent_workdir = None if inf_outdir is None else '%s/%s/iclust-%d' % (inf_outdir, tree_inference_method, iclust)
-            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=persistent_workdir, debug=debug)
+            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), debug=debug)
             dtree = None
             origin = tree_inference_method
         else:
@@ -2195,7 +2199,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
                 utils.add_seqs_to_line(line, seqfos, glfo, print_added_str='gctree inferred', debug=debug)  # ok, i guess you need glfo (see above)
             else:
                 inferred_seqfos = []
-                dtree = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=persistent_workdir, inferred_seqfos=inferred_seqfos, cmdfo=cfo, debug=debug)
+                dtree = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), inferred_seqfos=inferred_seqfos, cmdfo=cfo, debug=debug)
                 if tree_inference_method == 'iqtree':
                     utils.add_seqs_to_line(line, inferred_seqfos, glfo, print_added_str='iqtree inferred', debug=debug)
             addtree(iclust, dtree, 'gctree')
