@@ -36,6 +36,8 @@ import treeutils
 all_ptn_plot_cfg = ['shm-vs-size', 'bubble', 'diversity', 'sizes', 'trees', 'mds', 'laplacian-spectra', 'sfs']
 default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'bubble', 'sizes', 'trees']
 
+dummy_str = 'x-dummy-x'
+
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
     return os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
@@ -3840,15 +3842,19 @@ def mkdir(path, isfile=False):  # adding this very late, so could use it in a lo
         os.makedirs(path)
 
 # ----------------------------------------------------------------------------------------
-def makelink(odir, target, link_name, dryrun=False):
-    if os.path.exists(link_name) and not os.path.islink(link_name):
-        raise Exception('link name %s exists and is not link' % link_name)
+def makelink(odir, target, link_name, dryrun=False, debug=False):  # <odir> is generally os.path.basename(link_name)
+    if os.path.exists(link_name):
+        if os.path.islink(link_name):
+            if os.path.isdir(link_name):  # if the link we're making (well, made on a previous call) is to a dir, calling a second time will instead create a new link inside the linked-to dir (which we don't want), so we have to remove it
+                os.remove(link_name)
+        else:
+            raise Exception('link name %s exists and is not link' % link_name)
     target = target.replace(odir+'/', '')
     link_name = link_name.replace(odir+'/', '')
     if '/' in link_name:  # it's a subdir of odir, we need to add at least one ../
         n_slashes = [x[0] for x in itertools.groupby(link_name)].count('/')  # have to collapse any adjacent /s
         target = n_slashes * '../' + target
-    simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun)
+    simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def fpath(path):  # if <path> is relative, add full path from root (path can also be None)

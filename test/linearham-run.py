@@ -24,13 +24,16 @@ docker_path = '/linearham/work'
 ig_or_tr = 'ig'
 
 # ----------------------------------------------------------------------------------------
-def finalfn(locus, inferred_ancestors=False, itree=None):
+def finalfn(locus, inferred_ancestors=False, itree=None, nwk=False):
     odir = args.outdir
     if inferred_ancestors:
         odir += '/with-inferred-ancestors'
     if itree is not None:
         odir += '/itree-%d' % itree
-    return paircluster.paired_fn(odir, locus, single_chain=not inferred_ancestors, actstr='partition', suffix='.yaml')
+    if nwk:
+        return '%s/trees-%s.nwk' % (odir, locus)
+    else:
+        return paircluster.paired_fn(odir, locus, single_chain=not inferred_ancestors, actstr='partition', suffix='.yaml')
 # ----------------------------------------------------------------------------------------
 def simfn(locus):
     return paircluster.paired_fn(args.simdir, locus, suffix='.yaml')
@@ -184,7 +187,7 @@ def read_lh_trees(treefname, glfo, antn_list):
         inferred_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label not in input_antn['unique_ids']]
         new_seqfos = [{'name' : n.taxon.label, 'seq' : n.annotations['ancestral'].value} for n in inferred_nodes]
         fix_ambig_regions(input_antn, new_seqfos, itree=itree)
-        newatn = utils.get_full_copy(input_antn)
+        newatn = utils.get_full_copy(input_antn, glfo)
         utils.add_seqs_to_line(newatn, new_seqfos, glfo, debug=False)
         newatn['tree-info'] = {'lb' : {'tree' : dtree.as_string(schema='newick')}}
         new_antns.append(newatn)
@@ -206,6 +209,7 @@ def processs_linearham_output():
         ofn = finalfn(locus)
         n_total_out += 1
         if utils.output_exists(args, ofn, debug=False):
+        # if utils.all_outputs_exist(args, [ofn, finalfn(locus, inferred_ancestors=True, itree=0)], debug=False):  # should maybe do this?
             n_already_there += 1
             n_total_iclusts += utils.non_none([args.n_sim_events, len(clusters) - clusters.count(None)])
             continue
@@ -241,6 +245,8 @@ def processs_linearham_output():
                 print '  %s different number of sampled trees for different clusters (using smallest, i.e. discarding some): %s' % (utils.wrnstr(), ' '.join(str(n) for n in sorted(n_sampled_trees)))
             for itree in range(min(n_sampled_trees) if len(n_sampled_trees)>0 else 0):
                 utils.write_annotations(finalfn(locus, inferred_ancestors=True, itree=itree), glfo, [alist[itree] for alist in anc_antns], utils.annotation_headers)
+                with open(finalfn(locus, inferred_ancestors=True, itree=itree, nwk=True), 'w') as tfile:
+                    tfile.write('\n'.join(alist[itree]['tree-info']['lb']['tree'] for alist in anc_antns))
 
         if args.simdir is not None:
             cmd = './bin/parse-output.py %s %s/x.fa' % (ofn, wkdir(locus))
@@ -274,8 +280,14 @@ parser.add_argument('--min-cluster-size', default=5, type=int)
 parser.add_argument('--lineage-unique-ids', help='colon-separated list of uids for which do make detailed linearham analyses (see linearham help).')
 args = parser.parse_args()
 args.lineage_unique_ids = utils.get_arg_list(args.lineage_unique_ids)
-if not args.docker and args.linearham_dir is None or args.linearham_dir not in args.outdir:
-    raise Exception('if not using docker, --outdir (got %s) must be a subdir of the linearham workdir (got %s)' % (args.outdir, args.linearham_dir))
+if not args.docker and (args.linearham_dir is None or args.linearham_dir not in args.outdir):
+    args.original_outdir = args.outdir
+    args.outdir = '%s/work/%s' % (args.linearham_dir, args.original_outdir.lstrip('/'))  # ok it's a little over verbose to use the full original path, but whatever
+    if not os.path.exists(args.outdir):
+        print '     --outdir is not a subdir of --linearham-dir, so %s it so it looks like one' % ('would link' if args.dry else 'linking')
+        if not args.dry:
+            utils.mkdir(os.path.dirname(args.outdir))
+            utils.makelink(os.path.dirname(args.outdir), args.original_outdir, args.outdir)
 
 run_linearham()
 processs_linearham_output()
