@@ -19,6 +19,7 @@
     - [naive rearrangement probability estimates](#naive-rearrangement-probability-estimates)
     - [input meta info](#input-meta-info)
 	- [naive sequence comparison with linearham](#naive-sequence-comparison-with-linearham)
+    - [tree inference](#tree-inference) tree inference methods included in/supported by partis
 
 ### overview
 
@@ -127,7 +128,7 @@ Calculate quantities for prediction of fitness/affinity, as described [here](htt
 At the moment metrics include: AA distance to clonal family consensus sequence (aa-cdist), and local branching index and ratio (lbi and lbr, in both nucleotide and amino acid versions).
 aa-cdist is an excellent predictor of an antibody's affinity for an antigen, but it has no information about what that antigen is, so it should be paired with some method using non-sequence information, such as vaccination or cell sorting (see Discussion in the paper).
 Given an antibody of interest and its inferred ancestral lineage, aa-lbr is an excellent predictor of which branches between those ancestors are likely to contain affinity-increasing mutations.
-In order to infer ancestral sequences (and just to have a more accurate tree), if using aa-lbr you should run a separate program that includes proper phylogenetic inference, such as [linearham](https://github.com/matsengrp/linearham/) or [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html).
+In order to infer ancestral sequences (and just to have a more accurate tree), if using aa-lbr you should use a program that includes proper phylogenetic inference (see [below](#tree-inference)).
 
 Note that we made some significant improvements to aa-lbr (and lbr) as of Sep 2021, which are described [here](lb-correction.pdf).
 
@@ -141,7 +142,8 @@ If this is run in the context of partitioning (so there's a clustering path avai
 It is then refined by replacing any subtrees stemming from large multifurcations with a subtree inferred using FastTree (for instance, the first clustering step is to merge all sequences with similar inferred naive sequences, which results in such subtrees).
 If no clustering path information is available, FastTree is used to infer the tree for the entire cluster.
 This will make a tree for each cluster in the best partition that's larger than --min-tree-metric-cluster-size (default), and any additional clusters specificied by --write-additional-cluster-annotations, --calculate-alternative-annotations, --min-largest-cluster-size, etc., or restricted with --cluster-index.
-These heuristic trees are typically fine for general studies (and note that aa-cdist does not use a tree at all), but if you're studying a lineage in great detail, especially using aa-lbr, it's probably worth using the more sophisticated methods above ([linearham](https://github.com/matsengrp/linearham/) and [RAxML](https://cme.h-its.org/exelixis/web/software/raxml/index.html)).
+These heuristic trees are typically fine for general studies (and note that aa-cdist does not use a tree at all), but if you're studying a lineage in great detail, especially using aa-lbr, it's probably worth using more sophisticated methods (see [below](#tree-inference)).
+# TODO add other tree inference options
 
 If you'd like a modern, browser-based package for visualizing the families and their trees and annotations, have a look at our other project, [Olmsted](https://github.com/matsengrp/olmsted/).
 
@@ -503,3 +505,22 @@ As described above, you can use partis's `--calculate-alternative-annotations` o
 If you've also run linearham, you will then have collections of naive sequences and their probabilities from both programs.
 You can compare them with the script `bin/cf-linearham.py`, which prints (view with `less -RS`) first a comparison of the amino acid naive sequences from each program, then a comparison of the nucleotide naive sequences contributing to each of the amino acid ones.
 It also prints a comparison of partis's alternative gene calls and associated "probabilities" (linearham will have only used the one, best, set of gene calls with which it was called).
+
+### tree inference
+
+Tree inference is often required on at least some families in the BCR repertoire, and while partis does not infer trees by default, it includes support for a variety of tree inference methods, specified with `--tree-inference-method fasttree|iqtree|gctree|linearham`.
+Three methods are included in the partis repository/image: the default (no method set), fasttree, and iqtree; gctree and linearham are supported, but require separate installation.
+The default method (with --tree-inference-method unset) uses the clustering history from hierarchical agglomeration, with multifurcations refined with fasttree.
+Both this default, and specifying pure `fasttree`, are very heuristic, but also very fast.
+Iqtree is substantially slower, but also much more accurate, and also (very importantly) infers ancestral intermediate sequences.
+[Gctree](https://matsengrp.github.io/gctree) is designed for BCR-specific cases with abundance information, i.e. when some sequences are observed much more frequently than others.
+[Linearham](https://github.com/matsengrp/linearham/) implements a BCR-specific Bayesian phylogenetic hidden Markov model that simultaneously calculates probabilities of naive rearrangements and phylogenetic trees together.
+Thus if you need to run on many families or otherwise only care about speed, use either the default or fasttree.
+Use iqtree if you need inferred ancestors and good accuracy but don't need the special capabilities of gctree or linearham.
+Use gctree if you have substantial abundance information, and linearham if you have a lot of naive sequence uncertainty (i.e. some combination of few sequences, unrepresentative sequences, and lots of mutations) or want its probabilistic breakdown of different potential mutation paths, naive rearrangements, and trees.
+The best thing, of course, is to try and compare several options.
+
+Tree inference is run in two situations: when plotting partitions ('plot-partitions' action or if --plotdir is set for the 'partition' action), and when getting selection metrics ('get-selection-metrics' action or --get-selection-metrics is set during 'partition').
+Making trees for every family in the final partition is usually much too slow, so there's several ways to specify which ones you're interested in.
+First, you can set --min-selection-metric-cluster-size (which at the moment defaults to 10).
+You can also set --cluster-indices, for instance '0:1:2' would take the first three families, however this requires some care to ensure that you're getting the ones you want since there's several different ways to sort families within partitions.

@@ -31,6 +31,6 @@ For details on the large number of available partition options, run `partis part
 
 A variety of overview plots will be written to disk if you set `--plotdir <plotdir>`. Details on their content can be found [here](plotting.md).
 
-After you've partitioned your sample, you might want to view an ascii-art representation of the resulting clusters and annotations with [view-output](subcommands.md#view-output), or calculate selection metrics to predict affinity with [get-selection-metrics](subcommands.md#get-selection-metrics).
+After you've partitioned your sample, you might want to view an ascii-art representation of the resulting clusters and annotations with [view-output](subcommands.md#view-output), infer [trees](subcommands.md#tree-inference), or calculate selection metrics to predict affinity with [get-selection-metrics](subcommands.md#get-selection-metrics).
 You might also want to use the [linearham](https://github.com/matsengrp/linearham/) package for accurate Bayesian infererence of trees and naive sequences.
 And for rich, browser-based visualization of families, trees, and annotations we recommend [Olmsted](https://github.com/matsengrp/olmsted/).
