@@ -12,7 +12,7 @@ jobs:
     - name: Set git branch variable
       run: echo ::set-env name=BRANCH::$(git branch --show-current)
     - name: Set git tag variable
-      run: if [ $BRANCH == "main" ];then echo ::set-env name=TAG::$(git describe --tags);else echo ::set-env name=TAG::$BRANCH;fi
+      run: if [ $BRANCH == "dev" ];then echo ::set-env name=TAG::$(git describe --tags);else echo ::set-env name=TAG::$BRANCH;fi
     - name: Checkout submodules
       shell: bash
       run: |
