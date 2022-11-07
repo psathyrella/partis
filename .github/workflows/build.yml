@@ -12,7 +12,7 @@ jobs:
     - name: Set git branch variable
       run: echo ::set-env name=BRANCH::$(git branch --show-current)
     - name: Set git tag variable
-      run: if [ $BRANCH == "dev" ];then echo ::set-env name=TAG::$(git describe --tags);else echo ::set-env name=TAG::$BRANCH;fi
+      run: if [ $BRANCH == "main" ];then echo ::set-env name=TAG::$(git describe --tags);else echo ::set-env name=TAG::$BRANCH;fi
     - name: Checkout submodules
       shell: bash
       run: |
@@ -25,10 +25,10 @@ jobs:
     #   run: docker run quay.io/matsengrp/linearham:$TAG sh -c "/linearham/_build/test/test"
     # - name: Run example in the Docker image
     #   run: docker run --rm quay.io/matsengrp/linearham:$TAG sh -c "/linearham/test.sh && /linearham/clean.sh"
-    # - name: Login to Registry
-    #   run: docker login quay.io -u ${{ secrets.QUAY_USERNAME }} --password ${{ secrets.QUAY_PASSWORD }}
-    # - name: publish to Registry
-    #   run: docker push quay.io/matsengrp/linearham:$TAG
+    - name: Login to Registry
+      run: docker login quay.io -u ${{ secrets.QUAY_USERNAME }} --password ${{ secrets.QUAY_PASSWORD }}
+    - name: publish to Registry
+      run: docker push quay.io/matsengrp/partis:$TAG
     # - name: Build documentation
     #   run: docker run --rm -v $(pwd):/data nakatt/doxygen:1.8.17 Doxyfile
     # - name: Deploy to GitHub Pages
