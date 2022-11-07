@@ -21,26 +21,5 @@ jobs:
         git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
     - name: Build the Docker image
       run: docker build . -t quay.io/matsengrp/partis:$TAG
-    - name: Run tests in the Docker image
-      run: docker run quay.io/matsengrp/partis:$TAG sh -c "/partis/test/test.py --run-all"
-    # - name: Run example in the Docker image
-    #   run: docker run --rm quay.io/matsengrp/linearham:$TAG sh -c "/linearham/test.sh && /linearham/clean.sh"
-    # - name: Login to Registry
-    #   run: docker login quay.io -u ${{ secrets.QUAY_USERNAME }} --password ${{ secrets.QUAY_PASSWORD }}
-    # - name: publish to Registry
-    #   run: docker push quay.io/matsengrp/partis:$TAG
-    # - name: Build documentation
-    #   run: docker run --rm -v $(pwd):/data nakatt/doxygen:1.8.17 Doxyfile
-    # - name: Deploy to GitHub Pages
-    #   uses: JamesIves/github-pages-deploy-action@3.2.1
-    #   with:
-    #     ACCESS_TOKEN: ${{ secrets.GH_PAGES_PERSONAL_ACCESS_TOKEN }}
-    #     BRANCH: gh-pages
-    #     FOLDER: html
-    # - name: Slack Notification
-    #   uses: homoluctus/slatify@master
-    #   if: always()
-    #   with:
-    #     type: ${{ job.status }}
-    #     job_name: 'Linearham Build'
-    #     url: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK}}
+    # - name: Run tests in the Docker image  # eh, would need to install simulation stuff to do this, and not worth it at the moment (the quick test is run at the end of the docker build above)
+    #   run: docker run quay.io/matsengrp/partis:$TAG /bin/bash -c "/partis/test/test.py --run-all"
