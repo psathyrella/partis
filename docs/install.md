@@ -13,8 +13,7 @@ If you want to make simulated samples, you'll also need to [install some R packa
 Docker can be installed using the instructions [here](https://docs.docker.com). If you're new to Docker, start with the official [quick start](https://docs.docker.com/get-started/) guide. Then,
 
 ```
-sudo docker pull psathyrella/partis  # pull partis image from docker hub
-sudo docker run -it --name container-1 -v ~:/host/home psathyrella/partis /bin/bash  # start up a container from this image
+sudo docker run -it --name container-1 -v ~:/host/home quay.io/matsengrp/partis /bin/bash
 ```
 The `sudo` may not be necessary for some systems. With `docker run`, we create a new container from (i.e. instance of) the partis image. The `-v` mounts your home directory on the host machine to the path `/host/home` inside the container, so we can easily extract results.
 
@@ -24,6 +23,7 @@ When finished, you _don't_ want to just exit and `docker run` again -- this will
 One solution is to run Docker inside [tmux](https://hackernoon.com/a-gentle-introduction-to-tmux-8d784c404340?gi=70388a0228fb) in which case you can just leave the container open.
 Alternatively, you can detach from the container with `ctrl-q q` (or whatever you've remapped ctrl-p q to).
 To then reattach to this running container, run `docker attach container-1`.
+If you don't plan on reattaching to a container, you should run with `--rm` so it is removed when you exit; otherwise you'll use up a lot of disk space with accumulated old containers (view with `sudo docker ps -a`).
 
 #### Installation from scratch
 
