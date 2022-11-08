@@ -13,6 +13,7 @@ If you want to make simulated samples, you'll also need to [install some R packa
 Docker can be installed using the instructions [here](https://docs.docker.com). If you're new to Docker, start with the official [quick start](https://docs.docker.com/get-started/) guide. Then,
 
 ```
+sudo docker pull quay.io/matsengrp/partis
 sudo docker run -it --name container-1 -v ~:/host/home quay.io/matsengrp/partis /bin/bash
 ```
 The `sudo` may not be necessary for some systems. With `docker run`, we create a new container from (i.e. instance of) the partis image. The `-v` mounts your home directory on the host machine to the path `/host/home` inside the container, so we can easily extract results.
