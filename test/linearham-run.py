@@ -9,6 +9,7 @@ import subprocess
 import sys
 import os
 import pwd
+import collections
 
 # sys.path.insert(1, './python')
 # if you move this script, you'll need to change this method of getting the imports
@@ -22,6 +23,17 @@ import treeutils
 
 docker_path = '/linearham/work'
 ig_or_tr = 'ig'
+
+# see linearham help (this is ugly and sucks, but it's the only way I can think of to actually know where the darn output files will actually end up [without glob.glob, which is what i've been doing but which sucks more])
+# yes, i hate having this as a list of length 2, but it's otherwise totally opaque which params linearham puts in which dir level
+linearham_defaults = [collections.OrderedDict([('mcmciter', '10000'),
+                                               ('mcmcthin', '10'),
+                                               ('tuneiter', '5000'),
+                                               ('tunethin', '100'),
+                                               ('numrates', '4'),
+                                               ('rngseed', '0')]),
+                      collections.OrderedDict([('burninfrac', '0.1'),
+                                               ('subsampfrac', '0.05'),])]
 
 # ----------------------------------------------------------------------------------------
 def finalfn(locus, inferred_ancestors=False, itree=None, nwk=False):
@@ -52,16 +64,18 @@ def wkdir(locus, iclust=None, for_lh_cmd=False):
         odir = odir.replace(args.linearham_dir+'/', '')
     return '%s/work/%s%s' % (odir, locus, '' if iclust is None else '/iclust-%d'%iclust)
 # ----------------------------------------------------------------------------------------
-def lhodir(locus, iclust=None):
-    glstr = '%s/cluster-%d/mcmc*/burnin*' % (wkdir(locus, iclust=iclust), iclust)
-    flist = glob.glob(glstr)
-    if len(flist) == 0:
-        return glstr
-    return utils.get_single_entry(flist)
+def lhodir(locus, iclust=None, lid=None):
+    # glstr = '%s/cluster-%d/mcmc*/burnin*' % (wkdir(locus, iclust=iclust), iclust)
+    # flist = glob.glob(glstr)
+    # if len(flist) == 0:
+    #     return glstr
+    # return utils.get_single_entry(flist)
+    lhstr = '/'.join('_'.join('%s%s'%(s, v) for s, v in dvals.items()) for dvals in linearham_defaults)  # ICK
+    return '%s/cluster-%d%s/%s' % (wkdir(locus, iclust=iclust), iclust, '' if lid is None else '/lineage_%s'%lid, lhstr)
 # ----------------------------------------------------------------------------------------
-def lnhofn(locus, iclust=None, trees=False):
+def lnhofn(locus, iclust=None, lid=None, trees=False):
     # cluster-0/mcmciter10000_mcmcthin10_tuneiter5000_tunethin100_numrates4_rngseed0/burninfrac0.1_subsampfrac0.05/aa_naive_seqs.dnamap
-    return '%s/linearham_%s' % (lhodir(locus, iclust=iclust), 'run.trees' if trees else 'annotations_best.yaml' )
+    return '%s/linearham_%s' % (lhodir(locus, iclust=iclust, lid=lid), 'run.trees' if trees else 'annotations_best.yaml' )
 # ----------------------------------------------------------------------------------------
 def ptnfn(locus, for_work=False):
     pdir = wkdir(locus) if args.ignore_unmutated_seqs and for_work else args.partis_outdir
@@ -92,7 +106,37 @@ def get_clusters(locus):
 
 # ----------------------------------------------------------------------------------------
 def run_linearham():
-    existing_ofns, cmdfos, n_already_there, n_too_small, n_non_lineage, n_total = [], [], 0, 0, 0, 0
+    # ----------------------------------------------------------------------------------------
+    def prep_cmd(cmdfos, locus, iclust, lid, ofn):
+        if iclust==0 and locus=='igh':
+            print '    workdir: %s' % wkdir(locus, iclust=iclust)
+        utils.mkdir(wkdir(locus, iclust=iclust))
+        shlines = ['#!/bin/bash']
+        # shlines += ['ls -ltrh %s %s' % (dckr_trns(ptnfn(locus, for_work=True)), dckr_trns(prmd(locus)))]
+        if not args.docker:
+            shlines += ['cd %s' % args.linearham_dir]
+        shlines += ['scons --run-linearham --partis-yaml-file=%s --parameter-dir=%s --cluster-index=%d --outdir=%s' % (dckr_trns(ptnfn(locus, for_work=True)), dckr_trns(prmd(locus)), iclust, dckr_trns(wkdir(locus, iclust=iclust, for_lh_cmd=True)))]
+        if args.fast:
+            shlines[-1] += ' --mcmc-iter=%s --tune-iter=%s' % (linearham_defaults[0]['mcmciter'], linearham_defaults[0]['tuneiter'])
+        if lid is not None:
+            shlines[-1] += ' --lineage-unique-ids=%s' % lid  # NOTE linearham breaks if you actually pass it more than one at once
+        bfn = '%s/run.sh' % wkdir(locus, iclust=iclust)  #  NOTE if i'd used utils.simplerun() i couldn've used its cmdfname arg
+        with open(bfn, 'w') as bfile:
+            for l in shlines:
+                bfile.write('%s\n'%l)
+        utils.simplerun('chmod +x %s' % bfn, debug=False)
+        if args.docker:
+            cmd = 'sudo docker run -it --rm -v%s:%s %s %s' % (basedir(), docker_path, 'linearham-local' if args.local_docker_image else 'quay.io/matsengrp/linearham', dckr_trns(bfn))
+        else:
+            cmd = bfn
+        cmdfos += [{
+            'cmd_str' : cmd,
+            'outfname' : ofn,
+            'logdir' : wkdir(locus, iclust=iclust),
+            'workdir' : wkdir(locus, iclust=iclust),
+        }]
+    # ----------------------------------------------------------------------------------------
+    example_existing_ofn, cmdfos, n_already_there, n_too_small, n_non_lineage, n_total = None, [], 0, 0, 0, 0
     for locus in gloci():
         if args.simdir is not None and not os.path.exists(simfn(locus)):
             continue
@@ -116,47 +160,25 @@ def run_linearham():
             if tclust is not None and len(tclust) < args.min_cluster_size:
                 n_too_small += 1
                 continue
-            if args.lineage_unique_ids is not None and len(set(tclust) & set(args.lineage_unique_ids)) == 0:
+            these_lids = [None] if args.lineage_unique_ids is None else set(tclust) & set(args.lineage_unique_ids)
+            if len(these_lids) == 0:  # none of the lids are in this cluster
                 n_non_lineage += 1
                 continue
-            n_total += 1
-            ofn = lnhofn(locus, iclust=iclust)
-            if utils.output_exists(args, ofn, debug=False): # and not args.dry:  # , offset=8):
-                n_already_there += 1
-                existing_ofns.append(ofn)
-                continue
-            if iclust==0 and locus=='igh':
-                print '    workdir: %s' % wkdir(locus, iclust=iclust)
-            utils.mkdir(wkdir(locus, iclust=iclust))
-            shlines = ['#!/bin/bash']
-            # shlines += ['ls -ltrh %s %s' % (dckr_trns(ptnfn(locus, for_work=True)), dckr_trns(prmd(locus)))]
-            if not args.docker:
-                shlines += ['cd %s' % args.linearham_dir]
-            shlines += ['scons --run-linearham --partis-yaml-file=%s --parameter-dir=%s --cluster-index=%d --outdir=%s' % (dckr_trns(ptnfn(locus, for_work=True)), dckr_trns(prmd(locus)), iclust, dckr_trns(wkdir(locus, iclust=iclust, for_lh_cmd=True)))]
-            if args.fast:
-                shlines[-1] += ' --mcmc-iter=1000 --tune-iter=500'
-            if args.lineage_unique_ids is not None:
-                shlines[-1] += ' --lineage-unique-ids=%s' % ':'.join(set(tclust) & set(args.lineage_unique_ids))
-            bfn = '%s/run.sh' % wkdir(locus, iclust=iclust)  #  NOTE if i'd used utils.simplerun() i couldn've used its cmdfname arg
-            with open(bfn, 'w') as bfile:
-                for l in shlines:
-                    bfile.write('%s\n'%l)
-            utils.simplerun('chmod +x %s' % bfn, debug=False)
-            if args.docker:
-                cmd = 'sudo docker run -it --rm -v%s:%s %s %s' % (basedir(), docker_path, 'linearham-local' if args.local_docker_image else 'quay.io/matsengrp/linearham', dckr_trns(bfn))
-            else:
-                cmd = bfn
-            cmdfos += [{
-                'cmd_str' : cmd,
-                'outfname' : ofn,
-                'logdir' : wkdir(locus, iclust=iclust),
-                'workdir' : wkdir(locus, iclust=iclust),
-            }]
+            for lid in these_lids:
+                n_total += 1
+                ofn = lnhofn(locus, iclust=iclust, lid=lid)
+                if utils.output_exists(args, ofn):
+                    n_already_there += 1
+                    if example_existing_ofn is None:
+                        example_existing_ofn = ofn
+                    continue
+                prep_cmd(cmdfos, locus, iclust, lid, ofn)
+
     if n_too_small > 0:
         print '    skipped %d clusters smaller than %d (leaving %d)' % (n_too_small, args.min_cluster_size, n_total)
     if n_non_lineage > 0:
         print '    skipped %d clusters that didn\'t contain any of the lineage ids (leaving %d)' % (n_non_lineage, n_total)
-    utils.run_scan_cmds(args, cmdfos, 'linearham.log', n_total, n_already_there, None, existing_ofns=existing_ofns, dbstr='linearham run')
+    utils.run_scan_cmds(args, cmdfos, 'linearham.log', n_total, n_already_there, None, example_existing_ofn=example_existing_ofn, dbstr='linearham run')
 
 # ----------------------------------------------------------------------------------------
 def read_lh_trees(treefname, glfo, antn_list):
@@ -280,6 +302,10 @@ parser.add_argument('--min-cluster-size', default=5, type=int)
 parser.add_argument('--lineage-unique-ids', help='colon-separated list of uids for which do make detailed linearham analyses (see linearham help).')
 args = parser.parse_args()
 args.lineage_unique_ids = utils.get_arg_list(args.lineage_unique_ids)
+if args.fast:
+    linearham_defaults[0]['mcmciter'] = '1000'
+    linearham_defaults[0]['tuneiter'] = '500'
+
 if not args.docker and (args.linearham_dir is None or args.linearham_dir not in args.outdir):
     args.original_outdir = args.outdir
     args.outdir = '%s/work/%s' % (args.linearham_dir, args.original_outdir.lstrip('/'))  # ok it's a little over verbose to use the full original path, but whatever
