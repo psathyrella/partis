@@ -799,7 +799,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
 # ----------------------------------------------------------------------------------------
 # specify <seqfos> or <annotation> (in latter case we add the naive seq)
 def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='naive', actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
-                       redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, tree_index=0, debug=False):
+                       redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, tree_index=0, seed_id=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def getcmd(workdir):
         if method == 'fasttree':
@@ -815,6 +815,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             if parameter_dir is None or utils.dummy_str in parameter_dir:
                 raise Exception('need to pass --parameter-dir (--paired-outdir if --paired-loci) if running linearham')  # well, we could ask linearham to run partis to cache parameters, but we really don't want to do that
             cmd = './test/linearham-run.py --outdir %s --partis-outdir %s' % (workdir, workdir)
+            if seed_id is not None:
+                cmd += ' --seed-unique-id %s' % seed_id
             if use_docker:
                 cmd += ' --docker --local-docker-image'
             else:
@@ -949,7 +951,9 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         if method == 'iqtree':
             wfns += ['%s/%s%s' % (workdir, outfix, s) for s in ['.log', '.state', '.mldist', '.iqtree', '.bionj', '.treefile', '.model.gz', '.ckp.gz']]  # ick
         if method == 'fasttree':
-            wfns += [ofn(workdir), '%s/log'%workdir]
+            wfns.append(ofn(workdir))
+            if 'run' not in actions:
+                wfns.append('%s/log'%workdir)
         utils.clean_files(wfns)
 
     return dtree, inferred_seqfos
@@ -1350,6 +1354,9 @@ def find_pure_subtrees(dtree, antn, meta_key, debug=False):
                 return False
         return True
     # ----------------------------------------------------------------------------------------
+    if meta_key not in antn:
+        print '      %s meta key %s not in annotation' % (utils.wrnstr(), meta_key)
+        return None, None
     meta_vals = {u : v for u, v in zip(antn['unique_ids'], antn[meta_key])}
     missing = set(n.taxon.label for n in dtree.preorder_node_iter()) - set(meta_vals)
     if len(missing) > 0:
@@ -2115,13 +2122,13 @@ def get_treefos(args, antn_list, cpath=None, glfo=None, debug=False):  # note th
         print '    using existing inferred trees in lb info'
     else:
         treefos = get_trees_for_annotations(antn_list, treefname=args.treefname, cpath=cpath, workdir=args.workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
-                                            inf_outdir=None if args.outfname is None or args.tree_inference_method is None else utils.fpath(utils.getprefix(args.outfname)), glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, debug=debug)
+                                            inf_outdir=None if args.outfname is None or args.tree_inference_method is None else utils.fpath(utils.getprefix(args.outfname)), glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, debug=debug)
     return treefos
 
 # ----------------------------------------------------------------------------------------
 # gets new tree for each specified annotation, and adds a new 'tree-info' key for each (overwriting any that's already there)
 # NOTE <inf_lines_to_use> should be *all* your annotations (so the subclust workdirs are correct), *not* just one cluster at a time
-def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, parameter_dir=None, linearham_dir=None, min_cluster_size=4, debug=False):
+def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, parameter_dir=None, linearham_dir=None, min_cluster_size=4, seed_id=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def addtree(iclust, dtree, origin):
         treefos[iclust] = {'tree' : dtree, 'origin' : origin}
@@ -2132,7 +2139,8 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         return '%s/%s/iclust-%d' % (inf_outdir, tree_inference_method, iclust)
     # ----------------------------------------------------------------------------------------
     ntot = len(inf_lines_to_use)
-    print '    getting trees for %d cluster%s with size%s: %s' % (ntot, utils.plural(ntot), utils.plural(ntot), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size))
+    large_lines = [l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size]  # this is just used for dbg atm, but should probably use it in the loop below as well
+    print '    getting trees for %d cluster%s with size%s: %s' % (len(large_lines), utils.plural(len(large_lines)), utils.plural(len(large_lines)), ' '.join(str(len(l['unique_ids'])) for l in large_lines))
     filetrees = None
     if treefname is not None:
         filetrees = []
@@ -2183,7 +2191,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         elif tree_inference_method in ['fasttree', 'iqtree', 'gctree', 'linearham', None]:
             if tree_inference_method is None:
                 tree_inference_method = 'fasttree'  # ick
-            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
+            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
             dtree = None
             origin = tree_inference_method
         else:
@@ -2200,8 +2208,11 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         start = time.time()
         cfos_to_run = [c for c in cmdfos if c is not None and not os.path.exists(c['outfname'])]  # NOTE indices will no longer correspond to inf_lines_to_use
         if len(cfos_to_run) > 0:
+            print '      starting %d jobs' % len(cfos_to_run)
+            for cfo in cfos_to_run:
+                print '        %s %s' % (utils.color('red', 'run'), cfo['cmd_str'])
             utils.run_cmds(cfos_to_run, n_max_procs=utils.auto_n_procs(), proc_limit_str=os.path.basename(cmdfos[0]['cmd_str'].split()[0]), debug='write')
-            print '    made %d %s trees (%.1fs)' % (len(cfos_to_run), tree_inference_method, time.time() - start)
+            print '      made %d %s trees (%.1fs)' % (len(cfos_to_run), tree_inference_method, time.time() - start)
         else:
             print '      all %s outputs exist, not rerunning (e.g. %s)' % (tree_inference_method, [c['outfname'] for c in cmdfos if c is not None and os.path.exists(c['outfname'])][0])
         assert len(inf_lines_to_use) == len(cmdfos)
@@ -2273,7 +2284,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
             return
         treefos = None
         if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
-            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method, inf_outdir=tree_inference_outdir, glfo=glfo, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, debug=debug)
+            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method, inf_outdir=tree_inference_outdir, glfo=glfo, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, debug=debug)
         print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
         check_cluster_indices(args.cluster_indices, n_after, inf_lines_to_use)

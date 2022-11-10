@@ -612,6 +612,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.replace_in_arglist(clist, '--infname', getofn(ltmp, lpair=lpair, fasta=True))  # this does almost the same thing as the line under 'annotate', but note that the tmp .fa files end up in different dirs, since lpair is unset here, whereas it's set for 'annotate'
                 utils.remove_from_arglist(clist, '--is-simu')  # at least for now, doing this since we're using fasta input file (which maybe is ok permanently?)
                 utils.remove_from_arglist(clist, '--seed-unique-id', has_arg=True)
+                utils.remove_from_arglist(clist, '--plotdir', has_arg=True)
             if joint and tmpaction == 'annotate':  # <joint> here (and just above) is just a proxy for if this is running annotations on paired clustering output (as opposed to if we're just running the plain annotate action)
                 utils.remove_from_arglist(clist, '--queries-to-include-fname', has_arg=True)  # we end up with inconsistent sequences (well, it's just that one is N-padded and the other isn't)
                 utils.remove_from_arglist(clist, '--plotdir', has_arg=True)  # i think there isn't anything we want to plot when we're getting the joint partition annotations?
@@ -635,7 +636,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.remove_from_arglist(clist, '--count-parameters')  # we want to only write these for the annotation step, with the merged partition
                 utils.remove_from_arglist(clist, '--count-correlations')
 
-            if args.plotdir is not None and not (joint and tmpaction == 'annotate'):
+            if args.plotdir is not None and not (joint and tmpaction=='annotate' or args.seed_unique_id is not None and tmpaction=='partition'):  # this adds it if it isn't there, and the latter two cases we just removed it (see above) and don't want it there
                 utils.replace_in_arglist(clist, '--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction))
             if args.plot_partitions or tmpaction == 'plot-partitions':  # partitiondriver turns on partition plots if plotdir and input partition fname are both specified, so setting --plot-partitions isn't necessary... but they result in potentially different plotdirs, which is potentially important if you want plots to go somewhere specific
                 if tmpaction != 'annotate':  # don't need it
@@ -644,8 +645,6 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.remove_from_arglist(clist, '--infname', has_arg=True)
                 if '--plotdir' not in clist:
                     clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
-                if not joint:  # i think for single-chain we only really want the cluster size distributions (for comparison), and we're already running mds in five other plot-partitions calls
-                    clist += ['--no-mds-plots']
             if tmpaction == 'get-selection-metrics':
                 utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)  # remove these just to make the cmd line simpler/easier to read
                 utils.remove_from_arglist(clist, '--sw-cachefname', has_arg=True)
@@ -1175,6 +1174,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None), is_simu=not args.is_data, args=args)
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
+        if args.paired_outdir is None and args.seed_unique_id is not None:
+            work_fnames.extend([getodir(), os.path.dirname(getodir())])  # ick
         utils.rmdir(args.workdir, fnames=work_fnames)
 
 # ----------------------------------------------------------------------------------------

@@ -3901,9 +3901,10 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
 
 # ----------------------------------------------------------------------------------------
 def clean_files(fnames, expect_missing=False):  # <fnames> can include dirs, we first sort it to put them after the files
-    if len(fnames) != len(set(fnames)):  # remove any duplicates (don't always do it, since we'd rather not change the order if we don't need to)
+    if len(fnames) != len(set(fnames)):  # remove any duplicates (don't always do it, since we'd rather not change the order if we don't need to, although we sort for files before removing anything below so it doesn't matter too much)
         fnames = list(set(fnames))
-    fnames = sorted(fnames, key=lambda x: os.path.isdir(x))  # put files first, dirs second
+    fnames = sorted(fnames, key=len, reverse=True)  # also sort by len, so subdirs are removed before their parents
+    fnames = sorted(fnames, key=lambda x: os.path.isdir(x))  # put files first, dirs second (doing this sort second means they're sorted for length *within* file/dir classes)
     missing_files = []
     for fn in fnames:
         if os.path.isfile(fn) or os.path.islink(fn):

@@ -700,7 +700,8 @@ class PartitionPlotter(object):
             start = time.time()
             utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=utils.auto_n_procs(), proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
             print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
-        os.rmdir(workdir)
+        if os.path.exists(workdir):
+            os.rmdir(workdir)
 
         if self.args.meta_info_key_to_color is not None:
             mekey = self.args.meta_info_key_to_color
