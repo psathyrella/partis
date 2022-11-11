@@ -680,6 +680,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             if not os.path.exists(getofn(ltmp, joint=joint, lpair=lpair)):
                 print sdbgstr('output file missing', getofn(ltmp, joint=joint, lpair=lpair))
                 return
+        if args.seed_unique_id is not None and tmpaction=='plot-partitions' and not joint:
+            print '    %s: not plotting single chain partitions with seed id set' % ltmp
+            return
         print '%s %s:%s%s' % (utils.color('blue_bkg', tmpaction), lpstr, ltstr, utils.color('blue', ' merged') if joint and lpair is None else '')
         sys.stdout.flush()
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)

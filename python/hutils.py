@@ -100,7 +100,7 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
             if debug > 1: print '  %3d %5.1f  adding hi edge for bin with %d entries'  % (len(values) - 1, values[-1] + 0.5, n_this_bin)
         n_bins = len(xbins) - 1
     else:
-        if len(set(values)) > n_bins:
+        if len(set(values)) > 2 * n_bins:  # if there's many more values than bins, do actual auto volume bins (~same number of entries per bin)
             ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]  # indices (in sorted values) of bin boundaries that have ~equal entries per bin
             xbins = [values[i] for i in ibins]
         else:

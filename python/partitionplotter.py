@@ -779,7 +779,7 @@ class PartitionPlotter(object):
             fnames += self.make_bubble_plots()
         if 'trees' in plot_cfg: # and self.args.meta_info_key_to_color is not None:
             fnames += self.make_tree_plots()
-            if args is not None and args.meta_info_key_to_color is not None:
+            if args is not None and args.meta_info_key_to_color is not None and args.meta_info_key_to_color=='timepoints':
                 fnames += self.make_subtree_purity_plots()
         if 'mds' in plot_cfg:
             if utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):

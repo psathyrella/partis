@@ -3437,6 +3437,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             cpkeys.append('min_target_distances')
         if args.meta_info_key_to_color is not None:
             cpkeys.append(args.meta_info_key_to_color)
+        if args.meta_info_to_emphasize is not None:
+            cpkeys += args.meta_info_to_emphasize.keys()
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         if args.add_unpaired_seqs_for_paired_selection_metrics:
@@ -3504,7 +3506,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
         from partitionplotter import PartitionPlotter
         partplotter = PartitionPlotter(args)
-        partplotter.plot('%s/partitions/%s'%(args.plotdir, 'true' if is_simu else 'inferred'), [l['unique_ids'] for l in (true_lines if is_simu else inf_lines.values())], utils.get_annotation_dict(true_lines) if is_simu else inf_lines, args=args)
+        partplotter.plot('%s/partitions/%s'%(plotdir, 'true' if is_simu else 'inferred'), [l['unique_ids'] for l in (true_lines if is_simu else inf_lines.values())], utils.get_annotation_dict(true_lines) if is_simu else inf_lines, args=args)
     if debug:
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
             print_dbg(iclust, metric_pairs, icl_mfos)  # note: relies on mtpys being in scope
