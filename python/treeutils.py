@@ -801,6 +801,9 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
 def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='naive', actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
                        redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, tree_index=0, seed_id=None, debug=False):
     # ----------------------------------------------------------------------------------------
+    def lhindir(workdir):
+        return '%s/input' % workdir
+    # ----------------------------------------------------------------------------------------
     def getcmd(workdir):
         if method == 'fasttree':
             cmd = '%s/bin/FastTree -gtr -nt -out %s %s' % (utils.get_partis_dir(), ofn(workdir), ifn(workdir))
@@ -814,7 +817,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         elif method == 'linearham':
             if parameter_dir is None or utils.dummy_str in parameter_dir:
                 raise Exception('need to pass --parameter-dir (--paired-outdir if --paired-loci) if running linearham')  # well, we could ask linearham to run partis to cache parameters, but we really don't want to do that
-            cmd = './test/linearham-run.py --outdir %s --partis-outdir %s' % (workdir, workdir)
+            cmd = './test/linearham-run.py --outdir %s --partis-outdir %s' % (workdir, lhindir(workdir))
             if seed_id is not None:
                 cmd += ' --seed-unique-id %s' % seed_id
             if use_docker:
@@ -839,7 +842,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         elif method == 'gctree':
             return '%s/tree.nwk' % workdir
         elif method == 'linearham':
-            return '%s/with-inferred-ancestors/itree-%d/trees-%s.nwk' % (workdir, tree_index, glfo['locus'])
+            return '%s/tree-samples/itree-%d/trees-%s.nwk' % (workdir, tree_index, glfo['locus'])
         else:
             assert False
     # ----------------------------------------------------------------------------------------
@@ -873,9 +876,9 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             workdir = utils.choose_random_subdir('/tmp/%s/tree-inference' % os.getenv('USER', default='user'))
         if not os.path.exists(ofn(workdir)):  # don't rewrite input file if output already exists (we print warning about not rerunning below)
             if method == 'linearham':
-                utils.write_annotations('%s/partition-%s.yaml'%(workdir, glfo['locus']), glfo, [annotation], utils.annotation_headers)
-                utils.mkdir('%s/parameters'%workdir)
-                lnk_name = '%s/parameters/%s' % (workdir, glfo['locus'])
+                utils.write_annotations('%s/partition-%s.yaml'%(lhindir(workdir), glfo['locus']), glfo, [annotation], utils.annotation_headers)
+                utils.mkdir('%s/parameters'%lhindir(workdir))
+                lnk_name = '%s/parameters/%s' % (lhindir(workdir), glfo['locus'])
                 utils.makelink(os.path.dirname(lnk_name), os.path.abspath(parameter_dir), lnk_name)
             else:
                 utils.write_fasta(ifn(workdir), seqfos)
