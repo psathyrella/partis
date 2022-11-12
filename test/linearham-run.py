@@ -25,13 +25,15 @@ docker_path = '/linearham/work'
 ig_or_tr = 'ig'
 
 # ----------------------------------------------------------------------------------------
-def finalfn(locus, nwk=False, sampled_trees=False, iclust=None):
+def finalfn(locus, nwk=False, sampled_trees=False, iclust=None, lineage_plot=False):
     odir = args.outdir
     if sampled_trees:
         assert iclust is not None
         return '%s/sampled-trees/%s/iclust-%d.nwk' % (odir, locus, iclust)  # this is kind of complicated, but the linearham output dirs are a total mess (tons of duplicated information and intermediate files, plus poor naming schemes), so it's nice to at least link to one thing we're pretty likely to need
     elif nwk:
         return '%s/trees-%s.nwk' % (odir, locus)  # one tree for each cluster
+    elif lineage_plot:
+        return '%s/lineage-plots/iclust-%d-%s.png' % (odir, iclust, locus)
     else:
         return paircluster.paired_fn(odir, locus, single_chain=True, actstr='partition', suffix='.yaml')  # atm only writing single chain (relic of paired clustering paper, where we wanted linearahm to show up as a "single chain" method so it go put in the right plot), although eventually may want to also write joint
 # ----------------------------------------------------------------------------------------
@@ -107,6 +109,8 @@ def run_linearham():
             shlines[-1] += ' --mcmc-iter=%s --tune-iter=%s' % (linearham_defaults[0]['mcmciter'], linearham_defaults[0]['tuneiter'])
         if args.seed_unique_id is not None:
             shlines[-1] += ' --lineage-unique-ids=%s' % args.seed_unique_id  # NOTE linearham breaks if you actually pass it more than one at once
+        if args.asr_pfilters is not None:
+            shlines[-1] += ' --asr-pfilters=%s' % args.asr_pfilters
         bfn = '%s/run.sh' % workd  #  NOTE if i'd used utils.simplerun() i couldn've used its cmdfname arg
         with open(bfn, 'w') as bfile:
             for l in shlines:
@@ -253,6 +257,9 @@ def processs_linearham_output():
             for iclust in range(len(clusters)):
                 ftfn = finalfn(locus, sampled_trees=True, iclust=iclust)
                 utils.makelink(os.path.dirname(ftfn), os.path.abspath(lnhofn(locus, iclust=iclust, trees=True)), ftfn)
+                for pngfname in glob.glob('%s/aa_lineage_seqs.pfilter*.png'%lhodir(locus, iclust=iclust)):  # will only be there if --seed-unique-id is set
+                    lpfn = finalfn(locus, lineage_plot=True, iclust=iclust)
+                    utils.makelink(os.path.dirname(lpfn), pngfname, lpfn)
 
         if args.simdir is not None:
             cmd = './bin/parse-output.py %s %s/x.fa' % (fofn, wkdir(locus))
@@ -280,6 +287,7 @@ parser.add_argument('--dry', action='store_true')
 parser.add_argument('--docker', action='store_true')
 parser.add_argument('--local-docker-image', action='store_true')
 parser.add_argument('--fast', action='store_true')
+parser.add_argument('--asr-pfilters')  # make it a string to match linearham
 # parser.add_argument('--remove-duplicate-seqs', action='store_true')
 parser.add_argument('--ignore-unmutated-seqs', action='store_true')
 parser.add_argument('--n-max-procs', type=int, help='NOT USED')
