@@ -3854,6 +3854,7 @@ def makelink(odir, target, link_name, dryrun=False, debug=False):  # <odir> is g
     if '/' in link_name:  # it's a subdir of odir, we need to add at least one ../
         n_slashes = [x[0] for x in itertools.groupby(link_name)].count('/')  # have to collapse any adjacent /s
         target = n_slashes * '../' + target
+    mkdir(odir)
     simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, debug=debug)
 
 # ----------------------------------------------------------------------------------------

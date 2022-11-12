@@ -799,7 +799,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
 # ----------------------------------------------------------------------------------------
 # specify <seqfos> or <annotation> (in latter case we add the naive seq)
 def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='naive', actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
-                       redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, tree_index=0, seed_id=None, debug=False):
+                       redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def lhindir(workdir):
         return '%s/input' % workdir
@@ -842,7 +842,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         elif method == 'gctree':
             return '%s/tree.nwk' % workdir
         elif method == 'linearham':
-            return '%s/tree-samples/itree-%d/trees-%s.nwk' % (workdir, tree_index, glfo['locus'])
+            return '%s/trees-%s.nwk' % (workdir, glfo['locus'])  # one tree for each cluster
         else:
             assert False
     # ----------------------------------------------------------------------------------------
@@ -921,7 +921,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name])
 
     inferred_seqfos = []
-    if method in ['iqtree', 'gctree', 'linearham']:  # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves)
+    if method in ['iqtree', 'gctree']:  # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
         if method == 'iqtree':
             inf_infos, skipped_rm_nodes = {}, set()
             with open('%s/%s.state'%(workdir, outfix)) as afile:
@@ -942,9 +942,6 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         elif method == 'gctree':
             gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
             inferred_seqfos += gct_seqfos
-        elif method == 'linearham':
-            _, antn_list, _ = utils.read_output('%s/partition-%s.yaml' % (os.path.dirname(ofn(workdir)), glfo['locus']), dont_add_implicit_info=True)
-            inferred_seqfos += [s for s in utils.seqfos_from_line(utils.get_single_entry(antn_list)) if s['name'] not in uid_list]
         if debug:
             print '      read %d inferred ancestral seqs' % len(inferred_seqfos)
 
@@ -2228,7 +2225,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             if cfo is None:
                 continue
             dtree, inferred_seqfos = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, debug=debug)
-            if tree_inference_method in ['iqtree', 'gctree', 'linearham']:
+            if tree_inference_method in ['iqtree', 'gctree']: # linearham ones get added by its run script
                 utils.add_seqs_to_line(line, inferred_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, debug=debug)
             addtree(iclust, dtree, tree_inference_method)
 
