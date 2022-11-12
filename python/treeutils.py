@@ -848,6 +848,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     # ----------------------------------------------------------------------------------------
     assert method in ['fasttree', 'iqtree', 'gctree', 'linearham']
     assert actions in ['prep:run:read', 'prep', 'read']  # other combinations could make sense, but don't need them atm
+    if method == 'linearham' and glfo is None:
+        raise Exception('need to pass in glfo in order to run linearham (e.g. for instance linearham can\'t work on the fake h/l annotations')
 
     if method in ['gctree', 'linearham']:  # NOTE linearham seems to fail badly if there's framework insertions (well it doesn't crash, even worse it just discards them, so the output annotations are nonsense)
         if glfo is not None:  # if you don't pass in glfo, your sequences better not have fwk insertions since gctree barfs on ambiguous bases
@@ -2120,7 +2122,7 @@ def get_treefos(args, antn_list, cpath=None, glfo=None, debug=False):  # note th
     if any('tree' in l for l in antn_list if l is not None) and not args.is_data:
         treefos = [{'tree' : get_dendro_tree(treestr=l['tree'])} if l is not None else None for l in antn_list]  # needs to be same length as antn_list
         print '    using true trees'
-    elif any('tree-info' in l and 'lb' in l['tree-info'] for l in antn_list if l is not None):  # this block may need testing
+    elif any('tree-info' in l and 'lb' in l['tree-info'] and 'tree' in l['tree-info']['lb'] for l in antn_list if l is not None):  # this block may need testing
         treefos = [{'tree' : get_dendro_tree(treestr=l['tree-info']['lb']['tree'])} if l is not None else None for l in antn_list]  # needs to be same length as antn_list
         print '    using existing inferred trees in lb info'
     else:
@@ -2141,6 +2143,9 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             return None
         return '%s/%s/iclust-%d' % (inf_outdir, tree_inference_method, iclust)
     # ----------------------------------------------------------------------------------------
+    if tree_inference_method == 'linearham' and any(l.get('is_fake_paired', False) for l in inf_lines_to_use):
+        print '  %s can\'t run linearham on fake paired annotations, returning' % utils.wrnstr()
+        return [None for _ in inf_lines_to_use]
     ntot = len(inf_lines_to_use)
     large_lines = [l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size]  # this is just used for dbg atm, but should probably use it in the loop below as well
     print '    getting trees for %d cluster%s with size%s: %s' % (len(large_lines), utils.plural(len(large_lines)), utils.plural(len(large_lines)), ' '.join(str(len(l['unique_ids'])) for l in large_lines))

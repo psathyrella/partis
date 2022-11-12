@@ -61,8 +61,8 @@ def lhodir(locus, iclust=None):  # NOTE i think the only reason this fcn exists 
         raise Exception('old-style mcmc*/burnin*/ subdirs exist, you may want to move them to where we currently expect output\n  %s\n  %s' % (' '.join(flist), ldir))
     return ldir
 # ----------------------------------------------------------------------------------------
-def lnhofn(locus, iclust=None, trees=False):
-    return '%s/linearham_%s' % (lhodir(locus, iclust=iclust), 'run.trees' if trees else 'annotations_best.yaml' )
+def lnhofn(locus, iclust=None, trees=False, logprobs=False):
+    return '%s/linearham_%s' % (lhodir(locus, iclust=iclust), 'run.trees' if trees else ('run.log' if logprobs else 'annotations_all.yaml' ))
 # ----------------------------------------------------------------------------------------
 def ptnfn(locus, for_work=False):
     pdir = wkdir(locus) if args.ignore_unmutated_seqs and for_work else args.partis_outdir
@@ -167,9 +167,9 @@ def run_linearham():
     utils.run_scan_cmds(args, cmdfos, 'linearham.log', n_total, n_already_there, None, example_existing_ofn=example_existing_ofn, dbstr='linearham run')
 
 # ----------------------------------------------------------------------------------------
-def read_lh_trees(treefname, glfo, lh_atn):  # read trees and inferred ancestral seqs (which are in the nwk strings)
+def read_lh_trees(locus, iclust):  # read trees and inferred ancestral seqs (which are in the nwk strings)
     # ----------------------------------------------------------------------------------------
-    def fix_ambig_regions(new_seqfos, itree=None):
+    def fix_ambig_regions(new_seqfos, lh_atn, itree=None):
         if len(set(len(s) for s in lh_atn['seqs'])) > 1:
             print '  %s seqs not all the same length, so giving up on fixing ambiguous regions' % utils.wrnstr()
             return
@@ -186,19 +186,21 @@ def read_lh_trees(treefname, glfo, lh_atn):  # read trees and inferred ancestral
                 # utils.color_mutants(sfo['seq'], ''.join([utils.ambig_base if i in ambig_positions else c for i, c in enumerate(sfo['seq'])]), print_result=True)
                 sfo['seq'] = ''.join([utils.ambig_base if i in ambig_positions else c for i, c in enumerate(sfo['seq'])])
     # ----------------------------------------------------------------------------------------
-    treestrs = treeutils.get_treestrs_from_file(treefname)
+    glfo, lhalist, _ = utils.read_output(lnhofn(locus, iclust=iclust))
+    treestrs = treeutils.get_treestrs_from_file(lnhofn(locus, iclust=iclust, trees=True))
+    # logprobs = XXX lnhofn(locus, iclust=iclust, logprobs=True) 'linearham_run.log'  # tsv with log probs + stuff
+    assert len(lhalist) == len(treestrs)
     new_antns = []
-    for itree, treestr in enumerate(treestrs):
+    for itree, (treestr, lh_atn) in enumerate(zip(treestrs, lhalist)):
         dtree = treeutils.get_dendro_tree(treestr=treestr, debug=False)  # this is super slow because it's got to read all the sequences (although, really, why tf does that have to be slow)
         # print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree))
         inferred_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label not in lh_atn['unique_ids']]
         new_seqfos = [{'name' : n.taxon.label, 'seq' : n.annotations['ancestral'].value} for n in inferred_nodes]
-        fix_ambig_regions(new_seqfos, itree=itree)
-        newatn = utils.get_full_copy(lh_atn, glfo)
-        utils.add_seqs_to_line(newatn, new_seqfos, glfo, debug=False)
-        newatn['tree-info'] = {'lb' : {'tree' : dtree.as_string(schema='newick')}}
-        new_antns.append(newatn)
-    return new_antns  # list of length the number of trees that linearham sampled
+        fix_ambig_regions(new_seqfos, lh_atn, itree=itree)
+        utils.add_seqs_to_line(lh_atn, new_seqfos, glfo, debug=False)  # don't think there's any reason not to modify the annotation we read from the file
+        lh_atn['tree-info'] = {'lb' : {'tree' : dtree.as_string(schema='newick')}}
+        new_antns.append(lh_atn)
+    return new_antns, glfo  # list of length the number of trees that linearham sampled
 
 # ----------------------------------------------------------------------------------------
 def processs_linearham_output():
@@ -220,7 +222,7 @@ def processs_linearham_output():
             n_total_iclusts += utils.non_none([args.n_sim_events, len(clusters) - clusters.count(None)])
             continue
 
-        # collect best linearham annotation for each cluster (both with and without inferred ancestors)
+        # collect best linearham annotation for each cluster
         glfo = None
         anc_antns = []  # many annotations for each cluster (one for each sampled/inferred linearham tree), each with inferred intermediates added to the annotation
         for iclust, tclust in enumerate(clusters):
@@ -239,9 +241,8 @@ def processs_linearham_output():
             if args.dry:
                 anc_antns.append(None)  # just to print the right length
                 continue
-            glfo, lhalist, _ = utils.read_output(lhfn)  # note that this annotation (from linearham_annotations_best.yaml) doesn't have any inferred ancestors or trees
-            lh_atn = utils.get_single_entry(lhalist)
-            anc_antns.append(read_lh_trees(lnhofn(locus, iclust=iclust, trees=True), glfo, lh_atn))  # trees and ancestors get added here
+            tatn, glfo = read_lh_trees(locus, iclust)  # glfos should all be the same
+            anc_antns.append(tatn)  # trees and ancestors get added here
 
         if len(anc_antns) == 0:
             print '  %s zero anntoations to write, so exiting' % utils.wrnstr()
@@ -254,7 +255,7 @@ def processs_linearham_output():
         print '    %s %d cluster%s to %s output file (with tree and ancestors from sampled tree at index %d (of %d)): %s' % ('would write' if args.dry else 'writing', len(anc_antns), utils.plural(len(anc_antns)), 'single chain' if os.path.basename(os.path.dirname(fofn))=='single-chain' else '???', i_tmp_tree, n_sampled_trees, fofn)  # ??? need updating if i decide to write the joint ones
         print '       %s tree sample annotations for %d sampled trees to tree-samples/' % ('would also write' if args.dry else 'also writing', n_sampled_trees)
         if not args.dry:
-            utils.write_annotations(fofn, glfo, [alist[i_tmp_tree] for alist in anc_antns], utils.annotation_headers)
+            utils.makelink(os.path.dirname(fofn), os.path.abspath(finalfn(locus, inferred_ancestors=True, itree=i_tmp_tree)), fofn)
             for itree in range(n_sampled_trees):
                 utils.write_annotations(finalfn(locus, inferred_ancestors=True, itree=itree), glfo, [alist[itree] for alist in anc_antns], utils.annotation_headers)
                 with open(finalfn(locus, inferred_ancestors=True, itree=itree, nwk=True), 'w') as tfile:

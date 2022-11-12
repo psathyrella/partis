@@ -646,7 +646,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if '--plotdir' not in clist:
                     clist += ['--plotdir', getplotdir(ltmp, lpair=lpair, single_chain=not joint, tmpaction=tmpaction)]
             if tmpaction == 'get-selection-metrics':
-                utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)  # remove these just to make the cmd line simpler/easier to read
+                if args.tree_inference_method != 'linearham':
+                    utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)  # remove these just to make the cmd line simpler/easier to read
                 utils.remove_from_arglist(clist, '--sw-cachefname', has_arg=True)
                 utils.remove_from_arglist(clist, '--input-metafnames', has_arg=True)
                 if args.is_data:  # for simulation we still need it

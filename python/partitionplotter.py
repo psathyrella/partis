@@ -537,6 +537,8 @@ class PartitionPlotter(object):
     def make_laplacian_spectra_plots(self, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
         subd, plotdir = self.init_subd('laplacian-spectra')
         self.set_treefos()
+        if self.treefos.count(None) == len(self.treefos):
+            return [['x.svg']]
 
         fnames = [[]]
         for iclust in range(len(self.sclusts)):
@@ -684,6 +686,8 @@ class PartitionPlotter(object):
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('trees')
         self.set_treefos()
+        if self.treefos.count(None) == len(self.treefos):
+            return [['x.svg']]
         workdir = '%s/ete3-plots' % self.args.workdir
         fnames = [[]]
         cmdfos = []
@@ -719,8 +723,9 @@ class PartitionPlotter(object):
             return [['x.svg']]
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('subtree-purity')
-        if self.treefos is None:
-            self.set_treefos()
+        self.set_treefos()
+        if self.treefos.count(None) == len(self.treefos):
+            return [['x.svg']]
         fnames = []
         for iclust in range(len(self.sclusts)):
             if not self.plot_this_cluster(iclust, plottype='trees'):
