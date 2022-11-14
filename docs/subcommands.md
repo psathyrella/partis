@@ -1,3 +1,5 @@
+[Up to table of contents](contents.md)
+
   - [overview](#overview)
   - [annotate](#annotate) find most likely annotation for each sequence
   - [partition](#partition) cluster sequences into clonally-related families, and annotate each family

@@ -1,7 +1,10 @@
+[Up to table of contents](contents.md)
+
 #### plotting
   * [parameter plots](#parameter-plots)
   * [partition plots](#partition-plots)
     - [extra color/emphasis](#extra-coloremphasis)
+  * [selection metric plots](#selection-metric-plots)
   * germline inference plots: [separate file](germline-inference.md)
   * [annotation truth plots](#annotation-truth-plots)
   * [comparison plots](#comparison-plots)
@@ -56,7 +59,9 @@ Only the first of these slug plots (with the biggest clusters) is shown in `over
 The middle two plots in the top row show the mean number of SHMs vs size for all the families in both linear and log scales.
 At top right is the distribution of cluster sizes.
 
-Below this, if you have R and bios2mds installed as described [here](install.md#mds-plotting), there is a "multi-dimensional scaling" (MDS, a form of dimensionality reduction) plot for each clonal family, where each sequence in each family is a point on that family's plot.
+###### MDS plots
+If you have R and bios2mds installed as described [here](install.md#mds-plotting), you can also make "multi-dimensional scaling" (MDS, a form of dimensionality reduction) plots for each clonal family, where each sequence in each family is a point on that family's plot.
+Turn these on by adding "mds" to `--partition-plot-cfg`.
 MDS takes each family (as a cluster in 400-odd dimensional sequence/hamming distance space) and squishes it out into two dimensions, choosing axes such as to maximize how squished out the family gets, while as nearly as possible preserving each inter-sequence distance from the real, 400-odd dimensional space.
 Note that we use the [bios2mds R package](https://cran.r-project.org/web/packages/bios2mds/bios2mds.pdf), and ambiguous bases are *not* treated correctly, i.e. Ns show up as mutations (at least we can't figure out how to change this).
 While there is no easy biological interpretation for the various directions on these plots, they do a good job of giving, at a glance, an overview of the basic structure of each family.
@@ -67,6 +72,7 @@ Note that duplicate sequences are collapsed/removed before passing to the MDS me
 The plot title shows the family's zero-based, size-sorted index and size (matching the numbers on the right side of the slug plots).
 The overview html again only shows plots for the largest few clusters, while the rest can be found in the `partitions/mds/` subdirectory.
 
+###### Laplacian spectra
 You can write some even more speculatively informative plots if you uncomment the `make_laplacian_spectra_plots()` call in `python/partitionplotter.py`.
 Below the MDS plots, there is a row of plots showing the Laplacian spectral decomposition for each cluster's tree (the rest are in the `laplacian-spectra/` subdir).
 This converts the tree's distances into a set of eigenvalues, as described in [this paper](https://www.ncbi.nlm.nih.gov/pubmed/26658901), and implemented in the [RPANDA](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12526) R package.
@@ -90,6 +96,9 @@ For instance here we've colored samples by timepoint, and highlighted sequences 
 ![meta-emph-partitions](images/meta-emph-partitions.png)
 
 Some details and formatting can be further modified with `--meta-emph-formats` (see `partis partition --help` for details).
+
+#### selection metric plots
+<!-- TODO -->
 
 #### germline inference plots
 

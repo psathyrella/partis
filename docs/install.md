@@ -1,3 +1,5 @@
+[Up to table of contents](contents.md)
+
 ### Installation
 
 Partis can be installed either [with Docker](#installation-with-docker) or [from scratch](#installation-from-scratch).

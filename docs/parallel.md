@@ -1,3 +1,5 @@
+[Up to table of contents](contents.md)
+
 ### Parallelization
 
 ###### In general

@@ -1,3 +1,5 @@
+[Up to table of contents](contents.md)
+
   - [overview](#overview)
   - [output directory](#output-directory)
   - [pair cleaning](#pair-cleaning)

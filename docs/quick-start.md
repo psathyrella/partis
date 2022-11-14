@@ -1,3 +1,5 @@
+[Up to table of contents](contents.md)
+
 ### Quick start
 
 While there are many different partis [subcommands](subcommands.md), likely the first thing you want to do is run `partition` on a fasta input file `/path/to/yourseqs.fa`.

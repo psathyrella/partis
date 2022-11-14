@@ -1,3 +1,5 @@
+[Up to table of contents](contents.md)
+
 #### Evaluating confidence in germline inference
 
 We unfortunately do not yet have a way to report simple confidence estimates for each gene in the inferred germline set.

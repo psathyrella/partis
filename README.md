@@ -13,20 +13,10 @@ Since they do quite different things, it's best if you can cite the specific pap
   * [Clonal family inference](http://dx.doi.org/10.1371/journal.pcbi.1005086) Ralph, DK, & Matsen IV, FA (2016). _Likelihood-based Inference of B-cell Clonal Families._ PLoS Computational Biology, 12(10), e1005086.
   * [HMM framework and BCR annotation](http://doi.org/10.1371/journal.pcbi.1004409) Ralph, DK, & Matsen IV, FA (2016). _Consistency of \[...\] Enables Accurate B Cell Receptor Sequence Annotation._ PLoS Computational Biology, 12(1), e1004409.
 
-The manual is divided into the following pages:
+The best place to start reading the manual is either the [quick start](docs/quick-start.md) or [table of contents](docs/contents.md).
+Details on the many options not documented there may be found by running each subcommand's help, for instance `partis cache-parameters --help` or `partis simulate --help`.
 
-  * [Installation](docs/install.md)
-  * [Quick start](docs/quick-start.md)
-  * [Subcommands](docs/subcommands.md)
-  * [Paired loci](docs/paired-loci.md)
-  * [Output formats](docs/output-formats.md)
-  * [Plotting](docs/plotting.md)
-  * [Germline inference confidence](docs/germline-inference.md)
-  * [Parallelization](docs/parallel.md)
-
-Details on the many options not documented here may be found by running each subcommand's help, for instance `partis cache-parameters --help` or `partis simulate --help`.
-
-To ask questions about how to run or how things work, please use the [google group](https://groups.google.com/forum/#!forum/partis).
+To ask questions about how to run or how things work, please use the [google group](https://groups.google.com/g/partis).
 For specific issues with the software, e.g. bug reports or feature requests, on the other hand, [submit an issue](https://github.com/psathyrella/partis/issues/new) on github.
 You can also search through past discussion both on the google group and in [closed issues](https://github.com/psathyrella/partis/issues?q=is%3Aissue+is%3Aclosed).
 If you'd like to be notified when something important changes, please subscribe to the google group.
