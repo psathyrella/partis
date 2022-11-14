@@ -546,6 +546,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
             if not args.run_single_chain_selection_metrics:
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
+            if not args.run_single_chain_plotting:
+                utils.remove_from_arglist(clist, '--plot-partitions')
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
@@ -1094,6 +1096,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     def process_all_outputs(tmpaction):
         for lpair in spairs():  # run plots/meta update for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
             for ltmp in lpair:
+                if tmpaction=='plot-partitions' and utils.has_d_gene(ltmp) and not args.run_single_chain_plotting:  # for heavy chain we can just used the merged one, but the light chain merged ones are just links back to here so we need them
+                    continue
                 run_step(tmpaction, ltmp, lpair=lpair, joint=True, skip_missing_output=True)
         cfpdir = '%s/cf-plots' % getodir(is_plotting=True)
         for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
@@ -1147,7 +1151,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 run_step('cache-parameters', ltmp, auto_cache=True, skip_missing_input=True)
         if args.random_seed_seq:
             (args.seed_unique_id, args.seed_loci), _ = utils.choose_seed_unique_id(os.path.dirname(getifn(utils.heavy_locus)), None, None, paired=True, choose_random=True)
-        if args.action not in ['merge-paired-partitions', 'get-selection-metrics', 'view-output']:  # NOTE this skips printing the single-chain results for 'view-output', since presumably we don't really care about them
+        if args.action not in ['merge-paired-partitions', 'get-selection-metrics', 'view-output', 'plot-partitions'] or args.action=='plot-partitions' and args.run_single_chain_plotting:  # NOTE this skips printing the single-chain results for 'view-output', since presumably we don't really care about them
             if args.seed_unique_id is not None and args.action == 'partition':
                 remove_unseeded_seqs()
             for ltmp in sloci():
@@ -1158,7 +1162,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning')
         ptnplot = args.action == 'plot-partitions' or args.plot_partitions or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None and not args.no_partition_plots)  # ick
         if ptnplot or args.action == 'update-meta-info':
-            process_all_outputs('plot-partitions' if ptnplot else args.action)
+            process_all_outputs('plot-partitions' if ptnplot else args.action)  # includes several run_step() calls
         if args.action == 'view-output' or args.debug_paired_clustering or args.debug:
             for ltmp in sloci():
                 run_step('view-output', ltmp, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
@@ -1316,6 +1320,7 @@ parent_args.append({'name' : '--linearham-dir', 'kwargs' : {'default' : ('/home/
 parent_args.append({'name' : '--meta-info-to-emphasize', 'kwargs' : {'help' : 'Input meta info (or regular annotation) key to emphasize (highlight in red) in various plots, similar to --queries-to-include. Specify as comma-separated key-value pair, for instance \'timepoints,+8d\' would highlight all sequences with timepoint \'+8d\'. Can be any annotation key or input meta key. For now only supports one key-val pair, but in future should support colon-separated list.'}})
 parent_args.append({'name' : '--meta-info-key-to-color', 'kwargs' : {'help' : 'Like --meta-info-to-emphasize, except for this key we choose a different color for each value (only in the slug/joy plots at the moment).'}})
 parent_args.append({'name' : '--meta-emph-formats', 'kwargs' : {'help' : 'Formatting instructions for keys used in --meta-info-to-emphasize and --meta-info-key-to-color, specified as a colon-separated list of comma-separated key/val pairs. Currently you can do two things: specify a different (presumably prettier) name, and specify to emphasize/color based on length rather than value. For instance \'--meta-info-key-to-color multiplicities --meta-info-to-emphasize paired-uids,1 --meta-emph-formats multiplicities,multi:paired-uids,len\' will color by multiplicities, but label this in the plots with \'multi\', and emphasize seqs with exactly one paired uid (i.e. their \'paired-uids\' list is length 1).'}})
+parent_args.append({'name' : '--run-single-chain-plotting', 'kwargs' : {'action' : 'store_true', 'help' : 'if --paired-loci is set and plotting partitions, make partition plots for all single chain/subdirs (not just final/joint partitions). Like --run-single-chain-selection-metrics, but for plotting.'}})
 
 parent_args.append({'name' : '--default-initial-germline-dir', 'kwargs' : {'default' : partis_dir + '/data/germlines', 'help' : 'For internal use only (used to pass around the default location). To specify your own germline directory from which to start, use --initial-germline-dir instead.'}})
 parent_args.append({'name' : '--initial-germline-dir', 'kwargs' : {'help' : 'Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, usually (i.e. unless germline inference is turned off) with modification. NOTE default is set below, because control flow is too complicated for argparse'}})
@@ -1343,7 +1348,7 @@ parent_args.append({'name' : '--plot-and-fit-absolutely-everything', 'kwargs' : 
 parent_args.append({'name' : '--cluster-indices', 'kwargs' : {'help' : 'indices of clusters (when sorted largest to smallest) to process for actions that read existing output, e.g. \'view-output\' and \'get-selection-metrics\'. Specified as a colon-separated list, where each item can be either a single integer or a python slice-style range of integers, e.g. 0:3-6:50 --> 0:3:4:5:50'}})
 parent_args.append({'name' : '--partition-index-to-print', 'kwargs' : {'type' : int, 'help' : 'like --cluster-indices, but restricts to the partition with this index (rather than default of printing best partition).'}})
 parent_args.append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname, or alternatively run gctree with --run-gctree (unrelated to --input-simulation-treefname).'}})
-parent_args.append({'name' : '--run-single-chain-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'if --paired-loci is set and calculating selection metrics, in addition to getting the paired h+l selection metrics, also calculate selection metrics on the individual chain output files in igh+igk/ and igh+igk/ (i.e. the *joint*, not single chain, partitions of each individual/single chain)'}})
+parent_args.append({'name' : '--run-single-chain-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'if --paired-loci is set and calculating selection metrics, in addition to getting the paired h+l selection metrics, also calculate selection metrics on the individual chain output files in igh+igk/ and igh+igk/ (i.e. the *joint*, not single chain, partitions of each individual/single chain). Like --run-single-chain-plotting, but for plotting.'}})
 parent_args.append({'name' : '--min-selection-metric-cluster-size', 'kwargs' : {'type' : int, 'default' : treeutils.default_min_selection_metric_cluster_size, 'help' : 'don\'t calculate selection metrics for clusters smaller than this'}})
 parent_args.append({'name' : '--treefname', 'kwargs' : {'help' : 'newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-selection-metrics) (unrelated to --input-simulation-treefname).'}})
 parent_args.append({'name' : '--tree-inference-method', 'kwargs' : {'choices' : ['fasttree', 'iqtree', 'gctree', 'linearham'], 'help' : 'Tree inference method to run when getting selection metrics (if not set, uses fasttree [combined, if available, with the cluster path])'}})

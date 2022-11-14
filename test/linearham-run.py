@@ -100,6 +100,8 @@ def run_linearham():
         if iclust==0 and locus=='igh':
             print '    workdir: %s' % workd
         utils.mkdir(workd)
+        if not os.path.exists(prmd(locus)):
+            print '  %s parameter dir doesn\'t exist, maybe need to ln it in from somewhere else? %s' % (utils.wrnstr, prmd(locus))
         shlines = ['#!/bin/bash']
         # shlines += ['ls -ltrh %s %s' % (dckr_trns(ptnfn(locus, for_work=True)), dckr_trns(prmd(locus)))]
         if not args.docker:
@@ -301,6 +303,7 @@ if args.fast:
 
 if not args.docker and (args.linearham_dir is None or args.linearham_dir not in args.outdir):
     args.original_outdir = args.outdir
+    utils.mkdir(args.original_outdir)
     args.outdir = '%s/work/%s' % (args.linearham_dir, args.original_outdir.lstrip('/'))  # ok it's a little over verbose to use the full original path, but whatever
     if not os.path.exists(args.outdir):
         print '     --outdir is not a subdir of --linearham-dir, so %s it so it looks like one' % ('would link' if args.dry else 'linking')
