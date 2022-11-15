@@ -8,6 +8,7 @@ import time
 import collections
 import operator
 import copy
+import glob
 
 from hist import Hist
 import hutils
@@ -48,7 +49,7 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def init_subd(self, subd):
         plotdir = self.base_plotdir + '/' + subd
-        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
+        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg', '*.png'])
         return subd, plotdir
 
     # ----------------------------------------------------------------------------------------
@@ -136,8 +137,8 @@ class PartitionPlotter(object):
         self.make_cluster_scatter(plotdir, plotname, mean_mutations, len, clusters_to_use, repertoire_size, self.size_vs_shm_min_cluster_size, log_cluster_size=log_cluster_size, xlabel='mean N mutations', xbounds=(0, self.n_max_mutations))
 
     # ----------------------------------------------------------------------------------------
-    def addfname(self, fnames, fname, force_new_row=False):
-        fname += '.svg'
+    def addfname(self, fnames, fname, force_new_row=False, suffix='.svg'):
+        fname += suffix
         if force_new_row or len(fnames[-1]) >= self.n_plots_per_row:
             fnames.append([fname])
         else:
@@ -528,6 +529,10 @@ class PartitionPlotter(object):
             return
         antn_list = [self.antn_dict.get(':'.join(c)) for c in self.sclusts]  # NOTE we *need* cluster indices here to match those in all the for loops in this file
         self.treefos = treeutils.get_treefos(self.args, antn_list, cpath=self.cpath, glfo=self.glfo)
+        if self.args.tree_inference_method is not None:  # if inference method infers ancestors, those get added to the annotation during inference (at the moment only for gctree, iqtree, and linearham)
+            self.antn_dict = utils.get_annotation_dict(antn_list)
+            for iclust, clust in enumerate(self.sclusts):  # NOTE can't just sort the 'unique_ids', since we need the indices to match up with the other plots here
+                self.sclusts[iclust] = utils.get_single_entry([l['unique_ids'] for l in antn_list if len(set(l['unique_ids']) & set(clust)) > 0])
 
     # ----------------------------------------------------------------------------------------
     def get_treestr(self, iclust):  # at some point i'll probably need to handle None type trees, but that day is not today
@@ -654,7 +659,11 @@ class PartitionPlotter(object):
             if self.args.label_mutations:
                 utils.add_seqs_aa(annotation)
                 aa_mutations, nuc_mutations = {}, {}
-                treeutils.get_aa_tree(treeutils.get_dendro_tree(treestr=treestr), annotation, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations)
+                treeutils.get_aa_tree(self.treefos[iclust]['tree'], annotation, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations)
+                for mcodes in aa_mutations.values():  # switch from 0-based to 1-based indexing (only for AA) to match linearham plots
+                    for mcd in mcodes:
+                        mcd['pos'] += 1
+                        mcd['str'] = '%s%d%s' % (mcd['initial'], mcd['pos'], mcd['final'])
                 tkeys = {'pos' : 'position', 'str' : 'mutation'}
                 mcounts = {k : {} for k in tkeys}
                 for mfos in aa_mutations.values():
@@ -699,6 +708,8 @@ class PartitionPlotter(object):
                 continue
             plotname = 'tree-iclust-%d' % iclust
             cmdfos += [lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=get_metafo(annotation), queries_to_include=self.args.queries_to_include, meta_info_key_to_color=self.args.meta_info_key_to_color, label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key)]
+            # print cmdfos[-1]['cmd_str']
+            # sys.exit()
             self.addfname(fnames, plotname)
         if len(cmdfos) > 0:
             start = time.time()
@@ -712,6 +723,13 @@ class PartitionPlotter(object):
             all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
             self.plotting.make_meta_info_legend(plotdir, 'tree', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
             self.addfname(fnames, 'tree-legend')
+
+        if self.args.tree_inference_method == 'linearham' and self.args.outfname is not None:
+            for iclust in range(len(self.sclusts)):
+                lin_plot_dir = '%s/%s/iclust-%d/lineage-plots' % (utils.fpath(utils.getprefix(self.args.outfname)), self.args.tree_inference_method, iclust)  # this duplicates code in treeutils.get_treefos() and treeutils.get_trees_for_annotations()
+                for fn in glob.glob('%s/*.png'%lin_plot_dir):
+                    utils.makelink(plotdir, fn, '%s/%s'%(plotdir, os.path.basename(fn)))  # ok this is two levels of links, which kind of sucks but oh well
+                    self.addfname(fnames, utils.getprefix(os.path.basename(fn)), suffix='.png')
 
         return [[subd + '/' + fn for fn in fnames[0]]]
 

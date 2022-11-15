@@ -247,11 +247,19 @@ def set_meta_styles(args, etree, tstyle):
             bgcolor = mcolors.get(mvals[node.name], bgcolor)
 
         if label_node(node):
-            nlabel = ''
-            if args.label_all_nodes:
-                nlabel += node.name
+            if args.label_all_nodes or args.queries_to_include is not None and node.name in args.queries_to_include:
+                nlabel = node.name
+            else:
+                nlabel = ''
             if 'labels' in args.metafo:
-                nlabel += '%s%s' % (': ' if args.label_all_nodes else '', args.metafo['labels'].get(node.name, ''))
+                mlabel = args.metafo['labels'].get(node.name, '')
+                if '\n' in mlabel:
+                    mlabel, bottom_label = mlabel.split('\n')
+                    if bottom_label.count(',') > 2:  # split into two rows if more than 3 entries
+                        blist = bottom_label.split(', ')
+                        bottom_label = '%s\n%s' % (', '.join(blist[:len(blist)/2]), ', '.join(blist[len(blist)/2:]))
+                    node.add_face(ete3.TextFace(bottom_label, fsize=3, fgcolor='black'), column=0, position='branch-bottom')
+                node.add_face(ete3.TextFace(mlabel, fsize=3, fgcolor='black'), column=0, position='branch-top')
             tface = ete3.TextFace(rename(nlabel), fsize=3, fgcolor='red')
             node.add_face(tface, column=0)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)

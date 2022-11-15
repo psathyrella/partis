@@ -208,6 +208,11 @@ def read_lh_trees(locus, iclust):  # read trees and inferred ancestral seqs (whi
 
 # ----------------------------------------------------------------------------------------
 def processs_linearham_output():
+    if args.original_outdir is not None and os.path.exists(args.outdir):  # rm the stupid link bullshit
+        os.remove(args.outdir)
+        os.rmdir(os.path.dirname(args.outdir))  # maybe? it would be nice to keep going upwards and delete everything we made, but I'm not sure how to stop in exactly the right place
+        args.outdir = args.original_outdir
+
     n_already_there, n_too_small, n_non_seed, missing_iclusts, n_total_iclusts, n_total_out = 0, 0, 0, [], 0, 0
     missing_icpaths = []
     for locus in gloci():
@@ -301,6 +306,7 @@ if args.fast:
     linearham_defaults[0]['mcmciter'] = '1000'
     linearham_defaults[0]['tuneiter'] = '500'
 
+args.original_outdir = None
 if not args.docker and (args.linearham_dir is None or args.linearham_dir not in args.outdir):
     args.original_outdir = args.outdir
     utils.mkdir(args.original_outdir)
