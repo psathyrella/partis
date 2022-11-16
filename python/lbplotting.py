@@ -1529,7 +1529,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, seq_len=None,
-                    meta_info_key_to_color=None, node_size_key=None):
+                    meta_info_key_to_color=None, node_size_key=None, uid_translations=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
@@ -1543,6 +1543,8 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --metafname %s' % metafname
     if queries_to_include is not None:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
+    if uid_translations is not None:
+        cmdstr += ' --uid-translations %s' % ':'.join('%s,%s'%(u, au) for u, au in uid_translations)
     if label_all_nodes:
         cmdstr += ' --label-all-nodes'
     if label_root_node:
@@ -1566,7 +1568,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None, queries_to_include=None, fnames=None, label_root_node=False, label_all_nodes=False):
+def plot_lb_trees(args, metric_methods, baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None, fnames=None):
     add_fn(fnames, new_row=True)
     workdir = '%s/ete3-plots' % base_workdir
     plotdir = baseplotdir + '/trees'
@@ -1579,12 +1581,15 @@ def plot_lb_trees(metric_methods, baseplotdir, lines, ete_path, base_workdir, is
         fnames += [['header', '%s trees'%lb_metric], []]
         for iclust, line in enumerate(lines):  # note that <min_selection_metric_cluster_size> was already applied in treeutils
             treestr = get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric)
+            qtis = None if args.queries_to_include is None else [q for q in args.queries_to_include if q in line['unique_ids']]  # NOTE make sure to *not* modify args.queries_to_include
+            altids = [(u, au) for u, au in zip(line['unique_ids'], line['alternate-uids']) if au is not None] if 'alternate-uids' in line else None
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
             metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
             if affy_key in line:  # either 'affinities' or 'relative_affinities'
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
-            cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=queries_to_include, label_all_nodes=label_all_nodes, label_root_node=label_root_node,
+            cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=qtis, 
+                                       label_all_nodes=args.label_tree_nodes, label_root_node=args.label_root_node, uid_translations=altids,
                                        seq_len=float(numpy.mean([len(s) for s in line['seqs']])))]
             add_fn(fnames, fn=outfname, n_per_row=4)
 

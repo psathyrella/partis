@@ -66,7 +66,7 @@ def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_em
     else:  # NOTE all_emph_vals needs to be a set if you pass it in
         assert clusters is None and antn_dict is None
     def cfcn(i, v): return 'grey' if v in [None, 'None'] else tme_colors[i%len(tme_colors)]
-    emph_colors = [(v, cfcn(i, v)) for i, v in enumerate(sorted(all_emph_vals - set([None, 'None'])))] + [('None', 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
+    emph_colors = [(v, cfcn(i, v)) for i, v in enumerate(sorted(all_emph_vals - set([None, 'None'])))] + [('None', 'grey'), (None, 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
     return all_emph_vals, emph_colors
 
 # ----------------------------------------------------------------------------------------

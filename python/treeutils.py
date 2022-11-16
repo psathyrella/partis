@@ -2791,14 +2791,21 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         dids = both_dids(mfo)  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
         if len(set(dids)) == 1:  # if they have the same droplet id (data or correctly paired simulation)
             if is_simu or args.use_droplet_id_for_combo_id:  # in simulation the droplet ids should be unique, so we can just use the droplet id as the combined id
-                return dids[0]
+                rid = dids[0]
             else:  # but in data we can get multiple cells per droplet id
-                return '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
+                rid = '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
         else:  # but if they're mispaired in simulation (i.e. have different "droplet ids") then keep all the info
             assert len(set(dids)) == 2
-            return '%s-%s+%s-%s' % (dids[0], mfo['h']['loci'][0], dids[1], mfo['l']['loci'][0])
+            rid = '%s-%s+%s-%s' % (dids[0], mfo['h']['loci'][0], dids[1], mfo['l']['loci'][0])
+        hid, lid = [gsval(mfo, c, 'unique_ids') for c in 'hl']
+        if args.queries_to_include is not None and any(u in args.queries_to_include for u in (hid, lid)):  # translate uids in args.queries_to_include (should maybe untranslate afterwards?)
+            for u in (hid, lid):
+                args.queries_to_include.remove(u)
+            args.queries_to_include.append(rid)
+        return rid
     # ----------------------------------------------------------------------------------------
     def get_didstr(dids, cids, mpfo):
+        hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
         if len(set(dids)) == 1:  # make sure they're from the same droplet
             didstr = dids[0]
             if any('chosens' in mpfo[c] and gsval(mpfo, c, 'chosens') for c in 'hl'):

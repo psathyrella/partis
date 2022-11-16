@@ -124,19 +124,44 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
 
 # ----------------------------------------------------------------------------------------
 def label_node(node):
-    if args.label_all_nodes:
-        return True
-    if 'labels' in args.metafo:
-        return True
-    if args.queries_to_include is not None and node.name in args.queries_to_include:
-        return True
-    if args.label_root_node and node is etree.get_tree_root():
-        return True
-    if args.meta_info_to_emphasize is not None:
-        key, val = args.meta_info_to_emphasize.items()[0]
-        if utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
+    # ----------------------------------------------------------------------------------------
+    def use_name():
+        if args.label_all_nodes:
             return True
-    return False
+        if args.queries_to_include is not None and node.name in args.queries_to_include:
+            return True
+        if args.label_root_node and node is etree.get_tree_root():
+            return True
+        if args.meta_info_to_emphasize is not None:
+            key, val = args.meta_info_to_emphasize.items()[0]
+            if utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
+                return True
+# TODO don't actually do this, use meta info to emphasize (eh, maybe this is ok?)
+        if args.uid_translations is not None and node.name in args.uid_translations:
+            return True
+        return False
+    # ----------------------------------------------------------------------------------------
+    if use_name():
+        nlabel = node.name
+        if args.uid_translations is not None and nlabel in args.uid_translations:
+            print 'yep'
+            nlabel = args.uid_translations[nlabel]
+    else:
+        if 'labels' in args.metafo:
+            nlabel = ''
+        else:
+            return
+    if 'labels' in args.metafo:
+        mlabel = args.metafo['labels'].get(node.name, '')
+        if '\n' in mlabel:
+            mlabel, bottom_label = mlabel.split('\n')
+            if bottom_label.count(',') > 2:  # split into two rows if more than 3 entries
+                blist = bottom_label.split(', ')
+                bottom_label = '%s\n%s' % (', '.join(blist[:len(blist)/2]), ', '.join(blist[len(blist)/2:]))
+            node.add_face(ete3.TextFace(bottom_label, fsize=3, fgcolor='black'), column=0, position='branch-bottom')
+        node.add_face(ete3.TextFace(mlabel, fsize=3, fgcolor='black'), column=0, position='branch-top')
+    tface = ete3.TextFace(rename(nlabel), fsize=3, fgcolor='red')
+    node.add_face(tface, column=0)
 
 # ----------------------------------------------------------------------------------------
 def rename(name):
@@ -206,9 +231,7 @@ def set_lb_styles(args, etree, tstyle):
                     node.img_style['hz_line_width'] = 1.2
                 else:
                     node.img_style['hz_line_color'] = plotting.getgrey()
-        if label_node(node):
-            tface = ete3.TextFace(rename(node.name), fsize=3, fgcolor='red')
-            node.add_face(tface, column=0)
+        label_node(node)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
@@ -246,22 +269,7 @@ def set_meta_styles(args, etree, tstyle):
         if args.meta_info_key_to_color is not None and node.name in mvals:
             bgcolor = mcolors.get(mvals[node.name], bgcolor)
 
-        if label_node(node):
-            if args.label_all_nodes or args.queries_to_include is not None and node.name in args.queries_to_include:
-                nlabel = node.name
-            else:
-                nlabel = ''
-            if 'labels' in args.metafo:
-                mlabel = args.metafo['labels'].get(node.name, '')
-                if '\n' in mlabel:
-                    mlabel, bottom_label = mlabel.split('\n')
-                    if bottom_label.count(',') > 2:  # split into two rows if more than 3 entries
-                        blist = bottom_label.split(', ')
-                        bottom_label = '%s\n%s' % (', '.join(blist[:len(blist)/2]), ', '.join(blist[len(blist)/2:]))
-                    node.add_face(ete3.TextFace(bottom_label, fsize=3, fgcolor='black'), column=0, position='branch-bottom')
-                node.add_face(ete3.TextFace(mlabel, fsize=3, fgcolor='black'), column=0, position='branch-top')
-            tface = ete3.TextFace(rename(nlabel), fsize=3, fgcolor='red')
-            node.add_face(tface, column=0)
+        label_node(node)
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
@@ -311,6 +319,7 @@ parser.add_argument('--tree-style', default='rectangular', choices=['rectangular
 parser.add_argument('--partis-dir', default=os.path.dirname(os.path.realpath(__file__)).replace('/bin', ''), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
 parser.add_argument('--seq-len', type=int)
+parser.add_argument('--uid-translations', help='colon-separated list of comma-separated pairs of uid:translated-id pairs')
 parser.add_argument('--meta-info-to-emphasize', help='see partis help')
 parser.add_argument('--meta-info-key-to-color', help='see partis help')
 parser.add_argument('--meta-emph-formats', help='see partis help')
@@ -331,6 +340,7 @@ except ImportError as e:
 args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
 args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
 utils.meta_emph_arg_process(args)
+args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
 
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 args.metafo = None
