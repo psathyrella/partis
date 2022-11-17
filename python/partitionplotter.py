@@ -269,7 +269,7 @@ class PartitionPlotter(object):
                 writer.writerow({'id' : 'fake', 'radius' : len(fake_cluster)})
 
         cmd = '%s/bin/circle-plots.py %s %s' % (utils.get_partis_dir(), rfn, bpfn)
-        utils.simplerun(cmd)
+        utils.simplerun(cmd, extra_str='        ')
         bubble_positions = []
         with open(bpfn) as bpfile:
             def cfn(k, v): return v if k=='id' else float(v)
@@ -698,7 +698,7 @@ class PartitionPlotter(object):
         if self.treefos.count(None) == len(self.treefos):
             return [['x.svg']]
         workdir = '%s/ete3-plots' % self.args.workdir
-        fnames = [[]]
+        fnames = [['header', '%s trees'%utils.non_none([self.args.tree_inference_method, treeutils.default_inference_str])], []]  # header for html file
         cmdfos = []
         for iclust in range(len(self.sclusts)):
             if not self.plot_this_cluster(iclust, plottype='trees'):
@@ -728,13 +728,14 @@ class PartitionPlotter(object):
             self.addfname(fnames, 'tree-legend')
 
         if self.args.tree_inference_method == 'linearham' and self.args.outfname is not None:
+            fnames.append([])
             for iclust in range(len(self.sclusts)):
                 lin_plot_dir = '%s/%s/iclust-%d/lineage-plots' % (utils.fpath(utils.getprefix(self.args.outfname)), self.args.tree_inference_method, iclust)  # this duplicates code in treeutils.get_treefos() and treeutils.get_trees_for_annotations()
                 for fn in glob.glob('%s/*.png'%lin_plot_dir):
                     utils.makelink(plotdir, fn, '%s/%s'%(plotdir, os.path.basename(fn)))  # ok this is two levels of links, which kind of sucks but oh well
                     self.addfname(fnames, utils.getprefix(os.path.basename(fn)), suffix='.png')
 
-        return [[subd + '/' + fn for fn in fnames[0]]]
+        return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
     def make_subtree_purity_plots(self, cpath=None):
@@ -786,7 +787,7 @@ class PartitionPlotter(object):
             return
         if args is not None and args.sub_plotdir is not None:
             plotdir += '/' + args.sub_plotdir
-        print '  plotting partitions to %s' % plotdir
+        print '    plotting partitions to %s' % plotdir
         sys.stdout.flush()
         start = time.time()
         if args is None or args.partition_plot_cfg is None:

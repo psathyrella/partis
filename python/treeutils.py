@@ -68,6 +68,7 @@ int_metrics = ['cons-dist-aa', 'cons-dist-nuc', 'shm-aa', 'shm']  # adding this 
 # ----------------------------------------------------------------------------------------
 all_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree', 'distr', 'true-vs-inf-metrics', 'tree-mut-stats']
 default_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree']
+default_inference_str = 'cluster path/fasttree'  # str describing default tree inference (atm, combination of cluster path (hier. agglom.) with fasttree refinement
 
 # ----------------------------------------------------------------------------------------
 def smetric_fname(fname):
@@ -1252,19 +1253,19 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
         warnstr = utils.color('yellow', 'warning ') if len(fracs) > 0 else ''  # len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
             idstr = '(note that this is expected if these are single chain sequences being compared to a paired h+l tree)'
-            print '        %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s %s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str, idstr)
-            print '            mean values:  tree depth %.3f  mfreq %.3f  diff %.3f  abs(frac diff) %.0f%%  ratio %.1f' % (numpy.mean(tdepths.values()), numpy.mean(mfreqs.values()), numpy.mean([tdepths[k] - mfreqs[k] for k in tdepths]),
-                                                                                                                           100*numpy.mean([(tdepths[k] - mfreqs[k])/mfreqs[k] for k in tdepths if mfreqs[k]>0]),
-                                                                                                                           numpy.mean([tdepths[k]/mfreqs[k] for k in tdepths if mfreqs[k]>0]))
+            print '                %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s %s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str, idstr)
+            print '                    mean values:  tree depth %.3f  mfreq %.3f  diff %.3f  abs(frac diff) %.0f%%  ratio %.1f' % (numpy.mean(tdepths.values()), numpy.mean(mfreqs.values()), numpy.mean([tdepths[k] - mfreqs[k] for k in tdepths]),
+                                                                                                                                   100*numpy.mean([(tdepths[k] - mfreqs[k])/mfreqs[k] for k in tdepths if mfreqs[k]>0]),
+                                                                                                                                   numpy.mean([tdepths[k]/mfreqs[k] for k in tdepths if mfreqs[k]>0]))
         if (debug and len(fracs) > 0) or len(fracs) > 0:
-            print '  %d with highest abs(diff):' % n_to_print
-            print '    tree depth   mfreq      ratio    diff'
+            print '          %d with highest abs(diff):' % n_to_print
+            print '            tree depth   mfreq      ratio    diff'
             for key, adiff in sorted(abs_diffs.items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
-                print '      %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
-            print '  %d with highest+lowest ratios:' % n_to_print
+                print '              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
+            print '          %d with highest+lowest ratios:' % n_to_print
             srats = sorted(ratios.items(), key=operator.itemgetter(1), reverse=True)
             for key, ratio in srats[:n_to_print/2] + srats[len(srats) - n_to_print/2:]:
-                print '      %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
+                print '              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
 
     if only_check_leaf_depths:  # the pairwise bit is slow
         return len(fracs), None
@@ -1284,12 +1285,12 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
     if debug or len(pw_fracs) > 0:
         warnstr = utils.color('yellow', 'warning ') if len(pw_fracs) > 0 else ''  #  if len(pw_fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
-            print '        %s%spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(pw_fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
+            print '                %s%spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(pw_fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
         if debug and len(pw_fracs) > 0:
-            print '          pairwise'
-            print '     tree dist  seq dist    ratio   frac diff'
+            print '                  pairwise'
+            print '             tree dist  seq dist    ratio   frac diff'
             for key, frac_diff in sorted(pw_fracs.items(), key=operator.itemgetter(1), reverse=True):
-                print '      %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / pv_mdists[key], frac_diff, key[0], key[1])
+                print '              %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / pv_mdists[key], frac_diff, key[0], key[1])
 
     if debug > 1:
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
@@ -1318,7 +1319,7 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
             raise Exception('need annotation to get sequence lengths if tau is None')
         tau = 1. / seq_len  # note that this uses the nuc seq len even if we're calculating aa lb metrics (which is what we want)
         if iclust is None or iclust == 0:
-            print '  setting default tau to 1 / %d = %.4f' % (seq_len, tau)
+            print '      setting default tau to 1 / %d = %.4f' % (seq_len, tau)
 
     if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
         # compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str, only_check_leaf_depths=True, debug=True)  # this used to be slow (although now we only check depths, avoiding the slow pairwise check), and turning it off for amino acid trees would require some changes, so whatever, leaving it commented for now
@@ -2043,7 +2044,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
 
     if args.sub_plotdir is not None:
         plotdir = '%s/%s' % (plotdir, args.sub_plotdir)
-    print '           plotting to %s' % plotdir
+    print '    plotting selection metrics to %s' % plotdir
     utils.prep_dir(plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
     fnames = lbplotting.add_fn(None, init=True)
 
@@ -2079,7 +2080,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
             for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
                 lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include) #, add_stats='correlation')
         if ete_path is not None and has_trees and 'tree' in plot_cfg:
-            lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=args.queries_to_include, fnames=fnames, label_all_nodes=args.label_tree_nodes, label_root_node=args.label_root_node)
+            lbplotting.plot_lb_trees(args, metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, fnames=fnames)
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
         plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs], bgcolor='#FFFFFF', title='all plots:')
 
@@ -2742,7 +2743,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
 
 # ----------------------------------------------------------------------------------------
-def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
+def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False, tree_inference_outdir=None):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname, no_fail=False):
         if tch+'_iseq' not in mfo:  # ick
@@ -3451,7 +3452,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if h_mults != l_mults:
                 raise Exception('h and l multiplicities not the same:\n    %s\n    %s' % (h_mults, l_mults))
             p_atn['multiplicities'] = h_mults
-        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq copy keys
+        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq keys to copy from h_atn (NOTE ignores l_atn)
         if is_simu:
             assert not args.add_unpaired_seqs_for_paired_selection_metrics  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
             _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
@@ -3460,6 +3461,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             cpkeys.append(args.meta_info_key_to_color)
         if args.meta_info_to_emphasize is not None:
             cpkeys += args.meta_info_to_emphasize.keys()
+        cpkeys += [k for k in utils.input_metafile_keys.values() if k in m['h'] and k in m['l'] and all(gsval(m, 'h', k)==gsval(m, 'l', k) for m in metric_pairs)]  # input meta keys that are in both h and l annotations and equal in value for all mfos
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         if args.add_unpaired_seqs_for_paired_selection_metrics:
@@ -3519,7 +3521,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         all_chosen_mfos[iclust] = icl_mfos
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, base_plotdir=plotdir, ete_path=args.ete_path,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
-                 tree_inference_outdir=None if args.paired_outdir is None or args.tree_inference_method is None else utils.fpath(args.paired_outdir),
+                 tree_inference_outdir=tree_inference_outdir,
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
     if inf_lines is not None:
         inf_lines = utils.get_annotation_dict(inf_lines.values())  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)

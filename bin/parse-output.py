@@ -207,7 +207,7 @@ if args.airr_output:
     sys.exit(0)
 
 # condense partis info into <seqfos> for fasta/csv output
-n_skipped = 0
+n_skipped, n_failed_to_add = 0, 0
 seqfos = []
 annotations = {':'.join(adict['unique_ids']) : adict for adict in annotation_list}  # collect the annotations in a dictionary so they're easier to access
 for cluster in clusters_to_use:
@@ -221,7 +221,9 @@ for cluster in clusters_to_use:
         for ecol in args.extra_columns:
             if ecol not in cluster_annotation:
                 utils.add_extra_column(ecol, cluster_annotation, cluster_annotation)
-                # raise Exception('column \'%s\' not found in annotations' % ecol)
+            if ecol not in cluster_annotation:
+                n_failed_to_add += 1
+                cluster_annotation[ecol] = None
             for iseq in range(len(newfos)):
                 ival = cluster_annotation[ecol]
                 if ecol in utils.linekeys['per_seq']:
@@ -230,6 +232,8 @@ for cluster in clusters_to_use:
     seqfos += newfos
 if n_skipped > 0:
     print '  missing annotations for %d sequences' % n_skipped
+if n_failed_to_add > 0:
+    print '  %s couldn\'t add \'%s\' to %d / %d annotations' % (utils.wrnstr(), ecol, n_failed_to_add, len(clusters_to_use) - n_skipped)
 
 # write output
 with open(args.outfile, 'w') as ofile:

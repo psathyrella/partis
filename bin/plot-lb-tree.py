@@ -136,7 +136,6 @@ def label_node(node):
             key, val = args.meta_info_to_emphasize.items()[0]
             if utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
                 return True
-# TODO don't actually do this, use meta info to emphasize (eh, maybe this is ok?)
         if args.uid_translations is not None and node.name in args.uid_translations:
             return True
         return False
@@ -144,7 +143,6 @@ def label_node(node):
     if use_name():
         nlabel = node.name
         if args.uid_translations is not None and nlabel in args.uid_translations:
-            print 'yep'
             nlabel = args.uid_translations[nlabel]
     else:
         if 'labels' in args.metafo:
