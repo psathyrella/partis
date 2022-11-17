@@ -2043,7 +2043,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
 
     if args.sub_plotdir is not None:
         plotdir = '%s/%s' % (plotdir, args.sub_plotdir)
-    print '           plotting to %s' % plotdir
+    print '           plotting selection metrics to %s' % plotdir
     utils.prep_dir(plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
     fnames = lbplotting.add_fn(None, init=True)
 
@@ -2079,7 +2079,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
             for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
                 lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include) #, add_stats='correlation')
         if ete_path is not None and has_trees and 'tree' in plot_cfg:
-            lbplotting.plot_lb_trees(metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, queries_to_include=args.queries_to_include, fnames=fnames, label_all_nodes=args.label_tree_nodes, label_root_node=args.label_root_node)
+            lbplotting.plot_lb_trees(args, metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, fnames=fnames)
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
         plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs], bgcolor='#FFFFFF', title='all plots:')
 
@@ -2742,7 +2742,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
 
 # ----------------------------------------------------------------------------------------
-def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
+def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False, tree_inference_outdir=None):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
     # ----------------------------------------------------------------------------------------
     def gsval(mfo, tch, vname, no_fail=False):
         if tch+'_iseq' not in mfo:  # ick
@@ -3451,7 +3451,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             if h_mults != l_mults:
                 raise Exception('h and l multiplicities not the same:\n    %s\n    %s' % (h_mults, l_mults))
             p_atn['multiplicities'] = h_mults
-        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq copy keys
+        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq keys to copy from h_atn (NOTE ignores l_atn)
         if is_simu:
             assert not args.add_unpaired_seqs_for_paired_selection_metrics  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
             _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
@@ -3460,6 +3460,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             cpkeys.append(args.meta_info_key_to_color)
         if args.meta_info_to_emphasize is not None:
             cpkeys += args.meta_info_to_emphasize.keys()
+        cpkeys += [k for k in utils.input_metafile_keys.values() if k in m['h'] and k in m['l'] and all(gsval(m, 'h', k)==gsval(m, 'l', k) for m in metric_pairs)]  # input meta keys that are in both h and l annotations and equal in value for all mfos
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         if args.add_unpaired_seqs_for_paired_selection_metrics:
@@ -3519,7 +3520,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         all_chosen_mfos[iclust] = icl_mfos
     inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, base_plotdir=plotdir, ete_path=args.ete_path,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
-                 tree_inference_outdir=None if args.paired_outdir is None or args.tree_inference_method is None else utils.fpath(args.paired_outdir),
+                 tree_inference_outdir=tree_inference_outdir,
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
     if inf_lines is not None:
         inf_lines = utils.get_annotation_dict(inf_lines.values())  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)

@@ -1541,7 +1541,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         with open(metafname, 'w') as metafile:
             json.dump(metafo, metafile) # had this here, but it was having a crash from a quoting bug (was using " when it should have used '): yaml.dump , Dumper=Dumper)
         cmdstr += ' --metafname %s' % metafname
-    if queries_to_include is not None:
+    if queries_to_include is not None and len(queries_to_include) > 0:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
     if uid_translations is not None:
         cmdstr += ' --uid-translations %s' % ':'.join('%s,%s'%(u, au) for u, au in uid_translations)
@@ -1588,7 +1588,7 @@ def plot_lb_trees(args, metric_methods, baseplotdir, lines, ete_path, base_workd
             if affy_key in line:  # either 'affinities' or 'relative_affinities'
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
-            cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=qtis, 
+            cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=qtis,
                                        label_all_nodes=args.label_tree_nodes, label_root_node=args.label_root_node, uid_translations=altids,
                                        seq_len=float(numpy.mean([len(s) for s in line['seqs']])))]
             add_fn(fnames, fn=outfname, n_per_row=4)

@@ -653,12 +653,12 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
 
 linekeys['extra'] = extra_annotation_headers
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
-def add_per_seq_keys(line):
+def add_per_seq_keys(line):  # NOTE should really combine this with add_input_meta_keys()
     pskeys = set(line) & set(linekeys['per_seq'])
     other_keys = [k for k in line if k not in pskeys and isinstance(line[k], list) and len(line[k])==len(line['unique_ids'])]  # custom meta info keys (yeah they should get added some other way, but it's hard to do it super reliably
     if len(other_keys) > 0:
         print '    %s adding missing per-seq key%s: %s' % (wrnstr(), plural(len(other_keys)), ', '.join(other_keys))
-        linekeys['per_seq'] += other_keys
+        add_input_meta_keys(other_keys, are_line_keys=True)
 
 # ----------------------------------------------------------------------------------------
 forbidden_metafile_keys = ['name', 'seq']  # these break things if you add them
@@ -693,8 +693,10 @@ reversed_input_metafile_keys = {v : k for k, v in input_metafile_keys.items()}
 
 # ----------------------------------------------------------------------------------------
 # add any keys in <meta_keys> that aren't in input_metafile_keys
+# NOTE should really combine this with add_per_seq_keys()
 def add_input_meta_keys(meta_keys, are_line_keys=False):  # NOTE I'm adding this late, and not completely sure that it's ok to modify these things on the fly like this (but i think the ability to add arbitrary keys is super important)
     extra_keys = set(meta_keys) - set(input_metafile_keys) - set(forbidden_metafile_keys) - set(linekeys['per_seq'])
+    # should really also check that it's a list with the right len here (like in add_per_seq_keys), but i should combine them anyway
     if len(extra_keys) == 0:
         return
     new_keys = []
@@ -6730,6 +6732,10 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
         if len(removed_queries) > 0:
             print '      removed %d failed queries when reading partition: %s' % (len(removed_queries), ' '.join(removed_queries))
 
+    if annotation_list is not None:
+        for antn in annotation_list:
+            add_per_seq_keys(antn)
+
     return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 
 # ----------------------------------------------------------------------------------------
@@ -6782,6 +6788,10 @@ def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_
         cpath = clusterpath.ClusterPath(seed_unique_id=seed_unique_id)  # NOTE I'm not sure if I really want to pass in the seed here -- it should be stored in the file -- but if it's in both places it should be the same. um, should.
     if len(partition_lines) > 0:  # *don't* combine this with the cluster path constructor, since then we won't modify the path passed in the arguments
         cpath.readlines(partition_lines)
+
+    if annotation_list is not None:
+        for antn in annotation_list:
+            add_per_seq_keys(antn)
 
     return glfo, annotation_list, cpath  # NOTE if you want a dict of annotations, use utils.get_annotation_dict() above
 
