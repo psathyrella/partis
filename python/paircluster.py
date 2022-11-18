@@ -168,21 +168,6 @@ def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=F
             work_fnames.append(ofn)
 
 # ----------------------------------------------------------------------------------------
-def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
-    if None in lpfos.values():
-        return []
-    if len(set(len(lpfos['antn_lists'][l]) for l in lpair)) != 1:  # if the lists for both loci aren't the same length, you should probably use find_cluster_pairs() (although in reality length differences are probably from unpaired singletons getting added, so it's probably ok)
-        print '  %s different length annotation lists (probably just from unpaired singletons) among %s: %s' % (utils.wrnstr(), lpair, [len(lpfos['antn_lists'][l]) for l in lpair])
-    return zip(*[lpfos['antn_lists'][l] for l in lpair])
-
-# ----------------------------------------------------------------------------------------
-def get_both_lpair_antn_pairs(lpairs, lp_infos):  # ok this name sucks, but this lumps together both h+k and h+l, whereas get_antn_pairs() just gives you one or the other
-    antn_pairs = []
-    for lpair in lpairs:
-        antn_pairs += get_antn_pairs(lpair, lp_infos[tuple(lpair)])
-    return antn_pairs
-
-# ----------------------------------------------------------------------------------------
 # NOTE the deep copies can be really important, since we later deduplicate the concatd partitions + annotations (they didn't used to be there, which caused a bug/crash) [well even if we didn't deduplicate, it was fucking stupid to not deep copy them)
 # NOTE also that you'll probably have duplicates in both the partitions and annotations after this
 def concat_heavy_chain(lpairs, lp_infos, dont_deep_copy=False):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
@@ -244,9 +229,32 @@ def find_seq_pairs(antn_lists, ig_or_tr='ig'):
     return outfos
 
 # ----------------------------------------------------------------------------------------
-# NOTE i'm really not sure that this fcn needs to exist -- don't the joint partitions for h and l end up ordered i.e. with each cluster tied to its partner? Or at least I should be able to keep track of who goes with who so I don't need to reconstruct it here
+def get_all_antn_pairs(lpairs, lp_infos):  # same as previous fcn, but lumps together both h+k and h+l, rather than just giving you one or the other
+    antn_pairs = []
+    for lpair in lpairs:
+        antn_pairs += get_antn_pairs(lpair, lp_infos[tuple(lpair)])
+    return antn_pairs
+
+# ----------------------------------------------------------------------------------------
+# similar to find_cluster_pairs(), but this just assumes the annotations are in order (i.e. probably only really safe for simulation)
+def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
+    if None in lpfos.values():
+        return []
+    if len(set(len(lpfos['antn_lists'][l]) for l in lpair)) != 1:  # if the lists for both loci aren't the same length, you should probably use find_cluster_pairs() (although in reality length differences are probably from unpaired singletons getting added, so it's probably ok)
+        print '  %s different length annotation lists (probably just from unpaired singletons) among %s: %s' % (utils.wrnstr(), lpair, [len(lpfos['antn_lists'][l]) for l in lpair])
+    return zip(*[lpfos['antn_lists'][l] for l in lpair])
+
+# ----------------------------------------------------------------------------------------
+def find_all_cluster_pairs(lp_infos, required_keys=None, quiet=False, min_cluster_size=None, debug=False):
+    antn_pairs = []
+    for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
+        antn_pairs += find_cluster_pairs(lp_infos, lpair, required_keys=required_keys, quiet=quiet, min_cluster_size=min_cluster_size, debug=debug)
+    return antn_pairs
+
+# ----------------------------------------------------------------------------------------
+# at least most of the time i shouldn't really need this fcn since the h/l annotation lists are in the same order (and can use the previous fcns), but I dunno sometimes maybe they're not so better to be safe
+# if you're sure they're ordered correctly, you can use the previuos two fcns (atm I think i'm only doing that for simulation, where i'm confident the order is correct)
 def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, quiet=False, min_cluster_size=None, debug=False):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
-    # can set <antn_lists> if you don't already have lp_infos (and don't need glfos)
     # ----------------------------------------------------------------------------------------
     def getpids(line):  # return uids of all seqs paired with any seq in <line>
         all_ids = []
@@ -260,7 +268,7 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
                 raise Exception('too many paired ids (%d) for %s: %s' % (len(pids), line['unique_ids'][ip], ' '.join(pids)))
         return set(all_ids)
     # ----------------------------------------------------------------------------------------
-    if antn_lists is not None:
+    if antn_lists is not None:  # can set <antn_lists> if you don't already have lp_infos, and don't need glfos (added this for use in partis.remove_unseeded_seqs(), but it was too slow)
         assert lp_infos is None
         lp_infos = {tuple(lpair) : {'antn_lists' : {l : antn_lists[l] for l in lpair}, 'cpaths' : {ltmp : ClusterPath(partition=[l['unique_ids'] for l in antn_lists[ltmp]]) for ltmp in lpair}}}
     if required_keys is None:

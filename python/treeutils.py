@@ -3486,13 +3486,10 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
     if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
         print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
     cfgfo = read_cfgfo()
-    antn_pairs = []
-    for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
-        antn_pairs += paircluster.find_cluster_pairs(lp_infos, lpair, min_cluster_size=min_cluster_size)  # , required_keys=['tree-info']
+    antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=min_cluster_size)  # , required_keys=['tree-info']
     antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
-        print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
     pair_antns, mtpys, all_pair_ids = [], {}, set()
     mpfo_lists, all_chosen_mfos = [[None for _ in antn_pairs] for _ in range(2)]
     for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
@@ -3531,6 +3528,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         partplotter = PartitionPlotter(args)
         partplotter.plot('%s/partitions/%s'%(plotdir, 'true' if is_simu else 'inferred'), [l['unique_ids'] for l in (true_lines if is_simu else inf_lines.values())], utils.get_annotation_dict(true_lines) if is_simu else inf_lines, args=args)
     if debug:
+        print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
             print_dbg(iclust, metric_pairs, icl_mfos)  # note: relies on mtpys being in scope
     if args.chosen_ab_fname is not None:

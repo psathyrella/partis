@@ -880,10 +880,9 @@ def run_all_loci(args, ig_or_tr='ig'):
         def hfrc(tl, sl): return utils.hamming_fraction(tl['naive_seq'], sl['naive_seq'], align_if_necessary=True)
         def hfracs(tlines): return [hfrc(tl, sl) for tl, sl in zip(tlines, seed_lines)]  # shouldn't need to align, but if it does it'll print a warning, which is probably better than crashing? but if it's aligning i think something is probably pretty wrong
 
-        final_antns = {l : [] for l in utils.sub_loci(ig_or_tr)}
         # first add to <final_antns> all the correctly/uniquely-paired seqs with the same cdr3/similar naive to seed seq
-        # antn_pairs = paircluster.find_cluster_pairs(None, args.seed_loci, antn_lists={l : sw_antns[l] for l in args.seed_loci}, quiet=True)  # this works, but is way too slow
-        antn_pairs, antn_pair_ids = [], set()
+        final_antns = {l : [] for l in utils.sub_loci(ig_or_tr)}
+        antn_pairs, antn_pair_ids = [], set()  # NOTE this is quite similar to paircluster.find_cluster_pairs(), although we don't have lp_infos here, so had to pass in just the antn lists (but even then it was too slow)
         antn_dicts = {l : utils.get_annotation_dict(sw_antns[l]) for l in args.seed_loci}
         hloc, lloc = args.seed_loci
         for hline in sw_antns[hloc]:
