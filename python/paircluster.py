@@ -245,7 +245,7 @@ def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
     return zip(*[lpfos['antn_lists'][l] for l in lpair])
 
 # ----------------------------------------------------------------------------------------
-def find_all_cluster_pairs(lp_infos, required_keys=None, quiet=False, min_cluster_size=None, debug=False):
+def find_all_cluster_pairs(lp_infos, required_keys=None, quiet=False, min_cluster_size=None, ig_or_tr='ig', debug=False):
     antn_pairs = []
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += find_cluster_pairs(lp_infos, lpair, required_keys=required_keys, quiet=quiet, min_cluster_size=min_cluster_size, debug=debug)
@@ -344,6 +344,184 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
     if debug:
         print '  '
     return lp_antn_pairs
+
+# ----------------------------------------------------------------------------------------
+def gsval(mfo, tch, vname, no_fail=False):
+    if tch+'_iseq' not in mfo:  # ick
+        return None
+    cln, iseq = mfo[tch if tch in 'hl' else tch+'_atn'], mfo[tch+'_iseq']
+    return utils.antnval(cln, vname, iseq, use_default=no_fail)
+# ----------------------------------------------------------------------------------------
+def get_did(args, uid, return_contigs=False):
+    return utils.get_droplet_id(uid, args.droplet_id_separators, args.droplet_id_indices, return_contigs=return_contigs)
+
+# ----------------------------------------------------------------------------------------
+def both_dids(args, mfo):
+    return [get_did(args, gsval(mfo, c, 'unique_ids')) for c in 'hl']
+
+# ----------------------------------------------------------------------------------------
+def sumv(mfo, kstr, imtp):
+    if kstr == 'seq_mtps':  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
+        def vfcn(c): return imtp[c][gsval(mfo, c, 'input_seqs_aa')]
+    else:
+        if kstr in ['seqs', 'naive_seq']:
+            def vfcn(c): return utils.pad_seq_for_translation(mfo[c], gsval(mfo, c, kstr))  # maybe don't need this, but safer to have it
+        else:
+            def vfcn(c): return gsval(mfo, c, kstr)
+    kvals = [vfcn(c) for c in 'hl']
+    return None if None in kvals else kvals[0] + kvals[1]  # needs to work for both ints and strings
+
+# ----------------------------------------------------------------------------------------
+# make fake annotations with h/l seqs smashed together (with N padding between them so l is in frame)
+def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <args>, but whatever, easy to fix later
+    # ----------------------------------------------------------------------------------------
+    def combid(mfo):  # new uid that combines h+l ids
+        _, cids = zip(*[get_did(args, gsval(mfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
+        dids = both_dids(args, mfo)  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
+        if len(set(dids)) == 1:  # if they have the same droplet id (data or correctly paired simulation)
+            if not args.is_data or args.use_droplet_id_for_combo_id:  # in simulation the droplet ids should be unique, so we can just use the droplet id as the combined id
+                rid = dids[0]
+            else:  # but in data we can get multiple cells per droplet id
+                rid = '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
+        else:  # but if they're mispaired in simulation (i.e. have different "droplet ids") then keep all the info
+            assert len(set(dids)) == 2
+            rid = '%s-%s+%s-%s' % (dids[0], mfo['h']['loci'][0], dids[1], mfo['l']['loci'][0])
+        hid, lid = [gsval(mfo, c, 'unique_ids') for c in 'hl']
+        if args.queries_to_include is not None and any(u in args.queries_to_include for u in (hid, lid)):  # translate uids in args.queries_to_include (should maybe untranslate afterwards?)
+            for u in (hid, lid):
+                args.queries_to_include.remove(u)
+            args.queries_to_include.append(rid)
+        return rid
+    # ----------------------------------------------------------------------------------------
+    def get_mtpys(metric_pairs):  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
+        icl_mtpys = {}
+        for c in 'hl':
+            seqlist = [gsval(m, c, 'input_seqs_aa') for m in metric_pairs for _ in range(gsval(m, c, 'multipy'))]
+            icl_mtpys[c] = {s : seqlist.count(s) for s in set(seqlist)}
+        return icl_mtpys
+    # ----------------------------------------------------------------------------------------
+    def get_pantn(metric_pairs, h_atn, l_atn, all_pair_ids, imtp, tdbg=False):  # return a fake annotation <p_atn> with the sum/joint metrics in it
+        # ----------------------------------------------------------------------------------------
+        def translate_heavy_tree(htree):
+            trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
+            translate_labels(htree, trns)
+            htree.scale_edges(len(h_atn['seqs'][0]) / float(len(p_atn['seqs'][0])))
+            return htree, htree.as_string(schema='newick')
+        # ----------------------------------------------------------------------------------------
+        def add_unp_seqs():
+            # ----------------------------------------------------------------------------------------
+            def ambig_seq(tch, t_atn, iseq, aa=False):
+                # ----------------------------------------------------------------------------------------
+                def aseq():
+                    achar = utils.ambiguous_amino_acids[0] if aa else utils.ambig_base
+                    return achar * len((l_atn if tch=='h' else h_atn)[tkey][0])  # NOTE doesn't account for indels
+                # ----------------------------------------------------------------------------------------
+                tkey = 'seqs'
+                if aa:
+                    tkey += '_aa'
+                tseq = t_atn[tkey][iseq]
+                hseq, lseq = (tseq, aseq()) if tch=='h' else (aseq(), tseq)
+                if not aa:
+                    hseq, lseq = [utils.pad_seq_for_translation(l, s) for l, s in zip((h_atn, l_atn), (hseq, lseq))]  # NOTE kind of duplicates code in sumv()
+                return hseq + lseq
+            # ----------------------------------------------------------------------------------------
+            def print_amb_seqs(all_unp_ids):  # print all seqs after adding the unpaired ones (which will have ambiguous sections)
+                for tstr, aa in zip(('', '_aa'), (False, True)):
+                    print '       naive %s' % p_atn['naive_seq%s'%tstr]
+                    for u, s in zip(p_atn['unique_ids'], p_atn['seqs%s'%tstr]):
+                        utils.color_mutants(p_atn['naive_seq%s'%tstr], s, amino_acid=aa, extra_str='      %s' % (utils.color('purple', '  unp. ') if u in all_unp_ids else '       '), post_str=' '+u, print_result=True, only_print_seq=True)
+            mfo_ids = [gsval(m, c, 'unique_ids') for m in metric_pairs for c in 'hl']
+            all_unp_ids, n_unp_added = [], {c : 0 for c in 'hl'}
+            if tdbg:
+                print '  iclust %d: adding unpaired seqs for paired selection metrics' % iclust
+            for tch, och, t_atn in zip('hl', 'lh', (h_atn, l_atn)):
+                unp_ids = [u for u in t_atn['unique_ids'] if u not in mfo_ids]
+                if tdbg:
+                    print '    %s: %s' % (tch, unp_ids)
+                for tid in unp_ids:
+                    icseq = t_atn['unique_ids'].index(tid)  # index in h/l antn
+                    ipseq = len(p_atn['seqs'])  # index in fake paired annotation (to which we're adding the unpaired seq)
+                    p_atn['seqs'].append(ambig_seq(tch, t_atn, icseq))
+                    p_atn['input_seqs'].append(p_atn['seqs'][ipseq])
+                    p_atn['seqs_aa'].append(ambig_seq(tch, t_atn, icseq, aa=True))
+                    p_atn['shm_aa'].append(utils.antnval(t_atn, 'shm_aa', icseq))
+                    tmpkeys = ['unique_ids', 'n_mutations', 'mut_freqs'] + cpkeys
+                    if 'multiplicities' in t_atn:
+                        tmpkeys.append('multiplicities')
+                    for tk in [k for k in tmpkeys if k in t_atn]:
+                        p_atn[tk].append(t_atn[tk][icseq])
+                    p_atn['has_shm_indels'].append(False)  # ick ick ick
+                all_unp_ids += unp_ids
+                n_unp_added[tch] += len(unp_ids)
+            if tdbg:
+                print_amb_seqs(all_unp_ids)
+            print '    added unpaired seqs to fake paired annotation: %s %d  %s %d' % (utils.locstr(h_atn['loci'][0]), n_unp_added['h'], utils.locstr(l_atn['loci'][0]), n_unp_added['l'])
+        # ----------------------------------------------------------------------------------------
+        p_atn = {'is_fake_paired' : True, 'invalid' : True}  # make a new fake annotation for the sequences that are in both h+l (they're not really 'invalid', but they *are* fake, and e.g. the indel info is wrong, so seems safer to call the 'invalid')
+        p_atn['unique_ids'] = [combid(m) for m in metric_pairs]
+        if any(u in all_pair_ids for u in p_atn['unique_ids']):
+            raise Exception('tried to add duplicate uid(s) %s when making paired annotation' % [u for u in p_atn['unique_ids'] if u in all_pair_ids])
+        all_pair_ids |= set(p_atn['unique_ids'])
+        p_atn['seqs'] = [sumv(m, 'seqs', imtp) for m in metric_pairs]
+        p_atn['input_seqs'] = [s for s in p_atn['seqs']]  # NOTE do *not* let 'seqs' and 'input_seqs' point to the same list (we only need 'input_seqs' since they're what gets written to the output file)
+        p_atn['seqs_aa'] = [sumv(m, 'seqs_aa', imtp) for m in metric_pairs]
+        p_atn['naive_seq'] = sumv(metric_pairs[0], 'naive_seq', imtp)
+        p_atn['naive_seq_aa'] = sumv(metric_pairs[0], 'naive_seq_aa', imtp)  # NOTE it's *really* important you don't end up translating the sum'd naive seq since i don't think they necessarily get concat'd in frame
+        p_atn['n_mutations'] = [sumv(m, 'n_mutations', imtp) for m in metric_pairs]
+        p_atn['shm_aa'] = [sumv(m, 'shm_aa', imtp) for m in metric_pairs]
+        p_atn['mut_freqs'] = [n / float(len(s)) for n, s in zip(p_atn['n_mutations'], p_atn['seqs'])]
+        p_atn['has_shm_indels'] = [False for _ in metric_pairs]  # ick ick ick
+        # NOTE if you add a key here, it also has to be added below in the args.add_unpaired_seqs_for_paired_selection_metrics block
+        if 'multiplicities' in h_atn:  # <h_atn> is the same as m['h'], i should really settle on one of them
+            h_mults, l_mults = [[utils.get_multiplicity(m[c], uid=gsval(m, c, 'unique_ids')) for m in metric_pairs] for c in 'hl']
+            if h_mults != l_mults:
+                raise Exception('h and l multiplicities not the same:\n    %s\n    %s' % (h_mults, l_mults))
+            p_atn['multiplicities'] = h_mults
+        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq keys to copy from h_atn (NOTE ignores l_atn)
+        if not args.is_data:
+            assert not args.add_unpaired_seqs_for_paired_selection_metrics  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
+            _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
+            cpkeys.append('min_target_distances')
+        if args.meta_info_key_to_color is not None:
+            cpkeys.append(args.meta_info_key_to_color)
+        if args.meta_info_to_emphasize is not None:
+            cpkeys += args.meta_info_to_emphasize.keys()
+        cpkeys += [k for k in utils.input_metafile_keys.values() if k in m['h'] and k in m['l'] and all(gsval(m, 'h', k)==gsval(m, 'l', k) for m in metric_pairs)]  # input meta keys that are in both h and l annotations and equal in value for all mfos
+        for tk in [k for k in cpkeys if k in h_atn]:
+            p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
+        if args.add_unpaired_seqs_for_paired_selection_metrics:
+            add_unp_seqs()
+        p_atn['fv_insertion'] = ''  # this stuff for left side of v is only needed so when we add aa seqs corresponding to any inferred ancestral seqs it doesn't crash trying to pad (we don't want it to pad, since it's already padded above)
+        p_atn['v_5p_del'] = 0
+        for iseq, mfo in enumerate(metric_pairs):
+            mfo['p_atn'] = p_atn
+            mfo['p_iseq'] = iseq
+        return p_atn
+    # ----------------------------------------------------------------------------------------
+    pair_antns, mtpys, all_pair_ids = [], {}, set()
+    mpfo_lists, pair_antns = [[None for _ in antn_pairs] for _ in range(2)]
+    for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
+        for ltmp in (h_atn, l_atn):
+            utils.add_seqs_aa(ltmp)
+            utils.add_naive_seq_aa(ltmp)
+        metric_pairs = []
+        for hid, pids in zip(h_atn['unique_ids'], h_atn['paired-uids']):
+            if pids is None or len(pids) == 0:  # should only have the latter now (set with .get() call in rewrite_input_metafo())
+                continue
+            lid = pids[0]
+            if lid not in l_atn['unique_ids']:
+                print '  paired light id %s missing' % lid
+                continue
+            mpfo = {'iclust' : iclust, 'seqtype' : 'observed'}
+            for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
+                mpfo[tch] = ltmp
+                mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
+            metric_pairs.append(mpfo)
+        mpfo_lists[iclust] = metric_pairs
+        mtpys[iclust] = get_mtpys(metric_pairs)
+        pair_antns[iclust] = get_pantn(metric_pairs, h_atn, l_atn, all_pair_ids, mtpys[iclust])
+
+    return pair_antns, mpfo_lists, mtpys
 
 # ----------------------------------------------------------------------------------------
 def remove_pair_info_from_bulk_data(outfos, metafos, bulk_data_fraction):

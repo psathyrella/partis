@@ -2743,13 +2743,8 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
 
 # ----------------------------------------------------------------------------------------
-def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_metric_cluster_size, plotdir=None, ig_or_tr='ig', args=None, is_simu=False, tree_inference_outdir=None):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
-    # ----------------------------------------------------------------------------------------
-    def gsval(mfo, tch, vname, no_fail=False):
-        if tch+'_iseq' not in mfo:  # ick
-            return None
-        cln, iseq = mfo[tch if tch in 'hl' else tch+'_atn'], mfo[tch+'_iseq']
-        return utils.antnval(cln, vname, iseq, use_default=no_fail)
+def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir=None, ig_or_tr='ig', args=None, tree_inference_outdir=None):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
+    from paircluster import gsval, get_did, both_dids, sumv
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
         if val is None:
@@ -2763,47 +2758,12 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         else:
             return str(val)
     # ----------------------------------------------------------------------------------------
-    def sumv(mfo, kstr):
-        if kstr == 'seq_mtps':  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
-            def vfcn(c): return mtpys[iclust][c][gsval(mfo, c, 'input_seqs_aa')]
-        else:
-            if kstr in ['seqs', 'naive_seq']:
-                def vfcn(c): return utils.pad_seq_for_translation(mfo[c], gsval(mfo, c, kstr))  # maybe don't need this, but safer to have it
-            else:
-                def vfcn(c): return gsval(mfo, c, kstr)
-        kvals = [vfcn(c) for c in 'hl']
-        return None if None in kvals else kvals[0] + kvals[1]  # needs to work for both ints and strings
-    # ----------------------------------------------------------------------------------------
-    def sum_nuc_shm_pct(mpfo):
+    def sum_nuc_shm_pct(mpfo, imtp):
         total_len = sum(len(gsval(mpfo, c, 'seqs')) - gsval(mpfo, c, 'seqs').count(utils.ambig_base) for c in 'hl')
-        return 100 * sumv(mpfo, 'n_mutations') / float(total_len)
-    # ----------------------------------------------------------------------------------------
-    def get_did(uid, return_contigs=False):
-        return utils.get_droplet_id(uid, args.droplet_id_separators, args.droplet_id_indices, return_contigs=return_contigs)
-    # ----------------------------------------------------------------------------------------
-    def both_dids(mfo):
-        return [get_did(gsval(mfo, c, 'unique_ids')) for c in 'hl']
+        return 100 * sumv(mpfo, 'n_mutations', imtp) / float(total_len)
     # ----------------------------------------------------------------------------------------
     def get_joint_did(mfo):
-        return utils.get_single_entry(list(set(both_dids(mfo))))
-    # ----------------------------------------------------------------------------------------
-    def combid(mfo):  # new uid that combines h+l ids
-        _, cids = zip(*[get_did(gsval(mfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
-        dids = both_dids(mfo)  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
-        if len(set(dids)) == 1:  # if they have the same droplet id (data or correctly paired simulation)
-            if is_simu or args.use_droplet_id_for_combo_id:  # in simulation the droplet ids should be unique, so we can just use the droplet id as the combined id
-                rid = dids[0]
-            else:  # but in data we can get multiple cells per droplet id
-                rid = '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
-        else:  # but if they're mispaired in simulation (i.e. have different "droplet ids") then keep all the info
-            assert len(set(dids)) == 2
-            rid = '%s-%s+%s-%s' % (dids[0], mfo['h']['loci'][0], dids[1], mfo['l']['loci'][0])
-        hid, lid = [gsval(mfo, c, 'unique_ids') for c in 'hl']
-        if args.queries_to_include is not None and any(u in args.queries_to_include for u in (hid, lid)):  # translate uids in args.queries_to_include (should maybe untranslate afterwards?)
-            for u in (hid, lid):
-                args.queries_to_include.remove(u)
-            args.queries_to_include.append(rid)
-        return rid
+        return utils.get_single_entry(list(set(both_dids(args, mfo))))
     # ----------------------------------------------------------------------------------------
     def get_didstr(dids, cids, mpfo):
         hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
@@ -2937,14 +2897,14 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '        %d %d %s' % (h_min, l_min, utils.color('red', 'x') if sum([h_min, l_min]) < hdist else '')
         return any(sum(local_hdist_aa(cseq, mseq) for mseq, cseq in zip(mfseqs(mfo), acseqs)) < hdist for acseqs in all_chosen_seqs)
     # ----------------------------------------------------------------------------------------
-    def add_unobs_seq(stype, metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=False):
+    def add_unobs_seq(stype, metric_pairs, chosen_mfos, all_chosen_seqs, imtp, tdbg=False):
         # get the consfo: first see if we observed the cons/naive seq (i.e. if there's any observed seqs with zero cdist)
-        def kfcn(m): return sumv(m, 'aa-cfrac')==0 if stype=='cons' else sumv(m, 'n_mutations')==0  # NOTE cons is by aa, but naive is by nuc (since the naive nuc seq is actually really meaningful, and i don't want to have an additional kinda-sorta inferred naive seq floating around)
+        def kfcn(m): return sumv(m, 'aa-cfrac', imtp)==0 if stype=='cons' else sumv(m, 'n_mutations', imtp)==0  # NOTE cons is by aa, but naive is by nuc (since the naive nuc seq is actually really meaningful, and i don't want to have an additional kinda-sorta inferred naive seq floating around)
         obs_mfos = [m for m in metric_pairs if kfcn(m)]
         if 'max-ambig-positions' in cfgfo:
             obs_mfos = [m for m in obs_mfos if sum(nambig(m, c) for c in 'hl') <= cfgfo['max-ambig-positions']]
         if len(obs_mfos) > 0:  # if we observed the cons seq, use [one of] the observed ones
-            obs_mfos = sorted(obs_mfos, key=lambda m: sumv(m, 'seq_mtps'), reverse=True)  # sort by mtpy
+            obs_mfos = sorted(obs_mfos, key=lambda m: sumv(m, 'seq_mtps', imtp), reverse=True)  # sort by mtpys
             consfo = obs_mfos[0]  # choose the first one
         else:  # if we didn't observe it (with some criteria),  make consfo from scratch
             print '            %s seq not observed' % stype
@@ -2983,7 +2943,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         else:
             return max([len(s1), len(s2)])  # NOTE it's kind of weird and arbitrary to return the max seq len if they're different lengths, but if they're different lengths we don't care anyway cause we're just looking for very similar sequences
     # ----------------------------------------------------------------------------------------
-    def choose_abs(metric_pairs, iclust, tdbg=False):
+    def choose_abs(metric_pairs, iclust, imtp, tdbg=False):
         # ----------------------------------------------------------------------------------------
         def get_n_choose(tcfg, key):
             if key not in tcfg:
@@ -3027,7 +2987,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                     n_chsn += 1
                     chsnstr = utils.color('green', 'x')
                 if tdbg:
-                    dids, cids = zip(*[get_did(gsval(simfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
+                    dids, cids = zip(*[get_did(args, gsval(simfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
                     didstr, cidstrs = get_didstr(dids, cids, simfo)
                     print '              %2d %2d %2d %s %20s  %s  %s  %s %s' % (sfcn(simfo),
                                                                                 utils.hamming_distance(gsval(rmfo, 'h', 'seqs_aa'), gsval(simfo, 'h', 'seqs_aa'), amino_acid=True),
@@ -3082,13 +3042,13 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             def keepfcn(m):
                 if args.queries_to_include is not None and any(gsval(m, c, 'unique_ids') in args.queries_to_include for c in 'hl'):
                     return True
-                return sumv(m, 'umis') > cfgfo['min-umis']  # queries_to_include probably won't have umis set, but still want to keep them
+                return sumv(m, 'umis', imtp) > cfgfo['min-umis']  # queries_to_include probably won't have umis set, but still want to keep them
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs) > 0:
                 print '          skipped %d with umis less than %d' % (n_before - len(metric_pairs), cfgfo['min-umis'])
         if 'min-median-nuc-shm-%' in cfgfo and len(metric_pairs) > 0:
-            median_shm = numpy.median([sum_nuc_shm_pct(m) for m in metric_pairs])
+            median_shm = numpy.median([sum_nuc_shm_pct(m, imtp) for m in metric_pairs])
             skip_family = median_shm < cfgfo['min-median-nuc-shm-%']
             if tdbg:
                 print '          %s family: median h+l nuc shm %.2f%% %s than %.2f%%' % (utils.color('yellow', 'skipping entire') if skip_family else 'keeping', median_shm, 'less' if skip_family else 'greater', cfgfo['min-median-nuc-shm-%'])
@@ -3116,7 +3076,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         # maybe add the unobserved cons/naive seqs
         for stype in ['cons', 'naive']:
             if cfgfo['include-unobs-%s-seqs'%stype][iclust]:
-                add_unobs_seq(stype, metric_pairs, chosen_mfos, all_chosen_seqs, tdbg=tdbg)  # well, doesn't necessarily add it, but at least checks to see if we should
+                add_unobs_seq(stype, metric_pairs, chosen_mfos, all_chosen_seqs, imtp, tdbg=tdbg)  # well, doesn't necessarily add it, but at least checks to see if we should
         if finished():
             return chosen_mfos
 
@@ -3124,8 +3084,8 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
         for sortvar, vcfg in cfgfo['vars'].items():
             n_prev_var_chosen, n_same_seqs, n_too_close, n_this_var_chosen = 0, 0, 0, 0
             sorted_mfos = metric_pairs
-            sorted_mfos = sorted(sorted_mfos, key=lambda m: sumv(m, 'seq_mtps'), reverse=True)
-            sorted_mfos = sorted(sorted_mfos, key=lambda m: sumv(m, sortvar), reverse=vcfg['sort']=='high')
+            sorted_mfos = sorted(sorted_mfos, key=lambda m: sumv(m, 'seq_mtps', imtp), reverse=True)
+            sorted_mfos = sorted(sorted_mfos, key=lambda m: sumv(m, sortvar, imtp), reverse=vcfg['sort']=='high')
             for mfo in sorted_mfos:
                 if finished(tcfg=vcfg, n_newly_chosen=n_this_var_chosen):
                     break
@@ -3223,7 +3183,7 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
                 for ofo in outfos:
                     writer.writerow(ofo)
     # ----------------------------------------------------------------------------------------
-    def print_dbg(iclust, metric_pairs, icl_mfos, print_nuc_seqs=True):
+    def print_dbg(iclust, metric_pairs, icl_mfos, imtp, print_nuc_seqs=True):
         # ----------------------------------------------------------------------------------------
         def init_xtras():
             xtra_heads = [(ctkey(), ['cell', 'type']), ('umis', ['umis', 'h+l']), ('c_genes', ['c', 'gene']), ('affinities', ['affin', 'ity'])]
@@ -3341,11 +3301,11 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             cons_mfo = get_unobs_mfo('cons', metric_pairs)  # if we didn't choose a cons seq, we need to get the cons seqs/info (since both aa and nuc "chosen" cons seqs can differ from the one in the annotation: both if there's lots of shm indels, and the nuc because of codon_len=3
         print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s       N     %%shm   N aa mutations     sizes            %s %s %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), cstr('h', aa=True), cstr('l', aa=True), cstr('h'), cstr('l'))
         print ('             sum   h    l       h   l                           h  l   h l  %s  sum  h   l   nuc   cons.     obs.   both   h   l      %s %s %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), nstr('h', aa=True), nstr('l', aa=True), nstr('h'), nstr('l'))
-        sorted_mfos = sorted(metric_pairs, key=lambda m: sumv(m, 'seq_mtps'), reverse=True)  # sort by sum of h and l sequence multiplicities
+        sorted_mfos = sorted(metric_pairs, key=lambda m: sumv(m, 'seq_mtps', imtp), reverse=True)  # sort by sum of h and l sequence multiplicities
         last_cdist_str, last_mtpy_str, last_aa_shmstr = None, None, None
         for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(getcdist(x, c, frac=True) for c in 'hl'))):  # would be nice to use sumv()
             hid, lid = [gsval(mpfo, c, 'unique_ids') for c in 'hl']
-            dids, cids = zip(*[get_did(u, return_contigs=True) for u in (hid, lid)])
+            dids, cids = zip(*[get_did(args, u, return_contigs=True) for u in (hid, lid)])
             didstr, cids = get_didstr(dids, cids, mpfo)
             indelstr = ' '.join(utils.color('red', 'y') if utils.per_seq_val(l, 'has_shm_indels', u) else ' ' for c, u, l in zip('hl', [hid, lid], [h_atn, l_atn]))
             h_seq, l_seq = [utils.color_mutants(cons_mfo[c+'_cseq_aa'], utils.per_seq_val(l, 'input_seqs_aa', u), amino_acid=True, align_if_necessary=True) for c, u, l in zip('hl', (hid, lid), (h_atn, l_atn))]
@@ -3355,9 +3315,9 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             h_cfrac, l_cfrac = [getcdist(mpfo, c, frac=True) for c in 'hl']
             h_cdist, l_cdist = [getcdist(mpfo, c) for c in 'hl']
             aa_cdstr = '%4.1f %4.1f %4.1f   %4d%4d' % (100*sum([h_cfrac, l_cfrac]), 100*h_cfrac, 100*l_cfrac, h_cdist, l_cdist)
-            h_mtpy, l_mtpy = [mtpys[iclust][c][gsval(mpfo, c, 'input_seqs_aa')] for c in 'hl']
+            h_mtpy, l_mtpy = [imtp[c][gsval(mpfo, c, 'input_seqs_aa')] for c in 'hl']
             mtpstr = '%3d %3d %3d' % (sum((h_mtpy, l_mtpy)), h_mtpy, l_mtpy)
-            aa_shmstr = '%2d %2d %2d' % (sumv(mpfo, 'shm-aa'), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'))
+            aa_shmstr = '%2d %2d %2d' % (sumv(mpfo, 'shm-aa', imtp), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'))
             print '       %s  %s   %s %20s  %s  %s   %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
                                                             aa_cdstr if aa_cdstr!=last_cdist_str else ' '*utils.len_excluding_colors(aa_cdstr),
                                                             utils.color('green', 'x') if mpfo in icl_mfos else ' ',
@@ -3375,161 +3335,30 @@ def combine_selection_metrics(lp_infos, min_cluster_size=default_min_selection_m
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
     # ----------------------------------------------------------------------------------------
-    def get_pantn(metric_pairs, h_atn, l_atn, all_pair_ids, tdbg=False):  # return a fake annotation <p_atn> with the sum/joint metrics in it
-        # ----------------------------------------------------------------------------------------
-        def translate_heavy_tree(htree):
-            trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
-            translate_labels(htree, trns)
-            htree.scale_edges(len(h_atn['seqs'][0]) / float(len(p_atn['seqs'][0])))
-            return htree, htree.as_string(schema='newick')
-        # ----------------------------------------------------------------------------------------
-        def add_unp_seqs():
-            # ----------------------------------------------------------------------------------------
-            def ambig_seq(tch, t_atn, iseq, aa=False):
-                # ----------------------------------------------------------------------------------------
-                def aseq():
-                    achar = utils.ambiguous_amino_acids[0] if aa else utils.ambig_base
-                    return achar * len((l_atn if tch=='h' else h_atn)[tkey][0])  # NOTE doesn't account for indels
-                # ----------------------------------------------------------------------------------------
-                tkey = 'seqs'
-                if aa:
-                    tkey += '_aa'
-                tseq = t_atn[tkey][iseq]
-                hseq, lseq = (tseq, aseq()) if tch=='h' else (aseq(), tseq)
-                if not aa:
-                    hseq, lseq = [utils.pad_seq_for_translation(l, s) for l, s in zip((h_atn, l_atn), (hseq, lseq))]  # NOTE kind of duplicates code in sumv()
-                return hseq + lseq
-            # ----------------------------------------------------------------------------------------
-            def print_amb_seqs(all_unp_ids):  # print all seqs after adding the unpaired ones (which will have ambiguous sections)
-                for tstr, aa in zip(('', '_aa'), (False, True)):
-                    print '       naive %s' % p_atn['naive_seq%s'%tstr]
-                    for u, s in zip(p_atn['unique_ids'], p_atn['seqs%s'%tstr]):
-                        utils.color_mutants(p_atn['naive_seq%s'%tstr], s, amino_acid=aa, extra_str='      %s' % (utils.color('purple', '  unp. ') if u in all_unp_ids else '       '), post_str=' '+u, print_result=True, only_print_seq=True)
-            mfo_ids = [gsval(m, c, 'unique_ids') for m in metric_pairs for c in 'hl']
-            all_unp_ids, n_unp_added = [], {c : 0 for c in 'hl'}
-            if tdbg:
-                print '  iclust %d: adding unpaired seqs for paired selection metrics' % iclust
-            for tch, och, t_atn in zip('hl', 'lh', (h_atn, l_atn)):
-                unp_ids = [u for u in t_atn['unique_ids'] if u not in mfo_ids]
-                if tdbg:
-                    print '    %s: %s' % (tch, unp_ids)
-                for tid in unp_ids:
-                    icseq = t_atn['unique_ids'].index(tid)  # index in h/l antn
-                    ipseq = len(p_atn['seqs'])  # index in fake paired annotation (to which we're adding the unpaired seq)
-                    p_atn['seqs'].append(ambig_seq(tch, t_atn, icseq))
-                    p_atn['input_seqs'].append(p_atn['seqs'][ipseq])
-                    p_atn['seqs_aa'].append(ambig_seq(tch, t_atn, icseq, aa=True))
-                    p_atn['shm_aa'].append(utils.antnval(t_atn, 'shm_aa', icseq))
-                    tmpkeys = ['unique_ids', 'n_mutations', 'mut_freqs'] + cpkeys
-                    if 'multiplicities' in t_atn:
-                        tmpkeys.append('multiplicities')
-                    for tk in [k for k in tmpkeys if k in t_atn]:
-                        p_atn[tk].append(t_atn[tk][icseq])
-                    p_atn['has_shm_indels'].append(False)  # ick ick ick
-                all_unp_ids += unp_ids
-                n_unp_added[tch] += len(unp_ids)
-            if tdbg:
-                print_amb_seqs(all_unp_ids)
-            print '    added unpaired seqs to fake paired annotation: %s %d  %s %d' % (utils.locstr(h_atn['loci'][0]), n_unp_added['h'], utils.locstr(l_atn['loci'][0]), n_unp_added['l'])
-        # ----------------------------------------------------------------------------------------
-        p_atn = {'is_fake_paired' : True, 'invalid' : True}  # make a new fake annotation for the sequences that are in both h+l (they're not really 'invalid', but they *are* fake, and e.g. the indel info is wrong, so seems safer to call the 'invalid')
-        p_atn['unique_ids'] = [combid(m) for m in metric_pairs]
-        if any(u in all_pair_ids for u in p_atn['unique_ids']):
-            raise Exception('tried to add duplicate uid(s) %s when making paired annotation' % [u for u in p_atn['unique_ids'] if u in all_pair_ids])
-        all_pair_ids |= set(p_atn['unique_ids'])
-        p_atn['seqs'] = [sumv(m, 'seqs') for m in metric_pairs]
-        p_atn['input_seqs'] = [s for s in p_atn['seqs']]  # NOTE do *not* let 'seqs' and 'input_seqs' point to the same list (we only need 'input_seqs' since they're what gets written to the output file)
-        p_atn['seqs_aa'] = [sumv(m, 'seqs_aa') for m in metric_pairs]
-        p_atn['naive_seq'] = sumv(metric_pairs[0], 'naive_seq')
-        p_atn['naive_seq_aa'] = sumv(metric_pairs[0], 'naive_seq_aa')  # NOTE it's *really* important you don't end up translating the sum'd naive seq since i don't think they necessarily get concat'd in frame
-        p_atn['n_mutations'] = [sumv(m, 'n_mutations') for m in metric_pairs]
-        p_atn['shm_aa'] = [sumv(m, 'shm_aa') for m in metric_pairs]
-        p_atn['mut_freqs'] = [n / float(len(s)) for n, s in zip(p_atn['n_mutations'], p_atn['seqs'])]
-        p_atn['has_shm_indels'] = [False for _ in metric_pairs]  # ick ick ick
-        # NOTE if you add a key here, it also has to be added below in the args.add_unpaired_seqs_for_paired_selection_metrics block
-        if 'multiplicities' in h_atn:  # <h_atn> is the same as m['h'], i should really settle on one of them
-            h_mults, l_mults = [[utils.get_multiplicity(m[c], uid=gsval(m, c, 'unique_ids')) for m in metric_pairs] for c in 'hl']
-            if h_mults != l_mults:
-                raise Exception('h and l multiplicities not the same:\n    %s\n    %s' % (h_mults, l_mults))
-            p_atn['multiplicities'] = h_mults
-        cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq keys to copy from h_atn (NOTE ignores l_atn)
-        if is_simu:
-            assert not args.add_unpaired_seqs_for_paired_selection_metrics  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
-            _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
-            cpkeys.append('min_target_distances')
-        if args.meta_info_key_to_color is not None:
-            cpkeys.append(args.meta_info_key_to_color)
-        if args.meta_info_to_emphasize is not None:
-            cpkeys += args.meta_info_to_emphasize.keys()
-        cpkeys += [k for k in utils.input_metafile_keys.values() if k in m['h'] and k in m['l'] and all(gsval(m, 'h', k)==gsval(m, 'l', k) for m in metric_pairs)]  # input meta keys that are in both h and l annotations and equal in value for all mfos
-        for tk in [k for k in cpkeys if k in h_atn]:
-            p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
-        if args.add_unpaired_seqs_for_paired_selection_metrics:
-            add_unp_seqs()
-        p_atn['fv_insertion'] = ''  # this stuff for left side of v is only needed so when we add aa seqs corresponding to any inferred ancestral seqs it doesn't crash trying to pad (we don't want it to pad, since it's already padded above)
-        p_atn['v_5p_del'] = 0
-        for iseq, mfo in enumerate(metric_pairs):
-            mfo['p_atn'] = p_atn
-            mfo['p_iseq'] = iseq
-        return p_atn
-    # ----------------------------------------------------------------------------------------
-    def get_mtpys(metric_pairs):  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
-        icl_mtpys = {}
-        for c in 'hl':
-            seqlist = [gsval(m, c, 'input_seqs_aa') for m in metric_pairs for _ in range(gsval(m, c, 'multipy'))]
-            icl_mtpys[c] = {s : seqlist.count(s) for s in set(seqlist)}
-        return icl_mtpys
-
-    # ----------------------------------------------------------------------------------------
     import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     debug = args.debug or args.debug_paired_clustering or args.print_chosen_abs
     if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
         print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
     cfgfo = read_cfgfo()
-    antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=min_cluster_size)  # , required_keys=['tree-info']
-    antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
     if debug:
         print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
-    pair_antns, mtpys, all_pair_ids = [], {}, set()
-    mpfo_lists, all_chosen_mfos = [[None for _ in antn_pairs] for _ in range(2)]
+    assert len(mpfo_lists) == len(antn_pairs) and len(fake_pntns) == len(antn_pairs)
+    all_chosen_mfos = [None for _ in antn_pairs]
     for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
-        for ltmp in (h_atn, l_atn):
-            utils.add_seqs_aa(ltmp)
-            utils.add_naive_seq_aa(ltmp)
-        metric_pairs = []
-        for hid, pids in zip(h_atn['unique_ids'], h_atn['paired-uids']):
-            if pids is None or len(pids) == 0:  # should only have the latter now (set with .get() call in rewrite_input_metafo())
-                continue
-            lid = pids[0]
-            if lid not in l_atn['unique_ids']:
-                print '  paired light id %s missing' % lid
-                continue
-            mpfo = {'iclust' : iclust, 'seqtype' : 'observed'}
-            for tch, uid, ltmp in zip(('h', 'l'), (hid, lid), (h_atn, l_atn)):
-                mpfo[tch] = ltmp
-                mpfo[tch+'_iseq'] = ltmp['unique_ids'].index(uid)
-            metric_pairs.append(mpfo)
-        mpfo_lists[iclust] = metric_pairs
-        pair_antns.append(get_pantn(metric_pairs, h_atn, l_atn, all_pair_ids))
+        metric_pairs = mpfo_lists[iclust]
         if len(metric_pairs) == 0:
             continue
-        mtpys[iclust] = get_mtpys(metric_pairs)  #  NOTE these get used by scope in several fcns
-        icl_mfos = choose_abs(metric_pairs, iclust, tdbg=debug)
+        icl_mfos = choose_abs(metric_pairs, iclust, mtpys[iclust], tdbg=debug)
         all_chosen_mfos[iclust] = icl_mfos
-    inf_lines, true_lines = (None, pair_antns) if is_simu else (utils.get_annotation_dict(pair_antns), None)
+    inf_lines, true_lines = (None, fake_pntns) if not args.is_data else (utils.get_annotation_dict(fake_pntns), None)
     add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, base_plotdir=plotdir, ete_path=args.ete_path,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
                  tree_inference_outdir=tree_inference_outdir,
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
-    if inf_lines is not None:
-        inf_lines = utils.get_annotation_dict(inf_lines.values())  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
-    if args.plot_partitions or args.action in ['partition', 'merge-paired-partitions']:  # ok this kinda maybe shouldn't work, but seems ok?
-        print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
-        from partitionplotter import PartitionPlotter
-        partplotter = PartitionPlotter(args)
-        partplotter.plot('%s/partitions/%s'%(plotdir, 'true' if is_simu else 'inferred'), [l['unique_ids'] for l in (true_lines if is_simu else inf_lines.values())], utils.get_annotation_dict(true_lines) if is_simu else inf_lines, args=args)
+    if inf_lines is not None:  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
+        inf_lines = utils.get_annotation_dict(inf_lines.values())  # don't need this any more (partition plotting used to be right here) but too chicken to remove it atm
     if debug:
         print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
-            print_dbg(iclust, metric_pairs, icl_mfos)  # note: relies on mtpys being in scope
+            print_dbg(iclust, metric_pairs, icl_mfos, mtpys[iclust])  # note: relies on mtpys being in scope
     if args.chosen_ab_fname is not None:
         write_chosen_file([mfo for mlist in all_chosen_mfos for mfo in mlist])

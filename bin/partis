@@ -1093,25 +1093,39 @@ def run_all_loci(args, ig_or_tr='ig'):
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
     # ----------------------------------------------------------------------------------------
     def process_all_outputs(tmpaction):
-        for lpair in spairs():  # run plots/meta update for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
-            for ltmp in lpair:
-                if tmpaction=='plot-partitions' and utils.has_d_gene(ltmp) and not args.run_single_chain_partition_plots:  # for heavy chain we can just used the merged one, but the light chain merged ones are just links back to here so we need them
-                    continue
-                run_step(tmpaction, ltmp, lpair=lpair, joint=True, skip_missing_output=True)
-        cfpdir = '%s/cf-plots' % getodir(is_plotting=True)
-        for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
-            if utils.has_d_gene(ltmp):
-                run_step(tmpaction, ltmp, joint=True)
-            else:
-                if tmpaction == 'plot-partitions' and os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):  # light chain in the paired subdirs is the same, so for plotting just link the results
-                    utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
-            if tmpaction == 'plot-partitions' and args.plotdir is not None and not args.no_partition_plots:
-                run_cf_plotdirs(cfpdir, ltmp)
-        if tmpaction == 'plot-partitions' and args.plotdir is not None and os.path.exists(cfpdir):
-            fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
-            import plotting
-            fnlist = sorted(fnoutstr.strip().split('\n'))
-            plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
+        if tmpaction != 'plot-partitions' or args.run_single_chain_partition_plots:
+            for lpair in spairs():  # run plots/meta update for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
+                for ltmp in lpair:
+                    run_step(tmpaction, ltmp, lpair=lpair, joint=True, skip_missing_output=True)
+            for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
+                if utils.has_d_gene(ltmp):
+                    run_step(tmpaction, ltmp, joint=True)
+                else:
+                    if tmpaction == 'plot-partitions' and os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):  # light chain in the paired subdirs is the same, so for plotting just link the results
+                        utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
+        if tmpaction == 'plot-partitions' and args.plotdir is not None:
+            cfpdir = '%s/cf-plots' % getodir(is_plotting=True)
+            if not args.no_partition_plots:
+                for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
+                    run_cf_plotdirs(cfpdir, ltmp)
+            if os.path.exists(cfpdir):
+                fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
+                import plotting
+                fnlist = sorted(fnoutstr.strip().split('\n'))
+                plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
+    # ----------------------------------------------------------------------------------------
+    def get_pntns(smetrics=False):  # name kind of sucks
+        if not args.is_data:
+            if args.paired_indir is None:
+                raise Exception('can\'t read simulation files without setting --paired-indir')
+            lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate if smetrics and args.run_single_chain_selection_metrics else None, no_plot=True, debug=args.debug or args.debug_paired_clustering)
+        else:
+            lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=smetrics and args.run_single_chain_selection_metrics, dbgstr='partition', debug=args.debug or args.debug_paired_clustering)
+            _ = read_qti_file(args)  # sets <args.queries_to_include>
+        antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size if smetrics else None)  # , required_keys=['tree-info']
+        antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
+        fake_pntns, mpfo_lists, mtpys = paircluster.make_fake_hl_pair_antns(args, antn_pairs)
+        return antn_pairs, fake_pntns, mpfo_lists, mtpys
     # ----------------------------------------------------------------------------------------
     paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate', 'update-meta-info']
     if args.action not in paired_loci_actions:
@@ -1165,20 +1179,23 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.action == 'view-output' or args.debug_paired_clustering or args.debug:
             for ltmp in sloci():
                 run_step('view-output', ltmp, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
+        antn_pairs, fake_pntns, mpfo_lists, mtpys = None, None, None, None
         if args.action == 'get-selection-metrics' or args.get_selection_metrics:
             if args.run_single_chain_selection_metrics and args.action == 'get-selection-metrics':
                 for lpair in spairs():
                     for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
                         run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
             print '%s' % utils.color('blue_bkg', 'getting combined h/l selection metrics')
-            if not args.is_data:
-                if args.paired_indir is None:
-                    raise Exception('can\'t get simulation selection metrics without setting --paired-indir')
-                lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate if args.run_single_chain_selection_metrics else None, no_plot=True, debug=args.debug or args.debug_paired_clustering)
-            else:
-                lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=args.run_single_chain_selection_metrics, dbgstr='partition', debug=args.debug or args.debug_paired_clustering)
-                _ = read_qti_file(args)  # sets <args.queries_to_include>
-            treeutils.combine_selection_metrics(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size, plotdir=None if args.plotdir is None else getplotdir(None), is_simu=not args.is_data, args=args, tree_inference_outdir=getodir())
+            antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns(smetrics=True)
+            treeutils.combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir=None if args.plotdir is None else getplotdir(None), args=args, tree_inference_outdir=getodir())
+        if ptnplot:
+            from partitionplotter import PartitionPlotter
+            print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
+            partplotter = PartitionPlotter(args)
+            if fake_pntns is None:
+                antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns()  # smetrics=True
+            inf_lines, true_lines = (None, fake_pntns) if not args.is_data else (utils.get_annotation_dict(fake_pntns), None)
+            partplotter.plot('%s/partitions/%s'%(getplotdir(None), 'true' if not args.is_data else 'inferred'), [l['unique_ids'] for l in (true_lines if not args.is_data else inf_lines.values())], utils.get_annotation_dict(true_lines) if not args.is_data else inf_lines, args=args)
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         if args.paired_outdir is None and args.seed_unique_id is not None:
