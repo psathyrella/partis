@@ -279,7 +279,7 @@ class PartitionPlotter(object):
         fig, ax = self.plotting.mpl_init()
         if len(bubble_positions) == 0:
             print '  %s no bubble positions, returning' % utils.wrnstr()
-            return 'not-plotted.svg'
+            return [['not-plotted.svg']]
         lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubble_positions)
         plt.xlim(-lim, lim)
         plt.ylim(-lim, lim)

@@ -3324,7 +3324,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                                                             didstr, cids[0], cids[1], indelstr),
             print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstrs(mpfo)),
                                                                      mtpstr if mtpstr != last_mtpy_str else ' '*utils.len_excluding_colors(mtpstr),
-                                                                     sum_nuc_shm_pct(mpfo),
+                                                                     sum_nuc_shm_pct(mpfo, imtp),
                                                                      cshm_str if imp==0 else ' '*len(cshm_str),
                                                                      aa_shmstr if aa_shmstr!=last_aa_shmstr else ' '*utils.len_excluding_colors(aa_shmstr),
                                                                      sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
