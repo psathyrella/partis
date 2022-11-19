@@ -38,6 +38,8 @@ def translate_paired_ids(ltmp, pids):
 
 # ----------------------------------------------------------------------------------------
 helpstr = """
+I think this was an old script to kind of do a hackey version of approximate bulk pairing (but not really sure, would need to read through it more carefully, atm i'm adding this late and i forget).
+see usage: datascripts/meta/qa013-synth/run.sh
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass

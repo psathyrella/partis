@@ -199,6 +199,7 @@ def concat_heavy_chain(lpairs, lp_infos, dont_deep_copy=False):  # yeah yeah thi
     return glfos, antn_lists, joint_cpaths
 
 # ----------------------------------------------------------------------------------------
+# somewhat similar to get_antn_pairs() and find_cluster_pairs() below, but operates on single sequences
 def find_seq_pairs(antn_lists, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------
     def handle_atntn(ltmp, antn):
