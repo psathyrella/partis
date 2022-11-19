@@ -3032,6 +3032,13 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     return {'flexbounds' : fbounds, 'relpos' : rpos}
 
 # ----------------------------------------------------------------------------------------
+def check_per_seq_lengths(line, bkey='unique_ids'):  # maybe there's something like this elsewhere? adding it very late. In any case there's lots of places i should add this check, i've screwed this up several times before and it's *really* hard to catch
+    blen = len(line[bkey])
+    for tkey in [k for k in line if k in linekeys['per_seq']]:
+        if len(line[tkey]) != blen:
+            raise Exception('per seq line keys \'%s\' %d and \'%s\' %d not the same length' % (bkey, blen, tkey, len(line[tkey])))
+
+# ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
     """ Add to <line> a bunch of things that are initially only implicit. """
     if line['v_gene'] == '':

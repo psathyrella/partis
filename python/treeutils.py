@@ -2130,7 +2130,7 @@ def get_treefos(args, antn_list, cpath=None, glfo=None, debug=False):  # note th
         print '    using existing inferred trees in lb info'
     else:
         treefos = get_trees_for_annotations(antn_list, treefname=args.treefname, cpath=cpath, workdir=args.workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
-                                            inf_outdir=None if args.outfname is None or args.tree_inference_method is None else utils.fpath(utils.getprefix(args.outfname)), glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, debug=debug)
+                                            inf_outdir=args.tree_inference_outdir, glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, debug=debug)
     return treefos
 
 # ----------------------------------------------------------------------------------------

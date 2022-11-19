@@ -413,7 +413,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
             htree.scale_edges(len(h_atn['seqs'][0]) / float(len(p_atn['seqs'][0])))
             return htree, htree.as_string(schema='newick')
         # ----------------------------------------------------------------------------------------
-        def add_unp_seqs():
+        def add_unp_seqs(cpkeys):
             # ----------------------------------------------------------------------------------------
             def ambig_seq(tch, t_atn, iseq, aa=False):
                 # ----------------------------------------------------------------------------------------
@@ -435,6 +435,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
                     print '       naive %s' % p_atn['naive_seq%s'%tstr]
                     for u, s in zip(p_atn['unique_ids'], p_atn['seqs%s'%tstr]):
                         utils.color_mutants(p_atn['naive_seq%s'%tstr], s, amino_acid=aa, extra_str='      %s' % (utils.color('purple', '  unp. ') if u in all_unp_ids else '       '), post_str=' '+u, print_result=True, only_print_seq=True)
+            # ----------------------------------------------------------------------------------------
             mfo_ids = [gsval(m, c, 'unique_ids') for m in metric_pairs for c in 'hl']
             all_unp_ids, n_unp_added = [], {c : 0 for c in 'hl'}
             if tdbg:
@@ -454,10 +455,12 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
                     if 'multiplicities' in t_atn:
                         tmpkeys.append('multiplicities')
                     for tk in [k for k in tmpkeys if k in t_atn]:
+                        assert len(p_atn[tk]) == ipseq  # if somehow duplicates sneak into <tmpkeys> again this'll trigger
                         p_atn[tk].append(t_atn[tk][icseq])
                     p_atn['has_shm_indels'].append(False)  # ick ick ick
                 all_unp_ids += unp_ids
                 n_unp_added[tch] += len(unp_ids)
+            utils.check_per_seq_lengths(p_atn)
             if tdbg:
                 print_amb_seqs(all_unp_ids)
             print '    added unpaired seqs to fake paired annotation: %s %d  %s %d' % (utils.locstr(h_atn['loci'][0]), n_unp_added['h'], utils.locstr(l_atn['loci'][0]), n_unp_added['l'])
@@ -491,15 +494,17 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
             assert not args.add_unpaired_seqs_for_paired_selection_metrics  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
             _, p_atn['tree'] = translate_heavy_tree(treeutils.get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
-        if args.meta_info_key_to_color is not None:
+        if args.meta_info_key_to_color is not None and args.meta_info_key_to_color not in cpkeys:
             cpkeys.append(args.meta_info_key_to_color)
         if args.meta_info_to_emphasize is not None:
-            cpkeys += args.meta_info_to_emphasize.keys()
-        cpkeys += [k for k in utils.input_metafile_keys.values() if k in m['h'] and k in m['l'] and all(gsval(m, 'h', k)==gsval(m, 'l', k) for m in metric_pairs)]  # input meta keys that are in both h and l annotations and equal in value for all mfos
+            cpkeys += [k for k in args.meta_info_to_emphasize.keys() if k not in cpkeys]
+        def addme(k): return all(k in m['h'] and k in m['l'] and gsval(m, 'h', k)==gsval(m, 'l', k) for m in metric_pairs)
+        cpkeys += [k for k in utils.input_metafile_keys.values() if k not in cpkeys and addme(k)]  # input meta keys that are in both h and l annotations and equal in value for all mfos
+        assert len(cpkeys) == len(set(cpkeys))  # any duplicates will fuck up add_unp_seqs()
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         if args.add_unpaired_seqs_for_paired_selection_metrics:
-            add_unp_seqs()
+            add_unp_seqs(cpkeys)
         p_atn['fv_insertion'] = ''  # this stuff for left side of v is only needed so when we add aa seqs corresponding to any inferred ancestral seqs it doesn't crash trying to pad (we don't want it to pad, since it's already padded above)
         p_atn['v_5p_del'] = 0
         for iseq, mfo in enumerate(metric_pairs):

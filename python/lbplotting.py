@@ -394,7 +394,8 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
                 thist = Hist(init_int_bins=True, value_list=vlist, xtitle=vlabel(tkey), title=str(mval))
             else:
                 n_bins = 10
-                xbins = hutils.autobins(vlist, n_bins)
+                # xbins = hutils.autobins(vlist, n_bins)
+                xbins, n_bins = hutils.auto_volume_bins(vlist, n_bins)
                 thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=vlist, xtitle=vlabel(tkey), title=str(mval))
             hist_lists[tkey].append(thist)
             plotvals[tkey][mval] = vlist

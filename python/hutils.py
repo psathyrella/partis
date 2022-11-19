@@ -43,6 +43,8 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fc
         else:
             xmin, xmax = get_expanded_bounds(values, float(values[-1] - values[0]) / n_bins)
         dx = float(xmax - xmin) / n_bins  # then recalculate dx
+        if dx < 1e-10:
+            print '  %s very small difference %f between xmin %f and xmax %f in hutils.set_bins() (values: %s)' % (utils.wrnstr(), dx, xmin, xmax, values)
         for ib in range(n_bins+1):
             xbins[ib] = xmin + ib*dx
 
