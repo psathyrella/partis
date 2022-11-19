@@ -1461,7 +1461,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     def uselog(xkey):  # the low end (zero bin) of these distributions always dominates, but we're actually interested in the upper tail, so logify it
         return xkey in smetrics or xkey == 'affinities'
     # ----------------------------------------------------------------------------------------
-    def add_hist(xkey, sorted_xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, offset=None):
+    def add_hist(xkey, sorted_xvals, yval, iclust, cluster, median_x1, fixed_x1max, base_alpha, repfracstr, offset=None):
         if None in sorted_xvals:
             if remove_none_vals:
                 sorted_xvals = [v for v in sorted_xvals if v is not None]
@@ -1621,12 +1621,12 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
             base_color = alt_colors[iclust_global % len(alt_colors)] if meta_info_key_to_color is None else 'black'
 
-            fixed_xmax = add_hist(x1key, x1vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset=None if x2key is None else 'up')
+            fixed_xmax = add_hist(x1key, x1vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, repfracstr, offset=None if x2key is None else 'up')
             if x2key is not None:
                 tmpval = lbplotting.mean_of_top_quintile([v for v in x1vals if v is not None])  # NOTE presumably this needs to match sortlabel
                 ax.plot([tmpval, tmpval], [yval, yval + 1./4], linewidth=2.5, alpha=0.55, color='green')
                 x2vals = sorted(get_xval_list(cluster, x2key))
-                fixed_xmax = add_hist(x2key, x2vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, offset='down')
+                fixed_xmax = add_hist(x2key, x2vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, repfracstr, offset='down')
 
             if cluster_indices is not None:  # add the (global) cluster index (i.e. 1 - rank) and cluster size as text on the right side of the plot
                 xtext = x1vals[-1] if plot_high_x else fixed_xmax

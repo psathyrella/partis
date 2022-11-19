@@ -364,7 +364,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
 def read_rearrangements():
     if args.paired_loci:
         lp_infos = paircluster.read_lpair_output_files(lpairs(), naive_fname, dbgstr='naive simulation')
-        naive_events = paircluster.get_all_antn_pairs(lpairs(), lp_infos)
+        naive_events = paircluster.get_all_antn_pairs(lp_infos)
         glfos, _, _ = paircluster.concat_heavy_chain(lpairs(), lp_infos)  # per-locus glfos with concat'd heavy chain
     else:
         glfo, naive_events, _ = utils.read_output(naive_fname(None))

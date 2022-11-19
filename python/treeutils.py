@@ -2044,7 +2044,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
 
     if args.sub_plotdir is not None:
         plotdir = '%s/%s' % (plotdir, args.sub_plotdir)
-    print '           plotting selection metrics to %s' % plotdir
+    print '    plotting selection metrics to %s' % plotdir
     utils.prep_dir(plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
     fnames = lbplotting.add_fn(None, init=True)
 

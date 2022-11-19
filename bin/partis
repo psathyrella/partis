@@ -208,11 +208,13 @@ def read_qti_file(args):
                 lkey = utils.input_metafile_keys[mkey]
                 more_input_info[sfo['name']][lkey] = [sfo[mkey]]
     else:
-        more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data)
+        more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data, args=args)
     print '  --queries-to-include-fname: adding %d extra sequence%s from %s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname)
     if args.queries_to_include is None:
         args.queries_to_include = []
-    args.queries_to_include += more_input_info.keys()
+    if len(set(more_input_info) & set(args.queries_to_include)) > 0:  # could be actual overlap, or could be we've called this fcn twice
+        print '  %s overlap between --queries-to-include and extra input meta info in %s (maybe accidentally called this fcn more than once?): %s' % (utils.wrnstr(), args.queries_to_include_fname, ' '.join(set(more_input_info) & set(args.queries_to_include)))
+    args.queries_to_include += [k for k in more_input_info.keys() if k not in args.queries_to_include]  # whatever, just remove any duplicates
     return more_input_info
 
 # ----------------------------------------------------------------------------------------
@@ -1119,10 +1121,11 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.paired_indir is None:
                 raise Exception('can\'t read simulation files without setting --paired-indir')
             lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate if smetrics and args.run_single_chain_selection_metrics else None, no_plot=True, debug=args.debug or args.debug_paired_clustering)
+            antn_pairs = paircluster.get_all_antn_pairs(lp_infos)  # NOTE this will cause a bunch of warnings (mostly later) if this simulation has multiple cells per droplet/missing pair info
         else:
             lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=smetrics and args.run_single_chain_selection_metrics, dbgstr='partition', debug=args.debug or args.debug_paired_clustering)
             _ = read_qti_file(args)  # sets <args.queries_to_include>
-        antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size if smetrics else None)  # , required_keys=['tree-info']
+            antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size if smetrics else None)  # , required_keys=['tree-info']
         antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
         fake_pntns, mpfo_lists, mtpys = paircluster.make_fake_hl_pair_antns(args, antn_pairs)
         return antn_pairs, fake_pntns, mpfo_lists, mtpys
@@ -1195,7 +1198,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if fake_pntns is None:
                 antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns()  # smetrics=True
             inf_lines, true_lines = (None, fake_pntns) if not args.is_data else (utils.get_annotation_dict(fake_pntns), None)
-            partplotter.plot('%s/partitions/%s'%(getplotdir(None), 'true' if not args.is_data else 'inferred'), [l['unique_ids'] for l in (true_lines if not args.is_data else inf_lines.values())], utils.get_annotation_dict(true_lines) if not args.is_data else inf_lines, args=args)
+            partplotter.plot('%s/partitions/%s'%(getplotdir(None), 'true' if not args.is_data else 'inferred'), [l['unique_ids'] for l in (true_lines if not args.is_data else inf_lines.values()) if len(l['unique_ids']) > 0], utils.get_annotation_dict(true_lines) if not args.is_data else inf_lines, args=args)  # you get len 0 uids e.g. if reading simulation with multiple cells per droplet/missing reads
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         if args.paired_outdir is None and args.seed_unique_id is not None:

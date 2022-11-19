@@ -229,9 +229,9 @@ def find_seq_pairs(antn_lists, ig_or_tr='ig'):
     return outfos
 
 # ----------------------------------------------------------------------------------------
-def get_all_antn_pairs(lpairs, lp_infos):  # same as previous fcn, but lumps together both h+k and h+l, rather than just giving you one or the other
+def get_all_antn_pairs(lp_infos, ig_or_tr='ig'):  # same as previous fcn, but lumps together both h+k and h+l, rather than just giving you one or the other
     antn_pairs = []
-    for lpair in lpairs:
+    for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += get_antn_pairs(lpair, lp_infos[tuple(lpair)])
     return antn_pairs
 
@@ -380,18 +380,22 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         dids = both_dids(args, mfo)  # the vast majority of the time they have the same did, so this is just the did, but in simulation, if they're mispaired, they can be different
         if len(set(dids)) == 1:  # if they have the same droplet id (data or correctly paired simulation)
             if not args.is_data or args.use_droplet_id_for_combo_id:  # in simulation the droplet ids should be unique, so we can just use the droplet id as the combined id
-                rid = dids[0]
+                cmbid = dids[0]
             else:  # but in data we can get multiple cells per droplet id
-                rid = '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
+                cmbid = '%s_contig_%s+%s' % (dids[0], cids[0], cids[1])
         else:  # but if they're mispaired in simulation (i.e. have different "droplet ids") then keep all the info
             assert len(set(dids)) == 2
-            rid = '%s-%s+%s-%s' % (dids[0], mfo['h']['loci'][0], dids[1], mfo['l']['loci'][0])
-        hid, lid = [gsval(mfo, c, 'unique_ids') for c in 'hl']
-        if args.queries_to_include is not None and any(u in args.queries_to_include for u in (hid, lid)):  # translate uids in args.queries_to_include (should maybe untranslate afterwards?)
-            for u in (hid, lid):
-                args.queries_to_include.remove(u)
-            args.queries_to_include.append(rid)
-        return rid
+            cmbid = '%s-%s+%s-%s' % (dids[0], mfo['h']['loci'][0], dids[1], mfo['l']['loci'][0])
+        return cmbid
+    # ----------------------------------------------------------------------------------------
+    def update_qti(combo_ids, metric_pairs):
+        for cmbid, mfo in zip(combo_ids, metric_pairs):
+            hid, lid = [gsval(mfo, c, 'unique_ids') for c in 'hl']
+            if any(u in args.queries_to_include for u in (hid, lid)):  # translate uids in args.queries_to_include (should maybe untranslate afterwards?)
+                for u in (hid, lid):
+                    if u in args.queries_to_include:
+                        args.queries_to_include.remove(u)
+                args.queries_to_include.append(cmbid)
     # ----------------------------------------------------------------------------------------
     def get_mtpys(metric_pairs):  # NOTE this is the sum of utils.get_multiplicity() over identical sequences
         icl_mtpys = {}
@@ -404,7 +408,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         # ----------------------------------------------------------------------------------------
         def translate_heavy_tree(htree):
             trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
-            translate_labels(htree, trns)
+            treeutils.translate_labels(htree, trns)
             htree.scale_edges(len(h_atn['seqs'][0]) / float(len(p_atn['seqs'][0])))
             return htree, htree.as_string(schema='newick')
         # ----------------------------------------------------------------------------------------
@@ -459,11 +463,15 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         # ----------------------------------------------------------------------------------------
         p_atn = {'is_fake_paired' : True, 'invalid' : True}  # make a new fake annotation for the sequences that are in both h+l (they're not really 'invalid', but they *are* fake, and e.g. the indel info is wrong, so seems safer to call the 'invalid')
         p_atn['unique_ids'] = [combid(m) for m in metric_pairs]
+        if args.queries_to_include is not None:
+            update_qti(p_atn['unique_ids'], metric_pairs)
         if any(u in all_pair_ids for u in p_atn['unique_ids']):
             raise Exception('tried to add duplicate uid(s) %s when making paired annotation' % [u for u in p_atn['unique_ids'] if u in all_pair_ids])
         all_pair_ids |= set(p_atn['unique_ids'])
         p_atn['seqs'] = [sumv(m, 'seqs', imtp) for m in metric_pairs]
         p_atn['input_seqs'] = [s for s in p_atn['seqs']]  # NOTE do *not* let 'seqs' and 'input_seqs' point to the same list (we only need 'input_seqs' since they're what gets written to the output file)
+        if len(metric_pairs) == 0:
+            return p_atn
         p_atn['seqs_aa'] = [sumv(m, 'seqs_aa', imtp) for m in metric_pairs]
         p_atn['naive_seq'] = sumv(metric_pairs[0], 'naive_seq', imtp)
         p_atn['naive_seq_aa'] = sumv(metric_pairs[0], 'naive_seq_aa', imtp)  # NOTE it's *really* important you don't end up translating the sum'd naive seq since i don't think they necessarily get concat'd in frame
@@ -480,7 +488,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq keys to copy from h_atn (NOTE ignores l_atn)
         if not args.is_data:
             assert not args.add_unpaired_seqs_for_paired_selection_metrics  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
-            _, p_atn['tree'] = translate_heavy_tree(get_dendro_tree(treestr=h_atn['tree']))
+            _, p_atn['tree'] = translate_heavy_tree(treeutils.get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
         if args.meta_info_key_to_color is not None:
             cpkeys.append(args.meta_info_key_to_color)
