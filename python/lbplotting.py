@@ -1530,7 +1530,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, seq_len=None,
-                    meta_info_key_to_color=None, node_size_key=None, uid_translations=None):
+                    meta_info_key_to_color=None, node_size_key=None, uid_translations=None, node_label_regex=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
@@ -1564,6 +1564,8 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --meta-info-key-to-color %s' % meta_info_key_to_color
     if node_size_key is not None:
         cmdstr += ' --node-size-key %s' % node_size_key
+    if node_label_regex is not None:
+        cmdstr += ' --node-label-regex %s' % node_label_regex
     cmdstr, _ = utils.run_ete_script(cmdstr, ete_path, return_for_cmdfos=True, tmpdir=subworkdir, extra_str='        ')
 
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
@@ -1590,7 +1592,7 @@ def plot_lb_trees(args, metric_methods, baseplotdir, lines, ete_path, base_workd
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
             cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=qtis,
-                                       label_all_nodes=args.label_tree_nodes, label_root_node=args.label_root_node, uid_translations=altids,
+                                       label_all_nodes=args.label_tree_nodes, label_root_node=args.label_root_node, uid_translations=altids, node_label_regex=args.node_label_regex,
                                        seq_len=float(numpy.mean([len(s) for s in line['seqs']])))]
             add_fn(fnames, fn=outfname, n_per_row=4)
 

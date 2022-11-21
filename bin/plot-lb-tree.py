@@ -339,6 +339,9 @@ args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, ke
 args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
 utils.meta_emph_arg_process(args)
 args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
+if args.node_label_regex is not None and not args.label_all_nodes:
+    print '  note: turning on --label-all-nodes'
+    args.label_all_nodes = True
 
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 args.metafo = None

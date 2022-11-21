@@ -1390,6 +1390,7 @@ parent_args.append({'name' : '--label-tree-nodes', 'kwargs' : {'action' : 'store
 parent_args.append({'name' : '--label-root-node', 'kwargs' : {'action' : 'store_true', 'help' : 'label root node in the tree plots'}})
 parent_args.append({'name' : '--node-size-key', 'kwargs' : {'help' : 'similar to --meta-info-key-to-color, but this controls the size of the node in tree plots'}})
 parent_args.append({'name' : '--label-mutations', 'kwargs' : {'action' : 'store_true', 'help' : 'label mutations in tree plots'}})
+parent_args.append({'name' : '--node-label-regex', 'kwargs' : {'help' : 'see bin/plot-lb-trees.py help'}})
 
 parent_args.append({'name' : '--no-sw-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'By default, we get preliminary V annotations from vsearch that we pass to sw. This improves accuracy because the vsearch shm rate estimates let us separate sequences into groups by optimal sw match/mismatch scores, and improves speed by letting us reverse shm V indels before running sw (so fewer sw iterations; also vsearch is faster than sw). Setting this option skips the preliminary vsearch step (although if caching parameters, we still use vsearch to remove less-likely genes; but no vsearch info is passed to sw)'}})
 

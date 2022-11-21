@@ -382,6 +382,7 @@ def process(args):
     if args.extra_daffy_metrics is not None:
         print '  --extra-daffy-metrics: adding %d metrics to treeutils.daffy_metrics (%s)' % (len(args.extra_daffy_metrics), ':'.join(args.extra_daffy_metrics))
         treeutils.daffy_metrics += args.extra_daffy_metrics
+    args.tree_inference_outdir = None
     if args.tree_inference_method is not None:
         if args.outfname is None and args.paired_outdir is None:
             args.tree_inference_outdir = None
