@@ -1095,7 +1095,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
     # ----------------------------------------------------------------------------------------
     def process_all_outputs(tmpaction):
-        assert tmpaction in ['update-meta-info'] + ex_out_cfg_actions #, 'plot-partitions', 'get-selection-metrics']
+        assert tmpaction in ['update-meta-info'] + ex_out_cfg_actions
         if tmpaction=='update-meta-info' or 'paired' in args.existing_output_run_cfg:
             for lpair in spairs():  # run plots/meta update for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
                 for ltmp in lpair:
