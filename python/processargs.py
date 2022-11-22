@@ -145,6 +145,8 @@ def process(args):
         args.droplet_id_indices = utils.get_arg_list(args.droplet_id_indices, intify=True)
         if [args.droplet_id_separators, args.droplet_id_indices].count(None) not in [0, 2]:
             raise Exception('if you set either --droplet-id-separators or --droplet-id-indicies you need to set both of them (guessing defaults is proving to be too dangerous)')
+        if args.plot_annotation_performance:
+            print '  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning')
     else:
         if args.paired_indir is not None:
             raise Exception('need to set --paired-loci if --paired-indir is set')
@@ -360,13 +362,17 @@ def process(args):
         args.n_partitions_to_write = 999  # need to make sure to get all the ones after the best partition, and this is a somewhat hackey way to do that
         print '  note: setting --n-partitions-to-write to 999 since either --min-largest-cluster-size or --n-final-clusters was set'  # bcrham argument parser barfs if you use sys.maxint
 
+    args.existing_output_run_cfg = utils.get_arg_list(args.existing_output_run_cfg, choices=['single', 'paired', 'merged'])
+    if args.existing_output_run_cfg is None:
+        args.existing_output_run_cfg = []
+
     if args.action == 'get-selection-metrics' or args.get_selection_metrics:
         if args.paired_loci:
             if args.paired_outdir is None and args.selection_metric_fname is None:
                 print '    %s calculating selection metrics, but neither --paired-outdir nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
             elif args.selection_metric_fname is None:
                 if args.add_selection_metrics_to_outfname:
-                    print '  note: --add-selection-metrics-to-outfname has no effect on final output files when --paired-loci is set since there isn\'t a unique output file (although if --run-single-chain-selection-metrics is set they will get written to those files)'
+                    print '  note: --add-selection-metrics-to-outfname has no effect on final output files when --paired-loci is set since there isn\'t a unique output file (although if --existing-output-run-cfg is set they can get written to those files)'
                 args.selection_metric_fname = treeutils.smetric_fname(args.paired_outdir)
         else:
             if args.outfname is None and args.selection_metric_fname is None:

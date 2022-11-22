@@ -167,7 +167,7 @@ class Tester(object):
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
                 self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
-            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--run-single-chain-selection-metrics']}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
+            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired']}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
         if args.quick:
             self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.nqr('quick'))]}

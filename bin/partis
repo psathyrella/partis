@@ -546,9 +546,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--no-pairing-info')
             utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
-            if not args.run_single_chain_selection_metrics:
+            utils.remove_from_arglist(clist, '--existing-output-run-cfg', has_arg=True)
+            if 'single' not in args.existing_output_run_cfg:
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
-            if not args.run_single_chain_partition_plots:
                 utils.remove_from_arglist(clist, '--plot-partitions')
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
@@ -1095,17 +1095,19 @@ def run_all_loci(args, ig_or_tr='ig'):
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
     # ----------------------------------------------------------------------------------------
     def process_all_outputs(tmpaction):
-        if tmpaction != 'plot-partitions' or args.run_single_chain_partition_plots:
+        assert tmpaction in ['update-meta-info'] + ex_out_cfg_actions #, 'plot-partitions', 'get-selection-metrics']
+        if tmpaction=='update-meta-info' or 'paired' in args.existing_output_run_cfg:
             for lpair in spairs():  # run plots/meta update for each locus in each paired (e.g. igh+igk/) subdir (single-chain plots for each locus are run above)
                 for ltmp in lpair:
                     run_step(tmpaction, ltmp, lpair=lpair, joint=True, skip_missing_output=True)
+        if tmpaction=='update-meta-info' or 'merged' in args.existing_output_run_cfg:
             for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
                 if utils.has_d_gene(ltmp):
                     run_step(tmpaction, ltmp, joint=True)
                 else:
-                    if tmpaction == 'plot-partitions' and os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):  # light chain in the paired subdirs is the same, so for plotting just link the results
+                    if tmpaction!='update-meta-info' and os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):  # light chain in the paired subdirs is the same, so for plotting just link the results
                         utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
-        if tmpaction == 'plot-partitions' and args.plotdir is not None:
+        if tmpaction=='plot-partitions' and args.plotdir is not None:
             cfpdir = '%s/cf-plots' % getodir(is_plotting=True)
             if not args.no_partition_plots:
                 for ltmp in sloci():  # heavy chain plots with the joint partition combining igh paired with both light loci (make light chain links just so people know where to find them/consistency)
@@ -1120,10 +1122,10 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not args.is_data:
             if args.paired_indir is None:
                 raise Exception('can\'t read simulation files without setting --paired-indir')
-            lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate if smetrics and args.run_single_chain_selection_metrics else None, no_plot=True, debug=args.debug or args.debug_paired_clustering)
+            lp_infos = read_true_files(add_selection_metrics=args.selection_metrics_to_calculate if smetrics and len(args.existing_output_run_cfg) > 0 else None, no_plot=True, debug=args.debug or args.debug_paired_clustering)
             antn_pairs = paircluster.get_all_antn_pairs(lp_infos)  # NOTE this will cause a bunch of warnings (mostly later) if this simulation has multiple cells per droplet/missing pair info
         else:
-            lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=smetrics and args.run_single_chain_selection_metrics, dbgstr='partition', debug=args.debug or args.debug_paired_clustering)
+            lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=smetrics and len(args.existing_output_run_cfg) > 0, dbgstr='partition', debug=args.debug or args.debug_paired_clustering)
             _ = read_qti_file(args)  # sets <args.queries_to_include>
             antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=args.min_selection_metric_cluster_size if smetrics else None)  # , required_keys=['tree-info']
         antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
@@ -1167,27 +1169,29 @@ def run_all_loci(args, ig_or_tr='ig'):
                 run_step('cache-parameters', ltmp, auto_cache=True, skip_missing_input=True)
         if args.random_seed_seq:
             (args.seed_unique_id, args.seed_loci), _ = utils.choose_seed_unique_id(os.path.dirname(getifn(utils.heavy_locus)), None, None, paired=True, choose_random=True)
-        if args.action not in ['merge-paired-partitions', 'get-selection-metrics', 'view-output', 'plot-partitions'] or args.action=='plot-partitions' and args.run_single_chain_partition_plots:  # NOTE this skips printing the single-chain results for 'view-output', since presumably we don't really care about them
+        ex_out_cfg_actions = ['plot-partitions', 'get-selection-metrics']  # actions whose behavior is determined by args.existing_output_run_cfg
+        if args.action not in ['merge-paired-partitions', 'view-output']+ex_out_cfg_actions or (args.action in ex_out_cfg_actions and 'single' in args.existing_output_run_cfg):
             if args.seed_unique_id is not None and args.action == 'partition':
                 remove_unseeded_seqs()
             for ltmp in sloci():
                 run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions', skip_missing_output=runs_on_existing_output(args.action))
         if args.action in ['partition', 'merge-paired-partitions', 'annotate'] and not args.dry_run:  # ok it's weird to combine inf chains for 'annotate', but really we just want the merged/joint heavy chain output file in the normal location
             combine_inf_chains()
-        if args.plot_annotation_performance:
-            print '  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning')
-        ptnplot = args.action == 'plot-partitions' or args.plot_partitions or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None and not args.no_partition_plots)  # ick
-        if ptnplot or args.action == 'update-meta-info':
-            process_all_outputs('plot-partitions' if ptnplot else args.action)  # includes several run_step() calls
+        ext_actions = []
+        if args.action=='update-meta-info':
+            ext_actions.append(args.action)
+        ptnplot = args.action=='plot-partitions' or args.plot_partitions or (args.action in ['partition', 'merge-paired-partitions'] and args.plotdir is not None and not args.no_partition_plots)  # ick
+        if ptnplot:
+            ext_actions.append('plot-partitions')
+        if args.action=='get-selection-metrics' or args.get_selection_metrics:
+            ext_actions.append('get-selection-metrics')
+        for atmp in ext_actions:
+            process_all_outputs(atmp)  # includes several run_step() calls
         if args.action == 'view-output' or args.debug_paired_clustering or args.debug:
             for ltmp in sloci():
                 run_step('view-output', ltmp, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
         antn_pairs, fake_pntns, mpfo_lists, mtpys = None, None, None, None
-        if args.action == 'get-selection-metrics' or args.get_selection_metrics:
-            if args.run_single_chain_selection_metrics and args.action == 'get-selection-metrics':
-                for lpair in spairs():
-                    for ltmp in lpair:  # TODO it would be really nice to run the individual tree metric fcn here
-                        run_step('get-selection-metrics', ltmp, lpair=lpair, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
+        if args.action=='get-selection-metrics' or args.get_selection_metrics:
             print '%s' % utils.color('blue_bkg', 'getting combined h/l selection metrics')
             antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns(smetrics=True)
             treeutils.combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir=None if args.plotdir is None else getplotdir(None), args=args, tree_inference_outdir=getodir())
@@ -1339,7 +1343,7 @@ parent_args.append({'name' : '--linearham-dir', 'kwargs' : {'default' : ('/home/
 parent_args.append({'name' : '--meta-info-to-emphasize', 'kwargs' : {'help' : 'Input meta info (or regular annotation) key to emphasize (highlight in red) in various plots, similar to --queries-to-include. Specify as comma-separated key-value pair, for instance \'timepoints,+8d\' would highlight all sequences with timepoint \'+8d\'. Can be any annotation key or input meta key. For now only supports one key-val pair, but in future should support colon-separated list.'}})
 parent_args.append({'name' : '--meta-info-key-to-color', 'kwargs' : {'help' : 'Like --meta-info-to-emphasize, except for this key we choose a different color for each value (only in the slug/joy plots at the moment).'}})
 parent_args.append({'name' : '--meta-emph-formats', 'kwargs' : {'help' : 'Formatting instructions for keys used in --meta-info-to-emphasize and --meta-info-key-to-color, specified as a colon-separated list of comma-separated key/val pairs. Currently you can do two things: specify a different (presumably prettier) name, and specify to emphasize/color based on length rather than value. For instance \'--meta-info-key-to-color multiplicities --meta-info-to-emphasize paired-uids,1 --meta-emph-formats multiplicities,multi:paired-uids,len\' will color by multiplicities, but label this in the plots with \'multi\', and emphasize seqs with exactly one paired uid (i.e. their \'paired-uids\' list is length 1).'}})
-parent_args.append({'name' : '--run-single-chain-partition-plots', 'kwargs' : {'action' : 'store_true', 'help' : 'if --paired-loci is set and plotting partitions, make partition plots for all single chain/h+k/l subdirs (not just final/joint partitions). Like --run-single-chain-selection-metrics, but for partition plotting. Note that this runs a slightly different set of single chain stuff, since combined h/l partition plots atm are run inside of combined h/l selection metrics, so for partition plotting we run some single chain stuff even if this isn\'t set'}})
+parent_args.append({'name' : '--existing-output-run-cfg', 'kwargs' : {'help' : 'colon-separated list specifying the results on which to run get-selection-metrics and plot-partitions. \'single\': single chain results, \'paired\': paired results in e.g. h+k/ subdirs, \'merged\': merged igh results (plus link to h+k/ light results).'}})
 
 parent_args.append({'name' : '--default-initial-germline-dir', 'kwargs' : {'default' : partis_dir + '/data/germlines', 'help' : 'For internal use only (used to pass around the default location). To specify your own germline directory from which to start, use --initial-germline-dir instead.'}})
 parent_args.append({'name' : '--initial-germline-dir', 'kwargs' : {'help' : 'Directory with fastas from which to read germline set. Only used when caching parameters, during which its contents is copied into --parameter-dir, usually (i.e. unless germline inference is turned off) with modification. NOTE default is set below, because control flow is too complicated for argparse'}})
@@ -1367,7 +1371,6 @@ parent_args.append({'name' : '--plot-and-fit-absolutely-everything', 'kwargs' : 
 parent_args.append({'name' : '--cluster-indices', 'kwargs' : {'help' : 'indices of clusters (when sorted largest to smallest) to process for actions that read existing output, e.g. \'view-output\' and \'get-selection-metrics\'. Specified as a colon-separated list, where each item can be either a single integer or a python slice-style range of integers, e.g. 0:3-6:50 --> 0:3:4:5:50'}})
 parent_args.append({'name' : '--partition-index-to-print', 'kwargs' : {'type' : int, 'help' : 'like --cluster-indices, but restricts to the partition with this index (rather than default of printing best partition).'}})
 parent_args.append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname, or alternatively run gctree with --run-gctree (unrelated to --input-simulation-treefname).'}})
-parent_args.append({'name' : '--run-single-chain-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'if --paired-loci is set and calculating selection metrics, in addition to getting the paired h+l selection metrics, also calculate selection metrics on the individual chain output files in igh+igk/ and igh+igk/ (i.e. the *joint*, not single chain, partitions of each individual/single chain). Like --run-single-chain-partition-plots, but for getting (+plotting) selection metrics.'}})
 parent_args.append({'name' : '--min-selection-metric-cluster-size', 'kwargs' : {'type' : int, 'default' : treeutils.default_min_selection_metric_cluster_size, 'help' : 'don\'t calculate selection metrics for clusters smaller than this'}})
 parent_args.append({'name' : '--treefname', 'kwargs' : {'help' : 'newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-selection-metrics) (unrelated to --input-simulation-treefname).'}})
 parent_args.append({'name' : '--tree-inference-method', 'kwargs' : {'choices' : ['fasttree', 'iqtree', 'gctree', 'linearham'], 'help' : 'Tree inference method to run when getting selection metrics (if not set, uses fasttree [combined, if available, with the cluster path])'}})
