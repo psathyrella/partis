@@ -817,8 +817,10 @@ class PartitionPlotter(object):
                 print '  note: R does not seem to be installed, so skipping mds partition plots'
         if 'sizes' in plot_cfg:
             csfns = self.make_cluster_size_distribution()
-            if len(fnames) == 0: fnames.append([])
-            fnames[0] += csfns[0]
+            if 'shm-vs-size' in plot_cfg:
+                fnames[0] += csfns[0]
+            else:
+                fnames.append(csfns[0])
 
         # these probably needs testing/updating
         if 'laplacian-spectra' in plot_cfg:

@@ -483,7 +483,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         p_atn['shm_aa'] = [sumv(m, 'shm_aa', imtp) for m in metric_pairs]
         p_atn['mut_freqs'] = [n / float(len(s)) for n, s in zip(p_atn['n_mutations'], p_atn['seqs'])]
         p_atn['has_shm_indels'] = [False for _ in metric_pairs]  # ick ick ick
-        # NOTE if you add a key here, it also has to be added below in the args.add_unpaired_seqs_for_paired_selection_metrics block
+        # NOTE if you add a key here, it also has to be added below in the args.add_unpaired_seqs_to_fake_paired_annotations block
         if 'multiplicities' in h_atn:  # <h_atn> is the same as m['h'], i should really settle on one of them
             h_mults, l_mults = [[utils.get_multiplicity(m[c], uid=gsval(m, c, 'unique_ids')) for m in metric_pairs] for c in 'hl']
             if h_mults != l_mults:
@@ -491,7 +491,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
             p_atn['multiplicities'] = h_mults
         cpkeys = ['affinities' if args.affinity_key is None else args.affinity_key]  # per-seq keys to copy from h_atn (NOTE ignores l_atn)
         if not args.is_data:
-            assert not args.add_unpaired_seqs_for_paired_selection_metrics  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
+            assert not args.add_unpaired_seqs_to_fake_paired_annotations  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
             _, p_atn['tree'] = translate_heavy_tree(treeutils.get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
         if args.meta_info_key_to_color is not None and args.meta_info_key_to_color not in cpkeys:
@@ -503,7 +503,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         assert len(cpkeys) == len(set(cpkeys))  # any duplicates will fuck up add_unp_seqs()
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
-        if args.add_unpaired_seqs_for_paired_selection_metrics:
+        if args.add_unpaired_seqs_to_fake_paired_annotations:
             add_unp_seqs(cpkeys)
         p_atn['fv_insertion'] = ''  # this stuff for left side of v is only needed so when we add aa seqs corresponding to any inferred ancestral seqs it doesn't crash trying to pad (we don't want it to pad, since it's already padded above)
         p_atn['v_5p_del'] = 0

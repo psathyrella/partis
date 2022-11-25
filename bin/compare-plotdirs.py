@@ -229,7 +229,7 @@ parser.add_argument('--ytitle')
 parser.add_argument('--no-errors', action='store_true')
 parser.add_argument('--single-plotdir', action='store_true')
 parser.add_argument('--square-bins', action='store_true')
-parser.add_argument('--swarm-meta-key', default='timepoints', help='if set, also make swarm plots, pretending that each hist\'s title is the value for this "fake" meta info key, and treat each bin\'s entries as observations at the bin center\'s value')
+parser.add_argument('--swarm-meta-key', help='if set, also make swarm plots, pretending that each hist\'s title is the value for this "fake" meta info key, and treat each bin\'s entries as observations at the bin center\'s value')
 
 args = parser.parse_args()
 args.plotdirs = utils.get_arg_list(args.plotdirs)
@@ -266,6 +266,10 @@ if args.gldirs is not None:
             args.glfo = tmpglfo
         else:
             args.glfo = glutils.get_merged_glfo(args.glfo, tmpglfo)
+
+if any(not os.path.isdir(d) for d in args.plotdirs):
+    print '   at least one of --plotdirs doesn\'t exist: %s' % ' '.join(d for d in args.plotdirs if not os.path.isdir(d))
+    sys.exit(0)
 
 listof_plotdirlists, listof_outdirs = [], []
 # first add the main/parent dir, if it has csvs
