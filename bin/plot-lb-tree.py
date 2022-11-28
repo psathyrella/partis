@@ -255,6 +255,7 @@ def set_meta_styles(args, etree, tstyle):
         mvals = args.metafo.get(args.meta_info_key_to_color, {})
         all_emph_vals, emph_colors = plotting.meta_emph_init(args.meta_info_key_to_color, formats=args.meta_emph_formats, all_emph_vals=set(mvals.values()))
         mcolors = {v : c for v, c in emph_colors}
+        plotting.make_meta_info_legend(os.path.dirname(args.outfname), utils.getprefix(os.path.basename(args.outfname)), args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=args.meta_emph_formats, alpha=0.6)
     if args.node_size_key is not None:
         nsvals = set(args.metafo[args.node_size_key].values()) - set([None])
         min_nsval, max_nsval = [mfcn(nsvals) for mfcn in [min, max]]

@@ -714,18 +714,13 @@ class PartitionPlotter(object):
                                              label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, node_label_regex=self.args.node_label_regex)
             cmdfos.append(cfo)
             self.addfname(fnames, plotname)
+            self.addfname(fnames, '%s-legend'%plotname)
         if len(cmdfos) > 0:
             start = time.time()
             utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=utils.auto_n_procs(), proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
             print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
         if os.path.exists(workdir):
             os.rmdir(workdir)
-
-        if self.args.meta_info_key_to_color is not None:
-            mekey = self.args.meta_info_key_to_color
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
-            self.plotting.make_meta_info_legend(plotdir, 'tree', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
-            self.addfname(fnames, 'tree-legend')
 
         if self.args.tree_inference_method == 'linearham' and self.args.outfname is not None:
             fnames.append([])

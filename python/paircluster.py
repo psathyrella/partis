@@ -494,13 +494,16 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
             assert not args.add_unpaired_seqs_to_fake_paired_annotations  # not sure if it makes sense? in any case i'm pretty sure the tree wouldn't be right, and some other things would probably have to change
             _, p_atn['tree'] = translate_heavy_tree(treeutils.get_dendro_tree(treestr=h_atn['tree']))
             cpkeys.append('min_target_distances')
-        if args.meta_info_key_to_color is not None and args.meta_info_key_to_color not in cpkeys:
+        if args.meta_info_key_to_color is not None and args.meta_info_key_to_color:
             cpkeys.append(args.meta_info_key_to_color)
         if args.meta_info_to_emphasize is not None:
-            cpkeys += [k for k in args.meta_info_to_emphasize.keys() if k not in cpkeys]
+            cpkeys += [k for k in args.meta_info_to_emphasize.keys()]
         def addme(k): return all(k in m['h'] and k in m['l'] and gsval(m, 'h', k)==gsval(m, 'l', k) for m in metric_pairs)
-        cpkeys += [k for k in utils.input_metafile_keys.values() if k not in cpkeys and addme(k)]  # input meta keys that are in both h and l annotations and equal in value for all mfos
+        cpkeys += [k for k in utils.input_metafile_keys.values() if addme(k)]  # input meta keys that are in both h and l annotations and equal in value for all mfos
+        cpkeys = list(set(cpkeys))
+        cpkeys = [k for k in cpkeys if k not in p_atn]
         assert len(cpkeys) == len(set(cpkeys))  # any duplicates will fuck up add_unp_seqs()
+        assert all(k not in p_atn for k in cpkeys)  # copying any key that's already there (e.g. n_mutations) is also *really* bad
         for tk in [k for k in cpkeys if k in h_atn]:
             p_atn[tk] = [h_atn[tk][m['h_iseq']] for m in metric_pairs]
         if args.add_unpaired_seqs_to_fake_paired_annotations:
