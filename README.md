@@ -7,7 +7,7 @@ Partis is free software under the GPL v3.
 The various components are described in the following papers.
 Since they do quite different things, it's best if you can cite the specific paper(s) that describe the components that you're using.
 
-  * [Paired clustering](https://arxiv.org/abs/2203.11367) Ralph, DK, & Matsen IV, FA (under review at PLoS Computational Biology). _Inference of B cell clonal families using heavy/light chain pairing information._
+  * [Paired clustering](https://doi.org/10.1371/journal.pcbi.1010723) Ralph, DK, & Matsen IV, FA (2022). _Inference of B cell clonal families using heavy/light chain pairing information._ PLoS Computational Biology, 18(11), e1010723.
   * [Selection metrics](https://doi.org/10.1371/journal.pcbi.1008391) Ralph, DK, & Matsen IV, FA (2020). _Using B cell receptor lineage structures to predict affinity._ PLoS Computational Biology, 16(11), e1008391.
   * [Germline inference](https://doi.org/10.1371/journal.pcbi.1007133) Ralph, DK, & Matsen IV, FA (2019). _Per-sample immunoglobulin germline inference \[...\]._ PLoS Computational Biology, 15(7), e1007133.
   * [Clonal family inference](http://dx.doi.org/10.1371/journal.pcbi.1005086) Ralph, DK, & Matsen IV, FA (2016). _Likelihood-based Inference of B-cell Clonal Families._ PLoS Computational Biology, 12(10), e1005086.
