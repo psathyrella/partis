@@ -4029,7 +4029,7 @@ def add_naive_seq_aa(line):
     line['naive_seq_aa'] = ltranslate(pad_seq_for_translation(line, line['naive_seq']))
 
 # ----------------------------------------------------------------------------------------
-def pad_seq_for_translation(line, tseq, debug=False):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
+def pad_seq_for_translation(line, tseq, return_n_padded=False, debug=False):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
     # NOTE this duplicates [is reverse of?] code in n_variable_ambig() (but not really sure how to clean up/combine them)
     # NOTE also duplicates some of get_codon_list()
     old_tseq = tseq  # just for dbg
@@ -4048,7 +4048,10 @@ def pad_seq_for_translation(line, tseq, debug=False):  # this duplicates the ari
     if debug:
         print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
         print '    %s%s%s%s' % (color('blue', fv_xtra * ambig_base), color('blue', v_5p_xtra * ambig_base), color_mutants(old_tseq, old_tseq), color('blue', end_amb))
-    return tseq
+    if return_n_padded:
+        return tseq, (fv_xtra + v_5p_xtra, len(end_amb))
+    else:
+        return tseq
 
 # ----------------------------------------------------------------------------------------
 def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_column()

@@ -140,6 +140,12 @@ def label_node(node):
             return True
         return False
     # ----------------------------------------------------------------------------------------
+    def split_line(lstr):  # split into two rows if more than 3 entries
+        if lstr.count(',') < 3:
+            return lstr
+        blist = lstr.split(', ')
+        return '%s\n%s' % (', '.join(blist[:len(blist)/2]), ', '.join(blist[len(blist)/2:]))
+    # ----------------------------------------------------------------------------------------
     if use_name():
         nlabel = node.name
         if args.uid_translations is not None and nlabel in args.uid_translations:
@@ -151,13 +157,28 @@ def label_node(node):
             return
     if 'labels' in args.metafo:
         mlabel = args.metafo['labels'].get(node.name, '')
-        if '\n' in mlabel:
-            mlabel, bottom_label = mlabel.split('\n')
-            if bottom_label.count(',') > 2:  # split into two rows if more than 3 entries
-                blist = bottom_label.split(', ')
-                bottom_label = '%s\n%s' % (', '.join(blist[:len(blist)/2]), ', '.join(blist[len(blist)/2:]))
-            node.add_face(ete3.TextFace(bottom_label, fsize=3, fgcolor='black'), column=0, position='branch-bottom')
-        node.add_face(ete3.TextFace(mlabel, fsize=3, fgcolor='black'), column=0, position='branch-top')
+        blabels, tlabels, tcolors, bcolors = ['', ''], ['', ''], ['black' for _ in range(2)], ['black' for _ in range(2)]
+        label_list = mlabel.split('\n')
+        if 'h:' in mlabel or 'l:' in mlabel:
+            for lstr in label_list:
+                if 'nuc' in lstr and 'aa' in lstr:
+                    assert lstr.count(',') == 1  # e.g. '3 nuc, 1 aa'
+                    tlabels[0], blabels[0] = lstr.split(',')
+                elif lstr.find('h:') == 0:
+                    tlabels[1], tcolors[1] = lstr, 'blue'
+                elif lstr.find('l:') == 0:
+                    blabels[1], bcolors[1] = lstr, 'green'
+                else:
+                    raise Exception('couldn\'t parse \'%s\'' % mlabel)
+        elif '\n' in mlabel:
+            tlabels[1], blabels[1] = label_list[0], '\n'.join(label_list[1:])
+            blabels[1] = split_line(blabels[1])
+        else:
+            tlabels[0] = mlabel
+        for il, (blab, bcol) in enumerate(zip(blabels, bcolors)):
+            node.add_face(ete3.TextFace(blab, fsize=3, fgcolor=bcol), column=il, position='branch-bottom')
+        for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):
+            node.add_face(ete3.TextFace(tlab, fsize=3, fgcolor=tcol), column=il, position='branch-top')
     tface = ete3.TextFace(rename(nlabel), fsize=3, fgcolor='red')
     node.add_face(tface, column=0)
 

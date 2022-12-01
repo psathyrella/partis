@@ -474,6 +474,17 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         all_pair_ids |= set(p_atn['unique_ids'])
         p_atn['seqs'] = [sumv(m, 'seqs', imtp) for m in metric_pairs]
         p_atn['input_seqs'] = [s for s in p_atn['seqs']]  # NOTE do *not* let 'seqs' and 'input_seqs' point to the same list (we only need 'input_seqs' since they're what gets written to the output file)
+        for mfo, pseq in zip(metric_pairs, p_atn['seqs']):
+            total_hlen = 0  # total len of igh seq
+            for tch in 'hl':
+                _, npads = utils.pad_seq_for_translation(mfo[tch], gsval(mfo, tch, 'seqs'), return_n_padded=True)  # maybe don't need this, but safer to have it
+                cbounds = [mfo[tch]['codon_positions'][r] for r in 'vj']
+                offset = npads[0] + total_hlen
+                p_atn['%s_offset'%tch] = offset  # index of first position in <tch>
+                p_atn['%s_cdr3_bounds'%tch] = [b + offset for b in cbounds]
+                assert utils.get_cdr3_seq(mfo[tch], mfo[tch+'_iseq']) == pseq[cbounds[0] + offset : cbounds[1] + offset + 3]  # make sure the cdr3 in the padded seq (with the offset) gives the same bit as from the h/l annotation
+                if tch == 'h':
+                    total_hlen += npads[0] + len(gsval(mfo, tch, 'seqs')) + npads[1]
         if len(metric_pairs) == 0:
             return p_atn
         p_atn['seqs_aa'] = [sumv(m, 'seqs_aa', imtp) for m in metric_pairs]
