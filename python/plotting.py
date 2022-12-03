@@ -1669,3 +1669,47 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return fn
     else:
         return high_x_clusters
+
+# ----------------------------------------------------------------------------------------
+def bubble_plot(plotname, plotdir, bubfos, title=None, xtra_text=None, alpha=0.4):
+    rfn = '%s/csize-radii.csv' % plotdir
+    bpfn = '%s/bubble-positions.csv' % plotdir
+    workfnames = [rfn, bpfn]
+    with open(rfn, 'w') as rfile:
+        writer = csv.DictWriter(rfile, ['id', 'radius'])
+        writer.writeheader()
+        for bfo in bubfos:
+            writer.writerow({k : bfo[k] for k in ['id', 'radius']})
+    cmd = '%s/bin/circle-plots.py %s %s' % (utils.get_partis_dir(), rfn, bpfn)
+    utils.simplerun(cmd, extra_str='        ')
+    with open(bpfn) as bpfile:
+        def cfn(k, v): return v if k=='id' else float(v)
+        reader = csv.DictReader(bpfile)
+        for line, bfo in zip(reader, bubfos):
+            assert line['id'] == str(bfo['id'])
+            bfo.update({k : cfn(k, v) for k, v in line.items()})
+    fig, ax = mpl_init()
+    if len(bubfos) == 0:
+        print '  %s no bubble positions, returning' % utils.wrnstr()
+        return [['not-plotted.svg']]
+    lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubfos)
+    plt.xlim(-lim, lim)
+    plt.ylim(-lim, lim)
+    ax.axis('off')
+    plt.gca().set_aspect('equal')
+
+    for bfo in bubfos:
+        if 'text' in bfo:
+            tfo = bfo['text']
+            ax.text(bfo['x']+tfo['dx'], bfo['y'], tfo['tstr'], fontsize=tfo['fsize'], alpha=alpha, color=tfo['tcol'])
+        if bfo['fracs'] is None:
+            ax.add_patch(plt.Circle((bfo['x'], bfo['y']), bfo['r'], alpha=alpha, linewidth=2, fill=True))  # plain circle
+        else:
+            plot_pie_chart_marker(ax, bfo['x'], bfo['y'], bfo['r'], bfo['fracs'], alpha=alpha)
+    if xtra_text is not None:
+        fig.text(xtra_text['x'], xtra_text['y'], xtra_text['text'], fontsize=xtra_text.get('fontsize', 8), color=xtra_text.get('color', 'black'))
+    mpl_finish(ax, plotdir, plotname, title=title)
+
+    for wfn in workfnames:
+        os.remove(wfn)
+    return plotname

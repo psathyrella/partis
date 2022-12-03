@@ -249,76 +249,53 @@ class PartitionPlotter(object):
     def make_bubble_plots(self, alpha=0.4, n_to_write_size=10, debug=False):
         import matplotlib.pyplot as plt
         subd, plotdir = self.init_subd('bubble')
-        rfn = '%s/csize-radii.csv' % self.base_plotdir
-        bpfn = '%s/bubble-positions.csv' % self.base_plotdir
-        workfnames = [rfn, bpfn]
         mekey = self.args.meta_info_key_to_color
         fake_cluster, fake_antn = [], {'unique_ids' : [], mekey : []} # make a fake cluster with all sequences from all skipped clusters (circlify is too slow to run on all the smaller clusters)
-        with open(rfn, 'w') as rfile:
-            writer = csv.DictWriter(rfile, ['id', 'radius'])
-            writer.writeheader()
-            for iclust, cluster in enumerate(self.sclusts):
-                if iclust < self.n_max_bubbles:
-                    writer.writerow({'id' : iclust, 'radius' : len(cluster)})
-                else:
-                    fake_cluster += cluster
-                    fake_antn['unique_ids'] += cluster
-                    if mekey is not None:
-                        antn = self.antn_dict.get(':'.join(cluster))
-                        fake_antn[mekey] += antn[mekey] if antn is not None and mekey in antn else [None for _ in cluster]
-            if len(fake_cluster) > 0:
-                writer.writerow({'id' : 'fake', 'radius' : len(fake_cluster)})
+        bubfos = []
+        for iclust, cluster in enumerate(self.sclusts):
+            if iclust < self.n_max_bubbles:
+                bubfos.append({'id' : iclust, 'radius' : len(cluster)})
+            else:
+                fake_cluster += cluster
+                fake_antn['unique_ids'] += cluster
+                if mekey is not None:
+                    antn = self.antn_dict.get(':'.join(cluster))
+                    fake_antn[mekey] += antn[mekey] if antn is not None and mekey in antn else [None for _ in cluster]
+        if len(fake_cluster) > 0:
+            bubfos.append({'id' : 'fake', 'radius' : len(fake_cluster)})
 
-        cmd = '%s/bin/circle-plots.py %s %s' % (utils.get_partis_dir(), rfn, bpfn)
-        utils.simplerun(cmd, extra_str='        ')
-        bubble_positions = []
-        with open(bpfn) as bpfile:
-            def cfn(k, v): return v if k=='id' else float(v)
-            reader = csv.DictReader(bpfile)
-            for line in reader:
-                bubble_positions.append({k : cfn(k, v) for k, v in line.items()})
-        fig, ax = self.plotting.mpl_init()
-        if len(bubble_positions) == 0:
-            print '  %s no bubble positions, returning' % utils.wrnstr()
-            return [['not-plotted.svg']]
-        lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubble_positions)
-        plt.xlim(-lim, lim)
-        plt.ylim(-lim, lim)
-        ax.axis('off')
-        plt.gca().set_aspect('equal')
         if self.args.meta_info_key_to_color is not None:
             all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
             hcolors = {v : c for v, c in emph_colors}
         def getclust(idl): return self.sclusts[int(idl)] if idl!='fake' else fake_cluster
-        for bfo in sorted(bubble_positions, key=lambda b: len(getclust(b['id'])), reverse=True):
+        srtd_bubfos = sorted(bubfos, key=lambda b: len(getclust(b['id'])), reverse=True)
+        for bfo in srtd_bubfos:
             cluster = getclust(bfo['id'])
             if bfo['id']=='fake' or int(bfo['id']) < n_to_write_size:
                 tstr, fsize, tcol, dx = ('small clusters', 12, 'red', -0.3) if bfo['id']=='fake' else (len(cluster), 8, 'black', -0.04)
-                ax.text(bfo['x']+dx, bfo['y'], tstr, fontsize=fsize, alpha=0.4, color=tcol)
+                bfo['text'] = {'tstr' : tstr, 'fsize' : fsize, 'tcol' : tcol, 'dx' : dx}
             antn = self.antn_dict.get(':'.join(cluster)) if bfo['id'] != 'fake' else fake_antn
             if antn is None or mekey is None:
-                ax.add_patch(plt.Circle((bfo['x'], bfo['y']), bfo['r'], alpha=alpha, linewidth=2, fill=True))  # plain circle
+                bfo['fracs'] = None
             else:
                 emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=self.args.meta_emph_formats)
-                self.plotting.plot_pie_chart_marker(ax, bfo['x'], bfo['y'], bfo['r'], [{'label' : v, 'fraction' : f, 'color' : hcolors[v]} for v, f in emph_fracs.items()], alpha=alpha)
-        fname = 'bubbles'
-        total_bubble_seqs = sum(len(getclust(b['id'])) for b in bubble_positions if b['id']!='fake')
+                bfo['fracs'] = [{'label' : v, 'fraction' : f, 'color' : hcolors[v]} for v, f in emph_fracs.items()]
+        total_bubble_seqs = sum(len(getclust(b['id'])) for b in bubfos if b['id']!='fake')
         repertoire_size = sum([len(c) for c in self.sclusts])
-        nbub = len(bubble_positions)
+        nbub = len(bubfos)
         if len(fake_cluster) > 0:
             nbub -= 1
         title = 'bubbles for %d/%d clusters (%d/%d seqs)' % (nbub, len(self.sclusts), total_bubble_seqs, repertoire_size)
+        xtra_text = None
         if len(fake_cluster) > 0:
-            fig.text(0.2, 0.85, 'small clusters: %d seqs in %d clusters smaller than %d' % (len(fake_cluster), len(self.sclusts) - len(bubble_positions), len(self.sclusts[self.n_max_bubbles - 1])), fontsize=8, color='green')
-        self.plotting.mpl_finish(ax, plotdir, fname, title=title)
+            xtra_text = {'x' : 0.2, 'y' : 0.85, 'color' : 'green', 'text' : 'small clusters: %d seqs in %d clusters smaller than %d' % (len(fake_cluster), len(self.sclusts) - len(bubfos), len(self.sclusts[self.n_max_bubbles - 1]))}
+        fn = self.plotting.bubble_plot('bubbles', plotdir, bubfos, title=title, xtra_text=xtra_text, alpha=alpha)
         fnames = [[]]
-        self.addfname(fnames, fname)
+        self.addfname(fnames, fn)
         if mekey is not None:
-            lfn = self.plotting.make_meta_info_legend(plotdir, fname, mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=alpha)
+            lfn = self.plotting.make_meta_info_legend(plotdir, 'bubbles', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=alpha)
             self.addfname(fnames, lfn)
 
-        for wfn in workfnames:
-            os.remove(wfn)
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
