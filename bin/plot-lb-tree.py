@@ -165,9 +165,9 @@ def label_node(node):
                     assert lstr.count(',') == 1  # e.g. '3 nuc, 1 aa'
                     tlabels[0], blabels[0] = lstr.split(',')
                 elif lstr.find('h:') == 0:
-                    tlabels[1], tcolors[1] = lstr, 'blue'
+                    tlabels[1], tcolors[1] = ' '+lstr, 'blue'
                 elif lstr.find('l:') == 0:
-                    blabels[1], bcolors[1] = lstr, 'green'
+                    blabels[1], bcolors[1] = ' '+lstr, 'green'
                 else:
                     raise Exception('couldn\'t parse \'%s\'' % mlabel)
         elif '\n' in mlabel:

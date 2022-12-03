@@ -1234,6 +1234,64 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=No
     return aa_dtree
 
 # ----------------------------------------------------------------------------------------
+# split apart mut info from h/l fake (smashed together) annotations, and switch from e.g. 0-based to 1-based indexing for plots
+def re_index_mut_info(indexing, annotation, aa_mutations, nuc_mutations, is_fake_paired=False):
+    # ----------------------------------------------------------------------------------------
+    def update_str(mcd, tch=None):
+        if tch is None and mcd['str'].find(':') == 1:
+            tch = mcd['str'][0]
+        mcd['str'] = '%s%s%d%s' % (tch+':' if annotation.get('is_fake_paired', False) else '', mcd['initial'], mcd['pos'], mcd['final'])
+    # ----------------------------------------------------------------------------------------
+    def split_h_l(mcd):
+        tch = 'h' if mcd['pos'] < annotation['l_offset']/3 else 'l'
+        mcd['chain'] = tch
+        mcd['pos'] -= annotation['%s_offset'%tch] / 3
+        update_str(mcd, tch=tch)
+    # ----------------------------------------------------------------------------------------
+    if indexing == 0:
+        return
+
+    assert annotation['l_offset'] % 3 == 0
+    mfos = [aa_mutations, nuc_mutations]
+
+    # split/translate mutations to h and l separately
+    if is_fake_paired:
+        for mfo in mfos:
+            for mcodes in mfo.values():
+                for mcd in mcodes:
+                    split_h_l(mcd)
+
+    # switch from 0-based to (by default) 1-based indexing to match e.g. linearham plots (*has* to happen after splitting fake paired)
+    for mfo in mfos:
+        for mcodes in mfo.values():
+            for mcd in mcodes:
+                mcd['pos'] += indexing
+                update_str(mcd)
+
+# ----------------------------------------------------------------------------------------
+# count up (and print) the most common mutations (note similarity to linearham script tabulate_lineage_probs.py)
+def collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=False, n_to_print=10):
+    tkeys = {'str' : 'mutation', 'pos' : 'position'}
+    mcounts = {k : {} for k in tkeys}
+# TODO also do nuc
+# TODO how to handle two-step mutations?
+    for node_label, mfos in aa_mutations.items():
+        for mfo in mfos:
+            for tkey in mcounts:
+                mtk = ('%s:%s'%(mfo['chain'], mfo[tkey])) if is_fake_paired and tkey!='str' else mfo[tkey]
+                if mtk not in mcounts[tkey]:
+                    mcounts[tkey][mtk] = {'count' : 0, 'nodes' : []}
+                mcounts[tkey][mtk]['count'] += 1
+                mcounts[tkey][mtk]['nodes'].append(node_label)
+    for tkey in mcounts:
+        print '      count   %s' % (tkeys[tkey]) #, '   chain' if annotation.get('is_fake_paired', False) else '')
+        for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
+            tch = mstr[0] if is_fake_paired else ''
+            print '       %3d   %s  %s' % (mct['count'], utils.color('blue' if tch=='h' else 'purple', tch) if is_fake_paired else '', mstr[2:] if is_fake_paired else mstr)
+
+    return mcounts
+
+# ----------------------------------------------------------------------------------------
 # check whether 1) node depth and 2) node pairwise distances are super different when calculated with tree vs sequences (not really sure why it's so different sometimes, best guess is fasttree sucks, partly because it doesn't put the root node anywhere near the root of the tree)
 def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_check_leaf_depths=False, extra_str=None, iclust=None, n_to_print=10, debug=False):  # , min_warn_frac=0.1
     common_nodes = [n for n in dtree.preorder_node_iter() if n.taxon.label in annotation['unique_ids']]
@@ -1353,14 +1411,25 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
     return lbvals
 
 # ----------------------------------------------------------------------------------------
-def find_pure_subtrees(dtree, antn, meta_key, debug=False):
-    # ----------------------------------------------------------------------------------------
-    def get_purity(sub_root_node, mval):  # return true if all nodes in subtree starting at "subroot" node <srnode> have <meta_key> value <mval> (or None)
-        for snode in sub_root_node.ageorder_iter():  # note that this iterator includes <snode>
-            sval = meta_vals[snode.taxon.label]
-            if sval is not None and sval != mval:
-                return False
+# if <return_bool>, return true if all nodes in subtree starting at "subroot" node <srnode> have <meta_key> value <mval> (or None)
+# otherwise, return the fraction of the clade that has value <mval> (only including non-None nodes)
+def get_clade_purity(meta_vals, sub_root_node, mval, return_bool=False, mval_fractions=None, debug=False):
+    if mval_fractions is None:
+        mval_fractions = {}
+    for snode in sub_root_node.ageorder_iter():  # note that this iterator includes <sub_root_node>
+        sval = meta_vals[snode.taxon.label]
+        if sval in [None, 'None']:  # ick ick ick
+            sval = None
+        if sval not in mval_fractions:
+            mval_fractions[sval] = 0
+        mval_fractions[sval] += 1
+        if return_bool and sval is not None and sval != mval:
+            return False
+    if return_bool:
         return True
+
+# ----------------------------------------------------------------------------------------
+def find_pure_subtrees(dtree, antn, meta_key, debug=False):
     # ----------------------------------------------------------------------------------------
     if meta_key not in antn:
         print '      %s meta key %s not in annotation' % (utils.wrnstr(), meta_key)
@@ -1373,7 +1442,7 @@ def find_pure_subtrees(dtree, antn, meta_key, debug=False):
     if debug:
         print '    finding pure subtrees with meta key: %s' % meta_key
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
-    if get_purity(dtree.seed_node, meta_vals[list(dtree.leaf_node_iter())[0].taxon.label]):
+    if get_clade_purity(meta_vals, dtree.seed_node, meta_vals[list(dtree.leaf_node_iter())[0].taxon.label], return_bool=True):
         print '      %s pure root node' % utils.wrnstr()
         return None, None
     subtree_nodes, subtree_stats = [], {}  # list of all [nodes defining] subtrees in <dtree> whose nodes all have the same <meta_key> value (or None), and that include all of their descendent leaves (maybe this is redundant)
@@ -1395,7 +1464,7 @@ def find_pure_subtrees(dtree, antn, meta_key, debug=False):
         srnode = tleaf
         while is_pure:  # find the largest pure subtree that includes <tleaf>
             next_sn = srnode.parent_node
-            is_pure = get_purity(next_sn, mval)
+            is_pure = get_clade_purity(meta_vals, next_sn, mval, return_bool=True)
             # print '           next: ', is_pure, srnode.parent_node.taxon.label
             if is_pure:
                 srnode = next_sn

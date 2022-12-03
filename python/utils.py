@@ -1286,7 +1286,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             align_sfo_seqs(sfos_to_align)
     aligned_seqfos = [{'name' : sfo['name'], 'seq' : getseq(sfo)} for sfo in seqfos_to_add]  # NOTE needs to be in same order as <seqfos_to_add>
 
-    if not line.get('is_fake_paired'):
+    if not line.get('is_fake_paired', False):
         remove_all_implicit_info(line)
 
     add_per_seq_keys(line)
@@ -1308,7 +1308,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
         else:  # I think this should only be for input meta keys like multiplicities, affinities, and timepoints, and hopefully they can all handle None?
             line[key] += [None for _ in aligned_seqfos]
 
-    if line.get('is_fake_paired'):
+    if line.get('is_fake_paired', False):
         if 'seqs_aa' in line:  # fill in the Nones that will have been added above
             add_seqs_aa(line)
         if 'n_mutations' in line:

@@ -43,8 +43,9 @@ class PartitionPlotter(object):
         self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
 
         self.n_mds_components = 2
+        self.indexing = 1  # for mutation plotting labels
 
-        self.sclusts, self.antn_dict, self.treefos, self.base_plotdir = None, None, None, None
+        self.sclusts, self.antn_dict, self.treefos, self.mut_info, self.base_plotdir = None, None, None, None, None
 
     # ----------------------------------------------------------------------------------------
     def init_subd(self, subd):
@@ -535,6 +536,21 @@ class PartitionPlotter(object):
                 self.sclusts[iclust] = utils.get_single_entry([l['unique_ids'] for l in antn_list if len(set(l['unique_ids']) & set(clust)) > 0])
 
     # ----------------------------------------------------------------------------------------
+    def set_mut_infos(self):
+        if self.mut_info is not None:
+            return
+        self.mut_info = [None for _ in self.sclusts]
+        for iclust, clust in enumerate(self.sclusts):  # NOTE can't just sort the 'unique_ids', since we need the indices to match up with the other plots here
+            annotation = self.antn_dict[':'.join(clust)]
+            utils.add_seqs_aa(annotation)
+            aa_mutations, nuc_mutations = {}, {}
+            treeutils.get_aa_tree(self.treefos[iclust]['tree'], annotation, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations)
+            treeutils.re_index_mut_info(self.indexing, annotation, aa_mutations, nuc_mutations, is_fake_paired=annotation.get('is_fake_paired', False))
+            self.mut_info[iclust] = {'mcounts' : treeutils.collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=annotation.get('is_fake_paired', False)),
+                                     'aa_muts' : aa_mutations,
+                                     'nuc_muts' : nuc_mutations}
+
+    # ----------------------------------------------------------------------------------------
     def get_treestr(self, iclust):  # at some point i'll probably need to handle None type trees, but that day is not today
         return self.treefos[iclust]['tree'].as_string(schema='newick').strip()
 
@@ -650,79 +666,41 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def make_tree_plots(self, cpath=None):
         # ----------------------------------------------------------------------------------------
-        def add_mut_labels(annotation, metafo, indexing, n_to_print=10):
-            # ----------------------------------------------------------------------------------------
-            def update_str(mcd, tch=None):
-                if tch is None and mcd['str'].find(':') == 1:
-                    tch = mcd['str'][0]
-                mcd['str'] = '%s%s%d%s' % (tch+':' if annotation.get('is_fake_paired') else '', mcd['initial'], mcd['pos'], mcd['final'])
-            # ----------------------------------------------------------------------------------------
-            # calculate mutation info
-            utils.add_seqs_aa(annotation)
-            aa_mutations, nuc_mutations = {}, {}
-            treeutils.get_aa_tree(self.treefos[iclust]['tree'], annotation, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations)
-            if annotation.get('is_fake_paired'):  # split/translate mutations to h and l separately
-                for mcodes in aa_mutations.values():
-                    for mcd in mcodes:
-                        assert annotation['l_offset'] % 3 == 0
-                        tch = 'h' if mcd['pos'] < annotation['l_offset']/3 else 'l'
-                        mcd['chain'] = tch
-                        mcd['pos'] -= annotation['%s_offset'%tch] / 3
-                        update_str(mcd, tch=tch)
-            if indexing != 0:  # switch from 0-based to (by default) 1-based indexing (only for AA) to match linearham plots
-                for mcodes in aa_mutations.values():
-                    for mcd in mcodes:
-                        mcd['pos'] += indexing
-                        update_str(mcd)
-
-            # count up (and print) the most common mutations
-            tkeys = {'str' : 'mutation'}  # 'pos' : 'position',  eh, this is harder now that i have to deal with 'chain', and i don't need it atm
-            mcounts = {k : {} for k in tkeys}
-            for mfos in aa_mutations.values():
-                for mfo in mfos:
-                    for tkey in mcounts:
-                        if mfo[tkey] not in mcounts[tkey]:
-                            mcounts[tkey][mfo[tkey]] = 0
-                        mcounts[tkey][mfo[tkey]] += 1
-            for tkey in mcounts:
-                print '      count   %s' % (tkeys[tkey]) #, '   chain' if annotation.get('is_fake_paired') else '')
-                for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
-                    print '       %3d     %s' % (mct, mstr)
-
-            # add mutation labels
+        def add_mut_labels(annotation, metafo, iclust):
+            mutfo = {tstr : self.mut_info[iclust]['%s_muts'%tstr] for tstr in ['aa', 'nuc']}
             metafo['labels'] = {}
             for uid in annotation['unique_ids']:
-                if uid not in nuc_mutations:
+                if uid not in mutfo['nuc']:
                     continue
-                if len(nuc_mutations[uid]) == 0:
+                if len(mutfo['nuc'][uid]) == 0:
                     metafo['labels'][uid] = '0'
-                # elif annotation.get('is_fake_paired'):
-                #     metafo['labels'][uid] = '%d nuc, %d aa' % (len(nuc_mutations[uid]), len(aa_mutations[uid])) #''
+                # elif annotation.get('is_fake_paired', False):
+                #     metafo['labels'][uid] = '%d nuc, %d aa' % (len(mutfo['nuc'][uid]), len(mutfo['aa'][uid])) #''
                 else:
-                    metafo['labels'][uid] = '%d nuc, %d aa' % (len(nuc_mutations[uid]), len(aa_mutations[uid]))
-                if uid in aa_mutations and len(aa_mutations[uid]) > 0:
-                    if annotation.get('is_fake_paired'):
+                    metafo['labels'][uid] = '%d nuc, %d aa' % (len(mutfo['nuc'][uid]), len(mutfo['aa'][uid]))
+                if uid in mutfo['aa'] and len(mutfo['aa'][uid]) > 0:
+                    if annotation.get('is_fake_paired', False):
                         chstrs = []
                         for tch in 'hl':
-                            chmuts = [m for m in aa_mutations[uid] if m['str'].find(tch+':')==0]
+                            chmuts = [m for m in mutfo['aa'][uid] if m['str'].find(tch+':')==0]
                             if len(chmuts) > 0:
                                  chstrs.append('%s: %s' % (tch, ', '.join(m['str'].replace(tch+':', '') for m in chmuts)))
                         metafo['labels'][uid] += '\n' + '\n'.join(chstrs)
                     else:
-                        metafo['labels'][uid] += '\n' + ', '.join(m['str'] for m in aa_mutations[uid])
+                        metafo['labels'][uid] += '\n' + ', '.join(m['str'] for m in mutfo['aa'][uid])
         # ----------------------------------------------------------------------------------------
-        def get_metafo(annotation, indexing=1):
+        def get_metafo(annotation, iclust):
             if self.args.meta_info_key_to_color is None and self.args.node_size_key is None and not self.args.label_mutations:
-                return None
+                return None, None, None
             metafo, cdr3fo = {}, {}
             for tk in [k for k in [self.args.meta_info_key_to_color, self.args.node_size_key] if k is not None and k in annotation]:
                 metafo[tk] = {u : f for u, f in zip(annotation['unique_ids'], annotation[tk])}
             if self.args.label_mutations:
-                add_mut_labels(annotation, metafo, indexing)
-                if annotation.get('is_fake_paired'):
+                add_mut_labels(annotation, metafo, iclust)
+                if annotation.get('is_fake_paired', False):
                     for tch in 'hl':
                         offset = annotation['%s_offset'%tch]
-                        cbounds = [(b-offset)/3 + indexing for b in annotation['%s_cdr3_bounds'%tch]]
+                        cbounds = [(b-offset)/3 + self.indexing for b in annotation['%s_cdr3_bounds'%tch]]
                         cdr3fo[tch] = '[%d - %d]' % tuple(cbounds)
             return metafo, cdr3fo
         # ----------------------------------------------------------------------------------------
@@ -732,6 +710,7 @@ class PartitionPlotter(object):
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('trees')
         self.set_treefos()
+        self.set_mut_infos()
         if self.treefos.count(None) == len(self.treefos):
             return [['x.svg']]
         workdir = '%s/ete3-plots' % self.args.workdir
@@ -746,7 +725,7 @@ class PartitionPlotter(object):
             plotname = 'tree-iclust-%d' % iclust
             qtis = None if self.args.queries_to_include is None else [q for q in self.args.queries_to_include if q in annotation['unique_ids']]  # NOTE make sure to *not* modify args.queries_to_include
             altids = [(u, au) for u, au in zip(annotation['unique_ids'], annotation['alternate-uids']) if au is not None] if 'alternate-uids' in annotation else None
-            mfo, cdr3fo = get_metafo(annotation)
+            mfo, cdr3fo = get_metafo(annotation, iclust)
             cfo = lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=mfo,
                                              queries_to_include=qtis, meta_info_key_to_color=self.args.meta_info_key_to_color, uid_translations=altids,
                                              label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, node_label_regex=self.args.node_label_regex)
@@ -755,7 +734,7 @@ class PartitionPlotter(object):
             self.addfname(fnames, '%s-legend'%plotname)
 
             # cdr3 plosition info plots
-            if annotation.get('is_fake_paired'):
+            if annotation.get('is_fake_paired', False):
                 self.plotting.plot_legend_only(collections.OrderedDict([('%s %s'%(c, cfo), {'color' : 'blue' if c=='h' else 'green'}) for c, cfo in cdr3fo.items()]), plotdir, '%s-cdr3'%plotname, title='CDR3')
                 self.addfname(fnames, '%s-cdr3'%plotname)
 
@@ -785,6 +764,7 @@ class PartitionPlotter(object):
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('subtree-purity')
         self.set_treefos()
+        self.set_mut_infos()
         if self.treefos.count(None) == len(self.treefos):
             return [['x.svg']]
         fnames = []
