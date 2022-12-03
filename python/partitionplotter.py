@@ -268,8 +268,8 @@ class PartitionPlotter(object):
             all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
             hcolors = {v : c for v, c in emph_colors}
         def getclust(idl): return self.sclusts[int(idl)] if idl!='fake' else fake_cluster
-        srtd_bubfos = sorted(bubfos, key=lambda b: len(getclust(b['id'])), reverse=True)
-        for bfo in srtd_bubfos:
+        bubfos = sorted(bubfos, key=lambda b: len(getclust(b['id'])), reverse=True)
+        for bfo in bubfos:
             cluster = getclust(bfo['id'])
             if bfo['id']=='fake' or int(bfo['id']) < n_to_write_size:
                 tstr, fsize, tcol, dx = ('small clusters', 12, 'red', -0.3) if bfo['id']=='fake' else (len(cluster), 8, 'black', -0.04)
