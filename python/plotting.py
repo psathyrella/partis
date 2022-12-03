@@ -1685,9 +1685,14 @@ def bubble_plot(plotname, plotdir, bubfos, title=None, xtra_text=None, alpha=0.4
     with open(bpfn) as bpfile:
         def cfn(k, v): return v if k=='id' else float(v)
         reader = csv.DictReader(bpfile)
-        for line, bfo in zip(reader, bubfos):
-            assert line['id'] == str(bfo['id'])
-            bfo.update({k : cfn(k, v) for k, v in line.items()})
+        bubble_positions = []  # they come back out of order, so need to sort
+        for line in reader:
+            bubble_positions.append({k : cfn(k, v) for k, v in line.items()})
+        bubble_positions = sorted(bubble_positions, key=lambda x: x['id'])
+        assert len(bubble_positions) == len(bubfos)
+        for posfo, bfo in zip(bubble_positions, bubfos):
+            assert posfo['id'] == str(bfo['id'])
+            bfo.update(posfo)
     fig, ax = mpl_init()
     if len(bubfos) == 0:
         print '  %s no bubble positions, returning' % utils.wrnstr()
