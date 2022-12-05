@@ -534,7 +534,7 @@ class PartitionPlotter(object):
         return self.treefos[iclust]['tree'].as_string(schema='newick').strip()
 
     # ----------------------------------------------------------------------------------------
-    def make_laplacian_spectra_plots(self, cpath=None, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
+    def make_laplacian_spectra_plots(self, debug=False):  # NOTE it's kind of weird to have this here, but all the other tree-dependent plotting in treeutils, but it's because this is for comparing clusters, whereas the stuff in treeutils is all about lb values, which are mostly useful within clusters
         subd, plotdir = self.init_subd('laplacian-spectra')
         self.set_treefos()
         if self.treefos.count(None) == len(self.treefos):
@@ -643,7 +643,7 @@ class PartitionPlotter(object):
         return [fnlist]
 
     # ----------------------------------------------------------------------------------------
-    def make_tree_plots(self, cpath=None):
+    def make_tree_plots(self):
         # ----------------------------------------------------------------------------------------
         def add_mut_labels(annotation, metafo, iclust):
             mutfo = {tstr : self.mut_info[iclust]['%s_muts'%tstr] for tstr in ['aa', 'nuc']}
@@ -735,7 +735,7 @@ class PartitionPlotter(object):
         return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
-    def make_mut_bubble_plots(self, cpath=None, min_n_muts=3, debug=False):
+    def make_mut_bubble_plots(self, min_n_muts=3, debug=False):
         if len(self.sclusts) == 0:
             print '  %s no clusters to plot' % utils.wrnstr()
             return [['x.svg']]
@@ -793,13 +793,14 @@ class PartitionPlotter(object):
                 title = 'bubbles for %d/%d %ss (at least %d observations)' % (len(bubfos), len(mcounts[tkey]), tlabel, min_n_muts)
                 xtra_text = {'x' : 0.1, 'y' : 0.8, 'color' : 'black', 'text' : '<%s>\n<N obs>, <N total nodes below obs>\n(size: N obs)' % tlabel} #'position' if tkey=='pos' else 'mutation')}
                 fn = self.plotting.bubble_plot(plotname, plotdir, bubfos, title=title, xtra_text=xtra_text) #, alpha=alpha)
-                self.addfname(fnames, os.path.basename(utils.getprefix(fn)))
-                # fnames[-1].append(fn)
+                self.addfname(fnames, plotname) #os.path.basename(utils.getprefix(fn)))
+                lfn = self.plotting.make_meta_info_legend(plotdir, plotname, self.args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
+                self.addfname(fnames, lfn)
 
         return [[subd + '/' + fn for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
-    def make_subtree_purity_plots(self, cpath=None, min_n_muts=2):
+    def make_subtree_purity_plots(self):
         if len(self.sclusts) == 0:
             print '  %s no clusters to plot' % utils.wrnstr()
             return [['x.svg']]
@@ -868,10 +869,11 @@ class PartitionPlotter(object):
             fnames += self.make_cluster_bubble_plots()
         if 'mut-bubble' in plot_cfg:
             fnames += self.make_mut_bubble_plots()
-        if 'trees' in plot_cfg: # and self.args.meta_info_key_to_color is not None:
+        if 'trees' in plot_cfg:
             fnames += self.make_tree_plots()
-            if args is not None and args.meta_info_key_to_color is not None: # and args.meta_info_key_to_color=='timepoints':
-                fnames += self.make_subtree_purity_plots()
+        if 'subtree-purity' in plot_cfg:
+            assert args is not None and args.meta_info_key_to_color is not None
+            fnames += self.make_subtree_purity_plots()
         if 'mds' in plot_cfg:
             if utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):
                 fnames += self.make_mds_plots(reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')

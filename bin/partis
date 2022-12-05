@@ -1141,6 +1141,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     work_fnames = []
     if args.infname is not None:
         prep_inputs()
+    if args.tree_inference_outdir is not None:  # ick, not sure if this is the best place to do this, but maybe? (this is mostly/only to append the seed subdirs)
+        args.tree_inference_outdir = getodir()
 
     if args.action == 'simulate':
         if not args.dry_run:

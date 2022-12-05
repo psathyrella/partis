@@ -958,6 +958,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         wfns = [ifn(workdir), workdir]
         if method == 'iqtree':
             wfns += ['%s/%s%s' % (workdir, outfix, s) for s in ['.log', '.state', '.mldist', '.iqtree', '.bionj', '.treefile', '.model.gz', '.ckp.gz']]  # ick
+            wfns.append('%s/log'%workdir)
         if method == 'fasttree':
             wfns.append(ofn(workdir))
             if 'run' not in actions:
