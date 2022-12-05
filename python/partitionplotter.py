@@ -246,9 +246,9 @@ class PartitionPlotter(object):
         return rfnames
 
     # ----------------------------------------------------------------------------------------
-    def make_bubble_plots(self, alpha=0.4, n_to_write_size=10, debug=False):
+    def make_cluster_bubble_plots(self, alpha=0.4, n_to_write_size=10, debug=False):
         import matplotlib.pyplot as plt
-        subd, plotdir = self.init_subd('bubble')
+        subd, plotdir = self.init_subd('cluster-bubble')
         mekey = self.args.meta_info_key_to_color
         fake_cluster, fake_antn = [], {'unique_ids' : [], mekey : []} # make a fake cluster with all sequences from all skipped clusters (circlify is too slow to run on all the smaller clusters)
         bubfos = []
@@ -273,7 +273,7 @@ class PartitionPlotter(object):
             cluster = getclust(bfo['id'])
             if bfo['id']=='fake' or int(bfo['id']) < n_to_write_size:
                 tstr, fsize, tcol, dx = ('small clusters', 12, 'red', -0.3) if bfo['id']=='fake' else (len(cluster), 8, 'black', -0.04)
-                bfo['text'] = {'tstr' : tstr, 'fsize' : fsize, 'tcol' : tcol, 'dx' : dx}
+                bfo['texts'] = [{'tstr' : tstr, 'fsize' : fsize, 'tcol' : tcol, 'dx' : dx}]
             antn = self.antn_dict.get(':'.join(cluster)) if bfo['id'] != 'fake' else fake_antn
             if antn is None or mekey is None:
                 bfo['fracs'] = None
@@ -293,7 +293,7 @@ class PartitionPlotter(object):
         fnames = [[]]
         self.addfname(fnames, fn)
         if mekey is not None:
-            lfn = self.plotting.make_meta_info_legend(plotdir, 'bubbles', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=alpha)
+            lfn = self.plotting.make_meta_info_legend(plotdir, 'cluster-bubbles', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=alpha)
             self.addfname(fnames, lfn)
 
         return [[subd + '/' + fn for fn in fnames[0]]]
@@ -518,6 +518,8 @@ class PartitionPlotter(object):
             return
         self.mut_info = [None for _ in self.sclusts]
         for iclust, clust in enumerate(self.sclusts):  # NOTE can't just sort the 'unique_ids', since we need the indices to match up with the other plots here
+            if self.treefos[iclust] is None:
+                continue
             annotation = self.antn_dict[':'.join(clust)]
             utils.add_seqs_aa(annotation)
             aa_mutations, nuc_mutations = {}, {}
@@ -733,28 +735,90 @@ class PartitionPlotter(object):
         return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
-    def make_subtree_purity_plots(self, cpath=None):
+    def make_mut_bubble_plots(self, cpath=None, min_n_muts=3, debug=False):
+        if len(self.sclusts) == 0:
+            print '  %s no clusters to plot' % utils.wrnstr()
+            return [['x.svg']]
+        subd, plotdir = self.init_subd('mut-bubble')
+        self.set_treefos()
+        self.set_mut_infos()
+        if self.treefos.count(None) == len(self.treefos):
+            return [['x.svg']]
+        fnames = []
+        for tkey, tlabel in [['str', 'mutation'], ['pos', 'position']]:
+            fnames.append([])
+            for iclust in range(len(self.sclusts)):
+                if not self.plot_this_cluster(iclust, plottype='trees'):
+                    continue
+                annotation = self.antn_dict[':'.join(self.sclusts[iclust])]
+                if len(annotation['unique_ids']) < self.min_tree_cluster_size:
+                    continue
 
+                mcounts = self.mut_info[iclust]['mcounts']
+                if self.args.meta_info_key_to_color is not None:
+                    all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=[self.sclusts[iclust]], antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
+                    hcolors = {v : c for v, c in emph_colors}
+                meta_vals = {u : utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats) for u, v in zip(annotation['unique_ids'], annotation[self.args.meta_info_key_to_color])}
+                bubfos = []
+                for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True):
+                    if len(mct['nodes']) < min_n_muts:  # ignore mutations that we saw fewer than <min_n_muts> times
+                        continue
+                    if debug:
+                        print '  %-6s   %3d occurences' % (str(mstr), len(mct['nodes']))
+                    assert len(mct['nodes']) == len(set(mct['nodes']))  # shouldn't be possible for a node to be in the list twice (and wouldn't make sense)
+                    nodevals = collections.Counter()  # meta values for all nodes under any instance of this mutation
+                    # per_node_avg_vals = []
+                    for nlabel in mct['nodes']:
+                        tnode = self.treefos[iclust]['tree'].find_node_with_taxon_label(nlabel)
+                        mval_counts = {}
+                        treeutils.get_clade_purity(meta_vals, tnode, meta_vals[nlabel], mval_counts=mval_counts, exclude_vals=['None'])
+                        nodevals.update(mval_counts)
+                        # per_node_avg_vals.append({k : v / float(sum(mval_counts.values())) for k, v in mval_counts.items()})
+                        if debug:
+                            print '        %s       %s' % ('  '.join('%s: %d'%(k, v) for k, v in mval_counts.items()), utils.antnval(annotation, 'alternate-uids', annotation['unique_ids'].index(nlabel), default_val=nlabel, use_default=True))
+                    ntot = sum(nodevals.values())
+                    nodevals = {k : v / float(ntot) for k, v in nodevals.items()}
+                    # per_node_avg_vals = {k : numpy.mean([d.get(k, 0) for d in per_node_avg_vals]) for k in all_emph_vals}
+                    # nodevals = {k : v for k, v in per_node_avg_vals.items() if v > 0}
+                    if debug:
+                        srtd_vals = sorted(nodevals.items(), key=operator.itemgetter(1))
+                        print '    %d total nodes:  %s  (%s)' % (ntot, '  '.join('%s %d'%(k, v*ntot) for k, v in srtd_vals), '  '.join('%s %.3f'%(k, v) for k, v in srtd_vals))
+                    bfo = {'id' : str(mstr), 'radius' : len(mct['nodes'])}
+                    bfo['texts'] = [{'tstr' : str(mstr), 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.07, 'dy' : 0.01},
+                                    {'tstr' : '%d, %d'%(len(mct['nodes']), ntot), 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.08, 'dy' : -0.05}]
+                    bfo['fracs'] = [{'label' : v, 'fraction' : f, 'color' : hcolors[utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats)]} for v, f in nodevals.items()]
+                    bubfos.append(bfo)
+
+                plotname = '%s-bubbles-iclust-%d' % (tlabel, iclust)
+                title = 'bubbles for %d/%d %ss (at least %d observations)' % (len(bubfos), len(mcounts[tkey]), tlabel, min_n_muts)
+                xtra_text = {'x' : 0.1, 'y' : 0.8, 'color' : 'black', 'text' : '<%s>\n<N obs>, <N total nodes below obs>\n(size: N obs)' % tlabel} #'position' if tkey=='pos' else 'mutation')}
+                fn = self.plotting.bubble_plot(plotname, plotdir, bubfos, title=title, xtra_text=xtra_text) #, alpha=alpha)
+                self.addfname(fnames, os.path.basename(utils.getprefix(fn)))
+                # fnames[-1].append(fn)
+
+        return [[subd + '/' + fn for fn in fnl] for fnl in fnames]
+
+    # ----------------------------------------------------------------------------------------
+    def make_subtree_purity_plots(self, cpath=None, min_n_muts=2):
         if len(self.sclusts) == 0:
             print '  %s no clusters to plot' % utils.wrnstr()
             return [['x.svg']]
         import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('subtree-purity')
         self.set_treefos()
-        self.set_mut_infos()
         if self.treefos.count(None) == len(self.treefos):
             return [['x.svg']]
-        fnames = []
+        fnames = [[]]
         for iclust in range(len(self.sclusts)):
             if not self.plot_this_cluster(iclust, plottype='trees'):
                 continue
             annotation = self.antn_dict[':'.join(self.sclusts[iclust])]
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 continue
-            ifns = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, self.treefos[iclust]['tree'], annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
-            fnames += ifns
-            # for fn in ifns:
-            #     self.addfname(fnames, fn)
+
+            fnlists = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, self.treefos[iclust]['tree'], annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
+            for fnl in fnlists:
+                fnames.append(fnl)
 
         return [[subd + '/' + fn + '.svg' for fn in fnl] for fnl in fnames]
 
@@ -800,11 +864,13 @@ class PartitionPlotter(object):
             fnames += self.make_shm_vs_cluster_size_plots()
         if 'diversity' in plot_cfg:
             fnames += self.make_pairwise_diversity_plots()
-        if 'bubble' in plot_cfg:
-            fnames += self.make_bubble_plots()
+        if 'cluster-bubble' in plot_cfg:
+            fnames += self.make_cluster_bubble_plots()
+        if 'mut-bubble' in plot_cfg:
+            fnames += self.make_mut_bubble_plots()
         if 'trees' in plot_cfg: # and self.args.meta_info_key_to_color is not None:
             fnames += self.make_tree_plots()
-            if args is not None and args.meta_info_key_to_color is not None and args.meta_info_key_to_color=='timepoints':
+            if args is not None and args.meta_info_key_to_color is not None: # and args.meta_info_key_to_color=='timepoints':
                 fnames += self.make_subtree_purity_plots()
         if 'mds' in plot_cfg:
             if utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):

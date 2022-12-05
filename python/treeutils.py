@@ -1251,11 +1251,11 @@ def re_index_mut_info(indexing, annotation, aa_mutations, nuc_mutations, is_fake
     if indexing == 0:
         return
 
-    assert annotation['l_offset'] % 3 == 0
     mfos = [aa_mutations, nuc_mutations]
 
     # split/translate mutations to h and l separately
     if is_fake_paired:
+        assert annotation['l_offset'] % 3 == 0
         for mfo in mfos:
             for mcodes in mfo.values():
                 for mcd in mcodes:
@@ -1413,16 +1413,16 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
 # ----------------------------------------------------------------------------------------
 # if <return_bool>, return true if all nodes in subtree starting at "subroot" node <srnode> have <meta_key> value <mval> (or None)
 # otherwise, return the fraction of the clade that has value <mval> (only including non-None nodes)
-def get_clade_purity(meta_vals, sub_root_node, mval, return_bool=False, mval_fractions=None, debug=False):
-    if mval_fractions is None:
-        mval_fractions = {}
+def get_clade_purity(meta_vals, sub_root_node, mval, return_bool=False, mval_counts=None, exclude_vals=None, debug=False):
+    if mval_counts is None:
+        mval_counts = {}
     for snode in sub_root_node.ageorder_iter():  # note that this iterator includes <sub_root_node>
         sval = meta_vals[snode.taxon.label]
-        if sval in [None, 'None']:  # ick ick ick
-            sval = None
-        if sval not in mval_fractions:
-            mval_fractions[sval] = 0
-        mval_fractions[sval] += 1
+        if exclude_vals is not None and sval in exclude_vals:
+            continue
+        if sval not in mval_counts:
+            mval_counts[sval] = 0
+        mval_counts[sval] += 1
         if return_bool and sval is not None and sval != mval:
             return False
     if return_bool:

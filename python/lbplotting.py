@@ -376,7 +376,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     # ----------------------------------------------------------------------------------------
     st_nodes, st_stats = treeutils.find_pure_subtrees(dtree, antn, meta_key)
     if st_nodes is None:
-        return ['none']
+        return [[]]
     all_emph_vals = set(st_stats)  # a lot of this stuff duplicates plotting.stack_meta_hists()
     all_emph_vals, emph_colors = plotting.meta_emph_init(meta_key, formats=meta_emph_formats, all_emph_vals=all_emph_vals)
     mcolors = {v : c for v, c in emph_colors}

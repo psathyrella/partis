@@ -1671,7 +1671,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return high_x_clusters
 
 # ----------------------------------------------------------------------------------------
-def bubble_plot(plotname, plotdir, bubfos, title=None, xtra_text=None, alpha=0.4):
+def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
     rfn = '%s/csize-radii.csv' % plotdir
     bpfn = '%s/bubble-positions.csv' % plotdir
     workfnames = [rfn, bpfn]
@@ -1688,15 +1688,14 @@ def bubble_plot(plotname, plotdir, bubfos, title=None, xtra_text=None, alpha=0.4
         bubble_positions = []  # they come back out of order, so need to sort
         for line in reader:
             bubble_positions.append({k : cfn(k, v) for k, v in line.items()})
-        bubble_positions = sorted(bubble_positions, key=lambda x: x['id'])
         assert len(bubble_positions) == len(bubfos)
-        for posfo, bfo in zip(bubble_positions, bubfos):
-            assert posfo['id'] == str(bfo['id'])
-            bfo.update(posfo)
+        bdict = {b['id'] : b for b in bubfos}
+        for posfo in bubble_positions:
+            bdict[posfo['id']].update(posfo)
     fig, ax = mpl_init()
     if len(bubfos) == 0:
         print '  %s no bubble positions, returning' % utils.wrnstr()
-        return [['not-plotted.svg']]
+        return 'not-plotted.svg'
     lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubfos)
     plt.xlim(-lim, lim)
     plt.ylim(-lim, lim)
@@ -1704,9 +1703,9 @@ def bubble_plot(plotname, plotdir, bubfos, title=None, xtra_text=None, alpha=0.4
     plt.gca().set_aspect('equal')
 
     for bfo in bubfos:
-        if 'text' in bfo:
-            tfo = bfo['text']
-            ax.text(bfo['x']+tfo['dx'], bfo['y'], tfo['tstr'], fontsize=tfo['fsize'], alpha=alpha, color=tfo['tcol'])
+        if 'texts' in bfo:
+            for tfo in bfo['texts']:
+                ax.text(bfo['x']+tfo.get('dx', 0), bfo['y']+tfo.get('dy', 0), tfo['tstr'], fontsize=tfo['fsize'], alpha=alpha, color=tfo['tcol'])
         if bfo['fracs'] is None:
             ax.add_patch(plt.Circle((bfo['x'], bfo['y']), bfo['r'], alpha=alpha, linewidth=2, fill=True))  # plain circle
         else:
