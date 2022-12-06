@@ -507,13 +507,23 @@ class PartitionPlotter(object):
             return
         antn_list = [self.antn_dict.get(':'.join(c)) for c in self.sclusts]  # NOTE we *need* cluster indices here to match those in all the for loops in this file
         self.treefos = treeutils.get_treefos(self.args, antn_list, cpath=self.cpath, glfo=self.glfo)
-        if self.args.tree_inference_method is not None:  # if inference method infers ancestors, those get added to the annotation during inference (at the moment only for gctree, iqtree, and linearham)
+        if self.args.tree_inference_method is not None:  # if the inference method infers ancestors, those sequences get added to the annotation during inference (e.g gctree, iqtree, linearham), but here we have to update the antn_dict keys and sclusts for these new seqs
             self.antn_dict = utils.get_annotation_dict(antn_list)
             for iclust, clust in enumerate(self.sclusts):  # NOTE can't just sort the 'unique_ids', since we need the indices to match up with the other plots here
                 self.sclusts[iclust] = utils.get_single_entry([l['unique_ids'] for l in antn_list if len(set(l['unique_ids']) & set(clust)) > 0])
 
     # ----------------------------------------------------------------------------------------
-    def set_mut_infos(self):
+    def set_mut_infos(self, set_alternatives=False):
+        # ----------------------------------------------------------------------------------------
+        def get_mutfo(dtree, antn):
+            utils.add_seqs_aa(antn)
+            aa_mutations, nuc_mutations = {}, {}
+            treeutils.get_aa_tree(dtree, antn, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations, quiet=True)
+            treeutils.re_index_mut_info(self.indexing, antn, aa_mutations, nuc_mutations, is_fake_paired=antn.get('is_fake_paired', False))
+            return {'mcounts' : treeutils.collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=antn.get('is_fake_paired', False)),
+                    'aa_muts' : aa_mutations,
+                    'nuc_muts' : nuc_mutations}
+        # ----------------------------------------------------------------------------------------
         if self.mut_info is not None:
             return
         self.mut_info = [None for _ in self.sclusts]
@@ -521,13 +531,11 @@ class PartitionPlotter(object):
             if self.treefos[iclust] is None:
                 continue
             annotation = self.antn_dict[':'.join(clust)]
-            utils.add_seqs_aa(annotation)
-            aa_mutations, nuc_mutations = {}, {}
-            treeutils.get_aa_tree(self.treefos[iclust]['tree'], annotation, nuc_mutations=nuc_mutations, aa_mutations=aa_mutations)
-            treeutils.re_index_mut_info(self.indexing, annotation, aa_mutations, nuc_mutations, is_fake_paired=annotation.get('is_fake_paired', False))
-            self.mut_info[iclust] = {'mcounts' : treeutils.collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=annotation.get('is_fake_paired', False)),
-                                     'aa_muts' : aa_mutations,
-                                     'nuc_muts' : nuc_mutations}
+            self.mut_info[iclust] = get_mutfo(self.treefos[iclust]['tree'], annotation)
+            if set_alternatives:
+                self.mut_info[iclust]['alternatives'] = []
+                for alt_atn in annotation['alternative-annotations']:
+                    self.mut_info[iclust]['alternatives'].append(get_mutfo(treeutils.get_dendro_tree(treestr=alt_atn['tree-info']['lb']['tree']), alt_atn))
 
     # ----------------------------------------------------------------------------------------
     def get_treestr(self, iclust):  # at some point i'll probably need to handle None type trees, but that day is not today
@@ -741,7 +749,7 @@ class PartitionPlotter(object):
             return [['x.svg']]
         subd, plotdir = self.init_subd('mut-bubble')
         self.set_treefos()
-        self.set_mut_infos()
+        self.set_mut_infos(set_alternatives=self.args.tree_inference_method=='linearham')
         if self.treefos.count(None) == len(self.treefos):
             return [['x.svg']]
         fnames = []
@@ -754,10 +762,11 @@ class PartitionPlotter(object):
                 if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                     continue
 
-                mcounts = self.mut_info[iclust]['mcounts']
                 if self.args.meta_info_key_to_color is not None:
                     all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=[self.sclusts[iclust]], antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
                     hcolors = {v : c for v, c in emph_colors}
+
+                mcounts = self.mut_info[iclust]['mcounts']
                 meta_vals = {u : utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats) for u, v in zip(annotation['unique_ids'], annotation[self.args.meta_info_key_to_color])}
                 bubfos = []
                 for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True):
@@ -767,19 +776,15 @@ class PartitionPlotter(object):
                         print '  %-6s   %3d occurences' % (str(mstr), len(mct['nodes']))
                     assert len(mct['nodes']) == len(set(mct['nodes']))  # shouldn't be possible for a node to be in the list twice (and wouldn't make sense)
                     nodevals = collections.Counter()  # meta values for all nodes under any instance of this mutation
-                    # per_node_avg_vals = []
                     for nlabel in mct['nodes']:
                         tnode = self.treefos[iclust]['tree'].find_node_with_taxon_label(nlabel)
                         mval_counts = {}
                         treeutils.get_clade_purity(meta_vals, tnode, meta_vals[nlabel], mval_counts=mval_counts, exclude_vals=['None'])
                         nodevals.update(mval_counts)
-                        # per_node_avg_vals.append({k : v / float(sum(mval_counts.values())) for k, v in mval_counts.items()})
                         if debug:
                             print '        %s       %s' % ('  '.join('%s: %d'%(k, v) for k, v in mval_counts.items()), utils.antnval(annotation, 'alternate-uids', annotation['unique_ids'].index(nlabel), default_val=nlabel, use_default=True))
                     ntot = sum(nodevals.values())
                     nodevals = {k : v / float(ntot) for k, v in nodevals.items()}
-                    # per_node_avg_vals = {k : numpy.mean([d.get(k, 0) for d in per_node_avg_vals]) for k in all_emph_vals}
-                    # nodevals = {k : v for k, v in per_node_avg_vals.items() if v > 0}
                     if debug:
                         srtd_vals = sorted(nodevals.items(), key=operator.itemgetter(1))
                         print '    %d total nodes:  %s  (%s)' % (ntot, '  '.join('%s %d'%(k, v*ntot) for k, v in srtd_vals), '  '.join('%s %.3f'%(k, v) for k, v in srtd_vals))

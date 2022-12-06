@@ -835,7 +835,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     def ifn(workdir):
         return '%s/input-seqs.fa' % workdir
     # ----------------------------------------------------------------------------------------
-    def ofn(workdir, antns=False):
+    def ofn(workdir, antns=False, best=False):
         if method == 'iqtree':
             return '%s/%s.treefile' % (workdir, outfix)
         elif method == 'fasttree':
@@ -843,7 +843,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         elif method == 'gctree':
             return '%s/tree.nwk' % workdir
         elif method == 'linearham':
-            return '%s/%s-%s.%s' % (workdir, 'single-chain/partition' if antns else 'trees', glfo['locus'], 'yaml' if antns else 'nwk')  # one tree for each cluster
+            subd = ('single-chain/' if best else 'alternative-annotations/iclust-0/') if antns else ''  # kind of dumb to have iclust-0 here, but 1) we can't write multiple clusters to these files since they have many annotations for each cluster and 2) we only ever tell linearham-run.py to run on one cluster here, so it's always in iclust-0/
+            return '%s/%s%s-%s.%s' % (workdir, subd, 'partition' if antns else 'trees', glfo['locus'], 'yaml' if antns else 'nwk')  # one tree for each cluster
         else:
             assert False
     # ----------------------------------------------------------------------------------------
@@ -946,8 +947,10 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         if debug:
             print '      read %d inferred ancestral seqs' % len(inf_seqfos)
     elif method == 'linearham':
-        _, tmpantns, _ = utils.read_output(ofn(workdir, antns=True))
+        _, tmpantns, _ = utils.read_output(ofn(workdir, antns=True, best=True))
         inf_antn = utils.get_single_entry(tmpantns)
+        _, alt_antns, _ = utils.read_output(ofn(workdir, antns=True))
+        inf_antn['alternative-annotations'] = alt_antns  # atm the other place we set this key (in partitiondriver) we put different stuff in it, but that seems fine, it's just different stuff goes here from different programs
         internal_ids = [n.taxon.label for n in dtree.preorder_internal_node_iter() if n.taxon.label in inf_antn['unique_ids']]
         print '      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids']))
 
@@ -1168,7 +1171,7 @@ def remove_dummy_branches(dtree, initial_labels, dummy_labels, add_dummy_leaves=
         assert False  # i think it's better to crash at this point, i think i have it working reliably
 
 # ----------------------------------------------------------------------------------------
-def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=None, aa_mutations=None, debug=False):
+def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=None, aa_mutations=None, quiet=False, debug=False):
     very_different_frac = 0.5
     if debug:
         print '    converting nuc tree (mean depth %.3f) to aa' % get_mean_leaf_height(dtree)
@@ -1184,7 +1187,9 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=No
     if dtree.seed_node.taxon.label not in aa_seqs and 'naive_seq_aa' in annotation:
         aa_seqs[dtree.seed_node.taxon.label] = annotation['naive_seq_aa']  # the aa naive seq *should* always be there now, since I just started adding it in add_seqs_aa()
 
-    n_different, _ = compare_tree_distance_to_shm(dtree, annotation, only_check_leaf_depths=True, iclust=iclust, debug=False)  # this checks leaf depths, whereas in the loop below we check each edge (result should be the ~same, but this fcn has better dbg printing)
+    n_different = 0
+    if not quiet:
+        n_different, _ = compare_tree_distance_to_shm(dtree, annotation, only_check_leaf_depths=True, iclust=iclust, debug=False)  # this checks leaf depths, whereas in the loop below we check each edge (result should be the ~same, but this fcn has better dbg printing)
 
     skipped_edges, missing_nodes = [], set()
     if debug > 1:
@@ -1208,7 +1213,7 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=No
             nuc_mutations[cnode.taxon.label] = utils.get_mut_codes(nuc_seqs[plabel], nuc_seqs[clabel]) #, debug=True)
         if debug or n_different > 0:
             nuc_mut_frac, nuc_n_muts = utils.hamming_fraction(nuc_seqs[plabel], nuc_seqs[clabel], also_return_distance=True)
-            if nuc_mut_frac > 0 and abs(nuc_branch_length - nuc_mut_frac) / nuc_mut_frac > very_different_frac:
+            if not quiet and nuc_mut_frac > 0 and abs(nuc_branch_length - nuc_mut_frac) / nuc_mut_frac > very_different_frac:
                 print '          %s nuc branch length %.4f and hamming frac %.4f very different (ratio %.2f) for branch between %s --> %s' % (utils.color('yellow', 'warning'), nuc_branch_length, nuc_mut_frac, nuc_branch_length / nuc_mut_frac, clabel, plabel)
             if debug:
                 changes[edge] = (nuc_n_muts, aa_n_muts)
@@ -1217,7 +1222,7 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=No
 
     aa_dtree.update_bipartitions(suppress_unifurcations=False)
 
-    if len(skipped_edges) > 0:
+    if not quiet and len(skipped_edges) > 0:
         print '      %s get_aa_tree()%s: skipped %d/%d edges for which we didn\'t have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: %s' % (utils.color('yellow', 'warning'), '' if extra_str is None else ' %s'%extra_str, len(skipped_edges), len(list(aa_dtree.preorder_edge_iter())), ' '.join(missing_nodes))
     if debug:
         assert len(changes) + len(skipped_edges) + 1 == len(list(aa_dtree.preorder_edge_iter()))  # +1 is for root edge
@@ -1271,11 +1276,9 @@ def re_index_mut_info(indexing, annotation, aa_mutations, nuc_mutations, is_fake
 
 # ----------------------------------------------------------------------------------------
 # count up (and print) the most common mutations (note similarity to linearham script tabulate_lineage_probs.py)
-def collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=False, n_to_print=10):
+def collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=False, n_to_print=10, debug=False):
     tkeys = {'str' : 'mutation', 'pos' : 'position'}
     mcounts = {k : {} for k in tkeys}
-# TODO also do nuc
-# TODO how to handle two-step mutations?
     for node_label, mfos in aa_mutations.items():
         for mfo in mfos:
             for tkey in mcounts:
@@ -1284,11 +1287,12 @@ def collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=False, 
                     mcounts[tkey][mtk] = {'count' : 0, 'nodes' : []}
                 mcounts[tkey][mtk]['count'] += 1
                 mcounts[tkey][mtk]['nodes'].append(node_label)
-    for tkey in mcounts:
-        print '      count   %s' % (tkeys[tkey]) #, '   chain' if annotation.get('is_fake_paired', False) else '')
-        for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
-            tch = mstr[0] if is_fake_paired else ''
-            print '       %3d   %s  %s' % (mct['count'], utils.color('blue' if tch=='h' else 'purple', tch) if is_fake_paired else '', mstr[2:] if is_fake_paired else mstr)
+    if debug:
+        for tkey in mcounts:
+            print '      count   %s' % (tkeys[tkey]) #, '   chain' if annotation.get('is_fake_paired', False) else '')
+            for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
+                tch = mstr[0] if is_fake_paired else ''
+                print '       %3d   %s  %s' % (mct['count'], utils.color('blue' if tch=='h' else 'purple', tch) if is_fake_paired else '', mstr[2:] if is_fake_paired else mstr)
 
     return mcounts
 
