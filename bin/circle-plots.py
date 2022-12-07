@@ -16,7 +16,7 @@ radii = []
 with open(args.infname) as ifile:
     reader = csv.DictReader(ifile)
     for line in reader:
-        radii.append({'id' : line['id'], 'radius' : int(line['radius'])})
+        radii.append({'id' : line['id'], 'radius' : float(line['radius'])})
 
 circlefos = circlify.circlify(radii, datum_field='radius', id_field='id')  # NOTE this doesn't return them in the same order
 with open(args.outfname, 'w') as ofile:

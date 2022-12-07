@@ -1418,7 +1418,7 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
 # ----------------------------------------------------------------------------------------
 # if <return_bool>, return true if all nodes in subtree starting at "subroot" node <srnode> have <meta_key> value <mval> (or None)
 # otherwise, return the fraction of the clade that has value <mval> (only including non-None nodes)
-def get_clade_purity(meta_vals, sub_root_node, mval, return_bool=False, mval_counts=None, exclude_vals=None, debug=False):
+def get_clade_purity(meta_vals, sub_root_node, mval, return_bool=False, mval_counts=None, exclude_vals=None):
     if mval_counts is None:
         mval_counts = {}
     for snode in sub_root_node.ageorder_iter():  # note that this iterator includes <sub_root_node>

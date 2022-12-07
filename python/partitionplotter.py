@@ -44,6 +44,7 @@ class PartitionPlotter(object):
 
         self.n_mds_components = 2
         self.indexing = 1  # for mutation plotting labels
+        self.n_max_alternatives = None  # 3 # just for testing, this lets you limit the number of alternative/sampled trees that we loop over
 
         self.sclusts, self.antn_dict, self.treefos, self.mut_info, self.base_plotdir = None, None, None, None, None
 
@@ -502,7 +503,7 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 
     # ----------------------------------------------------------------------------------------
-    def set_treefos(self):
+    def set_treefos(self, set_alternatives=False):
         if self.treefos is not None:
             return
         antn_list = [self.antn_dict.get(':'.join(c)) for c in self.sclusts]  # NOTE we *need* cluster indices here to match those in all the for loops in this file
@@ -511,6 +512,16 @@ class PartitionPlotter(object):
             self.antn_dict = utils.get_annotation_dict(antn_list)
             for iclust, clust in enumerate(self.sclusts):  # NOTE can't just sort the 'unique_ids', since we need the indices to match up with the other plots here
                 self.sclusts[iclust] = utils.get_single_entry([l['unique_ids'] for l in antn_list if len(set(l['unique_ids']) & set(clust)) > 0])
+        if set_alternatives:
+            for iclust, clust in enumerate(self.sclusts):
+                if self.treefos[iclust] is None:
+                    continue
+                annotation = self.antn_dict[':'.join(clust)]
+                self.treefos[iclust]['alternatives'] = []
+                for alt_atn in annotation['alternative-annotations']:
+                    self.treefos[iclust]['alternatives'].append(treeutils.get_dendro_tree(treestr=alt_atn['tree-info']['lb']['tree']))
+                    if self.n_max_alternatives is not None and len(self.treefos[iclust]['alternatives']) >= self.n_max_alternatives:
+                        break
 
     # ----------------------------------------------------------------------------------------
     def set_mut_infos(self, set_alternatives=False):
@@ -534,8 +545,11 @@ class PartitionPlotter(object):
             self.mut_info[iclust] = get_mutfo(self.treefos[iclust]['tree'], annotation)
             if set_alternatives:
                 self.mut_info[iclust]['alternatives'] = []
-                for alt_atn in annotation['alternative-annotations']:
-                    self.mut_info[iclust]['alternatives'].append(get_mutfo(treeutils.get_dendro_tree(treestr=alt_atn['tree-info']['lb']['tree']), alt_atn))
+                for ialt, alt_atn in enumerate(annotation['alternative-annotations']):
+                    dtree = self.treefos[iclust]['alternatives'][ialt]
+                    self.mut_info[iclust]['alternatives'].append(get_mutfo(dtree, alt_atn))
+                    if self.n_max_alternatives is not None and len(self.mut_info[iclust]['alternatives']) >= self.n_max_alternatives:
+                        break
 
     # ----------------------------------------------------------------------------------------
     def get_treestr(self, iclust):  # at some point i'll probably need to handle None type trees, but that day is not today
@@ -743,13 +757,43 @@ class PartitionPlotter(object):
         return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
-    def make_mut_bubble_plots(self, min_n_muts=3, debug=False):
+    def make_mut_bubble_plots(self, min_n_muts=2, debug=False):
+        # ----------------------------------------------------------------------------------------
+        def process_single_tree(tkey, mcounts, dtree, antn, tdbg=False):
+            meta_vals = {u : utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats) for u, v in zip(antn['unique_ids'], antn[self.args.meta_info_key_to_color])}
+            mutfos, ncounts = {}, {}
+            for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True):  # loop over observed mutations/positions
+                # if len(mct['nodes']) < min_n_muts:  # ignore mutations that we saw fewer than <min_n_muts> times (can't do this here if we're averaging over multiple trees since we'd ignore mutations in some trees but not others
+                #     continue
+                if tdbg:
+                    print '  %-6s   %3d occurences' % (str(mstr), len(mct['nodes']))
+                assert len(mct['nodes']) == len(set(mct['nodes']))  # shouldn't be possible for a node to be in the list twice (and wouldn't make sense)
+                nodevals = collections.Counter()  # meta values for all nodes under any instance of this mutation
+                for nlabel in mct['nodes']:
+                    mval_counts = {}
+                    tnode = dtree.find_node_with_taxon_label(nlabel)
+                    if tnode is None:
+                        raise Exception('couldn\'t find node with label \'%s\' in tree: %s' % (nlabel, dtree.as_string(schema='newick')))
+                    treeutils.get_clade_purity(meta_vals, tnode, meta_vals[nlabel], mval_counts=mval_counts, exclude_vals=['None'])
+                    nodevals.update(mval_counts)
+                    if tdbg:
+                        print '        %s       %s' % ('  '.join('%s: %d'%(k, v) for k, v in mval_counts.items()), utils.antnval(antn, 'alternate-uids', antn['unique_ids'].index(nlabel), default_val=nlabel, use_default=True))
+                ntot = sum(nodevals.values())
+                nodevals = {k : v / float(ntot) for k, v in nodevals.items()}
+                if tdbg:
+                    srtd_vals = sorted(nodevals.items(), key=operator.itemgetter(1))
+                    print '    %d total nodes:  %s  (%s)' % (ntot, '  '.join('%s %d'%(k, v*ntot) for k, v in srtd_vals), '  '.join('%s %.3f'%(k, v) for k, v in srtd_vals))
+                mutfos[mstr] = nodevals
+                ncounts[mstr] = {'n-obs' : len(mct['nodes']), 'n-total-nodes' : ntot}
+            return mutfos, ncounts
+        # ----------------------------------------------------------------------------------------
+        use_alts = self.args.tree_inference_method == 'linearham'
         if len(self.sclusts) == 0:
             print '  %s no clusters to plot' % utils.wrnstr()
             return [['x.svg']]
         subd, plotdir = self.init_subd('mut-bubble')
-        self.set_treefos()
-        self.set_mut_infos(set_alternatives=self.args.tree_inference_method=='linearham')
+        self.set_treefos(set_alternatives=use_alts)
+        self.set_mut_infos(set_alternatives=use_alts)
         if self.treefos.count(None) == len(self.treefos):
             return [['x.svg']]
         fnames = []
@@ -766,37 +810,48 @@ class PartitionPlotter(object):
                     all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=[self.sclusts[iclust]], antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
                     hcolors = {v : c for v, c in emph_colors}
 
-                mcounts = self.mut_info[iclust]['mcounts']
-                meta_vals = {u : utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats) for u, v in zip(annotation['unique_ids'], annotation[self.args.meta_info_key_to_color])}
+                if use_alts:
+                    talist, mclist, dtrees = annotation['alternative-annotations'], [d['mcounts'] for d in self.mut_info[iclust]['alternatives']], self.treefos[iclust]['alternatives']
+                else:
+                    talist, mclist, dtrees = [annotation], [self.mut_info[iclust]['mcounts']], [self.treefos[iclust]['tree']]
+                all_mfos, all_ncts = [], [] # list of <mutfos> for each tree, where each <mutfos> is dict from <mstr> to {dict of <meta val> : <fraction of nodes with that meta val>}
+                for tatn, mcounts, dtree in zip(talist, mclist, dtrees):
+                    mutfos, ncounts = process_single_tree(tkey, mcounts, dtree, tatn)
+                    all_mfos.append(mutfos)
+                    all_ncts.append(ncounts)
+                all_mstrs = set(k for mfs in all_mfos for k in mfs)  # all mutation/position strs
+                if debug:
+                    all_mvals = sorted(set([k for mfs in all_mfos for nvals in mfs.values() for k in nvals]))
+                    nlen, flen = 4 * len(all_mfos), 4 * len(all_mfos)
+                    def fstr(v): return '1' if v==1 else ('-' if v is None else '%.2f'%v)
+                    print '  %s  %s  %s   %s' % (tlabel, utils.wfmt('N obs', 5+nlen), utils.wfmt('N total nodes', 5+nlen), '  '.join(utils.wfmt(v, 10+flen) for v in all_mvals))
                 bubfos = []
-                for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True):
-                    if len(mct['nodes']) < min_n_muts:  # ignore mutations that we saw fewer than <min_n_muts> times
+                for mstr in all_mstrs:
+                    mstr_mvals = set([k for mfs in all_mfos for k in mfs.get(mstr, {})])
+                    klists = {k : [mfs[mstr].get(k, 0) if mstr in mfs else None for mfs in all_mfos] for k in mstr_mvals}
+                    avg_nodevals = {k : numpy.mean([v for v in klists[k] if v is not None]) for k in klists}  # {} gives 0 if mstr wasn't in that tree, 0 gives 0 if that meta value wasn't in the clade below the mutation in that tree
+                    n_obs_list = [ncts.get(mstr, {'n-obs' : 0})['n-obs'] for ncts in all_ncts]
+                    n_tn_list = [ncts.get(mstr, {'n-total-nodes' : 0})['n-total-nodes'] for ncts in all_ncts]
+                    n_obs_mean, n_tn_mean = [numpy.mean(l) for l in [n_obs_list, n_tn_list]]
+                    n_obs_std, n_tn_std = [numpy.std(l, ddof=1) / math.sqrt(len(l)) for l in [n_obs_list, n_tn_list]]
+                    if debug:
+                        def klstr(k): return (' '*(10+flen)) if k not in klists else '[' + ', '.join(fstr(v) for v in klists[k]) + ']'
+                        def mestr(m, e): return '%s+/-%s' % (('%.0f' if int(m)==m else '%.1f')%m, '0' if e==0 else '%.1f'%e)
+                        print '    %-6s  %10s %s   %10s %s      %s' % (mstr, mestr(n_obs_mean, n_obs_std), utils.wfmt(n_obs_list, nlen, jfmt='-'), mestr(n_tn_mean, n_tn_std), utils.wfmt(n_tn_list, nlen, jfmt='-'),
+                                                                       '  '.join('%s %s'%(fstr(avg_nodevals[k]) if k in avg_nodevals else '', utils.wfmt(klstr(k), flen, jfmt='-')) for k in all_mvals))
+
+                    if n_obs_mean < min_n_muts:  # ignore mutations that we saw fewer than <min_n_muts> times (it sucks we have to get all the info for all mutations for every tree, but otherwise we'd miss some that were below the threshold in some but not others)
                         continue
-                    if debug:
-                        print '  %-6s   %3d occurences' % (str(mstr), len(mct['nodes']))
-                    assert len(mct['nodes']) == len(set(mct['nodes']))  # shouldn't be possible for a node to be in the list twice (and wouldn't make sense)
-                    nodevals = collections.Counter()  # meta values for all nodes under any instance of this mutation
-                    for nlabel in mct['nodes']:
-                        tnode = self.treefos[iclust]['tree'].find_node_with_taxon_label(nlabel)
-                        mval_counts = {}
-                        treeutils.get_clade_purity(meta_vals, tnode, meta_vals[nlabel], mval_counts=mval_counts, exclude_vals=['None'])
-                        nodevals.update(mval_counts)
-                        if debug:
-                            print '        %s       %s' % ('  '.join('%s: %d'%(k, v) for k, v in mval_counts.items()), utils.antnval(annotation, 'alternate-uids', annotation['unique_ids'].index(nlabel), default_val=nlabel, use_default=True))
-                    ntot = sum(nodevals.values())
-                    nodevals = {k : v / float(ntot) for k, v in nodevals.items()}
-                    if debug:
-                        srtd_vals = sorted(nodevals.items(), key=operator.itemgetter(1))
-                        print '    %d total nodes:  %s  (%s)' % (ntot, '  '.join('%s %d'%(k, v*ntot) for k, v in srtd_vals), '  '.join('%s %.3f'%(k, v) for k, v in srtd_vals))
-                    bfo = {'id' : str(mstr), 'radius' : len(mct['nodes'])}
+                    bfo = {'id' : str(mstr), 'radius' : n_obs_mean} #int(n_obs_mean)}  # truncate to integer since a) we don't care exactly how big the bubbles are and b) i think something further along requires an integer
+                    cntstr = '%s\n%s'%(mestr(n_obs_mean, n_obs_std), mestr(n_tn_mean, n_tn_std)) if use_alts else '%d\n%d'%(n_obs_mean, n_tn_mean)
                     bfo['texts'] = [{'tstr' : str(mstr), 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.07, 'dy' : 0.01},
-                                    {'tstr' : '%d, %d'%(len(mct['nodes']), ntot), 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.08, 'dy' : -0.05}]
-                    bfo['fracs'] = [{'label' : v, 'fraction' : f, 'color' : hcolors[utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats)]} for v, f in nodevals.items()]
+                                    {'tstr' : cntstr, 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.08, 'dy' : -0.08 if use_alts else -0.05}]
+                    bfo['fracs'] = [{'label' : v, 'fraction' : f, 'color' : hcolors[utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats)]} for v, f in avg_nodevals.items()]
                     bubfos.append(bfo)
 
                 plotname = '%s-bubbles-iclust-%d' % (tlabel, iclust)
-                title = 'bubbles for %d/%d %ss (at least %d observations)' % (len(bubfos), len(mcounts[tkey]), tlabel, min_n_muts)
-                xtra_text = {'x' : 0.1, 'y' : 0.8, 'color' : 'black', 'text' : '<%s>\n<N obs>, <N total nodes below obs>\n(size: N obs)' % tlabel} #'position' if tkey=='pos' else 'mutation')}
+                title = 'bubbles for %d/%d %ss (at least %d observations)' % (len(bubfos), len(all_mstrs), tlabel, min_n_muts)
+                xtra_text = {'x' : 0.1, 'y' : 0.75, 'color' : 'black', 'text' : '<%s>\n<N obs>\n<N total nodes below obs>%s\n(size: N obs)' % (tlabel, ('\nmean+/-std err over %d trees'%len(all_mfos)) if use_alts else '')}
                 fn = self.plotting.bubble_plot(plotname, plotdir, bubfos, title=title, xtra_text=xtra_text) #, alpha=alpha)
                 self.addfname(fnames, plotname) #os.path.basename(utils.getprefix(fn)))
                 lfn = self.plotting.make_meta_info_legend(plotdir, plotname, self.args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
@@ -872,7 +927,7 @@ class PartitionPlotter(object):
             fnames += self.make_pairwise_diversity_plots()
         if 'cluster-bubble' in plot_cfg:
             fnames += self.make_cluster_bubble_plots()
-        if 'mut-bubble' in plot_cfg:
+        if 'mut-bubble' in plot_cfg:  # NOTE this needs to be before 'trees' so that we get the alternatives stuff if we're going to need it for 'mut-bubble'
             fnames += self.make_mut_bubble_plots()
         if 'trees' in plot_cfg:
             fnames += self.make_tree_plots()
