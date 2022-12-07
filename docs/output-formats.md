@@ -122,7 +122,7 @@ The following keys can also be added to the output file using `--extra-annotatio
 | seqs_aa                 |  amino acid translations of the nucleotide sequence under the 'indel_reversed_seqs' key
 | naive_seq_aa            |  amino acid translation of 'naive_seq'
 
-Partitioning results in a list of partitions, with one line for the most likely partition (the one with the lowest logprob), as well as a number of lines for the surrounding less-likely partitions.
+Partitioning results in a list of partitions, with one line for the most likely partition (the one with the highest logprob), as well as a number of lines for the surrounding less-likely partitions.
 The number of partitions surrounding the best partition that are written can be configured with `--n-partitions-to-write N` (many other aspects of partitioning can also be configured, see `partis partition --help`).
 It also writes the annotation for each cluster in the most likely partition (you can tell it to also write the annotations for clusters in other, less-likely, partitions by setting `--write-additional-cluster-annotations m:n`, where m (n) are integers specifying the number of partitions before (after) the best partition.
 Reading these partitions is best accomplished using the ClusterPath class, as in the example parsing script [here](../bin/example-parse-output.py).
