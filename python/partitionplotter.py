@@ -757,7 +757,7 @@ class PartitionPlotter(object):
         return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
-    def make_mut_bubble_plots(self, min_n_muts=2, debug=False):
+    def make_mut_bubble_plots(self, min_n_muts=3, debug=False):
         # ----------------------------------------------------------------------------------------
         def process_single_tree(tkey, mcounts, dtree, antn, tdbg=False):
             meta_vals = {u : utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats) for u, v in zip(antn['unique_ids'], antn[self.args.meta_info_key_to_color])}
@@ -834,9 +834,9 @@ class PartitionPlotter(object):
                     n_tn_list = [ncts.get(mstr, {'n-total-nodes' : 0})['n-total-nodes'] for ncts in all_ncts]
                     n_obs_mean, n_tn_mean = [numpy.mean(l) for l in [n_obs_list, n_tn_list]]
                     n_obs_std, n_tn_std = [numpy.std(l, ddof=1) / math.sqrt(len(l)) for l in [n_obs_list, n_tn_list]]
+                    def mestr(m, e): return '%s+/-%s' % (('%.0f' if int(m)==m else '%.1f')%m, '0' if e==0 else '%.1f'%e)
                     if debug:
                         def klstr(k): return (' '*(10+flen)) if k not in klists else '[' + ', '.join(fstr(v) for v in klists[k]) + ']'
-                        def mestr(m, e): return '%s+/-%s' % (('%.0f' if int(m)==m else '%.1f')%m, '0' if e==0 else '%.1f'%e)
                         print '    %-6s  %10s %s   %10s %s      %s' % (mstr, mestr(n_obs_mean, n_obs_std), utils.wfmt(n_obs_list, nlen, jfmt='-'), mestr(n_tn_mean, n_tn_std), utils.wfmt(n_tn_list, nlen, jfmt='-'),
                                                                        '  '.join('%s %s'%(fstr(avg_nodevals[k]) if k in avg_nodevals else '', utils.wfmt(klstr(k), flen, jfmt='-')) for k in all_mvals))
 

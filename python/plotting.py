@@ -1694,7 +1694,7 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
             bdict[posfo['id']].update(posfo)
     fig, ax = mpl_init()
     if len(bubfos) == 0:
-        print '  %s no bubble positions, returning' % utils.wrnstr()
+        print '      %s no bubble positions, returning' % utils.wrnstr()
         return 'not-plotted.svg'
     lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubfos)
     plt.xlim(-lim, lim)
