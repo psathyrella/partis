@@ -985,6 +985,7 @@ def set_lb_values(dtree, tau, seq_len, metrics_to_calc=None, dont_normalize=Fals
     use_old_multiplicity_method: insert multiplicity into integrals (below), which is equivalent to adding N-1 branches between the node and its parent
     new version: add N-1 dummy branches of length <tau> from the node
     """
+    # NOTE: it's not N kids that matters, it's N kids that look like you
     getmulti = node_mtpy if use_old_multiplicity_method else lambda x, y: 1
 
     if debug:

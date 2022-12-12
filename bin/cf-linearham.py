@@ -100,6 +100,7 @@ def print_all_lines(lh_aa_seq_infos, pline, amino_acid=False):
 
 # ----------------------------------------------------------------------------------------
 def print_gene_calls(pline):
+# TODO would be nice to read the linearham annotation so that we can highlight the v/d/j genes that linearham assumed were correct
     print '  %s partis gene calls (linearham only considers one gene combo):' % headstr('4.')
     print '        prob   gene'
     for region in utils.regions:

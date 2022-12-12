@@ -505,6 +505,8 @@ class Tester(object):
     def read_selection_metric_performance(self, version_stype, input_stype, debug=False):
         # ----------------------------------------------------------------------------------------
         def read_smfile(fname, smfo):
+            if not os.path.exists(fname):  # probably e.g. igh+igl for a sample with only igh+igk
+                return
             with open(fname) as yfile:
                 lbfos = yaml.load(yfile, Loader=yaml.CLoader)
             for metric in self.selection_metrics:
@@ -512,7 +514,6 @@ class Tester(object):
                     smfo[metric] += lbfo['lb'][metric].values()
             if debug:
                 print '      read lbfos for %d cluster%s from %s' % (len(lbfos), utils.plural(len(lbfos)), fname)
-            return smfo
         # ----------------------------------------------------------------------------------------
         def read_chosen_abs(fname):
             with open(fname) as chfile:
