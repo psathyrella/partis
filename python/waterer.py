@@ -175,9 +175,6 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def write_cachefile(self, cachefname):
-        if self.args.write_trimmed_and_padded_seqs_to_sw_cachefname:  # hackey workaround: (in case you want to use trimmed/padded seqs for something, but shouldn't be used in general)
-            self.pad_seqs_to_same_length()
-
         print '        writing sw results to %s' % cachefname
 
         if utils.getsuffix(cachefname) == '.csv':
