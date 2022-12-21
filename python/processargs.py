@@ -469,6 +469,8 @@ def process(args):
         if args.mean_cells_per_droplet is not None:  # ick
             args.mean_cells_per_droplet = float(args.mean_cells_per_droplet)
 
+        if args.simulation_germline_dir is not None:
+            raise Exception('--simulation-germline-dir has no effect on simulation (maybe you meant --initial-germline-dir?)')
         if args.generate_germline_set:
             args.snp_positions = None  # if you want to control the exact positions, you have to use bin/test-germline-inference.py
             args.indel_positions = None

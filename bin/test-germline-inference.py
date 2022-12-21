@@ -76,7 +76,7 @@ def simulate(args):
 
     # run simulation
     if args.seed is not None:
-        cmd_str += ' --seed ' + str(args.seed)
+        cmd_str += ' --random-seed ' + str(args.seed)
     utils.simplerun(cmd_str, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ def run_performance_plot(args, method):
     if args.slurm:
         cmd_str += ' --batch-system slurm'
     if args.seed is not None:
-        cmd_str += ' --seed ' + str(args.seed)
+        cmd_str += ' --random-seed ' + str(args.seed)
     utils.simplerun(cmd_str, dryrun=args.dryrun)
 
 # ----------------------------------------------------------------------------------------
@@ -177,7 +177,7 @@ def run_partis_parameter_cache(args, method):
     cmd_str += ' --parameter-dir ' + paramdir
     cmd_str += ' --plotdir ' + plotdir
     if args.seed is not None:
-        cmd_str += ' --seed ' + str(args.seed)
+        cmd_str += ' --random-seed ' + str(args.seed)
     if args.plot_and_fit_absolutely_everything is not None:
         cmd_str += ' --plot-and-fit-absolutely-everything ' + str(args.plot_and_fit_absolutely_everything)
     utils.simplerun(cmd_str, dryrun=args.dryrun)

@@ -131,7 +131,7 @@ class RecombinationEvent(object):
         line['indelfos'] = self.indelfos
         line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
         self.set_ids(line, irandom=irandom)
-        treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']))  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
+        treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']), expect_missing=True)  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
         line['tree'] = self.tree.as_string(schema='newick')
         line['duplicates'] = [[] for _ in range(len(line['input_seqs']))]
         line['loci'] = [self.glfo['locus'] for _ in range(len(line['input_seqs']))]  # this is annoying to make it per-seq, but that makes it easier to deal with it when it's input meta info
