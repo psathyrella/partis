@@ -2001,58 +2001,6 @@ class PartitionDriver(object):
         return failed
 
     # ----------------------------------------------------------------------------------------
-    def correct_multi_hmm_boundaries(self, line, factor=1, first_line=False, debug=False):  # tested factors between 0.5 and 2, performance was basically identical
-        debug = True
-        assert 'regional_bounds' not in line  # need to make sure implicit info isn't in there
-        n_uids_to_print = 5
-        sidestr = '5p'  # maybe should also do something with the 3p del? although seems to work fine as it is
-
-        if debug and first_line:
-            tstrs = [''.join(['                         %s                           ' % utils.color('blue', b + ' boundary') for b in utils.boundaries]),
-                     ''.join(['               sw lengths            multi-seq    err      ' for _ in utils.boundaries]),
-                     ''.join(['          min  max   mean  std     old new true old new    ' for _ in utils.boundaries])]
-            print '\n'.join(tstrs), '   size     first %d uids' % n_uids_to_print
-        for boundary in utils.boundaries:
-            delname = '%s_%s_del' % (boundary[1], sidestr)  # could just as well use the insertion length, but this is at least a reminder that the insertion is part of the righthand region
-            sw_genes = [self.sw_info[q][delname[0]+'_gene'] for q in line['unique_ids']]  # the gene on the right side of the boundary is the one we'll be affecting by decreasing the deletion/insertion sizes, so just look at that one
-            sw_gene_counts = [(g, sw_genes.count(g)) for g in set(sw_genes)]
-            most_common_sw_gene = sorted(sw_gene_counts, key=operator.itemgetter(1), reverse=True)[0][0]
-            if most_common_sw_gene != line[delname[0]+'_gene']:
-                if debug:
-                    print '           %s genes don\'t match: %s %s  ' % (delname[0], utils.color_gene(most_common_sw_gene, width=10), utils.color_gene(line[delname[0]+'_gene'], width=10)),
-                continue
-                # line[delname[0]+'_gene'] = most_common_sw_gene DONT do this, it doesn't really make any sense
-            sw_deletion_lengths = [self.sw_info[q][delname] for q in line['unique_ids']]
-            mean_single_length = numpy.mean(sw_deletion_lengths)
-            single_length_err = numpy.std(sw_deletion_lengths)
-            old_multi_del_len = line[delname]  # just for dbg
-
-            while len(line[boundary + '_insertion']) > 0 and line[delname] > mean_single_length + factor * single_length_err:
-                line[delname] -= 1
-                line[boundary + '_insertion'] = line[boundary + '_insertion'][:-1]
-
-            if debug:
-                def errstr(ov, nv):
-                    if None in [ov, nv]:
-                        return '%3s'%''
-                    if nv == ov:
-                        return utils.color('green', '-', width=3)
-                    return utils.color('red' if abs(nv - ov) > 1 else 'yellow', '%+3d'%(nv - ov))
-                dstr, truestr = '  ', '     '
-                true_del = None
-                if self.reco_info is not None:
-                    true_dels = [self.reco_info[u][delname] for u in line['unique_ids']]
-                    # true_del = utils.get_single_entry(list(set(true_dels)))  # huh, yeah i guess if we're partitioning and the cluster is over-merged then they wouldn't all be from the same true cluster so it could be different
-                    true_del = list(set(true_dels))[0]
-                    truestr = '%2d' % true_del
-                if line[delname] != old_multi_del_len:
-                    dstr = utils.color('blue', '%2d'%line[delname], width=2)
-                print '          %2d   %2d   %4.1f   %3.1f      %2d %s   %s  %s %s' % (min(sw_deletion_lengths), max(sw_deletion_lengths), mean_single_length, single_length_err,
-                                                                                       old_multi_del_len, dstr, truestr, errstr(true_del, old_multi_del_len), errstr(true_del, line[delname])),
-        if debug:
-            print '    %3d       %s' % (len(line['unique_ids']), ':'.join(line['unique_ids'][:5]))
-
-    # ----------------------------------------------------------------------------------------
     def process_dummy_d_hack(self, line, debug=False):
         """
         a.t.m. we force bcrham to give us D of length one for loci with no D genes.
@@ -2209,6 +2157,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None, print_annotations=False, is_subcluster_recursed=False):
         """ Read bcrham annotation output """
+        # ----------------------------------------------------------------------------------------
         def check_invalid(line, hmm_failures):
             if line['invalid']:
                 counts['n_invalid_events'] += 1
@@ -2218,7 +2167,21 @@ class PartitionDriver(object):
                 hmm_failures |= set(line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                 return True
             return False
-
+        # ----------------------------------------------------------------------------------------
+        def remove_insertions_and_deletions(line, hmm_failures):
+            ends = ['v_3p', 'j_5p'] if not utils.has_d_gene(self.args.locus) else utils.real_erosions  # need 1-base d erosion for light chain
+            del_lens = [line[e+'_del'] for e in ends]
+            ins_lens = [len(line[b+'_insertion']) for b in utils.boundaries]
+            if sum(ins_lens) != sum(del_lens):  # if the total insertion and deletion lengths aren't equal, there's no possible annotation without insertions or deletions
+                print '  --no-insertions-or-deletions: total insertion len %d (%s) not equal to total del len %d (%s) so set annotation to failed for %s' % (sum(ins_lens), ins_lens, sum(del_lens), del_lens, line['unique_ids'])
+                hmm_failures |= set(line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
+                return True
+            for end in ends:
+                line[end+'_del'] = 0
+            for bound in utils.boundaries:
+                line[bound+'_insertion'] = ''
+            return False
+        # ----------------------------------------------------------------------------------------
         print '    reading output'
         sys.stdout.flush()
 
@@ -2242,24 +2205,12 @@ class PartitionDriver(object):
                 uidstr = ':'.join(uids)
 
                 self.add_per_seq_sw_info(padded_line)
-
                 if not utils.has_d_gene(self.args.locus):
                     self.process_dummy_d_hack(padded_line)
                 if self.args.no_insertions_or_deletions:
-                    ends = ['v_3p', 'j_5p'] if not utils.has_d_gene(self.args.locus) else utils.real_erosions  # need 1-base d erosion for light chain
-                    del_lens = [padded_line[e+'_del'] for e in ends]
-                    ins_lens = [len(padded_line[b+'_insertion']) for b in utils.boundaries]
-                    if sum(ins_lens) != sum(del_lens):  # if the total insertion and deletion lengths aren't equal, there's no possible annotation without insertions or deletions
-                        print '  --no-insertions-or-deletions: total insertion len %d (%s) not equal to total del len %d (%s) so set annotation to failed for %s' % (sum(ins_lens), ins_lens, sum(del_lens), del_lens, padded_line['unique_ids'])
-                        hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
+                    failed = remove_insertions_and_deletions(padded_line, hmm_failures)
+                    if failed:
                         continue
-                    for end in ends:
-                        padded_line[end+'_del'] = 0
-                    for bound in utils.boundaries:
-                        padded_line[bound+'_insertion'] = ''
-
-                # if self.args.correct_multi_hmm_boundaries and len(padded_line['unique_ids']) > 1:  # lots of details/bkg here: https://github.com/psathyrella/partis/issues/308 (tldr: no point in this any more since we have subcluster annotation)
-                #     self.correct_multi_hmm_boundaries(padded_line, first_line=len(eroded_annotations)+len(padded_annotations)==0)
 
                 try:
                     utils.add_implicit_info(self.glfo, padded_line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
@@ -2280,7 +2231,7 @@ class PartitionDriver(object):
                 padded_annotations[uidstr] = padded_line
 
                 line_to_use = padded_line
-                if self.args.mimic_data_read_length:  # used to do this by default as long as there weren't any multi-hmm lines, but now I've decided it's an unnecessary complication
+                if self.args.mimic_data_read_length:  # this code is old and hasn't been tested recently so may be a bit dodgy
                     if len(uids) > 1:
                         print '  %s can\'t mimic data read length on multi-hmm annotations, since we need the padding to make lengths compatible (at least, I think it will crash just below here if you try)' % utils.color('red', 'error')
                     # get a new dict in which we have edited the sequences to swap Ns on either end (after removing fv and jf insertions) for v_5p and j_3p deletions

@@ -348,7 +348,7 @@ def process(args):
     if args.subcluster_annotation_size is not None and args.write_additional_cluster_annotations is not None:
         raise Exception('can\'t set --write-additional-cluster-annotations if --subcluster-annotation-size is also set (you get duplicate annotations, which confuses and crashes things)')
     if args.subcluster_annotation_size is not None and args.mimic_data_read_length:
-        raise Exception('can\'t run subcluster annotations if --mimic-data-read-length is set, so need to set --subcluster-annotatoin-size to \'None\' (although this could be implemented/fixed)')
+        raise Exception('can\'t run subcluster annotations if --mimic-data-read-length is set, so need to set --subcluster-annotation-size to \'None\' (although this could be implemented/fixed)')
     if args.action == 'view-alternative-annotations' and args.persistent_cachefname is None:  # handle existing old-style output
         assert args.outfname is not None
         if os.path.exists(utils.getprefix(args.outfname) + '-hmm-cache.csv'):
