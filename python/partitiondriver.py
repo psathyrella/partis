@@ -2168,6 +2168,19 @@ class PartitionDriver(object):
                 return True
             return False
         # ----------------------------------------------------------------------------------------
+        def fix_fwk_insertions(line, hmm_failures):  # these come back from ham as Ns, but it makes more sense to set them to the actual bits from the input sequence
+            for iseq, seq in enumerate(line['seqs']):
+                for ebound in utils.effective_boundaries:
+                    tbounds = line['regional_bounds']
+                    if ebound == 'fv':
+                        new_insert = seq[ : line['regional_bounds']['v'][0]]
+                    else:
+                        new_insert = seq[line['regional_bounds']['j'][1] : ]
+                    if len(line['%s_insertion'%ebound]) != len(new_insert):  # maybe should add to failures as well?
+                        print '    %s new %s len %d doesn\'t match existing one %d' % (utils.wrnstr(), ebound, len(new_insert), len(line['%s_insertion'%ebound]))
+                        continue
+                    line['%s_insertion'%ebound] = new_insert
+        # ----------------------------------------------------------------------------------------
         def remove_insertions_and_deletions(line, hmm_failures):
             ends = ['v_3p', 'j_5p'] if not utils.has_d_gene(self.args.locus) else utils.real_erosions  # need 1-base d erosion for light chain
             del_lens = [line[e+'_del'] for e in ends]
@@ -2192,7 +2205,6 @@ class PartitionDriver(object):
         with open(annotation_fname, 'r') as hmm_csv_outfile:
             reader = csv.DictReader(hmm_csv_outfile)
             for padded_line in reader:  # line coming from hmm output is N-padded such that all the seqs are the same length
-
                 utils.process_input_line(padded_line)
                 counts['n_lines_read'] += 1
 
@@ -2221,6 +2233,7 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
+                fix_fwk_insertions(padded_line, hmm_failures)
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
 
                 if check_invalid(padded_line, hmm_failures):
