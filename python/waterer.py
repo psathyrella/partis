@@ -253,7 +253,7 @@ class Waterer(object):
                 print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
 
         seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']], keys_not_to_overwrite=['multiplicities'] if just_read_cachefile else None)  # need to do this before removing duplicates, so the duplicate info (from waterer) can get combined with multiplicities (from input metafo). And, if we just read the cache file, then we already collapsed duplicates so we don't want to overwrite multiplicity info
-        if self.args.is_data and not self.args.dont_remove_framework_insertions:  # it's too much trouble updating reco_info on simulation, and I don't think we can add fwk insertions in simulation atm anyway
+        if self.args.is_data:  # it's too much trouble updating reco_info on simulation, and I don't think we can add fwk insertions in simulation atm anyway
             self.remove_framework_insertions()
         if self.args.collapse_duplicate_sequences and not just_read_cachefile:
             self.remove_duplicate_sequences()
@@ -867,6 +867,8 @@ class Waterer(object):
         line['vd_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['v']][1] : qinfo['qrbounds'][best['d']][0]]
         line['dj_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['d']][1] : qinfo['qrbounds'][best['j']][0]]
         line['jf_insertion'] = qinfo['seq'][qinfo['qrbounds'][best['j']][1] : ]
+        line['leader_seqs'] = [line['fv_insertion']]  # yes it sucks to have both these and fv/jf insertions, but see notes elsewhere -- it'd be a mess to try to remove fv/jf insertions
+        line['c_gene_seqs'] = [line['jf_insertion']]
 
         if qname in self.info['indels']:  # NOTE at this piont indel info isn't updated for any change in the genes (the indelfo gets updated during utils.add_implicit_info())
             line['indelfos'] = [self.info['indels'][qname]]  # NOTE this makes it so that self.info[uid]['indelfos'] *is* self.info['indels'][uid]. It'd still be nicer to eventually do away with self.info['indels'], although I'm not sure that's really either feasible or desirable given other constraints
@@ -1234,7 +1236,7 @@ class Waterer(object):
             if self.debug:
                 print '  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
             return None
-        if not self.args.dont_remove_framework_insertions and self.args.is_data and k_v_min - len(line['fv_insertion']) < 0:
+        if self.args.is_data and k_v_min - len(line['fv_insertion']) < 0:
             if self.debug:
                 print '%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d   %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']), utils.reverse_complement_warning())
             return None
@@ -1269,7 +1271,7 @@ class Waterer(object):
                 indelutils.trim_indel_info(swfo, 0, swfo['fv_insertion'], swfo['jf_insertion'], 0, 0)
             for key in swfo['k_v']:
                 swfo['k_v'][key] -= fv_len
-            swfo['fv_insertion'] = ''
+            swfo['fv_insertion'] = ''  # maybe don't really need these any more now that we've got leader_seqs and c_gene_seqs, but otoh they get used in lots of places (e.g. padding to same length) so it'd be really hard to remove them
             swfo['jf_insertion'] = ''
             swfo['codon_positions']['v'] -= fv_len
             swfo['codon_positions']['j'] -= fv_len

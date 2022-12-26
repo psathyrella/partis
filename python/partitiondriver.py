@@ -2150,7 +2150,7 @@ class PartitionDriver(object):
         line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
         line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
         def gv(lkey, uid): return self.sw_info[uid][lkey][0] if lkey in self.sw_info[uid] else utils.input_metafile_defaults(lkey)
-        for lkey in utils.input_metafile_keys.values():
+        for lkey in utils.input_metafile_keys.values() + ['leader_seqs', 'c_gene_seqs']:
             if any(lkey in self.sw_info[u] for u in uids):  # it used to be that if it was in one it had to be in all, but now no longer (see comments in input meta info reading in seqfileopener)
                 line[lkey] = [gv(lkey, u) for u in uids]
 
@@ -2167,19 +2167,6 @@ class PartitionDriver(object):
                 hmm_failures |= set(line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                 return True
             return False
-        # ----------------------------------------------------------------------------------------
-        def fix_fwk_insertions(line, hmm_failures):  # these come back from ham as Ns, but it makes more sense to set them to the actual bits from the input sequence
-            for iseq, seq in enumerate(line['seqs']):
-                for ebound in utils.effective_boundaries:
-                    tbounds = line['regional_bounds']
-                    if ebound == 'fv':
-                        new_insert = seq[ : line['regional_bounds']['v'][0]]
-                    else:
-                        new_insert = seq[line['regional_bounds']['j'][1] : ]
-                    if len(line['%s_insertion'%ebound]) != len(new_insert):  # maybe should add to failures as well?
-                        print '    %s new %s len %d doesn\'t match existing one %d' % (utils.wrnstr(), ebound, len(new_insert), len(line['%s_insertion'%ebound]))
-                        continue
-                    line['%s_insertion'%ebound] = new_insert
         # ----------------------------------------------------------------------------------------
         def remove_insertions_and_deletions(line, hmm_failures):
             ends = ['v_3p', 'j_5p'] if not utils.has_d_gene(self.args.locus) else utils.real_erosions  # need 1-base d erosion for light chain
@@ -2233,7 +2220,6 @@ class PartitionDriver(object):
                     hmm_failures |= set(padded_line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                     continue
 
-                fix_fwk_insertions(padded_line, hmm_failures)
                 utils.process_per_gene_support(padded_line)  # switch per-gene support from log space to normalized probabilities
 
                 if check_invalid(padded_line, hmm_failures):
