@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
   libyaml-cpp-dev \
   libyaml-dev \
   libz-dev \
+  ncbi-blast+ \
   python-pyqt5 \
   vim
 
