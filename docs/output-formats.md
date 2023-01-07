@@ -74,8 +74,12 @@ The following keys are written to output by default:
 | j_3p_del       |  see v_5p_del
 | vd_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the V and D segments
 | dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
-| fv_insertion       |  constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
-| jf_insertion       |  constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
+| leader_seqs        |  sequence to 5' of V `[per-seq]`
+| c_gene_seqs        |  sequence to 3' of J `[per-seq]`
+| leaders            |  leader gene that was the best alignment to each seq in leader_seqs (only filled if --align-constant-regions is set) `[per-seq]`
+| c_genes            |  constant gene that was the best alignment to each seq in c_gene_seqs (only filled if --align-constant-regions is set) `[per-seq]`
+| fv_insertion       |  DEPRECATED use leader_seqs OLD: constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
+| jf_insertion       |  DEPRECATED use c_gene_seqs OLD: constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
 | codon_positions	 |  zero-indexed indel-reversed-sequence positions of the conserved cyst and tryp/phen codons, e.g. `{'v': 285, 'j': 336}`
 | mutated_invariants |  true if either of the conserved codons corresponding to the start and end of the CDR3 code for a different amino acid than their original germline (cyst and tryp/phen, in IMGT numbering) `[per-seq]`
 | in_frames          |  true if the net effect of VDJ rearrangement and SHM indels leaves both the start and end of the CDR3 (IMGT cyst and tryp/phen) in frame with respect to the start of the germline V sequence `[per-seq]`

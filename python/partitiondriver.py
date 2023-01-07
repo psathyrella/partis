@@ -2135,6 +2135,9 @@ class PartitionDriver(object):
         if perfplotter is not None and self.args.plotdir is not None:
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
+        if self.args.align_constant_regions:
+            utils.parse_constant_regions(self.args.species, self.args.locus, annotation_list, self.args.workdir)
+
         if print_annotations or self.args.print_n_worst_annotations is not None:
             if self.args.print_n_worst_annotations is None:
                 self.print_results(None, annotation_list)

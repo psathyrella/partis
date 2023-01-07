@@ -623,7 +623,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence (this is also true of fv/jf insertions)
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'shm_aa', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
-                       'leader_seqs', 'c_gene_seqs',  # these are kind of replacing fv/jf insertions, and the latter probably should just be removed, since they're really more per-seq things, but i don't know if it'd really work, and it'd for sure be hard, so whatever (otoh, maybe fv/jf insertions are necessary for padding to same length in sw? not sure atm)
+                       'leader_seqs', 'c_gene_seqs',  'leaders', 'c_genes', # these are kind of replacing fv/jf insertions, and the latter probably should just be removed, since they're really more per-seq things, but i don't know if it'd really work, and it'd for sure be hard, so whatever (otoh, maybe fv/jf insertions are necessary for padding to same length in sw? not sure atm)
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices', 'min_target_distances'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
@@ -768,7 +768,7 @@ def get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=None):
 
 # ----------------------------------------------------------------------------------------
 special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)  NOTE used to also include 'has_shm_indels' (also note that 'indel_reversed_seqs' is treated differently for some purposes than are the gap seq keys)
-annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates', 'leader_seqs', 'c_gene_seqs'] \
+annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates', 'leader_seqs', 'c_gene_seqs', 'leaders', 'c_genes'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns + input_metafile_keys.values() \
@@ -2004,7 +2004,7 @@ def color_chars(chars, col, seq):
 
 # ----------------------------------------------------------------------------------------
 # returns a multiple sequence alignemnt from mafft (see run_blastn() below to align against a db of targets)
-def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False, aa=False, debug=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
+def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False, aa=False, extra_str='', debug=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
     def outfile_fcn():
         if outfname is None:
             return tempfile.NamedTemporaryFile()
@@ -2055,7 +2055,7 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
     if debug:
         w = max(len(s['name']) for s in msa_info)
         for sfo in msa_info:
-            print color_mutants(msa_info[0]['seq'], sfo['seq'], ref_label=wfmt(msa_info[0]['name'], w)+' ', seq_label=wfmt(sfo['name'], w)+' ', amino_acid=aa)
+            print color_mutants(msa_info[0]['seq'], sfo['seq'], ref_label=wfmt(msa_info[0]['name'], w)+' ', seq_label=wfmt(sfo['name'], w)+' ', amino_acid=aa, extra_str=extra_str)
 
     return msa_info
 
@@ -2071,6 +2071,56 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
             subprocess.check_call(['cat', fin.name])
             raise Exception('incoherent mafft output from %s (cat\'d on previous line)' % fin.name)
     return msa_info['ref'], msa_info['new']
+
+# ----------------------------------------------------------------------------------------
+def run_blastn(queryfos, targetfos, baseworkdir, debug=True):
+    wkdir = '%s/blastn' % baseworkdir
+    tgn = 'targets'
+    tgfn, qrfn, ofn = [('%s/%s'%(wkdir, fstr)) for fstr in ['%s.fa'%tgn, 'queries.fa', 'results.out']]
+    prep_dir(wkdir)
+    write_fasta(tgfn, targetfos)
+    write_fasta(qrfn, queryfos)
+    if debug:
+        print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
+    _ = simplerun('makeblastdb -in %s -out %s/%s -dbtype nucl -parse_seqids' % (tgfn, wkdir, tgn), return_out_err=True, debug=False)
+    _ = simplerun('blastn -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
+    best_matches = collections.OrderedDict()
+    if debug:
+        print '         % id     len    n gaps    target            query'
+    with open(ofn) as ofile:
+        reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter='\t', fieldnames=['query', 'subject', '% identity', 'alignment length', 'mismatches', 'gap opens', 'q. start', 'q. end', 's. start', 's. end'])
+        for line in reader:
+            pct_id, alen, n_gaps = float(line['% identity']), int(line['alignment length']), int(line['gap opens'])
+            is_best = False
+            if line['query'] not in best_matches:  # it always puts the best match first, and i guess that could change but seems really unlikely
+                best_matches[line['query']] = {'query' : line['query'], 'target' : line['subject'], 'pct_id' : pct_id, 'alen' : alen, 'n_gaps' : n_gaps}
+                is_best = True
+                if debug > 1:
+                    print ''
+            if debug and is_best or debug > 1:
+                # gstr = color_gene(line['subject'], allow_constant=True, width=12) if   # doesn't work for leaders atm
+                print '          %3.0f     %3d    %s      %12s      %-s' % (pct_id, alen, color(None if n_gaps==0 else 'red', '%d'%n_gaps, width=3), line['subject'], line['query'] if is_best else '')
+
+    if debug:
+        mstats = {}
+        def kfn(q): return q['target']
+        for tgt, tgroup in itertools.groupby(sorted(best_matches.values(), key=kfn), key=kfn):
+            mstats[tgt] = list(tgroup)
+        mstats = sorted(mstats.items(), key=lambda x: len(x[1]), reverse=True)
+        qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [queryfos, targetfos]]  # should really check for duplicates
+        for tgt, mfos in mstats:
+            print '  %s  %d' % (color('blue', tgt), len(mfos))
+            # for im, matchfo in enumerate(mfos):
+            #     color_mutants(tdict[matchfo['target']], qdict[matchfo['query']], print_result=True, only_print_seq=False, align_if_necessary=True, extra_str='        ')  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output
+            tmsfos = [{'name' : tgt, 'seq' : tdict[tgt]}] + [{'name' : m['query'], 'seq' : qdict[m['query']]} for m in mfos]
+            align_many_seqs(tmsfos, extra_str='        ', debug=False)
+
+    dbfns = ['%s/%s.%s'%(wkdir, tgn, s) for s in 'nhr', 'nin', 'nog', 'nsd', 'nsi', 'nsq']
+    for fn in [tgfn, qrfn, ofn] + dbfns:
+        os.remove(fn)
+    os.rmdir(wkdir)
+
+    return best_matches
 
 # ----------------------------------------------------------------------------------------
 def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq=None, tie_resolver_label=None):
@@ -2399,14 +2449,14 @@ def summarize_gene_name(gene):
     return ' '.join([region, primary_version, sub_version, allele])
 
 # ----------------------------------------------------------------------------------------
-def color_gene(gene, width=None, leftpad=False):
+def color_gene(gene, width=None, leftpad=False, allow_constant=False):
     """ color gene name (and remove extra characters), eg IGHV3-h*01 --> hv3-h1 """
     default_widths = {'v' : 15, 'd' : 9, 'j' : 6}  # wide enough for most genes
 
     locus = get_locus(gene)
     locus = locus[2]  # hmm... maybe?
-    region = get_region(gene)
-    primary_version, sub_version, allele = split_gene(gene)
+    region = get_region(gene, allow_constant=allow_constant)
+    primary_version, sub_version, allele = split_gene(gene, allow_constant=allow_constant)
 
     n_chars = len(locus + region + primary_version)  # number of non-special characters
     return_str = color('purple', locus) + color('red', region) + color('purple', primary_version)
@@ -2425,8 +2475,8 @@ def color_gene(gene, width=None, leftpad=False):
     return return_str
 
 # ----------------------------------------------------------------------------------------
-def color_genes(genelist):  # now that I've added this fcn, I should really go and use this in all the places where the list comprehension is written out
-    return ' '.join([color_gene(g) for g in genelist])
+def color_genes(genelist, allow_constant=False):  # now that I've added this fcn, I should really go and use this in all the places where the list comprehension is written out
+    return ' '.join([color_gene(g, allow_constant=allow_constant) for g in genelist])
 
 #----------------------------------------------------------------------------------------
 def int_to_nucleotide(number):
@@ -3306,12 +3356,12 @@ def construct_valid_gene_name(gene, locus=None, region=None, default_allele_str=
     return gene
 
 # ----------------------------------------------------------------------------------------
-def split_gene(gene):
+def split_gene(gene, allow_constant=False):
     """ returns (primary version, sub version, allele) """
     # make sure {IG,TR}{[HKL],[abgd]}[VDJ] is at the start, and there's a *
     if '_star_' in gene or '_slash_' in gene:
         raise Exception('gene name \'%s\' isn\'t entirely unsanitized' % gene)
-    if gene[:4] != get_locus(gene).upper() + get_region(gene).upper():
+    if gene[:4] != get_locus(gene).upper() + get_region(gene, allow_constant=allow_constant).upper():
         raise Exception('unexpected string in gene name %s' % gene)
     if gene.count('*') != 1:
         raise Exception('expected exactly 1 \'*\' in %s but found %d' % (gene, gene.count('*')))
@@ -3326,7 +3376,7 @@ def split_gene(gene):
         primary_version = gene[4 : gene.find('*')]  # the bit between the IG[HKL][VDJ] and the star
         sub_version = None
         allele = gene[gene.find('*') + 1 : ]  # the bit after the star
-        if gene != get_locus(gene).upper() + get_region(gene).upper() + primary_version + '*' + allele:
+        if gene != get_locus(gene).upper() + get_region(gene, allow_constant=allow_constant).upper() + primary_version + '*' + allele:
             raise Exception('couldn\'t build gene name %s from %s %s' % (gene, primary_version, allele))
 
     return primary_version, sub_version, allele
@@ -3381,10 +3431,10 @@ def is_constant_gene(gene):
     region = get_region(gene, allow_constant=True)
     if region not in constant_regions:
         return False
-    if region != 'd':
+    if region != 'd':  # d is in both constant and regular regions
         return True
     pv, sv, allele = split_gene(gene)
-    if pv == '' and sv is None:  # constant region d is like IGHD*01
+    if pv == '' and sv is None:  # constant region d is like IGHD*01 (no pv)
         return True
     return False
 
@@ -6039,13 +6089,14 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 infostrs = headline
                 uid = infostrs
             else:  # but by default, we split by everything that could be a separator, which isn't really ideal, but we're reading way too many different kinds of fasta files at this point to change the default
-                if ';' in headline and '=' in headline:  # HOLY SHIT PEOPLE DON"T PUT YOUR META INFO IN YOUR FASTA FILES
-                    infostrs = [s1.split('=') for s1 in headline.strip().split(';')]
-                    uid = infostrs[0][0]
-                    infostrs = dict(s for s in infostrs if len(s) == 2)
-                else:
-                    infostrs = [s3.strip() for s1 in headline.split(' ') for s2 in s1.split('\t') for s3 in s2.split('|')]  # NOTE the uid is left untranslated in here
-                    uid = infostrs[0]
+                # NOTE commenting this since it fucking breaks on the imgt fastas, which use a different fucking format and i don't even remember whose stupid format this was for WTF PEOPLE
+                # if ';' in headline and '=' in headline:  # HOLY SHIT PEOPLE DON"T PUT YOUR META INFO IN YOUR FASTA FILES
+                #     infostrs = [s1.split('=') for s1 in headline.strip().split(';')]
+                #     uid = infostrs[0][0]
+                #     infostrs = dict(s for s in infostrs if len(s) == 2)
+                # else:
+                infostrs = [s3.strip() for s1 in headline.split(' ') for s2 in s1.split('\t') for s3 in s2.split('|')]  # NOTE the uid is left untranslated in here
+                uid = infostrs[0]
             if sanitize_uids and any(fc in uid for fc in forbidden_characters):
                 if not already_printed_forbidden_character_warning:
                     print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand. You may also be able to fix it by setting --parse-fasta-info.' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in forbidden_characters]), uid, uid.translate(forbidden_character_translations))
@@ -6814,3 +6865,100 @@ def get_gene_counts_from_annotations(annotations, only_regions=None):
                 gene_counts[tmpreg][gene] = 0.
             gene_counts[tmpreg][gene] += 1.  # vsearch info counts partial matches based of score, but I don't feel like dealing with that here at the moment
     return gene_counts
+
+# ----------------------------------------------------------------------------------------
+def convert_weird_leader_text_alignment(locus, leaderfn, debug=False):  # from https://www2.mrc-lmb.cam.ac.uk/vbase/alignments2.php
+    lgenes = collections.OrderedDict()
+    with open(leaderfn.replace('.fa', '.txt')) as wfile:
+        for line in wfile:
+            if len(line.strip()) == 0:
+                continue
+            if line.find('V%s'%locus[2].upper()) == 0:
+                refstr, n_ref_spaces = None, None
+                pv = line.split()[0]
+                assert pv[:2] == 'V%s'%locus[2].upper()
+                if debug:
+                    print '    pv: %s' % pv
+            elif line[:5] == 5 * ' ':
+                if debug:
+                    print '      skipping: %s' % line.strip()
+                continue
+            else:
+                lstrs = line.strip().split()
+                # if lstrs[0].count('-') != 1:  # this only works for ighv
+                #     print lstrs[0], lstrs[0].count('-')
+                #     raise Exception
+                # nstr = lstrs[0] #.split('-')
+                namestr = lstrs[0]
+                tstr = ''.join(lstrs[1:]).replace('/', '')  # not sure what the slash means?
+                print line
+                n_spaces = line.find(lstrs[1]) + 1  # len(line[line.find(' ') : line.find(lstrs[1])])  # ref line has this many spaces, so if any other lines have fewer than this, it means there's extra bases
+                if len(set(tstr) - alphabet - set('.')) != 0:
+                    raise Exception('unexpected chars %s in line\n%s' % (' '.join(set(tstr) - alphabet - set('.')), line))
+                if refstr is None:  # first line of this block, i.e. the reference to which the others are aligned
+                    refstr, n_ref_spaces = tstr, n_spaces
+                    gstr = refstr
+                else:
+                    extra_bases = ''
+                    if n_spaces != n_ref_spaces:
+                        extra_bases = ''.join(line[ : n_ref_spaces - 1].strip().split()[1:])
+                        tstr = line[n_ref_spaces - 1 : ].strip().replace(' ', '').replace('/', '')  # not sure what the slash means?
+                    if len(tstr) != len(refstr):
+                        print tstr
+                        print refstr
+                        raise Exception
+                    gstr = []
+                    for gc, rc in zip(tstr, refstr):
+                        gstr.append(rc if gc=='.' else gc)
+                    gstr = extra_bases + ''.join(gstr)
+                # gname = 'IGH%s%s' % (pv[0], nstr)
+                gname = 'IG%s%s' % (locus[2].upper(), namestr)
+                lgenes[gname] = gstr
+                if debug:
+                    print '      %s  %s' % (gname, gstr)
+
+    sfos = [{'name' : n, 'seq' : s} for n, s in lgenes.items()]
+
+    if debug:
+        align_many_seqs(sfos, debug=True)
+
+    write_fasta(leaderfn, sfos)
+
+    return lgenes
+
+# ----------------------------------------------------------------------------------------
+def parse_constant_regions(species, locus, annotation_list, workdir, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def read_c_genes():
+        tfos = read_fastx('data/germlines/constant/%s/%sc.fa'%(species, locus))
+        all_genes, duplicate_genes = set(), []
+        for tfo in tfos:
+            gene = glutils.get_imgt_info(tfo['infostrs'], 'gene')
+            if gene in all_genes:  # imgt has duplicate names that we have to fix
+                duplicate_genes.append(gene)
+                pv, sv, allele = split_gene(gene, allow_constant=True)
+                gene = gene.replace(allele, allele+'b')  # assertion will trigger if there's more than one duplicate (i.e. if we need more than 'b')
+                assert gene not in all_genes
+            tfo['name'] = gene
+            all_genes.add(gene)
+        if len(duplicate_genes) > 0:
+            print '    %s %d duplicate genes: %s' % (wrnstr(), len(duplicate_genes), color_genes(duplicate_genes, allow_constant=True))
+        return tfos
+    # ----------------------------------------------------------------------------------------
+    def read_leaders():
+        return read_fastx(leaderfn)
+    # ----------------------------------------------------------------------------------------
+    leaderfn = 'data/germlines/leaders/%s/%s/%sv.fa' % (species, locus, locus)
+    tgtfos = collections.OrderedDict()
+    # convert_weird_leader_text_alignment(locus, leaderfn)  # writes a .fa, which subsequently we use (i.e. run once if you update weird text files, and yes this should be set up differently but i need to switch to a different source anyway so this is temporary)
+    tgtfos['leader'] = read_leaders()
+    tgtfos['c_gene'] = read_c_genes()
+
+    for tkey, tfos in tgtfos.items():
+        print '    %s: aligning' % color('blue', tkey)
+        qfos = [{'name' : u, 'seq' : s} for l in annotation_list for u, s in zip(l['unique_ids'], l['%s_seqs'%tkey])]  # it might be easier to do each annotation separately, but this way i can control parallelization better and there's less overhead
+        best_matches = run_blastn(qfos, tfos, workdir)
+        for tline in annotation_list:
+            tline[tkey+'s'] = [best_matches.get(u, {'target' : None}).get('target') for u in tline['unique_ids']]
+        if debug:
+            print ''
