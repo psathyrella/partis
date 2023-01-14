@@ -235,6 +235,8 @@ class Waterer(object):
             perfplotter = PerformancePlotter('sw')
             for qname in self.info['queries']:
                 perfplotter.evaluate(self.reco_info[qname], self.info[qname], simglfo=self.simglfo)
+        if self.args.align_constant_regions:
+            utils.parse_constant_regions(self.args.species, self.args.locus, [self.info[q] for q in self.info['queries']], self.args.workdir, debug=self.args.debug)
 
         # remove queries with cdr3 length different to the seed sequence
         if self.args.seed_unique_id is not None and not ignore_seed_unique_id:

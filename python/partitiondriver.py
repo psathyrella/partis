@@ -527,6 +527,9 @@ class PartitionDriver(object):
                 print '  %s writing gctree annotations (with inferred ancestral sequences added) to original output file, which means that if you rerun gctree things may crash/be messed up since the inferred ancestral sequences are already in the annotation' % utils.wrnstr()
             self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
+        if self.args.align_constant_regions:
+            utils.parse_constant_regions(self.args.species, self.args.locus, annotation_list, self.args.workdir, debug=self.args.debug)
+
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args, glfo=self.glfo)
             partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], annotation_dict, reco_info=self.reco_info, cpath=cpath, args=self.args)
@@ -2136,7 +2139,7 @@ class PartitionDriver(object):
             perfplotter.plot(self.args.plotdir + '/hmm', only_csv=self.args.only_csv_plots)
 
         if self.args.align_constant_regions:
-            utils.parse_constant_regions(self.args.species, self.args.locus, annotation_list, self.args.workdir)
+            utils.parse_constant_regions(self.args.species, self.args.locus, annotation_list, self.args.workdir, debug=self.args.debug)
 
         if print_annotations or self.args.print_n_worst_annotations is not None:
             if self.args.print_n_worst_annotations is None:

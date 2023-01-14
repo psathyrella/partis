@@ -2080,13 +2080,13 @@ def run_blastn(queryfos, targetfos, baseworkdir, debug=True):
     prep_dir(wkdir)
     write_fasta(tgfn, targetfos)
     write_fasta(qrfn, queryfos)
-    if debug:
+    if debug > 1:
         print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
     _ = simplerun('makeblastdb -in %s -out %s/%s -dbtype nucl -parse_seqids' % (tgfn, wkdir, tgn), return_out_err=True, debug=False)
     _ = simplerun('blastn -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
     best_matches = collections.OrderedDict()
-    if debug:
-        print '         % id     len    n gaps    target            query'
+    if debug > 1:
+        print '             % id     len    n gaps    target            query'
     with open(ofn) as ofile:
         reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter='\t', fieldnames=['query', 'subject', '% identity', 'alignment length', 'mismatches', 'gap opens', 'q. start', 'q. end', 's. start', 's. end'])
         for line in reader:
@@ -2095,45 +2095,37 @@ def run_blastn(queryfos, targetfos, baseworkdir, debug=True):
             if line['query'] not in best_matches:  # it always puts the best match first, and i guess that could change but seems really unlikely
                 best_matches[line['query']] = {'query' : line['query'], 'target' : line['subject'], 'pct_id' : pct_id, 'alen' : alen, 'n_gaps' : n_gaps}
                 is_best = True
-                if debug > 1:
-                    print ''
-            if debug and is_best or debug > 1:
+                # if debug > 1:
+                #     print ''
+            if debug > 1 and is_best: # or debug > 1:
                 # gstr = color_gene(line['subject'], allow_constant=True, width=12) if   # doesn't work for leaders atm
-                print '          %3.0f     %3d    %s      %12s      %-s' % (pct_id, alen, color(None if n_gaps==0 else 'red', '%d'%n_gaps, width=3), line['subject'], line['query'] if is_best else '')
+                print '              %3.0f     %3d    %s      %12s      %-s' % (pct_id, alen, color(None if n_gaps==0 else 'red', '%d'%n_gaps, width=3), line['subject'], line['query'] if is_best else '')
 
-    if debug:
-        mstats = {}
-        def kfn(q): return q['target']
-        for tgt, tgroup in itertools.groupby(sorted(best_matches.values(), key=kfn), key=kfn):
-            mstats[tgt] = list(tgroup)
-        mstats = sorted(mstats.items(), key=lambda x: len(x[1]), reverse=True)
-        qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [queryfos, targetfos]]  # should really check for duplicates
-        for tgt, mfos in mstats:
-            print '  %s  %d' % (color('blue', tgt), len(mfos))
-            # for im, matchfo in enumerate(mfos):
-            #     color_mutants(tdict[matchfo['target']], qdict[matchfo['query']], print_result=True, only_print_seq=False, align_if_necessary=True, extra_str='        ')  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output
-            tmsfos = [{'name' : tgt, 'seq' : tdict[tgt]}] + [{'name' : m['query'], 'seq' : qdict[m['query']]} for m in mfos]
-            align_many_seqs(tmsfos, extra_str='        ', debug=False)
+    mstats = {}  # ends up as a sorted list of pairs <target name, list of matched seqfos>
+    def kfn(q): return q['target']
+    for tgt, tgroup in itertools.groupby(sorted(best_matches.values(), key=kfn), key=kfn):
+        mstats[tgt] = list(tgroup)
+    mstats = sorted(mstats.items(), key=lambda x: len(x[1]), reverse=True)
 
     dbfns = ['%s/%s.%s'%(wkdir, tgn, s) for s in 'nhr', 'nin', 'nog', 'nsd', 'nsi', 'nsq']
     for fn in [tgfn, qrfn, ofn] + dbfns:
         os.remove(fn)
     os.rmdir(wkdir)
 
-    return best_matches
+    return best_matches, mstats
 
 # ----------------------------------------------------------------------------------------
-def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq=None, tie_resolver_label=None):
+def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq=None, tie_resolver_label=None, extra_str='  ', dont_print_cons_seq=False):
     ckey = 'cons_dists_' + ('aa' if aa else 'nuc')
     hfkey = ckey.replace('cons_dists_', 'cons_fracs_')
     if len(seqfos) > 0 and ckey in seqfos[0]:
         seqfos = sorted(seqfos, key=lambda s: s[ckey])
         if hfkey in seqfos[0]:
             seqfos = sorted(seqfos, key=lambda s: s[hfkey])
+    post_ref_str = '  hdist hfrac%s' % (('  %s'%color('blue', ' N')) if 'multiplicity' in seqfos[0] else '')
     for iseq, sfo in enumerate(seqfos):
-        post_ref_str, mstr =  '', ''
+        mstr = ''
         if 'multiplicity' in sfo:
-            post_ref_str = '  hdist hfrac  %s' % color('blue', ' N')
             mstr = '%-3d' % sfo['multiplicity']
             if sfo['multiplicity'] > 1:
                 mstr = color('blue', mstr)
@@ -2141,15 +2133,15 @@ def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq
         if 'cell-types' in sfo:  # if it's in one, it should be in all of 'em
             cl = str(max(len(str(s['cell-types'])) for s in seqfos))  # wasteful (but cleaner) to do this for eery sfo (also, str call is in case it's None)
             post_str += (' %'+cl+'s') % sfo['cell-types']
-        color_mutants(cons_seq, sfo['seq'], align=align, amino_acid=aa, print_result=True, only_print_seq=iseq>0, ref_label=' consensus ', extra_str='  ', post_str='%s  %s'%(post_str, sfo['name']), post_ref_str=post_ref_str) #, print_n_snps=True, print_hfrac=True)
+        color_mutants(cons_seq, sfo['seq'], align=align, amino_acid=aa, print_result=True, only_print_seq=iseq>0 or dont_print_cons_seq, ref_label=' consensus ', extra_str=extra_str, post_str='%s  %s'%(post_str, sfo['name']), post_ref_str=post_ref_str) #, print_n_snps=True, print_hfrac=True)
     if tie_resolver_seq is not None:
         color_mutants(cons_seq, tie_resolver_seq, align=align, amino_acid=aa, print_result=True, only_print_seq=True, seq_label=' '*len(' consensus '),
-                      post_str='    tie resolver%s'%('' if tie_resolver_label is None else (' (%s)'%tie_resolver_label)), extra_str='  ', print_n_snps=True)
+                      post_str='    tie resolver%s'%('' if tie_resolver_label is None else (' (%s)'%tie_resolver_label)), extra_str=extra_str, print_n_snps=True)
 
 # ----------------------------------------------------------------------------------------
 # return consensus of either aligned or unaligned sequences, in chunks of length <codon_len>, with tied positions *not* ambiguous but instead chosen as the alphabetically first character[s]
 # if doing a nuc cons seq with codon_len=3, and <aa_ref_seq> is set, we look for the most common nuc codon *only* among those that code for the aa that appears at that position in <aa_ref_seq>
-def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, aa_ref_seq=None, debug=False):  # should maybe call it "chunk" rather than "codon", but if len is 3 it's a codon
+def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, aa_ref_seq=None, extra_str='', debug=False):  # should maybe call it "chunk" rather than "codon", but if len is 3 it's a codon
     if aligned_seqfos is not None:
         assert unaligned_seqfos is None
         seqfos = aligned_seqfos
@@ -2169,7 +2161,7 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
             print '\n'.join(s['seq'] for s in seqfos)  # TODO this probably means we're using input seqs for a family with lots of *different* indels, which needs to be fixed/avoided
             raise Exception('aa ref seq length doesn\'t correspond to padded nuc seq:\n    %s\n    %s' % ('  '.join(aa_ref_seq), pad_nuc_seq(seqfos[0]['seq'])))
     if debug:
-        print '  taking consensus of %d seqs with len %d in chunks of len %d' % (len(seqfos), seq_len, codon_len)
+        print '%staking consensus of %d seqs with len %d in chunks of len %d' % (extra_str, len(seqfos), seq_len, codon_len)
         dbgfo = []
         all_counts = {}  # keep track of usage of each codon/base/aa over full sequence for sorting of dbg info at end
     cseq = []
@@ -2187,6 +2179,9 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
                 if chnk not in all_counts:
                     all_counts[chnk] = 0
                 all_counts[chnk] += mtpy
+        if len(pos_counts) == 0:  # every sequence has a gap char here
+            cseq.append(gap_chars[0])
+            continue
         srt_chunks = sorted(pos_counts.items(), key=operator.itemgetter(1), reverse=True)
         if aa_ref_seq is not None:  # (try to) remove any that don't code for the residue in aa_ref_seq
             aa_match_chunks = [c for c, _ in srt_chunks if ltranslate(c) == aa_ref_seq[ipos / 3]]
@@ -2204,10 +2199,10 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
 
     if debug:
         prlen = max(4, codon_len) if debug > 1 else codon_len
-        print '       ties: %s  (%s)' % (''.join(wfmt(len(dfo['best']), prlen, fmt='d') if len(dfo['best'])>1 else ' '*prlen for dfo in dbgfo), ',  '.join('%d: %s'%(codon_len*i, ' '.join(sorted(dfo['best']))) for i, dfo in enumerate(dbgfo) if len(dfo['best'])>1))
+        print '%s       ties: %s  (%s)' % (extra_str, ''.join(wfmt(len(dfo['best']), prlen, fmt='d') if len(dfo['best'])>1 else ' '*prlen for dfo in dbgfo), ',  '.join('%d: %s'%(codon_len*i, ' '.join(sorted(dfo['best']))) for i, dfo in enumerate(dbgfo) if len(dfo['best'])>1))
         if codon_len == 3:
-            print '             %s' % ''.join(wfmt(ltranslate(c), prlen) for c in cseq)
-        print '   cons seq: %s' % ''.join(color('blue_bkg' if len(dfo['best'])>1 else None, c, width=prlen if debug>1 else 1) for c, dfo in zip(cseq, dbgfo))
+            print '%s             %s' % (extra_str, ''.join(wfmt(ltranslate(c), prlen) for c in cseq))
+        print '%s   cons seq: %s' % (extra_str, ''.join(color('blue_bkg' if len(dfo['best'])>1 else None, c, width=prlen if debug>1 else 1) for c, dfo in zip(cseq, dbgfo)))
         if debug > 1:
             def tcol(cstr, dfo): return 'blue' if cstr in dfo['best'] else ('red' if cstr in dfo['rmd'] and dfo['cnts'][cstr]>=dfo['cnts'][dfo['best'][0]] else None)
             print '        ipos %s' % ''.join(wfmt(codon_len*i, prlen, fmt='d') for i in range(len(dbgfo)))
@@ -2218,7 +2213,7 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
     cseq = ''.join(cseq)
 
     if debug:
-        print_cons_seq_dbg(seqfos, cseq, aa=aa, align=aligned_seqfos is None)
+        print_cons_seq_dbg(seqfos, cseq, aa=aa, align=aligned_seqfos is None, extra_str='  '+extra_str, dont_print_cons_seq=True)
 
     return cseq
 
@@ -4062,13 +4057,19 @@ def revcomp(nuc_seq):
 
 # ----------------------------------------------------------------------------------------
 # NOTE do *not* call this directly on seqs from annotations, since they're not necessarily padded to the start of a codon (i.e. without first calling pad_seq_for_translation())
-def ltranslate(nuc_seq, trim=False):  # local file translation function
+def ltranslate(nuc_seq, trim=False, debug=False):  # local file translation function
     if 'Bio.Seq' not in sys.modules:  # import is frequently slow af
         from Bio.Seq import Seq
     bseq = sys.modules['Bio.Seq']
     if trim:  # this should probably be the default, but i don't want to change anything that's using the padding (even though it probably wouldn't matter)
         nuc_seq = trim_nuc_seq(nuc_seq.strip(ambig_base))
-    return str(bseq.Seq(pad_nuc_seq(nuc_seq)).translate())  # the padding is annoying, but it's extremely common for bcr sequences to have lengths not a multiple of three (e.g. because out out of frame rearrangements), so easier to just always check for it
+    final_nseq = pad_nuc_seq(nuc_seq)
+    aa_seq = str(bseq.Seq(final_nseq).translate())  # the padding is annoying, but it's extremely common for bcr sequences to have lengths not a multiple of three (e.g. because out out of frame rearrangements), so easier to just always check for it
+    if debug:
+        assert len(final_nseq) == len(aa_seq*3)
+        print ' '.join([final_nseq[ic : ic + 3] for ic in range(0, len(final_nseq), 3)])
+        print '   '.join(aa_seq)
+    return aa_seq
 
 # ----------------------------------------------------------------------------------------
 def get_cdr3_seq(info, iseq):  # NOTE includeds both codons, i.e. not the same as imgt definition
@@ -4127,9 +4128,14 @@ def shm_aa(line, iseq=None, uid=None):  # it's kind of weird to have this fcn se
     return hamming_distance(line['naive_seq_aa'], line['seqs_aa'][iseq], amino_acid=True)
 
 # ----------------------------------------------------------------------------------------
-def pad_nuc_seq(nseq):  # if length not multiple of three, pad on right with Ns
+def pad_nuc_seq(nseq, side='right'):  # if length not multiple of three, pad on right (by default) with Ns
     if len(nseq) % 3 != 0:
-        nseq += 'N' * (3 - (len(nseq) % 3))
+        if side == 'right':
+            nseq += 'N' * (3 - (len(nseq) % 3))
+        elif side == 'left':
+            nseq = 'N' * (3 - (len(nseq) % 3)) + nseq
+        else:
+            assert False
     return nseq
 
 # ----------------------------------------------------------------------------------------
@@ -6929,6 +6935,42 @@ def convert_weird_leader_text_alignment(locus, leaderfn, debug=False):  # from h
 # ----------------------------------------------------------------------------------------
 def parse_constant_regions(species, locus, annotation_list, workdir, debug=False):
     # ----------------------------------------------------------------------------------------
+    def algncreg(tkey, n_min_seqs=5):
+        print ' %s: aligning' % color('blue', tkey)
+        if tkey == 'leader':  # for leaders, group together seqs that align to each V gene
+            all_v_genes = set(l['v_gene'] for l in annotation_list)
+            vg_antns = {}
+            for vgene in all_v_genes:
+                vg_antns[vgene] = [l for l in annotation_list if l['v_gene']==vgene]
+            print '  found %d total V genes' % len(all_v_genes)
+        else:  # For c_genes, do everyone at once
+            vg_antns = {'IGHVx-x*x' : annotation_list}
+        leader_seq_infos = []  # final/new leader seqs
+        print '      gene    families  seqs'
+        for ivg, (vgene, vgalist) in enumerate(sorted(vg_antns.items(), key=lambda q: sum(len(l['unique_ids']) for l in q[1]), reverse=True)):
+            print '    %s %3d     %3d' % (color_gene(vgene, width=10), len(vgalist), sum(len(l['unique_ids']) for l in vgalist))
+            if ivg > 2 and sum(len(l['unique_ids']) for l in vgalist) < n_min_seqs:  # always do the first 3 v gene groups, but past that skip any vgene groups that have too few sequences
+                print '            too few seqs'
+                continue
+            qfos = [{'name' : u, 'seq' : s} for l in vgalist for u, s in zip(l['unique_ids'], l['%s_seqs'%tkey])]  # it might be easier to do each annotation separately, but this way i can control parallelization better and there's less overhead
+            best_matches, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug)
+            qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [qfos, tgtfos[tkey]]]  # should really check for duplicates
+            for itg, (tgt, mfos) in enumerate(mstats):  # loop over each target seq and the sequences for whom it was a best match
+                print '      %s  %d' % (color('blue', tgt), len(mfos))
+                if itg > 2 and tkey=='c_gene' and len(mfos) < n_min_seqs:  # always print the first three target matches, but past that skip any targets that have to few sequences matched to them
+                    print '          too small, skipping'
+                    continue
+                tmsfos = [{'name' : tgt, 'seq' : tdict[tgt]}] + [{'name' : m['query'], 'seq' : qdict[m['query']]} for m in mfos]
+                msa_seqfos = align_many_seqs(tmsfos, extra_str='            ', debug=False)  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output
+                cseq = cons_seq(aligned_seqfos=[s for s in msa_seqfos if s['name']!=tgt], extra_str='         ', debug=debug)
+                leader_seq_infos.append({'seq' : cseq, 'match-name' : tgt})
+                if debug:
+                    print color_mutants(cseq, get_single_entry([s for s in msa_seqfos if s['name']==tgt])['seq'], seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
+                    aasfos = [{'name' : s['name'], 'seq' : ltranslate(pad_nuc_seq(s['seq'].replace('-', ambig_base), side='left' if tkey=='leader' else 'right'))} for s in msa_seqfos]  # pad on left, since we assume the last three bases of 'leader_seqs' are in frame w/respect to V
+                    aa_msa_seqfos = align_many_seqs(aasfos, extra_str='            ', aa=True, debug=False)
+                    aa_cseq = cons_seq(aligned_seqfos=[s for s in aa_msa_seqfos if s['name']!=tgt], aa=True, extra_str='         ', debug=debug)
+                    print color_mutants(aa_cseq, get_single_entry([s for s in aa_msa_seqfos if s['name']==tgt])['seq'], amino_acid=True, seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
+    # ----------------------------------------------------------------------------------------
     def read_c_genes():
         tfos = read_fastx('data/germlines/constant/%s/%sc.fa'%(species, locus))
         all_genes, duplicate_genes = set(), []
@@ -6954,11 +6996,5 @@ def parse_constant_regions(species, locus, annotation_list, workdir, debug=False
     tgtfos['leader'] = read_leaders()
     tgtfos['c_gene'] = read_c_genes()
 
-    for tkey, tfos in tgtfos.items():
-        print '    %s: aligning' % color('blue', tkey)
-        qfos = [{'name' : u, 'seq' : s} for l in annotation_list for u, s in zip(l['unique_ids'], l['%s_seqs'%tkey])]  # it might be easier to do each annotation separately, but this way i can control parallelization better and there's less overhead
-        best_matches = run_blastn(qfos, tfos, workdir)
-        for tline in annotation_list:
-            tline[tkey+'s'] = [best_matches.get(u, {'target' : None}).get('target') for u in tline['unique_ids']]
-        if debug:
-            print ''
+    for tkey in tgtfos:
+        algncreg(tkey)

@@ -255,7 +255,7 @@ class PartitionPlotter(object):
         bubfos = []
         for iclust, cluster in enumerate(self.sclusts):
             if iclust < self.n_max_bubbles:
-                bubfos.append({'id' : iclust, 'radius' : len(cluster)})
+                bubfos.append({'id' : str(iclust), 'radius' : len(cluster)})
             else:
                 fake_cluster += cluster
                 fake_antn['unique_ids'] += cluster
@@ -692,7 +692,7 @@ class PartitionPlotter(object):
         # ----------------------------------------------------------------------------------------
         def get_metafo(annotation, iclust):
             if self.args.meta_info_key_to_color is None and self.args.node_size_key is None and not self.args.label_mutations:
-                return None, None, None
+                return None, None
             metafo, cdr3fo = {}, {}
             for tk in [k for k in [self.args.meta_info_key_to_color, self.args.node_size_key] if k is not None and k in annotation]:
                 metafo[tk] = {u : f for u, f in zip(annotation['unique_ids'], annotation[tk])}

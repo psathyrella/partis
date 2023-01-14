@@ -1672,6 +1672,15 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
 # ----------------------------------------------------------------------------------------
 def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
+    # ----------------------------------------------------------------------------------------
+    def check_missing_extra():  # this shouldn't happen any more now that i'm using strings for 'id' key, but eh can't hurt
+        iids, fids = set(d['id'] for d in bubfos), set(d['id'] for d in bubble_positions)
+        if len(fids - iids) > 0:
+            print '    %s extra bubble ids read from file: %s' % (utils.wrnstr(), ' '.join(fids - iids))
+        if len(iids - fids) > 0:
+            print '    %s missing bubble ids from file: %s' % (utils.wrnstr(), ' '.join(iids - fids))
+        assert len(bubble_positions) == len(bubfos)
+    # ----------------------------------------------------------------------------------------
     rfn = '%s/csize-radii.csv' % plotdir
     bpfn = '%s/bubble-positions.csv' % plotdir
     workfnames = [rfn, bpfn]
@@ -1688,7 +1697,7 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
         bubble_positions = []  # they come back out of order, so need to sort
         for line in reader:
             bubble_positions.append({k : cfn(k, v) for k, v in line.items()})
-        assert len(bubble_positions) == len(bubfos)
+        check_missing_extra()
         bdict = {b['id'] : b for b in bubfos}
         for posfo in bubble_positions:
             bdict[posfo['id']].update(posfo)
