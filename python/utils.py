@@ -6947,6 +6947,7 @@ def convert_weird_leader_text_alignment(locus, leaderfn, debug=False):  # from h
     return lgenes
 
 # ----------------------------------------------------------------------------------------
+# NOTE should remove this eventually, it's just for old vbase seqs
 def parse_constant_regions(species, locus, annotation_list, workdir, debug=False):
     # ----------------------------------------------------------------------------------------
     def algncreg(tkey, n_min_seqs=5):
@@ -6985,30 +6986,38 @@ def parse_constant_regions(species, locus, annotation_list, workdir, debug=False
                     aa_cseq = cons_seq(aligned_seqfos=[s for s in aa_msa_seqfos if s['name']!=tgt], aa=True, extra_str='         ', debug=debug)
                     print color_mutants(aa_cseq, get_single_entry([s for s in aa_msa_seqfos if s['name']==tgt])['seq'], amino_acid=True, seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
     # ----------------------------------------------------------------------------------------
-    def read_c_genes():
-        tfos = read_fastx('data/germlines/constant/%s/%sc.fa'%(species, locus))
-        all_genes, duplicate_genes = set(), []
+    def read_seqs(tkey, fname, debug=False):
+        if debug:
+            print '    reading %s seqs from %s' % (tkey, fname)
+        tfos = read_fastx(fname)
         for tfo in tfos:
-            gene = glutils.get_imgt_info(tfo['infostrs'], 'gene')
-            if gene in all_genes:  # imgt has duplicate names that we have to fix
-                duplicate_genes.append(gene)
-                pv, sv, allele = split_gene(gene, allow_constant=True)
-                gene = gene.replace(allele, allele+'b')  # assertion will trigger if there's more than one duplicate (i.e. if we need more than 'b')
-                assert gene not in all_genes
-            tfo['name'] = gene
-            all_genes.add(gene)
-        if len(duplicate_genes) > 0:
-            print '    %s %d duplicate genes: %s' % (wrnstr(), len(duplicate_genes), color_genes(duplicate_genes, allow_constant=True))
+            tfo['name'] = glutils.get_imgt_info(tfo['infostrs'], 'gene')
+        for tk in ['name', 'seq']:  # eh, duplicate seqs are ok i think
+            all_vals = [t[tk] for t in tfos]
+            if any(all_vals.count(v) > 1 for v in set(all_vals)):
+                dupfo = sorted([(v, all_vals.count(v)) for v in sorted(set(all_vals)) if all_vals.count(v) > 1], key=operator.itemgetter(1), reverse=True)
+                print '    %s %d %s %ss appear more than once (%d total occurences) in %s' % (wrnstr(), len(dupfo), tkey, tk, sum(n for _, n in dupfo), fname)
+                if debug:
+                    print '      %s' % '\n      '.join('%3d  %s'%(n, v) for v, n in dupfo)
+                if tk == 'name':
+                    tkvals, new_tfos = [], []
+                    for tfo in tfos:
+                        if tfo[tk] in tkvals:
+                            continue
+                        new_tfos.append(tfo)
+                        tkvals.append(tfo[tk])
+                    print '      removed %d duplicate %ss' % (len(tfos) - len(new_tfos), tk)
+                    tfos = new_tfos
         return tfos
     # ----------------------------------------------------------------------------------------
     def read_leaders():
         return read_fastx(leaderfn)
     # ----------------------------------------------------------------------------------------
-    leaderfn = 'data/germlines/leaders/%s/%s/%sv.fa' % (species, locus, locus)
+    lsrc = 'imgt' # 'vbase'
+    leaderfn, cgfn = 'data/germlines/leaders/%s/%s/%s/%sv.fa' % (lsrc, species, locus, locus), 'data/germlines/constant/%s/%sc.fa'%(species, locus)
     tgtfos = collections.OrderedDict()
-    # convert_weird_leader_text_alignment(locus, leaderfn)  # writes a .fa, which subsequently we use (i.e. run once if you update weird text files, and yes this should be set up differently but i need to switch to a different source anyway so this is temporary)
-    tgtfos['leader'] = read_leaders()
-    tgtfos['c_gene'] = read_c_genes()
+    # this is for old vbase seqs (should remove this eventually): convert_weird_leader_text_alignment(locus, leaderfn)  # writes a .fa, which subsequently we use (i.e. run once if you update weird text files, and yes this should be set up differently but i need to switch to a different source anyway so this is temporary)
 
-    for tkey in tgtfos:
+    for tkey, fn in zip(['leader', 'c_gene'], [leaderfn, cgfn]):
+        tgtfos[tkey] = read_seqs(tkey, fn)
         algncreg(tkey)
