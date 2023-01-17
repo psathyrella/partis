@@ -6887,67 +6887,6 @@ def get_gene_counts_from_annotations(annotations, only_regions=None):
     return gene_counts
 
 # ----------------------------------------------------------------------------------------
-def convert_weird_leader_text_alignment(locus, leaderfn, debug=False):  # from https://www2.mrc-lmb.cam.ac.uk/vbase/alignments2.php
-    lgenes = collections.OrderedDict()
-    with open(leaderfn.replace('.fa', '.txt')) as wfile:
-        for line in wfile:
-            if len(line.strip()) == 0:
-                continue
-            if line.find('V%s'%locus[2].upper()) == 0:
-                refstr, n_ref_spaces = None, None
-                pv = line.split()[0]
-                assert pv[:2] == 'V%s'%locus[2].upper()
-                if debug:
-                    print '    pv: %s' % pv
-            elif line[:5] == 5 * ' ':
-                if debug:
-                    print '      skipping: %s' % line.strip()
-                continue
-            else:
-                lstrs = line.strip().split()
-                # if lstrs[0].count('-') != 1:  # this only works for ighv
-                #     print lstrs[0], lstrs[0].count('-')
-                #     raise Exception
-                # nstr = lstrs[0] #.split('-')
-                namestr = lstrs[0]
-                tstr = ''.join(lstrs[1:]).replace('/', '')  # not sure what the slash means?
-                print line
-                n_spaces = line.find(lstrs[1]) + 1  # len(line[line.find(' ') : line.find(lstrs[1])])  # ref line has this many spaces, so if any other lines have fewer than this, it means there's extra bases
-                if len(set(tstr) - alphabet - set('.')) != 0:
-                    raise Exception('unexpected chars %s in line\n%s' % (' '.join(set(tstr) - alphabet - set('.')), line))
-                if refstr is None:  # first line of this block, i.e. the reference to which the others are aligned
-                    refstr, n_ref_spaces = tstr, n_spaces
-                    gstr = refstr
-                else:
-                    extra_bases = ''
-                    if n_spaces != n_ref_spaces:
-                        extra_bases = ''.join(line[ : n_ref_spaces - 1].strip().split()[1:])
-                        tstr = line[n_ref_spaces - 1 : ].strip().replace(' ', '').replace('/', '')  # not sure what the slash means?
-                    if len(tstr) != len(refstr):
-                        print tstr
-                        print refstr
-                        raise Exception
-                    gstr = []
-                    for gc, rc in zip(tstr, refstr):
-                        gstr.append(rc if gc=='.' else gc)
-                    gstr = extra_bases + ''.join(gstr)
-                # gname = 'IGH%s%s' % (pv[0], nstr)
-                gname = 'IG%s%s' % (locus[2].upper(), namestr)
-                lgenes[gname] = gstr
-                if debug:
-                    print '      %s  %s' % (gname, gstr)
-
-    sfos = [{'name' : n, 'seq' : s} for n, s in lgenes.items()]
-
-    if debug:
-        align_many_seqs(sfos, debug=True)
-
-    write_fasta(leaderfn, sfos)
-
-    return lgenes
-
-# ----------------------------------------------------------------------------------------
-# NOTE should remove this eventually, it's just for old vbase seqs
 def parse_constant_regions(species, locus, annotation_list, workdir, debug=False):
     # ----------------------------------------------------------------------------------------
     def algncreg(tkey, n_min_seqs=5):
@@ -7013,11 +6952,9 @@ def parse_constant_regions(species, locus, annotation_list, workdir, debug=False
     def read_leaders():
         return read_fastx(leaderfn)
     # ----------------------------------------------------------------------------------------
-    lsrc = 'imgt' # 'vbase'
+    lsrc = 'imgt'
     leaderfn, cgfn = 'data/germlines/leaders/%s/%s/%s/%sv.fa' % (lsrc, species, locus, locus), 'data/germlines/constant/%s/%sc.fa'%(species, locus)
     tgtfos = collections.OrderedDict()
-    # this is for old vbase seqs (should remove this eventually): convert_weird_leader_text_alignment(locus, leaderfn)  # writes a .fa, which subsequently we use (i.e. run once if you update weird text files, and yes this should be set up differently but i need to switch to a different source anyway so this is temporary)
-
     for tkey, fn in zip(['leader', 'c_gene'], [leaderfn, cgfn]):
         tgtfos[tkey] = read_seqs(tkey, fn)
         algncreg(tkey)
