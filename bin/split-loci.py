@@ -215,7 +215,7 @@ if args.guess_pairing_info:
                 input_metafos[new_name] = input_metafos[ofo['name']]
                 del input_metafos[ofo['name']]
             ofo['name'] = new_name
-    guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separators, droplet_id_indices=args.droplet_id_indices)
+    guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separators, droplet_id_indices=args.droplet_id_indices) #, debug=2)
     for uid in set(guessed_metafos) & set(input_metafos):
         guessed_metafos[uid].update(input_metafos[uid])
     for uid, mfo in guessed_metafos.items():

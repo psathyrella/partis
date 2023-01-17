@@ -574,6 +574,7 @@ adaptive_headers = {
 # ----------------------------------------------------------------------------------------
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 forbidden_character_translations = string.maketrans(':;,', 'csm')
+warn_chars = set('()')
 ambig_translations = string.maketrans(''.join(all_ambiguous_bases), ambig_base * len(all_ambiguous_bases))
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
@@ -901,7 +902,7 @@ did_help = {
 # ----------------------------------------------------------------------------------------
 # did_seps: string consisting of characters with which to split (i.e. if '_.-' we'll split on all three of them)
 # did_indices: list of zero-based indices (using <did_seps>) of droplet id
-def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, debug=False):
+def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, return_colored=False, debug=False):
     auto_set = False
     if did_seps is None or did_indices is None:
         if did_seps is not None or did_indices is not None:
@@ -918,11 +919,13 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, debug=False
     if any(i > len(ulist) - 2 for i in did_indices):
         raise Exception('droplet id indices %s (out of %s) greater than len-1 (%d) of list %s after splitting by separators \'%s\' for uid \'%s\'' % ([i for i in did_indices if i > len(ulist) - 2], did_indices, len(ulist) - 1, ulist, did_seps, uid))
     did = did_seps[0].join(ulist[i] for i in did_indices)  # rejoin with just the first sep (if there was more than one), since doing otherwise would be complicated and i don't think it matters
-    cid = ulist[-1]  # just set the contig id to the last element, which is correct for [current] 10x data, and we don't care about it otherwise
+    cid = ulist[-1]  # just set the contig id to the last element, which is correct for [current] 10x data, and we don't care about it otherwise (NOTE if you change this, you'll have to update the return_colored stuff below)
     if debug:
         print '    droplet id separators%s: %s  indices: %s' % (' (set automatically)' if auto_set else '', did_seps, did_indices)
         print '       e.g. uid \'%s\' --> droplet id \'%s\' contig id \'%s\'' % (uid, did, cid)
-    if return_contigs:
+    if return_colored:
+        return did_seps[0].join(color('red' if i in did_indices else ('blue' if i==len(ulist)-1 else None), ulist[i]) for i, s in enumerate(ulist))
+    elif return_contigs:
         return did, cid  # NOTE returning cid as string (rather than int)
     else:
         return did
@@ -940,10 +943,10 @@ def is_correctly_paired(uid, pid):  # return true if <pid> is actually the corre
     return rmlocus(uid) == rmlocus(pid)  # true if everything except '-'+(any locus string) is the same
 
 # ----------------------------------------------------------------------------------------
-def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=None, input_metafname=None, droplet_id_fcn=get_droplet_id, debug=True):
+def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=None, input_metafname=None, debug=True):
     # ----------------------------------------------------------------------------------------
-    def did_fcn(uid, debug=False):  # shorthand that only requires uid
-        return droplet_id_fcn(uid, did_seps=droplet_id_separators, did_indices=droplet_id_indices, debug=debug)
+    def did_fcn(uid, return_colored=False, debug=False):  # shorthand that only requires uid
+        return get_droplet_id(uid, did_seps=droplet_id_separators, did_indices=droplet_id_indices, return_colored=return_colored, debug=debug)
     # ----------------------------------------------------------------------------------------
     droplet_ids = {}
     for sfo in seqfos:
@@ -982,6 +985,13 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
         if sfo['name'] in input_metafos:
             assert 'paired-uids' not in input_metafos[sfo['name']]  # don't want to adjudicate between alternative versions here
             metafos[sfo['name']].update(input_metafos[sfo['name']])
+
+    if debug > 1:
+        print '        did     N     uids'
+        max_len = max(len(u) for u in metafos)
+        dgpairs = [(did, list(dgroup)) for did, dgroup in get_droplet_groups(metafos.keys(), droplet_id_separators, droplet_id_indices)]
+        for did, dgroup in sorted(dgpairs, key=lambda x: len(x[1]), reverse=True):
+            print '      %5s   %3d   %s' % (did, len(dgroup), '   '.join([did_fcn(u, return_colored=True)+(max_len-len(u))*' ' for u in dgroup]))
 
     return metafos
 
@@ -6039,7 +6049,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
     iline = -1  # index of the query/seq that we're currently reading in the fasta
     n_fasta_queries = 0  # number of queries so far added to <finfo> (I guess I could just use len(finfo) at this point)
     missing_queries = set(queries) if queries is not None else None
-    already_printed_forbidden_character_warning = False
+    already_printed_forbidden_character_warning, already_printed_warn_char_warning = False, False
     with open(fname) as fastafile:
         startpos = None
         while True:
@@ -6105,9 +6115,14 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 uid = infostrs[0]
             if sanitize_uids and any(fc in uid for fc in forbidden_characters):
                 if not already_printed_forbidden_character_warning:
-                    print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand. You may also be able to fix it by setting --parse-fasta-info.' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in forbidden_characters]), uid, uid.translate(forbidden_character_translations))
+                    print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in forbidden_characters]), uid, uid.translate(forbidden_character_translations))
                     already_printed_forbidden_character_warning = True
                 uid = uid.translate(forbidden_character_translations)
+            if sanitize_uids and any(wc in uid for wc in warn_chars):
+                if not already_printed_warn_char_warning:
+                    print '  %s: found a character that may cause problems if doing phylogenetic inference (one of %s) in sequence id \'%s\' (only printing this warning on first occurence).' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in warn_chars]), uid)
+                    already_printed_warn_char_warning = True
+                sys.exit()
 
             if queries is not None:
                 if uid not in queries:
