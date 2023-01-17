@@ -6122,7 +6122,6 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 if not already_printed_warn_char_warning:
                     print '  %s: found a character that may cause problems if doing phylogenetic inference (one of %s) in sequence id \'%s\' (only printing this warning on first occurence).' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in warn_chars]), uid)
                     already_printed_warn_char_warning = True
-                sys.exit()
 
             if queries is not None:
                 if uid not in queries:
