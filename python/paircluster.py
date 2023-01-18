@@ -1224,9 +1224,9 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             old_pfcounts = [[old_pfams[pfkey(p)]['count'] for p in pids] for pids in old_pids]
             old_estrs = [lcstr(pids, pfcs, pfd) for pids, pfcs, pfd in zip(old_pids, old_pfcounts, old_pfids)]
             ulen, olen = [max(utils.len_excluding_colors(s) for s in slist) for slist in [cline['unique_ids'], old_estrs]]
-            print '       %scorrect     after       %s         pid(s)' % (utils.wfmt('uid', ulen, jfmt='-'), utils.wfmt('before', olen, jfmt='-'))
+            print '       %s%s     after       %s         pid(s)' % (utils.wfmt('uid', ulen, jfmt='-'), '' if args.is_data else 'correct', utils.wfmt('before', olen, jfmt='-'))
             for uid, pids, oldstr, newstr in zip(cline['unique_ids'], cline['paired-uids'], old_estrs, new_estrs):
-                print '      %s    %s      %s      %s       %s' % (utils.wfmt(uid, ulen), truestr(uid, pids), utils.color('blue', '-' if len(pids)==0 else '', width=6) if len(pids)!=1 else newstr, oldstr + (olen - utils.len_excluding_colors(oldstr))*' ', ' '.join(pids))
+                print '      %s    %s%s%s      %s       %s' % (utils.wfmt(uid, ulen), truestr(uid, pids), '' if args.is_data else '      ', utils.color('blue', '-' if len(pids)==0 else '', width=6) if len(pids)!=1 else newstr, oldstr + (olen - utils.len_excluding_colors(oldstr))*' ', ' '.join(pids))
             print ''
         # ----------------------------------------------------------------------------------------
         if debug:
@@ -1262,7 +1262,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         #     orig_pfams = get_pfamily_dict()
         for ltmp in sorted(cpaths):
             if debug:
-                print '%s starting pair cleaning' % utils.color('green', ltmp)
+                print '%s starting pair cleaning with partition info' % utils.color('green', ltmp)
             for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
                 ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster, remove_uncertain_pids=True)
         # NOTE i would think it would help to do this twice, only removing uncertain ones the second time (or, maybe better [faster], loop over uids in order of confidence that we'll get them correct)
