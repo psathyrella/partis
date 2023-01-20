@@ -198,8 +198,12 @@ class PartitionDriver(object):
         self.vs_info = None  # should already be None, but we want to make sure (if --no-sw-vsearch is set we need it to be None, and if we just removed unlikely alleles we need to rerun vsearch with the likely alleles)
         if not self.args.no_sw_vsearch:
             self.set_vsearch_info(get_annotations=True)
-        if self.args.all_seqs_simultaneous or self.args.simultaneous_true_clonal_seqs:
-            self.set_msa_info()
+        if self.args.simultaneous_true_clonal_seqs:  # it might be better to just copy over the true indel info in this case? it depends what you're trying to test, and honestly really if you're using this option you just shouldn't be putting indels in your simulation to start with
+            print '  note: not running msa indel stuff for --simultaneous-true-clonal-seqs, so any families with shm indels within cdr3 will be split up before running the hmm. To fix this you\'ll either need to run set_msa_info() (which is fine and easy, but slow, and requires deciding whether to make sure to run parameter caching with the arg, or else rerun smith waterman with the msa indels'
+        if self.args.all_seqs_simultaneous:
+            self.set_msa_info(debug=self.args.debug)
+            look_for_cachefile, require_cachefile = False, False
+            print '  note: ignoring any existing sw cache file to ensure we\'re getting msa indel info'  # the main use case for this is with 'annotate' or 'partition' on existing parameters that were run on the whole repertoire, so a) it shouldn't be a big deal to rerun and b) you probably don't want to run msa indel info when parameter caching. Also, it's not easy to figure out if msa indel info is in the sw cached file without first reading it
 
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
         waterer = Waterer(self.args, self.glfo, self.input_info, self.simglfo, self.reco_info,  # NOTE if we're reading a cache file, this glfo gets replaced with the glfo from the file
@@ -252,9 +256,9 @@ class PartitionDriver(object):
         self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, get_annotations=get_annotations, no_indels=self.args.no_indels)
 
     # ----------------------------------------------------------------------------------------
-    def set_msa_info(self, debug=False):
+    def set_msa_info(self, debug=False):  # NOTE not running this for args.simultaneous_true_clonal_seqs any more, but i'm leaving the stuff in here for that arg unless I change my mind later
         # ----------------------------------------------------------------------------------------
-        def run_msa(cluster):
+        def run_msa(cluster):  # NOTE that this is really slow, and could probably be sped up? But i don't really care, the only time you'd run on a lot of families is simulation with tons of indels, which just isn't an important use case
             unln_seqfos = [{'name' : q, 'seq' : self.input_info[q]['seqs'][0]} for q in cluster]  # ignore the indels that already cam from vsearch, combining them would be hard (and we want the rest of the vsearch info for other purposes)
             if self.args.simultaneous_true_clonal_seqs and len(set(len(s['seq']) for s in unln_seqfos)) == 1:  # if all the seqs are the same length, they almost certainly don't have shm indels
                 if debug:
@@ -276,7 +280,7 @@ class PartitionDriver(object):
             fglfo['seqs']['v'] = {'IGHVx-x*x' : indeld_cseq}  # it's not a real v gene, it extends through the whole (vdj) sequence, but i have to put something here, and i think this won't cause problems
             return utils.run_vsearch('search', {s['name'] : s['seq'] for s in unln_seqfos}, self.args.workdir + '/vsearch', threshold=0.3, glfo=fglfo, vsearch_binary=self.args.vsearch_binary, get_annotations=True)  # don't really need to align again, but this gets us the cigar seqs automatically, and i REALLY don't want to write anything more to do with cigars (i.e. converting aln_seqfos to cigars)
         # ----------------------------------------------------------------------------------------
-        print '  running maff+vsearch for msa indel info for --all-seqs-simultaneous/--simultaneous-true-clonal-seqs'
+        print '  running mafft+vsearch for msa indel info for --all-seqs-simultaneous/--simultaneous-true-clonal-seqs'
         if self.args.all_seqs_simultaneous:  # if you set both of these, that's your problem, it doesn't make sense anyway
             nsets = [[q for q in self.input_info]]  # maybe i should exclude any that failed sw, but otoh if you set all simultaneous, that means you want *all* simultaneous
         elif self.args.simultaneous_true_clonal_seqs:

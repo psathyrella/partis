@@ -271,8 +271,8 @@ def process(args):
     if args.n_simultaneous_seqs is not None and args.all_seqs_simultaneous:
         raise Exception('doesn\'t make sense to set both --n-simultaneous-seqs and --all-seqs-simultaneous.')
 
-    if args.no_indels or args.all_seqs_simultaneous or args.simultaneous_true_clonal_seqs:
-        print '  forcing --gap-open-penalty to %d to prevent indels, since --no-indels, --all-seqs-simultaneous, or --simultaneous-true-clonal-seqs were set (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty
+    if args.no_indels or args.all_seqs_simultaneous: # or args.simultaneous_true_clonal_seqs:
+        print '  forcing --gap-open-penalty to %d to prevent indels, since --no-indels or --all-seqs-simultaneous were set (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty  # for all_seqs_simultaneous, we run the msa indel stuff so don't also want sw indels
         args.gap_open_penalty = args.no_indel_gap_open_penalty
 
     if args.indel_frequency > 0.:
