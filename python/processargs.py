@@ -271,8 +271,8 @@ def process(args):
     if args.n_simultaneous_seqs is not None and args.all_seqs_simultaneous:
         raise Exception('doesn\'t make sense to set both --n-simultaneous-seqs and --all-seqs-simultaneous.')
 
-    if args.no_indels:
-        print 'forcing --gap-open-penalty to %d to prevent indels, since --no-indels was specified (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty
+    if args.no_indels or args.all_seqs_simultaneous or args.simultaneous_true_clonal_seqs:
+        print '  forcing --gap-open-penalty to %d to prevent indels, since --no-indels, --all-seqs-simultaneous, or --simultaneous-true-clonal-seqs were set (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty
         args.gap_open_penalty = args.no_indel_gap_open_penalty
 
     if args.indel_frequency > 0.:
@@ -352,7 +352,7 @@ def process(args):
         raise Exception('can\'t set --write-additional-cluster-annotations if --subcluster-annotation-size is also set (you get duplicate annotations, which confuses and crashes things)')
     if args.subcluster_annotation_size is not None and args.mimic_data_read_length:
         raise Exception('can\'t run subcluster annotations if --mimic-data-read-length is set, so need to set --subcluster-annotation-size to \'None\' (although this could be implemented/fixed)')
-    if args.action == 'view-alternative-annotations' and args.persistent_cachefname is None:  # handle existing old-style output
+    if args.action == 'view-alternative-annotations' and args.persistent_cachefname is None and not args.paired_loci:  # handle existing old-style output
         assert args.outfname is not None
         if os.path.exists(utils.getprefix(args.outfname) + '-hmm-cache.csv'):
             args.persistent_cachefname = utils.getprefix(args.outfname) + '-hmm-cache.csv'  # written by bcrham, so has to be csv, not yaml

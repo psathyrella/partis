@@ -35,7 +35,7 @@ class Waterer(object):
     """ Run smith-waterman on the query sequences in <infname> """
     def __init__(self, args, glfo, input_info, simglfo, reco_info,
                  count_parameters=False, parameter_out_dir=None, plot_annotation_performance=False,
-                 duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None, vs_info=None, locus=None):
+                 duplicates=None, pre_failed_queries=None, aligned_gl_seqs=None, vs_info=None, msa_vs_info=None, locus=None):
         self.args = args
         self.input_info = input_info if input_info is not None else OrderedDict()  # NOTE do *not* modify <input_info>, since it's this original input info from partitiondriver
         self.reco_info = reco_info
@@ -48,6 +48,7 @@ class Waterer(object):
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
         self.aligned_gl_seqs = aligned_gl_seqs
         self.vs_info = vs_info
+        self.msa_vs_info = msa_vs_info
 
         self.absolute_max_insertion_length = 120  # but if it's longer than this, we always skip the annotation
 
@@ -95,7 +96,7 @@ class Waterer(object):
         base_infname = 'query-seqs.fa'
         base_outfname = 'query-seqs.sam'
 
-        if self.vs_info is not None:  # if we're reading a cache file, we should make sure to read the exact same info from there
+        if self.vs_info is not None or self.msa_vs_info is not None:  # if we're reading a cache file, we should make sure to read the exact same info from there
             self.add_vs_indels()
 
         itry = 0
@@ -280,7 +281,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def add_vs_indels(self):
-        vsfo = self.vs_info['annotations']
+        vsfo = utils.non_none([self.msa_vs_info, self.vs_info])['annotations']  # use msa info if we have it (note that we still need the regular vs_info for the v genes)
         queries_with_indels = [q for q in self.remaining_queries if q in vsfo and indelutils.has_indels(vsfo[q]['indelfo'])]
         for query in queries_with_indels:
             self.vs_indels.add(query)  # this line is to tell us that this query has an indel stemming from vsearch, while the next line tells us that there's an indel (combine_indels() gets confused if we don't differentiate between the two)
@@ -288,7 +289,7 @@ class Waterer(object):
             # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
 
         if self.debug and len(queries_with_indels) > 0:
-            print '    added %d vsearch indel%s%s' % (len(queries_with_indels), utils.plural(len(queries_with_indels)), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else '')
+            print '    added %d %s indel%s%s' % (len(queries_with_indels), 'vsearch' if self.msa_vs_info is None else 'mafft msa', utils.plural(len(queries_with_indels)), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else '')
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):

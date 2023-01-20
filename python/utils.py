@@ -2083,6 +2083,7 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
     return msa_info['ref'], msa_info['new']
 
 # ----------------------------------------------------------------------------------------
+# darn it, maybe there was no reason to add this? I forgot that run_vsearch() seems to do basically the same thing? (although it would have needed some coding to use an arbitrary database)
 def run_blastn(queryfos, targetfos, baseworkdir, debug=True):
     wkdir = '%s/blastn' % baseworkdir
     tgn = 'targets'
@@ -6347,7 +6348,7 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
                     'd' : (matchfo['qrbounds'][1], matchfo['qrbounds'][1]),
                     'j' : (matchfo['qrbounds'][1], matchfo['qrbounds'][1]),
                 }
-                combined_indelfo = indelutils.combine_indels({'v' : v_indelfo}, seqdict[query], tmpbounds)
+                combined_indelfo = indelutils.combine_indels({'v' : v_indelfo}, seqdict[query], tmpbounds, debug=debug)
             annotations[query] = {
                 region + '_gene' : matchfo['gene'],  # only works for v now, though
                 'score' : matchfo['ids'],

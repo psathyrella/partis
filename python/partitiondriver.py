@@ -45,7 +45,7 @@ class PartitionDriver(object):
         utils.prep_dir(self.args.workdir)
         self.my_gldir = self.args.workdir + '/' + glutils.glfo_dir
 
-        self.vs_info, self.sw_info = None, None
+        self.vs_info, self.sw_info, self.msa_vs_info = None, None, None
         self.duplicates = {}
         self.bcrham_proc_info = None
         self.timing_info = []  # it would be really nice to clean up both this and bcrham_proc_info
@@ -198,13 +198,15 @@ class PartitionDriver(object):
         self.vs_info = None  # should already be None, but we want to make sure (if --no-sw-vsearch is set we need it to be None, and if we just removed unlikely alleles we need to rerun vsearch with the likely alleles)
         if not self.args.no_sw_vsearch:
             self.set_vsearch_info(get_annotations=True)
+        if self.args.all_seqs_simultaneous or self.args.simultaneous_true_clonal_seqs:
+            self.set_msa_info()
 
         pre_failed_queries = self.sw_info['failed-queries'] if self.sw_info is not None else None  # don't re-run on failed queries if this isn't the first sw run (i.e., if we're parameter caching)
         waterer = Waterer(self.args, self.glfo, self.input_info, self.simglfo, self.reco_info,  # NOTE if we're reading a cache file, this glfo gets replaced with the glfo from the file
                           count_parameters=count_parameters,
                           parameter_out_dir=self.sw_param_dir if write_parameters else None,
                           plot_annotation_performance=self.args.plot_annotation_performance,
-                          duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs, vs_info=self.vs_info)
+                          duplicates=self.duplicates, pre_failed_queries=pre_failed_queries, aligned_gl_seqs=self.aligned_gl_seqs, vs_info=self.vs_info, msa_vs_info=self.msa_vs_info)
 
         cache_path = self.sw_cache_path(find_any=require_cachefile)
         cachefname = cache_path + ('.yaml' if self.args.sw_cachefname is None else utils.getsuffix(self.args.sw_cachefname))  # use yaml, unless csv was explicitly set on the command line
@@ -248,6 +250,45 @@ class PartitionDriver(object):
     def set_vsearch_info(self, get_annotations=False):  # NOTE setting match:mismatch to optimized values from sw (i.e. 5:-4) results in much worse shm indel performance, so we leave it at the vsearch defaults ('2:-4')
         seqs = {sfo['unique_ids'][0] : sfo['seqs'][0] for sfo in self.input_info.values()}
         self.vs_info = utils.run_vsearch('search', seqs, self.args.workdir + '/vsearch', threshold=0.3, glfo=self.glfo, print_time=True, vsearch_binary=self.args.vsearch_binary, get_annotations=get_annotations, no_indels=self.args.no_indels)
+
+    # ----------------------------------------------------------------------------------------
+    def set_msa_info(self, debug=False):
+        # ----------------------------------------------------------------------------------------
+        def run_msa(cluster):
+            unln_seqfos = [{'name' : q, 'seq' : self.input_info[q]['seqs'][0]} for q in cluster]  # ignore the indels that already cam from vsearch, combining them would be hard (and we want the rest of the vsearch info for other purposes)
+            if self.args.simultaneous_true_clonal_seqs and len(set(len(s['seq']) for s in unln_seqfos)) == 1:  # if all the seqs are the same length, they almost certainly don't have shm indels
+                if debug:
+                    print '    all %d seqs the same length, skipping' % len(unln_seqfos)
+                return {'gene-counts' : None, 'annotations' : OrderedDict(), 'failures' : []}
+            aln_seqfos = utils.align_many_seqs(unln_seqfos, extra_str='        ', debug=debug)
+            cseq = utils.cons_seq(aligned_seqfos=aln_seqfos, extra_str='        ', debug=debug)
+            indeld_cseq = []  # cons seq where we remove any "indels" (well, gaps in the msa) that are present in less than half the seqs
+            for ich, cons_char in enumerate(cseq):
+                msa_chars = [s['seq'][ich] for s in aln_seqfos]
+                n_gap_chars = len([c for c in msa_chars if c in utils.gap_chars])
+                # print ''.join(msa_chars), n_gap_chars, len(msa_chars), cons_char if n_gap_chars <= len(msa_chars) / 2 else ''
+                if n_gap_chars <= len(msa_chars) / 2:  # if it's less than half gap chars, we want the cons char in indeld_cseq
+                    indeld_cseq.append(cons_char)
+            indeld_cseq = ''.join(indeld_cseq)
+            if debug:
+                print '    indeld cons seq: %s' % indeld_cseq
+            fglfo = glutils.get_empty_glfo(self.args.locus)
+            fglfo['seqs']['v'] = {'IGHVx-x*x' : indeld_cseq}  # it's not a real v gene, it extends through the whole (vdj) sequence, but i have to put something here, and i think this won't cause problems
+            return utils.run_vsearch('search', {s['name'] : s['seq'] for s in unln_seqfos}, self.args.workdir + '/vsearch', threshold=0.3, glfo=fglfo, vsearch_binary=self.args.vsearch_binary, get_annotations=True)  # don't really need to align again, but this gets us the cigar seqs automatically, and i REALLY don't want to write anything more to do with cigars (i.e. converting aln_seqfos to cigars)
+        # ----------------------------------------------------------------------------------------
+        print '  running maff+vsearch for msa indel info for --all-seqs-simultaneous/--simultaneous-true-clonal-seqs'
+        if self.args.all_seqs_simultaneous:  # if you set both of these, that's your problem, it doesn't make sense anyway
+            nsets = [[q for q in self.input_info]]  # maybe i should exclude any that failed sw, but otoh if you set all simultaneous, that means you want *all* simultaneous
+        elif self.args.simultaneous_true_clonal_seqs:
+            nsets = utils.get_partition_from_reco_info(self.reco_info)
+        else:
+            assert False
+        all_antns, all_failed_queries = OrderedDict(), []
+        for cluster in nsets:
+            cfo = run_msa(cluster)
+            all_antns.update(cfo['annotations'])
+            all_failed_queries += cfo['failures']
+        self.msa_vs_info = {'gene-counts' : None, 'annotations' : all_antns, 'failures' : all_failed_queries}
 
     # ----------------------------------------------------------------------------------------
     def cache_parameters(self):
@@ -388,10 +429,14 @@ class PartitionDriver(object):
         cluster_annotations, cpath = self.read_existing_output(ignore_args_dot_queries=True, read_partitions=True, read_annotations=True)  # note that even if we don't need the cpath to re-write output below, we need to set read_annotations=True, since the fcn gets confused otherwise and doesn't read the right cluster annotation file (for deprecated csv files)
 
         clusters_to_use = cpath.partitions[cpath.i_best] if self.args.queries is None else [self.args.queries]
+        n_skipped = 0
         for cluster in sorted(clusters_to_use, key=len, reverse=True):
-            if len(cluster) < 5:
+            if len(cluster) < self.args.min_selection_metric_cluster_size:
+                n_skipped += 1
                 continue
             self.process_alternative_annotations(cluster, cluster_annotations, cpath=cpath, debug=True)
+        if n_skipped > 0:
+            print '  skipped %d clusters smaller than --min-selection-metric-cluster-size %d' % (n_skipped, self.args.min_selection_metric_cluster_size)
 
         print '  note: rewriting output file with newly-calculated alternative annotation info'
         self.write_output(cluster_annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
@@ -1974,7 +2019,7 @@ class PartitionDriver(object):
                 nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)  # arg, have to split some clusters apart by cdr3, for rare cases where we call an shm indel in j within the cdr3
             elif self.args.all_seqs_simultaneous:  # everybody together
                 nsets = [qlist]
-                nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)  # arg, have to split some clusters apart by cdr3, for rare cases where we call an shm indel in j within the cdr3
+                nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)  # ok, this shouldn't happen any more (with msa_vs_info)
             elif self.args.n_simultaneous_seqs is not None:  # set number of simultaneous seqs
                 nlen = self.args.n_simultaneous_seqs  # shorthand
                 # nsets = [qlist[iq : min(iq + nlen, len(qlist))] for iq in range(0, len(qlist), nlen)]  # this way works fine, but it's hard to get right 'cause it's hard to understand 
