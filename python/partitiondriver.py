@@ -200,7 +200,7 @@ class PartitionDriver(object):
             self.set_vsearch_info(get_annotations=True)
         if self.args.simultaneous_true_clonal_seqs:  # it might be better to just copy over the true indel info in this case? it depends what you're trying to test, and honestly really if you're using this option you just shouldn't be putting indels in your simulation to start with
             print '  note: not running msa indel stuff for --simultaneous-true-clonal-seqs, so any families with shm indels within cdr3 will be split up before running the hmm. To fix this you\'ll either need to run set_msa_info() (which is fine and easy, but slow, and requires deciding whether to make sure to run parameter caching with the arg, or else rerun smith waterman with the msa indels'
-        if self.args.all_seqs_simultaneous and self.msa_vs_info is None:
+        if self.args.all_seqs_simultaneous and self.msa_vs_info is None:  # only run the first time we run sw
             self.set_msa_info(debug=self.args.debug)
             look_for_cachefile, require_cachefile = False, False
             print '  note: ignoring any existing sw cache file to ensure we\'re getting msa indel info'  # the main use case for this is with 'annotate' or 'partition' on existing parameters that were run on the whole repertoire, so a) it shouldn't be a big deal to rerun and b) you probably don't want to run msa indel info when parameter caching. Also, it's not easy to figure out if msa indel info is in the sw cached file without first reading it

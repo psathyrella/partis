@@ -462,6 +462,7 @@ class ClusterPath(object):
     # make tree for the single cluster in the last partition of <partitions> (which is in general *not* the last partition in self.partitions, since the calling function stops at self.i_best)
     def make_single_tree(self, partitions, annotations, uid_set, naive_seq_name, get_fasttrees=False, n_max_cons_seqs=10, debug=False):
         # NOTE don't call this externally -- if you want a single tree, call make_trees() with <i_only_cluster> set
+        # ----------------------------------------------------------------------------------------
         def getline(uidstr, uid_set=None):
             if uidstr == naive_seq_name:
                 assert False  # shouldn't actually happen (I think)
@@ -475,16 +476,18 @@ class ClusterPath(object):
                     # print uid_set, len(uid_set & set(line['unique_ids']))
                     if len(uid_set & set(line['unique_ids'])) > 0:  # just take the first one with any overlap. Yeah, it's not necessarily the best, but its naive sequence probably isn't that different, and for just getting the fasttree it reeeeeeaaaallly doesn't matter
                         return line
-            raise Exception('couldn\'t find uid %s in annotations' % uidstr)
+            raise Exception('couldn\'t find uid %s in annotations (this is likely because your partition history/cluster path doesn\'t maintain the same uids at each step, which for instance happens if you ran seed partitioning, in which case don\'t try to infer clusterpath trees)' % uidstr)
+        # ----------------------------------------------------------------------------------------
         def getseq(uid):
             if uid == naive_seq_name:
                 sorted_lines = sorted([l for l in annotations.values()], key=lambda l: len(l['unique_ids']), reverse=True)  # since we're making a tree, all the annotations are by definition clonal, so it doesn't really matter, but may as well get the naive sequence from the largest one
                 return sorted_lines[0]['naive_seq']
             else:
                 return utils.per_seq_val(getline(uid), 'seqs', uid)
+        # ----------------------------------------------------------------------------------------
         def lget(uid_list):
             return ':'.join(uid_list)
-
+        # ----------------------------------------------------------------------------------------
         # check for repeated uids (was only from seed uid, which shouldn't happen any more, but the code below throws an infinite loop if we do, so may as well be careful)
         for partition in partitions:
             if sum(len(c) for c in partition) > len(set(u for c in partition for u in c)):
