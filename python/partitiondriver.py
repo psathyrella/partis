@@ -465,7 +465,7 @@ class PartitionDriver(object):
             seed_uid = cpath.seed_unique_id
             n_to_print, ipart_center = None, None
             if self.args.partition_index_to_print is not None:
-                print '  --partition-index-to-print using non-default partition with index %d' % self.args.partition_index_to_print
+                print '  --partition-index-to-print: using non-default partition with index %d' % self.args.partition_index_to_print
                 n_to_print, ipart_center = 1, self.args.partition_index_to_print
             print '%s%s' % (extra_str, utils.color('green', 'partitions:'))
             cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info, highlight_cluster_indices=self.args.cluster_indices,
@@ -546,6 +546,18 @@ class PartitionDriver(object):
             raise Exception('unhandled annotation file suffix %s' % outfname)
 
         annotation_list = self.parse_existing_annotations(annotation_list, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')  # NOTE modifies <annotation_list>
+        if not self.args.only_print_best_partition and not self.args.only_print_seed_clusters and not self.args.only_print_queries_to_include_clusters:
+            print '  note: by default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set). If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters'
+        n_before = len(annotation_list)  # note that we don't handle --cluster-indices or --partition-indices-to-print here, it just seems like it'll be a bit fiddly
+        if self.args.only_print_best_partition and cpath is not None and cpath.i_best is not None:
+            annotation_list = [l for l in annotation_list if l['unique_ids'] in cpath.partitions[cpath.i_best]]
+        if self.args.only_print_seed_clusters or self.args.seed_unique_id is not None:
+            annotation_list = [l for l in annotation_list if self.args.seed_unique_id in l['unique_ids']]
+        if self.args.only_print_queries_to_include_clusters:
+            annotation_list = [l for l in annotation_list if len(set(self.args.queries_to_include) & set(l['unique_ids'])) > 0]  # will barf if you don't tell us what queries to include, but then that's your fault isn't it
+        if self.args.only_print_best_partition or self.args.only_print_seed_clusters or self.args.only_print_queries_to_include_clusters:
+            astr = ', '.join('--only-print-'+s for s in ['best-partition', 'seed-clusters', 'queries-to-include-clusters'] if getattr(self.args, ('only-print-'+s).replace('-', '_')))
+            print '  %s: restricting to %d/%d annotations' % (astr, len(annotation_list), n_before)
         if len(annotation_list) == 0:
             if cpath is not None and tmpact in ['view-output', 'view-annotations', 'view-partitions']:
                 self.print_results(cpath, [])  # used to just return, but now i want to at least see the cpath
