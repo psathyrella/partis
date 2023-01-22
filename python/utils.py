@@ -2084,7 +2084,7 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 
 # ----------------------------------------------------------------------------------------
 # darn it, maybe there was no reason to add this? I forgot that run_vsearch() seems to do basically the same thing? (although it would have needed some coding to use an arbitrary database)
-def run_blastn(queryfos, targetfos, baseworkdir, debug=True):
+def run_blastn(queryfos, targetfos, baseworkdir, short=False, debug=True):  # if short isn't set, it seems to ignore matches less than like 10 bases
     wkdir = '%s/blastn' % baseworkdir
     tgn = 'targets'
     tgfn, qrfn, ofn = [('%s/%s'%(wkdir, fstr)) for fstr in ['%s.fa'%tgn, 'queries.fa', 'results.out']]
@@ -2094,7 +2094,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, debug=True):
     if debug > 1:
         print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
     _ = simplerun('makeblastdb -in %s -out %s/%s -dbtype nucl -parse_seqids' % (tgfn, wkdir, tgn), return_out_err=True, debug=False)
-    _ = simplerun('blastn -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
+    _ = simplerun('blastn%s -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (' -task blastn-short' if short else '', wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
     best_matches = collections.OrderedDict()
     if debug > 1:
         print '             % id     len    n gaps    target            query'
@@ -6908,7 +6908,9 @@ def parse_constant_regions(species, locus, annotation_list, workdir, debug=False
                 print '            too few seqs'
                 continue
             qfos = [{'name' : u, 'seq' : s} for l in vgalist for u, s in zip(l['unique_ids'], l['%s_seqs'%tkey])]  # it might be easier to do each annotation separately, but this way i can control parallelization better and there's less overhead
-            best_matches, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug)
+            best_matches, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug)  # , short=True
+            if len(best_matches) == 0:
+                print '    %s no %s matches from %d targets' % (wrnstr(), tkey, len(tgtfos[tkey]))
             qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [qfos, tgtfos[tkey]]]  # should really check for duplicates
             for itg, (tgt, mfos) in enumerate(mstats):  # loop over each target seq and the sequences for whom it was a best match
                 print '      %s  %d' % (color('blue', tgt), len(mfos))
