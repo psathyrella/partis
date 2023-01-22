@@ -47,6 +47,8 @@ class AlleleFinder(object):
         self.n_bases_to_exclude = {'5p' : {}, '3p' : {}}  # i.e. on all the seqs we keep, we exclude this many bases; and any sequences that have larger deletions than this are not kept
         self.genes_to_exclude = set()  # genes that, with the above restrictions, are entirely excluded
 
+        self.n_max_queries = 100000  # the few times i've run on samples with like a million seqs, it starts kicking a lot of extra novel alleles that are clearly spurious, so for now just subsample down to 100k, which is plenty for decent germline inference
+
         self.max_fit_length = 10
 
         self.hard_code_five = 5
@@ -992,6 +994,9 @@ class AlleleFinder(object):
         # first prepare some things, and increment for each chosen query
         self.set_excluded_bases(swfo, debug=debug)
         queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
+        if len(queries_to_use) > self.n_max_queries:
+            print '  note: subsampling %d queries down to %d before finding alleles (yes this is a hack, it would be better to fix the issues with false positives on super large samples, but this is also fine for now)' % (len(queries_to_use), self.n_max_queries)
+            queries_to_use = numpy.random.choice(queries_to_use, size=self.n_max_queries)
         if len(queries_to_use) == 0:
             print '  no queries for allele finding'  # NOTE don't return here -- there's some stuff below that should happen
 
