@@ -22,7 +22,7 @@ If a `--plotdir` is specified during parameter caching (whether run automaticall
 Since partitioning has not yet occurred, however, these are all based on single-sequence annotations (rather than full-family, multi-sequence annotations), so they are not usually the best choice for final analysis (for instance, rearrangement-level parameters such as v gene choice will be counted once for each sequence in the family, rather than, as is proper, once for the whole family).
 If both `--plotdir <plotdir>` and `--count-parameters` are both set when partitioning, then both parameter plots corresponding to the full multi-sequence annotations, and partitioning/cluster plots will both be written.
 These multi-sequence parameter plots will go in the `multi-hmm/` subdir.
-Examples can be found in `docs/example/plots/multi-hmm/` (open html files with a browser), but here we describe the structure and show example screenshots.
+Examples can be found in `docs/example-plots/multi-hmm/` (open html files with a browser), but here we describe the structure and show example screenshots.
 A summary of rearrangement-level parameters are shown in `docs/example-plots/multi-hmm/overall.html`:
 
 ![rearrangement-overall](images/rearrangement-overall.png)
@@ -46,30 +46,43 @@ and also per-gene, per-position, per-base mutation (e.g. showing the different r
 #### partition plots
 
 Plots for the partition action are written to the subdir `partitions/`, with the most important ones displayed in `docs/example-plots/partitions/overview.html`, the top of which is screenshotted here:
-This includes 
 
 ![partitions-overview](images/partition-overview.png)
 
 At the top are links to subdirs/html files with all the plots.
-At top left is a plot with a colored blob/slug for each clonal family (sorted by size) whose extent along the x direction shows the distribution of number of SHMs within that family.
-The (zero-indexed) family rank and size are shown along the right side.
-Note that the three colors (green, blue, and yellow) have no separate significance, and are used only to visually distinguish adjacent slugs.
-This particular plot also shows the result of setting some sequences of interest using `--queries-to-include a:b:z` (or `--queries-to-include-fname`), such that sequences labeled a, b, and z will be highlighted in red.
-A typical use case for this option is if you have made several previous `seed-partition` runs (with e.g. `--seed-unique-id a`), and you want to see how the families of the seed sequences fit into the larger repertoire.
-Only the first of these slug plots (with the biggest clusters) is shown in `overview.html` -- the rest are in the `partitions/shm-vs-size/` subdirectory.
-<!-- At the top are (e.g. the summary html only has the first few slug plots, but the rest are at the "size-vs-shm" link). -->
 
+At top left are several "slug" plots with a colored blob/slug for each clonal family:
 
 ![partitions-overview](images/slugs.png)
+
+They are sorted by size, and each slug's extent along the x direction shows the distribution of number of SHMs within that family (i.e. it's basically a histogram of shm).
+The (zero-indexed) family rank and size are shown along the right side.
+By default, the slugs cycle through three colors (green, blue, and yellow) which don't have any separate significance, and are used only to visually distinguish adjacent slugs.
+Here, though, we've set `--meta-info-key-to-color has_shm_indels`, so seqs with indels are a different color to those without (this arg can be set to any per-seq key).
+This plot also shows the result of setting some sequences of interest using `--queries-to-include a:b:z` (or `--queries-to-include-fname`), such that sequences labeled a, b, and z are highlighted in red (if set, `--seed-unique-id` would also be highlighted).
+A typical use case for this option is if you have made several previous `seed-partition` runs (with e.g. `--seed-unique-id a`), and you want to see how the families of the seed sequences fit into the larger repertoire.
+Only the first of these slug plots (with the biggest clusters) is shown in `overview.html` -- the rest are in the `partitions/shm-vs-size/` subdirectory.
+
+Next there are some cluster size histograms, again colored by shm indel status, which here indicates the fraction of families within each cluster size bin that had/didn't have shm indels (e.g. the largest bin, of clusters around size 65, is ~11% seqs with indels):
+
 ![partitions-overview](images/cluster-size.png)
+
+Below that are scatter plots with the mean number of SHMs vs size for all families in both linear and log scales (each family is a point).
+Next are "pairwise diversity" plots in nucleotide and amino acid versions:
+
 ![partitions-overview](images/diversity.png)
+
+This is a scatter plot with each point a family colored by its mean SHM, plotting the family's mean pairwise distance on x vs family size on y.
+Next is a "bubble" plot with a bubble (colored as a pie chart for seqs with/without indels) for each family larger than 2, with smaller families smushed together into a single bubble:
+
 ![partitions-overview](images/bubbles.png)
+
+And, finally, we have trees, inferred as specified elsewhere, here still colored for indels and highlighting the `--queries-to-include`:
+
 ![partitions-overview](images/tree.png)
-![partitions-overview](images/)
 
-
-The middle two plots in the top row show the mean number of SHMs vs size for all the families in both linear and log scales.
-At top right is the distribution of cluster sizes.
+The selection of plots is controlled by `--partition-plot-cfg`, for instance if you only wanted tree and bubble plots, you'd set this to `tree:bubble`.
+Other options not turned on by default (see below) include mds, laplacian-spectra, sfs, and subtree-purity. 
 
 ###### MDS plots
 If you have R and bios2mds installed as described [here](install.md#mds-plotting), you can also make "multi-dimensional scaling" (MDS, a form of dimensionality reduction) plots for each clonal family, where each sequence in each family is a point on that family's plot.

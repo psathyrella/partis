@@ -732,9 +732,10 @@ class PartitionPlotter(object):
                                              label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, node_label_regex=self.args.node_label_regex)
             cmdfos.append(cfo)
             self.addfname(fnames, plotname)
-            self.addfname(fnames, '%s-legend'%plotname)
+            if self.args.meta_info_key_to_color is not None:
+                self.addfname(fnames, '%s-legend'%plotname)
 
-            # cdr3 plosition info plots
+            # cdr3 position info plots
             if annotation.get('is_fake_paired', False):
                 self.plotting.plot_legend_only(collections.OrderedDict([('%s %s'%(c, cfo), {'color' : 'blue' if c=='h' else 'green'}) for c, cfo in cdr3fo.items()]), plotdir, '%s-cdr3'%plotname, title='CDR3')
                 self.addfname(fnames, '%s-cdr3'%plotname)
