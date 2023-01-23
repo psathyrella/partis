@@ -45,17 +45,29 @@ and also per-gene, per-position, per-base mutation (e.g. showing the different r
 
 #### partition plots
 
-Plots for the partition action are written to the subdir `partitions/`, with the most important ones displayed in `docs/example-plots/partitions/overview.html`:
+Plots for the partition action are written to the subdir `partitions/`, with the most important ones displayed in `docs/example-plots/partitions/overview.html`, the top of which is screenshotted here:
+This includes 
 
-![partitions-overview](images/partitions-overview.png)
+![partitions-overview](images/partition-overview.png)
 
-The top row shows several ways to summarize the clusters in the repertoire.
+At the top are links to subdirs/html files with all the plots.
 At top left is a plot with a colored blob/slug for each clonal family (sorted by size) whose extent along the x direction shows the distribution of number of SHMs within that family.
 The (zero-indexed) family rank and size are shown along the right side.
 Note that the three colors (green, blue, and yellow) have no separate significance, and are used only to visually distinguish adjacent slugs.
 This particular plot also shows the result of setting some sequences of interest using `--queries-to-include a:b:z` (or `--queries-to-include-fname`), such that sequences labeled a, b, and z will be highlighted in red.
 A typical use case for this option is if you have made several previous `seed-partition` runs (with e.g. `--seed-unique-id a`), and you want to see how the families of the seed sequences fit into the larger repertoire.
 Only the first of these slug plots (with the biggest clusters) is shown in `overview.html` -- the rest are in the `partitions/shm-vs-size/` subdirectory.
+<!-- At the top are (e.g. the summary html only has the first few slug plots, but the rest are at the "size-vs-shm" link). -->
+
+
+![partitions-overview](images/slugs.png)
+![partitions-overview](images/cluster-size.png)
+![partitions-overview](images/diversity.png)
+![partitions-overview](images/bubbles.png)
+![partitions-overview](images/tree.png)
+![partitions-overview](images/)
+
+
 The middle two plots in the top row show the mean number of SHMs vs size for all the families in both linear and log scales.
 At top right is the distribution of cluster sizes.
 
