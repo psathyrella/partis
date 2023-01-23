@@ -259,28 +259,13 @@ class ClusterPath(object):
         csstr += ' (+%d)' % len([c for c in sorted_clusters if len(c)==1])
         print '   %s%s' % (csstr, ' '*(max_sizestr_len - utils.len_excluding_colors(csstr))),
         for iclust in range(len(sorted_clusters)):
-            cluster = sorted_clusters[iclust]
-            if n_total_seqs > 100:
-                cluster_str = ''
-            elif abbreviate:
-                cluster_str = ':'.join(['o' if len(uid) > 3 else uid for uid in cluster])
-            else:
-                # cluster_str = ':'.join(sorted([str(uid) for uid in cluster]))
-                cluster_str = ':'.join([str(uid) for uid in cluster])
-
-            if reco_info is not None and not utils.from_same_event(reco_info, cluster):
-                cluster_str = utils.color('red', cluster_str)
-
-            if self.seed_unique_id is not None and self.seed_unique_id in cluster:
-                cluster_str = utils.color('reverse_video', cluster_str)
-
-            if highlight_cluster_indices is not None and iclust in highlight_cluster_indices:
-                cluster_str = utils.color('red', cluster_str)
-            
-            if abbreviate:
-                print ' %s' % cluster_str,
-            else:
-                print '   %s' % cluster_str,
+            tclust = sorted_clusters[iclust]
+            cstr = ''
+            if n_total_seqs < 100:
+                def ustr(u): return 'o' if len(u) > 3 and abbreviate else str(u)
+                cstr = ':'.join(ustr(u) for u in tclust)
+            cstr = ccol(tclust, cstr, iclust)
+            print ' %s%s' % ('' if abbreviate else '  ', cstr),
         print '%s' % right_extrastr,
         print ''
 
