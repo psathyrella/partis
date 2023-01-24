@@ -55,25 +55,25 @@ At top left are several "slug" plots with a colored blob/slug for each clonal fa
 
 ![partitions-overview](images/slugs.png)
 
-They are sorted by size, and each slug's extent along the x direction shows the distribution of number of SHMs within that family (i.e. it's basically a histogram of shm).
+They are sorted by size, and each slug's extent along the x direction shows the distribution of number of SHMs within that family (i.e. it's basically a histogram of SHM).
 The (zero-indexed) family rank and size are shown along the right side.
 By default, the slugs cycle through three colors (green, blue, and yellow) which don't have any separate significance, and are used only to visually distinguish adjacent slugs.
 Here, though, we've set `--meta-info-key-to-color has_shm_indels`, so seqs with indels are a different color to those without (this arg can be set to any per-seq key).
 This plot also shows the result of setting some sequences of interest using `--queries-to-include a:b:z` (or `--queries-to-include-fname`), such that sequences labeled a, b, and z are highlighted in red (if set, `--seed-unique-id` would also be highlighted).
 A typical use case for this option is if you have made several previous `seed-partition` runs (with e.g. `--seed-unique-id a`), and you want to see how the families of the seed sequences fit into the larger repertoire.
-Only the first of these slug plots (with the biggest clusters) is shown in `overview.html` -- the rest are in the `partitions/shm-vs-size/` subdirectory.
+Only the first few of these slug plots (with the biggest clusters) is shown in `overview.html` -- the rest are in the `partitions/shm-vs-size/` subdirectory (and shown in html summary file `partitions/shm-vs-size.html`).
 
 Next there are some cluster size histograms, again colored by shm indel status, which here indicates the fraction of families within each cluster size bin that had/didn't have shm indels (e.g. the largest bin, of clusters around size 65, is ~11% seqs with indels):
 
 ![partitions-overview](images/cluster-size.png)
 
 Below that are scatter plots with the mean number of SHMs vs size for all families in both linear and log scales (each family is a point).
-Next are "pairwise diversity" plots in nucleotide and amino acid versions:
+Next are "pairwise diversity" plots (nucleotide version shown here, amino acid version in html):
 
 ![partitions-overview](images/diversity.png)
 
 This is a scatter plot with each point a family colored by its mean SHM, plotting the family's mean pairwise distance on x vs family size on y.
-Next is a "bubble" plot with a bubble (colored as a pie chart for seqs with/without indels) for each family larger than 2, with smaller families smushed together into a single bubble:
+Next is a "bubble" plot with a bubble (colored as a pie chart for seqs with/without indels) for each family larger than 2, with smaller families smushed together into a single bubble (the largest few families have their size printed near the center):
 
 ![partitions-overview](images/bubbles.png)
 
@@ -114,7 +114,7 @@ R CMD INSTALL -l packages/RPANDA/lib packages/RPANDA/
 ###### extra color/emphasis
 
 There are several ways to add additional coloring and emphasis to the partition plots.
-You can separate different values of a variable with different colors using `--meta-info-key-to-color`, for instance giving different timepoints different colors with `--meta-info-key-to-color timepoints`.
+You can separate different values of a variable with different colors using `--meta-info-key-to-color`, for instance giving different timepoints different colors with `--meta-info-key-to-color timepoints` (if you've added [timepoint meta info](#input-meta-info)).
 You can also use `--meta-info-to-emphasize` to highlight sequences with particular values of a variable (similar to `--queries-to-include`), for instance with a particular number of mutations `n_mutations,N`.
 For instance here we've colored samples by timepoint, and highlighted sequences from a paired sample (to the latter of which we added an input meta info key `paired` set to `True`, and used `--meta-info-to-emphasize paireds,True`):
 
@@ -123,7 +123,10 @@ For instance here we've colored samples by timepoint, and highlighted sequences 
 Some details and formatting can be further modified with `--meta-emph-formats` (see `partis partition --help` for details).
 
 #### selection metric plots
-<!-- TODO -->
+
+If `--plotdir` is set when getting selection metrics, a variety of plots are written, also summarized in an html (example in `docs/example-plots/tree-metrics/overview.html`).
+The particular selection metrics to calculate are specified with `--selection-metrics-to-calculate`, and the plots to make are set with `--selection-metric-plot-cfg`; for instance `--selection-metrics-to-calculate lbi --selection-metric-plot-cfg lb-vs-affy:slice:joy:lb-vs-daffy:lb-scatter:tree` would make the same selection of plots as by default, but only for lbi.
+We won't describe the plots in detail here, but most of them are described in the selection metric paper, please feel free to email for any details.
 
 #### germline inference plots
 
