@@ -64,6 +64,8 @@ class PartitionDriver(object):
         self.hmm_outfname = self.args.workdir + '/hmm_output.csv'
         self.cpath_progress_dir = '%s/cluster-path-progress' % self.args.workdir  # write the cluster paths for each clustering step to separate files in this dir
 
+        self.print_status = self.args.debug  # if set, print some extra info (e.g. hmm calculation stats) that we used to print by default, but don't want to any more
+
         if self.args.outfname is not None:
             utils.prep_dir(dirname=None, fname=self.args.outfname, allow_other_files=True)
 
@@ -617,7 +619,7 @@ class PartitionDriver(object):
 
         # pre-cache hmm naive seq for each single query NOTE <self.current_action> is still 'partition' for this (so that we build the correct bcrham command line)
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
-            print 'caching all %d naive sequences' % len(self.sw_info['queries'])  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
+            print '%scaching all %d naive sequences%s' % ('' if self.print_status else '  ', len(self.sw_info['queries']), '\n' if self.print_status else ''),  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
             if self.args.synthetic_distance_based_partition:
                 self.write_fake_cache_file([[q] for q in self.sw_info['queries']])
             else:
@@ -873,7 +875,7 @@ class PartitionDriver(object):
             if n_procs > len(cpath.bmx()):
                 print '  reducing n procs to number of clusters: %d --> %d' % (n_procs, len(cpath.bmx()))
                 n_procs = len(cpath.bmx())
-            print '%d clusters with %d proc%s' % (len(cpath.bmx()), n_procs, utils.plural(n_procs))  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
+            print '%s%d clusters with %d proc%s%s' % ('' if self.print_status else '  ', len(cpath.bmx()), n_procs, utils.plural(n_procs), '\n' if self.print_status else ''),  # NOTE that a.t.m. i_best and i_best_minus_x are usually the same, since we're usually not calculating log probs of partitions (well, we're trying to avoid calculating any extra log probs, which means we usually don't know the log prob of the entire partition)
             cpath, _, _ = self.run_hmm('forward', self.sub_param_dir, n_procs=n_procs, partition=cpath.bmx(), shuffle_input=True)  # note that this annihilates the old <cpath>, which is a memory optimization (but we write all of them to the cpath progress dir)
             self.n_proc_list.append(n_procs)
             if self.are_we_finished_clustering(n_procs, cpath):
@@ -887,7 +889,7 @@ class PartitionDriver(object):
 
         cpath = self.merge_cpaths_from_previous_steps(cpath)
 
-        print '      loop time: %.1f' % (time.time()-start)
+        print '      partition loop time: %.1f' % (time.time()-start)
         return cpath
 
     # ----------------------------------------------------------------------------------------
@@ -1106,7 +1108,8 @@ class PartitionDriver(object):
                 return ''
         # ----------------------------------------------------------------------------------------
         if self.cached_naive_hamming_bounds is not None:  # only run the stuff below once
-            print '      %s naive hfrac bounds: %.3f %.3f' % (dbgstr(), self.cached_naive_hamming_bounds[0], self.cached_naive_hamming_bounds[1])
+            if self.print_status:
+                print '      %s naive hfrac bounds: %.3f %.3f' % (dbgstr(), self.cached_naive_hamming_bounds[0], self.cached_naive_hamming_bounds[1])
             return self.cached_naive_hamming_bounds
 
         # this is a bit weird and messy because i just split out the guts into a fcn in utils (long after writing it), and i don't want to fiddle with this too much
@@ -1117,7 +1120,8 @@ class PartitionDriver(object):
         else:  # these are a bit larger than the tight ones and should almost never merge non-clonal sequences, i.e. they're appropriate for naive hamming preclustering if you're going to run the full likelihood on nearby sequences
             pmethod = 'likelihood'
         self.cached_naive_hamming_bounds = utils.get_naive_hamming_bounds(pmethod, parameter_dir=parameter_dir)
-        print '      %s setting naive hfrac bounds: %.3f %.3f' % (dbgstr(), self.cached_naive_hamming_bounds[0], self.cached_naive_hamming_bounds[1])
+        if self.print_status:
+            print '      %s setting naive hfrac bounds: %.3f %.3f' % (dbgstr(), self.cached_naive_hamming_bounds[0], self.cached_naive_hamming_bounds[1])
         return self.cached_naive_hamming_bounds
 
     # ----------------------------------------------------------------------------------------
@@ -1195,21 +1199,26 @@ class PartitionDriver(object):
             return
         actionstr = self.current_action if self.current_action != 'cache-parameters' else 'annotate'
         summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info, action=actionstr)
+        if not self.print_status:
+            return
 
+        dbgstr = []
         pwidth = str(len(str(len(self.input_info))))  # close enough
         if 'read-cache' in utils.bcrham_dbgstrs[actionstr]:
             if sum(summaryfo['read-cache'].values()) == 0:
-                print '                no/empty cache file'
+                dbgstr.append('                no/empty cache file')
             else:
-                print ('          read from cache:  naive-seqs %' + pwidth + 'd   logprobs %' + pwidth + 'd') % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs'])
-        print ('                    calcd:         vtb %' + pwidth + 'd        fwd %' + pwidth + 'd') % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd'])
+                dbgstr.append(('          read from cache:  naive-seqs %' + pwidth + 'd   logprobs %' + pwidth + 'd') % (summaryfo['read-cache']['naive-seqs'], summaryfo['read-cache']['logprobs']))
+        dbgstr.append(('                    calcd:         vtb %' + pwidth + 'd        fwd %' + pwidth + 'd') % (summaryfo['calcd']['vtb'], summaryfo['calcd']['fwd']))
         if 'merged' in utils.bcrham_dbgstrs[actionstr]:
-            print ('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio'])
+            dbgstr.append(('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio']))
 
         if len(self.bcrham_proc_info) == 1:
-            print '                     time:  %.1f sec' % summaryfo['time']['bcrham'][0]
+            dbgstr.append('                     time:  %.1f sec' % summaryfo['time']['bcrham'][0])
         else:
-            print '             min-max time:  %.1f - %.1f sec' % (summaryfo['time']['bcrham'][0], summaryfo['time']['bcrham'][1])
+            dbgstr.append('             min-max time:  %.1f - %.1f sec' % (summaryfo['time']['bcrham'][0], summaryfo['time']['bcrham'][1]))
+        dbgstr = '\n'.join(dbgstr)
+        print dbgstr
 
     # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
@@ -1230,7 +1239,8 @@ class PartitionDriver(object):
                     strlist[istr] = strlist[istr].replace(self.args.workdir, self.subworkdir(iproc, n_procs))
             return ' '.join(strlist)
 
-        print '    running %d proc%s' % (n_procs, utils.plural(n_procs))
+        if self.print_status:
+            print '    running %d proc%s' % (n_procs, utils.plural(n_procs))
         sys.stdout.flush()
         start = time.time()
 
@@ -1341,7 +1351,7 @@ class PartitionDriver(object):
         subcluster_hash_seqs = {}  # all hash-named naive seqs, i.e. that we only made as intermediate steps, but don't care about afterwards (we keep track here just so we can remove them from input sw, and reco info afterwards)
 
         istep = 0
-        print '  subcluster annotating %d cluster%s: %s' % (len(init_partition), utils.plural(len(init_partition)), '' if not debug else ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in init_partition))
+        print '  subcluster annotating %d cluster%s%s: %s%s' % (len(init_partition), utils.plural(len(init_partition)), '' if self.print_status else ' with steps', '' if not debug else ' '.join(utils.color('blue' if self.subcl_split(len(c)) else None, str(len(c))) for c in init_partition), '\n' if self.print_status else ''),
         sys.stdout.flush()
         clusters_still_to_do = [copy.deepcopy(c) for c in init_partition]
         subd_clusters = {}  # keeps track of all the extra info for clusters that we actually had to subcluster: for each such cluster, stores a list where each entry is the subclusters for that round (i.e. the first entry has subclusters composed of the actual seqs in the cluster, and after that it's intermediate naives/hashid seqs)
@@ -1427,7 +1437,8 @@ class PartitionDriver(object):
                 clusters_still_to_do.remove(sclust)
                 del subd_clusters[uidstr]
                 n_sub_finished += 1
-            print '    read %d new subcluster annotation%s: added hashid %d   whole finished %d   subcl finished %d' % (len(step_antns), utils.plural(len(step_antns)), n_hashed, n_whole_finished, n_sub_finished)
+            if self.print_status:
+                print '    read %d new subcluster annotation%s: added hashid %d   whole finished %d   subcl finished %d' % (len(step_antns), utils.plural(len(step_antns)), n_hashed, n_whole_finished, n_sub_finished)
             istep += 1
 
         for uid in subcluster_hash_seqs:
@@ -1441,7 +1452,7 @@ class PartitionDriver(object):
             print '    --calculate-alternative-annotations: adding annotations for initial subcluster annotation step (each with size ~%d)' % self.args.subcluster_annotation_size
             annotation_list += [l for l in final_annotations.values() if l not in annotation_list]
         self.process_annotation_output(annotation_list, all_hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=self.args.debug and not dont_print_annotations)
-        print '    subcluster annotation time %.1f' % (time.time() - subc_start)
+        print '%s    subcluster annotation time %.1f' % ('' if self.print_status else '\n', time.time() - subc_start)
 
         return None, OrderedDict([(skey(l['unique_ids']), l) for l in annotation_list]), all_hmm_failures
 
@@ -1496,9 +1507,13 @@ class PartitionDriver(object):
             os.remove(self.hmm_infname)
 
         step_time = time.time() - start
-        if step_time - exec_time > 0.1:
-            print '         infra time: %.1f' % (step_time - exec_time)  # i.e. time for non-executing, infrastructure time
-        print '      hmm step time: %.1f' % step_time
+        if self.print_status:
+            if step_time - exec_time > 0.1:
+                print '         infra time: %.1f' % (step_time - exec_time)  # i.e. time for non-executing, infrastructure time
+            print '      hmm step time: %.1f' % step_time
+        else:
+            print '(%.1fs)%s' % (step_time, '' if is_subcluster_recursed else '\n'),
+            sys.stdout.flush()
         self.timing_info.append({'exec' : exec_time, 'total' : step_time})  # NOTE in general, includes pre-cache step
 
         return cpath, annotations, hmm_failures
@@ -1806,7 +1821,7 @@ class PartitionDriver(object):
         if outfile is not None:
             outfile.close()
         if not one_real_file:
-            print '    nothing to merge into %s' % outfname
+            # print '    nothing to merge into %s' % outfname
             return
 
         assert header != ''
@@ -1819,7 +1834,8 @@ class PartitionDriver(object):
         try:
             check_call(cmd, shell=True)
         except CalledProcessError:
-            print '    nothing to merge into %s' % outfname
+            pass
+            # print '    nothing to merge into %s' % outfname
             # raise Exception('only read headers from %s', ' '.join([fn for fn in infnames if fn != outfname]))
 
         if dereplicate:
@@ -2249,7 +2265,8 @@ class PartitionDriver(object):
                 line[bound+'_insertion'] = ''
             return False
         # ----------------------------------------------------------------------------------------
-        print '    reading output'
+        if self.print_status or not is_subcluster_recursed:
+            print '    reading output'
         sys.stdout.flush()
 
         counts = {n : 0 for n in ['n_lines_read', 'n_seqs_processed', 'n_events_processed', 'n_invalid_events']}
@@ -2312,18 +2329,19 @@ class PartitionDriver(object):
 
         os.remove(annotation_fname)
 
-        print '        read %d hmm output lines with %d sequences in %d events  (%d failures)' % (counts['n_lines_read'], counts['n_seqs_processed'], counts['n_events_processed'], len(hmm_failures))
-        if counts['n_invalid_events'] > 0:
-            print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), counts['n_invalid_events'])
-        for ecode in errorfo:
-            if ecode == 'no_path':
-                print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
-            elif ecode == 'boundary':
-                print '          %d boundary warnings' % len(errorfo[ecode])
-                if self.args.debug:
-                    print '                %s' % ' '.join(errorfo[ecode])
-            else:
-                print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
+        if self.print_status or not is_subcluster_recursed:
+            print '        read %d hmm output lines with %d sequences in %d events  (%d failures)' % (counts['n_lines_read'], counts['n_seqs_processed'], counts['n_events_processed'], len(hmm_failures))
+            if counts['n_invalid_events'] > 0:
+                print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), counts['n_invalid_events'])
+            for ecode in errorfo:
+                if ecode == 'no_path':
+                    print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
+                elif ecode == 'boundary':
+                    print '          %d boundary warnings' % len(errorfo[ecode])
+                    if self.args.debug:
+                        print '                %s' % ' '.join(errorfo[ecode])
+                else:
+                    print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
         annotation_list = eroded_annotations.values() if self.args.mimic_data_read_length else padded_annotations.values()
         seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities'])  # don't overwrite any info that's already in there (presumably multiplicities) since it will have been updated in waterer after collapsing duplicates NOTE/UPDATE if you screw something up though, this may end up not overwriting 'paired-uids' that you *do* want it to overwrite

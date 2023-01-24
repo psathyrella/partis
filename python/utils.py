@@ -6888,7 +6888,7 @@ def get_gene_counts_from_annotations(annotations, only_regions=None):
     return gene_counts
 
 # ----------------------------------------------------------------------------------------
-def parse_constant_regions(species, locus, annotation_list, workdir, debug=False):
+def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def algncreg(tkey, n_min_seqs=5):
         print ' %s: aligning' % color('blue', tkey)
@@ -6923,10 +6923,11 @@ def parse_constant_regions(species, locus, annotation_list, workdir, debug=False
                 leader_seq_infos.append({'seq' : cseq, 'match-name' : tgt})
                 if debug:
                     print color_mutants(cseq, get_single_entry([s for s in msa_seqfos if s['name']==tgt])['seq'], seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
-                    aasfos = [{'name' : s['name'], 'seq' : ltranslate(pad_nuc_seq(s['seq'].replace('-', ambig_base), side='left' if tkey=='leader' else 'right'))} for s in msa_seqfos]  # pad on left, since we assume the last three bases of 'leader_seqs' are in frame w/respect to V
-                    aa_msa_seqfos = align_many_seqs(aasfos, extra_str='            ', aa=True, debug=False)
-                    aa_cseq = cons_seq(aligned_seqfos=[s for s in aa_msa_seqfos if s['name']!=tgt], aa=True, extra_str='         ', debug=debug)
-                    print color_mutants(aa_cseq, get_single_entry([s for s in aa_msa_seqfos if s['name']==tgt])['seq'], amino_acid=True, seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
+                    if aa_dbg:
+                        aasfos = [{'name' : s['name'], 'seq' : ltranslate(pad_nuc_seq(s['seq'].replace('-', ambig_base), side='left' if tkey=='leader' else 'right'))} for s in msa_seqfos]  # pad on left, since we assume the last three bases of 'leader_seqs' are in frame w/respect to V
+                        aa_msa_seqfos = align_many_seqs(aasfos, extra_str='            ', aa=True, debug=False)
+                        aa_cseq = cons_seq(aligned_seqfos=[s for s in aa_msa_seqfos if s['name']!=tgt], aa=True, extra_str='         ', debug=debug)
+                        print color_mutants(aa_cseq, get_single_entry([s for s in aa_msa_seqfos if s['name']==tgt])['seq'], amino_acid=True, seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
     # ----------------------------------------------------------------------------------------
     def read_seqs(tkey, fname, debug=False):
         if debug:
