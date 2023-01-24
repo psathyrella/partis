@@ -2331,17 +2331,17 @@ class PartitionDriver(object):
 
         if self.print_status or not is_subcluster_recursed:
             print '        read %d hmm output lines with %d sequences in %d events  (%d failures)' % (counts['n_lines_read'], counts['n_seqs_processed'], counts['n_events_processed'], len(hmm_failures))
-            if counts['n_invalid_events'] > 0:
-                print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), counts['n_invalid_events'])
-            for ecode in errorfo:
-                if ecode == 'no_path':
-                    print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
-                elif ecode == 'boundary':
-                    print '          %d boundary warnings' % len(errorfo[ecode])
-                    if self.args.debug:
-                        print '                %s' % ' '.join(errorfo[ecode])
-                else:
-                    print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
+        if counts['n_invalid_events'] > 0:
+            print '            %s skipped %d invalid events' % (utils.color('red', 'warning'), counts['n_invalid_events'])
+        for ecode in errorfo:
+            if ecode == 'no_path':
+                print '          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode]))
+            elif ecode == 'boundary':
+                print '          %d boundary warnings' % len(errorfo[ecode])
+                if self.args.debug:
+                    print '                %s' % ' '.join(errorfo[ecode])
+            else:
+                print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
         annotation_list = eroded_annotations.values() if self.args.mimic_data_read_length else padded_annotations.values()
         seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities'])  # don't overwrite any info that's already in there (presumably multiplicities) since it will have been updated in waterer after collapsing duplicates NOTE/UPDATE if you screw something up though, this may end up not overwriting 'paired-uids' that you *do* want it to overwrite
