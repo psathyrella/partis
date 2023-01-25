@@ -2393,7 +2393,7 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         tmp_gaps = gap_chars
 
     return_str, isnps = [], []
-    for inuke in range(len(seq)):  # would be nice to integrate this with hamming_distance()
+    for inuke in range(len(seq)):  # would be nice to integrate this with hamming_distance() (especially the isnp stuff)
         rchar = ref_seq[inuke]
         char = seq[inuke]
         if char in tmp_ambigs or rchar in tmp_ambigs:

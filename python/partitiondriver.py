@@ -1507,7 +1507,7 @@ class PartitionDriver(object):
             os.remove(self.hmm_infname)
 
         step_time = time.time() - start
-        if self.print_status:
+        if self.print_status or parameter_out_dir != '':
             if step_time - exec_time > 0.1:
                 print '         infra time: %.1f' % (step_time - exec_time)  # i.e. time for non-executing, infrastructure time
             print '      hmm step time: %.1f' % step_time
