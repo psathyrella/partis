@@ -220,7 +220,7 @@ for cluster in clusters_to_use:
     if args.extra_columns is not None:
         for ecol in args.extra_columns:
             if ecol not in cluster_annotation:
-                utils.add_extra_column(ecol, cluster_annotation, cluster_annotation)
+                utils.add_extra_column(ecol, cluster_annotation, cluster_annotation, glfo=glfo)
             if ecol not in cluster_annotation:
                 n_failed_to_add += 1
                 cluster_annotation[ecol] = None
