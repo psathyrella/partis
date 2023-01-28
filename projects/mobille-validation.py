@@ -52,6 +52,7 @@ def mb_metrics(mtype, inf_ptn, tru_ptn, debug=True):
         reco_info = utils.build_dummy_reco_info(ptn)  # not actually reco info unless it's the true partition
         return {uid : reco_info[uid]['reco_id'] for cluster in ptn for uid in cluster}  # speed optimization
     # ----------------------------------------------------------------------------------------
+    inf_ptn, tru_ptn = [['c'], ['a', 'b', 'e'], ['d', 'g', 'f']], [['a', 'b', 'c'], ['d', 'e', 'f', 'g']]  # example from paper, should be (0.666666, 0.44444444, ?)
     utils.check_intersection_and_complement(inf_ptn, tru_ptn, a_label='true', b_label='inferred')
     if mtype == 'pairwise':
         tp, fp, fn, n_tot = 0, 0, 0, 0
@@ -67,13 +68,25 @@ def mb_metrics(mtype, inf_ptn, tru_ptn, debug=True):
                 fp += 1
             else:  # singletons
                 pass
-        precis = tp / float(tp + fp)
-        recall = tp / float(tp + fn)
-        return precis, recall, 2 * precis * recall / float(precis + recall)
     elif mtype == 'closeness':
-        pass
+        tp, fp, fn, n_tot = set(), set(), set(), set()
+        # for infcl, trucl in itertools.product(inf_ptn, tru_ptn):
+        for infcl in inf_ptn:  # NOTE this is apparently what they mean by "we first identified the best correspondence between inferred clonal lineages and correct clonal assignments" but note you'd get a *different* answer if you looped over tru_ptn
+            trucl = sorted(tru_ptn, key=lambda c: len(set(c) & set(infcl)), reverse=True)[0]
+            infset, truset = set(infcl), set(trucl)
+            if len(infset & truset) == 0:
+                continue
+            tp |= infset & truset  # OMFG their example is wrong, it (correctly) shows 6 entries, but then when they calculate recall they switch it to 5
+            fp |= infset - truset
+            fn |= truset - infset
+            n_tot |= truset
+            print '  %20s   %20s   %20s   %20s   %20s' % (infcl, trucl, infset & truset, infset - truset, truset - infset)
+        tp, fp, fn = [len(s) for s in [tp, fp, fn]]
     else:
         assert False
+    precis = tp / float(tp + fp)
+    recall = tp / float(tp + fn)
+    return precis, recall, 2 * precis * recall / float(precis + recall)
 
 # ----------------------------------------------------------------------------------------
 def run_partis(seqfn, scode, stype):
@@ -90,8 +103,7 @@ def run_partis(seqfn, scode, stype):
 # ----------------------------------------------------------------------------------------
 for fn in glob.glob('%s/Fasta/*.fasta'%mdir):
     scode, stype, tstr = utils.getprefix(os.path.basename(fn)).split('_')  # e.g. l0046 oligo
-# ----------------------------------------------------------------------------------------
-    if stype != 'mono' or scode != 'l0046':
+    if stype != 'mono' or scode != 'l0036':
         continue
     assert tstr == 'simulated'
     run_partis(fn, scode, stype)
@@ -99,8 +111,9 @@ for fn in glob.glob('%s/Fasta/*.fasta'%mdir):
     true_partition = get_true_ptn(scode, stype)
     _, _, cpath = utils.read_output(ps_ofn(scode, stype))
     inf_ptn = cpath.best()
-    print mb_metrics('pairwise', inf_ptn, true_partition)
+    for mtype in ['closeness']: #['pairwise', 'closeness']:
+        print mb_metrics(mtype, inf_ptn, true_partition)
     # print utils.per_seq_correct_cluster_fractions(inf_ptn, true_partition, debug=True)
     # import plotting
-    # plotting.plot_cluster_similarity_matrix(pltdir(scode, stype), 'csim-matrix', 'true', true_partition, 'partis', inf_ptn, 30) #, debug=True)
+    # print plotting.plot_cluster_similarity_matrix(pltdir(scode, stype), 'csim-matrix', 'true', true_partition, 'partis', inf_ptn, 30) #, debug=True)
     # sys.exit()
