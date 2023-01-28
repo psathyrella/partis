@@ -5254,14 +5254,18 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
     return new_partitions
 
 # ----------------------------------------------------------------------------------------
+def build_dummy_reco_info(true_partition):
+    def tkey(c): return ':'.join(c)
+    chashes = {tkey(tc) : hash(tkey(tc)) for tc in true_partition}
+    return {u : {'reco_id' : chashes[tkey(tc)]} for tc in true_partition for u in tc}
+
+# ----------------------------------------------------------------------------------------
 def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None, seed_unique_id=None, dbg_str='', inf_label='inferred', true_label='true', debug=False):
     if seed_unique_id is None:
         check_intersection_and_complement(partition, true_partition, a_label=inf_label, b_label=true_label)
     if reco_info is None:  # build a dummy reco_info that just has reco ids
-        def tkey(c): return ':'.join(c)
-        chashes = {tkey(tc) : hash(tkey(tc)) for tc in true_partition}
-        reco_info = {u : {'reco_id' : chashes[tkey(tc)]} for tc in true_partition for u in tc}
-    reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # speed optimization
+        reco_info = build_dummy_reco_info(true_partition)
+    reco_ids = {uid : reco_info[uid]['reco_id'] for cluster in partition for uid in cluster}  # NOTE this iterates over the *inferred* partition, which maybe is important if seed id is set? (i don't remember atm)
     uids = set([uid for cluster in partition for uid in cluster])
     clids = get_cluster_ids(uids, partition)  # map of {uid : (index of cluster in <partition> in which that uid occurs)} (well, list of indices, in case there's duplicates)
 

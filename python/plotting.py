@@ -1114,7 +1114,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     ticks = [n - 0.5 for n in range(1, axis_max + 1, modulo)]
     xticklabels = [str(b_cluster_lengths[it]) for it in range(0, len(b_cluster_lengths), modulo)]
     yticklabels = [str(a_cluster_lengths[it]) for it in range(0, len(a_cluster_lengths), modulo)]
-    print mpl_finish(ax, plotdir, plotname, title=title, xlabel='%s cluster size'%legends.get(meth2, meth2), ylabel='%s cluster size'%legends.get(meth1, meth1),
+    return mpl_finish(ax, plotdir, plotname, title=title, xlabel='%s cluster size'%legends.get(meth2, meth2), ylabel='%s cluster size'%legends.get(meth1, meth1),
                      xticks=ticks, yticks=ticks, xticklabels=xticklabels, yticklabels=yticklabels, xticklabelsize=15, yticklabelsize=15,
                      xbounds=(0, axis_max), ybounds=(0, axis_max), rotation='vertical')
 
