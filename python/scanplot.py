@@ -61,7 +61,7 @@ def cp_val(cpath, ptilestr, yfname):
         rval = cpath.ccfs[cpath.i_best][0]
     elif ptilestr == 'sensitivity':
         rval = cpath.ccfs[cpath.i_best][1]
-    elif ptilestr == 'f1':
+    elif ptilestr == 'f1':  # for search: f1 score
         rval = sys.modules['scipy.stats'].hmean(cpath.ccfs[cpath.i_best])
     elif ptilestr == 'cln-frac':
         rval = utils.collision_fraction(cpath.best())

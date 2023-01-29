@@ -7,6 +7,8 @@ import argparse
 import colored_traceback.always
 import glob
 import itertools
+import json
+import collections
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
@@ -20,8 +22,8 @@ base_odir = '/fh/fast/matsen_e/dralph/partis/mobille-validation'
 vsn = 'v0'
 
 # ----------------------------------------------------------------------------------------
-def get_true_ptn(scode, stype):
-    tcfn = '%s/True_cluster_by_simulator/%s_%s_true_cluster.txt' % (mdir, scode, stype)
+def get_true_ptn(spval, stype):
+    tcfn = '%s/True_cluster_by_simulator/%s_%s_true_cluster.txt' % (mdir, spval, stype)
     true_partition = []
     with open(tcfn) as tcfile:
         reader = csv.DictReader(tcfile, delimiter='\t', fieldnames=['iclust', 'uids'])
@@ -29,24 +31,27 @@ def get_true_ptn(scode, stype):
             cluster = [u.strip() for u in line['uids'].split()]
             true_partition.append(cluster)
     return true_partition
+# ----------------------------------------------------------------------------------------
+def bodir(spval, stype):
+    return '%s/%s/%s-%s' % (base_odir, vsn, spval, stype)
+# ----------------------------------------------------------------------------------------
+def bmdir(spval, stype, mthd):
+    return '%s/%s' % (bodir(spval, stype), mthd)
+# ----------------------------------------------------------------------------------------
+def paramdir(spval, stype):
+    return '%s/parameters' % bmdir(spval, stype, 'partis')
+# ----------------------------------------------------------------------------------------
+def ptnfn(spval, stype, mthd):
+    return '%s/partition.yaml' % bmdir(spval, stype, mthd)
+# ----------------------------------------------------------------------------------------
+def pltdir():
+    return '%s/%s/plots' % (base_odir, vsn)
+# ----------------------------------------------------------------------------------------
+def mtrfn(spval, stype):
+    return '%s/metrics.yaml' % bodir(spval, stype)
 
 # ----------------------------------------------------------------------------------------
-def bodir(scode, stype):
-    return '%s/%s/%s-%s' % (base_odir, vsn, scode, stype)
-
-# ----------------------------------------------------------------------------------------
-def paramdir(scode, stype):
-    return '%s/parameters' % bodir(scode, stype)
-
-# ----------------------------------------------------------------------------------------
-def ps_ofn(scode, stype):
-    return '%s/%s/%s-%s/partition.yaml' % (base_odir, vsn, scode, stype)
-# ----------------------------------------------------------------------------------------
-def pltdir(scode, stype):
-    return '%s/plots' % bodir(scode, stype)
-
-# ----------------------------------------------------------------------------------------
-def mb_metrics(mtype, inf_ptn, tru_ptn, debug=True):
+def mb_metrics(mtype, inf_ptn, tru_ptn, debug=False):
     # ----------------------------------------------------------------------------------------
     def id_dict(ptn):
         reco_info = utils.build_dummy_reco_info(ptn)  # not actually reco info unless it's the true partition
@@ -71,8 +76,9 @@ def mb_metrics(mtype, inf_ptn, tru_ptn, debug=True):
                 pass
     elif mtype == 'closeness':
         tp, fp, fn, n_tot = set(), set(), set(), set()
-        # for infcl, trucl in itertools.product(inf_ptn, tru_ptn):
-        print '    infcl   trucl      tp   fp     fn'
+        if debug:
+            print '    infcl   trucl      tp   fp     fn'
+        # for infcl, trucl in itertools.product(inf_ptn, tru_ptn):  # NOTE this is *not* what they mean, see next line
         for infcl in inf_ptn:  # NOTE this is apparently what they mean by "we first identified the best correspondence between inferred clonal lineages and correct clonal assignments" but note you'd get a *different* answer if you looped over tru_ptn
             trucl = sorted(tru_ptn, key=lambda c: len(set(c) & set(infcl)), reverse=True)[0]
             infset, truset = set(infcl), set(trucl)
@@ -82,40 +88,100 @@ def mb_metrics(mtype, inf_ptn, tru_ptn, debug=True):
             fp |= infset - truset
             fn |= truset - infset
             n_tot |= truset
-            print '  %20s   %20s   %20s   %20s   %20s' % (infcl, trucl, infset & truset, infset - truset, truset - infset)
+            if debug:
+                print '  %20s   %20s   %20s   %20s   %20s' % (infcl, trucl, infset & truset, infset - truset, truset - infset)
         tp, fp, fn = [len(s) for s in [tp, fp, fn]]
     else:
         assert False
     precis = tp / float(tp + fp)
     recall = tp / float(tp + fn)
-    return precis, recall, 2 * precis * recall / float(precis + recall)
+    return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall)}  # same as scipy.stats.hmean([precis, recall])
 
 # ----------------------------------------------------------------------------------------
-def run_partis(seqfn, scode, stype):
-    ofn = ps_ofn(scode, stype)
-    if os.path.exists(ofn):
-        print '    %s %s partis output exists: %s' % (scode, stype, ofn)
+def write_metrics(spval, stype, mthd):
+    ofn = mtrfn(spval, stype)
+    if utils.output_exists(args, ofn, 'metric'):
+        return
+    tru_ptn = get_true_ptn(spval, stype)
+    _, _, cpath = utils.read_output(ptnfn(spval, stype, mthd))
+    inf_ptn = cpath.best()
+    # import plotting
+    # print plotting.plot_cluster_similarity_matrix(pltdir(spval, stype, mthd), 'csim-matrix', 'true', true_partition, 'partis', inf_ptn, 30) #, debug=True)
+    vals = {}
+    for mtype in ['pairwise', 'closeness']:
+        vals['mobille-%s'%mtype] = mb_metrics(mtype, inf_ptn, tru_ptn)
+    ccfs = utils.per_seq_correct_cluster_fractions(inf_ptn, tru_ptn) #, debug=True)
+    vals['partis'] = {'purity' : ccfs[0], 'completeness' : ccfs[1]}
+    vals['partis']['f1'] = 2 * ccfs[0] * ccfs[1] / float(sum(ccfs))  # same as scipy.stats.hmean([precis, recall])
+    utils.mkdir(ofn, isfile=True)
+    with open(ofn, 'w') as mfile:
+        json.dump(vals, mfile)
+
+# ----------------------------------------------------------------------------------------
+def run_partis(spval, stype):
+    ofn = ptnfn(spval, stype, mthd)
+    if utils.output_exists(args, ofn, 'partis'):
         return
     for action in ['cache-parameters', 'partition']:
-        cmd = './bin/partis %s --infname %s --parameter-dir %s' % (action, seqfn, paramdir(scode, stype))
+        cmd = './bin/partis %s --infname %s --parameter-dir %s' % (action, '%s/Fasta/%s_%s_simulated.fasta' % (mdir, spval, stype), paramdir(spval, stype))
         if action == 'partition':
             cmd += ' --outfname %s' % ofn
         utils.simplerun(cmd, logfname=utils.replace_suffix(ofn, '.log')) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
-for fn in glob.glob('%s/Fasta/*.fasta'%mdir):
-    scode, stype, tstr = utils.getprefix(os.path.basename(fn)).split('_')  # e.g. l0046 oligo
-    if stype != 'mono' or scode != 'l0036':
-        continue
-    assert tstr == 'simulated'
-    run_partis(fn, scode, stype)
+def make_plots():
+    # ----------------------------------------------------------------------------------------
+    def plot_metric_type(mtr_type):
+        # ----------------------------------------------------------------------------------------
+        def read_files():
+            plotvals = {m : {t : collections.OrderedDict([[v, None] for v in spvals]) for t in stypes} for m in args.methods}
+            for stype in stypes:
+                for spval in spvals:
+                    if not os.path.exists(mtrfn(spval, stype)):
+                        continue
+                    for mthd in args.methods:
+                        with open(mtrfn(spval, stype)) as mfile:
+                            vals = json.load(mfile)
+                            plotvals[mthd][stype][spval] = vals[mtr_type]['f1']  # NOTE mtr_type is 'partis' or 'mobille', i.e. has the same values as args.methods
+            return plotvals
+        # ----------------------------------------------------------------------------------------
+        def lzv(lvstr):
+            assert lvstr[:3] == 'l00' and len(lvstr) == 5
+            return float(int(lvstr[3:5])) / 100
+        # ----------------------------------------------------------------------------------------
+        plotvals = read_files()
+        fig, ax = plotting.mpl_init()
+        for stype in ['mono']: #stypes:
+            for mthd in args.methods:
+                xvals, yvals = zip(*plotvals[mthd][stype].items())
+                xvals = [lzv(v) for v in xvals]
+                ax.plot(xvals, yvals, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.')
+                ax.plot((xvals[0], xvals[-1]), (1, 1), linewidth=1.5, alpha=0.5, color='grey') #, linestyle='--') #, label='1/seq len')
+                print plotting.mpl_finish(ax, pltdir(), 'f1-%s'%stype, ylabel=metric_labels.get(mtr_type, mtr_type), xlabel='lambda 0', xticks=xvals, ybounds=(0, 1.05)) #, xticklabels=['%.3f'%v for v in xvals]) #, log=log, xticks=xticks, xticklabels=xticks, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
+    # ----------------------------------------------------------------------------------------
+    import plotting
+    plot_metric_type('mobille-pairwise')
 
-    true_partition = get_true_ptn(scode, stype)
-    _, _, cpath = utils.read_output(ps_ofn(scode, stype))
-    inf_ptn = cpath.best()
-    for mtype in ['closeness']: #['pairwise', 'closeness']:
-        print mb_metrics(mtype, inf_ptn, true_partition)
-    # print utils.per_seq_correct_cluster_fractions(inf_ptn, true_partition, debug=True)
-    # import plotting
-    # print plotting.plot_cluster_similarity_matrix(pltdir(scode, stype), 'csim-matrix', 'true', true_partition, 'partis', inf_ptn, 30) #, debug=True)
-    # sys.exit()
+# ----------------------------------------------------------------------------------------
+parser = argparse.ArgumentParser()
+parser.add_argument('--actions', default='run:write:plot')
+parser.add_argument('--methods', default='partis')
+parser.add_argument('--overwrite', action='store_true')
+args = parser.parse_args()
+args.actions = utils.get_arg_list(args.actions)
+args.methods = utils.get_arg_list(args.methods)
+
+spvals = ['l00%d'%c for c in [16, 26, 36, 46]]
+stypes = ['mono', 'oligo', 'poly']
+metric_labels = {'mobille-pairwise' : 'pairwise f1', 'mobille-closeness' : 'closeness f1'}
+
+for stype in stypes:
+    for spval in spvals:
+        # if stype != 'mono' or spval != 'l0036':
+        #     continue
+        if 'run' in args.actions:
+            run_partis(spval, stype)
+        if 'write' in args.actions:
+            write_metrics(spval, stype, 'partis')
+if 'plot' in args.actions:
+    make_plots()
