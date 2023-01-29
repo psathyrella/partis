@@ -52,7 +52,8 @@ def mb_metrics(mtype, inf_ptn, tru_ptn, debug=True):
         reco_info = utils.build_dummy_reco_info(ptn)  # not actually reco info unless it's the true partition
         return {uid : reco_info[uid]['reco_id'] for cluster in ptn for uid in cluster}  # speed optimization
     # ----------------------------------------------------------------------------------------
-    inf_ptn, tru_ptn = [['c'], ['a', 'b', 'e'], ['d', 'g', 'f']], [['a', 'b', 'c'], ['d', 'e', 'f', 'g']]  # example from paper, should be (0.666666, 0.44444444, ?)
+    # inf_ptn, tru_ptn = [['c'], ['a', 'b', 'e'], ['d', 'g', 'f']], [['a', 'b', 'c'], ['d', 'e', 'f', 'g']]  # example from paper, should be pairwise: (0.666666, 0.44444444, ?), closeness: (0.857, 0.6, ?) (see note below, they calculate it wrong)
+    # inf_ptn, tru_ptn = [['a'], ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']], [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']]
     utils.check_intersection_and_complement(inf_ptn, tru_ptn, a_label='true', b_label='inferred')
     if mtype == 'pairwise':
         tp, fp, fn, n_tot = 0, 0, 0, 0
@@ -71,12 +72,13 @@ def mb_metrics(mtype, inf_ptn, tru_ptn, debug=True):
     elif mtype == 'closeness':
         tp, fp, fn, n_tot = set(), set(), set(), set()
         # for infcl, trucl in itertools.product(inf_ptn, tru_ptn):
+        print '    infcl   trucl      tp   fp     fn'
         for infcl in inf_ptn:  # NOTE this is apparently what they mean by "we first identified the best correspondence between inferred clonal lineages and correct clonal assignments" but note you'd get a *different* answer if you looped over tru_ptn
             trucl = sorted(tru_ptn, key=lambda c: len(set(c) & set(infcl)), reverse=True)[0]
             infset, truset = set(infcl), set(trucl)
             if len(infset & truset) == 0:
                 continue
-            tp |= infset & truset  # OMFG their example is wrong, it (correctly) shows 6 entries, but then when they calculate recall they switch it to 5
+            tp |= infset & truset  # OMFG their example figure is wrong, it (correctly) shows 6 entries, but then when they calculate recall they switch it to 5
             fp |= infset - truset
             fn |= truset - infset
             n_tot |= truset
