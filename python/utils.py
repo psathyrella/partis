@@ -5279,11 +5279,7 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
 
     def get_fraction_present(inferred_cluster, true_cluster):
         """ Return the fraction of the true clonemates in <true_cluster> that appear in <inferred_cluster>. """
-        n_present = 0
-        for tmpid in true_cluster:  # NOTE this includes the case where tmpid equal to uid
-            if tmpid in inferred_cluster:
-                n_present += 1
-        return float(n_present) / len(true_cluster)
+        return len(set(inferred_cluster) & set(true_cluster)) / len(true_cluster)
 
     mean_clonal_fraction, mean_fraction_present = 0., 0.
     n_uids = 0
