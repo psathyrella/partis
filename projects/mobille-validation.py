@@ -122,10 +122,10 @@ def write_metrics(spval, stype, mthd, debug=True):
         for mtstr in ['pairwise', 'closeness']:
             for mname, mval in mb_metrics(mtstr, inf_ptn, tru_ptn).items():
                 addval(mvals, 'mobille-%s'%mtstr, mname, mval)
-        # ccfs = utils.per_seq_correct_cluster_fractions(inf_ptn, tru_ptn) #, debug=True)
-        # addval(mvals, 'partis', 'purity', ccfs[0])
-        # addval(mvals, 'partis', 'completeness', ccfs[1])
-        # addval(mvals, 'partis', 'f1', 2 * ccfs[0] * ccfs[1] / float(sum(ccfs)))  # same as scipy.stats.hmean([precis, recall])
+        ccfs = utils.per_seq_correct_cluster_fractions(inf_ptn, tru_ptn) #, debug=True)
+        addval(mvals, 'partis', 'purity', ccfs[0])
+        addval(mvals, 'partis', 'completeness', ccfs[1])
+        addval(mvals, 'partis', 'f1', 2 * ccfs[0] * ccfs[1] / float(sum(ccfs)))  # same as scipy.stats.hmean([precis, recall])
     for mname in mvals:
         for mtype, mvlist in mvals[mname].items():
             mvals[mname][mtype] = {'mean' : numpy.mean(mvlist), 'err' : numpy.std(mvlist, ddof=1) / math.sqrt(len(mvlist)), 'vals' : mvlist}
@@ -184,19 +184,21 @@ def make_plots(swarm=True, debug=True):
                     if swarm:
                         import seaborn as sns
                         sns.swarmplot(data=yvals)
+                        # sns.boxplot(data=yvals, boxprops={'alpha' : 0.6}, showmeans=True, meanprops={'marker' : 'o', 'markerfacecolor' : 'white', 'markeredgecolor' : 'black'})
                     else:
                         yvals, yerrs = zip(*yvals)
                         ax.errorbar(xvals, yvals, yerr=yerrs, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.')
             ax.plot((0, 4) if swarm else (xvals[0], xvals[-1]), (1, 1), linewidth=1.5, alpha=0.5, color='grey') #, linestyle='--') #, label='1/seq len')
-            fn = plotting.mpl_finish(ax, pltdir(), 'f1-%s-%s'%(stype, mtr_type.split('-')[1]), ylabel=metric_labels.get(mtr_type, mtr_type), title='%sclonal'%stype,
+            fn = plotting.mpl_finish(ax, pltdir(), 'f1-%s-%s'%(stype, 'f1' if mtr_type=='partis' else mtr_type.split('-')[1]), ylabel=metric_labels.get(mtr_type, mtr_type), title='%sclonal'%stype,
                                      xlabel='lambda 0', xticks=None if swarm else xvals, xticklabels=['%.2f'%v for v in xvals], ybounds=(0, 1.05)) #, xticklabels=['%.3f'%v for v in xvals]) #, log=log, xticks=xticks, xticklabels=xticks, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
-            fnames[0 if 'pairwise' in mtr_type else 1].append(fn)
+            fnames[0 if 'pairwise' in mtr_type else (2 if mtr_type=='partis' else 1)].append(fn)
     # ----------------------------------------------------------------------------------------
     import plotting
     utils.prep_dir(pltdir(), wildlings=['*.csv', '*.svg'])
-    fnames = [[], []]
+    fnames = [[], [], []]
     for mtstr in ['pairwise', 'closeness']:
         plot_metric_type('mobille-%s'%mtstr)
+    plot_metric_type('partis')
     plotting.make_html(pltdir(), fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
@@ -212,7 +214,7 @@ args.methods = utils.get_arg_list(args.methods)
 
 spvals = ['l00%d'%c for c in [16, 26, 36, 46]]
 stypes = ['mono', 'oligo', 'poly']
-metric_labels = {'mobille-pairwise' : 'pairwise f1', 'mobille-closeness' : 'closeness f1'}
+metric_labels = {'mobille-pairwise' : 'pairwise f1', 'mobille-closeness' : 'closeness f1', 'partis' : 'partis f1'}
 
 for stype in stypes:
     for spval in spvals:
