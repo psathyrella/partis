@@ -54,8 +54,8 @@ def ptnfn(spval, stype, mthd, iseed=None):
 def pltdir():
     return '%s/%s/plots' % (base_odir, args.version)
 # ----------------------------------------------------------------------------------------
-def mtrfn(spval, stype):
-    return '%s/metrics.yaml' % bodir(spval, stype)
+def mtrfn(spval, stype, mthd):
+    return '%s/metrics.yaml' % bmdir(spval, stype, mthd)
 
 # ----------------------------------------------------------------------------------------
 def mb_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
@@ -114,7 +114,7 @@ def write_metrics(spval, stype, mthd, debug=False):
             mvals[mtype][mname] = []
         mvals[mtype][mname].append(val)
     # ----------------------------------------------------------------------------------------
-    ofn = mtrfn(spval, stype)
+    ofn = mtrfn(spval, stype, mthd)
     if utils.output_exists(args, ofn, 'metric'):
         return
     tru_ptn = get_true_ptn(spval, stype)
@@ -154,25 +154,28 @@ def run_method(mthd, spval, stype, iseed=0):
             if action == 'partition':
                 cmd += ' --outfname %s' % ofn
             utils.simplerun(cmd, logfname='%s/%s.log'%(os.path.dirname(ofn), action)) #, dryrun=True)
-    elif mthd == 'mobille':
-        cmd = './test/mobille-igblast-run.py mobille --inpath %s --outdir %s --base-imgt-outdir %s --single-chain --id-str %s_%s' % (fst_infn(spval, stype), os.path.dirname(ofn), imgt_odir(), spval, stype)
-        utils.simplerun(cmd, logfname='%s/%s.log'%(os.path.dirname(ofn), mthd)) #, dryrun=True)
     else:
-        assert False
+        if mthd == 'mobille':
+            cmd = './test/mobille-igblast-run.py mobille --inpath %s --outdir %s --base-imgt-outdir %s --single-chain --id-str %s_%s' % (fst_infn(spval, stype), os.path.dirname(ofn), imgt_odir(), spval, stype)
+        elif mthd == 'scoper':
+            cmd = './test/scoper-run.py --indir %s --outdir %s --single-chain' % (paramdir(spval, stype, iseed=iseed), os.path.dirname(ofn))
+        else:
+            assert False
+        utils.simplerun(cmd, logfname='%s/%s.log'%(os.path.dirname(ofn), mthd)) #, dryrun=True)
 
 # ----------------------------------------------------------------------------------------
 def make_plots(swarm=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def plot_metric_type(mtr_type):
         # ----------------------------------------------------------------------------------------
-        def read_files():
+        def read_files(mthd):
             plotvals = {m : {t : collections.OrderedDict([[v, None] for v in spvals]) for t in stypes} for m in args.methods}
             for stype in stypes:
                 for spval in spvals:
-                    if not os.path.exists(mtrfn(spval, stype)):
+                    if not os.path.exists(mtrfn(spval, stype, mthd)):
                         continue
                     for mthd in args.methods:
-                        with open(mtrfn(spval, stype)) as mfile:
+                        with open(mtrfn(spval, stype, mthd)) as mfile:
                             vals = json.load(mfile)
                             plotvals[mthd][stype][spval] = vals[mtr_type]['f1']['vals'] if swarm else [vals[mtr_type]['f1'][k] for k in ('mean', 'err')]  # NOTE mtr_type is 'partis' or 'mobille', i.e. has the same values as args.methods
             return plotvals
@@ -181,10 +184,10 @@ def make_plots(swarm=False, debug=False):
             assert lvstr[:3] == 'l00' and len(lvstr) == 5
             return float(int(lvstr[3:5])) / 100
         # ----------------------------------------------------------------------------------------
-        plotvals = read_files()
         for ist, stype in enumerate(stypes):
             fig, ax = plotting.mpl_init()
             for mthd in args.methods:
+                plotvals = read_files(mthd)
                 if debug:
                     print '  %s' % mthd
                 xvals, yvals = zip(*plotvals[mthd][stype].items())
@@ -196,7 +199,7 @@ def make_plots(swarm=False, debug=False):
                 if not swarm:
                     yvals, yerrs = zip(*yvals)
                 if args.n_random_seeds is None:
-                    ax.plot(xvals, yvals, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.')
+                    ax.plot(xvals, yvals, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.', color=method_colors.get(mthd))
                 else:
                     if swarm:
                         import seaborn as sns
@@ -204,9 +207,9 @@ def make_plots(swarm=False, debug=False):
                         # sns.boxplot(data=yvals, boxprops={'alpha' : 0.6}, showmeans=True, meanprops={'marker' : 'o', 'markerfacecolor' : 'white', 'markeredgecolor' : 'black'})
                     else:
                         ax.errorbar(xvals, yvals, yerr=yerrs, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.')
-            ax.plot((0, 4) if swarm else (xvals[0], xvals[-1]), (1, 1), linewidth=1.5, alpha=0.5, color='grey') #, linestyle='--') #, label='1/seq len')
+            # ax.plot((0, 4) if swarm else (xvals[0], xvals[-1]), (1, 1), linewidth=1.5, alpha=0.5, color='grey') #, linestyle='--') #, label='1/seq len')
             fn = plotting.mpl_finish(ax, pltdir(), 'f1-%s-%s'%(stype, 'f1' if mtr_type=='partis' else mtr_type.split('-')[1]), ylabel=metric_labels.get(mtr_type, mtr_type), title='%sclonal'%stype,
-                                     xlabel='lambda 0', xticks=None if swarm else xvals, xticklabels=['%.2f'%v for v in xvals], ybounds=(0, 1.05)) #, xticklabels=['%.3f'%v for v in xvals]) #, log=log, xticks=xticks, xticklabels=xticks, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
+                                     xlabel='lambda 0', xticks=None if swarm else xvals, xticklabels=['%.2f'%v for v in xvals], ybounds=(0, 1.05), leg_loc=(0.1, 0.2))
             fnames[0 if 'pairwise' in mtr_type else (2 if mtr_type=='partis' else 1)].append(fn)
     # ----------------------------------------------------------------------------------------
     import plotting
@@ -220,7 +223,7 @@ def make_plots(swarm=False, debug=False):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='run:write:plot')
-parser.add_argument('--methods', default='partis:mobille')
+parser.add_argument('--methods', default='partis:mobille:scoper')
 parser.add_argument('--version', default='test')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--n-random-seeds', type=int, help='number of replicates with different random seeds to run')
@@ -231,6 +234,7 @@ args.methods = utils.get_arg_list(args.methods)
 spvals = ['l00%d'%c for c in [16, 26, 36, 46]]
 stypes = ['mono', 'oligo', 'poly']
 metric_labels = {'mobille-pairwise' : 'pairwise f1', 'mobille-closeness' : 'closeness f1', 'partis' : 'partis f1'}
+method_colors = {'mobille' : '#debd36', 'partis' : '#c532b8', 'scoper' : '#62d156'}
 
 for stype in stypes:
     for spval in spvals:

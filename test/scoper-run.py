@@ -8,6 +8,7 @@ import argparse
 import subprocess
 import sys
 import os
+import glob
 
 sys.path.insert(1, './python')
 import utils
@@ -46,7 +47,10 @@ def getofn(locus, joint=False):
 
 # ----------------------------------------------------------------------------------------
 def swfn(locus):
-    return '%s/%s/sw-cache.yaml' % (args.indir, '' if locus is None else '/'+locus)
+    swd = '%s%s' % (args.indir, '' if locus is None else '/'+locus)
+    if os.path.exists('%s/sw-cache.yaml'%swd):
+        return '%s/sw-cache.yaml'%swd
+    return utils.get_single_entry(glob.glob('%s/sw-*.yaml'%swd))
 
 # ----------------------------------------------------------------------------------------
 def gloci():  # if no sw file, we probably only made one light locus (or i guess all input is missing, oh well)
@@ -136,7 +140,9 @@ def convert_output(joint=False):
             n_already_there += 1
             continue
         utils.mkdir(pfn, isfile=True)
-        cmd = './bin/parse-output.py %s %s --airr-input --simfname %s' % (scofn('joint' if joint else locus), pfn, simfn(locus))
+        cmd = './bin/parse-output.py %s %s --airr-input' % (scofn('joint' if joint else locus), pfn)
+        if args.simdir is not None:
+            cmd += ' --simfname %s' % simfn(locus)
         if joint:
             cmd += ' --skip-other-locus --locus %s --glfo-dir %s' % (locus, glfd(locus))
         cmdfos += [{
@@ -160,7 +166,7 @@ def install():
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--indir', required=True)
+parser.add_argument('--indir', required=True)  # should have partis sw file in it
 parser.add_argument('--outdir', required=True)
 parser.add_argument('--simdir')
 parser.add_argument('--overwrite', action='store_true')
