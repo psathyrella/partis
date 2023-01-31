@@ -364,8 +364,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
         markersize = None
         if markersizes is not None:
             imark = ih if len(markersizes) > 1 else 0
-            if imark > len(markersizes) - 1:
-                print '  %s wrapping imark %d to match len of markersizes %d (%s)' % (utils.wrnstr(), imark, len(markersizes), markersizes)
+            # if imark > len(markersizes) - 1:
+            #     print '  %s wrapping imark %d to match len of markersizes %d (%s)' % (utils.wrnstr(), imark, len(markersizes), markersizes)
             markersize = markersizes[imark % len(markersizes)]
         linewidth = None
         if linewidths is None:
@@ -772,7 +772,7 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
     ybounds = None
     if 'y' not in log:
         ybounds = [-0.05, None]
-    draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
+    return draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
                  bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8])
 
 # ----------------------------------------------------------------------------------------

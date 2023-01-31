@@ -18,6 +18,7 @@ sys.path.insert(1, partis_dir + '/python')
 
 import utils
 import glutils
+import hutils
 
 mdir = 'packages/MobiLLe/Data/Simulated_datasets'
 base_odir = '/fh/fast/matsen_e/dralph/partis/mobille-validation'
@@ -51,8 +52,8 @@ def paramdir(spval, stype, iseed=None):
 def ptnfn(spval, stype, mthd, iseed=None):
     return '%s/partition.yaml' % bmdir(spval, stype, mthd, iseed=iseed)
 # ----------------------------------------------------------------------------------------
-def pltdir():
-    return '%s/%s/plots' % (base_odir, args.version)
+def pltdir(simu=False):
+    return '%s/%s/%splots' % (base_odir, args.version, 'simu-' if simu else '')
 # ----------------------------------------------------------------------------------------
 def mtrfn(spval, stype, mthd):
     return '%s/metrics.yaml' % bmdir(spval, stype, mthd)
@@ -162,6 +163,10 @@ def run_method(mthd, spval, stype, iseed=0):
         else:
             assert False
         utils.simplerun(cmd, logfname='%s/%s.log'%(os.path.dirname(ofn), mthd)) #, dryrun=True)
+# ----------------------------------------------------------------------------------------
+def lzv(lvstr):
+    assert lvstr[:3] == 'l00' and len(lvstr) == 5
+    return float(int(lvstr[3:5])) / 100
 
 # ----------------------------------------------------------------------------------------
 def make_plots(swarm=False, debug=False):
@@ -179,10 +184,6 @@ def make_plots(swarm=False, debug=False):
                             vals = json.load(mfile)
                             plotvals[mthd][stype][spval] = vals[mtr_type]['f1']['vals'] if swarm else [vals[mtr_type]['f1'][k] for k in ('mean', 'err')]  # NOTE mtr_type is 'partis' or 'mobille', i.e. has the same values as args.methods
             return plotvals
-        # ----------------------------------------------------------------------------------------
-        def lzv(lvstr):
-            assert lvstr[:3] == 'l00' and len(lvstr) == 5
-            return float(int(lvstr[3:5])) / 100
         # ----------------------------------------------------------------------------------------
         for ist, stype in enumerate(stypes):
             fig, ax = plotting.mpl_init()
@@ -221,8 +222,23 @@ def make_plots(swarm=False, debug=False):
     plotting.make_html(pltdir(), fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
+def plot_simulation():
+    import plotting
+    utils.prep_dir(pltdir(simu=True), wildlings=['*.csv', '*.svg'])
+    for stype in stypes:
+        # csize_hists = {}
+        for spval in spvals:
+            tru_ptn = get_true_ptn(spval, stype)
+            bubfos = [{'id' : str(i), 'radius' : len(c), 'texts' : [{'tstr' : str(len(c)), 'fsize' : 12, 'tcol' : 'black'}], 'fracs' : None} for i, c in enumerate(tru_ptn)]
+            fn = plotting.bubble_plot('%s-%s-bubbles'%(stype, spval), pltdir(simu=True), bubfos, title='%s: %s'%(stype, lzv(spval)))
+            # cslist = [len(c) for c in tru_ptn]
+            # csize_hists[spval] = hutils.make_hist_from_list_of_values(cslist, 'int', lzv(spval), is_log_x=True)
+        # fn = plotting.plot_cluster_size_hists(pltdir(simu=True), '%s-cluster-size'%stype, csize_hists, title='%sclonal'%stype)
+    plotting.make_html(pltdir(simu=True), n_columns=4) #, fnames=fnames)
+
+# ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='run:write:plot')
+parser.add_argument('--actions', default='run:write:plot')  # also: simplot
 parser.add_argument('--methods', default='partis:mobille:scoper')
 parser.add_argument('--version', default='test')
 parser.add_argument('--overwrite', action='store_true')
@@ -248,3 +264,5 @@ for stype in stypes:
                 write_metrics(spval, stype, mthd)
 if 'plot' in args.actions:
     make_plots(swarm=args.n_random_seeds is not None)
+if 'simplot' in args.actions:
+    plot_simulation()
