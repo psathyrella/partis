@@ -33,6 +33,12 @@ def get_true_ptn(spval, stype):
             true_partition.append(cluster)
     return true_partition
 # ----------------------------------------------------------------------------------------
+def fst_infn(spval, stype):
+    return '%s/Fasta/%s_%s_simulated.fasta' % (mdir, spval, stype)
+# ----------------------------------------------------------------------------------------
+def imgt_odir():  # imgt output files, from the mobille repo
+    return '%s/IMGT_highvquest_output' % mdir
+# ----------------------------------------------------------------------------------------
 def bodir(spval, stype):
     return '%s/%s/%s-%s' % (base_odir, args.version, spval, stype)
 # ----------------------------------------------------------------------------------------
@@ -99,7 +105,7 @@ def mb_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
     return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall)}  # same as scipy.stats.hmean([precis, recall])
 
 # ----------------------------------------------------------------------------------------
-def write_metrics(spval, stype, mthd, debug=True):
+def write_metrics(spval, stype, mthd, debug=False):
     # ----------------------------------------------------------------------------------------
     def addval(mvals, mtype, mname, val):
         if mtype not in mvals:
@@ -137,18 +143,25 @@ def write_metrics(spval, stype, mthd, debug=True):
         json.dump(mvals, mfile)
 
 # ----------------------------------------------------------------------------------------
-def run_partis(spval, stype, iseed=0):
-    ofn = ptnfn(spval, stype, 'partis', iseed=iseed)
-    if utils.output_exists(args, ofn, 'partis'):
+def run_method(mthd, spval, stype, iseed=0):
+    ofn = ptnfn(spval, stype, mthd, iseed=iseed)
+    if utils.output_exists(args, ofn, mthd):
         return
-    for action in ['cache-parameters', 'partition']:
-        cmd = './bin/partis %s --infname %s --parameter-dir %s --debug-allele-finding --random-seed %d' % (action, '%s/Fasta/%s_%s_simulated.fasta' % (mdir, spval, stype), paramdir(spval, stype, iseed=iseed), iseed)
-        if action == 'partition':
-            cmd += ' --outfname %s' % ofn
-        utils.simplerun(cmd, logfname='%s/%s.log'%(os.path.dirname(ofn), action)) #, dryrun=True)
+
+    if mthd == 'partis':
+        for action in ['cache-parameters', 'partition']:
+            cmd = './bin/partis %s --infname %s --parameter-dir %s --debug-allele-finding --random-seed %d' % (action, fst_infn(spval, stype), paramdir(spval, stype, iseed=iseed), iseed)
+            if action == 'partition':
+                cmd += ' --outfname %s' % ofn
+            utils.simplerun(cmd, logfname='%s/%s.log'%(os.path.dirname(ofn), action)) #, dryrun=True)
+    elif mthd == 'mobille':
+        cmd = './test/mobille-igblast-run.py mobille --inpath %s --outdir %s --base-imgt-outdir %s --single-chain --id-str %s_%s' % (fst_infn(spval, stype), os.path.dirname(ofn), imgt_odir(), spval, stype)
+        utils.simplerun(cmd, logfname='%s/%s.log'%(os.path.dirname(ofn), mthd)) #, dryrun=True)
+    else:
+        assert False
 
 # ----------------------------------------------------------------------------------------
-def make_plots(swarm=True, debug=True):
+def make_plots(swarm=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def plot_metric_type(mtr_type):
         # ----------------------------------------------------------------------------------------
@@ -172,12 +185,16 @@ def make_plots(swarm=True, debug=True):
         for ist, stype in enumerate(stypes):
             fig, ax = plotting.mpl_init()
             for mthd in args.methods:
+                if debug:
+                    print '  %s' % mthd
                 xvals, yvals = zip(*plotvals[mthd][stype].items())
                 if debug:
                     if ist==0:
                         print '  %-18s %2s %s' % (mtr_type, '', '  '.join('%5s'%lzv(v) for v in xvals))
                     # print '    %8s  %8s  %s' % (stype, mthd, '  '.join('%.3f'%v for v in yvals))
                 xvals = [lzv(v) for v in xvals]
+                if not swarm:
+                    yvals, yerrs = zip(*yvals)
                 if args.n_random_seeds is None:
                     ax.plot(xvals, yvals, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.')
                 else:
@@ -186,7 +203,6 @@ def make_plots(swarm=True, debug=True):
                         sns.swarmplot(data=yvals)
                         # sns.boxplot(data=yvals, boxprops={'alpha' : 0.6}, showmeans=True, meanprops={'marker' : 'o', 'markerfacecolor' : 'white', 'markeredgecolor' : 'black'})
                     else:
-                        yvals, yerrs = zip(*yvals)
                         ax.errorbar(xvals, yvals, yerr=yerrs, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.')
             ax.plot((0, 4) if swarm else (xvals[0], xvals[-1]), (1, 1), linewidth=1.5, alpha=0.5, color='grey') #, linestyle='--') #, label='1/seq len')
             fn = plotting.mpl_finish(ax, pltdir(), 'f1-%s-%s'%(stype, 'f1' if mtr_type=='partis' else mtr_type.split('-')[1]), ylabel=metric_labels.get(mtr_type, mtr_type), title='%sclonal'%stype,
@@ -204,7 +220,7 @@ def make_plots(swarm=True, debug=True):
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='run:write:plot')
-parser.add_argument('--methods', default='partis')
+parser.add_argument('--methods', default='partis:mobille')
 parser.add_argument('--version', default='test')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--n-random-seeds', type=int, help='number of replicates with different random seeds to run')
@@ -220,10 +236,11 @@ for stype in stypes:
     for spval in spvals:
         # if stype != 'mono' or spval != 'l0036':
         #     continue
-        if 'run' in args.actions:
-            for iseed in range(1 if args.n_random_seeds is None else args.n_random_seeds):
-                run_partis(spval, stype, iseed=iseed)
-        if 'write' in args.actions:
-            write_metrics(spval, stype, 'partis')
+        for mthd in args.methods:
+            if 'run' in args.actions:
+                for iseed in range(1 if args.n_random_seeds is None else args.n_random_seeds):
+                    run_method(mthd, spval, stype, iseed=iseed)
+            if 'write' in args.actions:
+                write_metrics(spval, stype, mthd)
 if 'plot' in args.actions:
-    make_plots()
+    make_plots(swarm=args.n_random_seeds is not None)

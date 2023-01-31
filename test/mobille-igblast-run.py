@@ -31,7 +31,7 @@ then add them all individually to imgt/high v-quest search page
 
 # ----------------------------------------------------------------------------------------
 def wkdir(locus):
-    return '%s/work/%s' % (args.outdir, locus)
+    return '%s/work%s' % (args.outdir, '' if locus is None else '/'+locus)
 
 # ----------------------------------------------------------------------------------------
 def imgt_indir(locus):
@@ -39,6 +39,8 @@ def imgt_indir(locus):
 
 # ----------------------------------------------------------------------------------------
 def idlstr(locus, imgt=False):
+    if args.single_chain:
+        return args.id_str
     istr = '%s-%s' % (args.id_str, locus)
     if imgt:
         istr = istr.replace('-', '_').replace('.', '_') #+'_fa'  # friggin imgt changes - and . to _ UPDATE arg the new version doesn't have '_fa'
@@ -61,15 +63,26 @@ def mbofn(locus):
     return '%s/%s/%s_final_clusters_Fo.txt' % (wkdir(locus), idlstr(locus, imgt=True), idlstr(locus, imgt=True))
 
 # ----------------------------------------------------------------------------------------
+def infn(locus):
+    if args.simdir is None:
+        return args.inpath
+    else:
+        return simfn(locus)
+
+# ----------------------------------------------------------------------------------------
 def simfn(locus):
     return paircluster.paired_fn(args.simdir, locus, suffix='.yaml')
 
 # ----------------------------------------------------------------------------------------
 def getofn(locus):
+    if args.single_chain:
+        return '%s/partition.yaml' % args.outdir
     return paircluster.paired_fn(args.outdir, locus, single_chain=True, actstr='partition', suffix='.yaml')
 
 # ----------------------------------------------------------------------------------------
 def gloci():  # if no sw file, we probably only made one light locus (or i guess all input is missing, oh well)
+    if args.single_chain:
+        return [None]
     return [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(simfn(l))]
 
 # ----------------------------------------------------------------------------------------
@@ -85,6 +98,8 @@ def convert_file(ifnfcn, ofnfcn, airr_input=False, igbl_gldir=False, plot_perfor
     ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
     for locus in gloci():
         ofn = ofnfcn(locus)
+        if utils.output_exists(args, imgt_outdir(locus), debug=True, outlabel='imgt output'):
+            continue
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
@@ -134,7 +149,7 @@ def convert_file(ifnfcn, ofnfcn, airr_input=False, igbl_gldir=False, plot_perfor
 def run_igblast():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
     for locus in gloci():
-        if not os.path.exists(simfn(locus)):
+        if not os.path.exists(infn(locus)):
             continue
         ofn = igbofn(locus)
         if utils.output_exists(args, ofn, debug=False): # and not args.dry:  # , offset=8):
@@ -175,7 +190,7 @@ def run_igblast():
 def run_mobille():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
     for locus in gloci():
-        if not os.path.exists(simfn(locus)):
+        if not os.path.exists(infn(locus)):
             continue
         ofn = mbofn(locus)
         if utils.output_exists(args, ofn, debug=False): # and not args.dry:  # , offset=8):
@@ -195,6 +210,7 @@ def run_mobille():
             '/usr/bin/time -f"mobille time: %%e" bash run_MobiLLe.sh %s %s 2>&1' % (imgt_outdir(locus), wkdir(locus)),  # it makes its own sub outdir
         ]
         bfn = '%s/run.sh' % wkdir(locus)  #  NOTE if i'd used utils.simplerun() i couldn't used its cmdfname arg
+        utils.mkdir(bfn, isfile=True)
         with open(bfn, 'w') as bfile:
             for l in shlines:
                 bfile.write('%s\n'%l)
@@ -223,8 +239,10 @@ def convert_mobille_output():
                 iclust, clstr = line.split('\t')
                 iclust = int(iclust)
                 partition.append([s.strip() for s in clstr.split()])
-        _, _, true_cpath = utils.read_output(simfn(locus), skip_annotations=True)
-        true_partition = true_cpath.best()
+        true_partition = None
+        if args.simdir is not None:
+            _, _, true_cpath = utils.read_output(simfn(locus), skip_annotations=True)
+            true_partition = true_cpath.best()
         plines = ClusterPath(partition=partition).get_partition_lines(true_partition=true_partition, calc_missing_values='best')
         print '    writing partition to %s' % pfn 
         utils.write_annotations(pfn, {}, [], utils.annotation_headers, partition_lines=plines)
@@ -239,9 +257,10 @@ def convert_mobille_output():
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('action')
-parser.add_argument('--simdir', required=True)
+parser.add_argument('--inpath')  # set this if 1) running on data or 2) running on single chain simulation (ok latter i think won't quite work yet, you'll need to fix)
+parser.add_argument('--simdir')  # set this if you're running on paired simulation (as from cf-paired-loci.py)
 parser.add_argument('--outdir', required=True)
-parser.add_argument('--id-str', required=True)
+parser.add_argument('--id-str', default='')
 parser.add_argument('--base-imgt-outdir', required=True)
 parser.add_argument('--prep', action='store_true', help='only prep for imgt')
 parser.add_argument('--overwrite', action='store_true')
@@ -250,9 +269,15 @@ parser.add_argument('--n-max-procs', type=int, help='NOT USED')
 parser.add_argument('--igbdir', default='%s/packages/ncbi-igblast-1.17.1'%os.getcwd())
 parser.add_argument('--species', default='human')
 parser.add_argument('--n-procs', default=1, type=int)
+parser.add_argument('--single-chain', action='store_true')
 args = parser.parse_args()
+args.base_imgt_outdir = os.path.realpath(args.base_imgt_outdir)
+args.outdir = os.path.realpath(args.outdir)
+assert [args.inpath, args.simdir].count(None) == 1  # set exactly one of these
+if args.inpath is not None:
+    assert args.single_chain  # would just need to be implemented
 
-convert_file(simfn, imgt_infname)  # convert to fasta
+convert_file(infn, imgt_infname)  # convert to fasta
 if args.prep:
     sys.exit(0)
 if args.action == 'mobille':
