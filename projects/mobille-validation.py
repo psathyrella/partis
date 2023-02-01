@@ -44,7 +44,7 @@ def bodir(spval, stype):
     return '%s/%s/%s-%s' % (base_odir, args.version, spval, stype)
 # ----------------------------------------------------------------------------------------
 def bmdir(spval, stype, mthd, iseed=None):
-    return '%s/%s%s' % (bodir(spval, stype), mthd, '' if args.n_random_seeds is None else '/seed-%d'%iseed)
+    return '%s/%s%s' % (bodir(spval, stype), mthd, '' if args.n_random_seeds is None or iseed is None else '/seed-%d'%iseed)
 # ----------------------------------------------------------------------------------------
 def paramdir(spval, stype, iseed=None):
     return '%s/parameters' % bmdir(spval, stype, 'partis', iseed=iseed)
@@ -124,7 +124,7 @@ def write_metrics(spval, stype, mthd, debug=False):
         _, _, cpath = utils.read_output(ptnfn(spval, stype, mthd, iseed=iseed))
         inf_ptn = cpath.best()
         # import plotting
-        # print plotting.plot_cluster_similarity_matrix(pltdir(spval, stype, mthd), 'csim-matrix', 'true', true_partition, 'partis', inf_ptn, 30) #, debug=True)
+        # print plotting.plot_cluster_similarity_matrix(pltdir()+'/csim-plots', 'csim-matrix-%s-%s%s'%(stype, spval, '' if args.n_random_seeds is None else '-seed-%d'%iseed), 'true', tru_ptn, mthd, inf_ptn, 100, debug=True) #, debug=True)
         vdict = {}
         for mtstr in ['pairwise', 'closeness']:
             for mname, mval in mb_metrics(mtstr, inf_ptn, tru_ptn).items():
@@ -154,6 +154,8 @@ def run_method(mthd, spval, stype, iseed=0):
             cmd = './bin/partis %s --infname %s --parameter-dir %s --debug-allele-finding --random-seed %d' % (action, fst_infn(spval, stype), paramdir(spval, stype, iseed=iseed), iseed)
             if action == 'partition':
                 cmd += ' --outfname %s' % ofn
+            # else:
+            #     cmd += ' --plotdir %s/plots' % os.path.dirname(ofn)
             utils.simplerun(cmd, logfname='%s/%s.log'%(os.path.dirname(ofn), action)) #, dryrun=True)
     else:
         if mthd == 'mobille':
@@ -208,7 +210,8 @@ def make_plots(swarm=False, debug=False):
                         # sns.boxplot(data=yvals, boxprops={'alpha' : 0.6}, showmeans=True, meanprops={'marker' : 'o', 'markerfacecolor' : 'white', 'markeredgecolor' : 'black'})
                     else:
                         ax.errorbar(xvals, yvals, yerr=yerrs, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.')
-            # ax.plot((0, 4) if swarm else (xvals[0], xvals[-1]), (1, 1), linewidth=1.5, alpha=0.5, color='grey') #, linestyle='--') #, label='1/seq len')
+            if swarm:
+                ax.plot((0, 4) if swarm else (xvals[0], xvals[-1]), (1, 1), linewidth=1.5, alpha=0.5, color='grey') #, linestyle='--') #, label='1/seq len')
             fn = plotting.mpl_finish(ax, pltdir(), 'f1-%s-%s'%(stype, 'f1' if mtr_type=='partis' else mtr_type.split('-')[1]), ylabel=metric_labels.get(mtr_type, mtr_type), title='%sclonal'%stype,
                                      xlabel='lambda 0', xticks=None if swarm else xvals, xticklabels=['%.2f'%v for v in xvals], ybounds=(0, 1.05), leg_loc=(0.1, 0.2))
             fnames[0 if 'pairwise' in mtr_type else (2 if mtr_type=='partis' else 1)].append(fn)
@@ -237,6 +240,8 @@ def plot_simulation():
     plotting.make_html(pltdir(simu=True), n_columns=4) #, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
+# ./projects/mobille-validation.py --version v1 # --actions simplot  --methods mobille:scoper:partis
+# ./projects/mobille-validation.py --version trand --actions plot --n-random-seeds 10
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='run:write:plot')  # also: simplot
 parser.add_argument('--methods', default='partis:mobille:scoper')
