@@ -1480,7 +1480,7 @@ class PartitionDriver(object):
 
         self.write_to_single_input_file(self.hmm_infname, nsets, parameter_in_dir, shuffle_input=shuffle_input)  # single file gets split up later if we've got more than one process
         glutils.write_glfo(self.my_gldir, self.glfo)
-        if time.time() - start > 0.1:
+        if self.print_status and time.time() - start > 0.1:
             print '        hmm prep time: %.1f' % (time.time() - start)
 
         cmd_str = self.get_hmm_cmd_str(algorithm, self.hmm_infname, self.hmm_outfname, parameter_dir=parameter_in_dir, precache_all_naive_seqs=precache_all_naive_seqs, n_procs=n_procs)

@@ -18,6 +18,7 @@ if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
 import colored_traceback.always
 import os
 import json
+import operator
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
@@ -182,6 +183,11 @@ def run_simulation(args):
         glutils.check_allele_prevalence_freqs(args.outfname, glfo, args.allele_prevalence_fname, only_region='v', debug=args.debug>1)
         if args.allele_prevalence_fname == default_prevalence_fname:
             os.remove(default_prevalence_fname)
+    if not args.im_a_subproc and args.allowed_cdr3_lengths is not None:  # check final cdr3 lengths
+        _, alist, _ = utils.read_output(args.outfname)
+        clens = [l['cdr3_length'] for l in alist]
+        clcounts = {l : clens.count(l) for l in set(clens)}
+        print '  final cdr3 lengths: %s (with counts: %s)' % (' '.join(str(l) for l in sorted(set(clens))), ',  '.join('%d %d'%(l, c) for l, c in sorted(clcounts.items(), key=operator.itemgetter(0))))
 
     if working_gldir is not None:
         glutils.remove_glfo_files(working_gldir, args.locus)
@@ -534,6 +540,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                         new_clist.append(cstr)
                 clist = new_clist
             utils.remove_from_arglist(clist, '--paired-loci')
+            utils.remove_from_arglist(clist, '--single-light-locus', has_arg=True)
             utils.remove_from_arglist(clist, '--dry-run')
             utils.remove_from_arglist(clist, '--reverse-negative-strands')
             utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
@@ -563,6 +570,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if tmpaction == 'generate-trees':
                 utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-sim-events', has_arg=True)
+                utils.remove_from_arglist(clist, '--allowed-cdr3-lengths', has_arg=True)  # format will confuse it
                 clist += ['--generate-trees']
                 utils.replace_in_arglist(clist, '--outfname', getofn(ltmp, trees=True, lpair=lpair))
                 work_fnames.append(getofn(ltmp, trees=True, lpair=lpair))
@@ -578,6 +586,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if args.only_genes is not None:
                         utils.replace_in_arglist(clist, '--only-genes', ':'.join([g for g in args.only_genes if utils.get_locus(g)==ltmp]))
                     utils.replace_in_arglist(clist, '--n-sim-events', str(get_n_events(lpair[1], args.n_sim_events)), insert_after='--choose-trees-in-order')
+                    if args.allowed_cdr3_lengths is not None:
+                        if ltmp in args.allowed_cdr3_lengths:
+                            utils.replace_in_arglist(clist, '--allowed-cdr3-lengths', ':'.join(args.allowed_cdr3_lengths[ltmp].split('c')))  # ick, i hate adding some new split rule with 'c' here (but not sure what else to do)
+                        else:
+                            utils.remove_from_arglist(clist, '--allowed-cdr3-lengths', has_arg=True)
                 else:
                     if auto_cache:
                         clist[clist.index(args.action)] = 'cache-parameters'
@@ -1471,7 +1484,7 @@ subargs['simulate'].append({'name' : '--n-leaf-hist-fname', 'kwargs' : {'help' :
 subargs['simulate'].append({'name' : '--default-scratch-n-leaf-distribution', 'kwargs' : {'default' : 'geometric', 'choices' : ['geometric', 'box', 'zipf'], 'help' : 'Default for --n-leaf-distribution. Do not set, this is for internal use only.'}})
 subargs['simulate'].append({'name' : '--n-leaves', 'kwargs' : {'type' : float, 'default' : 5., 'help' : 'Parameter determining the shape of the distribution from which the number of leaves per tree is drawn (--n-leaf-distribution). For \'geometric\' and \'box\', this is the mean; while for \'zipf\' it is the exponent, i.e. *not* the mean -- see docs for numpy.random.zipf for details. Has *no* effect if --n-leaf-distribution is \'hist\'.'}})
 subargs['simulate'].append({'name' : '--constant-number-of-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Give all trees the same number of leaves (i.e. override --n-leaf-distribution).'}})
-subargs['simulate'].append({'name' : '--allowed-cdr3-lengths', 'kwargs' : {'help' : 'Colon-separated list of cdr3 lengths to which to restrict the simulation. NOTE that our cdr3 definition includes both conserved codons, which differs from the imgt definition (sorry).'}})
+subargs['simulate'].append({'name' : '--allowed-cdr3-lengths', 'kwargs' : {'help' : 'For single chain simulation, a colon-separated list of nucleotide cdr3 lengths to which to restrict the simulation (ranges also allowed, e.g. 36-40 [python slice conventions]). NOTE that our cdr3 definition includes both conserved codons, which differs from the imgt definition (sorry). If --paired-loci is set, specify different lengths for each loci as key/val pairs e.g. \'igh,39c42-46:igk,30c33c36\' (each \'c\' will be replaced by a colon when passing to each locus\'s simulation process). If a locus is not present in the dict, no restrictions will be placed on its lengths. Typical lengths: igh (36-72), igk (30-39), igl (30-42).'}})
 subargs['simulate'].append({'name' : '--remove-nonfunctional-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'Remove non-functional sequences from simulated rearrangement events. Note that because this happens after generating SHM (since we have no way to tell bppseqgen to only generate functional sequences), you will in general need to specify a (potentialy much) larger value for --n-leaves if you set --remove-nonfunctional-seqs. Typically, the vast majority of nonfunctional simulated sequences are due to stop codons generated by SHM.'}})
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})  # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and passes this value as the weibull parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})

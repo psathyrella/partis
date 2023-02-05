@@ -309,7 +309,14 @@ def vlval(args, vlists, varnames, vname):  # ok this name also sucks, but they'r
 def get_var_info(args, scan_vars, debug=False):
     # ----------------------------------------------------------------------------------------
     def handle_var(svar, val_lists, valstrs):
-        convert_fcn = (lambda vlist: ':'.join(str(v) for v in vlist)) if svar in args.str_list_vars else str
+        # convert_fcn = (lambda vlist: ':'.join(str(v) for v in vlist)) if svar in args.str_list_vars else str  # old version, leaving here cause i'm chicken that i messed something up
+        convert_fcn = str
+        if svar in args.str_list_vars:
+            def convert_fcn(vlist):
+                subfcn = str
+                if hasattr(args, 'recurse_replace_vars') and svar in args.recurse_replace_vars:
+                    subfcn = lambda s: s.replace('M', ',').replace('L', ':')  # if you need , or : in subprocess args, put in M and L and they'll get replaced here
+                return ':'.join(subfcn(v) for v in vlist)
         sargv = sargval(args, svar)
         if sargv is None:  # no default value, and it wasn't set on the command line
             pass
@@ -330,7 +337,7 @@ def get_var_info(args, scan_vars, debug=False):
     if debug:
         print '                             name    list   val_lists              valstrs'
     for svar in scan_vars:
-        val_lists, valstrs = handle_var(svar, val_lists, valstrs)
+        val_lists, valstrs = handle_var(svar, val_lists, valstrs)  # val_lists and valstrs get updated each time through
 
     if args.zip_vars is not None:
         assert len(args.zip_vars) == 2  # nothing wrong with more, but I don't feel like testing it right now

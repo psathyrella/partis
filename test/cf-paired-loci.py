@@ -43,7 +43,7 @@ parser.add_argument('--iseeds', help='if set, only run these replicate indices (
 parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
 parser.add_argument('--fraction-of-reads-to-remove-list')
 parser.add_argument('--bulk-data-fraction-list')
-parser.add_argument('--allowed-cdr3-lengths-list') #, default='30,45:30,33,36,42,45,48')
+parser.add_argument('--allowed-cdr3-lengths-list') # NOTE need to replace , with M and : with L in each element e.g. ighM15-34:ighM36-43:ighM45-52:ighM54-61:ighM63-73
 parser.add_argument('--n-genes-per-region-list')
 parser.add_argument('--n-sim-alleles-per-gene-list')
 parser.add_argument('--scratch-mute-freq-list') #, type=float, default=1)
@@ -96,6 +96,7 @@ for act in ['cache-parameters'] + ptn_actions + plot_actions:
         args.scan_vars[act] = []
     args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times']
+args.recurse_replace_vars = ['allowed-cdr3-lengths']  # ick ick ick
 args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
 # NOTE ignoring svartypes atm, which may actually work?
 # args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-sim-events'], 'float' : ['scratch-mute-freq', 'mutation-multiplier']}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
