@@ -1069,17 +1069,21 @@ def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get val
 
 # ----------------------------------------------------------------------------------------
 def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=False):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
+    # ----------------------------------------------------------------------------------------
+    def rtnval():
+        # assert key in linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
+        if key in linekeys['per_family']:
+            return antn[key]
+        else:
+            return antn[key][iseq]
+    # ----------------------------------------------------------------------------------------
     # NOTE this is starting to duplicate code in add_extra_column()
     if key == 'aa-cdist':
         key = 'cons-dist-aa'  # arggggggh (when we write output info when choosing abs, we write it as 'aa-cdist', and can't change it now)
     if key == 'aa-cfrac':
         key = 'cons-frac-aa'  # arggggggh (when we write output info when choosing abs, we write it as 'aa-cfrac', and can't change it now)
     if key in antn:
-        # assert key in linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
-        if key in linekeys['per_family']:
-            return antn[key]
-        else:
-            return antn[key][iseq]
+        return rtnval()
     elif 'tree-info' in antn and key in antn['tree-info']['lb']:
         return treeutils.smvals(antn, key, iseq=iseq)
     elif key in ['cons-frac-aa', 'cons-dist-aa']:  # NOTE this doesn't check to see if it's there (i think because we don't store it), it just calculates it
@@ -1101,8 +1105,11 @@ def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=Fa
         return antn['cdr3_length'] / 3 - 2
     else:
         if add_xtr_col:
-            antn[key] = add_extra_column(key, antn, None) #, glfo=
-            return antnval(antn, key, iseq)  # i think recursing like this makes sense?
+            rval = add_extra_column(key, antn, None)  # try to add it NOTE this fcn even existing is pretty hackey, it was originally for transferring from info to outfo 
+            if rval is not None:
+                antn[key] = rval
+        if key in antn:
+            return rtnval()
         elif use_default:
             return default_val
         else:
