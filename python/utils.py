@@ -1068,7 +1068,7 @@ def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get val
     return line[key][line['unique_ids'].index(uid)]  # NOTE just returns the first one, idgaf if there's more than one (and maybe I won't regret that...)
 
 # ----------------------------------------------------------------------------------------
-def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
+def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=False):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
     # NOTE this is starting to duplicate code in add_extra_column()
     if key == 'aa-cdist':
         key = 'cons-dist-aa'  # arggggggh (when we write output info when choosing abs, we write it as 'aa-cdist', and can't change it now)
@@ -1100,7 +1100,10 @@ def antnval(antn, key, iseq, use_default=False, default_val=None):  # generalize
     elif key == 'imgt_cdr3_length_aa':  # ick
         return antn['cdr3_length'] / 3 - 2
     else:
-        if use_default:
+        if add_xtr_col:
+            antn[key] = add_extra_column(key, antn, None) #, glfo=
+            return antnval(antn, key, iseq)  # i think recursing like this makes sense?
+        elif use_default:
             return default_val
         else:
             raise Exception('key \'%s\' not found in line' % key)
@@ -3277,7 +3280,7 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
     if uid_extra_str_label is None:
         uid_extra_str_label = ''
     for ekey in extra_print_keys:
-        vlist = [antnval(line, ekey, i, use_default=True, default_val=color('blue', '-')) for i in range(len(line['unique_ids']))]
+        vlist = [antnval(line, ekey, i, use_default=True, default_val=color('blue', '-'), add_xtr_col=True) for i in range(len(line['unique_ids']))]
         # tw = str(max(len(ekey), max(len(vstr(v)) for v in vlist)))  # maybe include len of ekey in width?
         tw = max([len(vstr(v)) for v in vlist] + [len(ekey)])
         uid_extra_str_label += '  ' + wfmt(ekey, tw, jfmt='-')
@@ -4164,6 +4167,8 @@ def trim_nuc_seq(nseq):  # if length not multiple of three, trim extras from the
 
 # ----------------------------------------------------------------------------------------
 def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for_csv=False):
+    if outfo is None:  # hacking on this behavior that doesn't require you to pass in <outfo>
+        outfo = {}
     # NOTE use <info> to calculate all quantities, *then* put them in <outfo>: <outfo> only has the stuff that'll get written to the file, so can be missing things that are needed for calculations
     if key == 'cdr3_seqs':
         outfo[key] = [get_cdr3_seq(info, iseq) for iseq in range(len(info['unique_ids']))]
@@ -4178,7 +4183,8 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         # print outfo['unique_ids']
         # color_mutants(info['naive_seq'], outfo[key], print_result=True, align=True, extra_str='  ')
     elif key == 'full_coding_input_seqs':
-        full_coding_input_seqs = [info['v_5p_del'] * ambig_base + info['input_seqs'][iseq] + info['j_3p_del'] * ambig_base for iseq in range(len(info['unique_ids']))]
+        def inpseq(i): return info['input_seqs'][iseq][len(info['fv_insertion']) : len(info['input_seqs'][iseq]) - len(info['jf_insertion'])]
+        full_coding_input_seqs = [info['v_5p_del'] * ambig_base + inpseq(iseq) + info['j_3p_del'] * ambig_base for iseq in range(len(info['unique_ids']))]
         outfo[key] = full_coding_input_seqs
         # for iseq in range(len(info['unique_ids'])):
         #     print info['unique_ids'][iseq]
@@ -4213,6 +4219,7 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         # raise Exception('column \'%s\' missing from annotation' % key)
         # print '    %s column \'%s\' missing from annotation' % (wrnstr(), key)
         pass
+    return outfo.get(key)
 
 # ----------------------------------------------------------------------------------------
 def transfer_indel_reversed_seqs(line):
