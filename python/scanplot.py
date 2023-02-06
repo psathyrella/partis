@@ -795,6 +795,15 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             ymin = 0
             if ptilestr != 'naive-hdist':
                 ymax = 1.05
+            if xvar == 'allowed-cdr3-lengths':  # ick ick ick (need to convert to actual imgt length, as well as fix formatting)
+                for ixt, xtl in enumerate(all_xtls):
+                    assert xtl.count('M') == 1  # would need to be updated
+                    ltmp, clenstr = xtl.split('M')
+                    assert ltmp == 'igh'  # would need to be updated
+                    assert ':' not in clenstr  # would need to be updated
+                    clens = [int(s) for s in clenstr.split('-')]
+                    all_xtls[ixt] = '-'.join(str(l - 6) for l in clens)
+                xlabel = 'allowed CDR3 length (IMGT)'
         leg_loc = [0.7, 0.15]
         if args.final_plot_xvar == 'n-leaves' and args.simu_extra_args is not None and '--constant-number-of-leaves' in args.simu_extra_args:
             xlabel += ' (constant)'
