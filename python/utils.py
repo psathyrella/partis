@@ -3265,9 +3265,10 @@ def print_true_events(glfo, reco_info, inf_line, print_naive_seqs=False, full_tr
             missing_str = '   %s %d/%d sequences from actual true cluster%s' % (color('red', 'missing'), len(missing_uids), len(full_true_cluster), ' (but includes %d duplicates not shown below)'%n_dups if n_dups>0 else '')
 
         multiline = synthesize_multi_seq_line_from_reco_info(tpl_ids, reco_info)
+        ixstr = extra_str
         if inf_line['fv_insertion'] != '' and multiline['fv_insertion'] == '':
-            extra_str = ' '*len(inf_line['fv_insertion']) + extra_str  # aligns true + inferred vertically
-        print_reco_event(multiline, extra_str=extra_str, label=color('green', 'true:') + multiple_str + missing_str)
+            ixstr = ' '*len(inf_line['fv_insertion']) + ixstr  # aligns true + inferred vertically
+        print_reco_event(multiline, extra_str=ixstr, label=color('green', 'true:') + multiple_str + missing_str)
         if print_naive_seqs:
             true_naive_seqs.append(multiline['naive_seq'])
 
@@ -5413,39 +5414,48 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, is
             return 0.5 * (len(clust_a) + len(clust_b))  # mean size of the two clusters
         else:
             assert False
-
+    # ----------------------------------------------------------------------------------------
+    def getsclusts(ptn):
+        sort_within_clusters(ptn)  # have to do this before taking N biggest so that when there's lots of ties in size we're more likely to get the same clusters for both methods
+        srtclusts = sorted(sorted(ptn), key=len, reverse=True)
+        plot_clusts = srtclusts[ : n_biggest_clusters]
+        skip_clusts = srtclusts[n_biggest_clusters : ]
+        return plot_clusts, skip_clusts
+    # ----------------------------------------------------------------------------------------
+    def incr_clust(csize, n_common, ifrac):
+        sub_szs.append(csize)
+        sub_ovlps.append(n_common)
+        sub_fracs.append(ifrac)
     # ----------------------------------------------------------------------------------------
     check_intersection_and_complement(partition_a, partition_b, a_label=a_label, b_label=b_label, only_warn=True)
     sort_within_clusters(partition_a)  # have to do this before taking N biggest so that when there's lots of ties in size we're more likely to get the same clusters for both methods
     sort_within_clusters(partition_b)
-    a_clusters = sorted(sorted(partition_a), key=len, reverse=True)[ : n_biggest_clusters]  # i.e. the n biggest clusters (after sorting clusters alphabetically)
-    b_clusters = sorted(sorted(partition_b), key=len, reverse=True)[ : n_biggest_clusters]
+    a_clusters, a_skip_clusts = getsclusts(partition_a)
+    b_clusters, b_skip_clusts = getsclusts(partition_b)
 
     smatrix = [[float('nan') for _ in b_clusters] for _ in a_clusters]
     dszs, dovlps, dfracs = [], [], []
     overlap_matrix = [[set(clust_a) & set(clust_b) for clust_b in b_clusters] for clust_a in a_clusters]
+    missing_b_clusts = list(range(len(b_clusters)))  # need to look for any clusters in b that overlapped only with small a clusters (i.e. won't otherwise show up in the debug printout)
     for ia, clust_a in enumerate(a_clusters):
         sub_szs, sub_ovlps, sub_fracs, n_found = [], [], [], 0
-        for ib, clust_b in enumerate(b_clusters):
-            if len(overlap_matrix[ia][ib]) == 0:
-                continue
+        for ib, clust_b in enumerate(b_clusters):  # first look just in the precalculated overlap matrix
             n_common = len(overlap_matrix[ia][ib])
+            if n_common == 0:
+                continue
             ifrac = float(n_common) / norm_factor(clust_a, clust_b)
             smatrix[ia][ib] = float('nan') if ifrac==0 else ifrac  # nan gives you transparent/empty color
-            if debug and n_common > 0:
+            if debug:
                 n_found += n_common
-                sub_szs.append(len(clust_b))
-                sub_ovlps.append(n_common)
-                sub_fracs.append(ifrac)
-        if debug and n_found < len(clust_a):  # if we didn't find any with overlap, look in smaller clusters
-            sub_szs, sub_ovlps, sub_fracs, n_found = [], [], [], 0
-            for bclst in partition_b:
+                incr_clust(len(clust_b), n_common, ifrac)
+                if ib in missing_b_clusts:
+                    missing_b_clusts.remove(ib)
+        if debug and n_found < len(clust_a):  # if we didn't find any with overlap, look in smaller clusters (I think doing this when debug isn't set would be annoyingly slow. This fcn is meant to plot a summary of the largest clusters on potentially large repertoires, if you want really comprehensive info, just set debug)
+            for bclst in b_skip_clusts:
                 ncm = len(set(clust_a) & set(bclst))
                 if ncm > 0:
                     n_found += ncm
-                    sub_szs.append(len(bclst))
-                    sub_ovlps.append(ncm)
-                    sub_fracs.append(float(ncm) / norm_factor(clust_a, bclst))
+                    incr_clust(len(bclst), ncm, float(ncm) / norm_factor(clust_a, bclst))
                 sub_szs = sorted(sub_szs, reverse=True)
                 sub_ovlps = sorted(sub_ovlps, reverse=True)
             if n_found != len(clust_a):
@@ -5456,12 +5466,18 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, is
             dfracs.append(sub_fracs)
     if debug:
         max_dsz, max_ovl = max(len(s) for s in dszs), max(len(o) for o in dovlps)
+        print '    cluster sizes (%s):' % color('blue', 'used')
+        for tlab, aclusts, eclusts in zip([a_label, b_label], [partition_a, partition_b], [a_clusters, b_clusters]):
+            print '    %12s: %s' % (tlab, cluster_size_str(aclusts, clusters_to_emph=eclusts))
         print '    %s  %s -->' % (a_label, b_label)
-        print '     size    %s        %s      overlap / %s size (*100)' % (wfmt('sizes', 2*max_dsz, jfmt='-'), wfmt('overlaps', 2*max_ovl, jfmt='-'), iscn_denominator.replace('min', 'smaller').replace('max', 'larger'))
+        print '     size   %s    %s      overlap / %s size (*100)' % (wfmt('sizes', 2*max_dsz, jfmt='-'), wfmt('overlaps', 2*max_ovl, jfmt='-'), iscn_denominator.replace('min', 'smaller').replace('max', 'larger'))
         cl = len(str(max(len(a_clusters[0]), len(b_clusters[0]))))
         for ia, clust_a in enumerate(a_clusters):
             szstr, ovlstr = ' '.join('%d'%s for s in dszs[ia]), ' '.join('%d'%o for o in dovlps[ia])
             print ('    %4d      %-s    %-s    %s') % (len(clust_a), wfmt(szstr, 2*max_dsz, jfmt='-'), wfmt(ovlstr, 2*max_ovl, jfmt='-'), ' '.join('%3.0f'%(100*f) for f in dfracs[ia]))
+        if len(missing_b_clusts) > 0:
+            print '  %s %d %s clusters only overlapped with small %s clusters, i.e. won\'t appear in debug output above (if there\'s large clusters here this means you should probably increase the number of clusters):' % (wrnstr(), len(missing_b_clusts), b_label, a_label)
+            print '     %s' % cluster_size_str([b_clusters[i] for i in missing_b_clusts])
 
     a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]  # nice to return these here so you don't have to re-sort in the calling fcn
     return a_cluster_lengths, b_cluster_lengths, smatrix
