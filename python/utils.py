@@ -2101,33 +2101,43 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 
 # ----------------------------------------------------------------------------------------
 # darn it, maybe there was no reason to add this? I forgot that run_vsearch() seems to do basically the same thing? (although it would have needed some coding to use an arbitrary database)
-def run_blastn(queryfos, targetfos, baseworkdir, short=False, debug=True):  # if short isn't set, it seems to ignore matches less than like 10 bases
+def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=False, debug=True):  # if short isn't set, it seems to ignore matches less than like 10 bases
     wkdir = '%s/blastn' % baseworkdir
     tgn = 'targets'
     tgfn, qrfn, ofn = [('%s/%s'%(wkdir, fstr)) for fstr in ['%s.fa'%tgn, 'queries.fa', 'results.out']]
     prep_dir(wkdir)
     write_fasta(tgfn, targetfos)
     write_fasta(qrfn, queryfos)
+    qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [queryfos, targetfos]]  # should really check for duplicates
     if debug > 1:
         print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
     _ = simplerun('makeblastdb -in %s -out %s/%s -dbtype nucl -parse_seqids' % (tgfn, wkdir, tgn), return_out_err=True, debug=False)
     _ = simplerun('blastn%s -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (' -task blastn-short' if short else '', wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
     best_matches = collections.OrderedDict()
     if debug > 1:
-        print '             % id     len    n gaps    target            query'
+        max_qlen, max_tlen = [max(len(s['name']) for s in sfos) for sfos in [queryfos, targetfos]]
+        print '             %% id  mism. len    n gaps    %s            %s   target match seq' % (wfmt('target', max_tlen, jfmt='-'), wfmt('query', max_qlen, jfmt='-'))
+    fieldnames = ['query', 'subject', '% identity', 'alignment length', 'mismatches', 'gap opens', 'q. start', 'q. end', 's. start', 's. end']
     with open(ofn) as ofile:
-        reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter='\t', fieldnames=['query', 'subject', '% identity', 'alignment length', 'mismatches', 'gap opens', 'q. start', 'q. end', 's. start', 's. end'])
+        reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter='\t', fieldnames=fieldnames)
         for line in reader:
-            pct_id, alen, n_gaps = float(line['% identity']), int(line['alignment length']), int(line['gap opens'])
+            tgt, pct_id, alen, n_gaps = line['subject'], float(line['% identity']), int(line['alignment length']), int(line['gap opens'])
             is_best = False
             if line['query'] not in best_matches:  # it always puts the best match first, and i guess that could change but seems really unlikely
-                best_matches[line['query']] = {'query' : line['query'], 'target' : line['subject'], 'pct_id' : pct_id, 'alen' : alen, 'n_gaps' : n_gaps}
+                best_matches[line['query']] = {'query' : line['query'], 'target' : tgt, 'pct_id' : pct_id, 'alen' : alen, 'n_gaps' : n_gaps}
                 is_best = True
-                # if debug > 1:
-                #     print ''
-            if debug > 1 and is_best: # or debug > 1:
-                # gstr = color_gene(line['subject'], allow_constant=True, width=12) if   # doesn't work for leaders atm
-                print '              %3.0f     %3d    %s      %12s      %-s' % (pct_id, alen, color(None if n_gaps==0 else 'red', '%d'%n_gaps, width=3), line['subject'], line['query'] if is_best else '')
+                if debug > 1 and print_all_matches:
+                    print ''
+            if debug > 1 and (is_best or print_all_matches):
+                if n_gaps == 0:
+                    qbounds, tbounds = [[int(line['%s. start'%s]) - 1, int(line['%s. end'%s])] for s in ['q', 's']]
+                    cmstr = color_mutants(qdict[line['query']][qbounds[0] : qbounds[1]], tdict[tgt][tbounds[0] : tbounds[1]]) #, align=n_gaps>0)
+                    tgstr = color('blue', '-'*qbounds[0]) + cmstr + color('blue', '-'*qbounds[1])
+                else:
+                    tgstr = '  %s  ' % color('blue', 'GAPS')
+                if is_best:
+                    print '          %3s %3s  %3s   %3s    %s      %s      %s   %s' % (color('blue', '-->'), '', '', '', 3 * ' ', max_tlen * ' ', wfmt(line['query'], max_qlen), qdict[line['query']])
+                print '          %3s %3.0f  %3d   %3d    %s      %s      %-s   %s' % ('', pct_id, int(line['mismatches']), alen, color(None if n_gaps==0 else 'red', '%d'%n_gaps, width=3), wfmt(tgt, max_tlen), max_qlen * ' ', tgstr)
 
     mstats = {}  # ends up as a sorted list of pairs <target name, list of matched seqfos>
     def kfn(q): return q['target']
@@ -6925,10 +6935,9 @@ def get_gene_counts_from_annotations(annotations, only_regions=None):
     return gene_counts
 
 # ----------------------------------------------------------------------------------------
-def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=False, debug=False):
+def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=False, csv_outdir=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def algncreg(tkey, n_min_seqs=5):
-        print ' %s: aligning' % color('blue', tkey)
         if tkey == 'leader':  # for leaders, group together seqs that align to each V gene
             all_v_genes = set(l['v_gene'] for l in annotation_list)
             vg_antns = {}
@@ -6937,14 +6946,21 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
             print '  found %d total V genes' % len(all_v_genes)
         else:  # For c_genes, do everyone at once
             vg_antns = {'IGHVx-x*x' : annotation_list}
-        leader_seq_infos = []  # final/new leader seqs
+        # leader_seq_infos = []  # final/new leader seqs
+        writefos = []
         print '      gene    families  seqs'
         for ivg, (vgene, vgalist) in enumerate(sorted(vg_antns.items(), key=lambda q: sum(len(l['unique_ids']) for l in q[1]), reverse=True)):
             print '    %s %3d     %3d' % (color_gene(vgene, width=10), len(vgalist), sum(len(l['unique_ids']) for l in vgalist))
             if ivg > 2 and sum(len(l['unique_ids']) for l in vgalist) < n_min_seqs:  # always do the first 3 v gene groups, but past that skip any vgene groups that have too few sequences
                 print '            too few seqs'
                 continue
-            qfos = [{'name' : u, 'seq' : s} for l in vgalist for u, s in zip(l['unique_ids'], l['%s_seqs'%tkey])]  # it might be easier to do each annotation separately, but this way i can control parallelization better and there's less overhead
+            n_zero_len = len([s for l in vgalist for s in l['%s_seqs'%tkey] if len(s) == 0])
+            if n_zero_len > 0:
+                print '    ignoring %d seqs with zero length %ss' % (n_zero_len, tkey)
+            qfos = [{'name' : u, 'seq' : s} for l in vgalist for u, s in zip(l['unique_ids'], l['%s_seqs'%tkey]) if len(s) > 0]  # it might be easier to do each annotation separately, but this way i can control parallelization better and there's less overhead
+            if len(qfos) == 0:
+                print '    no query infos'
+                return
             best_matches, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug)  # , short=True
             if len(best_matches) == 0:
                 print '    %s no %s matches from %d targets' % (wrnstr(), tkey, len(tgtfos[tkey]))
@@ -6957,7 +6973,8 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                 tmsfos = [{'name' : tgt, 'seq' : tdict[tgt]}] + [{'name' : m['query'], 'seq' : qdict[m['query']]} for m in mfos]
                 msa_seqfos = align_many_seqs(tmsfos, extra_str='            ', debug=False)  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output
                 cseq = cons_seq(aligned_seqfos=[s for s in msa_seqfos if s['name']!=tgt], extra_str='         ', debug=debug)
-                leader_seq_infos.append({'seq' : cseq, 'match-name' : tgt})
+                # leader_seq_infos.append({'seq' : cseq, 'match-name' : tgt})
+                writefos += [{'name' : s['name'], 'seq' : s['seq'], 'target' : tgt} for s in msa_seqfos + [{'name' : 'consensus-%s'%tgt, 'seq' : cseq, 'target' : tgt}]]
                 if debug:
                     print color_mutants(cseq, get_single_entry([s for s in msa_seqfos if s['name']==tgt])['seq'], seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
                     if aa_dbg:
@@ -6965,6 +6982,14 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                         aa_msa_seqfos = align_many_seqs(aasfos, extra_str='            ', aa=True, debug=False)
                         aa_cseq = cons_seq(aligned_seqfos=[s for s in aa_msa_seqfos if s['name']!=tgt], aa=True, extra_str='         ', debug=debug)
                         print color_mutants(aa_cseq, get_single_entry([s for s in aa_msa_seqfos if s['name']==tgt])['seq'], amino_acid=True, seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
+        if csv_outdir is not None and len(writefos) > 0:
+            cfn = '%s/%s-seq-alignments.csv'%(csv_outdir, tkey)
+            print '      writing to %s' % cfn
+            with open(cfn, 'w') as cfile:
+                writer = csv.DictWriter(cfile, fieldnames=writefos[0].keys())
+                writer.writeheader()
+                for wfo in writefos:
+                    writer.writerow(wfo)
     # ----------------------------------------------------------------------------------------
     def read_seqs(tkey, fname, debug=False):
         if debug:
@@ -6990,12 +7015,10 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                     tfos = new_tfos
         return tfos
     # ----------------------------------------------------------------------------------------
-    def read_leaders():
-        return read_fastx(leaderfn)
-    # ----------------------------------------------------------------------------------------
     lsrc = 'imgt'
     leaderfn, cgfn = 'data/germlines/leaders/%s/%s/%s/%sv.fa' % (lsrc, species, locus, locus), 'data/germlines/constant/%s/%sc.fa'%(species, locus)
     tgtfos = collections.OrderedDict()
     for tkey, fn in zip(['leader', 'c_gene'], [leaderfn, cgfn]):
+        print ' %s seqs' % color('blue', tkey)
         tgtfos[tkey] = read_seqs(tkey, fn)
         algncreg(tkey)
