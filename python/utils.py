@@ -2113,7 +2113,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
         print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
     _ = simplerun('makeblastdb -in %s -out %s/%s -dbtype nucl -parse_seqids' % (tgfn, wkdir, tgn), return_out_err=True, debug=False)
     _ = simplerun('blastn%s -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (' -task blastn-short' if short else '', wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
-    best_matches = collections.OrderedDict()
+    matchfos = collections.OrderedDict()
     if debug > 1:
         max_qlen, max_tlen = [max(len(s['name']) for s in sfos) for sfos in [queryfos, targetfos]]
         print '             %% id  mism. len    n gaps    %s            %s   target match seq' % (wfmt('target', max_tlen, jfmt='-'), wfmt('query', max_qlen, jfmt='-'))
@@ -2121,27 +2121,39 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
     with open(ofn) as ofile:
         reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter='\t', fieldnames=fieldnames)
         for line in reader:
-            tgt, pct_id, alen, n_gaps = line['subject'], float(line['% identity']), int(line['alignment length']), int(line['gap opens'])
+            qry, tgt, pct_id, alen, n_gaps = line['query'], line['subject'], float(line['% identity']), int(line['alignment length']), int(line['gap opens'])
+            qbounds, tbounds = [[int(line['%s. start'%s]) - 1, int(line['%s. end'%s])] for s in ['q', 's']]
+            def gseq(sq, bnd, obd, osq):
+                return (obd[0] - bnd[0]) * gap_chars[0] + bnd[0] * gap_chars[0] + sq[bnd[0] : bnd[1]] + (len(sq) - bnd[1]) * gap_chars[0] + ((len(osq) - obd[1]) - (len(sq) - bnd[1])) * gap_chars[0]
+            qseq = gseq(qdict[qry], qbounds, tbounds, tdict[tgt])
+            tseq = gseq(tdict[tgt], tbounds, qbounds, qdict[qry])
+            mfo = {'query' : qry, 'targets' : tgt, 'pct_ids' : pct_id, 'alens' : alen, 'n_gaps' : n_gaps, 'qbounds' : qbounds, 'tbounds' : tbounds, 'qseqs' : qseq, 'tseqs' : tseq}
             is_best = False
-            if line['query'] not in best_matches:  # it always puts the best match first, and i guess that could change but seems really unlikely
-                best_matches[line['query']] = {'query' : line['query'], 'target' : tgt, 'pct_id' : pct_id, 'alen' : alen, 'n_gaps' : n_gaps}
+            if qry not in matchfos:  # it always puts the best match first, and i guess that could change but seems really unlikely
+                matchfos[qry] = {k : v if k=='query' else [v] for k, v in mfo.items()}
                 is_best = True
                 if debug > 1 and print_all_matches:
                     print ''
+            else:
+                for key, val in mfo.items():
+                    if key == 'query':
+                        continue
+                    matchfos[qry][key].append(val)
             if debug > 1 and (is_best or print_all_matches):
                 if n_gaps == 0:
-                    qbounds, tbounds = [[int(line['%s. start'%s]) - 1, int(line['%s. end'%s])] for s in ['q', 's']]
-                    cmstr = color_mutants(qdict[line['query']][qbounds[0] : qbounds[1]], tdict[tgt][tbounds[0] : tbounds[1]]) #, align=n_gaps>0)
-                    tgstr = color('blue', '-'*qbounds[0]) + cmstr + color('blue', '-'*qbounds[1])
+                    cmstr = color_mutants(qseq, tseq)
+                    tgstr = cmstr #color('blue', '.'*qbounds[0]) + cmstr + color('blue', '.'*qbounds[1])
                 else:
                     tgstr = '  %s  ' % color('blue', 'GAPS')
                 if is_best:
-                    print '          %3s %3s  %3s   %3s    %s      %s      %s   %s' % (color('blue', '-->'), '', '', '', 3 * ' ', max_tlen * ' ', wfmt(line['query'], max_qlen), qdict[line['query']])
+                    print '          %3s %3s  %3s   %3s    %s      %s      %s   %s' % (color('blue', '-->'), '', '', '', 3 * ' ', wfmt('(for first target)', max_tlen), wfmt(line['query'], max_qlen), qseq)
                 print '          %3s %3.0f  %3d   %3d    %s      %s      %-s   %s' % ('', pct_id, int(line['mismatches']), alen, color(None if n_gaps==0 else 'red', '%d'%n_gaps, width=3), wfmt(tgt, max_tlen), max_qlen * ' ', tgstr)
 
+    if len(matchfos) == 0:
+        print '      no blast matches'
     mstats = {}  # ends up as a sorted list of pairs <target name, list of matched seqfos>
-    def kfn(q): return q['target']
-    for tgt, tgroup in itertools.groupby(sorted(best_matches.values(), key=kfn), key=kfn):
+    def kfn(q): return q['targets'][0]
+    for tgt, tgroup in itertools.groupby(sorted(matchfos.values(), key=kfn), key=kfn):
         mstats[tgt] = list(tgroup)
     mstats = sorted(mstats.items(), key=lambda x: len(x[1]), reverse=True)
 
@@ -2150,7 +2162,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
         os.remove(fn)
     os.rmdir(wkdir)
 
-    return best_matches, mstats
+    return matchfos, mstats
 
 # ----------------------------------------------------------------------------------------
 def print_cons_seq_dbg(seqfos, cons_seq, aa=False, align=False, tie_resolver_seq=None, tie_resolver_label=None, extra_str='  ', dont_print_cons_seq=False):
@@ -6961,8 +6973,8 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
             if len(qfos) == 0:
                 print '    no query infos'
                 return
-            best_matches, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug)  # , short=True
-            if len(best_matches) == 0:
+            matchfos, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug)  # , short=True
+            if len(matchfos) == 0:
                 print '    %s no %s matches from %d targets' % (wrnstr(), tkey, len(tgtfos[tkey]))
             qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [qfos, tgtfos[tkey]]]  # should really check for duplicates
             for itg, (tgt, mfos) in enumerate(mstats):  # loop over each target seq and the sequences for whom it was a best match
@@ -6971,7 +6983,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                     print '          too small, skipping'
                     continue
                 tmsfos = [{'name' : tgt, 'seq' : tdict[tgt]}] + [{'name' : m['query'], 'seq' : qdict[m['query']]} for m in mfos]
-                msa_seqfos = align_many_seqs(tmsfos, extra_str='            ', debug=False)  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output
+                msa_seqfos = align_many_seqs(tmsfos, extra_str='            ', debug=False)  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output UPDATE well now i'm parsing the blast alignment a little more (although still not the gaps, whose locations may not be there?) so maybe coule remove this now
                 cseq = cons_seq(aligned_seqfos=[s for s in msa_seqfos if s['name']!=tgt], extra_str='         ', debug=debug)
                 # leader_seq_infos.append({'seq' : cseq, 'match-name' : tgt})
                 writefos += [{'name' : s['name'], 'seq' : s['seq'], 'target' : tgt} for s in msa_seqfos + [{'name' : 'consensus-%s'%tgt, 'seq' : cseq, 'target' : tgt}]]
