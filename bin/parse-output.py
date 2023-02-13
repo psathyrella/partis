@@ -81,6 +81,7 @@ parser.add_argument('--extra-columns', help='colon-separated list of additional 
 parser.add_argument('--partition-index', type=int, help='if set, use the partition at this index in the cluster path, rather than the default of using the best partition')
 parser.add_argument('--seed-unique-id', help='if set, take sequences only from the cluster containing this seed sequence, rather than the default of taking all sequences from all clusters')
 parser.add_argument('--cluster-index', type=int, help='if set, take sequences only from the cluster at this index in the partition, rather than the default of taking all sequences from all clusters. This index is with respect to the cluster order found in the file (which, in contrast to plots made by --plotdir, is *not* sorted by size)')
+parser.add_argument('--sort-by-size', action='store_true', help='if set, sort clusters in partition by decreasing size before applying --cluster-index')
 parser.add_argument('--indel-reversed-seqs', action='store_true', help='if set, take sequences that have had any shm indels "reversed" (i.e. insertions are reversed, and deletions are replaced with the germline bases) rather than the default of using sequences from the original input file. Indel-reversed sequences can be convenient because they are by definition the same length as and aligned to the naive sequence.')
 parser.add_argument('--glfo-dir', help='Directory with germline info. Only necessary for old-style csv output files. Equivalent to a parameter dir with \'/hmm/germline-sets\' appended.')
 parser.add_argument('--template-glfo-dir', help='use this glfo dir as a template when reading --glfo-dir (only used for airr input atm)')
@@ -193,9 +194,12 @@ else:
         clusters_to_use = cpath.partitions[ipartition]
         print '    taking all %d clusters' % len(clusters_to_use)
     else:
-        clusters_to_use = [cpath.partitions[ipartition][args.cluster_index]]
+        ptn = cpath.partitions[ipartition]
+        if args.sort_by_size:
+            ptn = sorted(cpath.partitions[ipartition], key=len, reverse=True)
+        clusters_to_use = [ptn[args.cluster_index]]
         modified = True
-        print '    taking cluster at index %d with size %d' % (args.cluster_index, len(clusters_to_use[0]))
+        print '    taking cluster at index %d with size %d%s' % (args.cluster_index, len(clusters_to_use[0]), ' after sorting by size' if args.sort_by_size else '')
     if args.seed_unique_id is not None:
         clusters_to_use = [c for c in clusters_to_use if args.seed_unique_id in c]  # NOTE can result in more than one cluster with the seed sequence (e.g. if this file contains intermediate annotations from seed partitioning))
         modified = True
