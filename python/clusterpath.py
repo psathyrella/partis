@@ -218,18 +218,8 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def get_ccf_str(self, ip):
-        ccf_str = ''
-        if self.we_have_a_ccf:
-            ccf_str_list = [('%5s' % '-') if ccf is None else ('%5.2f' % ccf) for ccf in self.ccfs[ip]]
-            ccf_str = ' %s ' % ' '.join(ccf_str_list)
-            # if self.ccfs[ip][0] is None and self.ccfs[ip][1] is None:
-            #     ccf_str = '   -  -    '
-            # else:
-            #     ccf_str = ' %5.2f %5.2f    ' % tuple(self.ccfs[ip])
-        else:
-            ccf_str = '   -  -    '
-
-        return ccf_str
+        ccf_str_list = [('%5s' % '-') if ccf is None else ('%5.2f' % ccf) for ccf in self.ccfs[ip]]
+        return ' %s ' % ' '.join(ccf_str_list)
 
     # ----------------------------------------------------------------------------------------
     def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None, print_partition_indices=False, right_extrastr='', sort_by_size=True, max_sizestr_len=0):  # NOTE <highlight_cluster_indices> and <print_partition_indices> are quite different despite sounding similar, but I can't think of something else to call the latter that makes more sense
@@ -249,7 +239,8 @@ class ClusterPath(object):
             delta_str = ''
         print '      %s  %-12.2f%-7s   %s%-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, ('%-5d  ' % ip) if print_partition_indices else '', len(self.partitions[ip]), self.n_procs[ip]),
 
-        print '    ' + self.get_ccf_str(ip),
+        if self.we_have_a_ccf:
+            print '    ' + self.get_ccf_str(ip),
 
         sorted_clusters = self.partitions[ip]
         if sort_by_size:  # it's often nicer to *not* sort by cluster size here, since preserving the order frequently makes it obvious which clusters are merging as your eye scans downward through the output
@@ -489,6 +480,9 @@ class ClusterPath(object):
             else:
                 return utils.per_seq_val(getline(uid), 'seqs', uid)
         # ----------------------------------------------------------------------------------------
+        def get_naive_seq(uidstr):
+            return getline(uidstr)['naive_seq']
+        # ----------------------------------------------------------------------------------------
         def lget(uid_list):
             return ':'.join(uid_list)
         # ----------------------------------------------------------------------------------------
@@ -506,7 +500,9 @@ class ClusterPath(object):
         root_node.uids = uid_set  # each node keeps track of the uids of its children
         dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node, is_rooted=True)
         if debug:
-            print '    starting tree with %d leaves' % len(uid_set)
+            print '    starting tree with %d leaves and %d partition%s:' % (len(uid_set), len(partitions), utils.plural(len(partitions)))
+            for ip, ptn in enumerate(partitions):
+                ptnprint(ptn, extrastr='        ', print_header=ip==0)
         for ipart in reversed(range(len(partitions) - 1)):  # dendropy seems to only have fcns to build a tree from the root downward, so we loop starting with the last partition (- 1 is because the last partition is guaranteed to be just one cluster)
             for lnode in dtree.leaf_node_iter():  # look for leaf nodes that contain uids from two clusters in this partition, and add those as children
                 tclusts = [c for c in partitions[ipart] if len(set(c) & lnode.uids) > 0]
@@ -527,7 +523,7 @@ class ClusterPath(object):
                 continue
             if get_fasttrees and len(lnode.uids) > 2:
                 seqfos = [{'name' : uid, 'seq' : getseq(uid)} for uid in lnode.taxon.label.split(':')]  # may as well add them in the right order, although I don't think it matters
-                subtree, _, _ = treeutils.run_tree_inference('fasttree', seqfos=seqfos, suppress_internal_node_taxa=True)  # note that the fasttree distances get ignored below (no idea if they'd be better than what we set down there, but they probably wouldn't be consistent, so I'd rather ignore them)
+                subtree, _, _ = treeutils.run_tree_inference('fasttree', seqfos=seqfos, suppress_internal_node_taxa=True, no_naive=True)  # note that the fasttree distances get ignored below (no idea if they'd be better than what we set down there, but they probably wouldn't be consistent, so I'd rather ignore them)
                 for tmpnode in subtree.postorder_node_iter():
                     if tmpnode.is_leaf():
                         tmpnode.uids = set([tmpnode.taxon.label])
@@ -588,16 +584,30 @@ class ClusterPath(object):
                 if debug:
                     print '       %6.3f   %s  %s' % (edge.length, utils.color('blue' if from_fasttree else 'red', 'x'), edge.head_node.taxon.label)
 
+        hfrac, hdist = utils.hamming_fraction(get_naive_seq(root_label), dtree.seed_node.seq, also_return_distance=True)
         if debug:
-            print '        naive seq %s' % getline(root_label)['naive_seq'] # NOTE might be worthwhile to add an edge connecting seed node and the actual naive sequence (i.e. for cases where our approximate naive is off)
-            print '    root cons seq %s' % utils.color_mutants(getline(root_label)['naive_seq'], dtree.seed_node.seq)
+            if hdist > 0:
+                print '  note: naive and root cons seq differ at %d positions (hfrac %.2f)' % (hdist, hfrac)
+            print '        naive seq %s' % get_naive_seq(root_label) # NOTE might be worthwhile to add an edge connecting seed node and the actual naive sequence (i.e. for cases where our approximate naive is off)
+            print '    root cons seq %s' % utils.color_mutants(get_naive_seq(root_label), dtree.seed_node.seq)
 
         for node in dtree.preorder_node_iter():
             del node.uids
             del node.seq
             del node.n_descendent_leaves
 
-        treeutils.label_nodes(dtree, ignore_existing_internal_node_labels=True, ignore_existing_internal_taxon_labels=True, debug=debug)
+        old_dtree = dtree  # this is copied from treeutils.get_tree_with_dummy_branches()
+        naive_taxon = dendropy.Taxon(naive_seq_name)
+        old_dtree.taxon_namespace.add_taxon(naive_taxon)
+        naive_node = dendropy.Node(taxon=naive_taxon)
+        dtree = dendropy.Tree(seed_node=naive_node, taxon_namespace=old_dtree.taxon_namespace, is_rooted=True)
+        naive_node.add_child(old_dtree.seed_node)
+        for edge in naive_node.child_edge_iter():
+            edge.length = hfrac
+        if debug:
+            print '  added new naive root node at distance %.3f above previous root' % hfrac
+
+        treeutils.label_nodes(dtree, ignore_existing_internal_node_labels=True, ignore_existing_internal_taxon_labels=True, root_is_external=True, debug=debug)
         treeutils.collapse_zero_length_leaves(dtree, uid_set, debug=debug)
         # dtree.update_bipartitions(suppress_unifurcations=False)  # probably don't really need this UPDATE now i'm commenting it since it gets run by the zero length leaf collapse fcn
         if debug:
@@ -649,7 +659,7 @@ class ClusterPath(object):
         return sub_partitions, sub_annotations
 
     # ----------------------------------------------------------------------------------------
-    def make_trees(self, annotations, i_only_cluster=None, get_fasttrees=False, naive_seq_name='XnaiveX', debug=False):  # makes a tree for each cluster in the most likely (not final) partition
+    def make_trees(self, annotations, i_only_cluster=None, get_fasttrees=False, naive_seq_name='naive', debug=False):  # makes a tree for each cluster in the most likely (not final) partition
         # i_only_cluster: only make the tree corresponding to the <i_only_cluster>th cluster in the best partition
         if self.i_best is None:
             return

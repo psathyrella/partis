@@ -503,8 +503,12 @@ def check_node_labels(dtree, debug=False):
             raise Exception('node.label not set to None')
 
 # ----------------------------------------------------------------------------------------
-# by default, mostly adds labels to internal nodes (also sometimes the root node) that are missing them
-def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_existing_internal_taxon_labels=False, suppress_internal_node_taxa=False, initial_length=3, debug=False):
+# by default, mostly adds labels to internal nodes (also sometimes the root node) that are missing them NOTE by default root node counts as internal (tried to change this but it broke some calling code, so better to leave it)
+def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_existing_internal_taxon_labels=False, suppress_internal_node_taxa=False, initial_length=3, root_is_external=False, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def is_external(tnd):
+        return tnd.is_leaf() or (root_is_external and tnd is dendro_tree.seed_node)
+    # ----------------------------------------------------------------------------------------
     if ignore_existing_internal_node_labels and suppress_internal_node_taxa:
         raise Exception('doesn\'t make sense to specify both')
     if debug:
@@ -522,14 +526,14 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
     new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=initial_length, shuffle=True)
     skipped_dbg, relabeled_dbg = [], []
     for node in dendro_tree.preorder_node_iter():
-        if node.taxon is not None and not (ignore_existing_internal_taxon_labels and not node.is_leaf()):
+        if node.taxon is not None and not (ignore_existing_internal_taxon_labels and not is_external(node)):
             skipped_dbg += ['%s' % node.taxon.label]
             assert node.label is None  # if you want to change this, you have to start setting the node labels in build_lonr_tree(). For now, I like having the label in _one_ freaking place
             continue  # already properly labeled
 
         current_label = node.label
         node.label = None
-        if suppress_internal_node_taxa and not node.is_leaf():
+        if suppress_internal_node_taxa and not is_external(node):
             continue
 
         if current_label is None or ignore_existing_internal_node_labels:
@@ -799,7 +803,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
 
 # ----------------------------------------------------------------------------------------
 # specify <seqfos> or <annotation> (in latter case we add the naive seq)
-def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='naive', actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
+def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='naive', no_naive=False, actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
                        redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def lhindir(workdir):
@@ -862,6 +866,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, add_sfos_for_multiplicity=method=='gctree')
     elif naive_seq is not None:
         seqfos = [{'name' : naive_seq_name, 'seq' : naive_seq}] + seqfos
+    elif not no_naive:  # force calling fcn to affirmatively indicate it doesn't want the naive sequence in the tree (since at one point we forget to add it, with bad consequences)
+        raise Exception('not adding naive seq to seqfos (need to set no_naive)')
     uid_list = [sfo['name'] for sfo in seqfos]
     if method == 'iqtree':  # iqtree silently replaces + with _, so we have to do some translation
         translations = {}
@@ -2187,7 +2193,7 @@ def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
         return
     if min(cluster_indices) < 0 or max(cluster_indices) >= ntot:
         raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, ntot))
-    print '      skipped all iclusts except %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
+    print '      restricting to cluster indices %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
 
 # ----------------------------------------------------------------------------------------
 # NOTE partially duplicates lbplotting.get_tree_in_line()
@@ -2271,7 +2277,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
             # line['tree-info']['lonr'] = lonr_info
             origin = 'lonr'
-        elif tree_inference_method is None and cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
+        elif tree_inference_method == 'cpath': #tree_inference_method is None and cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
             dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
             origin = 'cpath'
         elif tree_inference_method in ['fasttree', 'iqtree', 'gctree', 'linearham', None]:

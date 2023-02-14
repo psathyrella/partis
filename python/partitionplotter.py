@@ -31,7 +31,7 @@ class PartitionPlotter(object):
         self.n_max_mutations = 65
         self.n_joyplots_in_html = {'shm-vs-size' : self.n_max_joy_plots, 'overview' : 2}  # the rest of them are still in the dir, they're just not displayed in the html (note this is just
         self.min_high_mutation_cluster_size = 1
-        self.n_biggest_to_plot = 24  # this functions as the number of plots for mds, sfs, and laplacian spectra NOTE this is overridden by self.args.queries_to_include (i.e. those queries always get plotted), but *not* by self.args.meta_info_to_emphasize
+        self.n_biggest_to_plot = 24  # this functions as the number of plots for trees, mds, sfs, and laplacian spectra NOTE this is overridden by self.args.queries_to_include (i.e. those queries always get plotted), but *not* by self.args.meta_info_to_emphasize
         self.n_plots_per_row = 4
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
@@ -507,7 +507,10 @@ class PartitionPlotter(object):
         if self.treefos is not None:
             return
         antn_list = [self.antn_dict.get(':'.join(c)) for c in self.sclusts]  # NOTE we *need* cluster indices here to match those in all the for loops in this file
+        cibak = self.args.cluster_indices  # ick
+        self.args.cluster_indices = [i for i in range(len(self.sclusts)) if self.plot_this_cluster(i, plottype='trees')]
         self.treefos = treeutils.get_treefos(self.args, antn_list, cpath=self.cpath, glfo=self.glfo)
+        self.args.cluster_indices = cibak
         if self.args.tree_inference_method is not None:  # if the inference method infers ancestors, those sequences get added to the annotation during inference (e.g gctree, iqtree, linearham), but here we have to update the antn_dict keys and sclusts for these new seqs
             self.antn_dict = utils.get_annotation_dict(antn_list)
             for iclust, clust in enumerate(self.sclusts):  # NOTE can't just sort the 'unique_ids', since we need the indices to match up with the other plots here
