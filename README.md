@@ -1,3 +1,4 @@
+[![](https://img.shields.io/static/v1?label=AIRR-C%20sw-tools%20v1&message=compliant&color=008AFF&labelColor=000000&style=plastic)](https://docs.airr-community.org/en/stable/swtools/airr_swtools_standard.html)
 ### partis
 
 Partis is an HMM-based framework for B- and T-cell receptor sequence annotation, simulation, clonal family and germline inference, and affinity prediction.
