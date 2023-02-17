@@ -31,7 +31,7 @@ class PartitionPlotter(object):
         self.n_max_mutations = 65
         self.n_joyplots_in_html = {'shm-vs-size' : self.n_max_joy_plots, 'overview' : 2}  # the rest of them are still in the dir, they're just not displayed in the html (note this is just
         self.min_high_mutation_cluster_size = 1
-        self.n_biggest_to_plot = 24  # this functions as the number of plots for trees, mds, sfs, and laplacian spectra NOTE this is overridden by self.args.queries_to_include (i.e. those queries always get plotted), but *not* by self.args.meta_info_to_emphasize
+        self.n_biggest_to_plot = 25  # this functions as the number of plots for trees, mds, sfs, and laplacian spectra NOTE this is overridden by self.args.queries_to_include (i.e. those queries always get plotted), but *not* by self.args.meta_info_to_emphasize
         self.n_plots_per_row = 4
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires

@@ -591,7 +591,7 @@ class PartitionDriver(object):
             self.write_output(annotation_list, set(), cpath=cpath, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if self.args.align_constant_regions:
-            utils.parse_constant_regions(self.args.species, self.args.locus, annotation_list, self.args.workdir, csv_outdir=os.path.dirname(self.args.outfname) if self.args.outfname is not None else None, debug=self.args.debug)
+            utils.parse_constant_regions(self.args.species, self.args.locus, annotation_list, self.args.workdir, csv_outdir=os.path.realpath(os.path.dirname(self.args.outfname)) if self.args.outfname is not None else None, debug=self.args.debug)
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args, glfo=self.glfo)

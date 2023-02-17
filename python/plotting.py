@@ -1088,6 +1088,20 @@ def plot_csim_matrix_from_files(plotdir, plotname, meth1, ofn1, meth2, ofn2, n_b
         partitions[mstr] = cpath.best()
     plot_cluster_similarity_matrix(plotdir, plotname, meth1, partitions[meth1], meth2, partitions[meth2], n_biggest_clusters, title=title, debug=debug)
 
+# this script snippet may be useful:
+# import plotting
+# bd = '/fh/fast/matsen_e/dralph/partis/paired-loci/lcdr3/v1/seed-0/allowed-cdr3-lengths-igh,12-13'
+# inf_fn = '%s/partis/partition-igh.yaml' % bd
+# tru_fn = '%s/simu/igh.yaml' % bd
+# def getptn(fn):
+#     _, _, cpath = utils.read_output(fn)
+#     return cpath.best()
+# tru_ptn, inf_ptn = [getptn(f) for f in [tru_fn, inf_fn]]
+# plotdir = '%s/csim-plots' % bd
+# print plotting.plot_cluster_similarity_matrix(plotdir, 'csim-matrix', 'true', tru_ptn, 'inferred', inf_ptn, 30, debug=True) #, debug=True)
+# print plotting.plot_cluster_similarity_matrix(plotdir, 'csim-matrix', 'inferred', inf_ptn, 'true', tru_ptn, 30, debug=True) #, debug=True)
+# sys.exit()
+
 # ----------------------------------------------------------------------------------------
 # iscn_denominator: 'max' if you want to look at a method that's oversplitting since it will show how much of the larger cluster is split among various clusters in the other partition
 #                   'min'                                        overmerging, since... eh, maybe not? not sure

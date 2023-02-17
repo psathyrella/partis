@@ -2031,7 +2031,7 @@ def color_chars(chars, col, seq):
 
 # ----------------------------------------------------------------------------------------
 # returns a multiple sequence alignemnt from mafft (see run_blastn() below to align against a db of targets)
-def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False, aa=False, extra_str='', debug=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
+def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False, aa=False, no_gaps=False, extra_str='', debug=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
     def outfile_fcn():
         if outfname is None:
             return tempfile.NamedTemporaryFile()
@@ -2044,9 +2044,12 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
         for seqfo in seqfos:
             fin.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
         fin.flush()
+        cmd = 'mafft'
+        if no_gaps:
+            cmd += ' --op 10'
         if existing_aligned_seqfos is None:  # default: align all the sequences in <seqfos>
             # subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
-            outstr, errstr = simplerun('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True, return_out_err=True, debug=False)
+            outstr, errstr = simplerun('%s --quiet %s >%s' % (cmd, fin.name, fout.name), shell=True, return_out_err=True, debug=False)
         else:  # if <existing_aligned_seqfos> is set, we instead add the sequences in <seqfos> to the alignment in <existing_aligned_seqfos>
             with tempfile.NamedTemporaryFile() as existing_alignment_file:  # NOTE duplicates code in glutils.get_new_alignments()
                 biggest_length = max(len(sfo['seq']) for sfo in existing_aligned_seqfos)
@@ -2055,7 +2058,7 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
                     existing_alignment_file.write('>%s\n%s\n' % (sfo['name'], sfo['seq'].replace('.', '-') + dashstr))
                 existing_alignment_file.flush()
                 # subprocess.check_call('mafft --keeplength --add %s %s >%s' % (fin.name, existing_alignment_file.name, fout.name), shell=True)  #  --reorder
-                outstr, errstr = simplerun('mafft --keeplength --add %s %s >%s' % (fin.name, existing_alignment_file.name, fout.name), shell=True, return_out_err=True, debug=False)  #  --reorder
+                outstr, errstr = simplerun('%s --keeplength --add %s %s >%s' % (cmd, fin.name, existing_alignment_file.name, fout.name), shell=True, return_out_err=True, debug=False)  #  --reorder
 
         if outfname is not None:
             if debug:
@@ -2112,10 +2115,11 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
     if debug > 1:
         print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
     _ = simplerun('makeblastdb -in %s -out %s/%s -dbtype nucl -parse_seqids' % (tgfn, wkdir, tgn), return_out_err=True, debug=False)
-    _ = simplerun('blastn%s -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (' -task blastn-short' if short else '', wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
+    _ = simplerun('blastn%s -strand plus -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (' -task blastn-short' if short else '', wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
     matchfos = collections.OrderedDict()
     if debug > 1:
         max_qlen, max_tlen = [max(len(s['name']) for s in sfos) for sfos in [queryfos, targetfos]]
+        max_tlen = max([max_tlen, len('(for first target)')])
         print '             %% id  mism. len    n gaps    %s            %s   target match seq' % (wfmt('target', max_tlen, jfmt='-'), wfmt('query', max_qlen, jfmt='-'))
     fieldnames = ['query', 'subject', '% identity', 'alignment length', 'mismatches', 'gap opens', 'q. start', 'q. end', 's. start', 's. end']
     with open(ofn) as ofile:
@@ -2123,6 +2127,8 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
         for line in reader:
             qry, tgt, pct_id, alen, n_gaps = line['query'], line['subject'], float(line['% identity']), int(line['alignment length']), int(line['gap opens'])
             qbounds, tbounds = [[int(line['%s. start'%s]) - 1, int(line['%s. end'%s])] for s in ['q', 's']]
+            if any(b[0] > b[1] for b in [qbounds, tbounds]):
+                raise Exception('start bound larger than end bound: %s' % (list(b for b in [qbounds, tbounds] if b[0] > b[1])))
             def gseq(sq, bnd, obd, osq):
                 return (obd[0] - bnd[0]) * gap_chars[0] + bnd[0] * gap_chars[0] + sq[bnd[0] : bnd[1]] + (len(sq) - bnd[1]) * gap_chars[0] + ((len(osq) - obd[1]) - (len(sq) - bnd[1])) * gap_chars[0]
             qseq = gseq(qdict[qry], qbounds, tbounds, tdict[tgt])
@@ -2141,8 +2147,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
                     matchfos[qry][key].append(val)
             if debug > 1 and (is_best or print_all_matches):
                 if n_gaps == 0:
-                    cmstr = color_mutants(qseq, tseq)
-                    tgstr = cmstr #color('blue', '.'*qbounds[0]) + cmstr + color('blue', '.'*qbounds[1])
+                    tgstr = color_mutants(qseq, tseq)
                 else:
                     tgstr = '  %s  ' % color('blue', 'GAPS')
                 if is_best:
@@ -6983,7 +6988,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                     print '          too small, skipping'
                     continue
                 tmsfos = [{'name' : tgt, 'seq' : tdict[tgt]}] + [{'name' : m['query'], 'seq' : qdict[m['query']]} for m in mfos]
-                msa_seqfos = align_many_seqs(tmsfos, extra_str='            ', debug=False)  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output UPDATE well now i'm parsing the blast alignment a little more (although still not the gaps, whose locations may not be there?) so maybe coule remove this now
+                msa_seqfos = align_many_seqs(tmsfos, no_gaps=True, extra_str='            ', debug=False)  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output UPDATE well now i'm parsing the blast alignment a little more (although still not the gaps, whose locations may not be there?) so maybe coule remove this now
                 cseq = cons_seq(aligned_seqfos=[s for s in msa_seqfos if s['name']!=tgt], extra_str='         ', debug=debug)
                 # leader_seq_infos.append({'seq' : cseq, 'match-name' : tgt})
                 writefos += [{'name' : s['name'], 'seq' : s['seq'], 'target' : tgt} for s in msa_seqfos + [{'name' : 'consensus-%s'%tgt, 'seq' : cseq, 'target' : tgt}]]
@@ -6991,7 +6996,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                     print color_mutants(cseq, get_single_entry([s for s in msa_seqfos if s['name']==tgt])['seq'], seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
                     if aa_dbg:
                         aasfos = [{'name' : s['name'], 'seq' : ltranslate(pad_nuc_seq(s['seq'].replace('-', ambig_base), side='left' if tkey=='leader' else 'right'))} for s in msa_seqfos]  # pad on left, since we assume the last three bases of 'leader_seqs' are in frame w/respect to V
-                        aa_msa_seqfos = align_many_seqs(aasfos, extra_str='            ', aa=True, debug=False)
+                        aa_msa_seqfos = align_many_seqs(aasfos, no_gaps=True, extra_str='            ', aa=True, debug=False)
                         aa_cseq = cons_seq(aligned_seqfos=[s for s in aa_msa_seqfos if s['name']!=tgt], aa=True, extra_str='         ', debug=debug)
                         print color_mutants(aa_cseq, get_single_entry([s for s in aa_msa_seqfos if s['name']==tgt])['seq'], amino_acid=True, seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
         if csv_outdir is not None and len(writefos) > 0:
@@ -7003,18 +7008,19 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                 for wfo in writefos:
                     writer.writerow(wfo)
     # ----------------------------------------------------------------------------------------
-    def read_seqs(tkey, fname, debug=False):
-        if debug:
+    def read_seqs(tkey, fname, tdbg=False):
+        if tdbg:
             print '    reading %s seqs from %s' % (tkey, fname)
         tfos = read_fastx(fname)
         for tfo in tfos:
-            tfo['name'] = glutils.get_imgt_info(tfo['infostrs'], 'gene')
+            if len(tfo['infostrs']) > 1:
+                tfo['name'] = glutils.get_imgt_info(tfo['infostrs'], 'gene')
         for tk in ['name', 'seq']:  # eh, duplicate seqs are ok i think
             all_vals = [t[tk] for t in tfos]
             if any(all_vals.count(v) > 1 for v in set(all_vals)):
                 dupfo = sorted([(v, all_vals.count(v)) for v in sorted(set(all_vals)) if all_vals.count(v) > 1], key=operator.itemgetter(1), reverse=True)
                 print '    %s %d %s %ss appear more than once (%d total occurences) in %s' % (wrnstr(), len(dupfo), tkey, tk, sum(n for _, n in dupfo), fname)
-                if debug:
+                if tdbg:
                     print '      %s' % '\n      '.join('%3d  %s'%(n, v) for v, n in dupfo)
                 if tk == 'name':
                     tkvals, new_tfos = [], []
