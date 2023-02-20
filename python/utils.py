@@ -2104,7 +2104,7 @@ def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs
 
 # ----------------------------------------------------------------------------------------
 # darn it, maybe there was no reason to add this? I forgot that run_vsearch() seems to do basically the same thing? (although it would have needed some coding to use an arbitrary database)
-def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=False, debug=True):  # if short isn't set, it seems to ignore matches less than like 10 bases
+def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=False, print_all_matches=False, debug=True):  # if short isn't set, it seems to ignore matches less than like 10 bases
     wkdir = '%s/blastn' % baseworkdir
     tgn = 'targets'
     tgfn, qrfn, ofn = [('%s/%s'%(wkdir, fstr)) for fstr in ['%s.fa'%tgn, 'queries.fa', 'results.out']]
@@ -2112,12 +2112,17 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
     write_fasta(tgfn, targetfos)
     write_fasta(qrfn, queryfos)
     qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [queryfos, targetfos]]  # should really check for duplicates
-    if debug > 1:
+    if debug:
         print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
-    _ = simplerun('makeblastdb -in %s -out %s/%s -dbtype nucl -parse_seqids' % (tgfn, wkdir, tgn), return_out_err=True, debug=False)
-    _ = simplerun('blastn%s -strand plus -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % (' -task blastn-short' if short else '', wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=False)  # i'm just copying the format from somewhere else, there's probably a better one
+    if diamond:
+        dbcmd = './bin/diamond makedb --in reference.fasta -d reference'
+    else:
+        dbcmd = 'makeblastdb -in %s -out %s/%s -dbtype %s -parse_seqids' % (tgfn, wkdir, tgn, 'prot' if aa else 'nucl')
+    _ = simplerun(dbcmd, return_out_err=True, debug=debug)
+    shstr = (' -task blast%s-short'%('p' if aa else 'n')) if short else ''
+    _ = simplerun('blast%s%s%s -db %s/%s -query %s -out %s -outfmt \"7 std qseq sseq btop\"' % ('p' if aa else 'n', shstr, '' if aa else ' -strand plus', wkdir, tgn, qrfn, ofn), shell=True, return_out_err=True, debug=debug)  # i'm just copying the format from somewhere else, there's probably a better one
     matchfos = collections.OrderedDict()
-    if debug > 1:
+    if debug:
         max_qlen, max_tlen = [max(len(s['name']) for s in sfos) for sfos in [queryfos, targetfos]]
         max_tlen = max([max_tlen, len('(for first target)')])
         print '             %% id  mism. len    n gaps    %s            %s   target match seq' % (wfmt('target', max_tlen, jfmt='-'), wfmt('query', max_qlen, jfmt='-'))
@@ -2133,21 +2138,21 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
                 return (obd[0] - bnd[0]) * gap_chars[0] + bnd[0] * gap_chars[0] + sq[bnd[0] : bnd[1]] + (len(sq) - bnd[1]) * gap_chars[0] + ((len(osq) - obd[1]) - (len(sq) - bnd[1])) * gap_chars[0]
             qseq = gseq(qdict[qry], qbounds, tbounds, tdict[tgt])
             tseq = gseq(tdict[tgt], tbounds, qbounds, qdict[qry])
-            mfo = {'query' : qry, 'targets' : tgt, 'pct_ids' : pct_id, 'alens' : alen, 'n_gaps' : n_gaps, 'qbounds' : qbounds, 'tbounds' : tbounds, 'qseqs' : qseq, 'tseqs' : tseq}
+            mfo = {'query' : qry, 'targets' : tgt, 'pct_ids' : pct_id, 'mismatches' : line['mismatches'], 'alens' : alen, 'n_gaps' : n_gaps, 'qbounds' : qbounds, 'tbounds' : tbounds, 'qseqs' : qseq, 'tseqs' : tseq}
             is_best = False
             if qry not in matchfos:  # it always puts the best match first, and i guess that could change but seems really unlikely
                 matchfos[qry] = {k : v if k=='query' else [v] for k, v in mfo.items()}
                 is_best = True
-                if debug > 1 and print_all_matches:
+                if debug and print_all_matches:
                     print ''
             else:
                 for key, val in mfo.items():
                     if key == 'query':
                         continue
                     matchfos[qry][key].append(val)
-            if debug > 1 and (is_best or print_all_matches):
+            if debug and (is_best or print_all_matches):
                 if n_gaps == 0:
-                    tgstr = color_mutants(qseq, tseq)
+                    tgstr = color_mutants(qseq, tseq, amino_acid=aa)
                 else:
                     tgstr = '  %s  ' % color('blue', 'GAPS')
                 if is_best:
@@ -2162,7 +2167,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, short=False, print_all_matches=
         mstats[tgt] = list(tgroup)
     mstats = sorted(mstats.items(), key=lambda x: len(x[1]), reverse=True)
 
-    dbfns = ['%s/%s.%s'%(wkdir, tgn, s) for s in 'nhr', 'nin', 'nog', 'nsd', 'nsi', 'nsq']
+    dbfns = ['%s/%s.%s%s'%(wkdir, tgn, 'p' if aa else 'n', s) for s in 'hr', 'in', 'og', 'sd', 'si', 'sq']
     for fn in [tgfn, qrfn, ofn] + dbfns:
         os.remove(fn)
     os.rmdir(wkdir)
@@ -3781,26 +3786,49 @@ def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters c
     return sys.modules['Levenshtein'].distance(s1, s2)
 
 # ----------------------------------------------------------------------------------------
-# return list of families in <antn_pairs> sorted by their nearness to <refpair> by either 'lev' (levenshtein) or 'ham' (hamming) distance between naive sequences (automatically skips <refpair> if it's in <antn_pairs>)
-# NOTE it would be nice to use vsearch for this, but it doesn't have an amino acid option (there's an issue they've had open to add it since like 6 years)
-def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_dist=16, max_n_print=5, extra_str='', labelstr='', debug=True):
+# return list of families in <antn_pairs> sorted by their nearness to <refpair> by 'lev' (levenshtein), 'ham' (hamming) distance, or blast mismathces between naive sequences (automatically skips <refpair> if it's in <antn_pairs>)
+# For single chain just set that chain's entry in <refpair> and <antn_pairs> to None
+def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, workdir=None, max_print_dist=16, max_n_print=5, extra_str='', labelstr='', debug=True):
     # ----------------------------------------------------------------------------------------
     def nseq(atn_pair):
         tkey = 'naive_seq'
         if aa:
             tkey += '_aa'
-            for tl in atn_pair:
+            for tl in [l for l in atn_pair if l is not None]:
                 add_naive_seq_aa(tl)
-        return ''.join(l[tkey] for l in atn_pair) #atn_pair[0][tkey] + atn_pair[1][tkey]
+        return ''.join(l[tkey] for l in atn_pair if l is not None)
     # ----------------------------------------------------------------------------------------
-    assert dtype in ['lev', 'ham']
-    dfcn = lev_dist if dtype == 'lev' else hamming_distance
+    def gids(atn):
+        if atn is None:
+            return []
+        return atn['unique_ids']
+    # ----------------------------------------------------------------------------------------
+    assert dtype in ['lev', 'ham', 'blast']
+    if None in refpair:  # assume original value is for both chains together
+        max_n_print /= 2
     distances = []
     for iclust, atn_pair in enumerate(antn_pairs):
-        if [l['unique_ids'] for l in atn_pair] == [l['unique_ids'] for l in refpair]:
+        if [l['unique_ids'] for l in atn_pair if l is not None] == [l['unique_ids'] for l in refpair if l is not None]:
             continue
         h_atn, l_atn = atn_pair
-        distances.append({'i' : iclust, 'h_ids' : h_atn['unique_ids'], 'l_ids' : l_atn['unique_ids'], 'dist' : dfcn(nseq(atn_pair), nseq(refpair))})
+        distances.append({'i' : iclust, 'h_ids' : gids(h_atn), 'l_ids' : gids(l_atn)})
+        if dtype in ['lev', 'ham']:
+            distances[-1]['dist'] = (lev_dist if dtype=='lev' else hamming_distance)(nseq(atn_pair), nseq(refpair))
+        else:
+            distances[-1]['seq'] = nseq(atn_pair)
+
+    if dtype in ['blast']:
+        qfos = [{'name' : 'query', 'seq' : nseq(refpair)}]
+        tfos = [{'name' : 'iclust-%d'%dfo['i'], 'seq' : dfo['seq']} for dfo in distances]
+        if workdir is None:
+            workdir = choose_random_subdir('/tmp/%s/non-clonal-clusters'%os.getenv('USER', default='partis-work'))
+        matchfos, mstats = run_blastn(qfos, tfos, workdir, aa=aa, debug=True, print_all_matches=True)
+        mfo = matchfos['query']
+        min_len = int(0.9 * max(mfo['alens']))  # require that the matches are at least 90% as long as the longest match (yes, ick)
+        matchdict = {mfo['targets'][i] : int(mfo['mismatches'][i]) for i in range(len(mfo['targets'])) if mfo['alens'][i] > min_len}
+        for dfo in distances:
+            dfo['dist'] = matchdict.get('iclust-%d'%dfo['i'], 999999)
+
     if len(distances) == 0:
         return []
     sdists = sorted(distances, key=lambda d: d['dist'])
@@ -3811,7 +3839,7 @@ def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, max_print_di
             labelstr = ' %s ' % labelstr
         print '%s%snearest: %d edit%s (%d cluster%s less than %d)' % (extra_str, labelstr, nearest['dist'], plural(nearest['dist']), len(near_dfos), plural(len(near_dfos)), max_print_dist)
         if len(near_dfos) > 0:
-            print '    %s%s-dist  iclust   N uids (h l)' % (extra_str, dtype)
+            print '    %s%s-dist  iclust   N uids (%s)' % (extra_str, dtype, ('%s only'%('h' if refpair[1] is None else 'l')) if None in refpair else 'h l')
             for dfo in near_dfos[:max_n_print]:
                 # assert len(dfo['h_ids']) == len(dfo['l_ids'])
                 print '   %s   %3d     %3d     %3d %3d    %s' % (extra_str, dfo['dist'], dfo['i'], len(dfo['h_ids']), len(dfo['l_ids']), color_mutants(nseq(refpair), nseq(antn_pairs[dfo['i']]), amino_acid=aa, align_if_necessary=True))
@@ -6978,7 +7006,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
             if len(qfos) == 0:
                 print '    no query infos'
                 return
-            matchfos, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug)  # , short=True
+            matchfos, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug) #, print_all_matches=True)  # , short=True
             if len(matchfos) == 0:
                 print '    %s no %s matches from %d targets' % (wrnstr(), tkey, len(tgtfos[tkey]))
             qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [qfos, tgtfos[tkey]]]  # should really check for duplicates
