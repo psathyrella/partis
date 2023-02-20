@@ -2115,6 +2115,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
     if debug:
         print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
     if diamond:
+        assert False  # didn't end up implementing this since it turned out blastn does the same thing, and seemed fast enough for now (binary is still in bin/ though, and it should be easy)
         dbcmd = './bin/diamond makedb --in reference.fasta -d reference'
     else:
         dbcmd = 'makeblastdb -in %s -out %s/%s -dbtype %s -parse_seqids' % (tgfn, wkdir, tgn, 'prot' if aa else 'nucl')
@@ -3803,6 +3804,7 @@ def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, workdir=None
             return []
         return atn['unique_ids']
     # ----------------------------------------------------------------------------------------
+    start = time.time()
     assert dtype in ['lev', 'ham', 'blast']
     if None in refpair:  # assume original value is for both chains together
         max_n_print /= 2
@@ -3822,7 +3824,7 @@ def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, workdir=None
         tfos = [{'name' : 'iclust-%d'%dfo['i'], 'seq' : dfo['seq']} for dfo in distances]
         if workdir is None:
             workdir = choose_random_subdir('/tmp/%s/non-clonal-clusters'%os.getenv('USER', default='partis-work'))
-        matchfos, mstats = run_blastn(qfos, tfos, workdir, aa=aa, debug=True, print_all_matches=True)
+        matchfos, mstats = run_blastn(qfos, tfos, workdir, aa=aa) #, debug=True, print_all_matches=True)
         mfo = matchfos['query']
         min_len = int(0.9 * max(mfo['alens']))  # require that the matches are at least 90% as long as the longest match (yes, ick)
         matchdict = {mfo['targets'][i] : int(mfo['mismatches'][i]) for i in range(len(mfo['targets'])) if mfo['alens'][i] > min_len}
@@ -3847,6 +3849,8 @@ def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, workdir=None
                 print '                  (only printing nearest %d)' % max_n_print
             print ''
 
+    if debug:
+        print '      non-clonal cluster time: %.1f' % (time.time() - start)
     return sdists
 
 # ----------------------------------------------------------------------------------------
