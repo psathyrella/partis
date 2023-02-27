@@ -247,7 +247,7 @@ class PartitionPlotter(object):
         return rfnames
 
     # ----------------------------------------------------------------------------------------
-    def make_cluster_bubble_plots(self, alpha=0.4, n_to_write_size=10, debug=False):
+    def make_cluster_bubble_plots(self, alpha=0.4, n_to_write_size=9999999, debug=False):
         import matplotlib.pyplot as plt
         subd, plotdir = self.init_subd('cluster-bubble')
         mekey = self.args.meta_info_key_to_color
@@ -286,13 +286,14 @@ class PartitionPlotter(object):
         nbub = len(bubfos)
         if len(fake_cluster) > 0:
             nbub -= 1
-        title = 'bubbles for %d/%d clusters (%d/%d seqs)' % (nbub, len(self.sclusts), total_bubble_seqs, repertoire_size)
         xtra_text = None
         if len(fake_cluster) > 0:
-            xtra_text = {'x' : 0.2, 'y' : 0.85, 'color' : 'green', 'text' : 'small clusters: %d seqs in %d clusters smaller than %d' % (len(fake_cluster), len(self.sclusts) - len(bubfos), len(self.sclusts[self.n_max_bubbles - 1]))}
-        fn = self.plotting.bubble_plot('bubbles', plotdir, bubfos, title=title, xtra_text=xtra_text, alpha=alpha)
+            xtra_text = {'x' : 0.3, 'y' : 0.85, 'color' : 'green', 'text' : '%d seqs in %d clusters with size %d or smaller' % (len(fake_cluster), len(self.sclusts) - nbub, len(self.sclusts[self.n_max_bubbles - 1]))}
+        fn = self.plotting.bubble_plot('bubbles', plotdir, [b for b in bubfos if b['id']!='fake'], title='bubbles for %d largest clusters (%d/%d seqs)'%(nbub, total_bubble_seqs, repertoire_size), alpha=alpha)
+        fn2 = self.plotting.bubble_plot('small-bubbles', plotdir, [b for b in bubfos if b['id']=='fake'], title='single bubble for %d smaller clusters'%(len(self.sclusts) - self.n_max_bubbles), xtra_text=xtra_text, alpha=alpha)
         fnames = [[]]
         self.addfname(fnames, fn)
+        self.addfname(fnames, fn2)
         if mekey is not None:
             lfn = self.plotting.make_meta_info_legend(plotdir, 'cluster-bubbles', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=alpha)
             self.addfname(fnames, lfn)

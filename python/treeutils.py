@@ -1429,6 +1429,8 @@ def get_clade_purity(meta_vals, sub_root_node, mval, return_bool=False, mval_cou
     if mval_counts is None:
         mval_counts = {}
     for snode in sub_root_node.ageorder_iter():  # note that this iterator includes <sub_root_node>
+        if snode.taxon.label not in meta_vals:  # adding this long after making the fcn, but confused why I didn't need it before?
+            continue
         sval = meta_vals[snode.taxon.label]
         if exclude_vals is not None and sval in exclude_vals:
             continue

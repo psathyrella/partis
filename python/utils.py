@@ -2115,7 +2115,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
     if debug:
         print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
     if diamond:
-        assert False  # didn't end up implementing this since it turned out blastn does the same thing, and seemed fast enough for now (binary is still in bin/ though, and it should be easy)
+        assert False  # didn't end up implementing this since it turned out blastn does the same thing, and seemed fast enough for now (binary is still in bin/ though, and it should be easy) (note: could also use https://github.com/soedinglab/mmseqs2)
         dbcmd = './bin/diamond makedb --in reference.fasta -d reference'
     else:
         dbcmd = 'makeblastdb -in %s -out %s/%s -dbtype %s -parse_seqids' % (tgfn, wkdir, tgn, 'prot' if aa else 'nucl')
@@ -2219,8 +2219,11 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
     if aa_ref_seq is not None:
         assert codon_len == 3 and not aa
         if 3 * len(aa_ref_seq) != len(pad_nuc_seq(seqfos[0]['seq'])):
-            print '\n'.join(s['seq'] for s in seqfos)  # TODO this probably means we're using input seqs for a family with lots of *different* indels, which needs to be fixed/avoided
-            raise Exception('aa ref seq length doesn\'t correspond to padded nuc seq:\n    %s\n    %s' % ('  '.join(aa_ref_seq), pad_nuc_seq(seqfos[0]['seq'])))
+            # print '\n'.join(s['seq'] for s in seqfos)  # TODO this probably means we're using input seqs for a family with lots of *different* indels, which needs to be fixed/avoided
+            # raise Exception('aa ref seq length doesn\'t correspond to padded nuc seq:\n    %s\n    %s' % ('  '.join(aa_ref_seq), pad_nuc_seq(seqfos[0]['seq'])))
+            print '%s aa ref seq length doesn\'t correspond to padded nuc seq, so turning off aa_ref_seq (this may mean that this family has lots of different indels, which isn\'t really properly handled):\n    %s\n    %s' % (color('red', 'error'), '  '.join(aa_ref_seq), pad_nuc_seq(seqfos[0]['seq']))
+            aa_ref_seq = None
+
     if debug:
         print '%staking consensus of %d seqs with len %d in chunks of len %d' % (extra_str, len(seqfos), seq_len, codon_len)
         dbgfo = []
