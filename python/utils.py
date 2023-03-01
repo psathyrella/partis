@@ -630,7 +630,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
                          [r + '_per_gene_support' for r in regions]
 # NOTE some of the indel keys are just for writing to files, whereas 'indelfos' is for in-memory
 # note that, as a list of gene matches, all_matches would in principle be per-family, except that it's sw-specific, and sw is all single-sequence (this is also true of fv/jf insertions)
-linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'shm_aa', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
+linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'shm_aa', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'cdr3_seqs_aa', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
                        'leader_seqs', 'c_gene_seqs',  'leaders', 'c_genes', # these are kind of replacing fv/jf insertions, and the latter probably should just be removed, since they're really more per-seq things, but i don't know if it'd really work, and it'd for sure be hard, so whatever (otoh, maybe fv/jf insertions are necessary for padding to same length in sw? not sure atm)
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices', 'min_target_distances'] + \
                       [r + '_qr_seqs' for r in regions] + \
@@ -656,6 +656,7 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'consensus_seq_aa',
     'naive_seq_aa',
     'seqs_aa',
+    'cdr3_seqs_aa',
     'cons_dists_nuc',
     'cons_dists_aa',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
@@ -4242,6 +4243,8 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
     # NOTE use <info> to calculate all quantities, *then* put them in <outfo>: <outfo> only has the stuff that'll get written to the file, so can be missing things that are needed for calculations
     if key == 'cdr3_seqs':
         outfo[key] = [get_cdr3_seq(info, iseq) for iseq in range(len(info['unique_ids']))]
+    if key == 'cdr3_seqs_aa':
+        outfo[key] = [ltranslate(get_cdr3_seq(info, iseq)) for iseq in range(len(info['unique_ids']))]
     elif key == 'full_coding_naive_seq':
         if glfo is None:
             raise Exception('have to pass in glfo for extra annotation column \'%s\'' % key)
