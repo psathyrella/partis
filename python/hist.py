@@ -255,7 +255,7 @@ class Hist(object):
         return self.low_edges[ibin+1] - self.low_edges[ibin]
 
     # ----------------------------------------------------------------------------------------
-    def integral(self, include_overflows, ibounds=None, multiply_by_bin_width=False):
+    def integral(self, include_overflows, ibounds=None, multiply_by_bin_width=False, multiply_by_bin_center=False):
         """ NOTE by default does not multiply by bin widths """
         if ibounds is None:
             imin, imax = self.get_bounds(include_overflows)
@@ -263,7 +263,7 @@ class Hist(object):
             imin, imax = ibounds
         sum_value = 0.0
         for ib in range(imin, imax):
-            sum_value += self.bin_contents[ib] * (self.binwidth(ib) if multiply_by_bin_width else 1)
+            sum_value += self.bin_contents[ib] * (self.binwidth(ib) if multiply_by_bin_width else 1) * (self.get_bin_centers()[ib] if multiply_by_bin_center else 1)
         return sum_value
 
     # ----------------------------------------------------------------------------------------
@@ -456,11 +456,10 @@ class Hist(object):
         def sqbplot(kwargs):
             kwargs['markersize'] = 0
             for ibin in self.ibiniter(include_overflows=False):
-                if ibin > 1:
-                    kwargs['label'] = None
-                    if not no_vertical_bin_lines:
-                        ax.plot([self.low_edges[ibin], self.low_edges[ibin]], [self.bin_contents[ibin-1], self.bin_contents[ibin]], **kwargs)  # vertical line from last bin contents
                 tplt = ax.plot([self.low_edges[ibin], self.low_edges[ibin+1]], [self.bin_contents[ibin], self.bin_contents[ibin]], **kwargs)  # horizontal line for this bin
+                kwargs['label'] = None  # make sure there's only one legend entry for each hist
+                if not no_vertical_bin_lines:
+                    ax.plot([self.low_edges[ibin], self.low_edges[ibin]], [self.bin_contents[ibin-1], self.bin_contents[ibin]], **kwargs)  # vertical line from last bin contents
                 if errors:
                     bcenter = self.get_bin_centers()[ibin]
                     tplt = ax.plot([bcenter, bcenter], [self.bin_contents[ibin] - self.errors[ibin], self.bin_contents[ibin] + self.errors[ibin]], **kwargs)  # horizontal line for this bin
