@@ -21,19 +21,20 @@ import clusterpath
 # No real documentation, although help msgs are there.
 
 # ----------------------------------------------------------------------------------------
-all_perf_metrics = [] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
+all_perf_metrics = ['f1'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 after_actions = ['cache-parameters', 'partition']  # actions that come after simulation (e.g. partition)
 plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:plot')
-parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), os.path.basename(__file__).replace('cf-', '').replace('.py', '')))
+parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')
+parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 # parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
-# parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
-# parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
+parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
+parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
@@ -45,7 +46,7 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--simu-extra-args')
 parser.add_argument('--inference-extra-args')
 parser.add_argument('--plot-metrics', default='partition', help='these can be either methods (paired-loci) or metrics (tree metrics), but they\'re called metrics in scanplot so that\'s what they have to be called everywhere')
-parser.add_argument('--perf-metrics', default='f1', help='performance metrics (i.e. usually y axis) that we want to plot vs the scan vars. Only necessary if --plot-metrics are actually methods (as in cf-paired-loci.py).')
+parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics), help='performance metrics (i.e. usually y axis) that we want to plot vs the scan vars. Only necessary if --plot-metrics are actually methods (as in cf-paired-loci.py).')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
 parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
@@ -60,7 +61,7 @@ parser.add_argument('--empty-bin-range', help='remove empty bins only outside th
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['x', 'y'],
+    'simu' : ['seed'],
 }
 for act in after_actions + plot_actions:
     if act not in args.scan_vars:
@@ -94,13 +95,25 @@ def odir(args, varnames, vstrs, action):
     return utils.svoutdir(args, varnames, vstrs, action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action):
-    return '%s/%s.%s' % (odir(args, varnames, vstrs, action), action, 'fasta')
+def ofname(args, varnames, vstrs, action, single_file=False):
+    if action == 'cache-parameters':
+        sfx = 'parameters'
+        if single_file:
+            sfx += '/hmm/all-mean-mute-freqs.csv'
+    else:
+        sfx = '%s.yaml' % action
+    return '%s/%s' % (odir(args, varnames, vstrs, action), sfx)
 
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vlists, vstrs):
-# TODO
-    return 'TODO'
+    cmd = './bin/partis %s' % action.replace('simu', 'simulate')
+    if action != 'cache-parameters':
+        cmd += ' --outfname %s' % ofname(args, varnames, vstrs, action)
+    if action == 'simu':
+        cmd += ' --simulate-from-scratch'
+    else:
+        cmd += ' --infname %s --parameter-dir %s' % (ofname(args, varnames, vstrs, 'simu'), ofname(args, varnames, vstrs, 'cache-parameters'))
+    return cmd
 
 # ----------------------------------------------------------------------------------------
 # would be nice to combine this also with fcns in cf-tree-metrics.py (and put it in scanplot)
@@ -115,7 +128,7 @@ def run_scan(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        ofn = ofname(args, varnames, vstrs, action)
+        ofn = ofname(args, varnames, vstrs, action, single_file=True)
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
@@ -152,6 +165,7 @@ for action in args.actions:
             continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[after_actions[0]])
         if action == 'plot':
+            raise Exception('will need to modify scanplot.make_plots() for this new script to get it working')
             print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             procs = []
@@ -160,7 +174,7 @@ for action in args.actions:
                     utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
                 for pmetr in args.perf_metrics:
                     print '  %12s %s' % (method, pmetr)
-                    arglist, kwargs = (args, args.scan_vars[after_actions[0]], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, pmetr), 'fnames' : fnames[method][pmetr], 'debug' : args.debug}
+                    arglist, kwargs = (args, args.scan_vars[after_actions[0]], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
                     if args.test:
                         scanplot.make_plots(*arglist, **kwargs)
                     else:
@@ -186,10 +200,3 @@ for action in args.actions:
             raise Exception('unsupported action %s' % action)
     else:
         raise Exception('unsupported action %s' % action)
-
-# bd=_output/cells-per-drop
-# subd=inferred/plots
-# ./bin/compare-plotdirs.py --outdir ~/Dropbox/tmp-plots/cells-per-drop \
-#      --normalize --translegend=-0.2:-0.2 \
-#      --plotdirs $bd-1.0/$subd:$bd-1.2/$subd:$bd-1.7/$subd:$bd-2.0/$subd:$bd-3.0/$subd \
-#      --names 1.0:1.2:1.7:2.0:3.0

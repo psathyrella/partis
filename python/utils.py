@@ -275,6 +275,8 @@ def get_scanvar_arg_lists(args):
     # ----------------------------------------------------------------------------------------
     def set_arg_list(aname):  # NOTE we *don't* want to set intify or floatify here since the dir structure stuff is too hard if we don't have strings; conversions happen only for plotting axes
         attr_name = aname.replace('-', '_') + '_list'
+        if not hasattr(args, attr_name):
+            raise Exception('args does not have attribute \'%s\', i.e. you probably need to add an arg called --%s-list' % (attr_name, aname))
         arglist = get_arg_list(getattr(args, attr_name), list_of_lists=aname in args.str_list_vars, #, intify=aname in args.svartypes['int'], floatify=aname in args.svartypes['float'],
                                forbid_duplicates=args.zip_vars is None or aname not in args.zip_vars)
         setattr(args, attr_name, arglist)  # if we're zipping the var, we have to allow duplicates, but then check for them again after we've done combos in get_var_info()

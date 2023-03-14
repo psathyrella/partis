@@ -192,7 +192,7 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
 # <metric>: for tree metrics this is the metric (e.g. lbi), for paired clustering this is the method (e.g. partis) and <ptilestr> is the metric
 # <ptilestr>: x var in ptile plots (y var in final plots), i.e. whatever's analagous to [var derived from] 'affinity' or 'n-ancestor' (<ptilelabel> is its label), i.e. for paired this is f1, precision, sensitivity
 # <xvar>: x var in *final* plot
-def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnfcn=None, per_x=None, choice_grouping=None, use_relative_affy=False, distr_hists=False, no_spec_corr=False, metric_extra_str='',
+def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnfcn=None, per_x=None, script_base=None, choice_grouping=None, use_relative_affy=False, distr_hists=False, no_spec_corr=False, metric_extra_str='',
                locus=None, ptntype=None, xdelim='_XTRA_', pdirfcn=None, fnames=None, make_legend=False, leg_label='', debug=False):  # NOTE I started trying to split fcns out of here, but you have to pass around too many variables it's just not worth it
     # ----------------------------------------------------------------------------------------
     def pvl_list():
@@ -234,13 +234,19 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         return lstr
     # ----------------------------------------------------------------------------------------
     def nsimevts():
-        if per_x is None:  # for paired, we should always be accessing n sim events as a scan var
-            assert False
-        else:  # see hasattr assertions below
+        if per_x is not None:  # old script set it this way
             return args.n_sim_events_per_proc
+        else:  # otherwise we should always be accessing it as a scanvar (see hasattr below)
+            assert False
+    # ----------------------------------------------------------------------------------------
+    def is_new_script(): # way of figuring whether we're in an old or a new script, e.g. cf-tree-metrics.py (old) cf-paired-loci.py (new) cf-template.py (new)
+        return per_x is None or script_base is not None  # per_x: only used in old tree metrics script, script_base: set in newer scripts
+    # ----------------------------------------------------------------------------------------
+    def is_old_script(): # just opposes previous fcn
+        return not is_new_script()
     # ----------------------------------------------------------------------------------------
     def get_obs_frac(vlists, varnames, return_dbg=False):
-        if per_x is None:  # really just so when you're looking at this fcn you don't need to worry what happens for paired clustering
+        if is_new_script():  # really just so when you're looking at this fcn you don't need to worry what happens for paired clustering (and other newer scripts)
             assert False
         obs_times = utils.vlval(args, vlists, varnames, 'obs-times')
         n_per_gen_vals = utils.vlval(args, vlists, varnames, 'n-sim-seqs-per-gen')
@@ -323,9 +329,9 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         return n_zero, n_other, hzero.low_edges[ibin]
     # ----------------------------------------------------------------------------------------
     def get_varname_str():
-        return ''.join(utils.wfmt(vlabels.get(v, v), 25 if per_x is None else 10) for v in varnames)
+        return ''.join(utils.wfmt(vlabels.get(v, v), 25 if is_new_script() else 10) for v in varnames)
     def get_varval_str(vstrs):
-        return ''.join(utils.wfmt(v, 24 if per_x is None else 9) for v in vstrs)
+        return ''.join(utils.wfmt(v, 24 if is_new_script() else 9) for v in vstrs)
     # ----------------------------------------------------------------------------------------
     def read_plot_info():
         # ----------------------------------------------------------------------------------------
@@ -334,7 +340,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             def getikey():
                 if args.n_replicates == 1:
                     print '  %s --n-replicates of 1 may need checking, especially as regards nsimevts()' % utils.wrnstr()
-                if args.n_replicates == 1 and treat_clusters_together:  # could add 'or per_x is None' next to treat_clusters_together in all these places, but whatever
+                if args.n_replicates == 1 and treat_clusters_together:  # could add 'or is_new_script()' next to treat_clusters_together in all these places, but whatever
                     ikey = None
                     def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
                 elif args.n_replicates == 1:  # but more than one event per proc
@@ -349,7 +355,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 return ikey, initfcn
             # ----------------------------------------------------------------------------------------
             fhist = None
-            if per_x is None:
+            if is_new_script():
                 fval = ytmpfo[ptilestr]
                 fhist = ytmpfo.get('hist')
                 if debug:
@@ -457,13 +463,14 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             return tmpvaldict
         # ----------------------------------------------------------------------------------------
         if debug:
-            if per_x is None:
+            if is_new_script():
                 print '%s              values' % get_varname_str()
             else:
                 print '%s   | obs times    N/gen        carry cap       fraction sampled           values' % get_varname_str()
         missing_vstrs = {'missing' : [], 'empty' : []}
         for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
-            if per_x is None:
+            if is_new_script():
+# TODO
                 read_pairclust_file(vlists, vstrs)
             else:
                 read_smetric_file(vlists, vstrs)
@@ -478,7 +485,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             print '        %s: %d families' % (mkey, len(vstrs_list))
             print '     %s   iclust' % get_varname_str()
             for iclust, vstrs in vstrs_list:
-                tfn = fnfcn(varnames, vstrs) if per_x is None else fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)  # arg this is ugly
+                tfn = fnfcn(varnames, vstrs) if is_new_script() else fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)  # arg this is ugly
                 print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, tfn)
                 n_printed += 1
                 if n_printed >= n_max_print:
@@ -568,7 +575,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             all_yvals.add(dtp)
     # ----------------------------------------------------------------------------------------
     def getplotname(mtmp):
-        if per_x is None:
+        if is_new_script():
             return '%s-%s-vs-%s-%s-%s' % (ptilestr, mtmp if mtmp is not None else 'combined', xvar, ptntype, locus)
         elif per_x == 'per-seq':
             return '%s%s-%s-%s-vs-%s-%s' % (affy_key_str, ptilestr, mtmp if mtmp is not None else 'combined', 'distr-hists' if distr_hists else ('ptiles' if no_spec_corr else 'spec-corr'), xvar, choice_grouping)
@@ -576,7 +583,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             return '%s-ptiles-vs-%s' % (choice_grouping.replace('-vs', ''), xvar)
     # ----------------------------------------------------------------------------------------
     def getkwargs(estr):
-        if per_x is None:
+        if is_new_script():
             return {'perf_metric' : ptilestr}
         else:
             return {'per_x' : per_x, 'extra_str' : estr}
@@ -585,7 +592,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         return '%s/%s.yaml' % (get_comparison_plotdir(args, mtmp, **getkwargs(estr)), getplotname(mtmp))
     # ----------------------------------------------------------------------------------------
     def titlestr(metric):
-        if per_x is None:
+        if is_new_script():
             return '%s' % plotting.legends.get(metric, metric)
         else:
             return '%s:' % lbplotting.mtitlestr(per_x, metric, short=True, max_len=7)
@@ -646,7 +653,8 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         return xticks, xticklabels, xlabel
 
     # ----------------------------------------------------------------------------------------
-    if per_x is None:  # paired clustering
+# TODO
+    if is_new_script():  # paired clustering
         assert hasattr(args, 'n_sim_events_list') and not hasattr(args, 'n_sim_events_per_proc')
         distr_hists, affy_key_str, treat_clusters_together = False, '', True  # it's important that treat_clusters_together is True, but the others i think aren't used for paired clustering
         legdict, axdict = plotting.legends, plotting.axis_labels
@@ -764,7 +772,8 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
 
     n_ticks = 4
     ylabel, leg_loc, yticks, yticklabels = '', None, None, None
-    if per_x is None:
+# TODO
+    if is_new_script():
         ylabel = ldfcn(ptilestr, axis=True) if ptilelabel is None else ptilelabel
         if ptilestr == 'time-reqd':
             if ltexts[ptntype] == 'joint':
