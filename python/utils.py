@@ -364,7 +364,7 @@ def get_var_info(args, scan_vars, debug=False):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, example_existing_ofn=None, dbstr=None):
+def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, example_existing_ofn=None, shell=False, dbstr=None):
     if n_already_there > 0:
         print '      %d / %d %sjobs skipped (outputs exist, e.g. %s)' % (n_already_there, n_total, '' if dbstr is None else dbstr+' ', single_ofn if single_ofn is not None else example_existing_ofn)
     if len(cmdfos) > 0:
@@ -372,7 +372,7 @@ def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, 
         if args.dry:
             print '  first command: %s' % cmdfos[0]['cmd_str']
         else:
-            run_cmds(cmdfos, debug='write:%s'%logfname, n_max_procs=args.n_max_procs, allow_failure=True)
+            run_cmds(cmdfos, debug='write:%s'%logfname, n_max_procs=args.n_max_procs, allow_failure=True, shell=shell)
 
 # ----------------------------------------------------------------------------------------
 def add_lists(list_a, list_b):  # add two lists together, except if one is None treat it as if it was zero length (allows to maintain the convention that command line arg variables are None if unset, while still keeping things succinct)

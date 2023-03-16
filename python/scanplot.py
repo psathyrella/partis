@@ -277,7 +277,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 return '%.4f' % get_obs_frac(vlists, varnames)  # shouldn't happen for paired
             vval = utils.vlval(args, vlists, varnames, vname)
             def strfcn(x):
-                return str(x)  # TODO
+                return str(x)
             if isinstance(vval, list):
                 return ', '.join(strfcn(v) for v in vval)
             else:
@@ -397,7 +397,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     mstr = '%d' % get_n_seqs(vlists, varnames)
                 else:
                     assert False
-                if tuple(tau) not in xleg_vals:  # TODO could average here?
+                if tuple(tau) not in xleg_vals:  # could average here?
                     xleg_vals[tuple(tau)] = mstr
                 else:
                     if mstr != xleg_vals[tuple(tau)]:
