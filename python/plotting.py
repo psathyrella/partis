@@ -50,6 +50,17 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either
     return xticks, [tstr(xt) for xt in xticks]
 
 # ----------------------------------------------------------------------------------------
+def make_csize_hist(partition):
+    cslist = [len(c) for c in partition]
+    xbins, n_bins = hutils.auto_volume_bins(cslist, 10, int_bins=True, debug=True)
+    thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=cslist) #, xtitle=vlabel(tkey), title=str(mval))
+    for ib in range(1, thist.n_bins + 1):
+        lo, hi = thist.low_edges[ib], thist.low_edges[ib+1]
+        ivals = [i for i in range(int(math.ceil(lo)), int(math.floor(hi)) + 1)]
+        thist.bin_labels[ib] = str(ivals[0]) if len(ivals)==1 else '%d-%d'%(ivals[0], ivals[-1])
+    return thist
+
+# ----------------------------------------------------------------------------------------
 plot_ratios = {
     'v' : (30, 3),
     'd' : (8, 4),
@@ -719,7 +730,7 @@ def label_bullshit_transform(label):
 
 # ----------------------------------------------------------------------------------------
 # pass in <fnames> instead of <hists> if you want the bins to match
-def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None, ytitle=None, fnames=None, translegend=None, alphas=None):
+def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None, ytitle=None, fnames=None, translegend=None, alphas=None, stacked_bars=False):
     if fnames is not None:
         assert hists is None
         xbins = set()
@@ -772,8 +783,17 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
     ybounds = None
     if 'y' not in log:
         ybounds = [-0.05, None]
-    return draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
-                 bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, errors=True, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8])
+
+    if stacked_bars:
+        fig, ax = mpl_init()
+        base_vals = None
+        for ih, thist in enumerate(hist_list):
+            ax.bar(thist.bin_labels, thist.bin_contents, label=thist.title, bottom=base_vals, alpha=alphas[ih], color=tmpcolors[ih])
+            base_vals = [(base_vals[i] if base_vals is not None else 0) + c for i, c in enumerate(thist.bin_contents)]
+        return mpl_finish(ax, plotdir, plotname, xbounds=(0.5, thist.n_bins + 0.5), xlabel='cluster size', ylabel=ytitle) #, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
+    else:
+        return draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
+                            bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8])
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_mut_stats(args, plotdir, antn_list, is_simu, only_leaves=False, only_csv=False, fnames=None):

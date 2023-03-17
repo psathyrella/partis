@@ -112,6 +112,10 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
             debug = True  # turn debug on just to make more clear what's going on
         dxmin, dxmax = [abs(float(xbins[ist+1] - xbins[ist])) for ist in (0, len(xbins) - 2)]  # width of (first, last) bin [not under/overflows]
         xbins[0], xbins[-1] = get_expanded_bounds(values, dxmin, dxmax=dxmax)
+    if len(set(xbins)) != len(xbins):
+        print '    %s duplicate xbins in auto volume bins, so removing duplicates (and reducing n_bins)' % utils.wrnstr()
+        xbins = sorted(set(xbins))
+        n_bins = len(xbins) - 1
     if debug:
         binprint(xbins, values)
     assert len(xbins) == n_bins + 1  # will cause the n bin reduction to crash

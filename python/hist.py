@@ -27,6 +27,8 @@ class Hist(object):
                 xbins = template_hist.low_edges[1:]
             assert xmin is not None and xmax is not None
             self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
+            if template_hist is not None and template_hist.bin_labels.count('') != len(template_hist.bin_labels):
+                self.bin_labels = [l for l in template_hist.bin_labels]
         else:
             self.file_init(fname)
 
@@ -451,7 +453,8 @@ class Hist(object):
 
     # ----------------------------------------------------------------------------------------
     # NOTE remove_empty_bins can be a bool (remove/not all empty bins) or a list of length two (remove empty bins outside range)
-    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False, square_bins=False, no_vertical_bin_lines=False):
+    def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False,
+                 square_bins=False, no_vertical_bin_lines=False):
         # ----------------------------------------------------------------------------------------
         def sqbplot(kwargs):
             kwargs['markersize'] = 0

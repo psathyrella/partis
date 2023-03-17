@@ -627,10 +627,9 @@ class PartitionPlotter(object):
         subd, plotdir = self.init_subd('sizes')
         fname = 'cluster-sizes'
         hcolors = None
-        cslist = [len(c) for c in self.sclusts]
         # is_log_x = len(cslist) > 100 # and len([s for s in cslist if s>50]) > 30
-        csize_hists = {'best' : hutils.make_hist_from_list_of_values(cslist, 'int', fname, is_log_x=True)}  # seems kind of wasteful to make a bin for every integer (as here), but it's not going to be *that* many, and we want to be able to sample from them, and it's always a hassle getting the bins you want UPDATE ok now sometimes using log bins, for aesthetic plotting reasons, but maybe also ok for sampling?
-        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists)
+        cslist = [len(c) for c in self.sclusts]
+        csize_hists = {'best' : self.plotting.make_csize_hist(self.sclusts)}
         csize_hists['best'].write('%s/%s.csv' % (plotdir, fname))
         fnlist = [subd + '/' + fname + '.svg']
         ytitle = None
@@ -647,25 +646,29 @@ class PartitionPlotter(object):
                         continue
                     emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, tclust, antn, formats=self.args.meta_emph_formats)
                     for v, frac in emph_fracs.items():
-                        plotvals[v].append((csize, frac))
-            bhist = csize_hists['best']
-            csize_hists.update({v : Hist(template_hist=bhist) for v in all_emph_vals})  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
+                        plotvals[v].append((csize, frac, frac * len(tclust)))
+            csize_hists.update({v : Hist(template_hist=csize_hists['best']) for v in all_emph_vals})  # for each possible value, a list of (cluster size, fraction of seqs in cluster with that val) for clusters that contain seqs with that value
             del csize_hists['best']
+            ctot_hists = copy.deepcopy(csize_hists)
             for e_val, cvals in plotvals.items():
                 ehist = csize_hists[e_val] #utils.meta_emph_str(mekey, e_val, formats=self.args.meta_emph_formats)]
                 for ibin in ehist.ibiniter(include_overflows=True):
-                    ib_vals = [f for s, f in cvals if ehist.find_bin(s)==ibin]  # fracs whose cluster sizes fall in this bin (should all be quite similar in size if our bins are sensible, so shouldn't need to do an average weighted for cluster size)
+                    ib_vals = [(f, c) for s, f, c in cvals if ehist.find_bin(s)==ibin]  # fracs (or total seqs, if total_seq_plots is set) whose cluster sizes fall in this bin (should all be quite similar in size if our bins are sensible, so shouldn't need to do an average weighted for cluster size)
                     if len(ib_vals) == 0:
                         continue
-                    mval = numpy.mean(ib_vals)
-                    err = mval / math.sqrt(2) if len(ib_vals) == 1 else numpy.std(ib_vals, ddof=1) / math.sqrt(len(ib_vals))  # that isn't really right for len 1, but whatever
+                    ib_fracs, ib_counts = zip(*ib_vals)
+                    mval = numpy.mean(ib_fracs)
+                    err = mval / math.sqrt(2) if len(ib_fracs) == 1 else numpy.std(ib_fracs, ddof=1) / math.sqrt(len(ib_fracs))  # that isn't really right for len 1, but whatever
                     ehist.set_ibin(ibin, mval, err)
+                    ctot_hists[e_val].set_ibin(ibin, sum(ib_counts), math.sqrt(mval))
             ytitle = 'mean fraction of each cluster'
 
-        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors, ytitle=ytitle)
         for hname, thist in csize_hists.items():
             thist.write('%s/%s%s.csv' % (plotdir, fname, '' if hname=='best' else '-'+hname))
+        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors, ytitle=ytitle, log='x')
+        self.plotting.plot_cluster_size_hists(plotdir, fname+'-tot', ctot_hists, hcolors=hcolors, ytitle='total N seqs', log='x', stacked_bars=True)
         fnlist.append(subd + '/' + fname + '.svg')
+        fnlist.append(subd + '/' + fname + '-tot' + '.svg')
         return [fnlist]
 
     # ----------------------------------------------------------------------------------------
