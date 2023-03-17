@@ -182,6 +182,7 @@ def process(args):
     if args.write_additional_cluster_annotations is not None and len(args.write_additional_cluster_annotations) != 2:
         raise Exception('--write-additional-cluster-annotations must be specified as two numbers \'m:n\', but I got %s' % args.write_additional_cluster_annotations)
     args.extra_annotation_columns = utils.get_arg_list(args.extra_annotation_columns, choices=utils.extra_annotation_headers)
+    args.cluster_size_bins = utils.get_arg_list(args.cluster_size_bins, floatify=True)
 
     args.input_metafnames = utils.get_arg_list(args.input_metafnames)
     if args.input_metafnames is not None and len(args.input_metafnames) > 1 and os.path.exists(':'.join(args.input_metafnames)):  # hackishly try to handle single meta fname paths that have ':'s in them (this will break if you *also* try to have multiple input metfnames

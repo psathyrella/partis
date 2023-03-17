@@ -629,8 +629,9 @@ class PartitionPlotter(object):
         hcolors = None
         # is_log_x = len(cslist) > 100 # and len([s for s in cslist if s>50]) > 30
         cslist = [len(c) for c in self.sclusts]
-        csize_hists = {'best' : self.plotting.make_csize_hist(self.sclusts)}
+        csize_hists = {'best' : self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)}
         csize_hists['best'].write('%s/%s.csv' % (plotdir, fname))
+        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists)
         fnlist = [subd + '/' + fname + '.svg']
         ytitle = None
         if self.args.meta_info_key_to_color is not None:  # plot mean fraction of cluster that's X for each cluster size
@@ -653,7 +654,7 @@ class PartitionPlotter(object):
             for e_val, cvals in plotvals.items():
                 ehist = csize_hists[e_val] #utils.meta_emph_str(mekey, e_val, formats=self.args.meta_emph_formats)]
                 for ibin in ehist.ibiniter(include_overflows=True):
-                    ib_vals = [(f, c) for s, f, c in cvals if ehist.find_bin(s)==ibin]  # fracs (or total seqs, if total_seq_plots is set) whose cluster sizes fall in this bin (should all be quite similar in size if our bins are sensible, so shouldn't need to do an average weighted for cluster size)
+                    ib_vals = [(f, c) for s, f, c in cvals if ehist.find_bin(s)==ibin]  # fracs (+total seqs) whose cluster sizes fall in this bin (should all be quite similar in size if our bins are sensible, so shouldn't need to do an average weighted for cluster size)
                     if len(ib_vals) == 0:
                         continue
                     ib_fracs, ib_counts = zip(*ib_vals)
@@ -665,10 +666,11 @@ class PartitionPlotter(object):
 
         for hname, thist in csize_hists.items():
             thist.write('%s/%s%s.csv' % (plotdir, fname, '' if hname=='best' else '-'+hname))
-        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors, ytitle=ytitle, log='x')
-        self.plotting.plot_cluster_size_hists(plotdir, fname+'-tot', ctot_hists, hcolors=hcolors, ytitle='total N seqs', log='x', stacked_bars=True)
-        fnlist.append(subd + '/' + fname + '.svg')
-        fnlist.append(subd + '/' + fname + '-tot' + '.svg')
+        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors, ytitle=ytitle, log='x', no_legend=True)
+        self.plotting.plot_cluster_size_hists(plotdir, fname+'-tot', ctot_hists, hcolors=hcolors, ytitle='total N seqs', log='x', stacked_bars=True, no_legend=True)
+        lfn = self.plotting.make_meta_info_legend(plotdir, fname, self.args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
+        for fn in [fname, fname+'-tot', lfn]:
+            fnlist.append('%s/%s.svg' % (subd, fn))
         return [fnlist]
 
     # ----------------------------------------------------------------------------------------
