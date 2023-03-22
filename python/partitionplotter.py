@@ -247,7 +247,7 @@ class PartitionPlotter(object):
         return rfnames
 
     # ----------------------------------------------------------------------------------------
-    def make_cluster_bubble_plots(self, alpha=0.4, n_to_write_size=9999999, debug=False):
+    def make_cluster_bubble_plots(self, alpha=0.6, n_to_write_size=9999999, debug=False):
         import matplotlib.pyplot as plt
         subd, plotdir = self.init_subd('cluster-bubble')
         mekey = self.args.meta_info_key_to_color
@@ -624,18 +624,8 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def make_cluster_size_distribution(self):
-        subd, plotdir = self.init_subd('sizes')
-        fname = 'cluster-sizes'
-        hcolors = None
-        # is_log_x = len(cslist) > 100 # and len([s for s in cslist if s>50]) > 30
-        cslist = [len(c) for c in self.sclusts]
-        csize_hists = {'best' : self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)}
-        csize_hists['best'].write('%s/%s.csv' % (plotdir, fname))
-        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists)
-        fnlist = [subd + '/' + fname + '.svg']
-        ytitle = None
-        if self.args.meta_info_key_to_color is not None:  # plot mean fraction of cluster that's X for each cluster size
-            fname = 'cluster-size-fractions'
+        # ----------------------------------------------------------------------------------------
+        def plot_me_color_hists():  # plot mean fraction of cluster that's X for each cluster size
             mekey = self.args.meta_info_key_to_color
             all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
             hcolors = {v : c for v, c in emph_colors}
@@ -663,15 +653,24 @@ class PartitionPlotter(object):
                     ehist.set_ibin(ibin, mval, err)
                     ctot_hists[e_val].set_ibin(ibin, sum(ib_counts), math.sqrt(mval))
             ytitle = 'mean fraction of each cluster'
-
-        for hname, thist in csize_hists.items():
-            thist.write('%s/%s%s.csv' % (plotdir, fname, '' if hname=='best' else '-'+hname))
-        self.plotting.plot_cluster_size_hists(plotdir, fname, csize_hists, hcolors=hcolors, ytitle=ytitle, log='x', no_legend=True)
-        self.plotting.plot_cluster_size_hists(plotdir, fname+'-tot', ctot_hists, hcolors=hcolors, ytitle='total N seqs', log='x', stacked_bars=True, no_legend=True)
-        lfn = self.plotting.make_meta_info_legend(plotdir, fname, self.args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
-        for fn in [fname, fname+'-tot', lfn]:
-            fnlist.append('%s/%s.svg' % (subd, fn))
-        return [fnlist]
+            bfn = 'cluster-size-fractions'
+            for hname, thist in csize_hists.items():
+                thist.write('%s/%s%s.csv' % (plotdir, bfn, '' if hname=='best' else '-'+hname))
+            self.plotting.plot_cluster_size_hists(plotdir, bfn, csize_hists, hcolors=hcolors, ytitle=ytitle, log='x', no_legend=True)
+            self.plotting.plot_cluster_size_hists(plotdir, bfn+'-tot', ctot_hists, hcolors=hcolors, ytitle='total N seqs', log='', stacked_bars=True, no_legend=True)
+            lfn = self.plotting.make_meta_info_legend(plotdir, bfn, self.args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
+            fnlist.extend([lfn, bfn, bfn+'-tot'])
+        # ----------------------------------------------------------------------------------------
+        subd, plotdir = self.init_subd('sizes')
+        cslist = [len(c) for c in self.sclusts]
+        csize_hists = {'best' : self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)}
+        bfn = 'cluster-sizes'
+        csize_hists['best'].write('%s/%s.csv' % (plotdir, bfn))
+        self.plotting.plot_cluster_size_hists(plotdir, bfn, csize_hists)
+        fnlist = [bfn]
+        if self.args.meta_info_key_to_color is not None:
+            plot_me_color_hists()
+        return [['%s/%s.svg' % (subd, f) for f in fnlist]]
 
     # ----------------------------------------------------------------------------------------
     def make_tree_plots(self):

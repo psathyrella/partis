@@ -29,6 +29,11 @@ default_linewidths = ['5', '3', '2', '2', '2']
 default_markersizes = ['20', '15', '8', '5', '5', '5']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
+hard_meta_colors = {'IGHM' : '#ff7f0e',  # orange
+                    'IGHD' : '#9467bd',  # purple
+                    'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
+                    'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
+                    }
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either xmin and xmax, or hlist NOTE pretty similar to get_auto_y_ticks() (for search: log_bins log bins)
@@ -81,8 +86,15 @@ def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_em
         all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats) for c in clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [None for _ in c]))  # set of all possible values that this meta info key takes on in any cluster
     else:  # NOTE all_emph_vals needs to be a set if you pass it in
         assert clusters is None and antn_dict is None
-    def cfcn(i, v): return 'grey' if v in [None, 'None'] else tme_colors[i%len(tme_colors)]
-    emph_colors = [(v, cfcn(i, v)) for i, v in enumerate(sorted(all_emph_vals - set([None, 'None'])))] + [('None', 'grey'), (None, 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
+    def cfcn(i, v): return 'grey' if v in [None, 'None'] else hard_meta_colors.get(v, tme_colors[i%len(tme_colors)])
+    # emph_colors = [(v, cfcn(i, v)) for i, v in enumerate(sorted(all_emph_vals - set([None, 'None'])))] + [('None', 'grey'), (None, 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
+    emph_colors = []
+    for iv, val in enumerate(sorted(all_emph_vals - set([None, 'None']))):
+        tcol = cfcn(iv, val)
+        emph_colors.append((val, cfcn(iv, val)))
+        if tcol in tme_colors:
+            tme_colors.remove(tcol)
+    emph_colors += [('None', 'grey'), (None, 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
     return all_emph_vals, emph_colors
 
 # ----------------------------------------------------------------------------------------
@@ -794,9 +806,9 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         fig, ax = mpl_init()
         base_vals = None
         for ih, thist in enumerate(hist_list):
-            ax.bar(thist.bin_labels, thist.bin_contents, label=thist.title, bottom=base_vals, alpha=alphas[ih], color=tmpcolors[ih])
+            ax.bar(thist.bin_labels, thist.bin_contents, label=thist.title, bottom=base_vals, alpha=alphas[ih], color=tmpcolors[ih], linewidth=0)
             base_vals = [(base_vals[i] if base_vals is not None else 0) + c for i, c in enumerate(thist.bin_contents)]
-        return mpl_finish(ax, plotdir, plotname, xbounds=(0.5, thist.n_bins + 0.5), xlabel='cluster size', ylabel=ytitle, no_legend=no_legend) #, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
+        return mpl_finish(ax, plotdir, plotname, xbounds=(0.5, thist.n_bins + 0.5), xlabel='cluster size', ylabel=ytitle, no_legend=no_legend, log=log) #, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
     else:
         return draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
                             bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8],
@@ -1032,7 +1044,7 @@ def plot_pie_chart_marker(ax, xpos, ypos, radius, fracfos, alpha=None, debug=Fal
         yvals = np.sin(2 * np.pi * lnsp)
         xyvals = np.row_stack([[0, 0], np.column_stack([xvals, yvals])])
         s1 = np.abs(xyvals).max()  # max x or y val (i guess s= arg in ax.scatter() is based on max x or y size?)
-        ax.scatter([xpos], [ypos], marker=xyvals, s=(270*radius*s1)**2, facecolor=ffo['color'], alpha=alpha)  # s= is in "points squared", but radius is in axis/fig coords ([0, 1], or maybe [-1, 1]?), and I can't figure out how to convert and I'm tired of googling so using 275 which seems about right, hopefully it keeps working
+        ax.scatter([xpos], [ypos], marker=xyvals, s=(270*radius*s1)**2, facecolor=ffo['color'], alpha=alpha, linewidth=0)  # s= is in "points squared", but radius is in axis/fig coords ([0, 1], or maybe [-1, 1]?), and I can't figure out how to convert and I'm tired of googling so using 275 which seems about right, hopefully it keeps working
         total += ffo['fraction']
         if debug:
             print '   %.3f  %s  %3d  %5.3f %5.3f %.3f %.3f' % (ffo['fraction'], utils.wfmt(ffo['label'], lwd), len(lnsp), min(lnsp), max(lnsp), s1, max(max(x, y) for x, y in zip(xvals, yvals) )) #, [math.sqrt(x*x + y*y) for x, y in zip(xvals, yvals)])
