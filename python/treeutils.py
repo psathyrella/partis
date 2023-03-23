@@ -803,7 +803,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
 
 # ----------------------------------------------------------------------------------------
 # specify <seqfos> or <annotation> (in latter case we add the naive seq)
-def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='naive', no_naive=False, actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
+def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
                        redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def lhindir(workdir):

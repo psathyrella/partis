@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import argparse
 import os
 import sys
@@ -32,8 +32,7 @@ parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')
 parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
-parser.add_argument('--birth-value-list')
-parser.add_argument('--death-value-list')
+parser.add_argument('--xscale-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -64,7 +63,7 @@ parser.add_argument('--empty-bin-range', help='remove empty bins only outside th
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'birth-value', 'death-value'],
+    'simu' : ['seed', 'birth-response', 'xscale'],
 }
 for act in after_actions + plot_actions:
     if act not in args.scan_vars:
@@ -104,7 +103,7 @@ def ofname(args, varnames, vstrs, action, single_file=False):
         if single_file:
             sfx += '/hmm/all-mean-mute-freqs.csv'
     else:
-        sfx = '%s.yaml' % action
+        sfx = '%s%s' % (action, '' if action=='simu' else '.yaml')
     return '%s/%s' % (odir(args, varnames, vstrs, action), sfx)
 
 # ----------------------------------------------------------------------------------------
