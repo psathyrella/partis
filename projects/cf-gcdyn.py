@@ -23,12 +23,12 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 all_perf_metrics = ['f1'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-after_actions = ['cache-parameters', 'partition']  # actions that come after simulation (e.g. partition)
+after_actions = ['process']  # actions that come after simulation (e.g. partition)
 plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')
+parser.add_argument('--actions', default='simu:process:plot')
 parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
@@ -61,6 +61,7 @@ parser.add_argument('--combo-extra-str', help='extra label for combine-plots act
 parser.add_argument('--make-hist-plots', action='store_true')
 parser.add_argument('--empty-bin-range', help='remove empty bins only outside this range (will kick a warning if this ignores any non-empty bins)')
 parser.add_argument('--workdir')  # default set below
+parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale'],
@@ -97,23 +98,28 @@ def odir(args, varnames, vstrs, action):
     return utils.svoutdir(args, varnames, vstrs, action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, single_file=False):
-    if action == 'cache-parameters':
-        sfx = 'parameters'
-        if single_file:
-            sfx += '/hmm/all-mean-mute-freqs.csv'
+def ofname(args, varnames, vstrs, action): #, single_file=False):
+    if action == 'simu':
+        sfx = 'all-seqs.fasta'
+    elif action == 'process':
+        sfx = 'plots.html'
     else:
-        sfx = '%s%s' % (action, '' if action=='simu' else '.yaml')
-    return '%s/%s' % (odir(args, varnames, vstrs, action), sfx)
+        assert False
+    return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
 
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vlists, vstrs):
-    cmd = 'python %s/scripts/multi-simulation.py --outdir %s' % (args.gcddir, ofname(args, varnames, vstrs, action))
-    cmd += ' %s' % ' '.join(base_args)
-    for vname, vstr in zip(varnames, vstrs):
-        cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
-    cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
-    cmd = ' && '.join(cmd)
+    if action == 'simu':
+        cmd = 'python %s/scripts/multi-simulation.py --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, action)))
+        cmd += ' %s' % ' '.join(base_args)
+        for vname, vstr in zip(varnames, vstrs):
+            cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
+        cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
+        cmd = ' && '.join(cmd)
+    elif action == 'process':
+        cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+    else:
+        assert False
     return cmd
 
 # ----------------------------------------------------------------------------------------
@@ -129,7 +135,7 @@ def run_scan(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        ofn = ofname(args, varnames, vstrs, action, single_file=True)
+        ofn = ofname(args, varnames, vstrs, action) #, single_file=True)
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
