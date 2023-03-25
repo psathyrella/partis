@@ -48,7 +48,7 @@ For example
 will write input sequences, together with inferred naive sequences and cdr3 lengths, to `tmp.csv` or `tmp.fa`.
 See `./bin/parse-output.py --help` for details.
 
-The ClusterPath class, which represents a series of partitions, is usefuly for handling partitions.
+The ClusterPath class, which represents a series of partitions, is useful for handling partitions.
 This snippet reads a cluster path from a file, prints an ascii summary, and gets the best partitions:
 
 ```

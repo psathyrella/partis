@@ -89,7 +89,7 @@ Cases where memory is a limiting factor typically stem from a sample with severa
 
 ##### deliberate over-clustering
 
-Normal partis clustering proceeds via with hierarchical agglomeration, i.e. begins with all sequences separate, then iteratively merges similar clusters.
+Normal partis clustering proceeds via hierarchical agglomeration, i.e. begins with all sequences separate, then iteratively merges similar clusters.
 It stops when further merging would make for a less-likely partition.
 In some cases, however, you may be interested in all sequences that could possibly be related (perhaps to `--seed-unique-id`), i.e. in a less likely, over-merged, partition.
 If you set `--n-final-clusters N` partis will try to keep clustering until there are `N` clusters ("try" because it can never merge very different sequences, e.g. with different CDR3 length).
