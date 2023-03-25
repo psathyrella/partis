@@ -7,6 +7,7 @@
     - [subsampling](#subsampling)
     - [ignore small clusters](#ignore-smaller-clusters)
     - [limit maximum cluster size](#limit-maximum-cluster-size)
+    - [deliberate over-clustering](#deliberate-over-clustering)
 	- [progress file](#progress-file)
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
@@ -85,6 +86,14 @@ If you're mostly interested in larger clonal families, you can tell it to cluste
 ##### limit maximum cluster size
 
 Cases where memory is a limiting factor typically stem from a sample with several very large families. Some recent optimizations mean that this doesn't really happen any more, but limiting clonal family size with `--max-cluster-size N` nevertheless can reduce memory usage. Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
+
+##### deliberate over-clustering
+
+Normal partis clustering proceeds via with hierarchical agglomeration, i.e. begins with all sequences separate, then iteratively merges similar clusters.
+It stops when further merging would make for a less-likely partition.
+In some cases, however, you may be interested in all sequences that could possibly be related (perhaps to `--seed-unique-id`), i.e. in a less likely, over-merged, partition.
+If you set `--n-final-clusters N` partis will try to keep clustering until there are `N` clusters ("try" because it can never merge very different sequences, e.g. with different CDR3 length).
+You can also set `--min-largest-cluster-size N`, in which case it will try to keep merging until the largest cluster is at least of size `N`.
 
 ##### progress file
 
