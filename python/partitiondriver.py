@@ -831,7 +831,7 @@ class PartitionDriver(object):
             n_before, n_after = [max(waca, n_) for waca, n_ in zip(self.args.write_additional_cluster_annotations, (n_before, n_after))]
         # NOTE we don't actually do anything with <n_after>, since we can't add any extra partitions here (well, we don't want to)
 
-        cpfnames = self.get_all_cpath_progress_fnames()  # last one corresponds to <final_cpath>
+        cpfnames = self.get_all_cpath_progress_fnames()  # list of cpath files for each clustering step (last one corresponds to <final_cpath>)
 
         if final_cpath.i_best >= n_before or len(cpfnames) < 2:  # if we already have enough partitions, or if there was only one step, there's nothing to do
             if debug:
@@ -839,18 +839,18 @@ class PartitionDriver(object):
             return final_cpath
 
         icpfn = len(cpfnames) - 1
-        merged_cp = ClusterPath(fname=cpfnames[icpfn], seed_unique_id=self.args.seed_unique_id)
+        merged_cp = ClusterPath(fname=cpfnames[icpfn], seed_unique_id=self.args.seed_unique_id)  # merged one is initially just the cp from the last step
         assert merged_cp.partitions[merged_cp.i_best] == final_cpath.partitions[final_cpath.i_best]  # shouldn't really be necessary, and is probably kind of slow
-        while merged_cp.i_best < n_before and icpfn > 0:
+        while merged_cp.i_best < n_before and icpfn > 0:  # keep trying to add them until we have <n_before> of them
             icpfn -= 1
             previous_cp = ClusterPath(fname=cpfnames[icpfn], seed_unique_id=self.args.seed_unique_id)
             for ip in range(len(merged_cp.partitions)):
-                if len(merged_cp.partitions[ip]) == len(previous_cp.partitions[-1]):  # skip identical partitions (don't bother checking unless they're at least the same length
+                if len(merged_cp.partitions[ip]) == len(previous_cp.partitions[-1]):  # skip identical partitions (for speed, first check if they have the same number of clusters, then whether the clusters are the same)
                     if set([tuple(c) for c in merged_cp.partitions[ip]]) == set([tuple(c) for c in previous_cp.partitions[-1]]):  # no, they're not always in the same order (I think because they get parcelled out to different processes, and then read back in random order)
                         if math.isinf(merged_cp.logprobs[ip]) and not math.isinf(previous_cp.logprobs[-1]):  # it should only be possible for the *later* partition to have non-infinite logprob, since we usually only calculate full logprobs in the last clustering step (which is why we're taking the later partition, from merged_cp), so print an error if the earlier one, that we're about to throw away, is the one that's non-infinite
                             print '%s earlier partition (that we\'re discarding) has non-infinite logprob %f, while later partition\'s is infinite %f' % (utils.color('red', 'error'), previous_cp.logprobs[-1], merged_cp.logprobs[ip])
                         previous_cp.remove_partition(len(previous_cp.partitions) - 1)  # remove it from previous_cp, since we want the one that may have a logprob set (and which has smaller n_procs, although I don't think we care about that)
-                previous_cp.add_partition(list(merged_cp.partitions[ip]), merged_cp.logprobs[ip], merged_cp.n_procs[ip])
+                previous_cp.add_partition(list(merged_cp.partitions[ip]), merged_cp.logprobs[ip], merged_cp.n_procs[ip])  # add each partition in the existing merged cp to the previous cp
             merged_cp = previous_cp
             assert merged_cp.partitions[merged_cp.i_best] == final_cpath.partitions[final_cpath.i_best]  # shouldn't really be necessary, and is probably kind of slow
             if debug:
