@@ -860,6 +860,11 @@ class PartitionDriver(object):
         if icpfn > 0:
             print '  %s not merging entire cpath history' % utils.color('yellow', 'note')
 
+        # this kind of sucks, and shouldn't be necessary, but someone reported that they're seeing cluster paths with all logprobs -inf (which is really bad since the actual ClusterPath code will know that the last partition should be the best, but someone reading the file by hand won't know). If I had a working example of this happening i could figure out a better place to put this check, but I don't
+        if all(l == float('-inf') for l in merged_cp.logprobs):
+            print '  %s all %d partitions in cluster path have log prob -inf, so setting last (best) to zero' % (utils.wrnstr(), len(merged_cp.partitions))
+            merged_cp.logprobs[-1] = 0.
+
         return merged_cp
 
     # ----------------------------------------------------------------------------------------
