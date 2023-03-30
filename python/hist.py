@@ -109,7 +109,11 @@ class Hist(object):
     def getdict(self):  # get a dict suitable for writing to json/yaml file (ick! but i don't always want the hists to be in their own file) NOTE code reversing this is in test/cf-tree-metrics.py
         return {'n_bins' : self.n_bins, 'xmin' : self.xmin, 'xmax' : self.xmax, 'bin_contents' : self.bin_contents}
 
-   # ----------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------
+    def is_overflow(self, ibin):  # return true if <ibin> is either the under or over flow bin
+        return ibin in [0, self.n_bins + 1]
+
+    # ----------------------------------------------------------------------------------------
     def overflow_contents(self):
         return self.bin_contents[0] + self.bin_contents[-1]
 

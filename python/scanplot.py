@@ -207,14 +207,14 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     # ----------------------------------------------------------------------------------------
     def legstr(label, title=False):
         # ----------------------------------------------------------------------------------------
-        def ldstr(name, val):  # NOTE i think maybe i only really want to use <legdict> here if <title> is set?
+        def ldstr(name, val):
             if args.use_val_cfgs and not title and name in plotting.val_cfgs['legends']:
                 vstr = plotting.val_cfgs['legends'][name].get(val, val)
                 if hasattr(vstr, 'keys'):  # it's actually a dict (ick ick ick)
                     other_key, other_val = utils.get_single_entry([(n, v) for n, v in zip(pvl_list(), label.split('; ')) if n in vstr])  # find the key that's in the dict that's also in this list of legends (also ick)
                     vstr = vstr[other_key].get(other_val, vstr[other_key]['default'])  # needs to have default set otherwise i don't know what tf to do
             else:
-                vstr = ldfcn(val) #legdict.get(val, val.replace('-', ' '))
+                vstr = val if title is None else ldfcn(val)
             return vstr
         # ----------------------------------------------------------------------------------------
         if label is None: return None
@@ -433,19 +433,25 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 for iclust in get_iclusts(yamlfo, yfname):
                     add_plot_vals(yamlfo, vlists, varnames, iclust=iclust)
         # ----------------------------------------------------------------------------------------
-        def read_pairclust_file(vlists, vstrs):
-            # ----------------------------------------------------------------------------------------
+        def read_new_script_file(vlists, vstrs):
             if debug:
                 print '%s   | %s' % (get_varval_str(vstrs), ''),
             yfname = fnfcn(varnames, vstrs)
             try:
-                if ptilestr == 'time-reqd':
-                    ytmpfo = readlog(args, yfname, metric, locus, ptntype)
-                elif 'pcfrac-' in ptilestr or ptilestr == 'naive-hdist':
-                    ytmpfo = read_hist_csv(args, yfname, ptilestr)
+                if script_base == 'paired-loci':
+                    if ptilestr == 'time-reqd':
+                        ytmpfo = readlog(args, yfname, metric, locus, ptntype)
+                    elif 'pcfrac-' in ptilestr or ptilestr == 'naive-hdist':
+                        ytmpfo = read_hist_csv(args, yfname, ptilestr)
+                    else:
+                        _, _, cpath = utils.read_output(yfname, skip_annotations=True)
+                        ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
+                elif script_base == 'gcdyn':
+                    with open(yfname) as yfile:
+                        yjfo = json.load(yfile)  # too slow with yaml
+                    ytmpfo = {ptilestr : yjfo[ptilestr]}
                 else:
-                    _, _, cpath = utils.read_output(yfname, skip_annotations=True)
-                    ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
+                    assert False
             except IOError:  # os.path.exists() is too slow with this many files
                 missing_vstrs['missing'].append((None, vstrs))
                 return
@@ -470,8 +476,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         missing_vstrs = {'missing' : [], 'empty' : []}
         for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
             if is_new_script():
-# TODO
-                read_pairclust_file(vlists, vstrs)
+                read_new_script_file(vlists, vstrs)
             else:
                 read_smetric_file(vlists, vstrs)
             if debug:
@@ -653,13 +658,13 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         return xticks, xticklabels, xlabel
 
     # ----------------------------------------------------------------------------------------
-# TODO
     if is_new_script():  # paired clustering
-        assert hasattr(args, 'n_sim_events_list') and not hasattr(args, 'n_sim_events_per_proc')
-        distr_hists, affy_key_str, treat_clusters_together = False, '', True  # it's important that treat_clusters_together is True, but the others i think aren't used for paired clustering
+        distr_hists, affy_key_str, treat_clusters_together = False, '', True  # these are really from cf-tree-metrics.py, but need to be set to a default otherwise
         legdict, axdict = plotting.legends, plotting.axis_labels
         if args.x_legend_var is not None:
             xleg_vals = {}
+        if script_base == 'paired-loci':
+            assert hasattr(args, 'n_sim_events_list') and not hasattr(args, 'n_sim_events_per_proc')
     else:  # tree metrics
         assert not hasattr(args, 'n_sim_events_list') and hasattr(args, 'n_sim_events_per_proc')
         assert choice_grouping is not None
@@ -772,7 +777,6 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
 
     n_ticks = 4
     ylabel, leg_loc, yticks, yticklabels = '', None, None, None
-# TODO
     if is_new_script():
         ylabel = ldfcn(ptilestr, axis=True) if ptilelabel is None else ptilelabel
         if ptilestr == 'time-reqd':
@@ -797,13 +801,16 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         else:
             if 'pcfrac-' in ptilestr:
                 title = ldfcn(ptilestr)  #legdict.get(ptilestr, ptilestr).replace('frac. ', '')
-            else:
+            elif script_base == 'paired-loci':
                 title += ' %s: %s %s' % (locus, ltexts[ptntype], ldfcn(ptilestr)) #legdict.get(ptilestr, ptilestr))
             if any('single-chain-' in m for m in args.plot_metrics):  # better not to call it the 'joint' f1 score or whatever if we're plotting the single chain partition on it
                 title = title.replace(ltexts[ptntype], '')
-            ymin = 0
-            if ptilestr != 'naive-hdist':
-                ymax = 1.05
+            if script_base == 'paired-loci':
+                ymin = 0
+                if ptilestr != 'naive-hdist':
+                    ymax = 1.05
+            else:
+                ymin, ymax = None, None
             if xvar == 'allowed-cdr3-lengths':  # ick ick ick (need to convert to actual imgt length, as well as fix formatting)
                 for ixt, xtl in enumerate(all_xtls):
                     assert xtl.count('M') == 1  # would need to be updated
@@ -845,7 +852,8 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 ylabel = ptilelabel
         if distr_hists or not no_spec_corr:
             ymin, ymax = (0, 1.02)
-
+    
+    ybounds = None if None in (ymin, ymax) else (ymin, ymax)
     ffn = plotting.mpl_finish(ax, plotdir, getplotname(metric),
                               xlabel=xlabel,
                               # ylabel='%s to perfect\nfor %s ptiles in [%.0f, 100]' % ('percentile' if ptilelabel == 'affinity' else ptilelabel, ylabelstr, min_ptile_to_plot),
@@ -853,11 +861,12 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                               title=title,  # leg_title=legstr(pvlabel[0], title=True), leg_prop={'size' : 12}, leg_loc=leg_loc,
                               xticks=all_xtks, xticklabels=all_xtls, xticklabelsize=12 if all_xtls is not None and '\n' in all_xtls[0] else 16,
                               yticks=yticks, yticklabels=yticklabels,
-                              xbounds=(xmin, xmax), ybounds=(ymin, ymax), log=log, adjust=adjust,
+                              xbounds=(xmin, xmax), ybounds=ybounds, log=log, adjust=adjust,
     )
     if make_legend:
         leg_entries = collections.OrderedDict(reversed(list(leg_entries.items())))  # the last things to be *plotted* cover earlier things, but we also want them to be at the top of the legend
-        plotting.plot_legend_only(leg_entries, plotdir, 'legend%s'%leg_label, title=legstr(pvlabel[0], title=True))  #[(l, leg_entries['color']) for l, lfo in leg_entries], )
+        lfn = plotting.plot_legend_only(leg_entries, plotdir, 'legend%s'%leg_label, title=legstr(pvlabel[0], title=True))  #[(l, leg_entries['color']) for l, lfo in leg_entries], )
+        fnames.append(lfn)
     if fnames is not None:
         fnames.append(ffn)
 

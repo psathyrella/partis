@@ -22,7 +22,7 @@ import clusterpath
 
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
-all_perf_metrics = ['f1'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 after_actions = ['process']  # actions that come after simulation (e.g. partition)
 plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 
@@ -33,6 +33,7 @@ parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), sc
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
 parser.add_argument('--xscale-list')
+parser.add_argument('--xshift-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -47,7 +48,7 @@ parser.add_argument('--test', action='store_true', help='don\'t parallelize \'pl
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--simu-extra-args')
 parser.add_argument('--inference-extra-args')
-parser.add_argument('--plot-metrics', default='partition', help='these can be either methods (paired-loci) or metrics (tree metrics), but they\'re called metrics in scanplot so that\'s what they have to be called everywhere')
+parser.add_argument('--plot-metrics', default='process', help='these can be either methods (paired-loci) or metrics (tree metrics), but they\'re called metrics in scanplot so that\'s what they have to be called everywhere')
 parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics), help='performance metrics (i.e. usually y axis) that we want to plot vs the scan vars. Only necessary if --plot-metrics are actually methods (as in cf-paired-loci.py).')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
 parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
@@ -64,7 +65,7 @@ parser.add_argument('--workdir')  # default set below
 parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale'],
+    'simu' : ['seed', 'birth-response', 'xscale', 'xshift'],
 }
 for act in after_actions + plot_actions:
     if act not in args.scan_vars:
@@ -102,7 +103,7 @@ def ofname(args, varnames, vstrs, action): #, single_file=False):
     if action == 'simu':
         sfx = 'all-seqs.fasta'
     elif action == 'process':
-        sfx = 'plots.html'
+        sfx = 'diff-vals.yaml'
     else:
         assert False
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
@@ -110,7 +111,7 @@ def ofname(args, varnames, vstrs, action): #, single_file=False):
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vlists, vstrs):
     if action == 'simu':
-        cmd = 'python %s/scripts/multi-simulation.py --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, action)))
+        cmd = 'python %s/scripts/multi-simulation.py --debug-response-fcn --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, action)))
         cmd += ' %s' % ' '.join(base_args)
         for vname, vstr in zip(varnames, vstrs):
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
@@ -172,7 +173,6 @@ for action in args.actions:
             continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[after_actions[0]])
         if action == 'plot':
-            raise Exception('will need to modify scanplot.make_plots() for this new script to get it working')
             print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             procs = []
@@ -191,7 +191,7 @@ for action in args.actions:
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
                     pmcdir = scanplot.get_comparison_plotdir(args, method) + '/' + pmetr
-                    fnames[method][pmetr] = [[f.replace(pmcdir+'/', '') for f in flist] for flist in fnames[method][pmetr]]
+                    fnames[method][pmetr] = [[f.replace(pmcdir+'/', '') for f in fnames[method][pmetr]]]
                     plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])  # this doesn't work unless --test is set since multiprocessing uses copies of <fnames>, but whatever, just run combine-plots
         elif action == 'combine-plots':
             cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
@@ -199,9 +199,7 @@ for action in args.actions:
             fnames = [[] for _ in args.perf_metrics]
             for ipm, pmetr in enumerate(args.perf_metrics):
                 print '    ', pmetr
-                for ptntype in partition_types:
-                    scanplot.make_plots(args, args.scan_vars[after_actions[0]], action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], debug=args.debug)
-                    # iplot += 1
+                scanplot.make_plots(args, args.scan_vars[after_actions[0]], action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], make_legend=True, debug=args.debug)
             plotting.make_html(cfpdir, fnames=fnames)
         else:
             raise Exception('unsupported action %s' % action)

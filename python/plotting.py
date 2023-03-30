@@ -992,8 +992,9 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
 # ----------------------------------------------------------------------------------------
 # NOTE can use get_leg_entries()
 def plot_legend_only(leg_entries, plotdir, plotname, title=None, n_digits=None):
+    lfn = plotdir+'/'+plotname+'.svg'
     if len(leg_entries) == 0:
-        return
+        return lfn
     max_label_len = max(len(str(l)) for l in leg_entries)
     figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(leg_entries) / 4.))
     fig, ax = mpl_init()
@@ -1003,7 +1004,8 @@ def plot_legend_only(leg_entries, plotdir, plotname, title=None, n_digits=None):
         ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
     handles, labels = ax.get_legend_handles_labels()
     figlegend.legend(handles, labels, 'center', title=title)
-    figlegend.savefig(plotdir+'/'+plotname+'.svg')
+    figlegend.savefig(lfn)
+    return lfn
 
 # ----------------------------------------------------------------------------------------
 def mpl_init(figsize=None, fsize=20, label_fsize=15):
