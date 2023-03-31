@@ -364,9 +364,11 @@ def get_var_info(args, scan_vars, debug=False):
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
-def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, example_existing_ofn=None, shell=False, dbstr=None):
+def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, example_existing_ofn=None, n_missing_input=0, single_ifn=None, shell=False, dbstr=None):
+    if n_missing_input > 0:
+        print '      %2d / %d %s missing input%s' % (n_missing_input, n_total, '' if dbstr is None else dbstr+' ', '' if single_ifn is None else ', e.g. %s'%single_ifn)
     if n_already_there > 0:
-        print '      %d / %d %sjobs skipped (outputs exist, e.g. %s)' % (n_already_there, n_total, '' if dbstr is None else dbstr+' ', single_ofn if single_ofn is not None else example_existing_ofn)
+        print '      %2d / %d %sjobs skipped (outputs exist, e.g. %s)' % (n_already_there, n_total, '' if dbstr is None else dbstr+' ', single_ofn if single_ofn is not None else example_existing_ofn)
     if len(cmdfos) > 0:
         print '      %s %d %sjobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos), '' if dbstr is None else dbstr+' ')
         if args.dry:

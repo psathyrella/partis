@@ -630,6 +630,9 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'n-seqs' : 'N seqs',
            'biggest-logprob-cluster-to-calculate' : 'max calc\'d cluster size',
            'bulk-data-fraction' : 'bulk data frac',
+           'max-abundances' : 'max abundance\nwgtd. simu - data',
+           'distr-abundances' : 'abundance distr.\nwgtd. simu - data',
+           'distr-hdists' : 'SHM distr\nsimu - data',
            }
 
 axis_labels = {

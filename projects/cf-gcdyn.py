@@ -131,7 +131,7 @@ def run_scan(action):
     print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
     if args.debug:
         print '   %s' % ' '.join(varnames)
-    n_already_there = 0
+    n_already_there, n_missing_input, ifn = 0, 0, None
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
@@ -140,6 +140,12 @@ def run_scan(action):
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
+
+        if action == 'process':
+            ifn = ofname(args, varnames, vstrs, 'simu')
+            if not utils.output_exists(args, ifn, debug=False):
+                n_missing_input += 1
+                continue
 
         cmd = get_cmd(action, base_args, varnames, val_lists, vstrs)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
@@ -150,7 +156,7 @@ def run_scan(action):
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         }]
 
-    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, shell=action=='simu')
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=action=='simu')
 
 # ----------------------------------------------------------------------------------------
 def get_fnfcn(method, pmetr):  # have to adjust signature before passing to fcn in scavars

@@ -214,7 +214,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     other_key, other_val = utils.get_single_entry([(n, v) for n, v in zip(pvl_list(), label.split('; ')) if n in vstr])  # find the key that's in the dict that's also in this list of legends (also ick)
                     vstr = vstr[other_key].get(other_val, vstr[other_key]['default'])  # needs to have default set otherwise i don't know what tf to do
             else:
-                vstr = val if title is None else ldfcn(val)
+                vstr = ldfcn(val) if title else val
             return vstr
         # ----------------------------------------------------------------------------------------
         if label is None: return None
@@ -751,7 +751,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     else:
         assert False
 
-    xmin, xmax = 0.95 * min(all_xtks), 1.05 * max(all_xtks)
+    xmin, xmax = (1.05 if min(all_xtks) < 0 else 0.95) * min(all_xtks), 1.05 * max(all_xtks)
     ymin, ymax = ax.get_ylim()
     # if ptilestr == 'affinity':
     #     ymin, ymax = 0, max(ymax, 25)
