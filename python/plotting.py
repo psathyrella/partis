@@ -60,8 +60,14 @@ def make_csize_hist(partition, n_bins=10, xbins=None):
     if xbins is None:
         xbins, n_bins = hutils.auto_volume_bins(cslist, n_bins, int_bins=True, debug=True)
     else:
+        print '   using user specified bins %s:' % xbins
+        hutils.binprint(xbins, cslist)
         if any(x==int(x) for x in xbins):
             raise Exception('bin boundaries should be non-integers (e.g. 3.5) to avoid integer values seeming to fall on the boundary')
+        if max(cslist) >= xbins[-1]:  # last entry in xbins is the low edge of overflow bin, and we *really* want to know if anything's overflowing (well maybe in future i'll want to allow this, but not now)
+            raise Exception('cluster size %d would fall in overflow bin (see previous lines)' % max(cslist))
+        if min(cslist) < xbins[0]:  # same for underflow
+            raise Exception('cluster size %d would fall in underflow bin (see previous lines)' % min(cslist))
         n_bins = len(xbins) - 1
     thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=cslist) #, xtitle=vlabel(tkey), title=str(mval))
     for ib in range(1, thist.n_bins + 1):
@@ -785,6 +791,8 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
             xmax = hxmax
         hist.title = legends.get(name, name)
         hist_list.append(hist)
+        xticks = hist.get_bin_centers()
+        xticklabels = hist.bin_labels
 
     if len(hist_list) == 0:
         return
@@ -795,7 +803,7 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         if xmin < 1:  # the above gives us the bin low edge, which with log x scale is way too far left of the lowest point
             xmin = 0.9
         xmax *= 1.025
-    xticks, xticklabels = get_cluster_size_xticks(xmin, xmax)  # NOTE could also pass list of hists in here to get xmin, xmax
+    # xticks, xticklabels = get_cluster_size_xticks(xmin, xmax)  # NOTE could also pass list of hists in here to get xmin, xmax
     if ytitle is None:
         ytitle = '%s of clusters' % ('fraction' if normalize else 'number')
     if translegend is None:
