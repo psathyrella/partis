@@ -2232,6 +2232,9 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
     if tree_inference_method == 'linearham' and any(l.get('is_fake_paired', False) for l in inf_lines_to_use):
         print '  %s can\'t run linearham on fake paired annotations, returning' % utils.wrnstr()
         return [None for _ in inf_lines_to_use]
+    if cluster_indices is not None and len(cluster_indices) == 0:
+        print '  %s empty cluster indices list when getting trees' % utils.wrnstr()
+        return [None for _ in inf_lines_to_use]
     ntot = len(inf_lines_to_use)
     large_lines = [l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size]  # this is just used for dbg atm, but should probably use it in the loop below as well
     print '    getting trees for %d cluster%s with size%s: %s' % (len(large_lines), utils.plural(len(large_lines)), utils.plural(len(large_lines)), ' '.join(str(len(l['unique_ids'])) for l in large_lines))

@@ -461,6 +461,12 @@ class HmmWriter(object):
                     if self.would_erode_conserved_codon(erosion, n_eroded):
                         del eprobs[erosion][n_eroded]
 
+
+            if len(eprobs[erosion]) == 0:
+                if self.debug:
+                    print '    %s no erosions remaining for %s' % (utils.wrnstr(), erosion)
+                continue
+
             # and finally, normalize
             total = 0.0
             for _, val in eprobs[erosion].iteritems():
