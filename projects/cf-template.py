@@ -184,6 +184,8 @@ for action in args.actions:
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
                     pmcdir = scanplot.get_comparison_plotdir(args, method) + '/' + pmetr
+# TODO need to fix/update this line (match commented line i think)
+                    # fnames[method][pmetr] = [[f.replace(pmcdir+'/', '') for f in fnames[method][pmetr]]]
                     fnames[method][pmetr] = [[f.replace(pmcdir+'/', '') for f in flist] for flist in fnames[method][pmetr]]
                     plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])  # this doesn't work unless --test is set since multiprocessing uses copies of <fnames>, but whatever, just run combine-plots
         elif action == 'combine-plots':
@@ -192,6 +194,7 @@ for action in args.actions:
             fnames = [[] for _ in args.perf_metrics]
             for ipm, pmetr in enumerate(args.perf_metrics):
                 print '    ', pmetr
+# TODO remove this
                 for ptntype in partition_types:
                     scanplot.make_plots(args, args.scan_vars[after_actions[0]], action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], debug=args.debug)
                     # iplot += 1

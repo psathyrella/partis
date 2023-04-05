@@ -33,6 +33,10 @@ hard_meta_colors = {'IGHM' : '#ff7f0e',  # orange
                     'IGHD' : '#9467bd',  # purple
                     'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
                     'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
+                    'memory' : '#ff7f0e',
+                    'naive' : '#d62728',
+                    'pb' : '#1f77b4',
+                    'prepb' : '#6eb7e8',
                     }
 
 # ----------------------------------------------------------------------------------------
