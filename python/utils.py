@@ -4269,6 +4269,7 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
     elif key == 'consensus_seq':
         outfo[key] = cons_seq_of_line(info)
     elif key == 'consensus_seq_aa':
+        add_seqs_aa(info)
         outfo[key] = cons_seq_of_line(info, aa=True)
     elif key == 'naive_seq_aa':  # NOTE similarity to add_naive_seq_aa()
         add_naive_seq_aa(info)
