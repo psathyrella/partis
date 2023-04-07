@@ -178,7 +178,7 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
-def csvlines(fn):
+def csvlines(fn):  # for search: csv_lines()
     with open(fn) as cfile:
         reader = csv.DictReader(filter(lambda l: l[0]!='#', cfile))
         return list(reader)

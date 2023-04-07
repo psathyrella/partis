@@ -29,14 +29,14 @@ default_linewidths = ['5', '3', '2', '2', '2']
 default_markersizes = ['20', '15', '8', '5', '5', '5']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
-hard_meta_colors = {'IGHM' : '#ff7f0e',  # orange
-                    'IGHD' : '#9467bd',  # purple
+hard_meta_colors = {'IGHM' : '#9467bd',  # purple
+                    'IGHD' : 'black',
                     'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
                     'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
-                    'memory' : '#ff7f0e',
-                    'naive' : '#d62728',
-                    'pb' : '#1f77b4',
-                    'prepb' : '#6eb7e8',
+                    'memory' : '#1f77b4',
+                    'naive' : '#ff7f0e',  # orange
+                    'pb' : '#2ca02c',  # green
+                    'prepb' : '#90e690',
                     }
 
 # ----------------------------------------------------------------------------------------
