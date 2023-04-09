@@ -143,7 +143,7 @@ def run_scan(action):
 
         if action == 'process':
             ifn = ofname(args, varnames, vstrs, 'simu')
-            if not utils.output_exists(args, ifn, debug=False):
+            if not os.path.exists(ifn):  # do *not* use this, it'll delete it if --overwrite is set: utils.output_exists(args, ifn, debug=False):
                 n_missing_input += 1
                 continue
 

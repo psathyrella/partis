@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import argparse
 import os
 import sys
@@ -51,6 +51,7 @@ parser.add_argument('--scratch-mute-freq-list') #, type=float, default=1)
 parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
 parser.add_argument('--obs-times-list')  # only for bcr-phylo
 parser.add_argument('--tree-imbalance-list')
+parser.add_argument('--context-depend-list')
 parser.add_argument('--biggest-naive-seq-cluster-to-calculate-list')
 parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -88,7 +89,7 @@ parser.add_argument('--bcrham-time', action='store_true')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events'],
+    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'context-depend', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events'],
     'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameter dir
     'partition' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],
 }
@@ -395,7 +396,7 @@ if args.workdir is None:
 for action in args.actions:
     if action == 'parse-linearham-trees':
         parse_linearham_trees()
-    elif action in ['simu', 'cache-parameters'] + ptn_actions:
+    elif action in ['simu', 'cache-parameters'] + ptn_actions + plot_actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots']:
         if args.dry:
