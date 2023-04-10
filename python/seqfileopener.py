@@ -197,7 +197,7 @@ def get_seqfile_info(x, is_data=False):
     raise Exception('renamed and changed returned vals (see below)')
 
 # ----------------------------------------------------------------------------------------
-def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False, more_input_info=None):
+def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False, more_input_info=None, dont_add_implicit_info=False):
     # NOTE renamed this from get_seqfile_info() since I'm changing the return values, but I don't want to update the calls everywhere (e.g. in compareutils)
     yaml_glfo = None
     suffix = utils.getsuffix(infname)
@@ -288,13 +288,13 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         input_info[uid] = {'unique_ids' : [uid, ], 'seqs' : [inseq, ]}
 
         if not is_data:
-            if 'v_gene' not in line:
+            if 'v_gene' not in line and not dont_add_implicit_info:
                 raise Exception('simulation info not found in %s' % infname)
             reco_info[uid] = line  # this used to be deepcopy'd, but it's really slow and i'm really pretty sure it's not necessary
             if uid != line['unique_ids'][0] and not printed_simu_mismatch_warning:
                 print '     note: uid in simulation info %s doesn\'t match input file uid %s (latter was probably changed above). Simulation info will be internally consistent, but the key indexing that info in <reco_info> will be different, since it corresponds to the newly chosen uid above.' % (uid, line['unique_ids'][0])
                 printed_simu_mismatch_warning = True
-            if simglfo is not None:
+            if simglfo is not None and not dont_add_implicit_info:
                 utils.add_implicit_info(simglfo, reco_info[uid])
             for line_key in utils.input_metafile_keys.values():
                 if line_key in reco_info[uid]:  # this is kind of weird to copy from sim info to input info, but it makes sense because affinity is really meta info (the only other place affinity could come from is --input-metafnames below). Where i'm defining meta info more or less as any input info besides name and sequence (i think the distinction is only really important because we want to support fastas, which can't [shouldn't!] handle anything else))

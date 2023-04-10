@@ -28,9 +28,9 @@ def getfam(line):
     return line['unique_ids']
 
 # ----------------------------------------------------------------------------------------
-def get_true_partition(antn_list, inf_ptn):
+def get_true_partition(antn_list, inf_ptn=None):
     bad_antns = [l for l in antn_list if l['invalid']]
-    if len(bad_antns) > 0:
+    if inf_ptn is not None and len(bad_antns) > 0:
         print '  %s adding %d failed annotations as singletons to inf_ptn' % (utils.wrnstr(), len(bad_antns))
         inf_ptn += [l['unique_ids'] for l in bad_antns]
     all_fids = {u : fid for l in antn_list for u, fid in zip(l['unique_ids'], getfam(l))}
@@ -40,12 +40,15 @@ def get_true_partition(antn_list, inf_ptn):
 
 # ----------------------------------------------------------------------------------------
 vsn = 'v1' #'test-v1'
+logstr = '' # '5k'  # ''
 bd = '/fh/fast/matsen_e/processed-data/partis/spisak-simu/%s' % vsn
 
-for odir in glob.glob('%s/partitions/cdr3l_*'%bd):
+outdirs = glob.glob('%s/partitions/cdr3l_*%s'%(bd, '' if logstr=='' else '-%s'%logstr))
+print '  found %d output dirs (e.g. %s)' % (len(outdirs), outdirs[0])
+for odir in outdirs:
     sample = os.path.basename(odir)
     ofn = '%s/partition.yaml' % odir
     print sample
     _, antn_list, cpath = utils.read_output(ofn)
-    true_ptn, inf_ptn = get_true_partition(antn_list, cpath.best())
+    true_ptn, inf_ptn = get_true_partition(antn_list, inf_ptn=cpath.best())
     utils.per_seq_correct_cluster_fractions(inf_ptn, true_ptn, debug=True)
