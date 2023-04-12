@@ -178,10 +178,19 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
     return val
 
 # ----------------------------------------------------------------------------------------
-def csvlines(fn):  # for search: csv_lines()
+# NOTE returns *all* lines as list by default, i.e. will read entire file at once before returning
+def csvlines(fn, n_max_queries=None):  # for search: csv_lines()
     with open(fn) as cfile:
         reader = csv.DictReader(filter(lambda l: l[0]!='#', cfile))
-        return list(reader)
+        if n_max_queries is None:
+            return list(reader)
+        else:  # ick, this seems overly verbose
+            rlist = []
+            for tline in reader:
+                rlist.append(tline)
+                if len(rlist) >= n_max_queries:
+                    break
+            return rlist
 
 # ----------------------------------------------------------------------------------------
 # make lists from args that are passed as strings of colon-separated values

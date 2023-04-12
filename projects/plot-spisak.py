@@ -29,6 +29,7 @@ def getfam(line):
 
 # ----------------------------------------------------------------------------------------
 def get_true_partition(antn_list, inf_ptn=None):
+    assert False  # don't need this any more
     bad_antns = [l for l in antn_list if l['invalid']]
     if inf_ptn is not None and len(bad_antns) > 0:
         print '  %s adding %d failed annotations as singletons to inf_ptn' % (utils.wrnstr(), len(bad_antns))
@@ -39,11 +40,11 @@ def get_true_partition(antn_list, inf_ptn=None):
     return true_partition, inf_ptn
 
 # ----------------------------------------------------------------------------------------
-vsn = 'v1' #'test-v1'
-logstr = '' # '5k'  # ''
+vsn = 'test'
+logstr = '' #synth-dist-0.02' # '5k'  # ''
 bd = '/fh/fast/matsen_e/processed-data/partis/spisak-simu/%s' % vsn
 
-outdirs = glob.glob('%s/partitions/cdr3l_*%s'%(bd, '' if logstr=='' else '-%s'%logstr))
+outdirs = sorted(glob.glob('%s/partitions/cdr3l_*set_?%s'%(bd, '' if logstr=='' else '-%s'%logstr)))
 print '  found %d output dirs (e.g. %s)' % (len(outdirs), outdirs[0])
 for odir in outdirs:
     sample = os.path.basename(odir)
