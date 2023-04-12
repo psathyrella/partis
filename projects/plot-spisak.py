@@ -28,28 +28,27 @@ def getfam(line):
     return line['unique_ids']
 
 # ----------------------------------------------------------------------------------------
-def get_true_partition(antn_list, inf_ptn=None):
-    assert False  # don't need this any more
-    bad_antns = [l for l in antn_list if l['invalid']]
-    if inf_ptn is not None and len(bad_antns) > 0:
-        print '  %s adding %d failed annotations as singletons to inf_ptn' % (utils.wrnstr(), len(bad_antns))
-        inf_ptn += [l['unique_ids'] for l in bad_antns]
-    all_fids = {u : fid for l in antn_list for u, fid in zip(l['unique_ids'], getfam(l))}
-    def kfcn(u): return all_fids[u]
-    true_partition = [list(group) for _, group in itertools.groupby(sorted(all_fids, key=kfcn), key=kfcn)]
-    return true_partition, inf_ptn
+def get_true_partition(sample):
+    cstr, clen, sstr, sval = sample.split('_')
+    assert cstr == 'cdr' and sstr == 'set'
+    simfn = '%s/families_cdr3l_%s_1e5_set_%s-simu.yaml' % (simdir, clen, sval)
+    _, _, tcpath = utils.read_output(simfn, skip_annotations=True)
+    return tcpath.best()
 
 # ----------------------------------------------------------------------------------------
-vsn = 'test'
+vsn = 'v0'
 logstr = '' #synth-dist-0.02' # '5k'  # ''
-bd = '/fh/fast/matsen_e/processed-data/partis/spisak-simu/%s' % vsn
+ptndir = '/fh/fast/matsen_e/processed-data/partis/spisak-simu/%s' % vsn
+simdir = '/fh/fast/matsen_e/data/spisak-simu/processed-data/simu'
 
-outdirs = sorted(glob.glob('%s/partitions/cdr3l_*set_?%s'%(bd, '' if logstr=='' else '-%s'%logstr)))
+outdirs = sorted(glob.glob('%s/partitions/cdr_*set_?%s'%(ptndir, '' if logstr=='' else '-%s'%logstr)))
 print '  found %d output dirs (e.g. %s)' % (len(outdirs), outdirs[0])
-for odir in outdirs:
+for iod, odir in enumerate(outdirs):
     sample = os.path.basename(odir)
-    ofn = '%s/partition.yaml' % odir
-    print sample
-    _, antn_list, cpath = utils.read_output(ofn)
-    true_ptn, inf_ptn = get_true_partition(antn_list, inf_ptn=cpath.best())
-    utils.per_seq_correct_cluster_fractions(inf_ptn, true_ptn, debug=True)
+
+    # print sample
+    # true_ptn = get_true_partition(sample)
+    _, _, cpath = utils.read_output('%s/partition.yaml' % odir, skip_annotations=True)
+    cpath.print_partitions(dont_print_clusters=True, print_header=iod==0, extrastr='    %s  '%sample)
+    # inf_ptn = cpath.best()
+    # utils.per_seq_correct_cluster_fractions(inf_ptn, true_ptn, debug=True)
