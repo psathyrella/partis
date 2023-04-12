@@ -222,7 +222,7 @@ class ClusterPath(object):
         return ' %s ' % ' '.join(ccf_str_list)
 
     # ----------------------------------------------------------------------------------------
-    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, highlight_cluster_indices=None, print_partition_indices=False, right_extrastr='', sort_by_size=True, max_sizestr_len=0):  # NOTE <highlight_cluster_indices> and <print_partition_indices> are quite different despite sounding similar, but I can't think of something else to call the latter that makes more sense
+    def print_partition(self, ip, reco_info=None, extrastr='', abbreviate=True, dont_print_clusters=False, highlight_cluster_indices=None, print_partition_indices=False, right_extrastr='', sort_by_size=True, max_sizestr_len=0):  # NOTE <highlight_cluster_indices> and <print_partition_indices> are quite different despite sounding similar, but I can't think of something else to call the latter that makes more sense
         # ----------------------------------------------------------------------------------------
         def ccol(tclust, cstr, iclust):
             if reco_info is not None and not utils.from_same_event(reco_info, tclust):
@@ -242,26 +242,28 @@ class ClusterPath(object):
         if self.we_have_a_ccf:
             print '    ' + self.get_ccf_str(ip),
 
-        sorted_clusters = self.partitions[ip]
-        if sort_by_size:  # it's often nicer to *not* sort by cluster size here, since preserving the order frequently makes it obvious which clusters are merging as your eye scans downward through the output
-            sorted_clusters = sorted(sorted_clusters, key=lambda c: len(c), reverse=True)
-        n_total_seqs = sum(len(c) for c in self.partitions[ip])
-        csstr = ' '.join(ccol(c, str(len(c)), i) for i, c in enumerate(sorted_clusters) if len(c) > 1)  # would be nice to use utils.cluster_size_str(), but i need more color configurability atm
-        csstr += ' (+%d)' % len([c for c in sorted_clusters if len(c)==1])
-        print '   %s%s' % (csstr, ' '*(max_sizestr_len - utils.len_excluding_colors(csstr))),
-        for iclust in range(len(sorted_clusters)):
-            tclust = sorted_clusters[iclust]
-            cstr = ''
-            if n_total_seqs < 100:
-                def ustr(u): return 'o' if len(u) > 3 and abbreviate else str(u)
-                cstr = ':'.join(ustr(u) for u in tclust)
-            cstr = ccol(tclust, cstr, iclust)
-            print ' %s%s' % ('' if abbreviate else '  ', cstr),
+        if not dont_print_clusters:
+            sorted_clusters = self.partitions[ip]
+            if sort_by_size:  # it's often nicer to *not* sort by cluster size here, since preserving the order frequently makes it obvious which clusters are merging as your eye scans downward through the output
+                sorted_clusters = sorted(sorted_clusters, key=lambda c: len(c), reverse=True)
+            n_total_seqs = sum(len(c) for c in self.partitions[ip])
+            csstr = ' '.join(ccol(c, str(len(c)), i) for i, c in enumerate(sorted_clusters) if len(c) > 1)  # would be nice to use utils.cluster_size_str(), but i need more color configurability atm
+            csstr += ' (+%d)' % len([c for c in sorted_clusters if len(c)==1])
+            print '   %s%s' % (csstr, ' '*(max_sizestr_len - utils.len_excluding_colors(csstr))),
+            for iclust in range(len(sorted_clusters)):
+                tclust = sorted_clusters[iclust]
+                cstr = ''
+                if n_total_seqs < 100:
+                    def ustr(u): return 'o' if len(u) > 3 and abbreviate else str(u)
+                    cstr = ':'.join(ustr(u) for u in tclust)
+                cstr = ccol(tclust, cstr, iclust)
+                print ' %s%s' % ('' if abbreviate else '  ', cstr),
         print '%s' % right_extrastr,
         print ''
 
     # ----------------------------------------------------------------------------------------
-    def print_partitions(self, reco_info=None, true_partition=None, extrastr='', abbreviate=True, print_header=True, n_to_print=None, calc_missing_values='none', highlight_cluster_indices=None, print_partition_indices=False, ipart_center=None, sort_by_size=True):
+    def print_partitions(self, reco_info=None, true_partition=None, extrastr='', abbreviate=True, dont_print_clusters=False, print_header=True, n_to_print=None, calc_missing_values='none',
+                         highlight_cluster_indices=None, print_partition_indices=False, ipart_center=None, sort_by_size=True):
         assert calc_missing_values in ['none', 'all', 'best']
         if (reco_info is not None or true_partition is not None) and calc_missing_values == 'all':
             self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition)
@@ -286,7 +288,8 @@ class ClusterPath(object):
             if mark.count(' ') < len(mark):
                 mark = utils.color('yellow', mark)
             right_extrastr = '' if self.n_seqs() < 200 else mark  # if line is going to be really long, put the yellow stuff also on the right side
-            self.print_partition(ip, reco_info, extrastr=extrastr+mark, abbreviate=abbreviate, highlight_cluster_indices=highlight_cluster_indices, print_partition_indices=print_partition_indices, right_extrastr=right_extrastr, sort_by_size=sort_by_size, max_sizestr_len=max_sizestr_len)
+            self.print_partition(ip, reco_info, extrastr=extrastr+mark, abbreviate=abbreviate, dont_print_clusters=dont_print_clusters, highlight_cluster_indices=highlight_cluster_indices,
+                                 print_partition_indices=print_partition_indices, right_extrastr=right_extrastr, sort_by_size=sort_by_size, max_sizestr_len=max_sizestr_len)
 
     # ----------------------------------------------------------------------------------------
     def get_surrounding_partitions(self, n_partitions, i_center=None):
