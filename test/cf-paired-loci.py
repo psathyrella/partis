@@ -7,6 +7,7 @@ import numpy
 import math
 import collections
 import multiprocessing
+import yaml
 
 sys.path.insert(1, './python')
 import utils
@@ -14,6 +15,7 @@ import paircluster
 import scanplot
 import plotting
 import clusterpath
+import glutils
 
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
@@ -21,7 +23,7 @@ partition_types = ['single', 'joint']
 all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct', 'mispaired', 'unpaired', 'correct-family', 'near-family']]  # '-ns': non-singleton
 all_perf_metrics += pcfrac_metrics
-synth_actions = ['synth-%s'%a for a in ['distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
+synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
@@ -54,6 +56,7 @@ parser.add_argument('--tree-imbalance-list')
 parser.add_argument('--context-depend-list')
 parser.add_argument('--biggest-naive-seq-cluster-to-calculate-list')
 parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
+parser.add_argument('--dataset-in-list', help='Don\'t specify this directly, use --data-in-cfg')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
@@ -61,6 +64,7 @@ parser.add_argument('--single-light-locus')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
 parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutation simulation, rather than partis (i.e. TreeSim/bpp)')
+parser.add_argument('--data-in-cfg', help='instead of running simulation to get input for subsequent actions, use input files specified in this yaml cfg (fills in --dataset-in-list)')
 parser.add_argument('--data-cluster-size-hist-fname', default='/fh/fast/matsen_e/processed-data/partis/goo-dengue-10x/count-params-v0/d-14/parameters/igh+igk/igh/hmm/cluster_size.csv') #/fh/fast/matsen_e/processed-data/partis/10x-examples/v1/hs-1-postvax/parameters/igh+igk/igh/hmm/cluster_size.csv')  # ick ick ick
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
@@ -89,7 +93,7 @@ parser.add_argument('--bcrham-time', action='store_true')
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'context-depend', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events'],
+    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'context-depend', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events', 'dataset-in'],
     'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameter dir
     'partition' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],
 }
@@ -119,6 +123,14 @@ if 'all-pcfrac' in args.perf_metrics:
 args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 args.empty_bin_range = utils.get_arg_list(args.empty_bin_range, floatify=True)
+
+if args.data_in_cfg is not None:
+    assert args.n_replicates == 1
+    with open(args.data_in_cfg) as dfile:
+        args.data_in_cfg = yaml.load(dfile, Loader=yaml.CLoader)
+    if 'simu' in args.actions and not args.dry:
+        print '  %s turning on --dry, since the links still get made, and not sure what happens if it isn\'t set' % utils.wrnstr()
+        args.dry = True
 
 utils.get_scanvar_arg_lists(args)
 if args.final_plot_xvar is None:  # set default value based on scan vars
@@ -307,6 +319,21 @@ def run_scan(action):
         if 'synth-reassign-' in action or 'synth-singletons-' in action:
             make_synthetic_partition(action, varnames, vstrs)
             continue
+
+        if action == 'simu' and args.data_in_cfg is not None:
+            assert varnames == ['dataset-in']  # at least for now
+            sample = vstrs[0]
+            inpath = args.data_in_cfg[sample]['infname']
+            if not os.path.isdir(inpath) and os.path.exists(inpath):  # if the data isn't paired, we need to make the paired loci structure
+                utils.mkdir(inpath, isfile=True)
+                link_name = ofname(args, varnames, vstrs, action, locus=args.data_in_cfg[sample]['locus'])
+                assert args.data_in_cfg[sample]['locus'] == 'igh'  # would need to update things if not
+                utils.write_empty_annotations(ofname(args, varnames, vstrs, action, locus='igk'), 'igk')  # make a fake light file (ick)
+            else:
+                assert False  # needs testing (probably ok tho, i just haven't run it)
+                link_name = odir(args, varnames, vstrs, 'simu')
+            if not os.path.exists(ofn):
+                utils.makelink(os.path.dirname(link_name), inpath, link_name, debug=True)  # , dryrun=True
 
         cmd = get_cmd(action, base_args, varnames, val_lists, vstrs)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
