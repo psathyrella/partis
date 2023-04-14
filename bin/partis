@@ -276,6 +276,8 @@ def read_inputs(args, actions):
         return None, None, glfo, simglfo
 
     input_info, reco_info, yaml_glfo = seqfileopener.read_sequence_file(args.infname, args.is_data, n_max_queries=args.n_max_queries, args=args, simglfo=simglfo, more_input_info=more_input_info, dont_add_implicit_info=args.dont_add_simu_implicit_info)
+    if len(input_info) == 0:
+        sys.exit(0)
     if not args.is_data and yaml_glfo is not None:  # NOTE is is extremely important that <glfo> doesn't get set to the true info in a simulation yaml
         simglfo = yaml_glfo
 

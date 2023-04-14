@@ -639,6 +639,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'naive-hdist' : 'mean N incorrect bases', #'ham. dist. to true naive',  # NOTE duplicates/similar to entries in plotconfig.py
            'n-seqs' : 'N seqs',
            'biggest-logprob-cluster-to-calculate' : 'max calc\'d cluster size',
+           'dataset-in' : 'input dataset',
            'bulk-data-fraction' : 'bulk data frac',
            'max-abundances' : 'max abundance\nwgtd. simu - data',
            'distr-abundances' : 'abundance distr.\nwgtd. simu - data',

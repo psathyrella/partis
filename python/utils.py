@@ -4003,7 +4003,7 @@ def mkdir(path, isfile=False):  # adding this very late, so could use it in a lo
         os.makedirs(path)
 
 # ----------------------------------------------------------------------------------------
-def makelink(odir, target, link_name, dryrun=False, debug=False):  # <odir> is generally os.path.basename(link_name)
+def makelink(odir, target, link_name, dryrun=False, debug=False):  # <odir> is generally os.path.dirname(link_name)
     if os.path.exists(link_name):
         if os.path.islink(link_name):
             if os.path.isdir(link_name):  # if the link we're making (well, made on a previous call) is to a dir, calling a second time will instead create a new link inside the linked-to dir (which we don't want), so we have to remove it
@@ -5463,7 +5463,7 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
     return (1. - under_frac, 1. - over_frac)
 
 # ----------------------------------------------------------------------------------------
-# return (# of within-cluster seq pairs) / (toal # of seq pairs, i.e. n*(n-1)/2), i.e. if a "collision" is that two seqs are in a cluster together, this counts the number of actual collided sequence pairs, over the total number of possible collisions
+# return (# of within-cluster seq pairs) / (total # of seq pairs, i.e. n*(n-1)/2), i.e. if a "collision" is that two seqs are in a cluster together, this counts the number of actual collided sequence pairs, over the total number of possible collisions
 def collision_fraction(partition):
 # TODO this is only actually right on singleton true partitions.
 # I think what i really want is two numbers:
@@ -6769,6 +6769,10 @@ def get_version_info(debug=False):
 def write_only_partition(fname, partition):
     cpath = clusterpath.ClusterPath(partition=partition)
     write_annotations(fname, None, [], None, partition_lines=cpath.get_partition_lines())
+
+# ----------------------------------------------------------------------------------------
+def write_empty_annotations(fname, locus):
+    write_annotations(fname, glutils.get_empty_glfo(locus), [], annotation_headers)
 
 # ----------------------------------------------------------------------------------------
 def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):

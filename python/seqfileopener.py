@@ -327,6 +327,6 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 
     if len(input_info) == 0:
-        raise Exception('didn\'t read any sequences from %s' % infname)
+        print '  %s didn\'t read any sequences from %s' % (infname, utils.wrnstr())
 
     return input_info, reco_info, yaml_glfo

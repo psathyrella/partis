@@ -12,6 +12,7 @@ sys.path.insert(1, partis_dir + '/python')
 
 import utils
 import glutils
+from clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 def count_plot(tglfo, tlist, plotdir, paired_loci=None):

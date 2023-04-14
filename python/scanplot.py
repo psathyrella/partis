@@ -646,6 +646,9 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         elif None in xvals or 'None' in xvals:  # e.g. mean-cells-per-droplet has to handle mixed none/str + float values
             xticks = list(range(len(xvals)))  # arbitrarily put the ticks at integer vals starting with 0
             xticklabels = ['n/a' if t=='None' else str(t) for t in xvals]  # labels are the actual xvals tho
+        elif l_xvar == 'dataset-in':
+            xticks = list(range(len(xvals)))
+            xticklabels = [args.data_in_cfg[x].get('shorthand', x) for x in xvals]
         else:
             xticks = [float(x) for x in xvals]  # i guess we can just float() all of them (and ignore svartypes)?
             xticklabels = [str(t) for t in xvals]
