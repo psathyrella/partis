@@ -65,6 +65,8 @@ def cp_val(cpath, ptilestr, yfname):
         rval = sys.modules['scipy.stats'].hmean(cpath.ccfs[cpath.i_best])
     elif ptilestr == 'cln-frac':
         rval = utils.collision_fraction(cpath.best())
+    elif ptilestr == 'n-clusters':
+        rval = len(cpath.best())
     else:
         assert False
     if rval is None:
@@ -810,7 +812,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 title = title.replace(ltexts[ptntype], '')
             if script_base == 'paired-loci':
                 ymin = 0
-                if ptilestr != 'naive-hdist':
+                if ptilestr not in ['naive-hdist', 'n-clusters']:
                     ymax = 1.05
             else:
                 ymin, ymax = None, None

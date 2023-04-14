@@ -20,10 +20,10 @@ import glutils
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 partition_types = ['single', 'joint']
-all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac', 'n-clusters']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct', 'mispaired', 'unpaired', 'correct-family', 'near-family']]  # '-ns': non-singleton
 all_perf_metrics += pcfrac_metrics
-synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
+synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'distance-0.01', 'distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
@@ -56,7 +56,7 @@ parser.add_argument('--tree-imbalance-list')
 parser.add_argument('--context-depend-list')
 parser.add_argument('--biggest-naive-seq-cluster-to-calculate-list')
 parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
-parser.add_argument('--dataset-in-list', help='Don\'t specify this directly, use --data-in-cfg')
+parser.add_argument('--dataset-in-list', help='list of samples from --data-in-cfg')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
@@ -64,7 +64,7 @@ parser.add_argument('--single-light-locus')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
 parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutation simulation, rather than partis (i.e. TreeSim/bpp)')
-parser.add_argument('--data-in-cfg', help='instead of running simulation to get input for subsequent actions, use input files specified in this yaml cfg (fills in --dataset-in-list)')
+parser.add_argument('--data-in-cfg', help='instead of running simulation to get input for subsequent actions, use input files specified in this yaml cfg (the actual samples to use are specified with --dataset-in-list)')
 parser.add_argument('--data-cluster-size-hist-fname', default='/fh/fast/matsen_e/processed-data/partis/goo-dengue-10x/count-params-v0/d-14/parameters/igh+igk/igh/hmm/cluster_size.csv') #/fh/fast/matsen_e/processed-data/partis/10x-examples/v1/hs-1-postvax/parameters/igh+igk/igh/hmm/cluster_size.csv')  # ick ick ick
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
@@ -308,7 +308,8 @@ def run_scan(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        ofn = ofname(args, varnames, vstrs, action, single_file=True)
+        single_file, locus = (True, None) if args.data_in_cfg is None else (False, args.data_in_cfg[vstrs[0]]['locus'])
+        ofn = ofname(args, varnames, vstrs, action, single_file=single_file, locus=locus)
         if args.merge_paired_partitions:
             assert action in ['partition', 'vsearch-partition']
         else:
