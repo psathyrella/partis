@@ -5506,9 +5506,13 @@ def pairwise_cluster_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
         tp, fp, fn = [len(s) for s in [tp, fp, fn]]
     else:
         assert False
-    precis = tp / float(tp + fp)
+    precis = tp / float(tp + fp) if tp + fp > 0 else 0.  # should really be nan or something, but whatever, this is just another reason these metrics are dumb
     recall = tp / float(tp + fn)  # same as sensitivity
-    return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall)}  # same as scipy.stats.hmean([precis, recall])
+    if debug:
+        print '    pairwise clustering metrics:'
+        print '        precision: tp / (tp + fp) = %d / (%d + %d) = %.2f' % (tp, tp, fp, precis)
+        print '      sens/recall: tp / (tp + fn) = %d / (%d + %d) = %.2f' % (tp, tp, fn, recall)
+    return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall) if precis + recall > 0 else 0.}  # same as scipy.stats.hmean([precis, recall])
 
 # ----------------------------------------------------------------------------------------
 # return (# of within-cluster seq pairs) / (total # of seq pairs, i.e. n*(n-1)/2), i.e. if a "collision" is that two seqs are in a cluster together, this counts the number of actual collided sequence pairs, over the total number of possible collisions

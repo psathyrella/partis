@@ -19,17 +19,17 @@ def ptnprint(partition, **kwargs):
 
 # ----------------------------------------------------------------------------------------
 class ClusterPath(object):
-    def __init__(self, initial_path_index=0, seed_unique_id=None, partition=None, fname=None, partition_lines=None):  # <partition> is a fully-formed partition, while <partition_lines> is straight from reading a file (perhaps could combine them, but I don't want to think through it now)
+    def __init__(self, initial_path_index=0, seed_unique_id=None, partition=None, fname=None, partition_lines=None, add_pairwise_metrics=False):  # <partition> is a fully-formed partition, while <partition_lines> is straight from reading a file (perhaps could combine them, but I don't want to think through it now)
         # could probably remove path index since there's very little chance of doing smc in the future, but the path-merging code in glomerator was _very_ difficult to write, so I'm reluctant to nuke it
         self.initial_path_index = initial_path_index  # NOTE this is set to None if it's nonsensical, e.g. if we're merging several paths with different indices
+        self.add_pairwise_metrics = add_pairwise_metrics
 
-        # NOTE make *damn* sure if you add another list here that you also take care of it in remove_first_partition()
-        self.partitions = []  # it would of course be damn nice to glomph these into a class at some point
-        self.logprobs = []
-        self.n_procs = []
-        self.ccfs = []  # pair of floats (not just a float) for each partition
-        self.logweights = []
-        self.n_lists = 5  # just to make sure you don't forget
+        # NOTE see remove_partition()
+        self.list_names = ['partitions', 'logprobs', 'n_procs', 'ccfs', 'perf_metrics', 'logweights']
+        # ccfs: pair of floats (not just a float) for each partition
+        # perf_metrics: new, more general way to store performance metrics (could eventually remove old ccfs, but they're used in a ton of places so not doing it now)
+        for lname in self.list_names:
+            setattr(self, lname, [])
 
         self.best_minus = 30.  # rewind by this many units of log likelihood when merging separate processes (note that this should really depend on the number of sequences)
         self.i_best, self.i_best_minus_x = None, None
@@ -71,7 +71,7 @@ class ClusterPath(object):
     def get_headers(self, is_simu):
         headers = ['logprob', 'n_clusters', 'n_procs', 'partition']
         if is_simu:
-            headers += ['n_true_clusters', 'ccf_under', 'ccf_over']
+            headers += ['n_true_clusters', 'ccf_under', 'ccf_over', 'perf_metrics']
             # headers += ['bad_clusters']  # uncomment to also write the clusters that aren't perfect
         if self.seed_unique_id is not None:
             headers += ['seed_unique_id', ]
@@ -93,7 +93,7 @@ class ClusterPath(object):
                 break
 
     # ----------------------------------------------------------------------------------------
-    # NOTE this will presumably screw up self.logprobs, self.n_procs, self.ccfs, and self.logweights
+    # NOTE this will presumably screw up self.logprobs, self.n_procs, self.ccfs, self.perf_metrics, and self.logweights
     def add_cluster_to_all_partitions(self, cluster, allow_duplicates=False, skip_duplicates=False, debug=True):
         # ----------------------------------------------------------------------------------------
         def check(iptn, cluster, duplicate_ids):
@@ -115,9 +115,11 @@ class ClusterPath(object):
             print '  %s %d uid%s appeared multiple times when adding cluster to all partitions%s' % (utils.color('yellow', 'warning'), len(duplicate_ids), utils.plural(len(duplicate_ids)), ': '+' '.join(duplicate_ids) if len(duplicate_ids) < 10 else '')
 
     # ----------------------------------------------------------------------------------------
-    def add_partition(self, partition, logprob, n_procs, logweight=None, ccfs=None):
+    def add_partition(self, partition, logprob, n_procs, logweight=None, ccfs=None, perf_metrics=None):
         if ccfs is None:
             ccfs = [None, None]
+        if perf_metrics is None:
+            perf_metrics = {}
         # NOTE you typically want to allow duplicate (in terms of log prob) partitions, since they can have different n procs
         self.partitions.append(partition)  # NOTE not deep copied
         self.logprobs.append(logprob)
@@ -126,8 +128,9 @@ class ClusterPath(object):
         if len(ccfs) != 2:
             raise Exception('tried to add partition with ccfs of length %d (%s)' % (len(ccfs), ccfs))
         self.ccfs.append(ccfs)
+        self.perf_metrics.append(perf_metrics)
         if ccfs.count(None) != len(ccfs):
-            self.we_have_a_ccf = True
+            self.we_have_a_ccf = True  # also indicates that we potentially have perf_metrics
         # set this as the best partition if 1) we haven't set i_best yet, 2) this partition is more likely than i_best, or 3) i_best is set for a partition with a larger number of procs or 4) logprob is infinite (i.e. we didn't calculate the full partitions logprob))
         if self.i_best is None or logprob > self.logprobs[self.i_best] or n_procs < self.n_procs[self.i_best] or math.isinf(logprob):
             self.i_best = len(self.partitions) - 1
@@ -136,12 +139,8 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_partition(self, ip_to_remove):  # NOTE doesn't update self.we_have_a_ccf, but it probably won't change, right?
-        self.partitions.pop(ip_to_remove)
-        self.logprobs.pop(ip_to_remove)
-        self.n_procs.pop(ip_to_remove)
-        self.ccfs.pop(ip_to_remove)
-        self.logweights.pop(ip_to_remove)
-        assert self.n_lists == 5  # make sure we didn't add another list and forget to put it in here
+        for lname in self.list_names:
+            getattr(self, lname).pop(ip_to_remove)
 
         self.i_best = None  # indices are all off now, anyway, since we just removed a partition, so may as well start from scratch
         for ip in range(len(self.partitions)):  # update self.i_best
@@ -188,8 +187,11 @@ class ClusterPath(object):
                 if line['ccf_under'] != '' and line['ccf_over'] != '':
                     ccfs = [float(line['ccf_under']), float(line['ccf_over'])]
                 self.we_have_a_ccf = True
+            perf_metrics = {}
+            if 'perf_metrics' in line:
+                perf_metrics = line['perf_metrics']
 
-            self.add_partition(line['partition'], float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), ccfs=ccfs)
+            self.add_partition(line['partition'], float(line['logprob']), int(line.get('n_procs', 1)), logweight=float(line.get('logweight', 0)), ccfs=ccfs, perf_metrics=perf_metrics)
 
     # ----------------------------------------------------------------------------------------
     def calculate_missing_values(self, reco_info=None, true_partition=None, only_ip=None, fail_frac=None):  # NOTE adding true_partition argument very late, so there's probably lots of places that call the fcns that call this (printer + line getter) that would rather pass in true_partition and reco_info
@@ -215,6 +217,9 @@ class ClusterPath(object):
             if None not in new_vals:  # if the function finds messed up partitions, it returns None, None (at this point, this seems to just happens when a uid was found in multiple clusters, which happens for earlier partitions (n_procs > 1) when seed_unique_id is set, since we pass seed_unique_id to all the subprocs)
                 self.ccfs[ip] = new_vals
                 self.we_have_a_ccf = True
+            self.perf_metrics[ip] = {}
+            if self.add_pairwise_metrics:
+                self.perf_metrics[ip]['pairwise'] = utils.pairwise_cluster_metrics('pairwise', cfpart, cftrue, debug=True)  # eventually might be nice to also include ccf numbers in here (which shouldn't really even be called ccfs)
 
     # ----------------------------------------------------------------------------------------
     def get_ccf_str(self, ip):
@@ -381,6 +386,7 @@ class ClusterPath(object):
                     self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=ipart, fail_frac=fail_frac)
                 if self.ccfs[ipart][0] is not None and self.ccfs[ipart][1] is not None:
                     row['ccf_under'], row['ccf_over'] = self.ccfs[ipart]  # for now assume we calculated the ccfs if we did adj mi
+                    row['perf_metrics'] = self.perf_metrics[ipart]
             if 'n_true_clusters' in headers:
                 row['n_true_clusters'] = '' if true_partition is None else len(true_partition)
             if 'bad_clusters' in headers:
