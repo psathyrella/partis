@@ -3,11 +3,12 @@
 bin=./test/cf-paired-loci.py
 
 # methods=synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.8:enclone:mobille:scoper:vsearch-partition:partition  # this is for vs-shm; for time-reqd: enclone:mobille:scoper:vsearch-partition:partition NOTE enclone needs fixing tho (for missing uids)
-methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
+methods=synth-distance-0.00:synth-distance-0.005:synth-distance-0.02:partition  # this is for vs-shm; for time-reqd: enclone:mobille:scoper:vsearch-partition:partition NOTE enclone needs fixing tho (for missing uids)
+# methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
 # methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
 # methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"  # NOTE this is only for vs-shm (comparing single vs joint); for time-reqd you only need scoper
 # astr="--actions $methods" #partition --merge-paired-partitions" #$methods"
-# astr="--actions plot --plot-metrics $methods" # --perf-metrics f1"
+astr="--actions combine-plots --plot-metrics $methods --perf-metrics precision:n-clusters"
 # astr="--actions combine-plots --plot-metrics $methods $xstr"
 common="--n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci $astr --dry" # /fh/local/dralph
 # echo $bin --label vs-shm          --version v3 --n-replicates 3 --n-leaves-list 3 --n-sim-events-list 10000 --scratch-mute-freq-list 0.01:0.05:0.10:0.20:0.30 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --mutate-stop-codons\" --final-plot-xvar scratch-mute-freq $common  # with these simu args, the scratch mute freq is almost identical to the final mean mfreq, so can just use the scratch mute freq on x axis
@@ -25,8 +26,9 @@ common="--n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir 
 # NOTE have to set --n-sub-procs to 1 for partition step, and re-set --n-sim-events-list for each --n-leaves value (500 leaves: 10 events, 100:50, 50:100):
 # echo $bin --label key-trans --version v0   --n-replicates 2  --biggest-naive-seq-cluster-to-calculate 5:15:10000 --biggest-logprob-cluster-to-calculate 5:15:10000 --zip-vars biggest-naive-seq-cluster-to-calculate:biggest-logprob-cluster-to-calculate --scratch-mute-freq-list 0.15 --n-leaves-list 50:100:500 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --constant-number-of-leaves --only-genes IGHV1-2*01:IGHD2-15*01:IGHJ6*02:IGKV1-12*01:IGKJ1*01:IGKDx-x*x --force-dont-generate-germline-set --allowed-cdr3-lengths 66:33\" --n-sim-events-list 10 --inference-extra-args=\"--debug 1 --sw-debug 0\" --perf-metrics time-reqd --final-plot-xvar biggest-logprob-cluster-to-calculate --bcrham-time $common
 # echo $bin --label lcdr3 --version v0 --n-replicates 2 --n-sim-events-list 1000 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci --allowed-cdr3-lengths ighM9-22:ighM15-34:ighM36-43:ighM45-52:ighM54-61:ighM63-73 $common
-# echo $bin --label lcdr3 --version v1 --n-replicates 2 --n-sim-events-list 500 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci --allowed-cdr3-lengths ighM12-13:ighM15-16:ighM18-19:ighM21-22:ighM24-25:ighM27-28:ighM30-31:ighM33-34:ighM36-37 $common
-echo $bin --label lcdr3 --version one-j-v2 --n-replicates 2 --n-sim-events-list 5000 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci --allowed-cdr3-lengths ighM24-25:ighM27-28:ighM30-31:ighM48-49 --simu-extra-args=\"--only-genes=IGHJ4*01:IGKJ1*01 --n-genes-per-region ::1\" $common
+echo $bin --label lcdr3 --version v2 --n-replicates 2 --n-sim-events-list 5000 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci --allowed-cdr3-lengths ighM24-25:ighM27-28:ighM30-31:ighM48-49 --simu-extra-args=\"--n-leaves 1 --constant-number-of-leaves\" $common
+echo $bin --label lcdr3 --version one-j-v2 --n-replicates 2 --n-sim-events-list 5000 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci --allowed-cdr3-lengths ighM24-25:ighM27-28:ighM30-31:ighM48-49 --simu-extra-args=\"--only-genes=IGHJ4*01:IGKJ1*01 --n-genes-per-region ::1 --n-leaves 1 --constant-number-of-leaves\" $common
+echo $bin --label lcdr3 --version all-together --n-replicates 2 --n-sim-events-list 5000 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci --allowed-cdr3-lengths ighM24-25,ighM27-28,ighM30-31 --simu-extra-args=\"--n-leaves 1 --constant-number-of-leaves\" --final-plot-xvar allowed-cdr3-lengths $common
 echo $bin --label test-data-in --version v0 --data-in-cfg datascripts/meta/spisak-simu/samples.yaml --dataset-in-list cdr_18_set_1-simu-v0:cdr_21_set_1-simu-v0:cdr_24_set_1-simu-v0:cdr_42_set_1-simu-v0 $common
 exit 0
 

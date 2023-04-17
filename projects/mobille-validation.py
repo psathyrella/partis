@@ -59,53 +59,6 @@ def mtrfn(spval, stype, mthd):
     return '%s/metrics.yaml' % bmdir(spval, stype, mthd)
 
 # ----------------------------------------------------------------------------------------
-def mb_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
-    # ----------------------------------------------------------------------------------------
-    def id_dict(ptn):
-        reco_info = utils.build_dummy_reco_info(ptn)  # not actually reco info unless it's the true partition
-        return {uid : reco_info[uid]['reco_id'] for cluster in ptn for uid in cluster}  # speed optimization
-    # ----------------------------------------------------------------------------------------
-    # inf_ptn, tru_ptn = [['c'], ['a', 'b', 'e'], ['d', 'g', 'f']], [['a', 'b', 'c'], ['d', 'e', 'f', 'g']]  # example from paper, should be pairwise: (0.666666, 0.44444444, ?), closeness: (0.857, 0.6, ?) (see note below, they calculate it wrong)
-    # inf_ptn, tru_ptn = [['a'], ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']], [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']]
-    utils.check_intersection_and_complement(inf_ptn, tru_ptn, a_label='true', b_label='inferred')
-    if mtstr == 'pairwise':
-        tp, fp, fn, n_tot = 0, 0, 0, 0
-        tru_ids, inf_ids = [id_dict(ptn) for ptn in [tru_ptn, inf_ptn]]
-        for u1, u2 in itertools.combinations(set(u for c in tru_ptn for u in c), 2):
-            is_tru_clonal, is_inf_clonal = [tids[u1] == tids[u2] for tids in [tru_ids, inf_ids]]
-            n_tot += 1
-            if is_tru_clonal and is_inf_clonal:
-                tp += 1
-            elif is_tru_clonal:
-                fn += 1
-            elif is_inf_clonal:
-                fp += 1
-            else:  # singletons
-                pass
-    elif mtstr == 'closeness':
-        tp, fp, fn, n_tot = set(), set(), set(), set()
-        if debug:
-            print '    infcl   trucl      tp   fp     fn'
-        # for infcl, trucl in itertools.product(inf_ptn, tru_ptn):  # NOTE this is *not* what they mean, see next line
-        for infcl in inf_ptn:  # NOTE this is apparently what they mean by "we first identified the best correspondence between inferred clonal lineages and correct clonal assignments" but note you'd get a *different* answer if you looped over tru_ptn
-            trucl = sorted(tru_ptn, key=lambda c: len(set(c) & set(infcl)), reverse=True)[0]
-            infset, truset = set(infcl), set(trucl)
-            if len(infset & truset) == 0:
-                continue
-            tp |= infset & truset  # OMFG their example figure is wrong, it (correctly) shows 6 entries, but then when they calculate recall they switch it to 5
-            fp |= infset - truset
-            fn |= truset - infset
-            n_tot |= truset
-            if debug:
-                print '  %20s   %20s   %20s   %20s   %20s' % (infcl, trucl, infset & truset, infset - truset, truset - infset)
-        tp, fp, fn = [len(s) for s in [tp, fp, fn]]
-    else:
-        assert False
-    precis = tp / float(tp + fp)
-    recall = tp / float(tp + fn)
-    return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall)}  # same as scipy.stats.hmean([precis, recall])
-
-# ----------------------------------------------------------------------------------------
 def write_metrics(spval, stype, mthd, debug=False):
     # ----------------------------------------------------------------------------------------
     def addval(mvals, mtype, mname, val):
@@ -127,7 +80,7 @@ def write_metrics(spval, stype, mthd, debug=False):
         # print plotting.plot_cluster_similarity_matrix(pltdir()+'/csim-plots', 'csim-matrix-%s-%s%s'%(stype, spval, '' if args.n_random_seeds is None else '-seed-%d'%iseed), 'true', tru_ptn, mthd, inf_ptn, 100, debug=True) #, debug=True)
         vdict = {}
         for mtstr in ['pairwise', 'closeness']:
-            for mname, mval in mb_metrics(mtstr, inf_ptn, tru_ptn).items():
+            for mname, mval in utils.pairwise_cluster_metrics(mtstr, inf_ptn, tru_ptn).items():
                 addval(mvals, 'mobille-%s'%mtstr, mname, mval)
         ccfs = utils.per_seq_correct_cluster_fractions(inf_ptn, tru_ptn) #, debug=True)
         addval(mvals, 'partis', 'purity', ccfs[0])

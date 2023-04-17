@@ -5463,6 +5463,54 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
     return (1. - under_frac, 1. - over_frac)
 
 # ----------------------------------------------------------------------------------------
+# from definitions in mobille paper
+def pairwise_cluster_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def id_dict(ptn):
+        reco_info = build_dummy_reco_info(ptn)  # not actually reco info unless it's the true partition
+        return {uid : reco_info[uid]['reco_id'] for cluster in ptn for uid in cluster}  # speed optimization
+    # ----------------------------------------------------------------------------------------
+    # inf_ptn, tru_ptn = [['c'], ['a', 'b', 'e'], ['d', 'g', 'f']], [['a', 'b', 'c'], ['d', 'e', 'f', 'g']]  # example from paper, should be pairwise: (0.666666, 0.44444444, ?), closeness: (0.857, 0.6, ?) (see note below, they calculate it wrong)
+    # inf_ptn, tru_ptn = [['a'], ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']], [['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n']]
+    check_intersection_and_complement(inf_ptn, tru_ptn, a_label='true', b_label='inferred')
+    if mtstr == 'pairwise':
+        tp, fp, fn, n_tot = 0, 0, 0, 0
+        tru_ids, inf_ids = [id_dict(ptn) for ptn in [tru_ptn, inf_ptn]]
+        for u1, u2 in itertools.combinations(set(u for c in tru_ptn for u in c), 2):
+            is_tru_clonal, is_inf_clonal = [tids[u1] == tids[u2] for tids in [tru_ids, inf_ids]]
+            n_tot += 1
+            if is_tru_clonal and is_inf_clonal:
+                tp += 1
+            elif is_tru_clonal:
+                fn += 1
+            elif is_inf_clonal:
+                fp += 1
+            else:  # singletons
+                pass
+    elif mtstr == 'closeness':
+        tp, fp, fn, n_tot = set(), set(), set(), set()
+        if debug:
+            print '    infcl   trucl      tp   fp     fn'
+        # for infcl, trucl in itertools.product(inf_ptn, tru_ptn):  # NOTE this is *not* what they mean, see next line
+        for infcl in inf_ptn:  # NOTE this is apparently what they mean by "we first identified the best correspondence between inferred clonal lineages and correct clonal assignments" but note you'd get a *different* answer if you looped over tru_ptn
+            trucl = sorted(tru_ptn, key=lambda c: len(set(c) & set(infcl)), reverse=True)[0]
+            infset, truset = set(infcl), set(trucl)
+            if len(infset & truset) == 0:
+                continue
+            tp |= infset & truset  # OMFG their example figure is wrong, it (correctly) shows 6 entries, but then when they calculate recall they switch it to 5
+            fp |= infset - truset
+            fn |= truset - infset
+            n_tot |= truset
+            if debug:
+                print '  %20s   %20s   %20s   %20s   %20s' % (infcl, trucl, infset & truset, infset - truset, truset - infset)
+        tp, fp, fn = [len(s) for s in [tp, fp, fn]]
+    else:
+        assert False
+    precis = tp / float(tp + fp)
+    recall = tp / float(tp + fn)  # same as sensitivity
+    return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall)}  # same as scipy.stats.hmean([precis, recall])
+
+# ----------------------------------------------------------------------------------------
 # return (# of within-cluster seq pairs) / (total # of seq pairs, i.e. n*(n-1)/2), i.e. if a "collision" is that two seqs are in a cluster together, this counts the number of actual collided sequence pairs, over the total number of possible collisions
 def collision_fraction(partition):
 # TODO this is only actually right on singleton true partitions.
