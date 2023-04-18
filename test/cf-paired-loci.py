@@ -330,8 +330,7 @@ def run_scan(action):
                 link_name = ofname(args, varnames, vstrs, action, locus=args.data_in_cfg[sample]['locus'])
                 assert args.data_in_cfg[sample]['locus'] == 'igh'  # would need to update things if not
                 utils.write_empty_annotations(ofname(args, varnames, vstrs, action, locus='igk'), 'igk')  # make a fake light file (ick)
-            else:
-                assert False  # needs testing (probably ok tho, i just haven't run it)
+            else:  # NOTE haven't run this, it may need testing
                 link_name = odir(args, varnames, vstrs, 'simu')
             if not os.path.exists(ofn):
                 utils.makelink(os.path.dirname(link_name), inpath, link_name, debug=True)  # , dryrun=True

@@ -67,8 +67,10 @@ def cp_val(cpath, ptilestr, yfname):
         perf_metrics = cpath.perf_metrics[cpath.i_best]
         rval = perf_metrics['pairwise']['precision'] if 'pairwise' in perf_metrics else None
     elif ptilestr == 'pairwise-sens':
+        perf_metrics = cpath.perf_metrics[cpath.i_best]
         rval = perf_metrics['pairwise']['recall'] if 'pairwise' in perf_metrics else None
     elif ptilestr == 'pairwise-f1':  # for search: f1 score
+        perf_metrics = cpath.perf_metrics[cpath.i_best]
         rval = perf_metrics['pairwise']['f1'] if 'pairwise' in perf_metrics else None
     elif ptilestr == 'cln-frac':
         rval = utils.collision_fraction(cpath.best())

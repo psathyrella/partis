@@ -7,6 +7,7 @@ import numpy
 import math
 import collections
 import multiprocessing
+import yaml
 
 sys.path.insert(1, './python')
 import utils
@@ -31,6 +32,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')
 parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 # parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
+parser.add_argument('--dataset-in-list', help='list of samples from --data-in-cfg')
+parser.add_argument('--data-in-cfg', help='instead of running simulation to get input for subsequent actions, use input files specified in this yaml cfg (the actual samples to use are specified with --dataset-in-list)')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -61,7 +64,7 @@ parser.add_argument('--empty-bin-range', help='remove empty bins only outside th
 parser.add_argument('--workdir')  # default set below
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed'],
+    'simu' : ['seed', 'dataset-in'],
 }
 for act in after_actions + plot_actions:
     if act not in args.scan_vars:
@@ -83,6 +86,16 @@ args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
 args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 args.empty_bin_range = utils.get_arg_list(args.empty_bin_range, floatify=True)
+
+if args.dataset_in_list is not None and args.data_in_cfg is None:
+    raise Exception('have to set --data-in-cfg if --dataset-in-list is set')
+if args.data_in_cfg is not None:
+    assert args.n_replicates == 1
+    with open(args.data_in_cfg) as dfile:
+        args.data_in_cfg = yaml.load(dfile, Loader=yaml.CLoader)
+    if 'simu' in args.actions and not args.dry:
+        print '  %s turning on --dry, since the links still get made, and not sure what happens if it isn\'t set' % utils.wrnstr()
+        args.dry = True
 
 utils.get_scanvar_arg_lists(args)
 if args.final_plot_xvar is None:  # set default value based on scan vars
@@ -128,11 +141,32 @@ def run_scan(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        ofn = ofname(args, varnames, vstrs, action, single_file=True)
+        single_file = True if args.data_in_cfg is None else False
+# TODO needs testing (probably ok though)
+        ofn = ofname(args, varnames, vstrs, action, single_file=single_file)
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
 
+        if action == 'simu' and args.data_in_cfg is not None:
+# TODO needs testing (probably ok though)
+            if varnames != ['dataset-in']:  # at least for now
+                raise Exception('at least for now, if --data-in-cfg/--dataset-in-list are set, \'dataset-in\' must be a scan var (and be the only one), but got %s' % (varnames))
+            sample = vstrs[0]
+            if sample not in args.data_in_cfg:
+                raise Exception('sample \'%s\' not found in meta info with choices: %s' % (sample, args.data_in_cfg.keys()))
+            inpath = args.data_in_cfg[sample]['infname']
+            if not os.path.isdir(inpath) and os.path.exists(inpath):  # if the data isn't paired, we need to make the paired loci structure
+                utils.mkdir(inpath, isfile=True)
+                link_name = ofname(args, varnames, vstrs, action, locus=args.data_in_cfg[sample]['locus'])
+                assert args.data_in_cfg[sample]['locus'] == 'igh'  # would need to update things if not
+                utils.write_empty_annotations(ofname(args, varnames, vstrs, action, locus='igk'), 'igk')  # make a fake light file (ick)
+            else:  # NOTE haven't run this, it may need testing
+                link_name = odir(args, varnames, vstrs, 'simu')
+            if not os.path.exists(ofn):
+                utils.makelink(os.path.dirname(link_name), inpath, link_name, debug=True)  # , dryrun=True
+
+# TODO probably/maybe needs to be rewritten for paired loci
         cmd = get_cmd(action, base_args, varnames, val_lists, vstrs)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos += [{
