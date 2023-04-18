@@ -2383,7 +2383,8 @@ class PartitionDriver(object):
         partition_lines = None
         if cpath is not None:
             true_partition = utils.get_partition_from_reco_info(self.reco_info) if not self.args.is_data else None
-            partition_lines = cpath.get_partition_lines(reco_info=self.reco_info, true_partition=true_partition, n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'), fail_frac=self.args.max_ccf_fail_frac)
+            partition_lines = cpath.get_partition_lines(reco_info=self.reco_info, true_partition=true_partition,
+                                                        n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'), fail_frac=self.args.max_ccf_fail_frac, add_pairwise_metrics=self.args.add_pairwise_clustering_metrics)
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
             utils.add_linearham_info(self.sw_info, annotation_list, min_cluster_size=5)  # NOTE not really worth trying to propagate through --cluster-indices or --seed/lineage-unique-ids here (i.e. propagate from linearham scons file) (setting hard coded 5 will fuck you if you want linearham on a tree with 4 seqs, but you probably don't really, and both not having a threshold here, and using --min-selection-metric-cluster-size suck [yes i tried both])

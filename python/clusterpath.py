@@ -366,7 +366,9 @@ class ClusterPath(object):
                 writer.writerow(row)
 
     # ----------------------------------------------------------------------------------------
-    def get_partition_lines(self, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None, fail_frac=0.05):  # we use this (instead of .write()) if we're writing a yaml file
+    def get_partition_lines(self, reco_info=None, true_partition=None, n_to_write=None, calc_missing_values='none', path_index=None, fail_frac=0.05, add_pairwise_metrics=False):  # we use this (instead of .write()) if we're writing a yaml file
+        if add_pairwise_metrics:
+            self.add_pairwise_metrics = True  # kind of weird to reset it here (maybe overriding value from constructor) but whatevs
         assert calc_missing_values in ['none', 'all', 'best']
         is_simu = (reco_info is not None or true_partition is not None) or any(cfs!=[None, None] for cfs in self.ccfs)  # second clause is for cases where we've read a cpath with simulation info (i.e. ccfs), but don't have reco_info or true_partition
         if is_simu and calc_missing_values == 'all':
