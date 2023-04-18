@@ -5472,7 +5472,13 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
 
 # ----------------------------------------------------------------------------------------
 # from definitions in mobille paper
+# problems with these pairwise metrics:
+#  - they scale quadratically, which (subjectively) I think is counter intuitive to how our brains work
+#    - because of this, large clusters matter much more than small clusters, e.g. a two-sequence true cluster gets "counted" twice, while a 10-sequence one gets counted 100 times
+#  - they're both 0 (or nan) on the singleton partition
+#  - they generally just kind of ignore singletons, e.g. precision is supposed to measure overmerging, but it gives you no credit for not over merging singletons
 def pairwise_cluster_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
+    debug = True
     # ----------------------------------------------------------------------------------------
     def id_dict(ptn):
         reco_info = build_dummy_reco_info(ptn)  # not actually reco info unless it's the true partition
@@ -5514,13 +5520,13 @@ def pairwise_cluster_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
         tp, fp, fn = [len(s) for s in [tp, fp, fn]]
     else:
         assert False
-    precis = tp / float(tp + fp) if tp + fp > 0 else 0.  # should really be nan or something, but whatever, this is just another reason these metrics are dumb
-    recall = tp / float(tp + fn) if tp + fn > 0 else 0.  # same as sensitivity
+    precis = tp / float(tp + fp) if tp + fp > 0 else float('nan')
+    recall = tp / float(tp + fn) if tp + fn > 0 else float('nan')  # same as sensitivity
     if debug:
         print '    pairwise clustering metrics:'
         print '        precision: tp / (tp + fp) = %d / (%d + %d) = %.2f' % (tp, tp, fp, precis)
         print '      sens/recall: tp / (tp + fn) = %d / (%d + %d) = %.2f' % (tp, tp, fn, recall)
-    return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall) if precis + recall > 0 else 0.}  # same as scipy.stats.hmean([precis, recall])
+    return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall) if precis + recall > 0 else float('nan')}  # same as scipy.stats.hmean([precis, recall])
 
 # ----------------------------------------------------------------------------------------
 # return (# of within-cluster seq pairs) / (total # of seq pairs, i.e. n*(n-1)/2), i.e. if a "collision" is that two seqs are in a cluster together, this counts the number of actual collided sequence pairs, over the total number of possible collisions

@@ -63,6 +63,13 @@ def cp_val(cpath, ptilestr, yfname):
         rval = cpath.ccfs[cpath.i_best][1]
     elif ptilestr == 'f1':  # for search: f1 score
         rval = sys.modules['scipy.stats'].hmean(cpath.ccfs[cpath.i_best])
+    elif ptilestr == 'pairwise-prec':
+        perf_metrics = cpath.perf_metrics[cpath.i_best]
+        rval = perf_metrics['pairwise']['precision'] if 'pairwise' in perf_metrics else None
+    elif ptilestr == 'pairwise-sens':
+        rval = perf_metrics['pairwise']['recall'] if 'pairwise' in perf_metrics else None
+    elif ptilestr == 'pairwise-f1':  # for search: f1 score
+        rval = perf_metrics['pairwise']['f1'] if 'pairwise' in perf_metrics else None
     elif ptilestr == 'cln-frac':
         rval = utils.collision_fraction(cpath.best())
     elif ptilestr == 'n-clusters':
