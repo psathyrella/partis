@@ -5515,7 +5515,7 @@ def pairwise_cluster_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
     else:
         assert False
     precis = tp / float(tp + fp) if tp + fp > 0 else 0.  # should really be nan or something, but whatever, this is just another reason these metrics are dumb
-    recall = tp / float(tp + fn)  # same as sensitivity
+    recall = tp / float(tp + fn) if tp + fn > 0 else 0.  # same as sensitivity
     if debug:
         print '    pairwise clustering metrics:'
         print '        precision: tp / (tp + fp) = %d / (%d + %d) = %.2f' % (tp, tp, fp, precis)

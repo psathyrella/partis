@@ -1094,8 +1094,11 @@ class PartitionDriver(object):
             self.check_partition(tmp_partition)
             true_partition = utils.get_partition_from_reco_info(self.reco_info)
             ccfs = utils.per_seq_correct_cluster_fractions(tmp_partition, true_partition, reco_info=self.reco_info)
+            perf_metrics = None
+            if self.args.add_pairwise_clustering_metrics:
+                perf_metrics = {'pairwise' : utils.pairwise_cluster_metrics('pairwise', tmp_partition, true_partition)}
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs)
+        cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs, perf_metrics=perf_metrics)
 
         print '      vsearch time: %.1f' % (time.time()-start)
         sys.stdout.flush()
