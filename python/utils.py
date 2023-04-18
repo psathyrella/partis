@@ -237,9 +237,17 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, bo
                 arglist[ia] = translation[arglist[ia]]
 
     if key_val_pairs:
-        if default_vals is not None:  # if <default_vals> is set, empty strings get replaced with value from <default_vals>
-            arglist = [(k, default_vals[k] if v=='' else v) for k, v in arglist]
-        arglist = {k : convert_fcn(v) for k, v in arglist}
+        if any(len(l) != 2 for l in arglist):
+            raise Exception('need arg list element of length 2 to convert to key/val pair but got: %s' % str([l for l in arglist if len(l) != 2]))
+        vdict = {}
+        for tk, tval in arglist:
+            if default_vals is not None and tval == '':  # if <default_vals> is set, empty strings get replaced with value from <default_vals>
+                tval = default_vals[tk]
+            if tk in vdict:
+                vdict[tk] += ':'+convert_fcn(tval)
+            else:
+                vdict[tk] = convert_fcn(tval)
+        arglist = vdict
 
     if choices is not None:  # note that if <key_val_pairs> is set, this (and <forbid_duplicates) is just checking the keys, not the vals
         for arg in arglist:
