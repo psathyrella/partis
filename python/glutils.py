@@ -99,7 +99,7 @@ def convert_to_duplicate_name(glfo, gene):
                 if alternate_name != gene and alternate_name in glfo['seqs'][utils.get_region(gene)]:
                     # print 'converting %s --> %s' % (gene, alternate_name)
                     return alternate_name
-    raise Exception('couldn\'t find alternate name for %s (and we\'re probably looking for an alternate name because it wasn\'t in glfo to start with)' % utils.color_gene(gene))
+    raise Exception('couldn\'t find alternate name for %s (and we\'re probably looking for an alternate name because it wasn\'t in glfo to start with) choices: %s' % (utils.color_gene(gene), utils.color_genes(glfo['seqs'][utils.get_region(gene)].keys())))
 
 #----------------------------------------------------------------------------------------
 def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs
@@ -856,9 +856,9 @@ def restrict_to_genes(glfo, only_genes, debug=False):
         print '    removed %-2d genes from glfo (leaving %s)' % (len(genes_to_remove), '  '.join(['%s %-d' % (r, len(glfo['seqs'][r])) for r in utils.regions]))
 
 # ----------------------------------------------------------------------------------------
-def restrict_to_observed_genes(glfo, parameter_dir):  # remove from <glfo> any genes that were not observed in <parameter_dir>
+def restrict_to_observed_genes(glfo, parameter_dir, debug=False):  # remove from <glfo> any genes that were not observed in <parameter_dir>
     only_genes = set([g for genes in utils.read_overall_gene_probs(parameter_dir).values() for g in genes])
-    restrict_to_genes(glfo, only_genes, debug=False)
+    restrict_to_genes(glfo, only_genes, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def remove_v_genes_with_bad_cysteines(glfo, debug=False):

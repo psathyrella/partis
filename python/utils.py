@@ -4810,7 +4810,7 @@ def limit_procs(cmdstr, n_max_procs=None, sleep_time=1, procs=None, debug=False)
                 return [p.poll() for p in procs].count(None)
     else:
         def n_running_jobs():
-            return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | wc -l' % cmdstr, shell=True))
+            return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | grep -v defunct | wc -l' % cmdstr, shell=True))
     if n_max_procs is None:
         n_max_procs = auto_n_procs()
     n_jobs = n_running_jobs()

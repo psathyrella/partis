@@ -1087,14 +1087,13 @@ class PartitionDriver(object):
             sys.stdout.flush()
         print ''
 
-        ccfs = [None, None]
+        ccfs, perf_metrics = [None, None], None
         if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
             queries_without_annotations = set(self.input_info) - set(self.sw_info['queries'])
             tmp_partition = copy.deepcopy(partition) + [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
             self.check_partition(tmp_partition)
             true_partition = utils.get_partition_from_reco_info(self.reco_info)
             ccfs = utils.per_seq_correct_cluster_fractions(tmp_partition, true_partition, reco_info=self.reco_info)
-            perf_metrics = None
             if self.args.add_pairwise_clustering_metrics:
                 perf_metrics = {'pairwise' : utils.pairwise_cluster_metrics('pairwise', tmp_partition, true_partition)}
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
@@ -1898,7 +1897,8 @@ class PartitionDriver(object):
         from hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
-        glutils.restrict_to_observed_genes(self.glfo, parameter_dir)  # this is kind of a weird place to put this... it would make more sense to read the glfo from the parameter dir, but I don't want to mess around with changing that a.t.m.
+        # hmglfo = copy.deepcopy(self.glfo)  # it might be better to not modify self.glfo here, but there's way too many potential downstream effects to change it at this point
+        glutils.restrict_to_observed_genes(self.glfo, parameter_dir, debug=True)  # this is kind of a weird place to put this... it would make more sense to read the glfo from the parameter dir, but I don't want to mess around with changing that a.t.m.
 
         if self.args.debug:
             print 'to %s' % parameter_dir + '/hmms',

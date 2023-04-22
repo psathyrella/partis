@@ -39,7 +39,7 @@ class Waterer(object):
         self.args = args
         self.input_info = input_info if input_info is not None else OrderedDict()  # NOTE do *not* modify <input_info>, since it's this original input info from partitiondriver
         self.reco_info = reco_info
-        self.glfo = glfo  # NOTE gets overwritten by read_cachefile()
+        self.glfo = copy.deepcopy(glfo)  # NOTE gets overwritten by read_cachefile()
         self.count_parameters = count_parameters  # NOTE *not* the same as <self.args.cache_parameters>
         self.plot_annotation_performance = plot_annotation_performance  # NOTE *not* the same as <self.args.plot_annotation_performance>
         self.simglfo = simglfo
