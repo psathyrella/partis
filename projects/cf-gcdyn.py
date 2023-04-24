@@ -28,7 +28,7 @@ plot_actions = []  # these are any actions that don't require running any new ac
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:process:merge-simuu:plot')
+parser.add_argument('--actions', default='simu:process:merge-simu:plot')
 parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
@@ -116,6 +116,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
         cmd = 'python %s/scripts/%s.py' % (args.gcddir, 'multi-simulation' if action=='simu' else 'combine-simu-files')
         if action == 'simu':
             cmd += ' --debug-response-fcn --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
+            if args.test:
+                cmd += ' --test'
             cmd += ' %s' % ' '.join(base_args)
             for vname, vstr in zip(varnames, vstrs):
                 cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
@@ -132,6 +134,17 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
 # ----------------------------------------------------------------------------------------
 # would be nice to combine this also with fcns in cf-tree-metrics.py (and put it in scanplot)
 def run_scan(action):
+    # ----------------------------------------------------------------------------------------
+    def init_cmd(local_varnames, vstrs, ofn, icombo):
+        cmd = get_cmd(action, base_args, local_varnames, val_lists, vstrs, all_simfns=all_simfns)
+        # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, local_varnames, vstrs, action), action), dryrun=args.dry)
+        cmdfos.append({
+            'cmd_str' : cmd,
+            'outfname' : ofn,
+            'logdir' : odir(args, local_varnames, vstrs, action),
+            'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
+        })
+    # ----------------------------------------------------------------------------------------
     base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action])
     cmdfos = []
     print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
@@ -155,17 +168,14 @@ def run_scan(action):
                 continue
             if action == 'merge-simu':
                 all_simfns.append(ifn)
-                if icombo < len(valstrs) - 1:  # just want to run one command on the last run through the the loop
-                    continue
+                continue
 
-        cmd = get_cmd(action, base_args, varnames, val_lists, vstrs, all_simfns=all_simfns)
-        # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
-        cmdfos += [{
-            'cmd_str' : cmd,
-            'outfname' : ofn,
-            'logdir' : odir(args, varnames, vstrs, action),
-            'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
-        }]
+        init_cmd(varnames, vstrs, ofn, icombo)
+
+    if action == 'merge-simu' and len(all_simfns) > 0:
+        if n_missing_input > 0:
+            print '    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr()
+        init_cmd([], [], ofn, 0)
 
     utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=action in ['simu', 'merge-simu'])
 
