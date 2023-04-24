@@ -23,12 +23,12 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-after_actions = ['process']  # actions that come after simulation (e.g. partition)
+after_actions = ['process', 'merge-simu']  # actions that come after simulation (e.g. partition)
 plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:process:plot')
+parser.add_argument('--actions', default='simu:process:merge-simuu:plot')
 parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
@@ -99,9 +99,11 @@ def odir(args, varnames, vstrs, action):
     return utils.svoutdir(args, varnames, vstrs, action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action): #, single_file=False):
+def ofname(args, varnames, vstrs, action, pickle=False): #, single_file=False):
     if action == 'simu':
-        sfx = 'all-seqs.fasta'
+        sfx = 'simu.pkl' if pickle else 'all-seqs.fasta'
+    elif action == 'merge-simu':
+        sfx = 'merged-simu.pkl'
     elif action == 'process':
         sfx = 'diff-vals.yaml'
     else:
@@ -109,12 +111,16 @@ def ofname(args, varnames, vstrs, action): #, single_file=False):
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
 
 # ----------------------------------------------------------------------------------------
-def get_cmd(action, base_args, varnames, vlists, vstrs):
-    if action == 'simu':
-        cmd = 'python %s/scripts/multi-simulation.py --debug-response-fcn --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, action)))
-        cmd += ' %s' % ' '.join(base_args)
-        for vname, vstr in zip(varnames, vstrs):
-            cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
+def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
+    if action in ['simu', 'merge-simu']:
+        cmd = 'python %s/scripts/%s.py' % (args.gcddir, 'multi-simulation' if action=='simu' else 'combine-simu-files')
+        if action == 'simu':
+            cmd += ' --debug-response-fcn --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
+            cmd += ' %s' % ' '.join(base_args)
+            for vname, vstr in zip(varnames, vstrs):
+                cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
+        else:
+            cmd += ' %s --outfile %s' % (' '.join(all_simfns), ofname(args, [], [], action))
         cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
         cmd = ' && '.join(cmd)
     elif action == 'process':
@@ -132,22 +138,27 @@ def run_scan(action):
     if args.debug:
         print '   %s' % ' '.join(varnames)
     n_already_there, n_missing_input, ifn = 0, 0, None
+    all_simfns = []
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        ofn = ofname(args, varnames, vstrs, action) #, single_file=True)
+        ofn = ofname(args, varnames, vstrs, action) if action != 'merge-simu' else ofname(args, [], [], action)  #, single_file=True)
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
 
-        if action == 'process':
-            ifn = ofname(args, varnames, vstrs, 'simu')
+        if action in ['process', 'merge-simu']:
+            ifn = ofname(args, varnames, vstrs, 'simu', pickle=action=='merge-simu')
             if not os.path.exists(ifn):  # do *not* use this, it'll delete it if --overwrite is set: utils.output_exists(args, ifn, debug=False):
                 n_missing_input += 1
                 continue
+            if action == 'merge-simu':
+                all_simfns.append(ifn)
+                if icombo < len(valstrs) - 1:  # just want to run one command on the last run through the the loop
+                    continue
 
-        cmd = get_cmd(action, base_args, varnames, val_lists, vstrs)
+        cmd = get_cmd(action, base_args, varnames, val_lists, vstrs, all_simfns=all_simfns)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos += [{
             'cmd_str' : cmd,
@@ -156,7 +167,7 @@ def run_scan(action):
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         }]
 
-    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=action=='simu')
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=action in ['simu', 'merge-simu'])
 
 # ----------------------------------------------------------------------------------------
 def get_fnfcn(method, pmetr):  # have to adjust signature before passing to fcn in scavars
