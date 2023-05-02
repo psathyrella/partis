@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
 import time
 import yaml

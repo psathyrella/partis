@@ -7,6 +7,7 @@ import numpy
 import math
 import collections
 import multiprocessing
+import glob
 
 sys.path.insert(1, './python')
 import utils
@@ -23,12 +24,12 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-after_actions = ['process', 'merge-simu']  # actions that come after simulation (e.g. partition)
+after_actions = ['merge-simu', 'process', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:process:merge-simu:plot')
+parser.add_argument('--actions', default='simu:merge-simu:process:partis:plot')
 parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
@@ -106,6 +107,8 @@ def ofname(args, varnames, vstrs, action, pickle=False): #, single_file=False):
         sfx = 'merged-simu.pkl'
     elif action == 'process':
         sfx = 'diff-vals.yaml'
+    elif action == 'partis':
+        sfx = 'partition.yaml'
     else:
         assert False
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
@@ -127,6 +130,23 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
         cmd = ' && '.join(cmd)
     elif action == 'process':
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+    elif action == 'partis':
+        # make a partition-only file
+        simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
+        ptnfn = '%s/true-partition.yaml' % simdir
+        if not os.path.exists(ptnfn):
+            print '    writing true partitions: %s' % ptnfn
+            all_seqs = [s['name'] for s in utils.read_fastx(ofname(args, varnames, vstrs, 'simu'))]  # just to make sure we get the names right
+            true_partition = []
+            for sfn in glob.glob('%s/seqs_*.fasta'%simdir):
+                sfos = utils.read_fastx(sfn)
+                icluster = int(os.path.basename(sfn).replace('seqs_', '').replace('.fasta', ''))
+                true_partition.append(['%d-%s' % (icluster, s['name']) for s in sfos])
+            utils.write_annotations(ptnfn, None, [], utils.annotation_headers, partition_lines=clusterpath.ClusterPath(partition=true_partition).get_partition_lines())
+        # then get command
+        odir = '%s' % os.path.dirname(ofname(args, varnames, vstrs, action))
+        cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --parameter-dir %s/parameters --outfname %s' % (ofname(args, varnames, vstrs, 'simu'), ptnfn, odir, ofname(args, varnames, vstrs, action))
+        cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odir
     else:
         assert False
     return cmd
