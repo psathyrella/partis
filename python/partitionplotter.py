@@ -36,7 +36,7 @@ class PartitionPlotter(object):
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
         self.min_pairwise_cluster_size = 7
-        self.min_tree_cluster_size = 5
+        self.min_tree_cluster_size = 5  # we also use min_selection_metric_cluster_size
         self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
         self.laplacian_spectra_min_clusters_size = 4

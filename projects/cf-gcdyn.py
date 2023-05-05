@@ -29,7 +29,7 @@ plot_actions = []  # these are any actions that don't require running any new ac
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:merge-simu:process:partis:plot')
+parser.add_argument('--actions', default='simu:merge-simu:process:plot')  #:partis (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
 parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
@@ -64,6 +64,7 @@ parser.add_argument('--make-hist-plots', action='store_true')
 parser.add_argument('--empty-bin-range', help='remove empty bins only outside this range (will kick a warning if this ignores any non-empty bins)')
 parser.add_argument('--workdir')  # default set below
 parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
+parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale', 'xshift'],
@@ -100,9 +101,9 @@ def odir(args, varnames, vstrs, action):
     return utils.svoutdir(args, varnames, vstrs, action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, pickle=False): #, single_file=False):
+def ofname(args, varnames, vstrs, action, pickle=False, trees=False): #, single_file=False):
     if action == 'simu':
-        sfx = 'simu.pkl' if pickle else 'all-seqs.fasta'
+        sfx = 'simu.pkl' if pickle else 'all-%s' % ('trees.nwk' if trees else 'seqs.fasta')
     elif action == 'merge-simu':
         sfx = 'merged-simu.pkl'
     elif action == 'process':
@@ -145,7 +146,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
             utils.write_annotations(ptnfn, None, [], utils.annotation_headers, partition_lines=clusterpath.ClusterPath(partition=true_partition).get_partition_lines())
         # then get command
         odir = '%s' % os.path.dirname(ofname(args, varnames, vstrs, action))
-        cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --parameter-dir %s/parameters --outfname %s' % (ofname(args, varnames, vstrs, 'simu'), ptnfn, odir, ofname(args, varnames, vstrs, action))
+        cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --treefname %s --parameter-dir %s/parameters --outfname %s' % (ofname(args, varnames, vstrs, 'simu'), ptnfn, ofname(args, varnames, vstrs, 'simu', trees=True), odir, ofname(args, varnames, vstrs, action))
+        cmd += ' --initial-germline-dir %s --no-insertions-or-deletions --min-selection-metric-cluster-size 3' % args.gcreplay_germline_dir
         cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odir
     else:
         assert False
