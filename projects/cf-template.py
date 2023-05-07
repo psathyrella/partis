@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import argparse
 import os
 import sys
@@ -142,14 +142,12 @@ def run_scan(action):
             print '   %s' % ' '.join(vstrs)
 
         single_file = True if args.data_in_cfg is None else False
-# TODO needs testing (probably ok though)
         ofn = ofname(args, varnames, vstrs, action, single_file=single_file)
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
 
         if action == 'simu' and args.data_in_cfg is not None:
-# TODO needs testing (probably ok though)
             if varnames != ['dataset-in']:  # at least for now
                 raise Exception('at least for now, if --data-in-cfg/--dataset-in-list are set, \'dataset-in\' must be a scan var (and be the only one), but got %s' % (varnames))
             sample = vstrs[0]
@@ -166,7 +164,6 @@ def run_scan(action):
             if not os.path.exists(ofn):
                 utils.makelink(os.path.dirname(link_name), inpath, link_name, debug=True)  # , dryrun=True
 
-# TODO probably/maybe needs to be rewritten for paired loci
         cmd = get_cmd(action, base_args, varnames, val_lists, vstrs)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos += [{
