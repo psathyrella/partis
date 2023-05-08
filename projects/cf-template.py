@@ -39,10 +39,12 @@ parser.add_argument('--iseeds', help='if set, only run these replicate indices (
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
+parser.add_argument('--single-light-locus')
 # scan fwk stuff (mostly):
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
 parser.add_argument('--dry', action='store_true')
+parser.add_argument('--paired-loci', action='store_true', help='same as partis arg')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--test', action='store_true', help='don\'t parallelize \'plot\' action')
 parser.add_argument('--debug', action='store_true')
@@ -105,28 +107,70 @@ if args.final_plot_xvar is None:  # set default value based on scan vars
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
-    return utils.svoutdir(args, varnames, vstrs, action)
+    actstr = action
+    if action in ['cache-parameters', 'partition', 'single-chain-partis']:
+        actstr = 'partis'
+    return '%s/%s' % (utils.svoutdir(args, varnames, vstrs, action), actstr)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, single_file=False):
+def get_fnfcn(method, locus, pmetr):  # have to adjust signature before passing to fcn in scavars
+    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method, locus=locus, single_file=True)
+    return tmpfcn
+
+# ----------------------------------------------------------------------------------------
+def ofname(args, varnames, vstrs, action, single_file=False, locus=None):
+    outdir = odir(args, varnames, vstrs, action)
     if action == 'cache-parameters':
-        sfx = 'parameters'
+        if not args.paired_loci or single_file:
+            outdir += '/parameters'
+        if locus is None and not single_file:
+            return outdir
+    if args.paired_loci and single_file and locus is None:
+        locus = 'igk'
+    if args.paired_loci:
+        ofn = outdir
         if single_file:
-            sfx += '/hmm/all-mean-mute-freqs.csv'
+            assert locus is not None
+            if action == 'cache-parameters':
+                ofn = '%s/%s' % (outdir, locus)
+            else:
+                ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition')
     else:
-        sfx = '%s.yaml' % action
-    return '%s/%s' % (odir(args, varnames, vstrs, action), sfx)
+        if action == 'cache-parameters':
+            ofn = outdir
+        else:
+            ofn = '%s/%s.yaml' % (outdir, action)
+    if action == 'cache-parameters' and single_file:
+        # ofn += '/hmm/germline-sets/%s/%sv.fasta' % (locus, locus)
+        ofn += '/hmm/all-mean-mute-freqs.csv'
+    return ofn
 
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vlists, vstrs):
-    cmd = './bin/partis %s' % action.replace('simu', 'simulate')
-    if action != 'cache-parameters':
-        cmd += ' --outfname %s' % ofname(args, varnames, vstrs, action)
+    cmd = './bin/partis %s%s' % (action.replace('simu', 'simulate'), ' --paired-loci' if args.paired_loci else '')
+    if args.paired_loci or action != 'cache-parameters':
+        cmd += ' --%s %s' % ('paired-outdir' if args.paired_loci else 'outfname',  ofname(args, varnames, vstrs, action))
     if action == 'simu':
         cmd += ' --simulate-from-scratch'
     else:
-        cmd += ' --infname %s --parameter-dir %s' % (ofname(args, varnames, vstrs, 'simu'), ofname(args, varnames, vstrs, 'cache-parameters'))
+        cmd += ' --%s %s' % ('paired-indir' if args.paired_loci else 'infname', ofname(args, varnames, vstrs, 'simu'))
+        if args.data_in_cfg is None:
+            cmd += ' --is-simu'
+        if not args.paired_loci:
+            cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
+        if action != 'cache-parameters':
+            cmd += ' --refuse-to-cache-parameters'
     return cmd
+
+# ----------------------------------------------------------------------------------------
+def plot_loci():
+    if args.paired_loci:
+        if args.single_light_locus is None:
+            return utils.sub_loci('ig')
+        else:
+            return [utils.heavy_locus('ig'), args.single_light_locus]
+    else:
+        return [None]
 
 # ----------------------------------------------------------------------------------------
 # would be nice to combine this also with fcns in cf-tree-metrics.py (and put it in scanplot)
@@ -141,8 +185,8 @@ def run_scan(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        single_file = True if args.data_in_cfg is None else False
-        ofn = ofname(args, varnames, vstrs, action, single_file=single_file)
+        single_file, locus = (True, None) if args.data_in_cfg is None else (False, args.data_in_cfg[vstrs[0]]['locus'])  # locus may need fixing for data_in_cfg
+        ofn = ofname(args, varnames, vstrs, action, single_file=single_file, locus=locus)
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
@@ -176,11 +220,6 @@ def run_scan(action):
     utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn)
 
 # ----------------------------------------------------------------------------------------
-def get_fnfcn(method, pmetr):  # have to adjust signature before passing to fcn in scavars
-    def tmpfcn(varnames, vstrs): return ofname(args, varnames, vstrs, method)
-    return tmpfcn
-
-# ----------------------------------------------------------------------------------------
 import random
 random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
@@ -196,28 +235,26 @@ for action in args.actions:
             continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[after_actions[0]])
         if action == 'plot':
-            raise Exception('will need to modify scanplot.make_plots() for this new script to get it working')
             print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             procs = []
             for method in args.plot_metrics:
-                for pmetr in args.perf_metrics:
-                    utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
-                for pmetr in args.perf_metrics:
-                    print '  %12s %s' % (method, pmetr)
-                    arglist, kwargs = (args, args.scan_vars[after_actions[0]], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
-                    if args.test:
-                        scanplot.make_plots(*arglist, **kwargs)
-                    else:
-                        procs.append(multiprocessing.Process(target=scanplot.make_plots, args=arglist, kwargs=kwargs))
+                for ltmp in plot_loci():
+                    for pmetr in args.perf_metrics:
+                        utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
+                    for pmetr in args.perf_metrics:
+                        print '  %12s %s%s' % (method, pmetr, '' if ltmp is None else ' %s'%ltmp)
+                        arglist, kwargs = (args, args.scan_vars[after_actions[0]], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
+                        if args.test:
+                            scanplot.make_plots(*arglist, **kwargs)
+                        else:
+                            procs.append(multiprocessing.Process(target=scanplot.make_plots, args=arglist, kwargs=kwargs))
             if not args.test:
                 utils.run_proc_functions(procs)
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
                     pmcdir = scanplot.get_comparison_plotdir(args, method) + '/' + pmetr
-# TODO need to fix/update this line (match commented line i think)
-                    # fnames[method][pmetr] = [[f.replace(pmcdir+'/', '') for f in fnames[method][pmetr]]]
-                    fnames[method][pmetr] = [[f.replace(pmcdir+'/', '') for f in flist] for flist in fnames[method][pmetr]]
+                    fnames[method][pmetr] = [[f.replace(pmcdir+'/', '') for f in fnames[method][pmetr]]]
                     plotting.make_html(pmcdir, n_columns=3, fnames=fnames[method][pmetr])  # this doesn't work unless --test is set since multiprocessing uses copies of <fnames>, but whatever, just run combine-plots
         elif action == 'combine-plots':
             cfpdir = scanplot.get_comparison_plotdir(args, 'combined')
@@ -225,10 +262,8 @@ for action in args.actions:
             fnames = [[] for _ in args.perf_metrics]
             for ipm, pmetr in enumerate(args.perf_metrics):
                 print '    ', pmetr
-# TODO remove this
-                for ptntype in partition_types:
+                for ltmp in plot_loci():
                     scanplot.make_plots(args, args.scan_vars[after_actions[0]], action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], debug=args.debug)
-                    # iplot += 1
             plotting.make_html(cfpdir, fnames=fnames)
         else:
             raise Exception('unsupported action %s' % action)

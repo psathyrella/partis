@@ -449,7 +449,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 print '%s   | %s' % (get_varval_str(vstrs), ''),
             yfname = fnfcn(varnames, vstrs)
             try:
-                if script_base == 'paired-loci':
+                if script_base in ['paired-loci', 'template']:
                     if ptilestr == 'time-reqd':
                         ytmpfo = readlog(args, yfname, metric, locus, ptntype)
                     elif 'pcfrac-' in ptilestr or ptilestr == 'naive-hdist':
@@ -462,7 +462,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                         yjfo = json.load(yfile)  # too slow with yaml
                     ytmpfo = {ptilestr : yjfo[ptilestr]}
                 else:
-                    assert False
+                    raise Exception('unhandled script base \'%s\'' % script_base)
             except IOError:  # os.path.exists() is too slow with this many files
                 missing_vstrs['missing'].append((None, vstrs))
                 return
