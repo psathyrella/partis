@@ -104,6 +104,8 @@ if args.final_plot_xvar is None:  # set default value based on scan vars
     base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
     svars = [v for v in varnames if v != 'seed']
     args.final_plot_xvar = svars[0] if len(svars) > 0 else 'seed'  # if we're not scanning over any vars, i'm not sure what we should use
+if len(args.dataset_in_list) < 2:
+    raise Exception('at least for now you need to specify at least two samples')
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
@@ -152,6 +154,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs):
         cmd += ' --%s %s' % ('paired-outdir' if args.paired_loci else 'outfname',  ofname(args, varnames, vstrs, action))
     if action == 'simu':
         cmd += ' --simulate-from-scratch'
+        if args.simu_extra_args is not None:
+            cmd += ' %s' % args.simu_extra_args
     else:
         cmd += ' --%s %s' % ('paired-indir' if args.paired_loci else 'infname', ofname(args, varnames, vstrs, 'simu'))
         if args.data_in_cfg is None:
@@ -160,6 +164,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs):
             cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
         if action != 'cache-parameters':
             cmd += ' --refuse-to-cache-parameters'
+        if args.inference_extra_args is not None:
+            cmd += ' %s' % args.inference_extra_args
     return cmd
 
 # ----------------------------------------------------------------------------------------
@@ -185,7 +191,7 @@ def run_scan(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        single_file, locus = (True, None) if args.data_in_cfg is None else (False, args.data_in_cfg[vstrs[0]]['locus'])  # locus may need fixing for data_in_cfg
+        single_file, locus = (True, None) if args.data_in_cfg is None else (True, args.data_in_cfg[vstrs[0]]['locus'])  # locus may need fixing for data_in_cfg
         ofn = ofname(args, varnames, vstrs, action, single_file=single_file, locus=locus)
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
@@ -198,13 +204,15 @@ def run_scan(action):
             if sample not in args.data_in_cfg:
                 raise Exception('sample \'%s\' not found in meta info with choices: %s' % (sample, args.data_in_cfg.keys()))
             inpath = args.data_in_cfg[sample]['infname']
-            if not os.path.isdir(inpath) and os.path.exists(inpath):  # if the data isn't paired, we need to make the paired loci structure
+            if inpath[0] != '/':
+                inpath = os.path.realpath(inpath)
+            if args.paired_loci and not os.path.isdir(inpath) and os.path.exists(inpath):  # if the data isn't paired (but we're running paired loci), we need to make the paired loci structure UPDATE maybe don't need this any more?
                 utils.mkdir(inpath, isfile=True)
                 link_name = ofname(args, varnames, vstrs, action, locus=args.data_in_cfg[sample]['locus'])
                 assert args.data_in_cfg[sample]['locus'] == 'igh'  # would need to update things if not
                 utils.write_empty_annotations(ofname(args, varnames, vstrs, action, locus='igk'), 'igk')  # make a fake light file (ick)
             else:  # NOTE haven't run this, it may need testing
-                link_name = odir(args, varnames, vstrs, 'simu')
+                link_name = '%s%s' % (odir(args, varnames, vstrs, 'simu'), '' if args.paired_loci else '/simu.yaml')
             if not os.path.exists(ofn):
                 utils.makelink(os.path.dirname(link_name), inpath, link_name, debug=True)  # , dryrun=True
 
