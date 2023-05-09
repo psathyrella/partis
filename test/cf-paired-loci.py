@@ -123,6 +123,7 @@ if 'all-pcfrac' in args.perf_metrics:
 args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 args.empty_bin_range = utils.get_arg_list(args.empty_bin_range, floatify=True)
+args.paired_loci = True  # just for compatibility with scan stuff in utils
 
 if args.data_in_cfg is not None:
     assert args.n_replicates == 1
@@ -322,18 +323,7 @@ def run_scan(action):
             continue
 
         if action == 'simu' and args.data_in_cfg is not None:
-            assert varnames == ['dataset-in']  # at least for now
-            sample = vstrs[0]
-            inpath = args.data_in_cfg[sample]['infname']
-            if not os.path.isdir(inpath) and os.path.exists(inpath):  # if the data isn't paired, we need to make the paired loci structure
-                utils.mkdir(inpath, isfile=True)
-                link_name = ofname(args, varnames, vstrs, action, locus=args.data_in_cfg[sample]['locus'])
-                assert args.data_in_cfg[sample]['locus'] == 'igh'  # would need to update things if not
-                utils.write_empty_annotations(ofname(args, varnames, vstrs, action, locus='igk'), 'igk')  # make a fake light file (ick)
-            else:  # NOTE haven't run this, it may need testing
-                link_name = odir(args, varnames, vstrs, 'simu')
-            if not os.path.exists(ofn):
-                utils.makelink(os.path.dirname(link_name), inpath, link_name, debug=True)  # , dryrun=True
+            utils.make_scanvar_data_links(args, varnames, vstrs, action, ofn, ofname, odir)
 
         cmd = get_cmd(action, base_args, varnames, val_lists, vstrs)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, varnames, vstrs, action), action), dryrun=args.dry)
