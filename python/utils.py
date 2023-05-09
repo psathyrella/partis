@@ -438,7 +438,7 @@ def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics):
     args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
     args.bool_args = []  # need to keep track of bool args separately (see add_to_scan_cmd())
 
-    args.actions = get_arg_list(args.actions, choices=['simu', 'plot', 'combine-plots', ] + after_actions + plot_actions)
+    args.actions = get_arg_list(args.actions, choices=['simu', 'plot', 'combine-plots'] + after_actions + plot_actions)
     args.plot_metrics = get_arg_list(args.plot_metrics)
     args.zip_vars = get_arg_list(args.zip_vars)
     args.plot_metric_extra_strs = get_arg_list(args.plot_metric_extra_strs)

@@ -123,7 +123,7 @@ def readlog(args, fname, metric, locus, ptntype):
             for lstr in lstrs:
                 if lstr in tln:
                     tlines.append((lstr, tln))
-        assert len(tlines) == 6
+        assert len(tlines) == 6  # if this fails, you're probably running on the wrong action (time-reqd is somewhat specific)
         tlines = tlines[1:]  # remove the paired cmd
         tvals = {}
         for ltmp, itmp in zip(['igh', 'igk', 'joint'], [0, 2, 3]):

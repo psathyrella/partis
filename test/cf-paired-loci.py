@@ -25,6 +25,7 @@ pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct',
 all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'distance-0.01', 'distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+after_actions = ['cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees']  + ptn_actions  # actions that come after simulation (e.g. partition)
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
@@ -35,14 +36,11 @@ def is_joint_method(action):
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simu:cache-parameters:partition:plot')  # can also be merge-paired-partitions and get-selection-metrics
 parser.add_argument('--merge-paired-partitions', action='store_true', help='for partis partition actions, don\'t re-partition, just merge paired partitions')
-parser.add_argument('--base-outdir', default='%s/partis/paired-loci'%os.getenv('fs'))
 parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
 parser.add_argument('--n-leaves-list', help='NOTE can use either this or \'n-leaf-distribution\' for \'hist\' n leaf distr (and depending on zip vars you need to use one or the other)') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--n-sim-seqs-per-generation-list')  # only for bcr-phylo
 parser.add_argument('--constant-number-of-leaves-list')
 parser.add_argument('--n-leaf-distribution-list', help='NOTE can use either this or \'n-leaves\' for \'hist\' n leaf distr (and depending on zip vars you need to use one or the other)')
-parser.add_argument('--n-replicates', default=1, type=int)
-parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
 parser.add_argument('--fraction-of-reads-to-remove-list')
 parser.add_argument('--bulk-data-fraction-list')
@@ -56,91 +54,28 @@ parser.add_argument('--tree-imbalance-list')
 parser.add_argument('--context-depend-list')
 parser.add_argument('--biggest-naive-seq-cluster-to-calculate-list')
 parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
-parser.add_argument('--dataset-in-list', help='list of samples from --data-in-cfg')
-parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
-parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
-parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
-parser.add_argument('--single-light-locus')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
 parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutation simulation, rather than partis (i.e. TreeSim/bpp)')
-parser.add_argument('--data-in-cfg', help='instead of running simulation to get input for subsequent actions, use input files specified in this yaml cfg (the actual samples to use are specified with --dataset-in-list)')
 parser.add_argument('--data-cluster-size-hist-fname', default='/fh/fast/matsen_e/processed-data/partis/goo-dengue-10x/count-params-v0/d-14/parameters/igh+igk/igh/hmm/cluster_size.csv') #/fh/fast/matsen_e/processed-data/partis/10x-examples/v1/hs-1-postvax/parameters/igh+igk/igh/hmm/cluster_size.csv')  # ick ick ick
-# scan fwk stuff (mostly):
-parser.add_argument('--version', default='v0')
-parser.add_argument('--label', default='test')
-parser.add_argument('--dry', action='store_true')
-parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--make-plots', action='store_true')
-parser.add_argument('--test', action='store_true', help='don\'t parallelize \'plot\' action')
-parser.add_argument('--debug', action='store_true')
-parser.add_argument('--simu-extra-args')
-parser.add_argument('--inference-extra-args')
-parser.add_argument('--plot-metrics', default='partition', help='NOTE these are methods, but in tree metric script + scanplot they\'re metrics, so we have to call them metrics here')
-parser.add_argument('--perf-metrics', default='precision:sensitivity:f1') #':'.join(all_perf_metrics))
-parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
-parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
-parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
-parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm %] when --final-plot-x-var is scratch-mute-freq)')
-parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
-parser.add_argument('--use-val-cfgs', action='store_true', help='use plotting.val_cfgs dict (we can\'t always use it)')
-parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
-parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
-parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
-parser.add_argument('--make-hist-plots', action='store_true')
-parser.add_argument('--empty-bin-range', help='remove empty bins only outside this range (will kick a warning if this ignores any non-empty bins)')
 parser.add_argument('--bcrham-time', action='store_true')
-parser.add_argument('--workdir')  # default set below
+utils.add_scanvar_args(parser, script_base, all_perf_metrics)
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'context-depend', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events', 'dataset-in'],
     'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameter dir
     'partition' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],
 }
-for act in ['cache-parameters'] + ptn_actions + plot_actions:
-    if act not in args.scan_vars:
-        args.scan_vars[act] = []
-    args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
 args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times']
 args.recurse_replace_vars = ['allowed-cdr3-lengths']  # ick ick ick
 args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
-# NOTE ignoring svartypes atm, which may actually work?
-# args.svartypes = {'int' : ['n-leaves', 'allowed-cdr3-lengths', 'n-sim-events'], 'float' : ['scratch-mute-freq', 'mutation-multiplier']}  # 'mean-cells-per-droplet' # i think can't float() this since we want to allow None as a value
-# and these i think we can't since we want to allow blanks, 'n-genes-per-region' 'n-sim-alleles-per-gene'
-# args.float_var_digits = 2  # ick
-
-args.actions = utils.get_arg_list(args.actions, choices=['simu', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'plot', 'combine-plots', 'parse-linearham-trees'] + ptn_actions + plot_actions)
-args.plot_metrics = utils.get_arg_list(args.plot_metrics)
-args.zip_vars = utils.get_arg_list(args.zip_vars)
-args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
-if args.plot_metric_extra_strs is None:
-    args.plot_metric_extra_strs = ['' for _ in args.plot_metrics]
-if len(args.plot_metrics) != len(args.plot_metric_extra_strs):
-    raise Exception('--plot-metrics %d not same length as --plot-metric-extra-strs %d' % (len(args.plot_metrics), len(args.plot_metric_extra_strs)))
-args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
 if 'all-pcfrac' in args.perf_metrics:
     args.perf_metrics = args.perf_metrics.replace('all-pcfrac', ':'.join(pcfrac_metrics))
-args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
-args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
-args.empty_bin_range = utils.get_arg_list(args.empty_bin_range, floatify=True)
-args.paired_loci = True  # just for compatibility with scan stuff in utils
-
-if args.data_in_cfg is not None:
-    assert args.n_replicates == 1
-    with open(args.data_in_cfg) as dfile:
-        args.data_in_cfg = yaml.load(dfile, Loader=yaml.CLoader)
-    if 'simu' in args.actions and not args.dry:
-        print '  %s turning on --dry, since the links still get made, and not sure what happens if it isn\'t set' % utils.wrnstr()
-        args.dry = True
-
-utils.get_scanvar_arg_lists(args)
-if args.final_plot_xvar is None:  # set default value based on scan vars
-    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
-    svars = [v for v in varnames if v != 'seed']
-    args.final_plot_xvar = svars[0] if len(svars) > 0 else 'seed'  # if we're not scanning over any vars, i'm not sure what we should use
-
+args.paired_loci = True
 if args.antn_perf:
     args.make_plots = True
+utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
