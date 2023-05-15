@@ -2373,7 +2373,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         inf_lines_to_use = None
     else:  # called from python/partitiondriver.py (with reco_info set, which needs to be turned into true_lines_to_use)
         inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, only_use_best_partition=only_use_best_partition, glfo=glfo)  # NOTE these continue to be modified (by removing clusters we don't want) further down, and then they get passed to the plotting functions
-        # NOTE that if running a tree inference method that infers ancestral seqs, and we add those seqs to annotations, the keys in <annotations> will no longer be correct (but i think i'd rather fix this in the calling fcn than here, since i don't use <annotations> afte rthis atm). Yes, this sucks and is dangerous
+        # NOTE that if running a tree inference method that infers ancestral seqs, and we add those seqs to annotations, the keys in <annotations> will no longer be correct (but i think i'd rather fix this in the calling fcn than here, since i don't use <annotations> after this atm). Yes, this sucks and is dangerous
 
     # get tree and calculate metrics for inferred lines
     if inf_lines_to_use is not None and true_lines_to_use is None:  # if we have true lines, we don't run anything on inferred lines (at least atm)
