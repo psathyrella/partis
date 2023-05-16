@@ -24,12 +24,13 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-after_actions = ['merge-simu', 'process', 'partis']  # actions that come after simulation (e.g. partition)
+after_actions = ['merge-simu', 'process', 'dl-infer', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
+merge_actions = ['merge-simu', 'dl-infer']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:merge-simu:process:plot')  #:partis (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
+parser.add_argument('--actions', default='simu:merge-simu:process:plot')  # dl-infer (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
 parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
@@ -108,6 +109,8 @@ def ofname(args, varnames, vstrs, action, pickle=False, trees=False): #, single_
         sfx = 'merged-simu.pkl'
     elif action == 'process':
         sfx = 'diff-vals.yaml'
+    elif action == 'dl-infer':
+        sfx = 'test.csv'
     elif action == 'partis':
         sfx = 'partition.yaml'
     else:
@@ -131,6 +134,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
         cmd = ' && '.join(cmd)
     elif action == 'process':
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+    elif action == 'dl-infer':
+        cmd = './projects/gcdyn/scripts/dl-infer.py %s %s' % (ofname(args, [], [], 'merge-simu'), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action == 'partis':
         # make a partition-only file
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
@@ -178,24 +183,24 @@ def run_scan(action):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
 
-        ofn = ofname(args, varnames, vstrs, action) if action != 'merge-simu' else ofname(args, [], [], action)  #, single_file=True)
+        ofn = ofname(args, varnames, vstrs, action) if action not in merge_actions else ofname(args, [], [], action)  #, single_file=True)
         if utils.output_exists(args, ofn, debug=False):
             n_already_there += 1
             continue
 
-        if action in ['process', 'merge-simu']:
+        if action in ['process'] + merge_actions:
             ifn = ofname(args, varnames, vstrs, 'simu', pickle=action=='merge-simu')
             if not os.path.exists(ifn):  # do *not* use this, it'll delete it if --overwrite is set: utils.output_exists(args, ifn, debug=False):
                 n_missing_input += 1
                 continue
-            if action == 'merge-simu':
+            if action in merge_actions:
                 all_simfns.append(ifn)
                 continue
 
         init_cmd(varnames, vstrs, ofn, icombo)
 
-    if action == 'merge-simu' and len(all_simfns) > 0:
-        if n_missing_input > 0:
+    if action in merge_actions and len(all_simfns) > 0:
+        if action == 'merge-simu' and n_missing_input > 0:
             print '    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr()
         init_cmd([], [], ofn, 0)
 
