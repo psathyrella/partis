@@ -36,6 +36,7 @@ parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.geten
 parser.add_argument('--birth-response-list')
 parser.add_argument('--xscale-list')
 parser.add_argument('--xshift-list')
+parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -68,13 +69,13 @@ parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/g
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale', 'xshift'],
+    'simu' : ['seed', 'birth-response', 'xscale', 'xshift', 'carry-cap'],
 }
 for act in after_actions + plot_actions:
     if act not in args.scan_vars:
         args.scan_vars[act] = []
     args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
-args.str_list_vars = []  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['xscale', 'xshift']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 
@@ -122,14 +123,18 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
     if action in ['simu', 'merge-simu']:
         cmd = 'python %s/scripts/%s.py' % (args.gcddir, 'multi-simulation' if action=='simu' else 'combine-simu-files')
         if action == 'simu':
-            cmd += ' --debug-response-fcn --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
+            cmd += ' --debug --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
             if args.test:
                 cmd += ' --test'
             cmd += ' %s' % ' '.join(base_args)
             for vname, vstr in zip(varnames, vstrs):
+                if vname in ['xscale', 'xshift']:
+                    vstr = vstr.replace(':', ' ')  # using nargs='+' syntax for these rather than partis-style colons
                 cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
         else:
             cmd += ' %s --outfile %s' % (' '.join(all_simfns), ofname(args, [], [], action))
+        if action == 'simu' and args.simu_extra_args is not None:
+            cmd += ' %s' % args.simu_extra_args
         cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
         cmd = ' && '.join(cmd)
     elif action == 'process':
@@ -154,6 +159,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
         cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --treefname %s --parameter-dir %s/parameters --outfname %s' % (ofname(args, varnames, vstrs, 'simu'), ptnfn, ofname(args, varnames, vstrs, 'simu', trees=True), odir, ofname(args, varnames, vstrs, action))
         cmd += ' --initial-germline-dir %s --no-insertions-or-deletions --min-selection-metric-cluster-size 3' % args.gcreplay_germline_dir
         cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odir
+        if args.inference_extra_args is not None:
+            cmd += ' %s' % args.inference_extra_args
     else:
         assert False
     return cmd
