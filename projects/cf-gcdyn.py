@@ -24,9 +24,9 @@ import clusterpath
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-after_actions = ['merge-simu', 'process', 'dl-infer', 'partis']  # actions that come after simulation (e.g. partition)
+after_actions = ['merge-simu', 'process', 'dl-infer', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
-merge_actions = ['merge-simu', 'dl-infer']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
+merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -110,7 +110,7 @@ def ofname(args, varnames, vstrs, action, pickle=False, trees=False): #, single_
         sfx = 'merged-simu.pkl'
     elif action == 'process':
         sfx = 'diff-vals.yaml'
-    elif action == 'dl-infer':
+    elif action in ['dl-infer', 'dl-infer-merged']:
         sfx = 'test.csv'
     elif action == 'partis':
         sfx = 'partition.yaml'
@@ -139,8 +139,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
         cmd = ' && '.join(cmd)
     elif action == 'process':
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
-    elif action == 'dl-infer':
-        cmd = './projects/gcdyn/scripts/dl-infer.py %s %s' % (ofname(args, [], [], 'merge-simu'), os.path.dirname(ofname(args, varnames, vstrs, action)))
+    elif action in ['dl-infer', 'dl-infer-merged']:
+        cmd = './projects/gcdyn/scripts/dl-infer.py %s %s' % (ofname(args, [], [], 'merge-simu') if action=='dl-infer-merged' else ofname(args, varnames, vstrs, 'simu', pickle=True), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action == 'partis':
         # make a partition-only file
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
