@@ -10,6 +10,7 @@ import numpy
 import math
 from hist import Hist
 import copy
+import csv
 
 # ----------------------------------------------------------------------------------------
 vlabels = {
@@ -458,9 +459,13 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                         _, _, cpath = utils.read_output(yfname, skip_annotations=True)
                         ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
                 elif script_base == 'gcdyn':
-                    with open(yfname) as yfile:
-                        yjfo = json.load(yfile)  # too slow with yaml
-                    ytmpfo = {ptilestr : yjfo[ptilestr]}
+                    if metric == 'dl-infer':
+                        dvals = [abs(float(l['Predicted']) - float(l['Truth'])) for l in utils.csvlines(yfname)]
+                        ytmpfo = {ptilestr :  numpy.mean(dvals)}  # mean abs distance from true value
+                    else:
+                        with open(yfname) as yfile:
+                            yjfo = json.load(yfile)  # too slow with yaml
+                        ytmpfo = {ptilestr : yjfo[ptilestr]}
                 else:
                     raise Exception('unhandled script base \'%s\'' % script_base)
             except IOError:  # os.path.exists() is too slow with this many files

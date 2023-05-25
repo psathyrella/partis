@@ -645,6 +645,9 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'max-abundances' : 'max abundance\nwgtd. simu - data',
            'distr-abundances' : 'abundance distr.\nwgtd. simu - data',
            'distr-hdists' : 'SHM distr\nsimu - data',
+           'xscale' : 'xscale\nmean abs(true - inf)',
+           'xshift' : 'xshift\nmean abs(true - inf)',
+           'n-trials' : 'N trees',
            }
 
 axis_labels = {
