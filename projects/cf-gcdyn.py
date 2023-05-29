@@ -38,6 +38,7 @@ parser.add_argument('--xscale-list')
 parser.add_argument('--xshift-list')
 parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-trials-list')
+parser.add_argument('--n-seqs-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -70,7 +71,7 @@ parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/g
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale', 'xshift', 'carry-cap', 'n-trials'],
+    'simu' : ['seed', 'birth-response', 'xscale', 'xshift', 'carry-cap', 'n-trials', 'n-seqs'],
 }
 for act in after_actions + plot_actions:
     if act not in args.scan_vars:
