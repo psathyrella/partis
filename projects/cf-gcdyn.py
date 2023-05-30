@@ -23,7 +23,7 @@ import clusterpath
 
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
-all_perf_metrics = ['xscale', 'max-abundances', 'distr-abundances', 'distr-hdists'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+all_perf_metrics = ['xscale-perf-width', 'xscale-train-vs-test', 'max-abundances', 'distr-abundances', 'distr-hdists'] #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 after_actions = ['merge-simu', 'process', 'dl-infer', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
@@ -39,6 +39,7 @@ parser.add_argument('--xshift-list')
 parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
+parser.add_argument('--model-size-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -72,6 +73,7 @@ parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale', 'xshift', 'carry-cap', 'n-trials', 'n-seqs'],
+    'dl-infer' : ['model-size'],
 }
 for act in after_actions + plot_actions:
     if act not in args.scan_vars:
@@ -146,6 +148,10 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged']:
         cmd = './projects/gcdyn/scripts/dl-infer.py %s %s' % (ofname(args, [], [], 'merge-simu') if action=='dl-infer-merged' else ofname(args, varnames, vstrs, 'simu', pickle=True), os.path.dirname(ofname(args, varnames, vstrs, action)))
+        for vname, vstr in zip(varnames, vstrs):
+            if vname in args.scan_vars['simu']:
+                continue
+            cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
     elif action == 'partis':
         # make a partition-only file
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
@@ -234,10 +240,11 @@ for action in args.actions:
     if action in ['simu', ] + after_actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots']:
+        plt_scn_vars = args.scan_vars['dl-infer']
         if args.dry:
             print '  --dry: not plotting'
             continue
-        _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[after_actions[0]])
+        _, varnames, val_lists, valstrs = utils.get_var_info(args, plt_scn_vars)
         if action == 'plot':
             print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
@@ -247,7 +254,7 @@ for action in args.actions:
                     utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
                 for pmetr in args.perf_metrics:
                     print '  %12s %s' % (method, pmetr)
-                    arglist, kwargs = (args, args.scan_vars[after_actions[0]], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
+                    arglist, kwargs = (args, plt_scn_vars, action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
                     if args.test:
                         scanplot.make_plots(*arglist, **kwargs)
                     else:
@@ -265,7 +272,7 @@ for action in args.actions:
             fnames = [[] for _ in args.perf_metrics]
             for ipm, pmetr in enumerate(args.perf_metrics):
                 print '    ', pmetr
-                scanplot.make_plots(args, args.scan_vars[after_actions[0]], action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], make_legend=True, debug=args.debug)
+                scanplot.make_plots(args, plt_scn_vars, action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], make_legend=True, debug=args.debug)
             plotting.make_html(cfpdir, fnames=fnames)
         else:
             raise Exception('unsupported action %s' % action)
