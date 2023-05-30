@@ -163,19 +163,29 @@ def align_lineages(seq, tree_t, tree_i, gap_penalty_pct=0, known_root=True, allo
     return [align_t, align_i, alignment_score, max_penalty]
 
 # ----------------------------------------------------------------------------------------
-def COAR(true_tree, inferred_tree, freq_weigthing=False, known_root=True, allow_double_gap=False):
+def COAR(true_tree, inferred_tree, freq_weighting=False, known_root=True, allow_double_gap=False):
+    assert False  # this doesn't work and hasn't been tested, need to go through it carefully before even attempting to run (basically just copied it from bcr-phylo)
+# ----------------------------------------------------------------------------------------
+# maybe makes sense to do this? (i think not, but saving it here just in case)
+# ete_path = '/home/' + os.getenv('USER') + '/anaconda_ete/bin'
+# bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
+# outbase = '/fh/fast/matsen_e/dralph/partis/paired-loci/bcr-phylo-antn/v0/seed-0/n-sim-seqs-per-generation-15/obs-times-150/simu/selection/simu/event-0/simu'
+# cmd = '%s/bin/validation.py --outbase %s' % (bcr_phylo_path, outbase)
+# utils.run_ete_script(cmd, ete_path)
+# sys.exit()
+
+# ----------------------------------------------------------------------------------------
     norm_lineage_dist = list()
     nlineages = 0
-#    for node in true_tree.tree.traverse():
-    for node in true_tree.tree.iter_leaves():  # Iterate only through the leaves
-        if not node.frequency > 0:
-            continue
+    for node in true_tree.leaf_node_iter():
+        # if not node.frequency > 0:
+        #     continue
 
-        aln_res = align_lineages(node.sequence, true_tree.tree, inferred_tree.tree, known_root=known_root, allow_double_gap=allow_double_gap)
+        aln_res = align_lineages(node.sequence, true_tree, inferred_tree, known_root=known_root, allow_double_gap=allow_double_gap)
         if aln_res is  False:  # Skip lineages less than three members long
             continue
         align_t, align_i, final_score, max_penalty = aln_res
-        if freq_weigthing is True:
+        if freq_weighting is True:
             total_max_penalty = max_penalty * node.frequency
             total_lineage_dist = final_score * node.frequency
             # Normalize with the max penalty:

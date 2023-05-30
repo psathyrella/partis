@@ -162,6 +162,24 @@ def readlog(args, fname, metric, locus, ptntype):
     return {'time-reqd' : tvals[locus if ptntype=='single' else 'joint']}
 
 # ----------------------------------------------------------------------------------------
+def get_gcdyn_vals(metric, ptilestr, yfname):
+    if metric == 'dl-infer':  # more like a method than a metric -- this is performance of DL inference
+        def width_vals(fn): return [abs(float(l['Predicted']) - float(l['Truth'])) for l in utils.csvlines(fn)]
+        test_widths = width_vals(yfname)
+        if ptilestr == 'xscale-perf-width':
+            ytmpfo = {ptilestr :  numpy.mean(test_widths)}  # mean abs distance from true value
+        elif ptilestr == 'xscale-train-vs-test':
+            train_widths = width_vals(yfname.replace('test', 'train'))
+            ytmpfo = {ptilestr :  abs(numpy.mean(train_widths) - numpy.mean(test_widths))}  # mean abs distance from true value
+        else:
+            assert False
+    else:  # whereas this is comparing simulation to data
+        with open(yfname) as yfile:
+            yjfo = json.load(yfile)  # too slow with yaml
+        ytmpfo = {ptilestr : yjfo[ptilestr]}
+    return ytmpfo
+
+# ----------------------------------------------------------------------------------------
 # NOTE in some sense averaging over the ptiles from 75 to 100 is double counting (since e.g. the value at 75 is summing to 100), so it might make more sense to just take the value at 75 without averaging. But I think I like that it effectively over-weights the higher ptile values (since e.g. 100 occurs in every single one), plus this is used in a lot of places (e.g. in the paper) and i don't want to change it unless it's really wrong
 def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='affinity', per_x='per-seq', choice_grouping=None, single_value=False, distr_hists=False, spec_corr=False):  # the perfect line is higher for lbi, but lower for lbr, hence the abs(). Occasional values can go past/better than perfect, so maybe it would make sense to reverse sign for lbi/lbr rather than taking abs(), but I think this is better
     # ----------------------------------------------------------------------------------------
@@ -459,13 +477,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                         _, _, cpath = utils.read_output(yfname, skip_annotations=True)
                         ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
                 elif script_base == 'gcdyn':
-                    if metric == 'dl-infer':
-                        dvals = [abs(float(l['Predicted']) - float(l['Truth'])) for l in utils.csvlines(yfname)]
-                        ytmpfo = {ptilestr :  numpy.mean(dvals)}  # mean abs distance from true value
-                    else:
-                        with open(yfname) as yfile:
-                            yjfo = json.load(yfile)  # too slow with yaml
-                        ytmpfo = {ptilestr : yjfo[ptilestr]}
+                    ytmpfo = get_gcdyn_vals(metric, ptilestr, yfname)
                 else:
                     raise Exception('unhandled script base \'%s\'' % script_base)
             except IOError:  # os.path.exists() is too slow with this many files

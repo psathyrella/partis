@@ -25,7 +25,8 @@ pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct',
 all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'distance-0.01', 'distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
-after_actions = ['cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees']  + ptn_actions  # actions that come after simulation (e.g. partition)
+phylo_actions = ['iqtree']
+after_actions = ['cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees']  + ptn_actions + phylo_actions  # actions that come after simulation (e.g. partition)
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
@@ -108,6 +109,8 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         if single_file:
             # ofn += '/hmm/germline-sets/%s/%sv.fasta' % (locus, locus)
             ofn += '/hmm/all-mean-mute-freqs.csv'
+    elif action in phylo_actions:
+        ofn = '%s/selection-metrics.yaml' % outdir  # annotations are also there, in e.g. iqtree-annotations.yaml
     else:
         ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or is_single_chain(action))
     return ofn
@@ -168,6 +171,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         actstr = 'annotate'
     if args.merge_paired_partitions:
         actstr = 'merge-paired-partitions'
+    if action in phylo_actions:
+        actstr = 'get-selection-metrics'
     binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.bcr_phylo and action=='simu' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
     cmd = './bin/%s %s --paired-loci --%s-outdir %s' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action))
     cmd += ' --n-procs %d' % args.n_sub_procs
@@ -206,8 +211,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --paired-naive-hfrac-threshold-type likelihood'
         if action == 'star-partition':
             cmd += ' --subcluster-annotation-size None'
-        if action != 'get-selection-metrics':  # it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
-            cmd += ' --is-simu'
+        # if action != 'get-selection-metrics':  # UPDATE maybe want to do this always? it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
+        cmd += ' --is-simu'
         if action != 'cache-parameters':
             cmd += ' --refuse-to-cache-parameters'
         if 'synth-distance-' in action or 'vjcdr3-' in action or action in ['vsearch-partition', 'partition-lthresh', 'star-partition', 'annotate']:
@@ -228,6 +233,10 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
                 cmd += ' --plot-annotation-performance --only-csv-plots'
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
+        if action in phylo_actions:
+            assert False  # see todo
+            # TODO don't calculate coar here, just infer trees (either with get-selection-metrics or plot-partitions), then to get coar make a new script that compares true + inferred trees (i think by reading true and inferred annotation/partition files)
+            cmd += ' --tree-inference-method %s --selection-metrics-to-calculate coar' % action
 
     return cmd
 
@@ -348,7 +357,7 @@ if args.workdir is None:
 for action in args.actions:
     if action == 'parse-linearham-trees':
         parse_linearham_trees()
-    elif action in ['simu', 'cache-parameters'] + ptn_actions + plot_actions:
+    elif action in ['simu'] + after_actions + plot_actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots']:
         if args.dry:
