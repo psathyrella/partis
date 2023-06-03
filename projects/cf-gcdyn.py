@@ -215,7 +215,7 @@ def run_scan(action):
             continue
 
         if action in ['process'] + merge_actions:
-            ifn = ofname(args, varnames, vstrs, 'simu', ftype='pkl' if action=='merge-simu' else 'npy')
+            ifn = ofname(args, varnames, vstrs, 'simu')
             if not os.path.exists(ifn):  # do *not* use this, it'll delete it if --overwrite is set: utils.output_exists(args, ifn, debug=False):
                 n_missing_input += 1
                 continue
