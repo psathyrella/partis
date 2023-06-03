@@ -107,11 +107,18 @@ def odir(args, varnames, vstrs, action):
     return utils.svoutdir(args, varnames, vstrs, action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, pickle=False, trees=False): #, single_file=False):
-    if action == 'simu':
-        sfx = 'simu.pkl' if pickle else 'all-%s' % ('trees.nwk' if trees else 'seqs.fasta')
-    elif action == 'merge-simu':
-        sfx = 'merged-simu.pkl'
+def ofname(args, varnames, vstrs, action, ftype='npy'):
+    if action == 'merge-simu':
+        varnames = []
+        vstrs = []
+    if action in ['simu', 'merge-simu']:
+        ftstrs = {  # copied from gcdyn/scripts/multi-simulation.py
+            'fasta' : 'seqs',
+            'nwk' : 'trees',
+            'npy' : 'encoded-trees',
+            'pkl' : 'responses',
+        }
+        sfx = '%s.%s' % (ftstrs.get(ftype, 'simu'), ftype)
     elif action == 'process':
         sfx = 'diff-vals.yaml'
     elif action in ['dl-infer', 'dl-infer-merged']:
@@ -123,7 +130,7 @@ def ofname(args, varnames, vstrs, action, pickle=False, trees=False): #, single_
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
 
 # ----------------------------------------------------------------------------------------
-def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
+def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     if action in ['simu', 'merge-simu']:
         cmd = 'python %s/scripts/%s.py' % (args.gcddir, 'multi-simulation' if action=='simu' else 'combine-simu-files')
         if action == 'simu':
@@ -139,7 +146,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
                     vstr = vstr.replace(':', ' ')  # using nargs='+' syntax for these rather than partis-style colons
                 cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
         else:
-            cmd += ' %s --outfile %s' % (' '.join(all_simfns), ofname(args, [], [], action))
+            cmd += ' %s --outdir %s' % (' '.join(all_simdirs), ofname(args, [], [], action))
         if action == 'simu' and args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
@@ -147,7 +154,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
     elif action == 'process':
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged']:
-        cmd = './projects/gcdyn/scripts/dl-infer.py %s %s' % (ofname(args, [], [], 'merge-simu') if action=='dl-infer-merged' else ofname(args, varnames, vstrs, 'simu', pickle=True), os.path.dirname(ofname(args, varnames, vstrs, action)))
+        tfn, rfn = [ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype=ft) for ft in ['npy', 'pkl']]
+        cmd = './projects/gcdyn/scripts/dl-infer.py --tree-file %s --response-file %s --outdir %s' % (tfn, rfn, os.path.dirname(ofname(args, varnames, vstrs, action)))
         for vname, vstr in zip(varnames, vstrs):
             if vname in args.scan_vars['simu']:
                 continue
@@ -181,7 +189,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simfns=None):
 def run_scan(action):
     # ----------------------------------------------------------------------------------------
     def init_cmd(local_varnames, vstrs, ofn, icombo):
-        cmd = get_cmd(action, base_args, local_varnames, val_lists, vstrs, all_simfns=all_simfns)
+        cmd = get_cmd(action, base_args, local_varnames, val_lists, vstrs, all_simdirs=all_simdirs)
         # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, local_varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos.append({
             'cmd_str' : cmd,
@@ -196,7 +204,7 @@ def run_scan(action):
     if args.debug:
         print '   %s' % ' '.join(varnames)
     n_already_there, n_missing_input, ifn = 0, 0, None
-    all_simfns = []
+    all_simdirs = []
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
@@ -207,17 +215,17 @@ def run_scan(action):
             continue
 
         if action in ['process'] + merge_actions:
-            ifn = ofname(args, varnames, vstrs, 'simu', pickle=action=='merge-simu')
+            ifn = ofname(args, varnames, vstrs, 'simu', ftype='pkl' if action=='merge-simu' else 'npy')
             if not os.path.exists(ifn):  # do *not* use this, it'll delete it if --overwrite is set: utils.output_exists(args, ifn, debug=False):
                 n_missing_input += 1
                 continue
             if action in merge_actions:
-                all_simfns.append(ifn)
+                all_simdirs.append(os.path.dirname(ifn))
                 continue
 
         init_cmd(varnames, vstrs, ofn, icombo)
 
-    if action in merge_actions and len(all_simfns) > 0:
+    if action in merge_actions and len(all_simdirs) > 0:
         if action == 'merge-simu' and n_missing_input > 0:
             print '    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr()
         init_cmd([], [], ofn, 0)
