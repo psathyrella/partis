@@ -146,12 +146,13 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
                     vstr = vstr.replace(':', ' ')  # using nargs='+' syntax for these rather than partis-style colons
                 cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
         else:
-            cmd += ' %s --outdir %s' % (' '.join(all_simdirs), ofname(args, [], [], action))
+            cmd += ' %s --outdir %s' % (' '.join(all_simdirs), os.path.dirname(ofname(args, [], [], action)))
         if action == 'simu' and args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
         cmd = ' && '.join(cmd)
     elif action == 'process':
+        raise Exception('needs updating for new gcdyn file structure (no longer writing individual fasta for each tree, and individual tree files will also be in subdirs if using --n-sub-procs)')
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged']:
         tfn, rfn = [ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype=ft) for ft in ['npy', 'pkl']]
