@@ -164,15 +164,20 @@ def readlog(args, fname, metric, locus, ptntype):
 # ----------------------------------------------------------------------------------------
 def get_gcdyn_vals(metric, ptilestr, yfname):
     if metric == 'dl-infer':  # more like a method than a metric -- this is performance of DL inference
-        def width_vals(fn): return [abs(float(l['Predicted']) - float(l['Truth'])) for l in utils.csvlines(fn)]
-        test_widths = width_vals(yfname)
-        if ptilestr == 'xscale-perf-width':
-            ytmpfo = {ptilestr :  numpy.mean(test_widths)}  # mean abs distance from true value
-        elif ptilestr == 'xscale-train-vs-test':
-            train_widths = width_vals(yfname.replace('test', 'train'))
-            ytmpfo = {ptilestr :  abs(numpy.mean(train_widths) - numpy.mean(test_widths))}  # mean abs distance from true value
+        lines = {s : utils.csvlines(yfname.replace('test', s)) for s in ['train', 'test']}
+        tvals, pvals = {}, {}
+        for smpl in ['train', 'test']:
+            tvals[smpl], pvals[smpl] = [[float(l[k]) for l in lines[smpl]] for k in ['Truth', 'Predicted']]
+        def bias(smpl): return numpy.mean([p - t for t, p in zip(tvals[smpl], pvals[smpl])])
+        def variance(smpl):
+            meanval = numpy.mean(pvals[smpl])
+            return numpy.mean([(p - meanval)**2 for p in pvals[smpl]])
+        if 'bias' in ptilestr:
+            ytmpfo = {ptilestr : bias(ptilestr.split('-')[1])}
+        elif 'variance' in ptilestr:
+            ytmpfo = {ptilestr : variance(ptilestr.split('-')[1])}
         else:
-            assert False
+            raise Exception('unsupported metric %s' % ptilestr)
     else:  # whereas this is comparing simulation to data
         with open(yfname) as yfile:
             yjfo = json.load(yfile)  # too slow with yaml
