@@ -186,6 +186,9 @@ if len(meta_loci) == 0:  # default: no input locus info
 # then, for each sequence, choose the locus with the best-scoring match (in practice i doubt you ever really get multiple loci with matches)
 outfos = collections.OrderedDict(((l, []) for l in utils.sub_loci(args.ig_or_tr)))
 failed_seqs = []
+if args.debug > 1:
+    print '    printing scores for locus determination:'
+    n_skipped = 0
 for sfo in seqfos:
     if len(meta_loci) == 0:  # default: use vsearch match scores
         lscores = {l : sfo[l]['score'] if 'invalid' not in sfo[l] else 0 for l in utils.sub_loci(args.ig_or_tr)}
@@ -200,7 +203,12 @@ for sfo in seqfos:
         def lpstr(spair):
             l, s = spair
             return '%s %s' % (utils.locstr(l) if l==locus else l.replace('ig', ''), utils.color('red' if s!=0 else None, '%3d'%s))
-        print '   %s   %s' % ('  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)), sfo['name'])
+        if lscores.values().count(0) == 2:
+            n_skipped += 1
+        else:
+            print '       %s   %s' % ('  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)), sfo['name'])
+if args.debug > 1 and n_skipped > 0:
+    print '      skipped %d seqs with non-zero scores from only one locus' % n_skipped
 
 print 'totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_seqs) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_seqs)))
 assert sum(len(ofo) for ofo in outfos.values()) + len(failed_seqs) == len(seqfos)
@@ -215,7 +223,7 @@ if args.guess_pairing_info:
                 input_metafos[new_name] = input_metafos[ofo['name']]
                 del input_metafos[ofo['name']]
             ofo['name'] = new_name
-    guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separators, droplet_id_indices=args.droplet_id_indices) #, debug=2)
+    guessed_metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separators, droplet_id_indices=args.droplet_id_indices, debug=max(1, args.debug))
     for uid in set(guessed_metafos) & set(input_metafos):
         guessed_metafos[uid].update(input_metafos[uid])
     for uid, mfo in guessed_metafos.items():

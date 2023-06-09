@@ -1041,10 +1041,12 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, return_colo
     ulist = [uid]
     for sep in did_seps:  # recursively split by each sep character
         ulist = [s for u in ulist for s in u.split(sep)]
-    if any(i > len(ulist) - 2 for i in did_indices):
-        raise Exception('droplet id indices %s (out of %s) greater than len-1 (%d) of list %s after splitting by separators \'%s\' for uid \'%s\'' % ([i for i in did_indices if i > len(ulist) - 2], did_indices, len(ulist) - 1, ulist, did_seps, uid))
+    # update: i'm no longer requiring that the drople indices don't include the last chunk, now i'm letting the contig id be empty
+    # if any(i > len(ulist) - 2 for i in did_indices):
+    #     raise Exception('droplet id indices %s (out of %s) greater than len-1 (%d) of list %s after splitting by separators \'%s\' for uid \'%s\'' % ([i for i in did_indices if i > len(ulist) - 2], did_indices, len(ulist) - 1, ulist, did_seps, uid))
     did = did_seps[0].join(ulist[i] for i in did_indices)  # rejoin with just the first sep (if there was more than one), since doing otherwise would be complicated and i don't think it matters
-    cid = ulist[-1]  # just set the contig id to the last element, which is correct for [current] 10x data, and we don't care about it otherwise (NOTE if you change this, you'll have to update the return_colored stuff below)
+    cid = ulist[-1] if max(did_indices) < len(ulist) - 1 else ''  # normally just set the contig id to the last element, which is correct for [current] 10x data, except when we need the last element as part of the droplet id
+    # , and we don't care about it otherwise (NOTE if you change this, you'll have to update the return_colored stuff below)
     if debug:
         print '    droplet id separators%s: %s  indices: %s' % (' (set automatically)' if auto_set else '', did_seps, did_indices)
         print '       e.g. uid \'%s\' --> droplet id \'%s\' contig id \'%s\'' % (uid, did, cid)
@@ -1112,11 +1114,11 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
             metafos[sfo['name']].update(input_metafos[sfo['name']])
 
     if debug > 1:
-        print '        did     N     uids'
+        print '           did       N     uids'
         max_len = max(len(u) for u in metafos)
         dgpairs = [(did, list(dgroup)) for did, dgroup in get_droplet_groups(metafos.keys(), droplet_id_separators, droplet_id_indices)]
         for did, dgroup in sorted(dgpairs, key=lambda x: len(x[1]), reverse=True):
-            print '      %5s   %3d   %s' % (did, len(dgroup), '   '.join([did_fcn(u, return_colored=True)+(max_len-len(u))*' ' for u in dgroup]))
+            print '      %10s   %3d   %s' % (did, len(dgroup), '   '.join([did_fcn(u, return_colored=True)+(max_len-len(u))*' ' for u in dgroup]))
 
     return metafos
 
