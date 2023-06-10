@@ -26,7 +26,7 @@ script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 dl_metrics = ['xscale-%s-%s' % (s, m) for s in ['train', 'test'] for m in ['bias', 'variance']]
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists', 'all-dl'] + dl_metrics #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 after_actions = ['merge-simu', 'process', 'dl-infer', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
-plot_actions = []  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
+plot_actions = ['group-expts']  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
 
 # ----------------------------------------------------------------------------------------
@@ -41,6 +41,7 @@ parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
 parser.add_argument('--model-size-list')
+parser.add_argument('--n-trees-per-expt-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
 parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
@@ -54,7 +55,7 @@ parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--test', action='store_true', help='don\'t parallelize \'plot\' action')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--simu-extra-args')
-parser.add_argument('--inference-extra-args')
+parser.add_argument('--dl-extra-args')
 parser.add_argument('--plot-metrics', default='process', help='these can be either methods (paired-loci) or metrics (tree metrics), but they\'re called metrics in scanplot so that\'s what they have to be called everywhere')
 parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics), help='performance metrics (i.e. usually y axis) that we want to plot vs the scan vars. Only necessary if --plot-metrics are actually methods (as in cf-paired-loci.py).')
 parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
@@ -75,6 +76,7 @@ args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale', 'xshift', 'carry-cap', 'n-trials', 'n-seqs'],
     'dl-infer' : ['model-size'],
+    'group-expts' : ['model-size', 'n-trees-per-expt'],
 }
 for act in after_actions + plot_actions:
     if act not in args.scan_vars:
@@ -97,6 +99,8 @@ args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metri
 if 'all-dl' in args.perf_metrics:
     args.perf_metrics += dl_metrics
     args.perf_metrics.remove('all-dl')
+if 'group-expts' in args.plot_metrics and any('train' in m for m in args.perf_metrics):
+    raise Exception('can\'t plot any training metrics for \'group-expts\' but got: %s' % ' '.join(m for m in args.perf_metrics if 'train' in m))
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 args.empty_bin_range = utils.get_arg_list(args.empty_bin_range, floatify=True)
 
@@ -125,7 +129,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
         sfx = '%s.%s' % (ftstrs.get(ftype, 'simu'), ftype)
     elif action == 'process':
         sfx = 'diff-vals.yaml'
-    elif action in ['dl-infer', 'dl-infer-merged']:
+    elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         sfx = 'test.csv'
     elif action == 'partis':
         sfx = 'partition.yaml'
@@ -158,13 +162,20 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     elif action == 'process':
         raise Exception('needs updating for new gcdyn file structure (no longer writing individual fasta for each tree, and individual tree files will also be in subdirs if using --n-sub-procs)')
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
-    elif action in ['dl-infer', 'dl-infer-merged']:
+    elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         tfn, rfn = [ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype=ft) for ft in ['npy', 'pkl']]
-        cmd = './projects/gcdyn/scripts/dl-infer.py --tree-file %s --response-file %s --outdir %s' % (tfn, rfn, os.path.dirname(ofname(args, varnames, vstrs, action)))
+        if 'dl-infer' in action:
+            cmd = './projects/gcdyn/scripts/dl-infer.py --tree-file %s --response-file %s --outdir %s' % (tfn, rfn, os.path.dirname(ofname(args, varnames, vstrs, action)))
+            if args.dl_extra_args is not None:
+                cmd += ' %s' % args.dl_extra_args
+        else:
+            cmd = './projects/group-gcdyn-expts.py --test-file %s --outfile %s' % (ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
         for vname, vstr in zip(varnames, vstrs):
             if vname in args.scan_vars['simu']:
                 continue
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
+    # elif action in ['group-expts']:
+    #     cmd = './projects/group-gcdyn-expts.py --test-file %s --outfile %s' % (ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
     elif action == 'partis':
         # make a partition-only file
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
@@ -183,8 +194,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --treefname %s --parameter-dir %s/parameters --outfname %s' % (ofname(args, varnames, vstrs, 'simu'), ptnfn, ofname(args, varnames, vstrs, 'simu', trees=True), odir, ofname(args, varnames, vstrs, action))
         cmd += ' --initial-germline-dir %s --no-insertions-or-deletions --min-selection-metric-cluster-size 3' % args.gcreplay_germline_dir
         cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odir
-        if args.inference_extra_args is not None:
-            cmd += ' %s' % args.inference_extra_args
+        # if args.inference_extra_args is not None:
+        #     cmd += ' %s' % args.inference_extra_args
     else:
         assert False
     return cmd
@@ -250,10 +261,10 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 for action in args.actions:
-    if action in ['simu', ] + after_actions:
+    if action in ['simu', ] + after_actions + plot_actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots']:
-        plt_scn_vars = args.scan_vars['dl-infer']
+        plt_scn_vars = args.scan_vars['group-expts']
         if args.dry:
             print '  --dry: not plotting'
             continue

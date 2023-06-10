@@ -163,15 +163,15 @@ def readlog(args, fname, metric, locus, ptntype):
 
 # ----------------------------------------------------------------------------------------
 def get_gcdyn_vals(metric, ptilestr, yfname):
-    if metric == 'dl-infer':  # more like a method than a metric -- this is performance of DL inference
-        lines = {s : utils.csvlines(yfname.replace('test', s)) for s in ['train', 'test']}
-        tvals, pvals = {}, {}
-        for smpl in ['train', 'test']:
-            tvals[smpl], pvals[smpl] = [[float(l[k]) for l in lines[smpl]] for k in ['Truth', 'Predicted']]
-        def bias(smpl): return numpy.mean([p - t for t, p in zip(tvals[smpl], pvals[smpl])])
+    if metric in ['dl-infer', 'group-expts']:  # more like a method than a metric -- this is performance of DL inference
+        def getvals(vtype, smpl):
+            if smpl=='train' and not os.path.exists(yfname.replace('test', smpl)):  # normally we swallow the IOError, but that's when we just have one file that we're expecting but this (having two files) is weird/harder
+                raise Exception('test file exists but training file doesn\'t: %s' % os.path.dirname(yfname))
+            return [float(l[vtype]) for l in utils.csvlines(yfname.replace('test', smpl))]
+        def bias(smpl): return numpy.mean([p - t for t, p in zip(getvals('Truth', smpl), getvals('Predicted', smpl))])
         def variance(smpl):
-            meanval = numpy.mean(pvals[smpl])
-            return numpy.mean([(p - meanval)**2 for p in pvals[smpl]])
+            meanval = numpy.mean(getvals('Predicted', smpl))
+            return numpy.mean([(p - meanval)**2 for p in getvals('Predicted', smpl)])
         if 'bias' in ptilestr:
             ytmpfo = {ptilestr : bias(ptilestr.split('-')[1])}
         elif 'variance' in ptilestr:
@@ -722,7 +722,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         read_plot_info()
         outfo = []
         if len(plotvals) == 0:
-            print '  %s no plotvals for %s %s %s' % (utils.color('yellow', 'warning'), metric, per_x, choice_grouping)
+            print '  %s no plotvals for %s %s %s' % (utils.color('yellow', 'warning'), metric, per_x if per_x is not None else '', choice_grouping if choice_grouping is not None else '')
             return
         for ipv, pvkey in enumerate(plotvals):
             xvals, diffs_to_perfect = zip(*plotvals[pvkey])
