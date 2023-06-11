@@ -41,6 +41,7 @@ parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
 parser.add_argument('--model-size-list')
+parser.add_argument('--test-xscale-value-list')
 parser.add_argument('--n-trees-per-expt-list')
 parser.add_argument('--n-replicates', default=1, type=int)
 parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
@@ -48,6 +49,7 @@ parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs
 parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
 parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
 # scan fwk stuff (mostly):
+parser.add_argument('--print-all', action='store_true')
 parser.add_argument('--version', default='v0')
 parser.add_argument('--label', default='test')
 parser.add_argument('--dry', action='store_true')
@@ -75,8 +77,8 @@ parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale', 'xshift', 'carry-cap', 'n-trials', 'n-seqs'],
-    'dl-infer' : ['model-size'],
-    'group-expts' : ['model-size', 'n-trees-per-expt'],
+    'dl-infer' : ['model-size', 'test-xscale-value'],
+    'group-expts' : ['model-size', 'test-xscale-value', 'n-trees-per-expt'],
 }
 # NOTE stuff below here duplicates code in utils.process_scanvar_args()
 for act in after_actions + plot_actions:  # actions that happen after simu need to have all the simu scan vars included in them
@@ -104,7 +106,9 @@ if 'all-test-dl' in args.perf_metrics:
     args.perf_metrics += [m for m in dl_metrics if 'test' in m]
     args.perf_metrics.remove('all-test-dl')
 if 'group-expts' in args.plot_metrics and any('train' in m for m in args.perf_metrics):
-    raise Exception('can\'t plot any training metrics for \'group-expts\' but got: %s' % ' '.join(m for m in args.perf_metrics if 'train' in m))
+    acts_to_remove = [m for m in args.perf_metrics if 'train' in m]
+    print '    can\'t plot any training metrics for \'group-expts\' so removing: %s' % ' '.join(acts_to_remove)
+    args.perf_metrics = [m for m in args.perf_metrics if 'train' not in m]
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
 args.empty_bin_range = utils.get_arg_list(args.empty_bin_range, floatify=True)
 
@@ -175,8 +179,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         else:
             cmd = './projects/group-gcdyn-expts.py --test-file %s --outfile %s' % (ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
         for vname, vstr in zip(varnames, vstrs):
-            # if vname in args.scan_vars['simu']:
-            if vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer']:  # ick
+            if vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer']:  # ick
                 continue
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
     elif action == 'partis':
