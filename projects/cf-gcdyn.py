@@ -23,8 +23,8 @@ import clusterpath
 
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
-dl_metrics = ['xscale-%s-%s' % (s, m) for s in ['train', 'test'] for m in ['bias', 'variance']]
-all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists', 'all-dl'] + dl_metrics #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+dl_metrics = ['xscale-%s-%s' % (s, m) for s in ['train', 'test'] for m in ['bias', 'variance', 'mae']] + ['xscale-train-vs-test-mae']
+all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists', 'all-dl', 'all-test-dl'] + dl_metrics #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 after_actions = ['merge-simu', 'process', 'dl-infer', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = ['group-expts']  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
@@ -78,7 +78,8 @@ args.scan_vars = {
     'dl-infer' : ['model-size'],
     'group-expts' : ['model-size', 'n-trees-per-expt'],
 }
-for act in after_actions + plot_actions:
+# NOTE stuff below here duplicates code in utils.process_scanvar_args()
+for act in after_actions + plot_actions:  # actions that happen after simu need to have all the simu scan vars included in them
     if act not in args.scan_vars:
         args.scan_vars[act] = []
     args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
@@ -99,6 +100,9 @@ args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metri
 if 'all-dl' in args.perf_metrics:
     args.perf_metrics += dl_metrics
     args.perf_metrics.remove('all-dl')
+if 'all-test-dl' in args.perf_metrics:
+    args.perf_metrics += [m for m in dl_metrics if 'test' in m]
+    args.perf_metrics.remove('all-test-dl')
 if 'group-expts' in args.plot_metrics and any('train' in m for m in args.perf_metrics):
     raise Exception('can\'t plot any training metrics for \'group-expts\' but got: %s' % ' '.join(m for m in args.perf_metrics if 'train' in m))
 args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
@@ -171,11 +175,10 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         else:
             cmd = './projects/group-gcdyn-expts.py --test-file %s --outfile %s' % (ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
         for vname, vstr in zip(varnames, vstrs):
-            if vname in args.scan_vars['simu']:
+            # if vname in args.scan_vars['simu']:
+            if vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer']:  # ick
                 continue
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
-    # elif action in ['group-expts']:
-    #     cmd = './projects/group-gcdyn-expts.py --test-file %s --outfile %s' % (ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
     elif action == 'partis':
         # make a partition-only file
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))

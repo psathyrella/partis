@@ -172,10 +172,16 @@ def get_gcdyn_vals(metric, ptilestr, yfname):
         def variance(smpl):
             meanval = numpy.mean(getvals('Predicted', smpl))
             return numpy.mean([(p - meanval)**2 for p in getvals('Predicted', smpl)])
-        if 'bias' in ptilestr:
-            ytmpfo = {ptilestr : bias(ptilestr.split('-')[1])}
+        def mean_abs_err(smpl): return numpy.mean([abs(float(p) - float(t)) for t, p in zip(getvals('Truth', smpl), getvals('Predicted', smpl))])
+        smpl = ptilestr.split('-')[1]
+        if ptilestr == 'xscale-train-vs-test-mae':
+            ytmpfo = {ptilestr : abs(mean_abs_err('train') - mean_abs_err('test'))}
+        elif 'bias' in ptilestr:
+            ytmpfo = {ptilestr : bias(smpl)}
         elif 'variance' in ptilestr:
-            ytmpfo = {ptilestr : variance(ptilestr.split('-')[1])}
+            ytmpfo = {ptilestr : variance(smpl)}
+        elif 'mae' in ptilestr:
+            ytmpfo = {ptilestr : mean_abs_err(smpl)}  # mean abs distance from true value
         else:
             raise Exception('unsupported metric %s' % ptilestr)
     else:  # whereas this is comparing simulation to data
@@ -797,7 +803,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     log, adjust = '', {}
     if xvar == 'lb-tau' and len(all_xtks) > 1:
         ax.plot([1./args.seq_len, 1./args.seq_len], (ymin, ymax), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
-    if xvar in ['carry-cap', 'n-sim-events', 'n-leaves', 'biggest-logprob-cluster-to-calculate']:
+    if xvar in ['carry-cap', 'n-sim-events', 'n-leaves', 'biggest-logprob-cluster-to-calculate', 'n-trees-per-expt']:
         log = 'x'
 
     if ax.get_ylim()[1] < 1:

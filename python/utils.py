@@ -430,7 +430,7 @@ def add_scanvar_args(parser, script_base, all_perf_metrics):
 
 # ----------------------------------------------------------------------------------------
 def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics):
-    for act in after_actions + plot_actions:
+    for act in after_actions + plot_actions:  # actions that happen after simu need to have all the simu scan vars included in them
         if act not in args.scan_vars:
             args.scan_vars[act] = []
         args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]

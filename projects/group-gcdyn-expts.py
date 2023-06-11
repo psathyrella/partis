@@ -37,7 +37,6 @@ for tval, tlist in true_vals.items():
 print '      grouped into %d final lines with value counts: %s' % (len(final_vals), '  '.join('%.2f %d'%(v, len([l for l in final_vals if l['Truth']==v])) for v in true_vals))
 
 print '    writing %d lines to %s' % (len(final_vals), args.outfile)
-# TODO better printing
 utils.mkdir(args.outfile, isfile=True)
 with open(args.outfile, 'w') as ofile:
     writer = csv.DictWriter(ofile, final_vals[0].keys())
