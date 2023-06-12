@@ -95,6 +95,12 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
 
 # ----------------------------------------------------------------------------------------
+def add_ete_cmds(cmd):
+    cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
+    cmd = ' && '.join(cmd)
+    return cmd
+
+# ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     if action in ['simu', 'merge-simu']:
         cmd = 'python %s/scripts/%s.py' % (args.gcddir, 'multi-simulation' if action=='simu' else 'combine-simu-files')
@@ -103,19 +109,18 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             if args.test:
                 cmd += ' --test'
             for iarg in range(len(base_args)):  # using nargs='+' syntax for these rather than partis-style colons
-                if any('--'+astr in base_args[iarg] for astr in ['xscale', 'xshift']):
+                if any('--'+astr in base_args[iarg] for astr in args.str_list_vars):
                     base_args[iarg] = base_args[iarg].replace(':', ' ')
             cmd += ' %s' % ' '.join(base_args)
             for vname, vstr in zip(varnames, vstrs):
-                if vname in ['xscale', 'xshift']:
+                if vname in args.str_list_vars:
                     vstr = vstr.replace(':', ' ')  # using nargs='+' syntax for these rather than partis-style colons
                 cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
         else:
             cmd += ' %s --outdir %s' % (' '.join(all_simdirs), os.path.dirname(ofname(args, [], [], action)))
         if action == 'simu' and args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
-        cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
-        cmd = ' && '.join(cmd)
+        cmd = add_ete_cmds(cmd)
     elif action == 'process':
         raise Exception('needs updating for new gcdyn file structure (no longer writing individual fasta for each tree, and individual tree files will also be in subdirs if using --n-sub-procs)')
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
@@ -126,7 +131,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
         else:
-            cmd = './projects/group-gcdyn-expts.py --test-file %s --outfile %s' % (ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
+            cmd = 'python %s/scripts/group-gcdyn-expts.py --test-file %s --outfile %s' % (args.gcddir, ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
+            cmd = add_ete_cmds(cmd)
         for vname, vstr in zip(varnames, vstrs):
             if vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer']:  # ick
                 continue
@@ -203,7 +209,7 @@ def run_scan(action):
             print '    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr()
         init_cmd([], [], ofn, 0)
 
-    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=action in ['simu', 'merge-simu'])
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=any('conda activate' in c['cmd_str'] for c in cmdfos))  # action in ['simu', 'merge-simu', 'group-expts'])
 
 # ----------------------------------------------------------------------------------------
 def get_fnfcn(method, pmetr):  # have to adjust signature before passing to fcn in scavars
