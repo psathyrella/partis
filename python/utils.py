@@ -401,18 +401,19 @@ def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, 
             run_cmds(cmdfos, debug='write:%s'%logfname, n_max_procs=args.n_max_procs, allow_failure=True, shell=shell)
 
 # ----------------------------------------------------------------------------------------
-def add_scanvar_args(parser, script_base, all_perf_metrics):
+def add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='partition'):
     parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
     parser.add_argument('--version', default='v0')
     parser.add_argument('--label', default='test')
     parser.add_argument('--dry', action='store_true')
+    parser.add_argument('--print-all', action='store_true')
     parser.add_argument('--paired-loci', action='store_true', help='same as partis arg')
     parser.add_argument('--overwrite', action='store_true')
     parser.add_argument('--test', action='store_true', help='don\'t parallelize \'plot\' action')
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--simu-extra-args', help='extra args to pass for simulation step')
     parser.add_argument('--inference-extra-args', help='extra args to pass to inference steps')
-    parser.add_argument('--plot-metrics', default='partition', help='these can be either methods (paired-loci) or metrics (tree metrics), but they\'re called metrics in scanplot so that\'s what they have to be called everywhere')
+    parser.add_argument('--plot-metrics', default=default_plot_metric, help='these can be either methods (paired-loci) or metrics (tree metrics), but they\'re called metrics in scanplot so that\'s what they have to be called everywhere')
     parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics), help='performance metrics (i.e. usually y axis) that we want to plot vs the scan vars. Only necessary if --plot-metrics are actually methods (as in cf-paired-loci.py).')
     parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
     parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
@@ -441,9 +442,6 @@ def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics):
         if act not in args.scan_vars:
             args.scan_vars[act] = []
         args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
-    args.str_list_vars = []  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
-    args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
-    args.bool_args = []  # need to keep track of bool args separately (see add_to_scan_cmd())
 
     args.actions = get_arg_list(args.actions, choices=['simu', 'plot', 'combine-plots'] + after_actions + plot_actions)
     args.plot_metrics = get_arg_list(args.plot_metrics)

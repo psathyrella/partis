@@ -36,6 +36,9 @@ args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'dataset-in'],
 }
+args.str_list_vars = []  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
+args.bool_args = []  # need to keep track of bool args separately (see add_to_scan_cmd())
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 
 # ----------------------------------------------------------------------------------------

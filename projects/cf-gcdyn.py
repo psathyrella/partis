@@ -32,8 +32,6 @@ merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all sca
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simu:merge-simu:process:plot')  # dl-infer (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
-parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
-parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--birth-response-list')
 parser.add_argument('--xscale-list')
 parser.add_argument('--xshift-list')
@@ -41,64 +39,23 @@ parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
 parser.add_argument('--model-size-list')
-parser.add_argument('--test-xscale-value-list')
+parser.add_argument('--test-xscale-values-list')
 parser.add_argument('--n-trees-per-expt-list')
-parser.add_argument('--n-replicates', default=1, type=int)
-parser.add_argument('--iseeds', help='if set, only run these replicate indices (i.e. these corresponds to the increment *above* the random seed)')
-parser.add_argument('--n-max-procs', type=int, help='Max number of *child* procs (see --n-sub-procs). Default (None) results in no limit.')
-parser.add_argument('--n-sub-procs', type=int, default=1, help='Max number of *grandchild* procs (see --n-max-procs)')
-parser.add_argument('--random-seed', default=0, type=int, help='note that if --n-replicates is greater than 1, this is only the random seed of the first replicate')
-# scan fwk stuff (mostly):
-parser.add_argument('--print-all', action='store_true')
-parser.add_argument('--version', default='v0')
-parser.add_argument('--label', default='test')
-parser.add_argument('--dry', action='store_true')
-parser.add_argument('--overwrite', action='store_true')
-parser.add_argument('--test', action='store_true', help='don\'t parallelize \'plot\' action')
-parser.add_argument('--debug', action='store_true')
-parser.add_argument('--simu-extra-args')
+utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
 parser.add_argument('--dl-extra-args')
-parser.add_argument('--plot-metrics', default='process', help='these can be either methods (paired-loci) or metrics (tree metrics), but they\'re called metrics in scanplot so that\'s what they have to be called everywhere')
-parser.add_argument('--perf-metrics', default=':'.join(all_perf_metrics), help='performance metrics (i.e. usually y axis) that we want to plot vs the scan vars. Only necessary if --plot-metrics are actually methods (as in cf-paired-loci.py).')
-parser.add_argument('--zip-vars', help='colon-separated list of variables for which to pair up values sequentially, rather than doing all combinations')
-parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of the final comparison plots')
-parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
-parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm %] when --final-plot-x-var is scratch-mute-freq)')
-parser.add_argument('--pvks-to-plot', help='only plot these line/legend values when combining plots')
-parser.add_argument('--use-val-cfgs', action='store_true', help='use plotting.val_cfgs dict (we can\'t always use it)')
-parser.add_argument('--plot-metric-extra-strs', help='extra strs for each metric in --plot-metrics (i.e. corresponding to what --extra-plotstr was set to during get-tree-metrics for that metric)')
-parser.add_argument('--dont-plot-extra-strs', action='store_true', help='while we still use the strings in --plot-metric-extra-strs to find the right dir to get the plot info from, we don\'t actually put the str in the plot (i.e. final plot versions where we don\'t want to see which dtr version it is)')
-parser.add_argument('--combo-extra-str', help='extra label for combine-plots action i.e. write to combined-%s/ subdir instead of combined/')
-parser.add_argument('--make-hist-plots', action='store_true')
-parser.add_argument('--empty-bin-range', help='remove empty bins only outside this range (will kick a warning if this ignores any non-empty bins)')
-parser.add_argument('--workdir')  # default set below
+parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale', 'xshift', 'carry-cap', 'n-trials', 'n-seqs'],
-    'dl-infer' : ['model-size', 'test-xscale-value'],
-    'group-expts' : ['model-size', 'test-xscale-value', 'n-trees-per-expt'],
+    'dl-infer' : ['model-size', 'test-xscale-values'],
+    'group-expts' : ['model-size', 'test-xscale-values', 'n-trees-per-expt'],
 }
-# NOTE stuff below here duplicates code in utils.process_scanvar_args()
-for act in after_actions + plot_actions:  # actions that happen after simu need to have all the simu scan vars included in them
-    if act not in args.scan_vars:
-        args.scan_vars[act] = []
-    args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
-args.str_list_vars = ['xscale', 'xshift']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['xscale', 'xshift', 'test-xscale-values']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
-
-args.actions = utils.get_arg_list(args.actions, choices=['simu', 'plot', 'combine-plots', ] + after_actions + plot_actions)
-args.plot_metrics = utils.get_arg_list(args.plot_metrics)
-args.zip_vars = utils.get_arg_list(args.zip_vars)
-args.plot_metric_extra_strs = utils.get_arg_list(args.plot_metric_extra_strs)
-if args.plot_metric_extra_strs is None:
-    args.plot_metric_extra_strs = ['' for _ in args.plot_metrics]
-if len(args.plot_metrics) != len(args.plot_metric_extra_strs):
-    raise Exception('--plot-metrics %d not same length as --plot-metric-extra-strs %d' % (len(args.plot_metrics), len(args.plot_metric_extra_strs)))
-args.pvks_to_plot = utils.get_arg_list(args.pvks_to_plot)
-args.perf_metrics = utils.get_arg_list(args.perf_metrics, choices=all_perf_metrics)
+utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 if 'all-dl' in args.perf_metrics:
     args.perf_metrics += dl_metrics
     args.perf_metrics.remove('all-dl')
@@ -109,14 +66,6 @@ if 'group-expts' in args.plot_metrics and any('train' in m for m in args.perf_me
     acts_to_remove = [m for m in args.perf_metrics if 'train' in m]
     print '    can\'t plot any training metrics for \'group-expts\' so removing: %s' % ' '.join(acts_to_remove)
     args.perf_metrics = [m for m in args.perf_metrics if 'train' not in m]
-args.iseeds = utils.get_arg_list(args.iseeds, intify=True)
-args.empty_bin_range = utils.get_arg_list(args.empty_bin_range, floatify=True)
-
-utils.get_scanvar_arg_lists(args)
-if args.final_plot_xvar is None:  # set default value based on scan vars
-    base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
-    svars = [v for v in varnames if v != 'seed']
-    args.final_plot_xvar = svars[0] if len(svars) > 0 else 'seed'  # if we're not scanning over any vars, i'm not sure what we should use
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
@@ -181,6 +130,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         for vname, vstr in zip(varnames, vstrs):
             if vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer']:  # ick
                 continue
+            if vname in args.str_list_vars:
+                vstr = vstr.replace(':', ' ')  # using nargs='+' syntax for these rather than partis-style colons
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
     elif action == 'partis':
         # make a partition-only file
