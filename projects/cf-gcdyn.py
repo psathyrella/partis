@@ -122,7 +122,6 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             cmd += ' %s' % args.simu_extra_args
         cmd = add_ete_cmds(cmd)
     elif action == 'process':
-        raise Exception('needs updating for new gcdyn file structure (no longer writing individual fasta for each tree, and individual tree files will also be in subdirs if using --n-sub-procs)')
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         tfn, rfn = [ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype=ft) for ft in ['npy', 'pkl']]

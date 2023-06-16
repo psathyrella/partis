@@ -4886,13 +4886,15 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
         return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
-def memory_usage_fraction(debug=False):  # return fraction of total system memory that this process is using (as always with memory things, this is an approximation)
+# return fraction of total system memory that this process is using (as always with memory things, this is an approximation)
+# NOTE this is exactly the same number as the stuff in ham/src/bcrutils.cc, so *don't* copy that here and convert to python (again)
+def memory_usage_fraction(extra_str='', debug=False):
     if platform.system() != 'Linux':
         print '\n  note: utils.memory_usage_fraction() needs testing on platform \'%s\' to make sure unit conversions don\'t need changing' % platform.system()
     current_usage = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)  # kb
     total = float(psutil.virtual_memory().total) / 1000.  # returns bytes, then convert to kb
     if debug:
-        print '  using %.0f / %.0f MB = %.4f' % (current_usage / 1000, total / 1000, current_usage / total)
+        print '  %susing %.0f / %.0f MB = %.4f' % (extra_str, current_usage / 1000, total / 1000, current_usage / total)
     return current_usage / total
 
 # ----------------------------------------------------------------------------------------

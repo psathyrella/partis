@@ -139,6 +139,18 @@ def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, add_s
     return lp_infos
 
 # ----------------------------------------------------------------------------------------
+# similar to read_lpair_output_files(), except you don't need to pass in the file name fcn (adding this late, so could probably use it in a lot more places)
+def read_paired_dir(pdir, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def getofn(ltmp, lpair=None):
+        ofn = paired_fn(pdir, ltmp, lpair=lpair, suffix='.yaml')
+        if not os.path.exists(ofn):  # first look for simu file (e.g. igh.yaml), if it's not there look for the partition output file
+            ofn = paired_fn(pdir, ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
+        return ofn
+    # ----------------------------------------------------------------------------------------
+    return read_lpair_output_files(utils.locus_pairs['ig'], getofn, debug=debug)
+
+# ----------------------------------------------------------------------------------------
 def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=False, dont_write_git_info=False):
     def glpf(p, k, l):  # NOTE duplicates code in concat_heavy_chain()
         if lp_infos[tuple(p)][k] is None:

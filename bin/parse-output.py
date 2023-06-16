@@ -13,6 +13,7 @@ sys.path.insert(1, partis_dir + '/python')
 import utils
 import glutils
 from clusterpath import ClusterPath
+import paircluster
 
 # ----------------------------------------------------------------------------------------
 def count_plot(tglfo, tlist, plotdir, paired_loci=None):
@@ -135,13 +136,7 @@ if utils.getsuffix(args.infile) in ['.csv', '.tsv'] and args.glfo_dir is None:
 if args.paired:
     if not os.path.isdir(args.infile):
         raise Exception('--infile \'%s\' either doesn\'t exist or it isn\'t a directory' % args.infile)
-    import paircluster
-    def getofn(ltmp, lpair=None):
-        ofn = paircluster.paired_fn(args.infile, ltmp, lpair=lpair, suffix='.yaml')
-        if not os.path.exists(ofn):  # first look for simy file (just e.g. igh.yaml), if it's not there look for the partition output file
-            ofn = paircluster.paired_fn(args.infile, ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
-        return ofn
-    lp_infos = paircluster.read_lpair_output_files(utils.locus_pairs['ig'], getofn)
+    lp_infos = paircluster.read_paired_dir(args.infile)
 else:
     if args.airr_input:
         glfo, glfd = None, args.glfo_dir
