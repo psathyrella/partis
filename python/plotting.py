@@ -559,7 +559,7 @@ def make_mean_hist(hists, ignore_empty_bins=False):
             vlist = [v for v in vlist if v > 0]
         if len(vlist) == 0:
             continue
-        meanhist.set_ibin(ib, numpy.mean(vlist), error=(numpy.std(vlist, ddof=1) / math.sqrt(len(vlist))))
+        meanhist.set_ibin(ib, numpy.mean(vlist), error=0 if len(vlist)==1 else (numpy.std(vlist, ddof=1) / math.sqrt(len(vlist))))
     # meanhist.normalize()
     return meanhist
 
