@@ -102,20 +102,30 @@ def add_ete_cmds(cmd):
 
 # ----------------------------------------------------------------------------------------
 def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
+    # ----------------------------------------------------------------------------------------
+    def add_scan_args(cmd, skip_fcn=None):  # using nargs='+' syntax for these rather than partis-style colons
+        for barg in base_args:  # NOTE don't modify base_args here
+            bname, bstr = barg.replace('--', '').split(' ')  # barg is both arg and val e.g. '--arg val'
+            if skip_fcn is not None and skip_fcn(bname):
+                continue
+            if bname in args.str_list_vars:
+                bstr = bstr.replace(':', ' ')
+            cmd += ' --%s %s' % (bname, bstr)
+        for vname, vstr in zip(varnames, vstrs):
+            if skip_fcn is not None and skip_fcn(vname):
+                continue
+            if vname in args.str_list_vars:
+                vstr = vstr.replace(':', ' ')
+            cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
+        return cmd
+    # ----------------------------------------------------------------------------------------
     if action in ['simu', 'merge-simu']:
         cmd = 'python %s/scripts/%s.py' % (args.gcddir, 'multi-simulation' if action=='simu' else 'combine-simu-files')
         if action == 'simu':
             cmd += ' --debug --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
             if args.test:
                 cmd += ' --test'
-            for iarg in range(len(base_args)):  # using nargs='+' syntax for these rather than partis-style colons
-                if any('--'+astr in base_args[iarg] for astr in args.str_list_vars):
-                    base_args[iarg] = base_args[iarg].replace(':', ' ')
-            cmd += ' %s' % ' '.join(base_args)
-            for vname, vstr in zip(varnames, vstrs):
-                if vname in args.str_list_vars:
-                    vstr = vstr.replace(':', ' ')  # using nargs='+' syntax for these rather than partis-style colons
-                cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
+            cmd = add_scan_args(cmd)
         else:
             cmd += ' %s --outdir %s' % (' '.join(all_simdirs), os.path.dirname(ofname(args, [], [], action)))
         if action == 'simu' and args.simu_extra_args is not None:
@@ -132,12 +142,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         else:
             cmd = 'python %s/scripts/group-gcdyn-expts.py --test-file %s --outfile %s' % (args.gcddir, ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
             cmd = add_ete_cmds(cmd)
-        for vname, vstr in zip(varnames, vstrs):
-            if vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer']:  # ick
-                continue
-            if vname in args.str_list_vars:
-                vstr = vstr.replace(':', ' ')  # using nargs='+' syntax for these rather than partis-style colons
-            cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
+        cmd = add_scan_args(cmd, skip_fcn=lambda vname: vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer'])  # ick
     elif action == 'partis':
         # make a partition-only file
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
