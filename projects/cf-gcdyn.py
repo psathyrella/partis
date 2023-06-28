@@ -56,6 +56,8 @@ args.str_list_vars = ['xscale', 'xshift', 'test-xscale-values']  #  scan vars th
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
+if args.inference_extra_args is not None:
+    raise Exception('not used atm')
 if 'all-dl' in args.perf_metrics:
     args.perf_metrics += dl_metrics
     args.perf_metrics.remove('all-dl')
@@ -128,6 +130,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             cmd = add_scan_args(cmd)
         else:
             cmd += ' %s --outdir %s' % (' '.join(all_simdirs), os.path.dirname(ofname(args, [], [], action)))
+        if args.n_sub_procs > 1:
+            cmd += ' --n-sub-procs %d' % args.n_sub_procs
         if action == 'simu' and args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         cmd = add_ete_cmds(cmd)
@@ -137,11 +141,11 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         tfn, rfn = [ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype=ft) for ft in ['npy', 'pkl']]
         if 'dl-infer' in action:
             cmd = './projects/gcdyn/scripts/dl-infer.py --tree-file %s --response-file %s --outdir %s' % (tfn, rfn, os.path.dirname(ofname(args, varnames, vstrs, action)))
-            if args.dl_extra_args is not None:
-                cmd += ' %s' % args.dl_extra_args
         else:
             cmd = 'python %s/scripts/group-gcdyn-expts.py --test-file %s --outfile %s' % (args.gcddir, ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
             cmd = add_ete_cmds(cmd)
+        if args.dl_extra_args is not None:
+            cmd += ' %s' % args.dl_extra_args
         cmd = add_scan_args(cmd, skip_fcn=lambda vname: vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer'])  # ick
     elif action == 'partis':
         # make a partition-only file
