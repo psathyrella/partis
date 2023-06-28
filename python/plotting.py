@@ -648,6 +648,8 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'xscale-test-mae' : 'MAE\nxscale test',
            'xscale-train-vs-test' : 'xscale\nabs(train - test) width',
            'xshift' : 'xshift\nmean abs(true - inf)',
+           'xshift-test-mae' : 'MAE\nxshift test',
+           'xshift-train-vs-test' : 'xshift\nabs(train - test) width',
            'n-trials' : 'N trees',
            'n-trees-per-expt' : 'N trees/expt.',
            }

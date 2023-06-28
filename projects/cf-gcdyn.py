@@ -8,6 +8,7 @@ import math
 import collections
 import multiprocessing
 import glob
+import copy
 
 sys.path.insert(1, './python')
 import utils
@@ -23,7 +24,7 @@ import clusterpath
 
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
-dl_metrics = ['xscale-%s-%s' % (s, m) for s in ['train', 'test'] for m in ['bias', 'variance', 'mae']] + ['xscale-train-vs-test-mae']
+dl_metrics = ['%s-%s-%s' % (p, s, m) for s in ['train', 'test'] for m in ['bias', 'variance', 'mae'] for p in ['xscale', 'xshift']] + ['xscale-train-vs-test-mae']
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists', 'all-dl', 'all-test-dl'] + dl_metrics #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 after_actions = ['merge-simu', 'process', 'dl-infer', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = ['group-expts']  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
@@ -43,6 +44,7 @@ parser.add_argument('--test-xscale-values-list')
 parser.add_argument('--n-trees-per-expt-list')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
 parser.add_argument('--dl-extra-args')
+parser.add_argument('--params-to-predict', default='xscale:xshift')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
@@ -56,6 +58,7 @@ args.str_list_vars = ['xscale', 'xshift', 'test-xscale-values']  #  scan vars th
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
+args.params_to_predict = utils.get_arg_list(args.params_to_predict, choices=['xscale', 'xshift'])
 if args.inference_extra_args is not None:
     raise Exception('not used atm')
 if 'all-dl' in args.perf_metrics:
@@ -68,6 +71,10 @@ if 'group-expts' in args.plot_metrics and any('train' in m for m in args.perf_me
     acts_to_remove = [m for m in args.perf_metrics if 'train' in m]
     print '    can\'t plot any training metrics for \'group-expts\' so removing: %s' % ' '.join(acts_to_remove)
     args.perf_metrics = [m for m in args.perf_metrics if 'train' not in m]
+if args.params_to_predict is not None:
+    before_metrics = copy.copy(args.perf_metrics)
+    args.perf_metrics = [m for m in args.perf_metrics if any(p in m for p in args.params_to_predict)]
+    print '    restricting perf metrics to correspond to --params-to-predict (removed %s)' % (' '.join(m for m in before_metrics if m not in args.perf_metrics))
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
@@ -141,11 +148,13 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         tfn, rfn = [ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype=ft) for ft in ['npy', 'pkl']]
         if 'dl-infer' in action:
             cmd = './projects/gcdyn/scripts/dl-infer.py --tree-file %s --response-file %s --outdir %s' % (tfn, rfn, os.path.dirname(ofname(args, varnames, vstrs, action)))
+            if args.dl_extra_args is not None:
+                cmd += ' %s' % args.dl_extra_args
         else:
             cmd = 'python %s/scripts/group-gcdyn-expts.py --test-file %s --outfile %s' % (args.gcddir, ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
             cmd = add_ete_cmds(cmd)
-        if args.dl_extra_args is not None:
-            cmd += ' %s' % args.dl_extra_args
+        if args.params_to_predict is not None:
+            cmd += ' --params-to-predict %s' % ' '.join(args.params_to_predict)
         cmd = add_scan_args(cmd, skip_fcn=lambda vname: vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer'])  # ick
     elif action == 'partis':
         # make a partition-only file

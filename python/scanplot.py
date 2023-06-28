@@ -168,12 +168,12 @@ def get_gcdyn_vals(metric, ptilestr, yfname):
             if smpl=='train' and not os.path.exists(yfname.replace('test', smpl)):  # normally we swallow the IOError, but that's when we just have one file that we're expecting but this (having two files) is weird/harder
                 raise Exception('test file exists but training file doesn\'t: %s' % os.path.dirname(yfname))
             return [float(l[vtype]) for l in utils.csvlines(yfname.replace('test', smpl))]
-        def bias(smpl): return numpy.mean([p - t for t, p in zip(getvals('Truth', smpl), getvals('Predicted', smpl))])
+        def bias(smpl): return numpy.mean([p - t for t, p in zip(getvals('%s-truth'%param, smpl), getvals('%s-predicted'%param, smpl))])
         def variance(smpl):
-            meanval = numpy.mean(getvals('Predicted', smpl))
-            return numpy.mean([(p - meanval)**2 for p in getvals('Predicted', smpl)])
-        def mean_abs_err(smpl): return numpy.mean([abs(float(p) - float(t)) for t, p in zip(getvals('Truth', smpl), getvals('Predicted', smpl))])
-        smpl = ptilestr.split('-')[1]
+            meanval = numpy.mean(getvals('%s-predicted'%param, smpl))
+            return numpy.mean([(p - meanval)**2 for p in getvals('%s-predicted'%param, smpl)])
+        def mean_abs_err(smpl): return numpy.mean([abs(float(p) - float(t)) for t, p in zip(getvals('%s-truth'%param, smpl), getvals('%s-predicted'%param, smpl))])
+        param, smpl = ptilestr.split('-')[0], ptilestr.split('-')[1]
         if ptilestr == 'xscale-train-vs-test-mae':
             ytmpfo = {ptilestr : abs(mean_abs_err('train') - mean_abs_err('test'))}
         elif 'bias' in ptilestr:
