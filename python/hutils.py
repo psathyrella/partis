@@ -183,3 +183,14 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
         raise Exception('overflows in ' + hist_label)
 
     return hist
+
+# ----------------------------------------------------------------------------------------
+def multi_hist_filled_bin_xbounds(hists):
+    xmin, xmax = None, None
+    for htmp in hists:
+        txb = htmp.get_filled_bin_xbounds()
+        if xmin is None or txb[0] < xmin:
+            xmin = txb[0]
+        if xmax is None or txb[1] > xmax:
+            xmax = txb[1]
+    return (xmin, xmax)
