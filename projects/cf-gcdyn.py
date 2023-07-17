@@ -146,9 +146,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     elif action == 'process':
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
-        tfn, rfn = [ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype=ft) for ft in ['npy', 'pkl']]
         if 'dl-infer' in action:
-            cmd = './projects/gcdyn/scripts/dl-infer.py --tree-file %s --response-file %s --outdir %s' % (tfn, rfn, os.path.dirname(ofname(args, varnames, vstrs, action)))
+            cmd = './projects/gcdyn/scripts/dl-infer.py --indir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
         else:
