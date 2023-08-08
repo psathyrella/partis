@@ -4810,8 +4810,8 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfna
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
     retval = simplerun('R --slave -f %s' % cmdfname, return_out_err=return_out_err, logfname=logfname, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
-    os.remove(cmdfname)  # different sort of <cmdfname> to that in simplerun()
     if remove_workdir:
+        os.remove(cmdfname)  # different sort of <cmdfname> to that in simplerun()
         os.rmdir(workdir)
     if return_out_err:
         outstr, errstr = retval

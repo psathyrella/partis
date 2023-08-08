@@ -11,7 +11,7 @@ import itertools
 
 import utils
 
-mdir = "%s/work/partis/datascripts/meta/goo-dengue-10x" % os.getenv('HOME')
+mdir = "%s/work/partis/datascripts/meta/goo-dengue-10x/gex-markers" % os.getenv('HOME')
 fabio_fname = '%s/fabio-pb-markers.tsv' % mdir
 waickfname = '%s/waickman-markers.csv' % mdir
 msigdbfname = '%s/msigdb-markers.csv' % mdir
@@ -346,11 +346,8 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
     # return barcode_vals, rotation_vals, umap_vals, cluster_vals
 
 # ----------------------------------------------------------------------------------------
-def run_gex(feature_matrix_path, mname, outdir, make_plots=True):
-    allowed_mnames = ['hvg', 'fabio', 'waick', 'msigdb']
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    rcmds = [loadcmd(l) for l in ['DropletUtils', 'scater', 'scran', 'pheatmap', 'celldex', 'SingleR', 'GSEABase', 'AUCell']]
+def get_init_cmds(feature_matrix_path):
+    rcmds = [loadcmd(l) for l in ['DropletUtils', 'scater', 'scran', 'pheatmap', 'celldex', 'SingleR', 'GSEABase', 'AUCell']]  # i think some of these are only required for stuff in the next fcn, but i'm not checking
     rcmds += [
         'options(width=1000)',
         'sce <- read10xCounts("%s")' % feature_matrix_path,
@@ -360,9 +357,6 @@ def run_gex(feature_matrix_path, mname, outdir, make_plots=True):
         'qcstats <- perCellQCMetrics(sce, subsets=list(Mito=is.mito))',
         'filtered <- quickPerCellQC(qcstats, percent_subsets="subsets_Mito_percent")',  # identifies + removes outliers (in several qc metrics)
         'sce <- sce[, !filtered$discard]',
-        'capture.output(colData(sce)$Barcode, file="%s/%s")' % (outdir, barcodefname),
-        # normalization
-        'sce <- logNormCounts(sce)',
 
         # # get reference labels from celldex (so we can remove HSCs) NOTE turning this off since it doesn't really change anything
         # 'ref <- celldex::BlueprintEncodeData()',  # get reference labels from cache or download
@@ -370,7 +364,35 @@ def run_gex(feature_matrix_path, mname, outdir, make_plots=True):
         # 'table(pred$labels)',
         # 'sce <- sce[, pred$labels=="B-cells"]',  # discard non-b-cells
         # 'pred <- pred[pred$labels=="B-cells", ]',
+
     ]
+    return rcmds
+
+# ----------------------------------------------------------------------------------------
+def write_gene_counts(feature_matrix_path, outdir, gene_name):  # would be nice to handle more than one gene, but i'd have to spend more time googling/chatgpt'ing R stuff
+    workdir = '%s/work' % outdir
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
+    rcmds = get_init_cmds(feature_matrix_path)
+    rcmds += ['sce <- logNormCounts(sce)']  # normalization
+    rcmds += ['gene_index <- which(rownames(assay(sce)) == \"%s\")' % gene_name,
+              'gene_counts <- assay(sce)[gene_index, ]',
+              'output_data <- data.frame(Cell = colData(sce)[2], %s_counts = gene_counts)' % gene_name,
+              'write.csv(output_data, file = \"%s/%s-counts.csv\", row.names = FALSE)' % (outdir, gene_name),
+              ]
+    utils.run_r(rcmds, workdir, logfname='%s/out'%outdir, dryrun=False)
+
+# ----------------------------------------------------------------------------------------
+def run_gex(feature_matrix_path, mname, outdir, make_plots=True):
+    allowed_mnames = ['hvg', 'fabio', 'waick', 'msigdb']
+    workdir = '%s/work' % outdir
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
+    rcmds = get_init_cmds(feature_matrix_path)
+    rcmds += ['capture.output(colData(sce)$Barcode, file="%s/%s")' % (outdir, barcodefname),
+              # normalization
+              'sce <- logNormCounts(sce)',
+              ]
     if mname == 'hvg':  # hvg (hypervariable genes): this is the dumb/default/no prior info choice, where you use the ~700 most variable genes in our sample
         rcmds += [
             'dec <- modelGeneVar(sce)',
@@ -409,4 +431,4 @@ def run_gex(feature_matrix_path, mname, outdir, make_plots=True):
     if mname != 'hvg':  # doesn't @#%$!$ing work any more (failes with "unable to find an inherited method for function AUCell_buildRankings for signature DelayedMatrix")
         rcmds += ctype_ann_cmds(outdir, mname_markers.replace('$gene', ''))
 
-    utils.run_r(rcmds, 'auto', logfname='%s/out'%outdir, dryrun=False)
+    utils.run_r(rcmds, workdir, logfname='%s/out'%outdir, dryrun=False)

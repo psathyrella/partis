@@ -3323,8 +3323,10 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                 mv = utils.get_single_entry(list(set([gsval(mpfo, c, xky) for c in 'hl'])))
                 if 'supernatant-' in xky or 'ic50-' in xky:  # colors that make sense for % neut values
                     mv = neut_col(xky, mv, lenfcn())
-                elif xky == 'alternate-uids':
+                elif xky in ['alternate-uids', 'jchain-counts']:
                     mv = utils.wfmt('' if mv is None else mv, lenfcn())
+                elif mv is None:
+                    raise Exception('need to handle %s to avoid None value' % xky)
                 return mv
             elif xky in smheads:
                 return utils.wfmt(gsvstr(gsval(mpfo, 'p', xky), xky), lenfcn())

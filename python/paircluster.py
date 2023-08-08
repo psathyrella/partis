@@ -242,10 +242,12 @@ def find_seq_pairs(antn_lists, ig_or_tr='ig'):
     return outfos
 
 # ----------------------------------------------------------------------------------------
-def get_all_antn_pairs(lp_infos, ig_or_tr='ig'):  # same as previous fcn, but lumps together both h+k and h+l, rather than just giving you one or the other
+def get_all_antn_pairs(lp_infos, size_sort=False, ig_or_tr='ig'):  # same as previous fcn, but lumps together both h+k and h+l, rather than just giving you one or the other
     antn_pairs = []
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
         antn_pairs += get_antn_pairs(lpair, lp_infos[tuple(lpair)])
+    if size_sort:
+        antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by sum of number of heavy and light uids
     return antn_pairs
 
 # ----------------------------------------------------------------------------------------
