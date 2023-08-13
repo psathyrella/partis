@@ -34,8 +34,10 @@ merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all sca
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='simu:merge-simu:process:plot')  # dl-infer (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
 parser.add_argument('--birth-response-list')
-parser.add_argument('--xscale-list')
-parser.add_argument('--xshift-list')
+parser.add_argument('--xscale-values-list')
+parser.add_argument('--xshift-values-list')
+parser.add_argument('--xscale-range-list')
+parser.add_argument('--xshift-range-list')
 parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
@@ -51,11 +53,11 @@ parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/g
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale', 'xshift', 'carry-cap', 'n-trials', 'n-seqs'],
+    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'carry-cap', 'n-trials', 'n-seqs'],
     'dl-infer' : ['model-size', 'test-xscale-values', 'test-xshift-values'],
     'group-expts' : ['model-size', 'test-xscale-values', 'test-xshift-values', 'n-trees-per-expt'],
 }
-args.str_list_vars = ['xscale', 'xshift', 'test-xscale-values', 'test-xshift-values']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'test-xscale-values', 'test-xshift-values']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
@@ -226,7 +228,7 @@ def run_scan(action):
             print '    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr()
         init_cmd([], [], ofn, 0)
 
-    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=any('conda activate' in c['cmd_str'] for c in cmdfos))  # action in ['simu', 'merge-simu', 'group-expts'])
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=any('conda activate' in c['cmd_str'] for c in cmdfos))
 
 # ----------------------------------------------------------------------------------------
 def get_fnfcn(method, pmetr):  # have to adjust signature before passing to fcn in scavars

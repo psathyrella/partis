@@ -1584,6 +1584,9 @@ def plot_lb_trees(args, metric_methods, baseplotdir, lines, ete_path, base_workd
         fnames += [['header', '%s (%s)'%(lb_metric, treeutils.default_inference_str if args.tree_inference_method is None else args.tree_inference_method)], []]  # header for html file
         for iclust, line in enumerate(lines):  # note that <min_selection_metric_cluster_size> was already applied in treeutils
             treestr = get_tree_in_line(line, is_true_line, aa='aa-lb' in lb_metric)
+            if treestr is None:
+                print '    None type tree'
+                continue
             qtis = None if args.queries_to_include is None else [q for q in args.queries_to_include if q in line['unique_ids']]  # NOTE make sure to *not* modify args.queries_to_include
             altids = [(u, au) for u, au in zip(line['unique_ids'], line['alternate-uids']) if au is not None] if 'alternate-uids' in line else None
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
