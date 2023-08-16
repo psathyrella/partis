@@ -423,7 +423,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         # ----------------------------------------------------------------------------------------
         def translate_heavy_tree(htree):
             trns = [(gsval(m, 'h', 'unique_ids'), c) for m, c in zip(metric_pairs, p_atn['unique_ids'])]  # translation from hid to the new combined h+l id we just made
-            treeutils.translate_labels(htree, trns)
+            treeutils.translate_labels(htree, trns, expect_missing=True)
             htree.scale_edges(len(h_atn['seqs'][0]) / float(len(p_atn['seqs'][0])))
             return htree, htree.as_string(schema='newick')
         # ----------------------------------------------------------------------------------------

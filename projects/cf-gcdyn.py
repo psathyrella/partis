@@ -53,7 +53,7 @@ parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/g
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'carry-cap', 'n-trials', 'n-seqs'],
+    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'carry-cap', 'n-trials', 'n-seqs', 'n-trees-per-param-set'],
     'dl-infer' : ['model-size', 'test-xscale-values', 'test-xshift-values'],
     'group-expts' : ['model-size', 'test-xscale-values', 'test-xshift-values', 'n-trees-per-expt'],
 }
@@ -153,7 +153,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
         else:
-            cmd = 'python %s/scripts/group-gcdyn-expts.py --test-file %s --outfile %s' % (args.gcddir, ofname(args, varnames, vstrs, 'dl-infer'), ofname(args, varnames, vstrs, action))
+            cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), os.path.dirname(ofname(args, varnames, vstrs, action)))
             cmd = add_ete_cmds(cmd)
         if args.params_to_predict is not None:
             cmd += ' --params-to-predict %s' % ' '.join(args.params_to_predict)

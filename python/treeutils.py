@@ -2357,7 +2357,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, dont_normalize_lbi=False, extra_s
 def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
                  train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, only_use_best_partition=False, glfo=None, tree_inference_outdir=None, debug=False):
     min_cluster_size = args.min_selection_metric_cluster_size  # default_min_selection_metric_cluster_size
-    print '  getting selection metrics: %s' % ' '.join(metrics_to_calc)
+    smdbgstr = '  getting selection metrics (%s)' % ' '.join(metrics_to_calc)
     if reco_info is not None:
         if not use_true_clusters:
             print '    note: getting selection metrics on simulation without setting <use_true_clusters> (i.e. probably without setting --simultaneous-true-clonal-seqs)'
@@ -2381,12 +2381,12 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_after = len(inf_lines_to_use)  # after removing the small ones
         if n_after == 0:
-            print '  no annotations for selection metrics'
+            print '  no inferred annotations for selection metrics'
             return
         treefos = None
         if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
             treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method, inf_outdir=tree_inference_outdir, glfo=glfo, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, debug=debug)
-        print '    calculating selection metrics for %d cluster%s with size%s: %s' % (n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
+        print '  %s with inferred lines: %d cluster%s with size%s %s' % (smdbgstr, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
         print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
         check_cluster_indices(args.cluster_indices, n_after, inf_lines_to_use)
         n_already_there, n_skipped_uid = 0, 0
@@ -2441,7 +2441,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         n_true_before = len(true_lines_to_use)
         true_lines_to_use = sorted([l for l in true_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_true_after = len(true_lines_to_use)
-        print '    using %d true cluster%s with size%s: %s' % (n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
+        print '  %s with true lines: %d cluster%s with size%s %s' % (smdbgstr, n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
         print '      skipping %d smaller than %d' % (n_true_before - n_true_after, min_cluster_size)
         final_true_lines = []
         for iclust, true_line in enumerate(true_lines_to_use):
@@ -2515,7 +2515,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
     if args.tree_inference_method in ['gctree', 'iqtree'] and tree_inference_outdir is not None:
         anfname = '%s/%s-annotations.yaml' % (tree_inference_outdir, args.tree_inference_method)
         print '    writing annotations with inferred ancestral sequences from %s to %s' % (args.tree_inference_method, anfname)
-        utils.write_annotations(anfname, glfo, antn_list, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns))  # NOTE these probably have the fwk insertions removed, which is probably ok?
+        utils.write_annotations(anfname, glfo, antn_list, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns) + ['is_fake_paired'])  # NOTE these probably have the fwk insertions removed, which is probably ok?
 
 # ----------------------------------------------------------------------------------------
 def init_dtr(train_dtr, dtr_path, cfg_fname=None):

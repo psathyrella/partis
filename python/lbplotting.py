@@ -1068,6 +1068,9 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
             if len(isame[ix]) > 0:
                 print '        slice %d: all affinity values the same for %d / %d iclusts: %s' % (ix, len(isame[ix]), len(lines), ' '.join(str(i) for i in isame[ix]))
 
+        if only_csv:
+            return
+
         fig, ax = plotting.mpl_init()
         slhist.mpl_plot(ax, square_bins=True, errors=True, no_vertical_bin_lines=True, color='#006600', linewidth=6)
         ax2 = ax.twinx()

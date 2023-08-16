@@ -75,13 +75,16 @@ if 'all-pcfrac' in args.perf_metrics:
     args.perf_metrics = args.perf_metrics.replace('all-pcfrac', ':'.join(pcfrac_metrics))
 args.paired_loci = True
 if args.antn_perf:
+    if any(a in phylo_actions for a in args.actions):
+        raise Exception('can\'t set --antn-perf for phylo actions, since --antn-perf requires --is-simu and thus reads true annotations, but phylo actions infer trees on inferred annotations')
+    print '  --antn-perf: turning on --make-plots'
     args.make_plots = True
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
     actstr = action
-    if action in ['cache-parameters', 'partition', 'single-chain-partis']:
+    if action in ['cache-parameters', 'partition', 'single-chain-partis'] + phylo_actions:
         actstr = 'partis'
     elif action == 'single-chain-scoper':
         actstr = 'scoper'
@@ -97,7 +100,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     if single_file:
         assert locus is None
         locus = 'igk'
-    assert locus is not None
+    assert locus is not None or action in phylo_actions
     if logfile:
         ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '', action)
     elif pmetr is not None and 'pcfrac-' in pmetr:
@@ -110,7 +113,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
             # ofn += '/hmm/germline-sets/%s/%sv.fasta' % (locus, locus)
             ofn += '/hmm/all-mean-mute-freqs.csv'
     elif action in phylo_actions:
-        ofn = '%s/selection-metrics.yaml' % outdir  # annotations are also there, in e.g. iqtree-annotations.yaml
+        ofn = '%s/selection-metrics.yaml' % outdir  # annotations are also there, in e.g. iqtree-annotations.yaml, i'm not really sure which I should use
     else:
         ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or is_single_chain(action))
     return ofn
@@ -212,7 +215,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         if action == 'star-partition':
             cmd += ' --subcluster-annotation-size None'
         # if action != 'get-selection-metrics':  # UPDATE maybe want to do this always? it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
-        cmd += ' --is-simu'
+        if action not in phylo_actions:  # we want to infer the trees with get-selection-metrics action, so need to ignore true annotations
+            cmd += ' --is-simu'
         if action != 'cache-parameters':
             cmd += ' --refuse-to-cache-parameters'
         if 'synth-distance-' in action or 'vjcdr3-' in action or action in ['vsearch-partition', 'partition-lthresh', 'star-partition', 'annotate']:
@@ -234,9 +238,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
         if action in phylo_actions:
-            assert False  # see todo
-            # TODO don't calculate coar here, just infer trees (either with get-selection-metrics or plot-partitions), then to get coar make a new script that compares true + inferred trees (i think by reading true and inferred annotation/partition files)
-            cmd += ' --tree-inference-method %s --selection-metrics-to-calculate coar' % action
+            cmd += ' --tree-inference-method %s --selection-metrics-to-calculate lbi --selection-metric-plot-cfg lb-scatter' % action  # should maybe remove plotdir and annotation performance?
 
     return cmd
 
@@ -248,7 +250,7 @@ def run_scan(action):
     print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
     if args.debug:
         print '   %s' % ' '.join(varnames)
-    n_already_there = 0
+    n_already_there, existing_ofn = 0, None
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
             print '   %s' % ' '.join(vstrs)
@@ -260,6 +262,7 @@ def run_scan(action):
         else:
             if utils.output_exists(args, ofn, debug=False):
                 n_already_there += 1
+                existing_ofn = ofn
                 continue
 
         if 'synth-reassign-' in action or 'synth-singletons-' in action:
@@ -278,7 +281,7 @@ def run_scan(action):
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         }]
 
-    utils.run_scan_cmds(args, cmdfos, '%s.log'%(action if not args.merge_paired_partitions else 'merge-paired-partitions'), len(valstrs), n_already_there, ofn)
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%(action if not args.merge_paired_partitions else 'merge-paired-partitions'), len(valstrs), n_already_there, existing_ofn)
 
 # ----------------------------------------------------------------------------------------
 def imbalfname(ibval):

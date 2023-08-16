@@ -395,7 +395,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_list, ignore_args_dot_queries=False, process_csv=False):
         n_queries_read = 0
-        failed_query_strs = set()
+        failed_query_strs, fake_paired_strs = set(), set()
         new_annotation_list = []
         for line in annotation_list:
             if process_csv:
@@ -403,6 +403,8 @@ class PartitionDriver(object):
             uidstr = ':'.join(line['unique_ids'])
             if ('invalid' in line and line['invalid']) or line['v_gene'] == '':  # first way is the new way, but we have to check the empty-v-gene way too for old files
                 failed_query_strs.add(uidstr)
+                if line.get('is_fake_paired', False):
+                    fake_paired_strs.add(uidstr)
                 continue
             if self.args.queries is not None and not ignore_args_dot_queries:  # second bit is because when printing subcluster naive seqs, we want to read all the ones that have any overlap with self.args.queries, not just the exact cluster of self.args.queries
                 if len(set(self.args.queries) & set(line['unique_ids'])) == 0:  # actually make sure this is the precise set of queries we want (note that --queries and line['unique_ids'] are both ordered, and this ignores that... oh, well, sigh.)
@@ -417,7 +419,7 @@ class PartitionDriver(object):
                 break
 
         if len(failed_query_strs) > 0:
-            print '\n%d failed queries' % len(failed_query_strs)
+            print '\n%d failed queries%s' % (len(failed_query_strs), '' if len(fake_paired_strs) == 0 else ' (%d were fake paired annotations)' % len(fake_paired_strs))
         return new_annotation_list
 
     # ----------------------------------------------------------------------------------------
