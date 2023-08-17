@@ -237,8 +237,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
                 cmd += ' --plot-annotation-performance --only-csv-plots'
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
-        if action in phylo_actions:
-            cmd += ' --tree-inference-method %s --selection-metrics-to-calculate lbi --selection-metric-plot-cfg lb-scatter' % action  # should maybe remove plotdir and annotation performance?
+        if action in phylo_actions:  # should maybe remove plotdir and annotation performance?
+            cmd += ' --tree-inference-method %s --selection-metrics-to-calculate lbi --selection-metric-plot-cfg lb-scatter' % action  # selection metric options are just to make it faster since we don't actually need any selection metrics calculated
 
     return cmd
 

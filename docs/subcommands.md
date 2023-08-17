@@ -519,19 +519,21 @@ It also prints a comparison of partis's alternative gene calls and associated "p
 ### tree inference
 
 Tree inference is often required on at least some families in the BCR repertoire, and while partis does not infer trees by default, it includes support for a variety of tree inference methods, specified with `--tree-inference-method fasttree|iqtree|gctree|linearham`.
-Three methods are included in the partis repository/image: the default (no method set), fasttree, and iqtree; while gctree and linearham are supported, but require separate installation.
-The default method (when --tree-inference-method is unset) starts from the clustering history from hierarchical agglomeration, then refines multifurcations with fasttree.
-Both this default, and specifying pure `fasttree`, are very heuristic, but also very fast.
-Iqtree is substantially slower, but also much more accurate, and also (very importantly) infers ancestral intermediate sequences.
+Fasttree and iqtree are included in the partis repository/image, while gctree and linearham are supported, but require separate installation.
+An alternative heuristic method (`cpath`) starts from the clustering history from hierarchical agglomeration, then refines multifurcations with fasttree.
+Fasttree (and `cpath`) are very heuristic, but also very fast.
+Iqtree is substantially slower, but also much more accurate, and also infers ancestral intermediate sequences.
 [Gctree](https://matsengrp.github.io/gctree) is designed for BCR-specific cases with abundance information, i.e. when some sequences are observed much more frequently than others.
 [Linearham](https://github.com/matsengrp/linearham/) implements a BCR-specific Bayesian phylogenetic hidden Markov model that simultaneously calculates probabilities of naive rearrangements and phylogenetic trees together.
 
-Thus if you need to run on many families or otherwise only care about speed, use either the default or fasttree.
+Thus if you need to run on many families or otherwise only care about speed, use either fasttree or `cpath`.
 Use iqtree if you need inferred ancestors and good accuracy but don't need the special capabilities of gctree or linearham.
-Use gctree if you have substantial abundance information, and linearham if you have a lot of naive sequence uncertainty (i.e. some combination of few sequences, unrepresentative sequences, and lots of mutations) or want its probabilistic breakdown of different potential mutation paths, naive rearrangements, and trees.
+Use gctree if you have substantial abundance information, and linearham if you have a lot of naive sequence uncertainty (i.e. some combination of few sequences, unrepresentative sequences, and/or lots of mutations) or want its probabilistic breakdown of different potential mutation paths, naive rearrangements, and trees.
 The best thing, of course, is to try several options and compare.
 
 Tree inference is run in two situations: when plotting partitions (either 'plot-partitions' action, or if --plotdir is set for the 'partition' action), and when getting selection metrics (either 'get-selection-metrics' action, or if --get-selection-metrics is set during 'partition').
-Making trees for every family in the final partition is usually much too slow (although it is parallelized), so there's several ways to specify which ones you're interested in.
-First, you can set --min-selection-metric-cluster-size (which at the moment defaults to 10): families smaller than this will be ignored for tree inference (and selection metrics).
+Making trees for every family in the final partition is usually much too slow (although it is parallelized), so there's several ways to specify which families you're interested in.
+First, you can set either --min-selection-metric-cluster-size (families smaller than this will be ignored for selection metrics and tree inference) or --min-paired-cluster-size-to-read (which ignores clusters smaller than this when reading from files).
 You can also set --cluster-indices, for instance '0:1:2' would infer on only the first three families, however this requires some care to ensure that you're getting the ones you want since there's several different ways to sort families within partitions.
+
+If you only want trees (and don't care about selection metrics), things will go much faster if you set `--selection-metrics-to-calculate lbi --selection-metric-plot-cfg lb-scatter`, and either don't set `--plotdir` or set `--only-csv-plots`.
