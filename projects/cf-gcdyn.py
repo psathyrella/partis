@@ -42,8 +42,6 @@ parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
 parser.add_argument('--model-size-list')
-parser.add_argument('--test-xscale-values-list')
-parser.add_argument('--test-xshift-values-list')
 parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --bundle-size-list)')
 parser.add_argument('--bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
@@ -55,8 +53,8 @@ parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'carry-cap', 'n-trials', 'n-seqs', 'bundle-size'],
-    'dl-infer' : ['model-size', 'test-xscale-values', 'test-xshift-values'],
-    'group-expts' : ['model-size', 'test-xscale-values', 'test-xshift-values', 'n-trees-per-expt'],
+    'dl-infer' : ['model-size'],
+    'group-expts' : ['model-size'],
 }
 args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'test-xscale-values', 'test-xshift-values']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
