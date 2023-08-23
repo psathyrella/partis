@@ -3101,6 +3101,8 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
         if any('chosens' in mfo[c] for mfo in metric_pairs for c in 'hl'):  # add any previously-chosen seqs
             for mfo in metric_pairs:
                 if any('chosens' in mfo[c] and gsval(mfo, c, 'chosens') for c in 'hl'):
+                    if any('chosens' not in mfo[c] for c in 'hl'):
+                        raise Exception('key \'chosens\' in one chain but not the other for clusters with sizes:\n  %s %d %s\n  %s %d %s' % ('h', len(mfo['h']['unique_ids']), 'chosens' in mfo['h'], 'l', len(mfo['l']['unique_ids']), 'chosens' in mfo['l']))
                     assert [gsval(mfo, c, 'chosens') for c in 'hl'].count(True) == 2  # can't choose only one of a pair of abs
                     if cfgfo.get('include_previously_chosen'):
                         chosen_mfos.append(mfo)

@@ -654,8 +654,9 @@ class PartitionPlotter(object):
                     ctot_hists[e_val].set_ibin(ibin, sum(ib_counts), math.sqrt(mval))
             ytitle = 'mean fraction of each cluster'
             bfn = 'cluster-size-fractions'
-            for hname, thist in csize_hists.items():
-                thist.write('%s/%s%s.csv' % (plotdir, bfn, '' if hname=='best' else '-'+hname))
+            for bstr, hlist in zip(['', '-total'], [csize_hists, ctot_hists]):
+                for hname, thist in hlist.items():
+                    thist.write('%s/%s%s.csv' % (plotdir, bfn+bstr, '' if hname=='best' else '-'+hname))
             self.plotting.plot_cluster_size_hists(plotdir, bfn, csize_hists, hcolors=hcolors, ytitle=ytitle, log='x', no_legend=True)
             self.plotting.plot_cluster_size_hists(plotdir, bfn+'-tot', ctot_hists, hcolors=hcolors, ytitle='total N seqs', log='', stacked_bars=True, no_legend=True)
             lfn = self.plotting.make_meta_info_legend(plotdir, bfn, self.args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
