@@ -41,9 +41,13 @@ parser.add_argument('--xshift-range-list')
 parser.add_argument('--carry-cap-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
-parser.add_argument('--model-size-list')
+parser.add_argument('--dl-bundle-size-list', help='size of bundles during dl inference (must be equal to or less than simulation bundle size)')
+parser.add_argument('--epochs-list')
+parser.add_argument('--dropout-rate-list')
+parser.add_argument('--learning-rate-list')
+parser.add_argument('--ema-momentum-list')
 parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --bundle-size-list)')
-parser.add_argument('--bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
+parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
 parser.add_argument('--dl-extra-args')
 parser.add_argument('--params-to-predict', default='xscale:xshift')
@@ -52,9 +56,9 @@ parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/g
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'carry-cap', 'n-trials', 'n-seqs', 'bundle-size'],
-    'dl-infer' : ['model-size'],
-    'group-expts' : ['model-size'],
+    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'carry-cap', 'n-trials', 'n-seqs', 'simu-bundle-size'],
+    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
+    'group-expts' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
 }
 args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'test-xscale-values', 'test-xshift-values']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)

@@ -379,8 +379,8 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         def add_plot_vals(ytmpfo, vlists, varnames, iclust=None):
             # ----------------------------------------------------------------------------------------
             def getikey():
-                if args.n_replicates == 1:
-                    print '  %s --n-replicates of 1 may need checking, especially as regards nsimevts()' % utils.wrnstr()
+                # if args.n_replicates == 1:
+                #     print '  %s --n-replicates of 1 may need checking, especially as regards nsimevts()' % utils.wrnstr()
                 if args.n_replicates == 1 and treat_clusters_together:  # could add 'or is_new_script()' next to treat_clusters_together in all these places, but whatever
                     ikey = None
                     def initfcn(): return []  # i swear it initially made more sense for this to be such a special case
