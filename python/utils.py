@@ -1275,11 +1275,11 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
 # ----------------------------------------------------------------------------------------
 # translate the uids in each line in <antn_list> using translation dict <trns>
 # specify *either* <trns> (a dict from old to new uid) or <trfcn> (a fcn from old to new uid)
-def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='translation', no_fail=False, translate_pids=False, debug=False):
+def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='translation', no_fail=False, translate_pids=False, expect_missing=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def tr_tree(line, treestr, dbgstr):
         dtree = treeutils.get_dendro_tree(treestr=treestr)
-        treeutils.translate_labels(dtree, [(u, trfn(u)) for u in line['unique_ids']], dont_fail=True, dbgstr=dbgstr, debug=debug)
+        treeutils.translate_labels(dtree, [(u, trfn(u)) for u in line['unique_ids']], dont_fail=True, expect_missing=expect_missing, dbgstr=dbgstr, debug=debug)
         return treeutils.as_str(dtree)
     # ----------------------------------------------------------------------------------------
     def trfn(uid, pid=False):
@@ -1328,7 +1328,7 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
             cpath.seed_unique_id = trfn(cpath.seed_unique_id)
         for iptn, partition in enumerate(cpath.partitions):
             cpath.partitions[iptn] = [[trfn(u) for u in c] for c in partition]
-    if len(missing_translations) > 0:
+    if len(missing_translations) > 0 and not expect_missing:
         print '    %s missing translations for %d: %s' % (color('yellow', 'warning'), len(missing_translations), ' '.join(missing_translations))
 
     return revrns

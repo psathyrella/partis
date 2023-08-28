@@ -58,6 +58,7 @@ parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
 parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutation simulation, rather than partis (i.e. TreeSim/bpp)')
+parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--data-cluster-size-hist-fname', default='/fh/fast/matsen_e/processed-data/partis/goo-dengue-10x/count-params-v0/d-14/parameters/igh+igk/igh/hmm/cluster_size.csv') #/fh/fast/matsen_e/processed-data/partis/10x-examples/v1/hs-1-postvax/parameters/igh+igk/igh/hmm/cluster_size.csv')  # ick ick ick
 parser.add_argument('--make-plots', action='store_true')
 parser.add_argument('--bcrham-time', action='store_true')
@@ -198,7 +199,9 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --n-leaf-hist-fname %s' %  args.data_cluster_size_hist_fname
         if args.bcr_phylo:
             # raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
-            cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath --min-ustr-len 20 --dont-observe-common-ancestors'  # NOTE don't increase the mutation rate it makes everything terminate early  --base-mutation-rate 1'  # it's nice to jack up the mutation rate so we get more mutations in less time (higher than this kills off all leaves, not sure why, altho i'm sure it's obvious if i thought about it)
+            cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath --min-ustr-len 20'  # NOTE don't increase the mutation rate it makes everything terminate early  --base-mutation-rate 1'  # it's nice to jack up the mutation rate so we get more mutations in less time (higher than this kills off all leaves, not sure why, altho i'm sure it's obvious if i thought about it)
+            if args.dont_observe_common_ancestors:
+                cmd += ' --dont-observe-common-ancestors'
             if args.overwrite:
                 cmd += ' --overwrite'
     else:
