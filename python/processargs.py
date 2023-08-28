@@ -10,7 +10,7 @@ import treeutils
 def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
 
-actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info']
+actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations']
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py

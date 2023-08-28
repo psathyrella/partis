@@ -784,6 +784,7 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'cdr3_seqs_aa',
     'cons_dists_nuc',
     'cons_dists_aa',
+    'tree',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 
 linekeys['extra'] = extra_annotation_headers

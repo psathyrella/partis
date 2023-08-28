@@ -1147,7 +1147,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         fake_pntns, mpfo_lists, mtpys = paircluster.make_fake_hl_pair_antns(args, antn_pairs)
         return antn_pairs, fake_pntns, mpfo_lists, mtpys
     # ----------------------------------------------------------------------------------------
-    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate', 'update-meta-info']
+    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate', 'update-meta-info', 'write-fake-paired-annotations']
     if args.action not in paired_loci_actions:
         raise Exception('action %s not supported for paired loci (choose from %s)' % (args.action, paired_loci_actions))
     if args.paired_outdir is None:
@@ -1186,7 +1186,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 run_step('cache-parameters', ltmp, auto_cache=True, skip_missing_input=True)
         if args.random_seed_seq:
             (args.seed_unique_id, args.seed_loci), _ = utils.choose_seed_unique_id(os.path.dirname(getifn(utils.heavy_locus)), None, None, paired=True, choose_random=True)
-        ex_out_cfg_actions = ['plot-partitions', 'get-selection-metrics']  # actions whose behavior is determined by args.existing_output_run_cfg
+        ex_out_cfg_actions = ['plot-partitions', 'get-selection-metrics', 'write-fake-paired-annotations']  # actions whose behavior is determined by args.existing_output_run_cfg (I'm not sure why I didn't use runs_on_existing_output(), but maybe because these are a subset? would be nice to clean this up eventually)
         if args.action not in ['merge-paired-partitions', 'view-output']+ex_out_cfg_actions or (args.action in ex_out_cfg_actions and 'single' in args.existing_output_run_cfg):
             if args.seed_unique_id is not None and args.action == 'partition':
                 remove_unseeded_seqs()
@@ -1212,6 +1212,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             print '%s' % utils.color('blue_bkg', 'getting combined h/l selection metrics')
             antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns(smetrics=True)
             treeutils.combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir=None if args.plotdir is None else getplotdir(None), args=args, tree_inference_outdir=getodir())
+        if args.action == 'write-fake-paired-annotations':
+            antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns()
+            utils.write_annotations('%s/fake-paired-annotations.yaml'%args.paired_outdir, None, fake_pntns, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns) + ['is_fake_paired'])
         if ptnplot:
             from partitionplotter import PartitionPlotter
             print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
@@ -1437,6 +1440,7 @@ subconfig = collections.OrderedDict((
     ('get-selection-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate selection metrics using existing output.'}),
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
     ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
+    ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -1445,7 +1449,7 @@ subconfig = collections.OrderedDict((
 ))
 
 def runs_on_existing_output(actionstr):
-    return actionstr.split('-')[0] in ['view', 'plot', 'get', 'merge', 'update']
+    return actionstr.split('-')[0] in ['view', 'plot', 'get', 'merge', 'update', 'write']
 
 subargs = {subname : [] for subname in subconfig}
 
