@@ -57,6 +57,7 @@ parser.add_argument('--biggest-naive-seq-cluster-to-calculate-list')
 parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
+parser.add_argument('--calc-antns', action='store_true', help='calculate annotations')
 parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutation simulation, rather than partis (i.e. TreeSim/bpp)')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--data-cluster-size-hist-fname', default='/fh/fast/matsen_e/processed-data/partis/goo-dengue-10x/count-params-v0/d-14/parameters/igh+igk/igh/hmm/cluster_size.csv') #/fh/fast/matsen_e/processed-data/partis/10x-examples/v1/hs-1-postvax/parameters/igh+igk/igh/hmm/cluster_size.csv')  # ick ick ick
@@ -226,7 +227,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --refuse-to-cache-parameters'
         if 'synth-distance-' in action or 'vjcdr3-' in action or action in ['vsearch-partition', 'partition-lthresh', 'star-partition', 'annotate']:
             cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
-        if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots and not args.antn_perf:
+        if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots and not args.antn_perf and not args.calc_antns:
             cmd += ' --dont-calculate-annotations'
         if action == 'write-fake-paired-annotations':
             cmd += ' --extra-annotation-columns tree'

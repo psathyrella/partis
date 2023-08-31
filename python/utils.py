@@ -787,6 +787,8 @@ extra_annotation_headers = [  # you can specify additional columns (that you wan
     'tree',
 ] + list(implicit_linekeys)  # NOTE some of the ones in <implicit_linekeys> are already in <annotation_headers>
 
+fake_paired_columns = ['is_fake_paired', 'h_seqs', 'l_seqs']
+
 linekeys['extra'] = extra_annotation_headers
 all_linekeys = set([k for cols in linekeys.values() for k in cols])
 def add_per_seq_keys(line):  # NOTE should really combine this with add_input_meta_keys()
@@ -4318,7 +4320,7 @@ def pad_seq_for_translation(line, tseq, return_n_padded=False, debug=False):  # 
         tseq += end_amb
     assert len(tseq) % 3 == 0
     if debug:
-        print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra)  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
+        print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d  end amb: %d  (jf %d)' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra, len(end_amb), len(line.get('jf_insertion'), []))  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
         print '    %s%s%s%s' % (color('blue', fv_xtra * ambig_base), color('blue', v_5p_xtra * ambig_base), color_mutants(old_tseq, old_tseq), color('blue', end_amb))
     if return_n_padded:
         return tseq, (fv_xtra + v_5p_xtra, len(end_amb))

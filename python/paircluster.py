@@ -488,6 +488,8 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         all_pair_ids |= set(p_atn['unique_ids'])
         p_atn['seqs'] = [sumv(m, 'seqs', imtp) for m in metric_pairs]
         p_atn['input_seqs'] = [s for s in p_atn['seqs']]  # NOTE do *not* let 'seqs' and 'input_seqs' point to the same list (we only need 'input_seqs' since they're what gets written to the output file)
+        for tch in 'hl':
+            p_atn['%s_seqs'%tch] = [gsval(m, tch, 'seqs') for m in metric_pairs]
         for mfo, pseq in zip(metric_pairs, p_atn['seqs']):
             total_hlen = 0  # total len of igh seq
             for tch in 'hl':
