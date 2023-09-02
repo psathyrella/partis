@@ -23,7 +23,7 @@ def reconstruct_lineage(tree, node):
 # ----------------------------------------------------------------------------------------
 def find_node(tree, seq=None, uid=None):
 # ----------------------------------------------------------------------------------------
-# TODO don't even need this anymore?
+# TODO TODO don't even need this anymore?
     assert [seq, uid].count(None) == 1  # specify either seq or uid
     if seq is not None:
         nodes = [n for n in tree.leaf_node_iter() if n.seq == seq] # and node.frequency > 0]
@@ -105,8 +105,8 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
         uids_i = ['naive', 'a1', 'leaf']
     else:
         nt = node_t
-# TODO why am i still using this?
-        ni = find_node(tree_i, seq=node_t.seq, uid=node_t.taxon.label)
+# TODO TODO why am i still using this?
+        ni = find_node(tree_i, seq=node_t.seq) #, uid=node_t.taxon.label)
         (lt, uids_t), (li, uids_i) = [reconstruct_lineage(t, n) for t, n in [(tree_t, nt), (tree_i, ni)]]
     # One lineages must be longer than just the root and the terminal node
     if len(lt) <= 2 and len(li) <= 2:
@@ -215,7 +215,7 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
     return [align_t, align_i, alignment_score, max_penalty]
 
 # ----------------------------------------------------------------------------------------
-def COAR(true_tree, inferred_tree, freq_weighting=False, known_root=True, allow_double_gap=False, debug=True):
+def COAR(true_tree, inferred_tree, freq_weighting=False, known_root=True, allow_double_gap=False, debug=False):
     # assert False  # this doesn't work and hasn't been tested, need to go through it carefully before even attempting to run (basically just copied it from bcr-phylo)
 # ----------------------------------------------------------------------------------------
 # maybe makes sense to do this? (i think not, but saving it here just in case)
@@ -230,8 +230,9 @@ def COAR(true_tree, inferred_tree, freq_weighting=False, known_root=True, allow_
     norm_lineage_dist = list()
     nlineages = 0
     for node_t in true_tree.leaf_node_iter():
-# TODO remove frequency stuff (?)
-        print '%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq)
+# TODO TODO remove frequency stuff (?)
+        if debug:
+            print '%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq)
         # if not node.frequency > 0:
         #     continue
 
@@ -244,7 +245,7 @@ def COAR(true_tree, inferred_tree, freq_weighting=False, known_root=True, allow_
             total_max_penalty = max_penalty * node_t.frequency
             total_lineage_dist = final_score * node_t.frequency
         else:
-# TODO what's the point of total_max_penalty?
+# TODO TODO what's the point of total_max_penalty?
             total_max_penalty = max_penalty
             total_lineage_dist = final_score
         if total_max_penalty < 0:
