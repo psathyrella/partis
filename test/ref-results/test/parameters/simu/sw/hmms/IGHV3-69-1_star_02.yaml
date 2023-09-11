@@ -1,7 +1,7 @@
 !!python/object:hmmwriter.HMM
 extras:
   gene_prob: 0.025
-  overall_mute_freq: 0.053
+  overall_mute_freq: 0.05149999999999999
   per_gene_mute_freq: 0.10759692342896579
 name: IGHV3-69-1_star_02
 states:
@@ -10,8 +10,8 @@ states:
   extras: {}
   name: init
   transitions:
-    IGHV3-69-1_star_02_0: 0.4
-    insert_left_N: 0.6
+    IGHV3-69-1_star_02_0: 0.5
+    insert_left_N: 0.5
 - !!python/object:hmmwriter.State
   emissions:
     probs:
@@ -26,8 +26,8 @@ states:
     germline: N
   name: insert_left_N
   transitions:
-    IGHV3-69-1_star_02_0: 0.4
-    insert_left_N: 0.6
+    IGHV3-69-1_star_02_0: 0.5
+    insert_left_N: 0.5
 - !!python/object:hmmwriter.State
   emissions:
     probs:

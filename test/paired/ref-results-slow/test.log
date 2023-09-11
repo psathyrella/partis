@@ -1,6 +1,6 @@
 [92mcache-parameters-data[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --paired-loci --infname test/paired-data/all-seqs.fa --parameter-dir test/paired/new-results-slow/test/parameters/data --n-max-queries -1 --random-seed 1 --n-procs 10
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
-[91mrun[0m /home/dralph/work/partis/bin/extract-pairing-info.py test/paired-data/all-seqs.fa /tmp/dralph/hmms/204016/meta.yaml
+[91mrun[0m /home/dralph/work/partis/bin/extract-pairing-info.py test/paired-data/all-seqs.fa /tmp/dralph/hmms/4414/meta.yaml
   extract_pairing_info(): read 100 sequences with 48 droplet ids
     droplet id separators (set automatically): _  indices: [0]
        e.g. uid 'AAACCTGAGAGACGAA-1_contig_2' --> droplet id 'AAACCTGAGAGACGAA-1' contig id '2'
@@ -10,8 +10,8 @@
         2           42     0.875
         3            2     0.042
         4            2     0.042
-[91mrun[0m /home/dralph/work/partis/bin/split-loci.py test/paired-data/all-seqs.fa --outdir /tmp/dralph/hmms/204016 --input-metafname /tmp/dralph/hmms/204016/meta.yaml
-  --input-metafnames: added meta info for 100 sequences from /tmp/dralph/hmms/204016/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/split-loci.py test/paired-data/all-seqs.fa --outdir /tmp/dralph/hmms/4414 --input-metafname /tmp/dralph/hmms/4414/meta.yaml
+  --input-metafnames: added meta info for 100 sequences from /tmp/dralph/hmms/4414/meta.yaml: paired-uids
     read pairing info for 100 seqs from input meta file
   running vsearch on 100 sequences:
     igh:   49 / 100 v annotations (51 failed) with 28 v genes in 0.1 sec
@@ -35,10 +35,10 @@ totals: igh 48 igk 37 igl 15
                2   0.13   [94mh[0m [92ml[0m
                1   0.07   [94mh[0m [95mk[0m
                1   0.07   [94mh[0m [94mh[0m [95mk[0m
-writing to /tmp/dralph/hmms/204016/
-  igh: 48 to 204016/igh.fa
-  igk: 37 to 204016/igk.fa
-  igl: 15 to 204016/igl.fa
+writing to /tmp/dralph/hmms/4414/
+  igh: 48 to 4414/igh.fa
+  igk: 37 to 4414/igk.fa
+  igl: 15 to 4414/igl.fa
 writing to paired subdirs
     36/48 igh seqs pair with igk
       igh: 36 to igh+igk/igh.fa
@@ -47,18 +47,17 @@ writing to paired subdirs
       igh: 15 to igh+igl/igh.fa
       igl: 15 to igh+igl/igl.fa
 [44mcache-parameters[0m [94migh[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igh --dont-write-git-info --infname /tmp/dralph/hmms/204016/igh.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igh/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/204016/meta.yaml
-  --input-metafnames: added meta info for 48 sequences from /tmp/dralph/hmms/204016/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igh --dont-write-git-info --infname /tmp/dralph/hmms/4414/igh.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igh/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/4414/meta.yaml
+  --input-metafnames: added meta info for 48 sequences from /tmp/dralph/hmms/4414/meta.yaml: paired-uids
 caching parameters
   vsearch: 48 / 48 v annotations (0 failed) with 27 v genes in 0.1 sec
     keeping 23 / 198 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 48 / 48 v annotations (0 failed) with 23 v genes in 0.1 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/data/igh/sw-cache.yaml
     running 10 procs for 48 seqs
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
-    water time: 0.2  (ig-sw 0.0  processing 0.1)
+    water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 48 / 48 v annotations (0 failed) with 23 v genes in 0.1 sec
     running 10 procs for 48 seqs
@@ -72,21 +71,20 @@ smith-waterman  (writing parameters)
 hmm
     reading output
         read 48 hmm output lines with 48 sequences in 48 events  (0 failures)
-    writing parameters to test/paired/new-results-slow/test/parameters/data/igh/hmm (1.7 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/data/igh/hmm (1.6 sec)
          infra time: 1.7
       hmm step time: 2.2
   writing hmms     removed 1  genes from glfo (leaving v 23  d 18  j 6)
 (0.2 sec)
       total time: 5.5
 [44mcache-parameters[0m [94migk[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --infname /tmp/dralph/hmms/204016/igk.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igk --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/204016/meta.yaml
-  --input-metafnames: added meta info for 37 sequences from /tmp/dralph/hmms/204016/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --infname /tmp/dralph/hmms/4414/igk.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igk --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/4414/meta.yaml
+  --input-metafnames: added meta info for 37 sequences from /tmp/dralph/hmms/4414/meta.yaml: paired-uids
 caching parameters
   vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
     keeping 16 / 64 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml
     running 10 procs for 37 seqs
       info for 37 / 37 = 1.000   (removed: 0 failed)
       kept 1 (0.027) unproductive
@@ -98,9 +96,9 @@ smith-waterman  (writing parameters)
       kept 1 (0.027) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml
     writing parameters to test/paired/new-results-slow/test/parameters/data/igk/sw (1.3 sec)
-    water time: 1.5  (ig-sw 1.4  processing 0.1)
+    water time: 1.6  (ig-sw 1.4  processing 0.1)
   writing hmms     removed 0  genes from glfo (leaving v 16  d 1  j 7)
-(0.2 sec)
+(0.1 sec)
 hmm
     reading output
         read 37 hmm output lines with 37 sequences in 37 events  (0 failures)
@@ -111,19 +109,18 @@ hmm
 (0.1 sec)
       total time: 3.8
 [44mcache-parameters[0m [94migl[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --infname /tmp/dralph/hmms/204016/igl.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igl --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/204016/meta.yaml
-  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/hmms/204016/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --infname /tmp/dralph/hmms/4414/igl.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igl --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/4414/meta.yaml
+  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/hmms/4414/meta.yaml: paired-uids
 caching parameters
   vsearch: 15 / 15 v annotations (0 failed) with 12 v genes in 0.1 sec
     keeping 10 / 80 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.1 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml
     running 10 procs for 15 seqs
       info for 15 / 15 = 1.000   (removed: 0 failed)
     water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.0 sec
+  vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.1 sec
     running 10 procs for 15 seqs
       info for 15 / 15 = 1.000   (removed: 0 failed)
         writing sw results to test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml
@@ -140,10 +137,9 @@ hmm
   writing hmms     removed 0  genes from glfo (leaving v 10  d 1  j 3)
 (0.1 sec)
       total time: 2.6
-      [93mwarning[0m expected to remove 1/11 files+dirs that weren't in /tmp/dralph/hmms/204016/: failed.fa
-      total time: 13.6
+      [93mwarning[0m expected to remove 1/11 files+dirs that weren't in /tmp/dralph/hmms/4414/: failed.fa
+      total time: 13.7
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --paired-loci --parameter-dir test/paired/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.5 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/test/simu --indel-frequency 0.2
-    cleaning paired files in test/paired/new-results-slow/test/simu/
 [94migh+igk[0m: simulating 134 events
 [44mgenerate-trees[0m [94migh+igk[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --n-trees 134 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.5 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 177687104 --indel-frequency 0.2 --generate-trees --outfname test/paired/new-results-slow/test/simu/igh+igk/trees.nwk
@@ -151,132 +147,132 @@ hmm
   generating 134 trees, n-leaves from geometric distribution with parameter 5.0
     mean over 134 trees:   depth 0.02817   leaves 5.57
     writing trees to test/paired/new-results-slow/test/simu/igh+igk/trees.nwk
-      total time: 1.6
+      total time: 1.7
 [44msimulate[0m [94migh+igk[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --n-sim-events 134 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.5 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 177687104 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results-slow/test/simu/igh+igk/igh.yaml --input-simulation-treefname test/paired/new-results-slow/test/simu/igh+igk/trees.nwk
 simulating
-      --> proc 4
+      --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-4.nwk
-    made 13 events with 59 seqs in 2.5s (2.3s of which was running bppseqgen)
-      total time: 2.9
-
-      --> proc 8
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-8.nwk
-    made 13 events with 57 seqs in 2.6s (2.3s of which was running bppseqgen)
-      total time: 2.9
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-6.nwk
+    made 13 events with 55 seqs in 2.4s (2.1s of which was running bppseqgen)
+      total time: 2.7
 
       --> proc 5
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-5.nwk
-    made 13 events with 47 seqs in 2.7s (2.4s of which was running bppseqgen)
-      total time: 3.0
-
-      --> proc 6
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-6.nwk
-    made 13 events with 55 seqs in 2.8s (2.5s of which was running bppseqgen)
-      total time: 3.2
-
-      --> proc 3
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-3.nwk
-    made 13 events with 84 seqs in 2.8s (2.4s of which was running bppseqgen)
-      total time: 3.1
-
-      --> proc 0
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-0.nwk
-    made 13 events with 94 seqs in 2.9s (2.6s of which was running bppseqgen)
-      total time: 3.3
-
-      --> proc 1
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-1.nwk
-    made 13 events with 71 seqs in 2.9s (2.5s of which was running bppseqgen)
-      total time: 3.3
-
-      --> proc 7
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-7.nwk
-    made 13 events with 65 seqs in 3.0s (2.6s of which was running bppseqgen)
-      total time: 3.2
-
-      --> proc 9
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/30941/trees-sub-9.nwk
-    made 17 events with 111 seqs in 3.3s (2.8s of which was running bppseqgen)
-      total time: 3.6
-
-      --> proc 2
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/30941/trees-sub-2.nwk
-    made 13 events with 104 seqs in 3.4s (3.0s of which was running bppseqgen)
-      total time: 3.7
-
-   read 134 events with 747 seqs from 10 .yaml files
-      total time: 4.5
-[44msimulate[0m [94migh+igk[0m:[94m igk[0m
-[91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igk --n-sim-events 134 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.5 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 298017927 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results-slow/test/simu/igh+igk/igk.yaml --input-simulation-treefname test/paired/new-results-slow/test/simu/igh+igk/trees.nwk
-simulating
-      --> proc 5
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-5.nwk
-    made 13 events with 47 seqs in 2.1s (1.9s of which was running bppseqgen)
-      total time: 2.5
-
-      --> proc 8
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-8.nwk
-    made 13 events with 57 seqs in 2.0s (1.8s of which was running bppseqgen)
-      total time: 2.4
-
-      --> proc 6
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-6.nwk
-    made 13 events with 55 seqs in 2.1s (2.0s of which was running bppseqgen)
-      total time: 2.5
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-5.nwk
+    made 13 events with 47 seqs in 2.4s (2.1s of which was running bppseqgen)
+      total time: 2.7
 
       --> proc 4
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-4.nwk
-    made 13 events with 59 seqs in 2.2s (1.9s of which was running bppseqgen)
-      total time: 2.5
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-4.nwk
+    made 13 events with 59 seqs in 2.4s (2.1s of which was running bppseqgen)
+      total time: 2.8
 
-      --> proc 1
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-1.nwk
-    made 13 events with 71 seqs in 2.4s (2.1s of which was running bppseqgen)
+      --> proc 8
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-8.nwk
+    made 13 events with 57 seqs in 2.5s (2.1s of which was running bppseqgen)
       total time: 2.8
 
       --> proc 7
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-7.nwk
-    made 13 events with 65 seqs in 2.4s (2.1s of which was running bppseqgen)
-      total time: 2.7
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-7.nwk
+    made 13 events with 65 seqs in 2.7s (2.4s of which was running bppseqgen)
+      total time: 2.9
 
       --> proc 3
-    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-3.nwk
-    made 13 events with 84 seqs in 2.5s (2.2s of which was running bppseqgen)
-      total time: 3.0
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-3.nwk
+    made 13 events with 84 seqs in 2.7s (2.4s of which was running bppseqgen)
+      total time: 3.1
+
+      --> proc 1
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-1.nwk
+    made 13 events with 71 seqs in 2.9s (2.5s of which was running bppseqgen)
+      total time: 3.3
+
+      --> proc 0
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-0.nwk
+    made 13 events with 94 seqs in 3.0s (2.6s of which was running bppseqgen)
+      total time: 3.4
 
       --> proc 2
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/697053/trees-sub-2.nwk
+    made 13 events with 104 seqs in 3.3s (2.8s of which was running bppseqgen)
+      total time: 3.7
+
+      --> proc 9
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/697053/trees-sub-9.nwk
+    made 17 events with 111 seqs in 3.6s (3.1s of which was running bppseqgen)
+      total time: 4.0
+
+   read 134 events with 747 seqs from 10 .yaml files
+      total time: 4.8
+[44msimulate[0m [94migh+igk[0m:[94m igk[0m
+[91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igk --n-sim-events 134 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.5 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 298017927 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results-slow/test/simu/igh+igk/igk.yaml --input-simulation-treefname test/paired/new-results-slow/test/simu/igh+igk/trees.nwk
+simulating
+      --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-2.nwk
-    made 13 events with 104 seqs in 2.6s (2.3s of which was running bppseqgen)
-      total time: 3.0
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-6.nwk
+    made 13 events with 55 seqs in 1.9s (1.7s of which was running bppseqgen)
+      total time: 2.3
+
+      --> proc 4
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-4.nwk
+    made 13 events with 59 seqs in 2.0s (1.7s of which was running bppseqgen)
+      total time: 2.3
+
+      --> proc 5
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-5.nwk
+    made 13 events with 47 seqs in 2.0s (1.7s of which was running bppseqgen)
+      total time: 2.3
+
+      --> proc 8
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-8.nwk
+    made 13 events with 57 seqs in 2.1s (1.8s of which was running bppseqgen)
+      total time: 2.4
 
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/389691/trees-sub-0.nwk
-    made 13 events with 94 seqs in 2.7s (2.4s of which was running bppseqgen)
-      total time: 3.2
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-0.nwk
+    made 13 events with 94 seqs in 2.3s (2.0s of which was running bppseqgen)
+      total time: 2.7
+
+      --> proc 7
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-7.nwk
+    made 13 events with 65 seqs in 2.3s (2.1s of which was running bppseqgen)
+      total time: 2.6
+
+      --> proc 1
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-1.nwk
+    made 13 events with 71 seqs in 2.4s (2.1s of which was running bppseqgen)
+      total time: 2.8
+
+      --> proc 3
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-3.nwk
+    made 13 events with 84 seqs in 2.4s (2.2s of which was running bppseqgen)
+      total time: 2.9
+
+      --> proc 2
+    reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/978687/trees-sub-2.nwk
+    made 13 events with 104 seqs in 2.6s (2.3s of which was running bppseqgen)
+      total time: 3.0
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/389691/trees-sub-9.nwk
+    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/978687/trees-sub-9.nwk
     made 17 events with 111 seqs in 3.2s (2.9s of which was running bppseqgen)
       total time: 3.5
 
@@ -295,136 +291,136 @@ simulating
 simulating
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-0.nwk
-    made 6 events with 15 seqs in 1.0s (0.8s of which was running bppseqgen)
-      total time: 1.4
-
-      --> proc 3
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-3.nwk
-    made 6 events with 41 seqs in 1.1s (1.0s of which was running bppseqgen)
-      total time: 1.4
-
-      --> proc 5
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-5.nwk
-    made 6 events with 27 seqs in 1.2s (1.1s of which was running bppseqgen)
-      total time: 1.6
-
-      --> proc 2
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-2.nwk
-    made 6 events with 43 seqs in 1.3s (1.1s of which was running bppseqgen)
-      total time: 1.7
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-0.nwk
+    made 6 events with 15 seqs in 1.0s (0.9s of which was running bppseqgen)
+      total time: 1.3
 
       --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-6.nwk
-    made 6 events with 30 seqs in 1.3s (1.1s of which was running bppseqgen)
-      total time: 1.6
-
-      --> proc 4
-    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-4.nwk
-    made 6 events with 22 seqs in 1.3s (1.1s of which was running bppseqgen)
-      total time: 1.7
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-6.nwk
+    made 6 events with 30 seqs in 1.2s (1.0s of which was running bppseqgen)
+      total time: 1.5
 
       --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-7.nwk
-    made 6 events with 31 seqs in 1.4s (1.1s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-7.nwk
+    made 6 events with 31 seqs in 1.2s (1.1s of which was running bppseqgen)
+      total time: 1.5
+
+      --> proc 4
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-4.nwk
+    made 6 events with 22 seqs in 1.3s (1.1s of which was running bppseqgen)
       total time: 1.7
+
+      --> proc 3
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-3.nwk
+    made 6 events with 41 seqs in 1.4s (1.2s of which was running bppseqgen)
+      total time: 1.8
+
+      --> proc 2
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-2.nwk
+    made 6 events with 43 seqs in 1.4s (1.3s of which was running bppseqgen)
+      total time: 1.8
+
+      --> proc 5
+    reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-5.nwk
+    made 6 events with 27 seqs in 1.4s (1.3s of which was running bppseqgen)
+      total time: 1.8
 
       --> proc 1
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-1.nwk
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-1.nwk
     made 6 events with 49 seqs in 1.6s (1.5s of which was running bppseqgen)
       total time: 2.0
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/499312/trees-sub-8.nwk
-    made 6 events with 69 seqs in 1.7s (1.5s of which was running bppseqgen)
-      total time: 1.9
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/170280/trees-sub-8.nwk
+    made 6 events with 69 seqs in 1.9s (1.7s of which was running bppseqgen)
+      total time: 2.2
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/499312/trees-sub-9.nwk
-    made 12 events with 99 seqs in 2.9s (2.5s of which was running bppseqgen)
-      total time: 3.3
+    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/170280/trees-sub-9.nwk
+    made 12 events with 99 seqs in 2.5s (2.2s of which was running bppseqgen)
+      total time: 2.8
 
    read 66 events with 426 seqs from 10 .yaml files
-      total time: 4.1
+      total time: 3.7
 [44msimulate[0m [94migh+igl[0m:[94m igl[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igl --n-sim-events 66 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.5 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1456246501 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results-slow/test/simu/igh+igl/igl.yaml --input-simulation-treefname test/paired/new-results-slow/test/simu/igh+igl/trees.nwk
 simulating
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-0.nwk
-    made 6 events with 15 seqs in 0.8s (0.7s of which was running bppseqgen)
-      total time: 1.2
-
-      --> proc 4
-    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-4.nwk
-    made 6 events with 22 seqs in 0.9s (0.8s of which was running bppseqgen)
-      total time: 1.2
-
-      --> proc 5
-    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-5.nwk
-    made 6 events with 27 seqs in 1.0s (0.8s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-0.nwk
+    made 6 events with 15 seqs in 0.9s (0.8s of which was running bppseqgen)
       total time: 1.3
 
       --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-7.nwk
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-7.nwk
     made 6 events with 31 seqs in 1.0s (0.9s of which was running bppseqgen)
-      total time: 1.4
+      total time: 1.3
 
-      --> proc 2
+      --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-2.nwk
-    made 6 events with 43 seqs in 1.1s (1.0s of which was running bppseqgen)
-      total time: 1.5
-
-      --> proc 1
-    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-1.nwk
-    made 6 events with 49 seqs in 1.1s (1.0s of which was running bppseqgen)
-      total time: 1.6
-
-      --> proc 6
-    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-6.nwk
-    made 6 events with 30 seqs in 1.1s (1.0s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-4.nwk
+    made 6 events with 22 seqs in 1.1s (0.9s of which was running bppseqgen)
       total time: 1.4
 
       --> proc 3
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-3.nwk
-    made 6 events with 41 seqs in 1.2s (1.1s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-3.nwk
+    made 6 events with 41 seqs in 1.1s (1.0s of which was running bppseqgen)
+      total time: 1.5
+
+      --> proc 6
+    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-6.nwk
+    made 6 events with 30 seqs in 1.1s (1.0s of which was running bppseqgen)
+      total time: 1.5
+
+      --> proc 5
+    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-5.nwk
+    made 6 events with 27 seqs in 1.1s (0.9s of which was running bppseqgen)
+      total time: 1.3
+
+      --> proc 2
+    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-2.nwk
+    made 6 events with 43 seqs in 1.2s (1.1s of which was running bppseqgen)
       total time: 1.6
+
+      --> proc 1
+    reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-1.nwk
+    made 6 events with 49 seqs in 1.3s (1.1s of which was running bppseqgen)
+      total time: 1.7
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/879683/trees-sub-8.nwk
-    made 6 events with 69 seqs in 1.7s (1.5s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/354753/trees-sub-8.nwk
+    made 6 events with 69 seqs in 1.6s (1.5s of which was running bppseqgen)
       total time: 1.9
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/879683/trees-sub-9.nwk
-    made 12 events with 99 seqs in 2.2s (2.0s of which was running bppseqgen)
-      total time: 2.4
+    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/354753/trees-sub-9.nwk
+    made 12 events with 99 seqs in 2.0s (1.9s of which was running bppseqgen)
+      total time: 2.3
 
    read 66 events with 426 seqs from 10 .yaml files
-      total time: 3.4
+      total time: 3.2
 [94migh+igk[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results-slow/test/simu/igh+igk/
 [94migh+igl[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results-slow/test/simu/igh+igl/
   apportioned 2346 seqs among 782 droplets (mean/2 1.5): 2 4 2 4 4 2 4 4 2 4 2 4 4 4 4 2 4 4 4 4 2 4 2 4 2 4 4 4 2 2 2 2 4 4 2 2 4 4 2 4 4 2 4 2 2 2 4 4 4 4 2 4 4 4 2 2 4 4 4 4 2 2 4 4 2 4 2 4 4 4 4 2 4 4 2 4 4 4 4 4 4 4 2 2 4 4 2 2 2 2 4 4 2 2 4 2 2 2 4 2 4 4 4 4 2 4 4 2 2 4 2 2 2 2 4 4 4 2 2 4 2 4 2 4 2 4 2 4 4 4 4 4 4 4 2 2 2 2 2 2 2 4 2 2 4 2 4 2 4 4 4 4 4 4 2 2 2 4 2 4 4 2 2 4 4 4 4 4 4 4 2 4 4 2 4 4 2 2 2 4 2 4 2 2 2 2 4 4 4 2 2 2 4 2 4 2 2 2 2 4 2 4 4 2 2 4 4 2 4 2 2 2 2 4 2 2 2 4 4 2 2 2 2 2 2 2 2 4 4 4 4 2 2 2 2 4 2 4 4 4 2 4 4 4 4 2 4 4 4 4 4 2 4 2 4 2 2 2 4 4 2 2 4 4 2 2 2 2 4 4 2 4 4 4 4 2 4 4 2 2 2 2 2 2 4 4 2 2 4 2 4 4 4 4 4 4 4 2 2 4 2 2 4 4 4 4 4 4 4 2 2 2 2 4 4 4 4 2 2 2 2 2 4 2 2 4 2 2 2 2 2 2 4 2 4 2 4 4 2 2 4 2 4 2 4 2 2 4 2 2 2 4 2 2 2 4 2 2 4 4 4 4 4 4 2 2 4 2 4 2 4 4 2 4 4 4 2 4 2 4 4 2 2 4 4 2 2 4 4 2 4 2 2 2 2 2 4 4 4 4 4 4 4 4 4 2 4 4 4 2 2 4 4 2 4 2 2 2 4 4 2 2 4 4 2 2 2 2 2 2 2 4 2 2 2 4 2 2 2 2 2 4 2 4 4 4 4 4 2 2 2 2 2 2 4 2 2 4 2 2 4 4 2 4 2 4 4 4 2 4 4 2 4 4 4 4 2 2 4 4 2 4 4 2 4 2 4 2 2 2 2 2 2 4 4 4 4 2 4 2 4 2 2 4 4 4 4 4 2 4 2 2 4 4 4 4 2 2 4 4 2 4 2 2 2 4 4 2 2 2 2 2 4 4 4 2 4 2 2 4 2 2 4 4 2 2 2 4 2 4 2 4 4 2 4 2 2 2 4 4 4 2 4 4 4 4 4 4 2 2 2 2 4 4 2 4 2 2 2 4 4 2 2 4 2 2 4 4 4 4 2 4 2 4 2 2 4 2 2 2 2 4 4 4 4 4 2 2 4 4 4 4 2 2 2 4 4 2 2 4 2 2 2 2 4 2 4 2 4 2 4 2 4 2 2 4 4 2 4 4 2 2 2 2 4 2 4 4 2 4 4 4 2 4 2 2 2 2 2 4 4 4 4 4 4 2 4 4 2 2 2 4 4 4 4 4 2 2 2 2 4 2 2 2 4 2 4 2 2 2 4 4 4 4 2 2 4 2 2 2 2 2 4 2 2 4 4 2 4 2 2 4 4 4 4 4 2 4 4 2 4 4 2 2 4 4 2 2 2 4 2 2 2 2 2 2 2 2 2 4 2 4 2 2 2 2 4 4 2 4 2 2 4 2 4 2 2 4 2 2 4 2 4 2 4 2 4 4 2 2 2 4 4 2 2 2 4 2 4 2 4 4
   removed 351 / 2346 = 0.15 seqs from outfos (leaving 104 / 1995 unpaired)
-      total time: 24.0
+      total time: 23.7
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --parameter-dir test/paired/new-results-slow/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
 [44mcache-parameters[0m [94migh[0m:
@@ -435,8 +431,7 @@ caching parameters
   vsearch: 1000 / 1000 v annotations (0 failed) with 37 v genes in 0.1 sec
     keeping 23 / 198 v genes
 smith-waterman  (new-allele fitting)
-  vsearch: 1000 / 1000 v annotations (0 failed) with 23 v genes in 0.2 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
+  vsearch: 1000 / 1000 v annotations (0 failed) with 23 v genes in 0.3 sec
     running 10 procs for 1000 seqs
     running 11 procs for 33 seqs
       info for 1000 / 1000 = 1.000   (removed: 0 failed)
@@ -449,21 +444,21 @@ smith-waterman  (writing parameters)
       info for 1000 / 1000 = 1.000   (removed: 0 failed)
       kept 325 (0.325) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/sw (1.6 sec)
-    water time: 3.8  (ig-sw 2.3  processing 0.3)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/sw (1.5 sec)
+    water time: 3.7  (ig-sw 2.2  processing 0.3)
   writing hmms     removed 1  genes from glfo (leaving v 23  d 31  j 6)
 (0.3 sec)
 hmm
     skipping matches from 2 genes without enough counts: [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m02[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01[0m
     reading output
         read 1000 hmm output lines with 1000 sequences in 1000 events  (0 failures)
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/hmm (1.6 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/hmm (1.5 sec)
     writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/true (1.5 sec)
-         infra time: 4.7
-      hmm step time: 6.5
+         infra time: 4.5
+      hmm step time: 6.3
   writing hmms     removed 4  genes from glfo (leaving v 23  d 27  j 6)
 (0.3 sec)
-      total time: 14.3
+      total time: 14.1
 [44mcache-parameters[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igk --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results-slow/test/simu/igk.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -473,12 +468,11 @@ caching parameters
     keeping 16 / 64 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 640 / 640 v annotations (0 failed) with 16 v genes in 0.2 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml
     running 10 procs for 640 seqs
     running 11 procs for 11 seqs
       info for 640 / 640 = 1.000   (removed: 0 failed)
       kept 111 (0.173) unproductive
-    water time: 0.7  (ig-sw 0.0  processing 0.1)
+    water time: 0.7  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 640 / 640 v annotations (0 failed) with 16 v genes in 0.2 sec
     running 10 procs for 640 seqs
@@ -494,13 +488,13 @@ hmm
     reading output
         read 640 hmm output lines with 638 sequences in 638 events  (2 failures)
           [91mwarning[0m no valid paths: 5802210866897873152-igk 3594209871322143324-igk
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igk/hmm (1.1 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igk/hmm (1.0 sec)
     writing parameters to test/paired/new-results-slow/test/parameters/simu/igk/true (1.1 sec)
-         infra time: 3.4
-      hmm step time: 4.3
+         infra time: 3.3
+      hmm step time: 4.2
   writing hmms     removed 0  genes from glfo (leaving v 16  d 1  j 7)
 (0.3 sec)
-      total time: 9.1
+      total time: 8.9
 [44mcache-parameters[0m [94migl[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igl --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results-slow/test/simu/igl.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -510,7 +504,6 @@ caching parameters
     keeping 10 / 80 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 355 / 355 v annotations (0 failed) with 10 v genes in 0.2 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/simu/igl/sw-cache.yaml
     running 10 procs for 355 seqs
     running 11 procs for 7 seqs
       info for 355 / 355 = 1.000   (removed: 0 failed)
@@ -523,7 +516,7 @@ smith-waterman  (writing parameters)
       info for 355 / 355 = 1.000   (removed: 0 failed)
       kept 80 (0.225) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/simu/igl/sw-cache.yaml
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igl/sw (0.9 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igl/sw (0.8 sec)
     water time: 1.5  (ig-sw 1.1  processing 0.1)
   writing hmms     removed 6  genes from glfo (leaving v 10  d 1  j 3)
 (0.2 sec)
@@ -538,7 +531,7 @@ hmm
   writing hmms     removed 0  genes from glfo (leaving v 10  d 1  j 3)
 (0.1 sec)
       total time: 5.5
-      total time: 30.0
+      total time: 29.7
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --parameter-dir test/paired/new-results-slow/test/parameters/simu --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/partition-new-simu
   [93mwarning[0m ignoring --plot-annotation-performance for paired clustering since it's going to be a bit fiddly to implement
 [44mpartition[0m [94migh[0m:
@@ -554,27 +547,27 @@ smith-waterman
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 46 queries with different true and inferred net shm indel lengths: 2488807745589814943-igh 3980532803358933603-igh 4073438025032049835-igh 1054090379775176327-igh 2917738267650240402-igh 7043909144958920011-igh 3818326766997109487-igh 0356379406817606555-igh 2897674672026153214-igh 1622521782624448165-igh 4978225974165211702-igh 3315896596429344122-igh 0010535159084805846-igh 5699535924198739028-igh 6508079870329503888-igh 5826850563641090501-igh 6986832758238280520-igh 1400772063092006838-igh 3950938221096510937-igh 3916891821360773100-igh 5000444214780551666-igh 0117937365685407321-igh 0680207073006621040-igh 7032751117135714792-igh 7720944207401730279-igh 1252132326248130775-igh 8957710528055392055-igh 4535443007653894495-igh 4995415345192250287-igh 2803379781311571395-igh 7420360837700887520-igh 3220642911298757188-igh 2094218776922064561-igh 0060607139543165647-igh 3372567815996442755-igh 6961718552349844304-igh 0083509690903049153-igh 5776690824699027316-igh 8978107622438907369-igh 2201753879444184247-igh 7717196539324954295-igh 3094999436340659134-igh 8441159689110816677-igh 2768152530079277521-igh 8786371871708854728-igh 2334154363188070671-igh
 (0.0 sec)
-        water time: 1.1
+        water time: 1.0
 hmm
   caching all 1000 naive sequences (1.9s)
    collapsed 1000 queries into 448 clusters with identical naive seqs (0.0 sec)
   448 clusters with 10 procs (3.1s)
-  365 clusters with 7 procs (2.5s)
+  365 clusters with 7 procs (2.4s)
   319 clusters with 5 procs (3.1s)
   274 clusters with 3 procs (3.1s)
   243 clusters with 2 procs (4.5s)
   217 clusters with 2 procs (3.5s)
   206 clusters with 2 procs (2.0s)
-  200 clusters with 1 proc (3.6s)
+  200 clusters with 1 proc (3.5s)
   [93mnote[0m not merging entire cpath history
-      partition loop time: 25.4
+      partition loop time: 25.3
 getting annotations for final partition
-  subcluster annotating 196 clusters with steps:  (1.9s) (1.0s) (0.5s) (0.3s)   plotting performance 
+  subcluster annotating 196 clusters with steps:  (1.9s) (1.1s) (0.4s) (0.3s)   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 46 queries with different true and inferred net shm indel lengths: 5699535924198739028-igh 6961718552349844304-igh 1252132326248130775-igh 0083509690903049153-igh 7720944207401730279-igh 3220642911298757188-igh 1400772063092006838-igh 0010535159084805846-igh 0060607139543165647-igh 0117937365685407321-igh 0356379406817606555-igh 0680207073006621040-igh 1054090379775176327-igh 1622521782624448165-igh 2094218776922064561-igh 2201753879444184247-igh 2334154363188070671-igh 2488807745589814943-igh 2768152530079277521-igh 2803379781311571395-igh 2897674672026153214-igh 2917738267650240402-igh 3094999436340659134-igh 3315896596429344122-igh 3372567815996442755-igh 3818326766997109487-igh 3916891821360773100-igh 3950938221096510937-igh 3980532803358933603-igh 4073438025032049835-igh 4535443007653894495-igh 4978225974165211702-igh 4995415345192250287-igh 5000444214780551666-igh 5776690824699027316-igh 5826850563641090501-igh 6508079870329503888-igh 6986832758238280520-igh 7032751117135714792-igh 7043909144958920011-igh 7420360837700887520-igh 7717196539324954295-igh 8441159689110816677-igh 8786371871708854728-igh 8957710528055392055-igh 8978107622438907369-igh
 (0.0 sec)
 
     subcluster annotation time 4.7
-      total time: 34.0
+      total time: 33.9
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igk --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results-slow/partition-new-simu-annotation-performance/single-chain/plots/igk --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results-slow/test/simu/igk.yaml --outfname test/paired/new-results-slow/partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -588,7 +581,7 @@ smith-waterman
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 23 queries with different true and inferred net shm indel lengths: 2488807745589814943-igk 5802210866897873152-igk 9150333179807655332-igk 8283158626927785203-igk 2152272422987659847-igk 3594209871322143324-igk 4930447683585229275-igk 5241701537690132766-igk 0486597982636693228-igk 8285089453236201552-igk 7141730765438189074-igk 8469974146970202101-igk 4847800476434817784-igk 5933458625351603950-igk 1943440281804439201-igk 1561865623356487723-igk 9035977341874407873-igk 7749248139831988541-igk 2004075356755268685-igk 0367083829757630537-igk 7768221577657178431-igk 1528156310125601369-igk 7315577117789168684-igk
 (0.0 sec)
-        water time: 0.8
+        water time: 0.7
 hmm
   caching all 640 naive sequences (0.9s)
     [93mwarning:[0m missing 2 queries from hmm cache file (using sw naive sequence instead): 5802210866897873152-igk 3594209871322143324-igk
@@ -601,7 +594,7 @@ hmm
   50 clusters with 1 proc (1.0s)
   [93mnote[0m not merging entire cpath history
   [93mwarning[0m all 15 partitions in cluster path have log prob -inf, so setting last (best) to zero
-      partition loop time: 2.8
+      partition loop time: 2.9
 getting annotations for final partition
   subcluster annotating 49 clusters with steps:            [91mwarning[0m no valid paths: 5802210866897873152-igk 3594209871322143324-igk
 (1.3s)     missing 2 annotations
@@ -619,7 +612,7 @@ getting annotations for final partition
   --input-metafnames: added meta info for 355 sequences from test/paired/new-results-slow/test/simu/meta.yaml: paired-uids loci
 partitioning     (with test/paired/new-results-slow/test/parameters/simu/igl/hmm)
 smith-waterman
-  vsearch: 355 / 355 v annotations (0 failed) with 10 v genes in 0.2 sec
+  vsearch: 355 / 355 v annotations (0 failed) with 10 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igl/sw-cache.yaml
       info for 355 / 355 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 80 (0.225) unproductive
@@ -634,12 +627,12 @@ hmm
   40 clusters with 10 procs (0.4s)
   36 clusters with 7 procs (0.3s)
   35 clusters with 5 procs (0.3s)
-  31 clusters with 3 procs (0.2s)
+  31 clusters with 3 procs (0.3s)
   25 clusters with 2 procs (0.2s)
   23 clusters with 1 proc (0.7s)
   [93mnote[0m not merging entire cpath history
   [93mwarning[0m all 12 partitions in cluster path have log prob -inf, so setting last (best) to zero
-      partition loop time: 2.2
+      partition loop time: 2.1
 getting annotations for final partition
   subcluster annotating 20 clusters with steps:            [91mwarning[0m no valid paths: 6367726388695138423-igl 0680380776689897989-igl
 (0.8s)     missing 2 annotations
@@ -650,7 +643,7 @@ getting annotations for final partition
 (0.0 sec)
 
     subcluster annotation time 2.0
-      total time: 5.8
+      total time: 5.7
 [44mcombining[0m chains
       removed 2 failed queries when reading partition: 5802210866897873152-igk 3594209871322143324-igk
       removed 2 failed queries when reading partition: 6367726388695138423-igl 0680380776689897989-igl
@@ -721,7 +714,7 @@ hmm
   --input-partition-fname: read best partition with 638 sequences in 184 clusters from test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk-only-partition.yaml
 annotating    (with test/paired/new-results-slow/test/parameters/simu/igk/hmm)
 smith-waterman
-  vsearch: 638 / 638 v annotations (0 failed) with 16 v genes in 0.2 sec
+  vsearch: 638 / 638 v annotations (0 failed) with 16 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml
       info for 638 / 638 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 109 (0.171) unproductive
@@ -746,7 +739,7 @@ hmm
       cluster splits:  12 --> 9 1 2,   3 --> 2 1,   3 --> 1 2
   subcluster annotating 188 clusters with steps:  (1.4s) (0.5s) (0.2s) (0.1s) 
     subcluster annotation time 2.3
-      total time: 2.8
+      total time: 2.7
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
     removing badly paired seqs:  210 total unpaired,  [94mh[0m 152  [92ml[0m 58
     merging igh+igl partitions
@@ -775,7 +768,7 @@ hmm
   --input-partition-fname: read best partition with 447 sequences in 149 clusters from test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
-  vsearch: 447 / 447 v annotations (0 failed) with 22 v genes in 0.2 sec
+  vsearch: 447 / 447 v annotations (0 failed) with 22 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
       info for 447 / 447 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 152 (0.340) unproductive
@@ -797,7 +790,7 @@ smith-waterman
         water time: 0.2
 hmm
   subcluster annotating 149 clusters with steps:  (1.2s) (0.5s) (0.3s) 
-    subcluster annotation time 2.1
+    subcluster annotation time 2.2
       total time: 2.6
   need to get annotations for 91/92 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
@@ -828,14 +821,14 @@ smith-waterman
              paired-uids        0      353        0      124        0      229
         water time: 0.1
 hmm
-  subcluster annotating 92 clusters with steps:  (0.8s) (0.3s) (0.1s) 
+  subcluster annotating 92 clusters with steps:  (0.7s) (0.3s) (0.2s) 
     subcluster annotation time 1.3
       total time: 1.6
    N clusters with all seqs:
         [94mh[0m  196 --> 304  [91m+108[0m
         [95mk[0m   47 --> 184  [91m+137[0m
         [92ml[0m   18 --> 92   [91m+74[0m
-      total time: 64.2
+      total time: 63.9
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --parameter-dir test/paired/new-results-slow/test/parameters/simu --max-ccf-fail-frac 0.10 --is-simu --seed-unique-id 4523086687660472215-igh:4523086687660472215-igk --seed-loci igh:igk --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/seed-partition-new-simu
    removing seqs very different from seed seq
                            wrong/no     removed      singly         kept   missing
@@ -864,7 +857,7 @@ hmm
    collapsed 73 queries into 44 clusters with identical naive seqs (0.0 sec)
   44 clusters with 10 procs (0.3s)
   44 clusters with 7 procs (0.3s)
-  43 clusters with 5 procs (0.2s)
+  43 clusters with 5 procs (0.3s)
   43 clusters with 3 procs (0.3s)
   40 clusters with 2 procs (0.2s)
   40 clusters with 1 proc (0.9s)
@@ -872,7 +865,7 @@ hmm
 getting annotations for final partition
   subcluster annotating 40 clusters with steps:  (0.4s) (0.1s) (0.1s) 
     subcluster annotation time 0.7
-      total time: 3.6
+      total time: 3.7
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igk --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results-slow/seed-partition-new-simu/seeds/4523086687660472215-igh+4523086687660472215-igk/single-chain/input-seqs-igk.fa --outfname test/paired/new-results-slow/seed-partition-new-simu/seeds/4523086687660472215-igh+4523086687660472215-igk/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -896,7 +889,7 @@ hmm
       partition loop time: 1.4
 getting annotations for final partition
   subcluster annotating 13 clusters with steps:  (0.3s) (0.1s) (0.1s) (0.1s) 
-    subcluster annotation time 0.7
+    subcluster annotation time 0.6
       total time: 2.5
 [44mpartition[0m [94migl[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
@@ -961,7 +954,7 @@ getting annotations for final partition
   --input-partition-fname: read best partition with 14 sequences in 1 clusters from test/paired/new-results-slow/seed-partition-new-simu/seeds/4523086687660472215-igh+4523086687660472215-igk/igh+igk/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
-  vsearch: 14 / 14 v annotations (0 failed) with 1 v gene in 0.1 sec
+  vsearch: 14 / 14 v annotations (0 failed) with 1 v gene in 0.0 sec
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
       info for 14 / 14 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.214) unproductive
@@ -1359,7 +1352,7 @@ hmm
               0.0584    0.0426       1.4     0.0158     8293430764023338389-igh
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bpq fnv gpx bgv ptx dwx gjq aqx eqv
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igh-selection-metrics.yaml
-      total time: 0.7
+      total time: 0.6
 [44mget-selection-metrics[0m [94migh+igl[0m:[94m igl[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igl --dont-write-git-info --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igl.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
@@ -1461,137 +1454,182 @@ hmm
           [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 8515427139903286296-igh 8515427139903286296-igl
           [93mwarning[0m choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: 2850858559156933498-igh 2850858559156933498-igl
     getting trees for 12 clusters with sizes: 28 20 19 18 16 16 14 14 13 13 11 11
-      all fasttree outputs exist, not rerunning (e.g. test/paired/new-results-slow/partition-new-simu/fasttree/iclust-0/fasttree.out)
-    [93mwarning[0m didn't find 28 / 30 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 20 / 22 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 19 / 21 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 18 / 20 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 16 / 18 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 16 / 18 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 14 / 16 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 14 / 16 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 13 / 15 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 13 / 15 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 11 / 13 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 11 / 13 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
+      starting 12 jobs
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-0/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-1/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-1/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-3/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-3/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-4/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-4/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-5/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-5/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-7/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-7/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-8/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-8/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-9/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-9/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-10/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-10/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-11/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-11/input-seqs.fa
+      made 12 fasttree trees (0.6s)
     tree origins: 12 ran fasttree
     getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 12 clusters with sizes 28 20 19 18 16 16 14 14 13 13 11 11
       skipping 6 smaller than 10
       setting default tau to 1 / 726 = 0.0014
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0014
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  28 missing from lb info  54 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  28 missing from lb info  54 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  28 missing from lb info  54 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 53/54 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 8491307914594882867_contig_igh+igk nqt 5339603941548150916_contig_igh+igk 4997395349497519148_contig_igh+igk 2233446940528539583_contig_igh+igk 0321505090910595987_contig_igh+igk lsw 0132526799443345491_contig_igh+igk alt 0393969878982599829_contig_igh+igk 3874233171891145881_contig_igh+igk lwz 2449081293795609249_contig_igh+igk bly jxy dfw irs 1831452496496166968_contig_igh+igk emw 0352991810400659196_contig_igh+igk 0357336109842760089_contig_igh+igk 6928029730554114850_contig_igh+igk 1110906604662458640_contig_igh+igk muy 1935238608924807489_contig_igh+igk mxy 7761182685645240355_contig_igh+igk cem 8249779072425430592_contig_igh+igk 8843405553661357216_contig_igh+igk 9083670469105414532_contig_igh+igk nry amz 4583344754314604239_contig_igh+igk lmo cgp 3016795547846380638_contig_igh+igk 0483998891175204459_contig_igh+igk 2931796058173897070_contig_igh+igk cpz 8926817131772393236_contig_igh+igk dik egr iqw 6695763620155680960_contig_igh+igk cin glz 7380980274069482316_contig_igh+igk gqx bgz 7287561184950536307_contig_igh+igk dot 6131914649560135013_contig_igh+igk
+                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 7/28 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.031  mfreq 0.026  diff 0.005  abs(frac diff) 19%  ratio 1.2
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0362    0.0262       1.4     0.0100     6876791330767964627_contig_igh+igk
+              0.0375    0.0289       1.3     0.0085     2319097646327678068_contig_igh+igk
+              0.0303    0.0220       1.4     0.0083     6306886061961573316_contig_igh+igk
+              0.0352    0.0275       1.3     0.0077     6644733530721277222_contig_igh+igk
+              0.0297    0.0220       1.3     0.0076     2452404144692020598_contig_igh+igk
+              0.0316    0.0248       1.3     0.0068     7668841143621032867_contig_igh+igk
+              0.0284    0.0220       1.3     0.0064     6048823774239581715_contig_igh+igk
+          10 with highest+lowest ratios:
+              0.0362    0.0262       1.4     0.0100     6876791330767964627_contig_igh+igk
+              0.0303    0.0220       1.4     0.0083     6306886061961573316_contig_igh+igk
+              0.0297    0.0220       1.3     0.0076     2452404144692020598_contig_igh+igk
+              0.0375    0.0289       1.3     0.0085     2319097646327678068_contig_igh+igk
+              0.0284    0.0220       1.3     0.0064     6048823774239581715_contig_igh+igk
+              0.0297    0.0220       1.3     0.0076     2452404144692020598_contig_igh+igk
+              0.0375    0.0289       1.3     0.0085     2319097646327678068_contig_igh+igk
+              0.0284    0.0220       1.3     0.0064     6048823774239581715_contig_igh+igk
+              0.0352    0.0275       1.3     0.0077     6644733530721277222_contig_igh+igk
+              0.0316    0.0248       1.3     0.0068     7668841143621032867_contig_igh+igk
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 51/54 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: nqt mxy cem lnv cin lsw nry amz lmo cgp alt lwz bly jxy egr dfw irs muy cpz emw glz gqx bgz iqw dot
       setting default tau to 1 / 726 = 0.0014
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0014
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  20 missing from lb info  40 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  20 missing from lb info  40 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  20 missing from lb info  40 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 39/40 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: coq 0733962872011202790_contig_igh+igl 4300248275102195277_contig_igh+igl 7421758173420210689_contig_igh+igl 6107403177916615458_contig_igh+igl 3476949047420226245_contig_igh+igl 0109124625350740979_contig_igh+igl 2596242750321192233_contig_igh+igl 6268512401205569735_contig_igh+igl 8106283947587798521_contig_igh+igl bkt 2282592859345613663_contig_igh+igl efg ipu emr ruw 2464920397588156761_contig_igh+igl 3024581101301980698_contig_igh+igl 2171328757384279529_contig_igh+igl kpu 6538089838591085935_contig_igh+igl 2837610149726138004_contig_igh+igl lqu 5086672391185581025_contig_igh+igl 8180590271140879452_contig_igh+igl ewy 3108004639836514286_contig_igh+igl bex loq dmu env 4266026466131311583_contig_igh+igl 4212903797411661201-igh+1475962519024355608-igl jrs elp cix 6302753673530959145_contig_igh+igl fju dou
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  19 missing from lb info  36 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  19 missing from lb info  36 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  19 missing from lb info  36 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 35/36 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 8648797381082175059_contig_igh+igl 0605436960283742311_contig_igh+igl 4030504834394011079_contig_igh+igl ahi 7698768102636357101_contig_igh+igl 0842496127807567633_contig_igh+igl 3460024430053266460_contig_igh+igl htu 3481315104123250263_contig_igh+igl noy mot 7153740201231206318_contig_igh+igl 3916193579031653942_contig_igh+igl cgs jks 5102993278851569401_contig_igh+igl bip 7829880163834004541_contig_igh+igl 2308742347537032314_contig_igh+igl kpr fhi 7011876773655926503_contig_igh+igl bns 1767611730716028444_contig_igh+igl bgk 3435987981856781021_contig_igh+igl hqu 7239387716811157961_contig_igh+igl csy ajm cit 2244714085091278571_contig_igh+igl cmu 8055466163282342115_contig_igh+igl suy
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  18 missing from lb info  26 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  18 missing from lb info  26 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  18 missing from lb info  26 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 25/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 9100239866588205890_contig_igh+igl 6143165104580663490_contig_igh+igl 6723344859727410771_contig_igh+igl ahn jkp 9204389322873860625_contig_igh+igl 1806230368692033891_contig_igh+igl 3035309602819175983_contig_igh+igl bjs pqz 7768673123773159888-igh+2898058159068739252-igl 8407990544654438812_contig_igh+igl 4850952847165763581_contig_igh+igl 1207467187000553831_contig_igh+igl 9219594453118285895_contig_igh+igl cgr 8229153984722279679_contig_igh+igl gsx mwy bnv 7622081286960976867_contig_igh+igl ejy 2570466947252138349_contig_igh+igl glr 3810013956605564244_contig_igh+igl
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  16 missing from lb info  5 extra in lb info  (0 in common)
-      missing from lb info: 6182844226042757980_contig_igh+igk 2723587734645273218_contig_igh+igk 3332891513762134733_contig_igh+igk 7900195018352700834_contig_igh+igk 7332233745859530338-igh+7720944207401730279-igk 4048830167646636597_contig_igh+igk 8813569152107474525_contig_igh+igk 0033482953985804060_contig_igh+igk 6265308224300409198_contig_igh+igk 7720944207401730279-igh+7332233745859530338-igk 8981971708286128278_contig_igh+igk 0056362983030679170_contig_igh+igk 5466113140797501862_contig_igh+igk 6805937077440176215_contig_igh+igk 5852338261867493884_contig_igh+igk 3832013525093906930_contig_igh+igk
-      missing from annotation: 4089003412167002582_contig_igh+igk XnaiveX mqz 5366871687973810495-igh+6320612576182702400-igk 2868596996019457532_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  16 missing from lb info  5 extra in lb info  (0 in common)
-      missing from lb info: 6182844226042757980_contig_igh+igk 2723587734645273218_contig_igh+igk 3332891513762134733_contig_igh+igk 7900195018352700834_contig_igh+igk 7332233745859530338-igh+7720944207401730279-igk 4048830167646636597_contig_igh+igk 8813569152107474525_contig_igh+igk 0033482953985804060_contig_igh+igk 6265308224300409198_contig_igh+igk 7720944207401730279-igh+7332233745859530338-igk 8981971708286128278_contig_igh+igk 0056362983030679170_contig_igh+igk 5466113140797501862_contig_igh+igk 6805937077440176215_contig_igh+igk 5852338261867493884_contig_igh+igk 3832013525093906930_contig_igh+igk
-      missing from annotation: 4089003412167002582_contig_igh+igk XnaiveX mqz 5366871687973810495-igh+6320612576182702400-igk 2868596996019457532_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  16 missing from lb info  5 extra in lb info  (0 in common)
-      missing from lb info: 6182844226042757980_contig_igh+igk 2723587734645273218_contig_igh+igk 3332891513762134733_contig_igh+igk 7900195018352700834_contig_igh+igk 7332233745859530338-igh+7720944207401730279-igk 4048830167646636597_contig_igh+igk 8813569152107474525_contig_igh+igk 0033482953985804060_contig_igh+igk 6265308224300409198_contig_igh+igk 7720944207401730279-igh+7332233745859530338-igk 8981971708286128278_contig_igh+igk 0056362983030679170_contig_igh+igk 5466113140797501862_contig_igh+igk 6805937077440176215_contig_igh+igk 5852338261867493884_contig_igh+igk 3832013525093906930_contig_igh+igk
-      missing from annotation: 4089003412167002582_contig_igh+igk XnaiveX mqz 5366871687973810495-igh+6320612576182702400-igk 2868596996019457532_contig_igh+igk
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 4/5 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 4089003412167002582_contig_igh+igk mqz 2868596996019457532_contig_igh+igk 5366871687973810495-igh+6320612576182702400-igk
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  16 missing from lb info  6 extra in lb info  (0 in common)
-      missing from lb info: 2454518544273535595_contig_igh+igk 1181690528959207288_contig_igh+igk 5255033430964023824_contig_igh+igk 3008196126498151547_contig_igh+igk 1238569800901685241_contig_igh+igk 3492568178748296573_contig_igh+igk 1634066985887588950_contig_igh+igk 4025228959598981896_contig_igh+igk 2571812408704059096_contig_igh+igk 6262052391676574460_contig_igh+igk 2801944979963113962_contig_igh+igk 8641703594711961936_contig_igh+igk 2347881115869855579_contig_igh+igk 8065676316938059547-igh+4815522839738366695-igk 2100829307677066697_contig_igh+igk 5597120011826142724_contig_igh+igk
-      missing from annotation: 4961183970982078756_contig_igh+igk 7675054709541274093_contig_igh+igk bdn 2975541313160084247_contig_igh+igk 0515260043455636484_contig_igh+igk XnaiveX
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  16 missing from lb info  6 extra in lb info  (0 in common)
-      missing from lb info: 2454518544273535595_contig_igh+igk 1181690528959207288_contig_igh+igk 5255033430964023824_contig_igh+igk 3008196126498151547_contig_igh+igk 1238569800901685241_contig_igh+igk 3492568178748296573_contig_igh+igk 1634066985887588950_contig_igh+igk 4025228959598981896_contig_igh+igk 2571812408704059096_contig_igh+igk 6262052391676574460_contig_igh+igk 2801944979963113962_contig_igh+igk 8641703594711961936_contig_igh+igk 2347881115869855579_contig_igh+igk 8065676316938059547-igh+4815522839738366695-igk 2100829307677066697_contig_igh+igk 5597120011826142724_contig_igh+igk
-      missing from annotation: 4961183970982078756_contig_igh+igk 7675054709541274093_contig_igh+igk bdn 2975541313160084247_contig_igh+igk 0515260043455636484_contig_igh+igk XnaiveX
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  16 missing from lb info  6 extra in lb info  (0 in common)
-      missing from lb info: 2454518544273535595_contig_igh+igk 1181690528959207288_contig_igh+igk 5255033430964023824_contig_igh+igk 3008196126498151547_contig_igh+igk 1238569800901685241_contig_igh+igk 3492568178748296573_contig_igh+igk 1634066985887588950_contig_igh+igk 4025228959598981896_contig_igh+igk 2571812408704059096_contig_igh+igk 6262052391676574460_contig_igh+igk 2801944979963113962_contig_igh+igk 8641703594711961936_contig_igh+igk 2347881115869855579_contig_igh+igk 8065676316938059547-igh+4815522839738366695-igk 2100829307677066697_contig_igh+igk 5597120011826142724_contig_igh+igk
-      missing from annotation: 4961183970982078756_contig_igh+igk 7675054709541274093_contig_igh+igk bdn 2975541313160084247_contig_igh+igk 0515260043455636484_contig_igh+igk XnaiveX
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 5/6 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 4961183970982078756_contig_igh+igk 7675054709541274093_contig_igh+igk 2975541313160084247_contig_igh+igk 0515260043455636484_contig_igh+igk bdn
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  14 missing from lb info  5 extra in lb info  (0 in common)
-      missing from lb info: 5899049733785036092_contig_igh+igk 8100630872905721129_contig_igh+igk 8618466487361197839_contig_igh+igk 5039202285255278935_contig_igh+igk 8914433970648843151_contig_igh+igk 6945494824644493725_contig_igh+igk 6823703535300105961_contig_igh+igk 7130919680731245093_contig_igh+igk 1203107908624746468_contig_igh+igk 2109520115720212689-igh+3609691689420195410-igk 1461122263270327767_contig_igh+igk 1143452071457066048_contig_igh+igk 4523086687660472215_contig_igh+igk 7647129031959824413_contig_igh+igk
-      missing from annotation: 4312182340578855673_contig_igh+igk 5962962771298656083_contig_igh+igk XnaiveX adg 8533573562613483939_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  14 missing from lb info  5 extra in lb info  (0 in common)
-      missing from lb info: 5899049733785036092_contig_igh+igk 8100630872905721129_contig_igh+igk 8618466487361197839_contig_igh+igk 5039202285255278935_contig_igh+igk 8914433970648843151_contig_igh+igk 6945494824644493725_contig_igh+igk 6823703535300105961_contig_igh+igk 7130919680731245093_contig_igh+igk 1203107908624746468_contig_igh+igk 2109520115720212689-igh+3609691689420195410-igk 1461122263270327767_contig_igh+igk 1143452071457066048_contig_igh+igk 4523086687660472215_contig_igh+igk 7647129031959824413_contig_igh+igk
-      missing from annotation: 4312182340578855673_contig_igh+igk 5962962771298656083_contig_igh+igk XnaiveX adg 8533573562613483939_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  14 missing from lb info  5 extra in lb info  (0 in common)
-      missing from lb info: 5899049733785036092_contig_igh+igk 8100630872905721129_contig_igh+igk 8618466487361197839_contig_igh+igk 5039202285255278935_contig_igh+igk 8914433970648843151_contig_igh+igk 6945494824644493725_contig_igh+igk 6823703535300105961_contig_igh+igk 7130919680731245093_contig_igh+igk 1203107908624746468_contig_igh+igk 2109520115720212689-igh+3609691689420195410-igk 1461122263270327767_contig_igh+igk 1143452071457066048_contig_igh+igk 4523086687660472215_contig_igh+igk 7647129031959824413_contig_igh+igk
-      missing from annotation: 4312182340578855673_contig_igh+igk 5962962771298656083_contig_igh+igk XnaiveX adg 8533573562613483939_contig_igh+igk
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 4/5 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 4312182340578855673_contig_igh+igk adg 8533573562613483939_contig_igh+igk 5962962771298656083_contig_igh+igk
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  14 missing from lb info  23 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  14 missing from lb info  23 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  14 missing from lb info  23 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 22/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 8989454625843736838_contig_igh+igl ijy 4355827031344083099_contig_igh+igl 3145739496960809933-igh+3916124757125782793-igl dpz anu hlm ipq 1511705061987813904_contig_igh+igl 7553285195620669147_contig_igh+igl 2129087849071259863_contig_igh+igl jrv vyz 2355051243755866763_contig_igh+igl 7732040268686554775_contig_igh+igl 7427392473165940548_contig_igh+igl 3572585081032468871_contig_igh+igl dlr fps fjr 3195493872667711145_contig_igh+igl 2285376519152879741_contig_igh+igl
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  13 missing from lb info  21 extra in lb info  (0 in common)
-      missing from lb info: 0660834887575972608_contig_igh+igk 5859395925852007607_contig_igh+igk 2161852663242645077_contig_igh+igk 1101810368081291042_contig_igh+igk 8476238286560845555_contig_igh+igk 3571714580319434900_contig_igh+igk 8800982281429777817_contig_igh+igk 6949681420241980734_contig_igh+igk 6381227264078530579_contig_igh+igk 8404577688496819834_contig_igh+igk 5166396785437299876_contig_igh+igk 0984264738906568234_contig_igh+igk 5019192291428544931_contig_igh+igk
-      missing from annotation: 7869208859398163520_contig_igh+igl 9201666969585767925_contig_igh+igl XnaiveX 6423257657665527373_contig_igh+igl 1109722474862172220_contig_igh+igl 5472033004376707064_contig_igh+igl dqs lnq 7380617868211703649_contig_igh+igl nvy hjx 1515091363139683588_contig_igh+igl loq txz lrx 1691577105131091412_contig_igh+igl 3893915324901514383_contig_igh+igl 3316045886334424798_contig_igh+igl amu nsu 7868965243984851504_contig_igh+igl
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  13 missing from lb info  21 extra in lb info  (0 in common)
-      missing from lb info: 0660834887575972608_contig_igh+igk 5859395925852007607_contig_igh+igk 2161852663242645077_contig_igh+igk 1101810368081291042_contig_igh+igk 8476238286560845555_contig_igh+igk 3571714580319434900_contig_igh+igk 8800982281429777817_contig_igh+igk 6949681420241980734_contig_igh+igk 6381227264078530579_contig_igh+igk 8404577688496819834_contig_igh+igk 5166396785437299876_contig_igh+igk 0984264738906568234_contig_igh+igk 5019192291428544931_contig_igh+igk
-      missing from annotation: 7869208859398163520_contig_igh+igl 9201666969585767925_contig_igh+igl XnaiveX 6423257657665527373_contig_igh+igl 1109722474862172220_contig_igh+igl 5472033004376707064_contig_igh+igl dqs lnq 7380617868211703649_contig_igh+igl nvy hjx 1515091363139683588_contig_igh+igl loq txz lrx 1691577105131091412_contig_igh+igl 3893915324901514383_contig_igh+igl 3316045886334424798_contig_igh+igl amu nsu 7868965243984851504_contig_igh+igl
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  13 missing from lb info  21 extra in lb info  (0 in common)
-      missing from lb info: 0660834887575972608_contig_igh+igk 5859395925852007607_contig_igh+igk 2161852663242645077_contig_igh+igk 1101810368081291042_contig_igh+igk 8476238286560845555_contig_igh+igk 3571714580319434900_contig_igh+igk 8800982281429777817_contig_igh+igk 6949681420241980734_contig_igh+igk 6381227264078530579_contig_igh+igk 8404577688496819834_contig_igh+igk 5166396785437299876_contig_igh+igk 0984264738906568234_contig_igh+igk 5019192291428544931_contig_igh+igk
-      missing from annotation: 7869208859398163520_contig_igh+igl 9201666969585767925_contig_igh+igl XnaiveX 6423257657665527373_contig_igh+igl 1109722474862172220_contig_igh+igl 5472033004376707064_contig_igh+igl dqs lnq 7380617868211703649_contig_igh+igl nvy hjx 1515091363139683588_contig_igh+igl loq txz lrx 1691577105131091412_contig_igh+igl 3893915324901514383_contig_igh+igl 3316045886334424798_contig_igh+igl amu nsu 7868965243984851504_contig_igh+igl
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 20/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 7869208859398163520_contig_igh+igl 7380617868211703649_contig_igh+igl 9201666969585767925_contig_igh+igl dqs 1109722474862172220_contig_igh+igl 5472033004376707064_contig_igh+igl lnq 6423257657665527373_contig_igh+igl nvy hjx 1515091363139683588_contig_igh+igl loq txz lrx 1691577105131091412_contig_igh+igl 3893915324901514383_contig_igh+igl 3316045886334424798_contig_igh+igl amu nsu 7868965243984851504_contig_igh+igl
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  13 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 4019557084661033429_contig_igh+igl 5022702397209422529_contig_igh+igl 8515427139903286296_contig_igh+igl 2850858559156933498_contig_igh+igl 9153001617019967988_contig_igh+igl 2213131016226264621_contig_igh+igl 3467439561689349222_contig_igh+igl 1367248816263354630_contig_igh+igl 3534112402370671666-igh+6540642653807253184-igl 5009051298169388486_contig_igh+igl 3491746487107109516_contig_igh+igl 3851350323571247378_contig_igh+igl 1824626993753211968_contig_igh+igl
-      missing from annotation: XnaiveX 2777174777771684527_contig_igh+igk cty 6685260786122506221_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  13 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 4019557084661033429_contig_igh+igl 5022702397209422529_contig_igh+igl 8515427139903286296_contig_igh+igl 2850858559156933498_contig_igh+igl 9153001617019967988_contig_igh+igl 2213131016226264621_contig_igh+igl 3467439561689349222_contig_igh+igl 1367248816263354630_contig_igh+igl 3534112402370671666-igh+6540642653807253184-igl 5009051298169388486_contig_igh+igl 3491746487107109516_contig_igh+igl 3851350323571247378_contig_igh+igl 1824626993753211968_contig_igh+igl
-      missing from annotation: XnaiveX 2777174777771684527_contig_igh+igk cty 6685260786122506221_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  13 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 4019557084661033429_contig_igh+igl 5022702397209422529_contig_igh+igl 8515427139903286296_contig_igh+igl 2850858559156933498_contig_igh+igl 9153001617019967988_contig_igh+igl 2213131016226264621_contig_igh+igl 3467439561689349222_contig_igh+igl 1367248816263354630_contig_igh+igl 3534112402370671666-igh+6540642653807253184-igl 5009051298169388486_contig_igh+igl 3491746487107109516_contig_igh+igl 3851350323571247378_contig_igh+igl 1824626993753211968_contig_igh+igl
-      missing from annotation: XnaiveX 2777174777771684527_contig_igh+igk cty 6685260786122506221_contig_igh+igk
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 3/4 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 2777174777771684527_contig_igh+igk 6685260786122506221_contig_igh+igk cty
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 8390513653445890708_contig_igh+igk 8024041807881712943_contig_igh+igk 1093741143813676979_contig_igh+igk 1252132326248130775_contig_igh+igk 7182593760902268679_contig_igh+igk 0152318295238543954_contig_igh+igk 8817536962094932636_contig_igh+igk 3504993740715517312_contig_igh+igk 1202583028018982880_contig_igh+igk 2432065882845739609_contig_igh+igk 0849853232560071167_contig_igh+igk
-      missing from annotation: XnaiveX hou 2632568693062682293_contig_igh+igl 3916124757125782793-igh+3145739496960809933-igl
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 8390513653445890708_contig_igh+igk 8024041807881712943_contig_igh+igk 1093741143813676979_contig_igh+igk 1252132326248130775_contig_igh+igk 7182593760902268679_contig_igh+igk 0152318295238543954_contig_igh+igk 8817536962094932636_contig_igh+igk 3504993740715517312_contig_igh+igk 1202583028018982880_contig_igh+igk 2432065882845739609_contig_igh+igk 0849853232560071167_contig_igh+igk
-      missing from annotation: XnaiveX hou 2632568693062682293_contig_igh+igl 3916124757125782793-igh+3145739496960809933-igl
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 8390513653445890708_contig_igh+igk 8024041807881712943_contig_igh+igk 1093741143813676979_contig_igh+igk 1252132326248130775_contig_igh+igk 7182593760902268679_contig_igh+igk 0152318295238543954_contig_igh+igk 8817536962094932636_contig_igh+igk 3504993740715517312_contig_igh+igk 1202583028018982880_contig_igh+igk 2432065882845739609_contig_igh+igk 0849853232560071167_contig_igh+igk
-      missing from annotation: XnaiveX hou 2632568693062682293_contig_igh+igl 3916124757125782793-igh+3145739496960809933-igl
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 3/4 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 2632568693062682293_contig_igh+igl hou 3916124757125782793-igh+3145739496960809933-igl
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  16 extra in lb info  (0 in common)
-      missing from lb info: 3344485736712701135_contig_igh+igk 2170914154329333342_contig_igh+igk 3532681497733970490_contig_igh+igk 5129129779313151272_contig_igh+igk 0459880754182925997_contig_igh+igk 1787837729581839767_contig_igh+igk 5699535924198739028_contig_igh+igk 2863379006501860903_contig_igh+igk 6564952580711383904_contig_igh+igk 1021821321740210285_contig_igh+igk 4817703765935079804_contig_igh+igk
-      missing from annotation: qxy 5658992323217208152_contig_igh+igk 8849940548265013263_contig_igh+igk lnz dsv 7073862980229532420_contig_igh+igk 1243572757446200719_contig_igh+igk 8651253924342505725_contig_igh+igk 0531663798372164401_contig_igh+igk bhz 4919509603437603345_contig_igh+igk iqu XnaiveX 0277109334102727989_contig_igh+igk 8943033131066205088_contig_igh+igk 0436051250025940247-igh+3712610202551745740-igk
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  16 extra in lb info  (0 in common)
-      missing from lb info: 3344485736712701135_contig_igh+igk 2170914154329333342_contig_igh+igk 3532681497733970490_contig_igh+igk 5129129779313151272_contig_igh+igk 0459880754182925997_contig_igh+igk 1787837729581839767_contig_igh+igk 5699535924198739028_contig_igh+igk 2863379006501860903_contig_igh+igk 6564952580711383904_contig_igh+igk 1021821321740210285_contig_igh+igk 4817703765935079804_contig_igh+igk
-      missing from annotation: qxy 5658992323217208152_contig_igh+igk 8849940548265013263_contig_igh+igk lnz dsv 7073862980229532420_contig_igh+igk 1243572757446200719_contig_igh+igk 8651253924342505725_contig_igh+igk 0531663798372164401_contig_igh+igk bhz 4919509603437603345_contig_igh+igk iqu XnaiveX 0277109334102727989_contig_igh+igk 8943033131066205088_contig_igh+igk 0436051250025940247-igh+3712610202551745740-igk
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  16 extra in lb info  (0 in common)
-      missing from lb info: 3344485736712701135_contig_igh+igk 2170914154329333342_contig_igh+igk 3532681497733970490_contig_igh+igk 5129129779313151272_contig_igh+igk 0459880754182925997_contig_igh+igk 1787837729581839767_contig_igh+igk 5699535924198739028_contig_igh+igk 2863379006501860903_contig_igh+igk 6564952580711383904_contig_igh+igk 1021821321740210285_contig_igh+igk 4817703765935079804_contig_igh+igk
-      missing from annotation: qxy 5658992323217208152_contig_igh+igk 8849940548265013263_contig_igh+igk lnz dsv 7073862980229532420_contig_igh+igk 1243572757446200719_contig_igh+igk 8651253924342505725_contig_igh+igk 0531663798372164401_contig_igh+igk bhz 4919509603437603345_contig_igh+igk iqu XnaiveX 0277109334102727989_contig_igh+igk 8943033131066205088_contig_igh+igk 0436051250025940247-igh+3712610202551745740-igk
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 15/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 5658992323217208152_contig_igh+igk 8849940548265013263_contig_igh+igk lnz 8651253924342505725_contig_igh+igk 0277109334102727989_contig_igh+igk 7073862980229532420_contig_igh+igk 1243572757446200719_contig_igh+igk iqu 0531663798372164401_contig_igh+igk bhz dsv 4919509603437603345_contig_igh+igk 0436051250025940247-igh+3712610202551745740-igk qxy 8943033131066205088_contig_igh+igk
+                [94miclust 1: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/20 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.019  mfreq 0.017  diff 0.003  abs(frac diff) 18%  ratio 1.2
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0060    0.0041       1.4     0.0018     2130263928975123369_contig_igh+igl
+          10 with highest+lowest ratios:
+              0.0060    0.0041       1.4     0.0018     2130263928975123369_contig_igh+igl
+              0.0060    0.0041       1.4     0.0018     2130263928975123369_contig_igh+igl
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 33/37 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: coq ipu kpu dou act bex ewy loq dmu env emr elp cix ruw fju efg
+                [94miclust 2: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 11/19 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.075  mfreq 0.060  diff 0.014  abs(frac diff) 24%  ratio 1.2
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0775    0.0574       1.4     0.0202     5853636970836500150_contig_igh+igl
+              0.0821    0.0642       1.3     0.0179     8311074164641366847_contig_igh+igl
+              0.0723    0.0546       1.3     0.0176     4784629625746675127_contig_igh+igl
+              0.0814    0.0642       1.3     0.0172     1819524752283253519_contig_igh+igl
+              0.0745    0.0574       1.3     0.0171     5919867511249987295_contig_igh+igl
+              0.0702    0.0533       1.3     0.0169     1445396001691429771_contig_igh+igl
+              0.0767    0.0601       1.3     0.0166     0432142795031670078_contig_igh+igl
+              0.0722    0.0560       1.3     0.0162     6127278394920749241_contig_igh+igl
+              0.0787    0.0628       1.3     0.0159     6227700915007792549_contig_igh+igl
+              0.0689    0.0546       1.3     0.0143     1555431470839201071_contig_igh+igl
+          10 with highest+lowest ratios:
+              0.0775    0.0574       1.4     0.0202     5853636970836500150_contig_igh+igl
+              0.0723    0.0546       1.3     0.0176     4784629625746675127_contig_igh+igl
+              0.0702    0.0533       1.3     0.0169     1445396001691429771_contig_igh+igl
+              0.0745    0.0574       1.3     0.0171     5919867511249987295_contig_igh+igl
+              0.0722    0.0560       1.3     0.0162     6127278394920749241_contig_igh+igl
+              0.0767    0.0601       1.3     0.0166     0432142795031670078_contig_igh+igl
+              0.0814    0.0642       1.3     0.0172     1819524752283253519_contig_igh+igl
+              0.0689    0.0546       1.3     0.0143     1555431470839201071_contig_igh+igl
+              0.0787    0.0628       1.3     0.0159     6227700915007792549_contig_igh+igl
+              0.0701    0.0560       1.3     0.0141     2076106142634767732_contig_igh+igl
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 37/38 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: kpr bgk fhi bns ahi hqu suy htu csy ajm jks cit cmu mot qvy cgs bip noy
+                [94miclust 3: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 14/18 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.005  mfreq 0.004  diff 0.002  abs(frac diff) 46%  ratio 1.5
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0104    0.0071       1.5     0.0033     8161911071997292947_contig_igh+igl
+              0.0073    0.0043       1.7     0.0031     2461637455519770869_contig_igh+igl
+              0.0083    0.0057       1.5     0.0026     5828645892520334597_contig_igh+igl
+              0.0068    0.0043       1.6     0.0025     1712719108382703708-igh+1965112335171924133-igl
+              0.0068    0.0043       1.6     0.0025     6540642653807253184-igh+3534112402370671666-igl
+              0.0068    0.0043       1.6     0.0025     2585485840699877916_contig_igh+igl
+              0.0068    0.0043       1.6     0.0025     4236628509697304461_contig_igh+igl
+              0.0053    0.0028       1.9     0.0024     2616898053060376001_contig_igh+igl
+              0.0053    0.0028       1.9     0.0024     4000092761340921148_contig_igh+igl
+              0.0037    0.0014       2.6     0.0023     3362630117294489214_contig_igh+igl
+          10 with highest+lowest ratios:
+              0.0037    0.0014       2.6     0.0023     3362630117294489214_contig_igh+igl
+              0.0053    0.0028       1.9     0.0024     2616898053060376001_contig_igh+igl
+              0.0053    0.0028       1.9     0.0024     4000092761340921148_contig_igh+igl
+              0.0073    0.0043       1.7     0.0031     2461637455519770869_contig_igh+igl
+              0.0047    0.0028       1.7     0.0019     7820195697040431010_contig_igh+igl
+              0.0068    0.0043       1.6     0.0025     4236628509697304461_contig_igh+igl
+              0.0104    0.0071       1.5     0.0033     8161911071997292947_contig_igh+igl
+              0.0083    0.0057       1.5     0.0026     5828645892520334597_contig_igh+igl
+              0.0006    0.0014       0.4     -0.0009     8077990749694551065_contig_igh+igl
+              0.0006    0.0014       0.4     -0.0009     4093280625760375699_contig_igh+igl
+          [93mwarning[0m nuc branch length 0.0006 and hamming frac 0.0015 very different (ratio 0.37) for branch between 8077990749694551065_contig_igh+igl --> 0237243385321033557_contig_igh+igl
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 21/29 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: jou gsx mwy kqx ahn bnv bjs pqz cgr glr
+                [94miclust 4: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/16 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.001  mfreq 0.000  diff 0.000  abs(frac diff) 29%  ratio 1.3
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0020    0.0014       1.4     0.0006     6182844226042757980_contig_igh+igk
+          10 with highest+lowest ratios:
+              0.0020    0.0014       1.4     0.0006     6182844226042757980_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     6182844226042757980_contig_igh+igk
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 3/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: mqz
+                [94miclust 5: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 9/16 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.003  mfreq 0.002  diff 0.001  abs(frac diff) 88%  ratio 1.9
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0050    0.0027       1.9     0.0023     2454518544273535595_contig_igh+igk
+              0.0050    0.0027       1.8     0.0023     1181690528959207288_contig_igh+igk
+              0.0045    0.0027       1.7     0.0018     1634066985887588950_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     5255033430964023824_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     6262052391676574460_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     2801944979963113962_contig_igh+igk
+              0.0025    0.0014       1.9     0.0012     3492568178748296573_contig_igh+igk
+              0.0025    0.0014       1.9     0.0012     4025228959598981896_contig_igh+igk
+              0.0025    0.0014       1.9     0.0012     5597120011826142724_contig_igh+igk
+          10 with highest+lowest ratios:
+              0.0031    0.0014       2.2     0.0017     5255033430964023824_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     6262052391676574460_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     2801944979963113962_contig_igh+igk
+              0.0050    0.0027       1.9     0.0023     2454518544273535595_contig_igh+igk
+              0.0025    0.0014       1.9     0.0012     3492568178748296573_contig_igh+igk
+              0.0025    0.0014       1.9     0.0012     3492568178748296573_contig_igh+igk
+              0.0025    0.0014       1.9     0.0012     4025228959598981896_contig_igh+igk
+              0.0025    0.0014       1.9     0.0012     5597120011826142724_contig_igh+igk
+              0.0050    0.0027       1.8     0.0023     1181690528959207288_contig_igh+igk
+              0.0045    0.0027       1.7     0.0018     1634066985887588950_contig_igh+igk
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 14/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: nvw eox bdq ltz bdn cfs
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 2/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adg
+                [94miclust 7: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 9/14 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.015  mfreq 0.012  diff 0.003  abs(frac diff) 30%  ratio 1.3
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0283    0.0206       1.4     0.0077     3654001128950720339-igh+6033021242520526803-igl
+              0.0268    0.0192       1.4     0.0076     4202848474509221876_contig_igh+igl
+              0.0206    0.0165       1.3     0.0041     4082963080611065754_contig_igh+igl
+              0.0191    0.0151       1.3     0.0040     1788226129666372334_contig_igh+igl
+              0.0138    0.0110       1.3     0.0028     0762988078235422090_contig_igh+igl
+              0.0104    0.0082       1.3     0.0021     2101283333550381986_contig_igh+igl
+              0.0069    0.0055       1.3     0.0014     3610536034903581483_contig_igh+igl
+              0.0069    0.0055       1.3     0.0014     0073626956148989884_contig_igh+igl
+              0.0026    0.0014       1.9     0.0012     6033021242520526803-igh+3654001128950720339-igl
+          10 with highest+lowest ratios:
+              0.0026    0.0014       1.9     0.0012     6033021242520526803-igh+3654001128950720339-igl
+              0.0268    0.0192       1.4     0.0076     4202848474509221876_contig_igh+igl
+              0.0283    0.0206       1.4     0.0077     3654001128950720339-igh+6033021242520526803-igl
+              0.0191    0.0151       1.3     0.0040     1788226129666372334_contig_igh+igl
+              0.0104    0.0082       1.3     0.0021     2101283333550381986_contig_igh+igl
+              0.0104    0.0082       1.3     0.0021     2101283333550381986_contig_igh+igl
+              0.0069    0.0055       1.3     0.0014     3610536034903581483_contig_igh+igl
+              0.0069    0.0055       1.3     0.0014     0073626956148989884_contig_igh+igl
+              0.0138    0.0110       1.3     0.0028     0762988078235422090_contig_igh+igl
+              0.0206    0.0165       1.3     0.0041     4082963080611065754_contig_igh+igl
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 23/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: anu vyz dlr nwx dpz jrv hlm ipq fps ijy fjr
+                [94miclust 10: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.030  mfreq 0.026  diff 0.003  abs(frac diff) 12%  ratio 1.1
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0340    0.0262       1.3     0.0079     8817536962094932636_contig_igh+igk
+          10 with highest+lowest ratios:
+              0.0340    0.0262       1.3     0.0079     8817536962094932636_contig_igh+igk
+              0.0340    0.0262       1.3     0.0079     8817536962094932636_contig_igh+igk
+          [93mwarning[0m nuc branch length 0.0005 and hamming frac 0.0014 very different (ratio 0.39) for branch between 8390513653445890708_contig_igh+igk --> 0152318295238543954_contig_igh+igk
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 19/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ckw hou ach qwy dlt lqv awx jsv suy
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/selection-metrics.yaml
       writing 90 chosen abs to test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv
-      total time: 5.7
+      total time: 6.2
