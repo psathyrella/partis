@@ -32,19 +32,21 @@ args = parser.parse_args()
 _, tru_atn_list, _ = utils.read_output(args.true_tree_file)
 _, inf_atn_list, _ = utils.read_output(args.inferred_tree_file)
 
+naive_name = 'naive'
+
 # ----------------------------------------------------------------------------------------
 def add_seqs_to_nodes(ttr, seqdict, tfn):
     for node in ttr.preorder_node_iter():
-        node.seq = seqdict['naive' if node is ttr.seed_node else node.taxon.label]
+        node.seq = seqdict[naive_name if node is ttr.seed_node else node.taxon.label]
 
 # ----------------------------------------------------------------------------------------
 def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # inferred annotation has padded seqs, which means when the h and l seqs get smashed together (in paircluster.sumv() called from paircluster.make_fake_hl_pair_antns()) sometimes there's extra Ns that aren't in the true annotation
     # ----------------------------------------------------------------------------------------
-    def combine_chain_seqs(uid, seq_i):
+    def combine_chain_seqs(uid, seq_i):  # basic idea is that we need to remove any N padding from waterer.py, then repad but just for translation
         new_seq_i = []
         for tch in 'hl':
             cseq_i = utils.per_seq_val(atn_i, '%s_seqs'%tch, uid)
-            if cseq_i is None:
+            if cseq_i is None:  # inferred ancestral seqs won't have h/l seqs set (maybe also naive?)
                 if tch == 'h':
                     cseq_i = seq_i[ : cs_lens[tch]]
                 else:
@@ -55,21 +57,22 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
                 if tch not in cs_lens:
                     cs_lens[tch] = len(cseq_i)  # keep track of the h/l seq lengths, so for inferred nodes where we don't know it, we can remove the same bases
                 assert cs_lens[tch] == len(cseq_i)  # they should all be the same
+            cseq_i = utils.pad_seq_for_translation(atn_i, cseq_i)
             new_seq_i.append(cseq_i)
-            print '  x', cseq_i, seq_i
-        return ''.join(new_seq_i)
+        return ''.join(new_seq_i).strip('N')
     # ----------------------------------------------------------------------------------------
-    def check_seqs(uid, seq_i, seq_t, force=False):
-        print uid
+    def check_seqs(uid, seq_i, seq_t, force=False, dont_fix=False):
+        if debug:
+            print uid
         if seq_t == seq_i:
             return False  # return whether we fixed it or not
         seq_i = combine_chain_seqs(uid, seq_i)
         if seq_t is None:
             assert force  # for seqs that are in inferred but not true, we already know we need to fix them (and how)
         else:
-            if seq_t != seq_i:
-                print uid
-                utils.color_mutants(seq_t, seq_i, print_result=True, align_if_necessary=True)
+            if seq_t != seq_i and not dont_fix:
+                print '%s tried to fix %s but seqs still differenet:' % (utils.wrnstr(), uid)
+                utils.color_mutants(seq_t, seq_i, print_result=True, align_if_necessary=True, ref_label='true ', seq_label='inf ')
                 assert False
             seqs_t[uid] = seq_t
         seqs_i[uid] = seq_i
@@ -81,7 +84,7 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
     leaf_ids_i = [u for u in leaf_ids_t if u in atn_i['unique_ids']]  # inferred tree may swap internal/leaf nodes
     assert set(leaf_ids_t) == set(leaf_ids_i)  # maybe missing ones would be ok? but don't want to mess with it, and for now we assume below that they're the same
     seqs_t, seqs_i = [{u : utils.per_seq_val(atn, seq_key, u).strip('N') for u in atn['unique_ids']} for atn in (atn_t, atn_i)]
-    seqs_t['naive'], seqs_i['naive'] = [a['naive_seq'].strip('N') for a in (atn_t, atn_i)]
+    seqs_t[naive_name], seqs_i[naive_name] = [a['naive_seq'].strip('N') for a in (atn_t, atn_i)]
     fixed, cs_lens = None, {}
     for uid in leaf_ids_i:
         tfx = check_seqs(uid, seqs_i[uid], seqs_t[uid])
@@ -89,8 +92,8 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
             fixed = tfx
         assert tfx == fixed  # if we fix one, we should fix all of them
     if fixed:
-        for uid in [u for u in atn_i['unique_ids'] if u not in leaf_ids_i] + ['naive']:  # need to also fix any internal/inferred nodes
-            check_seqs(uid, seqs_i[uid], seqs_t.get(uid), force=True)
+        for uid in [u for u in atn_i['unique_ids'] if u not in leaf_ids_i] + [naive_name]:  # need to also fix any internal/inferred nodes
+            check_seqs(uid, seqs_i[uid], seqs_t.get(uid), force=True, dont_fix=uid==naive_name)
 
     return seqs_t, seqs_i
 
