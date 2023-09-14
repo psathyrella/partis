@@ -222,9 +222,8 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
         if aln_res is False:  # Skip lineages less than three members long
             continue
         align_t, align_i, final_score, max_penalty = aln_res
-        total_lineage_dist = final_score
         if max_penalty < 0:
-            lineage_dists.append(total_lineage_dist / max_penalty)
+            lineage_dists.append(final_score / max_penalty)
             if debug:
                 print '    normalized dist: %.3f' % lineage_dists[-1]
         else:
