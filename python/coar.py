@@ -22,19 +22,18 @@ def reconstruct_lineage(tree, node):
 
 # ----------------------------------------------------------------------------------------
 def find_node(tree, seq=None, uid=None):
-# ----------------------------------------------------------------------------------------
-# TODO TODO don't even need this anymore?
     assert [seq, uid].count(None) == 1  # specify either seq or uid
     if seq is not None:
-        nodes = [n for n in tree.leaf_node_iter() if n.seq == seq] # and node.frequency > 0]
+        nodes = [n for n in tree.leaf_node_iter() if n.seq == seq]
     elif uid is not None:
-        nodes = [n for n in tree.leaf_node_iter() if n.taxon.label == seq] # and node.frequency > 0]
+        nodes = [n for n in tree.leaf_node_iter() if n.taxon.label == uid]
     else:
         assert False
     dbgpair = ('seq', seq) if seq is not None else ('uid', uid)
     if len(nodes) == 0:
         for l in tree.leaf_node_iter():
-            print l.taxon.label, seq == l.seq, seq in l.seq, utils.color_mutants(seq, l.seq, align_if_necessary=True)
+            # print l.taxon.label, seq == l.seq, seq in l.seq, utils.color_mutants(seq, l.seq, align_if_necessary=True)
+            print l.taxon.label, uid == l.taxon.label
         raise Exception('couldn\'t find node with %s %s' % dbgpair)
     elif len(nodes) > 1:
         raise Exception('found multiple nodes with %s %s' % dbgpair)
@@ -104,10 +103,8 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
         uids_t = ['naive', 'a1', 'a2', 'leaf']
         uids_i = ['naive', 'a1', 'leaf']
     else:
-        nt = node_t
-# TODO TODO why am i still using this?
-        ni = find_node(tree_i, seq=node_t.seq) #, uid=node_t.taxon.label)
-        (lt, uids_t), (li, uids_i) = [reconstruct_lineage(t, n) for t, n in [(tree_t, nt), (tree_i, ni)]]
+        node_i = find_node(tree_i, seq=node_t.seq) #, uid=node_t.taxon.label)  # NOTE you can search by uid, and it should work, but then if the inference swaps two nearby internal/leaf nodes with the same seq it'll crash. Yes it could also break from sequence degeneracy, but that isn't happening atm so, oh well for now
+        (lt, uids_t), (li, uids_i) = [reconstruct_lineage(t, n) for t, n in [(tree_t, node_t), (tree_i, node_i)]]
     # One lineages must be longer than just the root and the terminal node
     if len(lt) <= 2 and len(li) <= 2:
         return False
@@ -215,50 +212,29 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
     return [align_t, align_i, alignment_score, max_penalty]
 
 # ----------------------------------------------------------------------------------------
-def COAR(true_tree, inferred_tree, freq_weighting=False, known_root=True, allow_double_gap=False, debug=False):
-    # assert False  # this doesn't work and hasn't been tested, need to go through it carefully before even attempting to run (basically just copied it from bcr-phylo)
-# ----------------------------------------------------------------------------------------
-# maybe makes sense to do this? (i think not, but saving it here just in case)
-# ete_path = '/home/' + os.getenv('USER') + '/anaconda_ete/bin'
-# bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
-# outbase = '/fh/fast/matsen_e/dralph/partis/paired-loci/bcr-phylo-antn/v0/seed-0/n-sim-seqs-per-generation-15/obs-times-150/simu/selection/simu/event-0/simu'
-# cmd = '%s/bin/validation.py --outbase %s' % (bcr_phylo_path, outbase)
-# utils.run_ete_script(cmd, ete_path)
-# sys.exit()
-
-# ----------------------------------------------------------------------------------------
-    norm_lineage_dist = list()
-    nlineages = 0
+def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debug=False):
+    lineage_dists = list()
     for node_t in true_tree.leaf_node_iter():
-# TODO TODO remove frequency stuff (?)
         if debug:
             print '%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq)
-        # if not node.frequency > 0:
-        #     continue
 
         aln_res = align_lineages(node_t, true_tree, inferred_tree, known_root=known_root, allow_double_gap=allow_double_gap, debug=debug)
         if aln_res is False:  # Skip lineages less than three members long
             continue
         align_t, align_i, final_score, max_penalty = aln_res
-        if freq_weighting is True:
-            assert False  # don't have frequencies in this version (see old bcr-phylo implementation)
-            total_max_penalty = max_penalty * node_t.frequency
-            total_lineage_dist = final_score * node_t.frequency
-        else:
-# TODO TODO what's the point of total_max_penalty?
-            total_max_penalty = max_penalty
-            total_lineage_dist = final_score
-        if total_max_penalty < 0:
-            norm_lineage_dist.append(total_lineage_dist / total_max_penalty)
+        total_lineage_dist = final_score
+        if max_penalty < 0:
+            lineage_dists.append(total_lineage_dist / max_penalty)
             if debug:
-                print '    normalized dist: %.3f' % norm_lineage_dist[-1]
+                print '    normalized dist: %.3f' % lineage_dists[-1]
+        else:
+            if debug:
+                print '    max penalty not less than zero: %.3f' % max_penalty
 
-    if len(norm_lineage_dist) == 0:  # There can be total_max_penalty == 0 when all lineages have less than three members
+    if len(lineage_dists) == 0:  # max_penalty is 0 when all lineages have less than three members
         if debug:
             print '  all lineages shorter than 3, returning 0'
         return 0
-    # Take the mean of the distances:
-    mean_norm_lineage_dist = sum(norm_lineage_dist) / len(norm_lineage_dist)
     if debug:
-        print '  mean over %d lineages: %.3f' % (len(norm_lineage_dist), mean_norm_lineage_dist)
-    return mean_norm_lineage_dist
+        print '  mean over %d lineages: %.5f' % (len(lineage_dists), sum(lineage_dists) / len(lineage_dists))
+    return sum(lineage_dists) / len(lineage_dists)

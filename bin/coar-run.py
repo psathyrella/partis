@@ -111,11 +111,11 @@ for atn_t in tru_atn_list:
     if atn_i is None:
         raise Exception('couldn\'t find inferred annotation')
     dtree_t, dtree_i = [treeutils.get_dendro_tree(treestr=lbplotting.get_tree_in_line(l, is_true)) for is_true, l in [[True, atn_t], [False, atn_i]]]
-    seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i, debug=args.debug)
+    seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i) #, debug=args.debug)
     if args.debug:
         for tstr, ttr in zip(['true', 'inf'], [dtree_t, dtree_i]):
             print '    %4s:' % tstr
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ttr, width=250))
     for ttr, seqdict, tfn in zip([dtree_t, dtree_i], [seqs_t, seqs_i], [args.true_tree_file, args.inferred_tree_file]):
         add_seqs_to_nodes(ttr, seqdict, tfn)
-    coar.COAR(dtree_t, dtree_i, debug=False) #args.debug)
+    coar.COAR(dtree_t, dtree_i, debug=args.debug)
