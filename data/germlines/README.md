@@ -1,3 +1,10 @@
+human: download from https://ogrdb.airr-community.org/germline_sets/Human
+  - use the "AIRR-seq reference set" (not the "source set" -- this has duplicates, among other things)
+  - make a dir, separate v/d/j files
+  - run (separately for each locus): ./bin/partis cache-parameters --locus igh --infname test/mishmash.fa --n-max-queries 1 --sanitize-input-germlines --initial-germline-dir <ogrdb-dir>
+    - input file doesn't matter/isn't used
+    - add something like: `glutils.write_glfo('ogrdb-ref/ogrdb-sanitized', glfo, debug=True)` to `bin/partis` where `args.sanitize_input_germlines` gets used
+
 
 mouse/ is merged from imgt, ogrdb c57bl, and ogrdb balbc
 
