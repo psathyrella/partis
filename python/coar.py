@@ -21,19 +21,12 @@ def reconstruct_lineage(tree, node):
         node = node.parent_node
 
 # ----------------------------------------------------------------------------------------
-def find_node(tree, seq=None, uid=None):
-    assert [seq, uid].count(None) == 1  # specify either seq or uid
-    if seq is not None:
-        nodes = [n for n in tree.leaf_node_iter() if n.seq == seq]
-    elif uid is not None:
-        nodes = [n for n in tree.leaf_node_iter() if n.taxon.label == uid]
-    else:
-        assert False
+def find_node(tree, seq, uid):
+    nodes = [n for n in tree.leaf_node_iter() if n.seq == seq]
+    if len(nodes) > 1:
+        nodes = [n for n in nodes if n.taxon.label == uid]
     dbgpair = ('seq', seq) if seq is not None else ('uid', uid)
     if len(nodes) == 0:
-        for l in tree.leaf_node_iter():
-            # print l.taxon.label, seq == l.seq, seq in l.seq, utils.color_mutants(seq, l.seq, align_if_necessary=True)
-            print l.taxon.label, uid == l.taxon.label
         raise Exception('couldn\'t find node with %s %s' % dbgpair)
     elif len(nodes) > 1:
         raise Exception('found multiple nodes with %s %s' % dbgpair)
@@ -103,7 +96,7 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
         uids_t = ['naive', 'a1', 'a2', 'leaf']
         uids_i = ['naive', 'a1', 'leaf']
     else:
-        node_i = find_node(tree_i, seq=node_t.seq) #, uid=node_t.taxon.label)  # NOTE you can search by uid, and it should work, but then if the inference swaps two nearby internal/leaf nodes with the same seq it'll crash. Yes it could also break from sequence degeneracy, but that isn't happening atm so, oh well for now
+        node_i = find_node(tree_i, node_t.seq, node_t.taxon.label)  # looks first by seq, then disambuguates with uid (if you only look by uid, if the inference swaps two nearby internal/leaf nodes with the same seq it'll crash)
         (lt, uids_t), (li, uids_i) = [reconstruct_lineage(t, n) for t, n in [(tree_t, node_t), (tree_i, node_i)]]
     # One lineages must be longer than just the root and the terminal node
     if len(lt) <= 2 and len(li) <= 2:
@@ -214,10 +207,14 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
 # ----------------------------------------------------------------------------------------
 def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debug=False):
     lineage_dists = list()
+    inf_leaf_nodes = [n.taxon.label for n in inferred_tree.leaf_node_iter()]  # just so we can skip true leaf nodes that were inferred to be internal
     for node_t in true_tree.leaf_node_iter():
         if debug:
             print '%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq)
-
+        if node_t.taxon.label not in inf_leaf_nodes:
+            is_internal = any(n.taxon.label == node_t.taxon.label for n in inferred_tree.preorder_node_iter())
+            print '  %s true node %s not in inferred leaf nodes%s' % (utils.wrnstr(), node_t.taxon.label, ' (it\'s an inferred internal node)' if is_internal else '(not present in inferred tree)')
+            continue
         aln_res = align_lineages(node_t, true_tree, inferred_tree, known_root=known_root, allow_double_gap=allow_double_gap, debug=debug)
         if aln_res is False:  # Skip lineages less than three members long
             continue

@@ -24,8 +24,10 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
     pass
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
-parser.add_argument('true_tree_file', help='')
-parser.add_argument('inferred_tree_file', help='')
+parser.add_argument('--true-tree-file', required=True, help='partis yaml file with true annotations from which to extract true trees')
+parser.add_argument('--inferred-tree-file', required=True, help='partis yaml file with inferred annotations and inferred trees')
+parser.add_argument('--outdir')
+parser.add_argument('--n-procs', type=int, help='NOTE not used, just putting here for consistency with other scripts')
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
@@ -100,6 +102,7 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
 # ----------------------------------------------------------------------------------------
 def trnfn(u): return u + '_contig_igh+igk'
 utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
+jvals = {'coar-vals' : []}
 for atn_t in tru_atn_list:
     print '  starting true annotation with size %d' % len(atn_t['unique_ids'])
     atn_i = None
@@ -118,4 +121,14 @@ for atn_t in tru_atn_list:
             print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ttr, width=250))
     for ttr, seqdict, tfn in zip([dtree_t, dtree_i], [seqs_t, seqs_i], [args.true_tree_file, args.inferred_tree_file]):
         add_seqs_to_nodes(ttr, seqdict, tfn)
-    coar.COAR(dtree_t, dtree_i, debug=args.debug)
+    cval = coar.COAR(dtree_t, dtree_i, debug=args.debug)
+    jvals['coar-vals'].append(cval)
+
+if args.outdir is None:
+    print '  %s no --outdir specified, so not writing anything' % utils.wrnstr()
+    sys.exit(0)
+
+ofn = '%s/coar-vals.yaml' % args.outdir
+print '  writing coar values to %s' % ofn
+with open(ofn, 'w') as cfile:
+    json.dump(jvals, cfile)
