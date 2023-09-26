@@ -284,16 +284,17 @@ To compare all sequences in a particular germline set:
 ```
 which by default looks at igh genes in the default location, and aligns all alleles within each primary gene version together, e.g. for D:
 ![cf-alleles](images/cf-alleles-d.jpg)
+
 Whereas to compare only the alleles of a specific V gene, for instance, you could run:
 ```
 ./bin/cf-alleles.py --bases 1-18 --region v --ref-allele 03
 ```
 To compare two different germline sets, on the other hand, use `bin/cf-germlimes.py`.
-For instance this would compare human and macaque igh:
+For instance the following would compare human and macaque igh:
 ```
 ./bin/cf-germlines.py data/germlines/human data/germlines/macaque | less -RS
 ```
-and displays a rundown of alleles in common and unique to each set, as well as aligning them against the nearest allele in the other set:
+and display a rundown of alleles in common and unique to each set, as well as aligning them against the nearest allele in the other set:
 ![cf-germlines](images/cf-germlines.jpg)
 
 ### simulate

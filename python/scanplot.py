@@ -185,7 +185,7 @@ def get_gcdyn_vals(metric, ptilestr, yfname):
         else:
             raise Exception('unsupported metric %s' % ptilestr)
     else:  # whereas this is comparing simulation to data
-        with open(yfname) as yfile:
+        with open(yfname) as yfile:  # should maybe use try/except as in smetric fcn below?
             yjfo = json.load(yfile)  # too slow with yaml
         ytmpfo = {ptilestr : yjfo[ptilestr]}
     return ytmpfo
@@ -484,6 +484,10 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                         ytmpfo = readlog(args, yfname, metric, locus, ptntype)
                     elif 'pcfrac-' in ptilestr or ptilestr == 'naive-hdist':
                         ytmpfo = read_hist_csv(args, yfname, ptilestr)
+                    elif ptilestr == 'coar':
+                        with open(yfname) as yfile:  # should maybe use try/except as in smetric fcn above?
+                            yjfo = json.load(yfile)  # too slow with yaml
+                        ytmpfo = {ptilestr : yjfo[ptilestr]}
                     else:
                         _, _, cpath = utils.read_output(yfname, skip_annotations=True)
                         ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
@@ -849,7 +853,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 title = title.replace(ltexts[ptntype], '')
             if script_base == 'paired-loci':
                 ymin = 0
-                if ptilestr not in ['naive-hdist', 'n-clusters']:
+                if ptilestr not in ['naive-hdist', 'n-clusters', 'coar']:
                     ymax = 1.05
             else:
                 ymin, ymax = None, None

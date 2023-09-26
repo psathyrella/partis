@@ -20,7 +20,7 @@ import glutils
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 partition_types = ['single', 'joint']
-all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac', 'n-clusters', 'pairwise-prec', 'pairwise-sens', 'pairwise-f1']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac', 'n-clusters', 'pairwise-prec', 'pairwise-sens', 'pairwise-f1', 'coar']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
 pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct', 'mispaired', 'unpaired', 'correct-family', 'near-family']]  # '-ns': non-singleton
 all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'distance-0.01', 'distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
@@ -116,7 +116,9 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
             # ofn += '/hmm/germline-sets/%s/%sv.fasta' % (locus, locus)
             ofn += '/hmm/all-mean-mute-freqs.csv'
     elif action in phylo_actions:
-        ofn = '%s/selection-metrics.yaml' % outdir  # annotations are also there, in e.g. iqtree-annotations.yaml, i'm not really sure which I should use
+        ofn = '%s/%s-annotations.yaml' % (outdir, action)  # there's also the selection-metrics.yaml file in the same dir, but i think atm I'm only using this one so don't need an option here to choose
+    elif action in coar_actions:
+        ofn = '%s/coar-vals.yaml' % outdir
     elif action == 'write-fake-paired-annotations':
         ofn = '%s/fake-paired-annotations.yaml' % outdir
     else:
