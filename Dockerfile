@@ -1,4 +1,4 @@
-FROM continuumio/anaconda:5.3.0
+FROM continuumio/anaconda
 
 RUN apt-get update && apt-get install -y \
   build-essential \
