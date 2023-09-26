@@ -1,6 +1,6 @@
 FROM continuumio/anaconda
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
   build-essential \
   cmake \
   emacs \
