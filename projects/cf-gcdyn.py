@@ -38,7 +38,10 @@ parser.add_argument('--xscale-values-list')
 parser.add_argument('--xshift-values-list')
 parser.add_argument('--xscale-range-list')
 parser.add_argument('--xshift-range-list')
+parser.add_argument('--yscale-range-list')
+parser.add_argument('--initial-birth-rate-range-list')
 parser.add_argument('--carry-cap-list')
+parser.add_argument('--time-to-sampling-values-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
 parser.add_argument('--dl-bundle-size-list', help='size of bundles during dl inference (must be equal to or less than simulation bundle size)')
@@ -50,21 +53,21 @@ parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predicti
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
 parser.add_argument('--dl-extra-args')
-parser.add_argument('--params-to-predict', default='xscale:xshift')
+parser.add_argument('--params-to-predict', default='xscale:xshift:yscale')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'carry-cap', 'n-trials', 'n-seqs', 'simu-bundle-size'],
+    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap', 'time-to-sampling-values', 'n-trials', 'n-seqs', 'simu-bundle-size'],
     'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
     'group-expts' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
 }
-args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'test-xscale-values', 'test-xshift-values']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
-args.params_to_predict = utils.get_arg_list(args.params_to_predict, choices=['xscale', 'xshift'])
+args.params_to_predict = utils.get_arg_list(args.params_to_predict, choices=['xscale', 'xshift', 'yscale'])
 if args.inference_extra_args is not None:
     raise Exception('not used atm')
 if 'all-dl' in args.perf_metrics:
@@ -111,7 +114,8 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
 
 # ----------------------------------------------------------------------------------------
 def add_ete_cmds(cmd):
-    cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
+    # cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
+    cmd = ['eval "$(micromamba shell hook --shell bash)"', 'micromamba activate gcdyn', cmd]
     cmd = ' && '.join(cmd)
     return cmd
 
@@ -231,7 +235,7 @@ def run_scan(action):
             print '    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr()
         init_cmd([], [], ofn, 0)
 
-    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=any('conda activate' in c['cmd_str'] for c in cmdfos))
+    utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=any('micromamba activate' in c['cmd_str'] for c in cmdfos))
 
 # ----------------------------------------------------------------------------------------
 def get_fnfcn(method, pmetr):  # have to adjust signature before passing to fcn in scavars

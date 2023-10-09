@@ -4868,7 +4868,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
 
     if return_out_err:
         with tempfile.TemporaryFile() as fout, tempfile.TemporaryFile() as ferr:
-            subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)
+            subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)  # maybe should add executable='/bin/bash'?
             fout.seek(0)
             ferr.seek(0)
             outstr = ''.join(fout.readlines())
@@ -4879,7 +4879,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             subprocess.check_call('echo %s >%s'%(cmd_str, logfname), shell=True)
             cmd_str = '%s >>%s' % (cmd_str, logfname)
             shell = True
-        subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)
+        subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)  # maybe should add executable='/bin/bash'?
 
     if cmdfname is not None:
         os.remove(cmdfname)
@@ -4994,7 +4994,7 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
     proc = subprocess.Popen(cstr if shell else cstr.split(),
                             stdout=None if fout is None else open(fout, 'w'),
                             stderr=None if ferr is None else open(ferr, 'w'),
-                            env=cmdfo.get('env'), shell=shell)
+                            env=cmdfo.get('env'), shell=shell, executable='/bin/bash' if shell else None)  # adding executable= very late, not sure if it'll break something somewhere
     return proc
 
 # ----------------------------------------------------------------------------------------
