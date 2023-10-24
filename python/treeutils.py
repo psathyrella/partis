@@ -3141,7 +3141,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             if tdbg:
                 print '          %s family: median h+l nuc shm %.2f%% %s than %.2f%%' % (utils.color('yellow', 'skipping entire') if skip_family else 'keeping', median_shm, 'less' if skip_family else 'greater', cfgfo['min-median-nuc-shm-%'])
             if skip_family:
-                return []
+                return chosen_mfos
         if 'max-ambig-positions' in cfgfo:  # max number of ambiguous amino acid positions summed over h+l
             def keepfcn(m):
                 return sum(nambig(m, c) for c in 'hl') <= cfgfo['max-ambig-positions']
@@ -3156,7 +3156,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                     handle_droplet_sim_choice(refid, n_take, utils.get_single_entry(rmfos))
 
         if len(metric_pairs) == 0:
-            return []
+            return chosen_mfos
 
         if finished():
             return chosen_mfos
