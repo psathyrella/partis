@@ -70,6 +70,7 @@ Vsearch is fast because it includes a large number of optimizations to avoid all
 Because these optimizations (like any purely distance-based approach) know nothing about VDJ rearrangement or SHM, however, they reduce accuracy.
 This is nevertheless a thoroughly reasonably way to get an idea of the lineage structure of your sample.
 After running vsearch clustering, you can always pass families of interest (e.g. with `--seed-unique-id`) to the more accurate clustering method.
+If the input file contains more than `--max-n-seqs-to-likelihood-cluster` sequences (10,000 by default), this is turned on in order to speed things up.
 
 ##### subsampling
 

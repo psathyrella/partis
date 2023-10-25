@@ -638,7 +638,7 @@ class PartitionDriver(object):
         elif self.input_partition is not None:
             print '  --input-partition-fname: using input cpath instead of running partitioning'
             cpath = self.input_cpath
-        elif self.args.naive_vsearch: # or self.args.naive_swarm:
+        elif self.args.naive_vsearch:  # or self.args.naive_swarm:
             cpath = self.cluster_with_naive_vsearch_or_swarm(parameter_dir=self.sub_param_dir)
         else:
             cpath = self.cluster_with_bcrham()

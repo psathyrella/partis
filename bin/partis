@@ -321,6 +321,9 @@ def run_partitiondriver(args):
     if input_info is not None and len(input_info) < args.n_procs:
         print '  note: reducing N procs to the number of seqs %d --> %d' % (args.n_procs, len(input_info))
         args.n_procs = len(input_info)
+    if args.max_n_seqs_to_likelihood_cluster is not None and not args.naive_vsearch and not args.no_naive_vsearch and len(input_info) > args.max_n_seqs_to_likelihood_cluster:
+        print '  note: found %d (>%d) seqs in input, so turning on --naive-vsearch (i.e. --fast) to speed things up. You can turn this behavior off by either setting --no-naive-vsearch or increasing --max-n-seqs-to-likelihood-cluster' % (len(input_info), args.max_n_seqs_to_likelihood_cluster)
+        args.naive_vsearch = True
     parter = PartitionDriver(args, glfo, input_info, simglfo, reco_info)
     parter.run(actions)
     if not runs_on_existing_output(args.action):  # mostly wanted to avoid rewriting the persistent hmm cache file
@@ -1460,7 +1463,8 @@ subargs['annotate'].append({'name' : '--paired-naive-hfrac-threshold-type', 'kwa
 
 # ----------------------------------------------------------------------------------------
 subargs['partition'].append({'name' : '--naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Very fast clustering: infer naive (unmutated ancestor) for each input sequence, then cluster using vsearch (in --cluster_fast mode, see https://doi.org/10.7717/peerj.2584). This is less accurate than default clustering, since it knows nothing about vdj rearrangement, but since it clusters on naive sequences it\'s still much more accurate than any clustering method on mutated sequences.'}})
-subargs['partition'].append({'name' : '--fast', 'kwargs' : {'action' : 'store_true', 'help' : 'synonym for --naive-vsearch'}})
+subargs['partition'].append({'name' : '--fast', 'kwargs' : {'action' : 'store_true', 'help' : 'Synonym for --naive-vsearch (see that help msg)'}})
+subargs['partition'].append({'name' : '--no-naive-vsearch', 'kwargs' : {'action' : 'store_true', 'help' : 'Use this to turn off --naive-vsearch (--fast) in cases where it\'s been turned on automatically.'}})
 subargs['partition'].append({'name' : '--seed-unique-id', 'kwargs' : {'help' : 'Throw out all sequences that are not clonally related to this sequence id. Much much much faster than partitioning the entire sample (well, unless your whole sample is one family). If --paired-loci is set, this must be a colon-separated list of length two with the heavy:light sequence ids, and you must also set --seed-loci.'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 subargs['partition'].append({'name' : '--seed-seq', 'kwargs' : {'help' : 'DEPRECATED use --seed-unique-id and --queries-to-include-fname'}})
 subargs['partition'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'Only used when both --seed-unique-id and --paired-loci are set: colon-separated list of length two with the heavy and light chain loci, e.g. \'igh:igk\''}})
@@ -1483,6 +1487,7 @@ subargs['partition'].append({'name' : '--max-cluster-size', 'kwargs' : {'type' :
 subargs['partition'].append({'name' : '--write-additional-cluster-annotations', 'kwargs' : {'help' : 'in addition to writing annotations for each cluster in the best partition, also write annotations for all the clusters in several partitions on either side of the best partition. Specified as a pair of numbers \'m:n\' for m partitions before, and n partitions after, the best partition.'}})
 subargs['partition'].append({'name' : '--add-pairwise-clustering-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to the default purity/completeness clustering performance metrics, also write pairwise ones (as defined e.g. in mobille paper).'}})
 subargs['partition'].append({'name' : '--naive-hamming-cluster', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value. Not recommended at this point: if you want fast use --naive-vsearch. (Default clustering uses naive hamming distance enough that it\'s not much slower than this, anyway).'}})
+subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwargs' : {'type' : int, 'default' : 10000, 'help' : 'If the repertoire has more than this many seqs, --naive-vsearch (--fast) is turned on, i.e. naive vsearch is used for clustering without any likelihoods. Turn off with --no-naive-vsearch.'}})
 
 # ----------------------------------------------------------------------------------------
 # basic simulation:
