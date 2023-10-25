@@ -199,7 +199,7 @@ class Recombinator(object):
         in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.post_erosion_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
         if self.args.rearrange_from_scratch and not in_frame:
             raise Exception('out of frame rearrangement, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
-            return None
+            # return None
 
         self.add_mutants(reco_event, irandom, i_choose_tree=i_choose_tree)
 
@@ -820,6 +820,9 @@ class Recombinator(object):
         if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # some of the stuff below fails if mut mult is actually 0.
             reco_event.final_seqs.append(reco_event.recombined_seq)  # set final sequnce in reco_event
             reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
+            # reco_event.setline(irandom)  # doesn't work
+            if self.args.rearrange_from_scratch:
+                print '  %s not setting reco_event.line, which may cause a crash. If you\'re setting --mutation-multiplier to exactly zero you can fix this by setting it to arbitrary very small value e.g. 0.00000001 (sorry)' % utils.wrnstr()
             return
 
         # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)

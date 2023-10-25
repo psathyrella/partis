@@ -335,7 +335,7 @@ parser.add_argument('--root-mrca-weibull-parameter', type=float, help='see bin/p
 parser.add_argument('--n-procs', type=int, default=2)
 parser.add_argument('--seed', type=int, default=int(time.time()), help='random seed')
 parser.add_argument('--gls-gen', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes.')
-parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*05', help='V genes to use for simulation')
+parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*08', help='V genes to use for simulation')
 parser.add_argument('--inf-v-genes', default='IGHV4-39*01', help='V genes to use for inference')
 parser.add_argument('--dj-genes', default='IGHD6-19*01:IGHJ4*02', help='D and J genes to use for both simulation and inference')
 parser.add_argument('--snp-positions', help='colon-separated list (length must equal length of <--sim-v-genes>) of comma-separated snp positions for each gene, e.g. for two genes you might have \'3,71:45\'')
@@ -347,7 +347,7 @@ parser.add_argument('--n-sim-alleles-per-gene', help='see bin/partis --help')
 parser.add_argument('--min-sim-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float, help='see bin/partis --help')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--dont-remove-template-genes', action='store_true', help='when generating snps, *don\'t* remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
-parser.add_argument('--mut-mult', type=float, help='see bin/partis --help')
+parser.add_argument('--mut-mult', type=float, help='DO NOT USE use --mutation-multiplier (see below)')
 parser.add_argument('--mutation-multiplier', type=float, help='see bin/partis --help')  # see note below
 parser.add_argument('--slurm', action='store_true')
 parser.add_argument('--overwrite', action='store_true')
@@ -397,7 +397,7 @@ processargs.process_gls_gen_args(args)  # well, also does stuff with non-gls-gen
 if args.inf_glfo_dir is None:
     args.inf_glfo_dir = args.outdir + '/germlines/inference'
 if args.simfname is None:
-    args.simfname = args.outdir + '/simu.csv'
+    args.simfname = args.outdir + '/simu.yaml'
 
 if args.seed is not None:
     random.seed(args.seed)
