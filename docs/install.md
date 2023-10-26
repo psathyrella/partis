@@ -66,13 +66,19 @@ add-apt-repository 'deb https://cloud.r-project.org/bin/linux/debian stretch-cra
 apt-get update && apt-get install -y r-base
 # UPDATE maybe should have this here somewhere https://mirror.las.iastate.edu/CRAN/
 ```
-Note that TreeSim/TreeSimGM require a much more recent R version than is in the default repos.
+Note that TreeSim/TreeSimGM may require a more recent R version than is in the default repos (check with `apt get show r-base-core`, then compare to requirements in TreeSim/TreeSimGM cran pages).
 Note also that if you instead install R with conda, it replaces your entire compiler toolchain (e.g. screws up where your system looks for gcc) so you probably won't be able to compile anything afterwards.
 
-You can then install the required R packages with:
+You can then install the required R packages with the interactive R command:
+```
+> install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE)
+```
+If necessary, you will probably want to follow the prompts for installing to a personal (rather than system-wide) library location.
+If you instead install from the command line with:
 ```
 R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE)'
 ```
+You may need to run with `sudo -i` in front, and the resulting library permissions may cause problems.
 The default mutation model also requires compilation of an updated (development) version of bpp that's in `packages/bpp-newlik/`:
 ```
 ./bin/build.sh with-simulation  # this takes a while, maybe 20-60 minutes

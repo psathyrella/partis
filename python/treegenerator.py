@@ -201,7 +201,7 @@ class TreeGenerator(object):
         else:
             if os.path.exists(outfname):
                 os.remove(outfname)
-            utils.run_r(cmd_lines, workdir, print_time='tree generation' if self.args.debug else None)
+            utils.run_r(cmd_lines, workdir, print_time='tree generation' if self.args.debug else None, remove_cmdfile=True)
 
         with open(outfname) as treefile:
             for itree, tstr in enumerate(treestrs):
