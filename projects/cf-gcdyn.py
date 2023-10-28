@@ -141,7 +141,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     if action in ['simu', 'merge-simu']:
         cmd = 'python %s/scripts/%s.py' % (args.gcddir, 'multi-simulation' if action=='simu' else 'combine-simu-files')
         if action == 'simu':
-            cmd += ' --debug --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
+            cmd += ' --debug 1 --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
             if args.test:
                 cmd += ' --test'
             cmd = add_scan_args(cmd)
