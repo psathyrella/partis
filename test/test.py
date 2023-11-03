@@ -338,7 +338,7 @@ class Tester(object):
                 check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
                 if args.quick:
                     print '\n  %s' % 'ok'
-            except CalledProcessError, err:
+            except CalledProcessError as err:
                 # print err  # this just says it exited with code != 0
                 print '  log tail:'
                 print utils.pad_lines(check_output(['tail', self.logfname]))
