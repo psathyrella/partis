@@ -21,12 +21,7 @@ import utils
 import glutils
 import hutils
 
-# # ----------------------------------------------------------------------------------------
-# def getfam(line):
-#     if 'true_FAMILYs' in line:
-#         return line['true_FAMILYs']
-#     assert len(line['unique_ids']) == 1
-#     return line['unique_ids']
+# NOTE see also reviews/spisak-2023/notes.txt in github papers repo
 
 # ----------------------------------------------------------------------------------------
 def getsimfn(sample, csv=False):

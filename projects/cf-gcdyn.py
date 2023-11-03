@@ -95,7 +95,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
         varnames = []
         vstrs = []
     if action in ['simu', 'merge-simu']:
-        ftstrs = {  # copied from gcdyn/scripts/multi-simulation.py
+        ftstrs = {  # copied from gcdyn/scripts/multi_simulation.py
             'fasta' : 'seqs',
             'nwk' : 'trees',
             'npy' : 'encoded-trees',
@@ -139,7 +139,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         return cmd
     # ----------------------------------------------------------------------------------------
     if action in ['simu', 'merge-simu']:
-        cmd = 'python %s/scripts/%s.py' % (args.gcddir, 'multi-simulation' if action=='simu' else 'combine-simu-files')
+        cmd = 'gcd-simulate' if action=='simu' else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
         if action == 'simu':
             cmd += ' --debug 1 --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
             if args.test:
@@ -156,7 +156,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         if 'dl-infer' in action:
-            cmd = './projects/gcdyn/scripts/dl-infer.py --indir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+            cmd = 'gcd-dl-infer --indir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
         else:
