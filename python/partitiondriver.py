@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import json
 import numpy
 import time
@@ -16,21 +17,21 @@ import multiprocessing
 import operator
 import traceback
 
-import utils
-import glutils
-import indelutils
-import treeutils
-from glomerator import Glomerator
-from clusterpath import ClusterPath, ptnprint
-from waterer import Waterer
-from parametercounter import ParameterCounter
-from alleleclusterer import AlleleClusterer
-from alleleremover import AlleleRemover
-from allelefinder import AlleleFinder
-from performanceplotter import PerformancePlotter
-from partitionplotter import PartitionPlotter
-from hist import Hist
-import seqfileopener
+from . import utils
+from . import glutils
+from . import indelutils
+from . import treeutils
+from .glomerator import Glomerator
+from .clusterpath import ClusterPath, ptnprint
+from .waterer import Waterer
+from .parametercounter import ParameterCounter
+from .alleleclusterer import AlleleClusterer
+from .alleleremover import AlleleRemover
+from .allelefinder import AlleleFinder
+from .performanceplotter import PerformancePlotter
+from .partitionplotter import PartitionPlotter
+from .hist import Hist
+from . import seqfileopener
 
 # ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
@@ -362,7 +363,7 @@ class PartitionDriver(object):
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
         if self.args.annotation_clustering:  # VJ CDR3 clustering (NOTE it would probably be better to have this under 'partition' action, but it's historical and also not very important)
-            import annotationclustering
+            from . import annotationclustering
             antn_ptn = annotationclustering.vollmers(annotations, self.args.annotation_clustering_threshold)
             antn_cpath = ClusterPath(partition=antn_ptn)
             self.get_annotations_for_partitions(antn_cpath)  # get new annotations corresponding to <antn_ptn>
@@ -1291,7 +1292,7 @@ class PartitionDriver(object):
                 return [superclust]
 
             if False: # self.args.kmeans_subclusters:  # this gives you clusters that are "tighter" -- i.e. clusters similar sequences together
-                import mds  # this works fine, but it's not really different (on balance with kmeans is probably a bit worse) than the simple way. Which is weird, I would think it would help? but otoh it gives you non-equal-sized clusters, which sometimes i think is worse, although sometimes i also think is better
+                from . import mds  # this works fine, but it's not really different (on balance with kmeans is probably a bit worse) than the simple way. Which is weird, I would think it would help? but otoh it gives you non-equal-sized clusters, which sometimes i think is worse, although sometimes i also think is better
                 seqfos = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in superclust]
                 return_clusts = mds.run_sklearn_mds(None, n_clusters, seqfos, self.args.random_seed, aligned=True)
             else:
@@ -1896,7 +1897,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
         start = time.time()
 
-        from hmmwriter import HmmWriter
+        from .hmmwriter import HmmWriter
         hmm_dir = parameter_dir + '/hmms'
         utils.prep_dir(hmm_dir, '*.yaml')
         # hmglfo = copy.deepcopy(self.glfo)  # it might be better to not modify self.glfo here, but there's way too many potential downstream effects to change it at this point

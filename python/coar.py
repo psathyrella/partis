@@ -1,10 +1,11 @@
+from __future__ import absolute_import
 import numpy as np
 # from GCutils import hamming_distance
 from random import randint
 import sys
 
-import utils
-import treeutils
+from . import utils
+from . import treeutils
 
 '''
 copied from bcr-phylo/bin/COAR.py (yes it sucks to duplicate it, but there's too much pickle/ete dependent stuff in there, and i'm not even sure how to create the ete/pickle 'forest' files from the inference methods))

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import time
 import copy
 import sys
@@ -12,12 +13,12 @@ import csv
 import numpy
 import traceback
 
-import utils
-import glutils
-import indelutils
-from parametercounter import ParameterCounter
-from performanceplotter import PerformancePlotter
-import seqfileopener
+from . import utils
+from . import glutils
+from . import indelutils
+from .parametercounter import ParameterCounter
+from .performanceplotter import PerformancePlotter
+from . import seqfileopener
 
 # best mismatch (with a match score of 5):
 # mfreq     boundaries     mutation

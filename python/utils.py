@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import platform
 import resource
 import psutil
@@ -29,9 +30,9 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-import indelutils
-import clusterpath
-import treeutils
+from . import indelutils
+from . import clusterpath
+from . import treeutils
 
 all_ptn_plot_cfg = ['shm-vs-size', 'cluster-bubble', 'mut-bubble', 'diversity', 'sizes', 'trees', 'subtree-purity', 'mds', 'laplacian-spectra', 'sfs']
 default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'cluster-bubble', 'sizes', 'trees']
@@ -152,9 +153,9 @@ def get_boundaries(locus):  # NOTE almost everything still uses the various stat
 def region_pairs(locus):
     return [{'left' : bound[0], 'right' : bound[1]} for bound in get_boundaries(locus)]
 
-import seqfileopener
-import glutils
-import prutils
+from . import seqfileopener
+from . import glutils
+from . import prutils
 
 #----------------------------------------------------------------------------------------
 # NOTE I also have an eps defined in hmmwriter. Simplicity is the hobgoblin of... no, wait, that's just plain ol' stupid to have two <eps>s defined
@@ -6073,7 +6074,7 @@ def intexterpolate(x1, y1, x2, y2, x):
 
 # ----------------------------------------------------------------------------------------
 def get_mean_mfreq(parameter_dir):
-    from hist import Hist
+    from .hist import Hist
     mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
     return mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
 
@@ -6126,7 +6127,7 @@ def find_genes_that_have_hmms(parameter_dir):
 # <iseed>: skip this many clusters that meet the other criteria (then choose the next one)
 def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=None, n_max_queries=-1, choose_random=False, paired=False, ig_or_tr='ig', debug=True):
     if paired:
-        import paircluster  # it barfs if i import at the top, and i know that means i'm doing something dumb, but whatever
+        from . import paircluster  # it barfs if i import at the top, and i know that means i'm doing something dumb, but whatever
         infname = paircluster.paired_fn(infname, heavy_locus(ig_or_tr), suffix='.yaml')  # heavy chains seqs paired with either light chain
     _, annotation_list, cpath = read_output(infname, n_max_queries=n_max_queries, dont_add_implicit_info=True)
     if choose_random:
@@ -6840,7 +6841,7 @@ def compare_vsearch_to_sw(sw_info, vs_info):
             continue
         indelutils.pad_indelfo(vs_info['annotations'][query]['indelfo'], ambig_base * sw_info[query]['padlefts'][0], ambig_base * sw_info[query]['padrights'][0])
 
-    from hist import Hist
+    from .hist import Hist
     hists = {
         # 'mfreq' : Hist(30, -0.1, 0.1),
         # 'n_muted' : Hist(20, -10, 10),
@@ -6873,7 +6874,7 @@ def compare_vsearch_to_sw(sw_info, vs_info):
         for name in [n for n in hists if n != 'n_indels']:
             hists[name].fill(vsindels[iindel][name] - swindels[iindel][name])
 
-    import plotting
+    from . import plotting
     for name, hist in hists.items():
         fig, ax = plotting.mpl_init()
         hist.mpl_plot(ax, hist, label=name, color=plotting.default_colors[hists.keys().index(name)])

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import csv
 import os
 import math
@@ -10,12 +11,12 @@ import operator
 import copy
 import glob
 
-from hist import Hist
-import hutils
-import utils
-from clusterpath import ClusterPath
-import mds
-import treeutils
+from .hist import Hist
+from . import hutils
+from . import utils
+from .clusterpath import ClusterPath
+from . import mds
+from . import treeutils
 
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
@@ -23,7 +24,7 @@ class PartitionPlotter(object):
     def __init__(self, args, glfo=None):
         self.args = args
         self.glfo = glfo
-        import plotting
+        from . import plotting
         self.plotting = sys.modules['plotting']
 
         self.n_clusters_per_joy_plot = 50 if self.args.meta_info_key_to_color is None else 30
@@ -717,7 +718,7 @@ class PartitionPlotter(object):
         if len(self.sclusts) == 0:
             print '  %s no clusters to plot' % utils.wrnstr()
             return [['x.svg']]
-        import lbplotting  # this is really slow because of the scipy stats import
+        from . import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('trees')
         self.set_treefos()
         self.set_mut_infos()
@@ -874,7 +875,7 @@ class PartitionPlotter(object):
         if len(self.sclusts) == 0:
             print '  %s no clusters to plot' % utils.wrnstr()
             return [['x.svg']]
-        import lbplotting  # this is really slow because of the scipy stats import
+        from . import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('subtree-purity')
         self.set_treefos()
         if self.treefos.count(None) == len(self.treefos):

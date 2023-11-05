@@ -1,7 +1,8 @@
+from __future__ import absolute_import
 import sys
 import re
 
-import utils
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 def cluster(viterbi_info):

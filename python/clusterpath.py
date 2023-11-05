@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import dendropy
 import os
 import sys
@@ -9,8 +10,8 @@ import itertools
 import numpy
 csv.field_size_limit(sys.maxsize)
 
-import utils
-import treeutils
+from . import utils
+from . import treeutils
 
 # ----------------------------------------------------------------------------------------
 # print a single partition without having to make a cluster path

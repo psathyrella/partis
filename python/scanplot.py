@@ -1,14 +1,15 @@
+from __future__ import absolute_import
 import os
 import sys
-import utils
-import plotting
-import lbplotting
-import treeutils
+from . import utils
+from . import plotting
+from . import lbplotting
+from . import treeutils
 import collections
 import json
 import numpy
 import math
-from hist import Hist
+from .hist import Hist
 import copy
 import csv
 

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import collections
 import copy
 import itertools
@@ -9,13 +10,13 @@ import os
 import math
 import json
 
-import hutils
-import utils
-import prutils
-from clusterpath import ptnprint, ClusterPath
-from hist import Hist
-import glutils
-import treeutils
+from . import hutils
+from . import utils
+from . import prutils
+from .clusterpath import ptnprint, ClusterPath
+from .hist import Hist
+from . import glutils
+from . import treeutils
 
 # ----------------------------------------------------------------------------------------
 def chstr(n_before, n_after):  # empty if same number before and after, otherwise red +/-N
@@ -1023,7 +1024,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
     def plot_uids_before(plotdir, pid_groups, all_antns):
         # ----------------------------------------------------------------------------------------
         def fnfplot(logstr, fhists, n_max_bins=15):
-            import plotting
+            from . import plotting
             fklabels = {'func' : 'all func.', 'nonfunc' : 'any non.'}
             fig, ax = plotting.mpl_init()
             for fk, fcolor in zip(fhists, plotting.default_colors):
@@ -1075,7 +1076,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         return per_seq_flcounts
     # ----------------------------------------------------------------------------------------
     def plot_n_pseqs_per_seq(pstr):
-        import plotconfig
+        from . import plotconfig
         pidlengths = {}
         for ltmp in sorted(cpaths):
             for cluster in cpaths[ltmp].best():
@@ -1089,7 +1090,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
     # ----------------------------------------------------------------------------------------
     def make_final_plots(initial_seqs_per_seq, initial_flcounts):
         final_seqs_per_seq = plot_n_pseqs_per_seq('after')
-        import plotting
+        from . import plotting
         fn = plotting.plot_smatrix(plotdir, 'pseq-matrix', xydicts=(final_seqs_per_seq, initial_seqs_per_seq), n_max_bins=12, xlabel='after', ylabel='before', lfcn=lambda x: 'miss.' if x==-1 else str(x), title='N paired seqs per seq')
         fnames[2].append(fn)
         final_flcounts = {}  # note that this has to be per seq (even though that kind of double counts) since otherwise we wouldn't have a way to determine correspondence between initial and final

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import sys
 import glob
 import time
@@ -6,9 +7,9 @@ from subprocess import check_call
 import copy
 import os
 
-import utils
-import glutils
-from hist import Hist
+from . import utils
+from . import glutils
+from .hist import Hist
 
 # ----------------------------------------------------------------------------------------
 class AlleleRemover(object):

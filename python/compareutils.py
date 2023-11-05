@@ -1,4 +1,5 @@
 # NOTE this is all code to do with the original clustering paper, i.e. with current conventions it'd be in a file test/cf-clustering.py or something
+from __future__ import absolute_import
 import os
 import glob
 import sys
@@ -12,13 +13,13 @@ import itertools
 sys.path.insert(1, './python')
 csv.field_size_limit(sys.maxsize)
 
-from hist import Hist
-import seqfileopener
-import utils
-import glutils
-import baseutils
-import humans
-from clusterpath import ClusterPath
+from .hist import Hist
+from . import seqfileopener
+from . import utils
+from . import glutils
+from . import baseutils
+from . import humans
+from .clusterpath import ClusterPath
 
 # NOTE time required plotting is in bin/plot-time-required.py
 changeorandomcrapstr = '_db-pass_parse-select_clone-pass.tab'
@@ -69,7 +70,7 @@ def get_dataset(human):
 # ----------------------------------------------------------------------------------------
 def get_title(args, label, n_leaves, mut_mult, hfrac_bounds=None):
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     if not args.is_simu:
         label_str = label
@@ -177,7 +178,7 @@ def deal_with_parse_results(info, outdir, vname, partition, hist, metric_vals=No
 # ----------------------------------------------------------------------------------------
 def parse_true(args, info, outdir, true_partition):
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     # well, not really parse per se
     truehist = get_cluster_size_hist(true_partition)
@@ -188,7 +189,7 @@ def parse_vollmers(args, info, vollmers_fname, outdir, reco_info, true_partition
     if 'scipy.stats' not in sys.modules:
         import scipy.stats
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     n_lines = 0
     with open(vollmers_fname) as vfile:
@@ -222,7 +223,7 @@ def parse_changeo(args, info, outfname, csvdir):
     if 'scipy.stats' not in sys.modules:
         import scipy.stats
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     cpath = ClusterPath(fname=outfname)
     hist = get_cluster_size_hist(cpath.partitions[cpath.i_best])
@@ -263,7 +264,7 @@ def parse_partis(args, action, info, outfname, outdir, reco_info, true_partition
     if 'scipy.stats' not in sys.modules:
         import scipy.stats
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     cpath = ClusterPath(fname=outfname)
     hist = get_cluster_size_hist(cpath.partitions[cpath.i_best])
@@ -322,7 +323,7 @@ def parse_synthetic(args, info, outdir, true_partition, base_outfname):
     if 'scipy.stats' not in sys.modules:
         import scipy.stats
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     for stype in args.synthetic_partitions:
         misfrac, mistype, threshold = get_synthetic_partition_type(stype)
@@ -354,7 +355,7 @@ def read_float_val(fname, valname):
 # ----------------------------------------------------------------------------------------
 def make_a_distance_plot(args, metric, combinations, reco_info, cachevals, plotdir, plotname, plottitle):
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     def get_joint_key(k1, k2):
         """ figure out which order we have <k1>, <k2> in the cache (if neither, return None) """
@@ -572,7 +573,7 @@ def write_all_plot_csvs(args, label, parameterlist, datafname):
 # ----------------------------------------------------------------------------------------
 def write_each_plot_csvs(args, baseplotdir, label, n_leaves, mut_mult, all_info, hfrac_bounds, datafname):
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     for k in all_info:
         if n_leaves not in all_info[k]:
@@ -671,7 +672,7 @@ def rearrange_metrics_vs_n_leaves(args, valdict, mut_mult_to_use):
 # ----------------------------------------------------------------------------------------
 def compare_subsets(args, label):
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     baseplotdir = os.getenv('www') + '/partis/clustering/' + label
     if args.hfrac_bound_list is not None and args.istartstop is not None:
@@ -719,7 +720,7 @@ def get_nseq_list(args):
 def compare_subsets_for_each_leafmut(args, baseplotdir, label, n_leaves, mut_mult, all_info):
     """ Where "subsets" means any of a number of different things, or more accurately, this function name means almost nothing. """
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
 
     per_subset_info = read_histfiles_and_co(args, label, n_leaves, mut_mult)
@@ -831,7 +832,7 @@ def get_this_info(all_info, n_leaves, mut_mult):
 # ----------------------------------------------------------------------------------------
 def plot_means_over_subsets(args, label, n_leaves, mut_mult, this_info, per_subset_info, baseplotdir):
     if 'plotting' not in sys.modules:
-        import plotting
+        from . import plotting
 
     for method in get_expected_methods_to_plot(args, metric='hists'):
         this_info['hists'][method] = sys.modules['plotting'].make_mean_hist(per_subset_info['hists'][method])

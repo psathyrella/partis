@@ -1,17 +1,18 @@
+from __future__ import absolute_import
 import os
 import csv
 import time
 import sys
 import itertools
 
-import utils
-import glutils
-from hist import Hist
-import hutils
-import plotconfig
-from mutefreqer import MuteFreqer
-from corrcounter import CorrCounter
-import indelutils
+from . import utils
+from . import glutils
+from .hist import Hist
+from . import hutils
+from . import plotconfig
+from .mutefreqer import MuteFreqer
+from .corrcounter import CorrCounter
+from . import indelutils
 
 # ----------------------------------------------------------------------------------------
 class ParameterCounter(object):
@@ -141,7 +142,7 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, only_overall=False, make_per_base_plots=False):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it write() wasn't called first, that is)
-        import plotting
+        from . import plotting
         print '  plotting parameters in %s' % plotdir,
         sys.stdout.flush()
         start = time.time()

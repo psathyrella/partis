@@ -1,4 +1,5 @@
-import utils
+from __future__ import absolute_import
+from . import utils
 from subprocess import check_output
 
 basedatadir = '/fh/fast/matsen_e/data'

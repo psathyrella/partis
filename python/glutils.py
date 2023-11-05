@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import traceback
 import tempfile
 import operator
@@ -12,8 +13,8 @@ from collections import OrderedDict
 import csv
 from subprocess import check_call, Popen, PIPE
 
-import utils
-import indelutils
+from . import utils
+from . import indelutils
 
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import sys
 import time
 import os
@@ -9,7 +10,7 @@ import operator
 import math
 import itertools
 
-import utils
+from . import utils
 
 mdir = "%s/work/partis/datascripts/meta/goo-dengue-10x/gex-markers" % os.getenv('HOME')
 fabio_fname = '%s/fabio-pb-markers.tsv' % mdir

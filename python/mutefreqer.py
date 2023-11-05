@@ -1,13 +1,14 @@
+from __future__ import absolute_import
 import sys
 import multiprocessing
 import csv
 import os
 
-from hist import Hist
-import utils
-import glutils
-import hutils
-import plotconfig
+from .hist import Hist
+from . import utils
+from . import glutils
+from . import hutils
+from . import plotconfig
 # import paramutils
 
 # ----------------------------------------------------------------------------------------
@@ -91,7 +92,7 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_uncertainty(self, obs, total):
-        import fraction_uncertainty
+        from . import fraction_uncertainty
         if self.calculate_uncertainty:  # it's kinda slow
             errs = fraction_uncertainty.err(obs, total)
             # if errs[2]:
@@ -141,7 +142,7 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, only_overall=False, make_per_base_plots=False):
-        import plotting
+        from . import plotting
         if not self.finalized:
             self.finalize()
 
@@ -176,7 +177,7 @@ class MuteFreqer(object):
 
             if make_per_base_plots:
                 # per-position, per-base plots: (super slow, so commented by default)
-                import paramutils
+                from . import paramutils
                 plotting_info = []
                 for pos in sorted_positions:
                     plotting_info.append({

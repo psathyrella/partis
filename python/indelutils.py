@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import sys
 import string
 import re
@@ -5,7 +6,7 @@ import random
 import numpy
 import copy
 
-import utils
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 def get_empty_indel():

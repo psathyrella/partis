@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import operator
 import tempfile
@@ -13,13 +14,13 @@ import math
 import subprocess
 import scipy.stats
 
-import paramutils
-import utils
-import glutils
-import treeutils
-import indelutils
-import treegenerator
-from event import RecombinationEvent
+from . import paramutils
+from . import utils
+from . import glutils
+from . import treeutils
+from . import indelutils
+from . import treegenerator
+from .event import RecombinationEvent
 
 dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length before mrca, so we add a spurious leaf with this name and the same total depth as the rest of the tree, then remove it after getting bppseqgen's output
 

@@ -1,10 +1,11 @@
+from __future__ import absolute_import
 import os
 import csv
 import operator
 import sys
 
-import glutils
-import utils
+from . import glutils
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 def simplify_state_name(state_name):
@@ -134,7 +135,7 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
 
 # ----------------------------------------------------------------------------------------
 def make_mutefreq_plot(plotdir, gene_name, positions, debug=False):
-    import plotting
+    from . import plotting
     """ NOTE shares a lot with make_transition_plot() in bin/plot-hmms.py. """
     nuke_colors = {'A' : 'red', 'C' : 'blue', 'G' : 'orange', 'T' : 'green'}
     fig, ax = plotting.mpl_init()

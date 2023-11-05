@@ -1,10 +1,11 @@
+from __future__ import absolute_import
 import csv
 import math
 import os
 import numpy
 import sys
 
-import utils
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 class Hist(object):
@@ -312,7 +313,7 @@ class Hist(object):
         assert return_vals.count(None) == 0
 
         if debug_plot:
-            import plotting
+            from . import plotting
             fig, ax = plotting.mpl_init()
             self.mpl_plot(ax, label='original')
             shist = Hist(value_list=return_vals, init_int_bins=True)
@@ -545,7 +546,7 @@ class Hist(object):
         self.write('%s/%s.csv'%(plotdir, plotname))
         if only_csv:
             return
-        import plotting
+        from . import plotting
         fig, ax = plotting.mpl_init()  # this'll need to be updated when i want to use a kwarg for this fcn
         self.mpl_plot(ax, **pargs)
         if texts is not None:

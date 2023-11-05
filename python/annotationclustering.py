@@ -1,10 +1,11 @@
+from __future__ import absolute_import
 import sys
 import csv
 import math
 from subprocess import check_call
 import time
 
-import utils
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 def vollmers(info, threshold, debug=False):

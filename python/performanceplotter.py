@@ -1,16 +1,17 @@
+from __future__ import absolute_import
 import time
 import sys
-import utils
+from . import utils
 import numpy
 import re
 from subprocess import check_call
 import copy
 import math
 
-import plotconfig
-from hist import Hist
-import hutils
-import indelutils
+from . import plotconfig
+from .hist import Hist
+from . import hutils
+from . import indelutils
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
@@ -227,8 +228,8 @@ class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
         print '  plotting performance',
-        import fraction_uncertainty
-        import plotting
+        from . import fraction_uncertainty
+        from . import plotting
         start = time.time()
         for substr in self.subplotdirs:
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))

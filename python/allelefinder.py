@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import random
 import itertools
 import time
@@ -10,9 +11,9 @@ import scipy
 import glob
 import numpy
 
-from hist import Hist
-import utils
-import glutils
+from .hist import Hist
+from . import utils
+from . import glutils
 
 # ----------------------------------------------------------------------------------------
 def fstr(fval):
@@ -473,7 +474,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def get_allele_finding_xyvals(self, gene, position):
-        import fraction_uncertainty
+        from . import fraction_uncertainty
         gcts = self.counts[gene][position]  # shorthand name
 
         obs = [d['muted'] for d in gcts.values()]
@@ -1115,7 +1116,7 @@ class AlleleFinder(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, only_csv=False):
-        import plotting
+        from . import plotting
         if not self.finalized:
             self.finalize(debug=debug)
 

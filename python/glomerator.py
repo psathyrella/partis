@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import itertools
 import os
 import sys
@@ -5,8 +6,8 @@ import math
 import csv
 import time
 
-import utils
-from clusterpath import ClusterPath
+from . import utils
+from .clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 class Glomerator(object):

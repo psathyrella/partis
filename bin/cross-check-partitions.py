@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 import csv
 import sys
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields

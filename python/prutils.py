@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import copy
 import sys
 
-import indelutils
-import utils
+from . import indelutils
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 def get_uid_str(line, iseq, queries_to_emphasize, duplicated_uids=None):

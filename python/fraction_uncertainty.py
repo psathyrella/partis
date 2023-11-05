@@ -1,4 +1,5 @@
-import cached_uncertainties
+from __future__ import absolute_import
+from . import cached_uncertainties
 from scipy.stats import beta
 
 # ----------------------------------------------------------------------------------------

@@ -1,4 +1,5 @@
-import utils
+from __future__ import absolute_import
+from . import utils
 
 rstrings = ['', 'cdr3_'] + [r + '_' for r in utils.regions]
 gene_usage_columns = [r + '_gene' for r in utils.regions]

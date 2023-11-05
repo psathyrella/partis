@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from __future__ import absolute_import
 import copy
 import matplotlib as mpl
 mpl.use('Agg')
@@ -16,12 +17,12 @@ import operator
 import itertools
 import collections
 
-import utils
-import plotconfig
-from hist import Hist
-import treeutils
-import hutils
-from clusterpath import ClusterPath
+from . import utils
+from . import plotconfig
+from .hist import Hist
+from . import treeutils
+from . import hutils
+from .clusterpath import ClusterPath
 
 #                   green    dark red  light blue  light red  sky blue  pink/purple   grey
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
@@ -215,7 +216,7 @@ def add_jitter(xvals, delta=None, frac=0.02):
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
     if 'fraction_uncertainty' not in sys.modules:
-        import fraction_uncertainty
+        from . import fraction_uncertainty
 
     hist = Hist(2, -0.5, 1.5, ytitle='freq')
 
@@ -875,7 +876,7 @@ def plot_tree_mut_stats(args, plotdir, antn_list, is_simu, only_leaves=False, on
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
     print '    plotting tree mutation stats %s' % ('using only leaves' if only_leaves else 'with all seqs')
-    import lbplotting
+    from . import lbplotting
     utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
     if fnames is not None:
         fnames.append([])
@@ -1401,7 +1402,7 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None,
 # ----------------------------------------------------------------------------------------
 def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, only_csv=False, write_csv=False):
     if 'fraction_uncertainty' not in sys.modules:
-        import fraction_uncertainty
+        from . import fraction_uncertainty
 
     # NOTE should really merge this with draw_no_root()
     xvals = hright.get_bin_centers() #ignore_overflows=True)
@@ -1446,7 +1447,7 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
 # ----------------------------------------------------------------------------------------
 def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', ylabel='', leg_title=None, title=None):
     if 'fraction_uncertainty' not in sys.modules:
-        import fraction_uncertainty
+        from . import fraction_uncertainty
     fraction_uncertainty = sys.modules['fraction_uncertainty']
 
     def get_single_vals(pv):
@@ -1496,7 +1497,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, all_emph_vals=None, emph_colors=None, global_max_vals=None,
                         make_legend=False, remove_none_vals=False, sortlabel='?', debug=False):
-    import lbplotting
+    from . import lbplotting
     smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
     # ----------------------------------------------------------------------------------------

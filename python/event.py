@@ -1,4 +1,5 @@
 """ Container to hold the information for a single recombination event. """
+from __future__ import absolute_import
 import csv
 import sys
 import random
@@ -6,9 +7,9 @@ import numpy
 import os
 import copy
 
-import utils
-import indelutils
-import treeutils
+from . import utils
+from . import indelutils
+from . import treeutils
 
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):

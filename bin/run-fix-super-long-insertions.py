@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 import sys
 import os
 partis_dir = os.getcwd()

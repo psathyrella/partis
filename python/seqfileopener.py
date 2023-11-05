@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy
 import bz2
 import gzip
@@ -10,7 +11,7 @@ import random
 import re
 import string
 
-import utils
+from . import utils
 
 delimit_info = {'.csv' : ',', '.tsv' : '\t'}
 

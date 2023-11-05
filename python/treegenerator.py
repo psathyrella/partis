@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import
 import sys
 import csv
 import os
@@ -10,10 +11,10 @@ import tempfile
 import json
 from subprocess import check_call
 
-from hist import Hist
-import hutils
-import utils
-import treeutils
+from .hist import Hist
+from . import hutils
+from . import utils
+from . import treeutils
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):

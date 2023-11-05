@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import copy
 import pickle
 from scipy import stats # this is fucking slow
@@ -17,14 +18,14 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-import utils
-from hist import Hist
-import treeutils
-import plotting
-import hutils
-import scanplot
-import mds
-import plotconfig
+from . import utils
+from .hist import Hist
+from . import treeutils
+from . import plotting
+from . import hutils
+from . import scanplot
+from . import mds
+from . import plotconfig
 
 # ----------------------------------------------------------------------------------------
 # this name is terrible, but it's complicated and I can't think of a better one

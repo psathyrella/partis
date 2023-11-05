@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import sys
 import os
 import re
@@ -14,10 +15,10 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-import utils
-import glutils
-import paramutils
-from hist import Hist
+from . import utils
+from . import glutils
+from . import paramutils
+from .hist import Hist
 
 # ----------------------------------------------------------------------------------------
 def get_bin_list(values, bin_type):

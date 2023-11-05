@@ -4,6 +4,7 @@ Replacement for diff -qr  -x\'*.svg\' -x params -x plots.html <arg1> <arg2>, but
 control of yamls (e.g. floating point precision) and csvs (e.g. line order)
 """
 
+from __future__ import absolute_import
 import argparse
 import os
 import sys

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import __builtin__
 import glob
 import operator
@@ -29,7 +30,7 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-import utils
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 fmetrics = ['lbf', 'aa-lbf']
@@ -2093,8 +2094,8 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
         setattr(args, marg, dval)
 
     assert not include_relative_affy_plots  # would need updating
-    import plotting
-    import lbplotting
+    from . import plotting
+    from . import lbplotting
     start = time.time()
     if inf_annotations is not None:
         assert is_simu
@@ -2825,12 +2826,12 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     os.rmdir(workdir)
 
     if plotdir is not None:
-        import plotting
+        from . import plotting
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
 
 # ----------------------------------------------------------------------------------------
 def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir=None, ig_or_tr='ig', args=None, tree_inference_outdir=None):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
-    from paircluster import gsval, get_did, both_dids, sumv
+    from .paircluster import gsval, get_did, both_dids, sumv
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
         if val is None:
@@ -3425,7 +3426,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             print '%81s%s' % ('', gs)  # this width will sometimes be wrong
         print ''
     # ----------------------------------------------------------------------------------------
-    import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
+    from . import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     debug = args.debug or args.debug_paired_clustering or args.print_chosen_abs
     if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
         print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')

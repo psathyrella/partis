@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import math
 import sys
 
-from hist import Hist
-import utils
+from .hist import Hist
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 def get_expanded_bounds(values, dxmin, dxmax=None, only_down=False):  # NOTE see also plotting.expand_bounds()

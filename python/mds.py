@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import sys
 import time
 import os
@@ -8,8 +9,8 @@ import itertools
 import subprocess
 import collections
 
-import utils
-from clusterpath import ClusterPath
+from . import utils
+from .clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
@@ -122,7 +123,7 @@ def plot_mds(n_components, pcvals, plotdir, basepltname, labels=None, partition=
         plotting.mpl_finish(ax, plotdir, plotname, xticks=[], yticks=[], xlabel='component %d'%(ipair+1), ylabel='component %d'%(ipair+2), title=utils.non_none([title, '']))
 
     # ----------------------------------------------------------------------------------------
-    import plotting
+    from . import plotting
     from matplotlib import pyplot as plt
     # plt.rcParams['axes.facecolor'] = '#f1efef'
     if n_components % 2 != 0:

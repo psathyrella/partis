@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import string
 import copy
 import numpy
@@ -7,11 +8,11 @@ import time
 import sys
 import os
 
-import utils
-import glutils
-import indelutils
-from hist import Hist
-import mds
+from . import utils
+from . import glutils
+from . import indelutils
+from .hist import Hist
+from . import mds
 
 # ----------------------------------------------------------------------------------------
 class AlleleClusterer(object):

@@ -1,11 +1,12 @@
+from __future__ import absolute_import
 import os
 import random
 import sys
 import subprocess
 
-import utils
-import glutils
-import treeutils
+from . import utils
+from . import glutils
+from . import treeutils
 
 def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')

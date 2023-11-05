@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # I'm not sure if this gets used anywhere, but I'm too chicken to delete it since I just noticed it, but it's been ages since I worked on this stuff
+from __future__ import absolute_import
 import sys
 import os
 import argpase
