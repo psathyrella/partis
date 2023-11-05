@@ -11,12 +11,12 @@ import glob
 import colored_traceback.always
 
 from subprocess import check_call
-sys.path.insert(1, './python')
+sys.path.insert(1, '.') #'./python')
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 
-import utils
-import glutils
-import processargs
+import python.utils as utils
+import python.glutils as glutils
+import python.processargs as processargs
 
 # ----------------------------------------------------------------------------------------
 def get_outfname(args, method, annotation_performance_plots=False, return_parent_gl_dir=False):

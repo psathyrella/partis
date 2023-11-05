@@ -10,14 +10,14 @@ import operator
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import glutils
-from clusterpath import ClusterPath
-import seqfileopener
-import indelutils
-import treeutils
+import python.utils as utils
+import python.glutils as glutils
+from python.clusterpath import ClusterPath
+import python.seqfileopener as seqfileopener
+import python.indelutils as indelutils
+import python.treeutils as treeutils
 
 # ----------------------------------------------------------------------------------------
 def addseq(ltmp, tline, uid, iclust):
@@ -102,7 +102,7 @@ for iclust, hclust in enumerate(sorted_hclusters):
     print '      %3s  %4d' % (l_locus, len(lclust)),
 
     # add aa-cdist (it's probably usually already there, but it's easy to add, and should always end up the same)
-    import treeutils
+    import python.treeutils as treeutils
     tmpids = {}
     for ltmp, tline in zip(('igh', l_locus), (hline, lline)):
         tline['tree-info'] = {'lb' : {}}

@@ -23,19 +23,19 @@ import operator
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import glutils
-import treeutils
-import processargs
-import seqfileopener
-from partitiondriver import PartitionDriver
-from clusterpath import ClusterPath
-import paircluster
-from parametercounter import ParameterCounter
-from corrcounter import CorrCounter
-from waterer import Waterer
+import python.utils as utils
+import python.glutils as glutils
+import python.treeutils as treeutils
+import python.processargs as processargs
+import python.seqfileopener as seqfileopener
+from python.partitiondriver import PartitionDriver
+from python.clusterpath import ClusterPath
+import python.paircluster as paircluster
+from python.parametercounter import ParameterCounter
+from python.corrcounter import CorrCounter
+from python.waterer import Waterer
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -114,12 +114,12 @@ def run_simulation(args):
         run_all_loci(args)
         return
 
-    from recombinator import Recombinator
+    from python.recombinator import Recombinator
 
     utils.prep_dir(args.workdir)
 
     if args.generate_trees:  # note that if we're not simulating from scratch we kind of don't need to generate trees in a separate step (we can just set --choose-trees-in-order and heavy and light will use the same trees in the same order), but for scratch simulation they end up different (I think just from generating the germline set below). It anyway seems safer to really specify the same trees.
-        import treegenerator
+        import python.treegenerator as treegenerator
         tmp_shm_parameter_dir = utils.parameter_type_subdir(args, args.shm_parameter_dir) if args.shm_parameter_dir is not None else None
         treegen = treegenerator.TreeGenerator(args, tmp_shm_parameter_dir)
         treegen.generate_trees(args.random_seed, args.outfname, args.workdir)
@@ -1110,7 +1110,7 @@ def run_all_loci(args, ig_or_tr='ig'):
 
         # NOTE this has to happen *after* running compare-plotdirs.py, since it cleans the dirs
         if not args.dry_run:
-            import plotting
+            import python.plotting as plotting
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
     # ----------------------------------------------------------------------------------------
     def process_all_outputs(tmpaction):
@@ -1133,7 +1133,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     run_cf_plotdirs(cfpdir, ltmp)
             if os.path.exists(cfpdir):
                 fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
-                import plotting
+                import python.plotting as plotting
                 fnlist = sorted(fnoutstr.strip().split('\n'))
                 plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
     # ----------------------------------------------------------------------------------------
@@ -1220,7 +1220,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns()
             utils.write_annotations('%s/fake-paired-annotations.yaml'%args.paired_outdir, None, fake_pntns, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns) + utils.fake_paired_columns)
         if ptnplot:
-            from partitionplotter import PartitionPlotter
+            from python.partitionplotter import PartitionPlotter
             print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
             partplotter = PartitionPlotter(args)
             if fake_pntns is None:

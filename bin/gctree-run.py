@@ -12,10 +12,10 @@ import os
 import dendropy
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
-sys.path.insert(1, './python')
-import utils
-import glutils
-import treeutils
+sys.path.insert(1, partis_dir) #'./python')
+import python.utils as utils
+import python.glutils as glutils
+import python.treeutils as treeutils
 
 # ----------------------------------------------------------------------------------------
 def get_inf_int_name(gname):  # <gname> is just an integer, which won't be unique and will break things

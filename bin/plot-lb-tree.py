@@ -348,14 +348,14 @@ parser.add_argument('--meta-emph-formats', help='see partis help')
 parser.add_argument('--node-size-key', help='see partis help')
 args = parser.parse_args()
 
-sys.path.insert(1, args.partis_dir + '/python')
+sys.path.insert(1, args.partis_dir) # + '/python')
 try:
-    import utils
-    import treeutils
-    import glutils
-    import plotting
-    import lbplotting
-    import gctlb
+    import python.utils as utils
+    import python.treeutils as treeutils
+    import python.glutils as glutils
+    import python.plotting as plotting
+    import python.lbplotting as lbplotting
+    import python.gctlb as gctlb
 except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)

@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
-sys.path.insert(1, partis_dir + '/python')
-import plotting
-import paramutils
-import utils
+sys.path.insert(1, partis_dir) # + '/python')
+import python.plotting as plotting
+import python.paramutils as paramutils
+import python.utils as utils
 
 # ----------------------------------------------------------------------------------------
 class ModelPlotter(object):

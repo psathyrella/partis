@@ -14,17 +14,17 @@ import copy
 import colored_traceback.always
 import sys
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 if os.getcwd() != partis_dir:
     raise Exception('need to run test.py from main partis dir %s' % partis_dir)
 import yaml
 
-from baseutils import get_extra_str
-import utils
-import glutils
-from hist import Hist
-from clusterpath import ClusterPath
-import paircluster
+from python.baseutils import get_extra_str
+import python.utils as utils
+import python.glutils as glutils
+from python.hist import Hist
+from python.clusterpath import ClusterPath
+import python.paircluster as paircluster
 
 # ----------------------------------------------------------------------------------------
 class Tester(object):

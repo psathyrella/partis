@@ -11,11 +11,11 @@ import collections
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import glutils
-from clusterpath import ClusterPath
+import python.utils as utils
+import python.glutils as glutils
+from python.clusterpath import ClusterPath
 
 dstr = """
 Add seqs from the fasta file --new-seq-file to an annotation from --partis-output-file.

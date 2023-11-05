@@ -7,9 +7,9 @@ import yaml
 import argparse
 import numpy
 
-sys.path.insert(1, './python')
-import utils
-import treeutils
+sys.path.insert(1, '.') #'./python')
+import python.utils as utils
+import python.treeutils as treeutils
 
 # NOTE this only really works on simulation, although it maybe wouldn't take much work to get it working on data
 

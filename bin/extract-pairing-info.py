@@ -14,9 +14,9 @@ import numpy
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
+import python.utils as utils
 
 dstr = """
 Extract heavy/light chain pairing info from fasta file <infname> and write it to yaml/json file <outfname>.

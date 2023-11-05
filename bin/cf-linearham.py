@@ -12,11 +12,11 @@ import operator
 # if you move this script, you'll need to change this method of getting the imports
 # partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 partis_dir = os.getcwd()
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import glutils
-from clusterpath import ClusterPath
+import python.utils as utils
+import python.glutils as glutils
+from python.clusterpath import ClusterPath
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--partis-file', required=True, help='partis yaml partition output file that includes alternative annotation information (i.e. --calculate-alternative-annotations was set while partitioning)')

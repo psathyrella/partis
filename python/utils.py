@@ -30,10 +30,6 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-from . import indelutils
-from . import clusterpath
-from . import treeutils
-
 all_ptn_plot_cfg = ['shm-vs-size', 'cluster-bubble', 'mut-bubble', 'diversity', 'sizes', 'trees', 'subtree-purity', 'mds', 'laplacian-spectra', 'sfs']
 default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'cluster-bubble', 'sizes', 'trees']
 
@@ -152,10 +148,6 @@ def get_boundaries(locus):  # NOTE almost everything still uses the various stat
 
 def region_pairs(locus):
     return [{'left' : bound[0], 'right' : bound[1]} for bound in get_boundaries(locus)]
-
-from . import seqfileopener
-from . import glutils
-from . import prutils
 
 #----------------------------------------------------------------------------------------
 # NOTE I also have an eps defined in hmmwriter. Simplicity is the hobgoblin of... no, wait, that's just plain ol' stupid to have two <eps>s defined
@@ -966,6 +958,7 @@ conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
 def nullval(key):  # adding this very late, so could probably stand to be used in lots of other places
+    from . import indelutils
     if key == 'indelfos':
         return indelutils.get_empty_indel()
     else:
@@ -1200,6 +1193,7 @@ def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get val
 
 # ----------------------------------------------------------------------------------------
 def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=False):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
+    from . import treeutils
     # ----------------------------------------------------------------------------------------
     def rtnval():
         # assert key in linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
@@ -1280,6 +1274,7 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
 # translate the uids in each line in <antn_list> using translation dict <trns>
 # specify *either* <trns> (a dict from old to new uid) or <trfcn> (a fcn from old to new uid)
 def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='translation', no_fail=False, translate_pids=False, expect_missing=False, debug=False):
+    from . import treeutils
     # ----------------------------------------------------------------------------------------
     def tr_tree(line, treestr, dbgstr):
         dtree = treeutils.get_dendro_tree(treestr=treestr)
@@ -1397,6 +1392,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, dont_deep_copy=Fal
 # NOTE see also replace_seqs_in_line()
 # NOTE also that there's no way to add shm indels for seqs in <seqfos_to_add>
 def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, print_added_str='', debug=False):
+    from . import indelutils
     # ----------------------------------------------------------------------------------------
     def align_sfo_seqs(sfos_to_align):
         sfos_to_align['naive_seq'] = line['naive_seq']
@@ -1496,6 +1492,7 @@ def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, re
 # ----------------------------------------------------------------------------------------
 # NOTE doesn't handle indels UPDATE maybe it does now? needs testing
 def combine_events(glfo, evt_list, meta_keys=None, debug=False):  # combine events in <evt_list> into a single annotation (could also [used to] pass in meta info values, but don't need it atm)
+    from . import indelutils
     if any(indelutils.has_indels_line(l, i) for l in evt_list for i in range(len(l['unique_ids']))):
         raise Exception('can\'t handle indels (needs implementing')
     combo_evt = get_full_copy(evt_list[0], glfo)
@@ -1573,6 +1570,8 @@ def choose_new_uid(potential_names, used_names, initial_length=1, n_initial_name
 
 # ----------------------------------------------------------------------------------------
 def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=False):
+    from . import indelutils
+    from . import glutils
     newline = {}
     print_it = False
 
@@ -1803,6 +1802,7 @@ def write_presto_annotations(outfname, annotation_list, failed_queries):
 
 # ----------------------------------------------------------------------------------------
 def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
+    from . import indelutils
     if debug:
         if region == 'v':
             print line['unique_ids'][iseq]
@@ -1823,6 +1823,7 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_columns=None, args=None, debug=False):
+    from . import indelutils
     # ----------------------------------------------------------------------------------------
     def getrgn(tk):  # get region from key name
         rgn = tk.split('_')[0]
@@ -1905,6 +1906,8 @@ def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_co
 
 # ----------------------------------------------------------------------------------------
 def convert_airr_line(aline, glfo):
+    from . import indelutils
+    from . import glutils
     pline = {}
     for aky, pky in airr_headers.items():
         if pky is not None:  # if there's a direct correspondence to a partis key
@@ -1990,6 +1993,8 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
 
 # ----------------------------------------------------------------------------------------
 def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False, clone_id_field='clone_id', sequence_id_field='sequence_id', delimiter='\t', skip_annotations=False):
+    from . import clusterpath
+    from . import glutils
     if glfo is None and glfo_dir is not None:
         glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
     failed_queries, clone_ids, plines, other_locus_ids = [], {}, [], []
@@ -2842,6 +2847,7 @@ def disambiguate_effective_insertions(bound, line, iseq, debug=False):
 # ----------------------------------------------------------------------------------------
 # modify <line> so it has no 'fwk' insertions to left of v or right of j
 def trim_fwk_insertions(glfo, line, modify_alternative_annotations=False, debug=False):  # NOTE this is *different* to reset_effective_erosions_and_effective_insertions() (i think kind of, but not entirely, the opposite?)
+    from . import indelutils
     # NOTE duplicates code in waterer.remove_framework_insertions(), and should really be combined with that fcn
     fv_len = len(line['fv_insertion'])
     jf_len = len(line['jf_insertion'])
@@ -2873,6 +2879,7 @@ def trim_fwk_insertions(glfo, line, modify_alternative_annotations=False, debug=
 
 # ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned_gl_seqs=None, debug=False):  # , padfo=None
+    from . import indelutils
     """
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -3282,6 +3289,8 @@ def check_per_seq_lengths(line, bkey='unique_ids'):  # maybe there's something l
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
+    from . import indelutils
+    from . import glutils
     """ Add to <line> a bunch of things that are initially only implicit. """
     if line['v_gene'] == '':
         raise Exception('can\'t add implicit info to line with failed annotation:\n%s' % (''.join(['  %+20s  %s\n' % (k, v) for k, v in line.items()])))
@@ -3465,6 +3474,7 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, uid_extra_str_label=None, extra_print_keys=None, queries_to_emphasize=None):
+    from . import prutils
     if extra_print_keys is not None:
         uid_extra_strs, uid_extra_str_label = get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_label)
     if uid_extra_strs is not None and len(uid_extra_strs) != len(line['unique_ids']):
@@ -3574,6 +3584,7 @@ def split_gene(gene, allow_constant=False):
 
 # ----------------------------------------------------------------------------------------
 def shorten_gene_name(name, use_one_based_indexing=False, n_max_mutstrs=3):
+    from . import glutils
     if name[:2] != 'IG':
         raise Exception('bad node name %s' % name)
 
@@ -3668,6 +3679,7 @@ def separate_into_allelic_groups(glfo, allele_prevalence_freqs=None, debug=False
 # ----------------------------------------------------------------------------------------
 def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None, debug=False):  # NOTE <n_max_snps> corresponds to v, whereas d and j are rescaled according to their lengths
     """ where each class contains all alleles with the same length (up to cyst if v), and within some snp threshold (n_max_v_snps for v)"""
+    from . import glutils
     def getseq(gene):
         seq = glfo['seqs'][region][gene]
         if region == 'v':  # only go up through the end of the cysteine
@@ -4212,6 +4224,7 @@ def rmdir(dname, fnames=None):
 
 # ----------------------------------------------------------------------------------------
 def process_input_line(info, skip_literal_eval=False):
+    from . import indelutils
     """
     Attempt to convert all the keys and values in <info> according to the specifications in <io_column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
@@ -4330,6 +4343,7 @@ def pad_seq_for_translation(line, tseq, return_n_padded=False, debug=False):  # 
 
 # ----------------------------------------------------------------------------------------
 def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_column()
+    from . import indelutils
     if 'seqs_aa' in line and line['seqs_aa'].count(None) == 0:  # if we've just added some seqs to the <line> some will have None aa seqs
         return
     line['seqs_aa'] = [ltranslate(pad_seq_for_translation(line, s)) for s in line['seqs']]
@@ -4368,6 +4382,8 @@ def trim_nuc_seq(nseq):  # if length not multiple of three, trim extras from the
 
 # ----------------------------------------------------------------------------------------
 def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for_csv=False):
+    from . import treeutils
+    from . import indelutils
     if outfo is None:  # hacking on this behavior that doesn't require you to pass in <outfo>
         outfo = {}
     # NOTE use <info> to calculate all quantities, *then* put them in <outfo>: <outfo> only has the stuff that'll get written to the file, so can be missing things that are needed for calculations
@@ -4432,6 +4448,7 @@ def transfer_indel_reversed_seqs(line):
 
 # ----------------------------------------------------------------------------------------
 def transfer_indel_info(info, outfo):  # NOTE reverse of this happens in indelutils.deal_with_indel_stuff()
+    from . import indelutils
     """
     for keys in special_indel_columns_for_output: in memory, I need the indel info under the 'indelfos' key (for historical reasons that I don't want to change a.t.m.), but I want to mask that complexity for output
     """
@@ -6571,6 +6588,7 @@ def read_vsearch_cluster_file(fname):
 
 # ----------------------------------------------------------------------------------------
 def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annotations=False, debug=False):
+    from . import indelutils
     def get_mutation_info(query, matchfo, indelfo):
         tmpgl = glfo['seqs'][region][matchfo['gene']][matchfo['glbounds'][0] : matchfo['glbounds'][1]]
         if indelutils.has_indels(indelfo):
@@ -6676,6 +6694,8 @@ def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwarg
 # ----------------------------------------------------------------------------------------
 # NOTE use the previous fcn if you expect duplicate uids
 def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:'):
+    from . import clusterpath
+    from . import glutils
     # note: '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
@@ -6831,6 +6851,7 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
 
 # ----------------------------------------------------------------------------------------
 def compare_vsearch_to_sw(sw_info, vs_info):
+    from . import indelutils
     # pad vsearch indel info so it'll match the sw indel info (if the sw indel info is just copied from the vsearch info, and you're not going to use the vsearch info for anything after, there's no reason to do this)
     for query in sw_info['indels']:
         if query not in sw_info['queries']:
@@ -6945,15 +6966,18 @@ def get_version_info(debug=False):
 
 # ----------------------------------------------------------------------------------------
 def write_only_partition(fname, partition):
+    from . import clusterpath
     cpath = clusterpath.ClusterPath(partition=partition)
     write_annotations(fname, None, [], None, partition_lines=cpath.get_partition_lines())
 
 # ----------------------------------------------------------------------------------------
 def write_empty_annotations(fname, locus):
+    from . import glutils
     write_annotations(fname, glutils.get_empty_glfo(locus), [], annotation_headers)
 
 # ----------------------------------------------------------------------------------------
 def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):
+    from . import clusterpath
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
@@ -7062,6 +7086,8 @@ def read_cpath(fname, n_max_queries=-1, seed_unique_id=None, skip_annotations=Fa
 
 # ----------------------------------------------------------------------------------------
 def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, skip_failed_queries=False, is_partition_file=False, debug=False):
+    from . import clusterpath
+    from . import glutils
     annotation_list = None
 
     if getsuffix(fname) == '.csv':
@@ -7150,6 +7176,7 @@ def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), o
 
 # ----------------------------------------------------------------------------------------
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
+    from . import clusterpath
     yamlfo = read_json_yaml(fname)
     if isinstance(yamlfo, list):
         raise Exception('read list of seqfos from file, instead of the expected standard yaml output with germline-info, annotations, and partitions. Run read_seqfos() instead: %s' % fname)
@@ -7187,6 +7214,7 @@ def get_gene_counts_from_annotations(annotations, only_regions=None):
 
 # ----------------------------------------------------------------------------------------
 def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=False, csv_outdir=None, debug=False):
+    from . import glutils
     # ----------------------------------------------------------------------------------------
     def algncreg(tkey, n_min_seqs=5):
         if tkey == 'leader':  # for leaders, group together seqs that align to each V gene

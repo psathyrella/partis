@@ -11,9 +11,9 @@ import csv
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
-sys.path.insert(1, partis_dir + '/python')
-import utils
-import seqfileopener
+sys.path.insert(1, partis_dir) # + '/python')
+import python.utils as utils
+import python.seqfileopener as seqfileopener
 
 parser = argparse.ArgumentParser()
 parser.add_argument('infile')

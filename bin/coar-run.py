@@ -10,13 +10,13 @@ import json
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import glutils
-import treeutils
-import lbplotting
-import coar
+import python.utils as utils
+import python.glutils as glutils
+import python.treeutils as treeutils
+import python.lbplotting as lbplotting
+import python.coar as coar
 
 # ----------------------------------------------------------------------------------------
 helpstr = """

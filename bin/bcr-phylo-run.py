@@ -14,13 +14,13 @@ import traceback
 import itertools
 import yaml
 
-current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
+current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '.') #'/python')
 sys.path.insert(1, current_script_dir)
-import utils
-import indelutils
-import treeutils
-from event import RecombinationEvent
-import paircluster
+import python.utils as utils
+import python.indelutils as indelutils
+import python.treeutils as treeutils
+from python.event import RecombinationEvent
+import python.paircluster as paircluster
 
 ete_path = '/home/' + os.getenv('USER') + '/anaconda_ete/bin'
 bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
@@ -565,7 +565,7 @@ def simulate(igcr=None):
         write_simulation(glfos, mutated_events, unsampled=args.tpsample)
 
     if not args.only_csv_plots:
-        import lbplotting
+        import python.lbplotting as lbplotting
         for ievent, outdir in enumerate(outdirs):
             if args.paired_loci:
                 lpair = [l['loci'][0] for l in mutated_events[ievent]]

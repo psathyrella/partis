@@ -8,22 +8,26 @@ import numpy
 import itertools
 import colored_traceback.always
 
-# # example usage:
-# fsd=/fh/fast/matsen_e/processed-data/partis
-# ./bin/cross-check-partitions.py \
-#     --locus igh \
-#     --min-cluster-sizes 150:5 --max-cdr3-distance 5 \
-#     --param $fsd/laura-mb/v17/Hs-LN-D-5RACE-IgG:$fsd/laura-mb-2/v17/BF520-g-M9 \
-#     --labels laura-mb-D:laura-mb-2-M9 \
-#     --infiles $fsd/laura-mb/v17/partitions/Hs-LN-D-5RACE-IgG-isub-2/partition.csv:$fsd/laura-mb-2/v17/partitions/BF520-g-M9-isub-2/partition.csv
 
 partis_path = '.'  # edit this if you're not running from the main partis dir
-sys.path.insert(1, partis_path + '/python')
-import utils
-import glutils
-from clusterpath import ClusterPath
+sys.path.insert(1, partis_path) # + '/python')
+import python.utils as utils
+import python.glutils as glutils
+from python.clusterpath import ClusterPath
 
-parser = argparse.ArgumentParser()
+helpstr = """ Compare clusters in two partitions.
+  For each cluster in one/each partition, make a list of the clusters in the other
+  partition that's sorted by how similar their naive sequence are.
+  example usage:
+    fsd=/fh/fast/matsen_e/processed-data/partis
+    ./bin/cross-check-partitions.py
+        --locus igh
+        --min-cluster-sizes 150:5 --max-cdr3-distance 5
+        --param $fsd/laura-mb/v17/Hs-LN-D-5RACE-IgG:$fsd/laura-mb-2/v17/BF520-g-M9
+        --labels laura-mb-D:laura-mb-2-M9
+        --infiles $fsd/laura-mb/v17/partitions/Hs-LN-D-5RACE-IgG-isub-2/partition.csv:$fsd/laura-mb-2/v17/partitions/BF520-g-M9-isub-2/partition.csv
+  """
+parser = argparse.ArgumentParser(description=helpstr)
 parser.add_argument('--infiles')
 parser.add_argument('--labels')
 parser.add_argument('--locus')

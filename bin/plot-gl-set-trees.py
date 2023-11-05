@@ -493,11 +493,11 @@ parser.add_argument('--ref-label', help='label (in --glslabels) corresponding to
 
 args = parser.parse_args()
 
-sys.path.insert(1, args.partis_dir + '/python')
+sys.path.insert(1, args.partis_dir) # + '/python')
 try:
-    import utils
-    import glutils
-    import plotting
+    import python.utils as utils
+    import python.glutils as glutils
+    import python.plotting as plotting
 except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)

@@ -9,11 +9,12 @@ import csv
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
-sys.path.insert(1, partis_dir + '/python')
-import utils
-from hist import Hist
-import plotting
-import glutils
+sys.path.insert(1, partis_dir) # + '/python')
+
+import python.utils as utils
+from python.hist import Hist
+import python.plotting as plotting
+import python.glutils as glutils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('infile')

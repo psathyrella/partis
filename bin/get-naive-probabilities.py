@@ -11,9 +11,9 @@ import colored_traceback.always
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
+import python.utils as utils
 
 # ----------------------------------------------------------------------------------------
 def is_acceptable(scol, acceptable_values, lval):
@@ -91,7 +91,7 @@ with open(args.infname) as csvfile:
         counts_used += int(line['count'])
 
 # ----------------------------------------------------------------------------------------
-import fraction_uncertainty
+import python.fraction_uncertainty as fraction_uncertainty
 def frac_err(obs, total):
     lo, hi = fraction_uncertainty.err(obs, total)
     return 0.5 * (hi - lo)

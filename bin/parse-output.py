@@ -9,24 +9,24 @@ import colored_traceback.always
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import glutils
-from clusterpath import ClusterPath
-import paircluster
+import python.utils as utils
+import python.glutils as glutils
+from python.clusterpath import ClusterPath
+import python.paircluster as paircluster
 
 # ----------------------------------------------------------------------------------------
 def count_plot(tglfo, tlist, plotdir, paired_loci=None):
     if len(tlist) == 0:
         return
     if args.plot_tree_mut_stats:
-        import plotting
+        import python.plotting as plotting
         plotting.plot_tree_mut_stats(plotdir, tlist, args.is_simu, only_leaves=args.only_plot_leaves, treefname=args.treefname)
         plotting.make_html(plotdir)
         return
     if args.only_count_correlations:
-        from corrcounter import CorrCounter
+        from python.corrcounter import CorrCounter
         ccounter = CorrCounter(paired_loci=paired_loci)
         for line in tlist:
             l_info = None
@@ -42,7 +42,7 @@ def count_plot(tglfo, tlist, plotdir, paired_loci=None):
             for iseq, uid in enumerate(true_line['unique_ids']):
                 true_antn_dict[uid] = utils.synthesize_single_seq_line(true_line, iseq)
         # true_antn_dict = utils.get_annotation_dict(true_antn_list)
-        from performanceplotter import PerformancePlotter
+        from python.performanceplotter import PerformancePlotter
         perfplotter = PerformancePlotter('hmm')
         n_failed = 0
         for line in tlist:
@@ -57,7 +57,7 @@ def count_plot(tglfo, tlist, plotdir, paired_loci=None):
         if args.only_plot_performance:
             return
     assert not args.paired  # only handled for correlation counting atm
-    from parametercounter import ParameterCounter
+    from python.parametercounter import ParameterCounter
     setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})  # hackity hackity hackity
     pcounter = ParameterCounter(tglfo, args)  # NOTE doesn't count correlations by default
     for line in tlist:

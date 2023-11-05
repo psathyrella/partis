@@ -215,14 +215,14 @@ def add_jitter(xvals, delta=None, frac=0.02):
 # ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
-    if 'fraction_uncertainty' not in sys.modules:
+    if 'python.fraction_uncertainty' not in sys.modules:
         from . import fraction_uncertainty
 
     hist = Hist(2, -0.5, 1.5, ytitle='freq')
 
     def set_bin(numer, denom, ibin, label):
         frac = float(numer) / denom
-        bounds = sys.modules['fraction_uncertainty'].err(numer, denom)
+        bounds = sys.modules['python.fraction_uncertainty'].err(numer, denom)
         err = max(abs(frac - bounds[0]), abs(frac - bounds[1]))
         hist.set_ibin(ibin, frac, error=err, label=label)
 
@@ -1401,7 +1401,7 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None,
 
 # ----------------------------------------------------------------------------------------
 def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, only_csv=False, write_csv=False):
-    if 'fraction_uncertainty' not in sys.modules:
+    if 'python.fraction_uncertainty' not in sys.modules:
         from . import fraction_uncertainty
 
     # NOTE should really merge this with draw_no_root()
@@ -1418,7 +1418,7 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
         wrong.pop(iv)
         yvals.pop(iv)
 
-    tmphilos = [sys.modules['fraction_uncertainty'].err(r, r + w) for r, w in zip(right, wrong)]
+    tmphilos = [sys.modules['python.fraction_uncertainty'].err(r, r + w) for r, w in zip(right, wrong)]
     yerrs = [err[1] - err[0] for err in tmphilos]
     # print '%s' % region
     # for iv in range(len(xvals)):
@@ -1446,9 +1446,9 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
 
 # ----------------------------------------------------------------------------------------
 def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', ylabel='', leg_title=None, title=None):
-    if 'fraction_uncertainty' not in sys.modules:
+    if 'python.fraction_uncertainty' not in sys.modules:
         from . import fraction_uncertainty
-    fraction_uncertainty = sys.modules['fraction_uncertainty']
+    fraction_uncertainty = sys.modules['python.fraction_uncertainty']
 
     def get_single_vals(pv):
         yvals = [float(c) / t for c, t in zip(pv['ycounts'], pv['ytotals'])]  # total shouldn't be able to be zero

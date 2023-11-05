@@ -7,17 +7,17 @@ import glob
 import sys
 import colored_traceback.always
 import copy
-current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
+current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin') #, '/python')
 if not os.path.exists(current_script_dir):
     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
 sys.path.insert(1, current_script_dir)
 
-import plotconfig
-import plotting
-import utils
-import glutils
-from hist import Hist
-import treeutils
+import python.plotconfig as plotconfig
+import python.plotting as plotting
+import python.utils as utils
+import python.glutils as glutils
+from python.hist import Hist
+import python.treeutils as treeutils
 
 xtitledict = copy.deepcopy(plotting.legends)
 xtitledict.update(plotconfig.xtitles)
