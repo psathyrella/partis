@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-import __builtin__
+import six.moves.builtins
 import glob
 import operator
 import string
