@@ -9,7 +9,6 @@ import csv
 from collections import OrderedDict
 import random
 import re
-import string
 
 from . import utils
 

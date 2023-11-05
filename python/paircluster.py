@@ -5,7 +5,6 @@ import itertools
 import numpy
 import sys
 import operator
-import string
 import os
 import math
 import json

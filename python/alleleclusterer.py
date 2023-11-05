@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import string
 import copy
 import numpy
 import itertools
