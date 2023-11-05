@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+from __future__ import division
 from __future__ import absolute_import
 from distutils.version import StrictVersion
 import argparse
@@ -43,7 +44,7 @@ def run_simulation(args):
     def run_sub_cmds(working_gldir):
         # ----------------------------------------------------------------------------------------
         def get_sub_events(iproc):
-            n_sub_events = args.n_sim_events / args.n_procs
+            n_sub_events = args.n_sim_events // args.n_procs
             if iproc == args.n_procs - 1 and args.n_sim_events % args.n_procs > 0:  # do any extra ones in the last proc (has to match sub file writer below)
                 n_sub_events += args.n_sim_events % args.n_procs
             n_per_proc_list.append(n_sub_events)
