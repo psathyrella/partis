@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division
-from . import cached_uncertainties
+from .cache import cached_uncertainties
 from scipy.stats import beta
 
 # ----------------------------------------------------------------------------------------
