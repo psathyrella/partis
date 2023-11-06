@@ -25,6 +25,7 @@ import types
 import collections
 import operator
 import yaml
+import six
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -4168,7 +4169,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
 
     if wildlings is None:
         wildlings = []
-    elif isinstance(wildlings, basestring):  # allow to pass in just a string, instead of a list of strings
+    elif isinstance(wildlings, six.string_types):  # allow to pass in just a string, instead of a list of strings
         wildlings = [wildlings, ]
 
     if subdirs is not None:  # clean out the subdirs first
