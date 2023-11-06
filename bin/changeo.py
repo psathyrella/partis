@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 from subprocess import check_call
 
 fsdir = '/fh/fast/matsen_e/dralph/work/changeo'

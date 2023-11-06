@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 from . import utils
 
 rstrings = ['', 'cdr3_'] + [r + '_' for r in utils.regions]

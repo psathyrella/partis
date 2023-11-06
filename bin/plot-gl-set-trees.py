@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 import time
 import yaml
 import itertools
