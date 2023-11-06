@@ -338,7 +338,7 @@ def get_lb_bounds(tau, seq_len):
 def normalize_lb_val(metric, lbval, tau, seq_len):
     assert metric == 'lbi'
     lbmin, lbmax = get_lb_bounds(tau, seq_len)
-    return (lbval - lbmin) / (lbmax - lbmin)
+    return (lbval - lbmin) / float(lbmax - lbmin)
 
 # ----------------------------------------------------------------------------------------
 def get_treestrs_from_file(treefname, n_expected_trees=None):
@@ -613,7 +613,7 @@ def get_mean_leaf_height(tree=None, treestr=None):
     if tree is None:
         tree = get_dendro_tree(treestr=treestr, schema='newick')
     heights = get_leaf_depths(tree).values()
-    return sum(heights) / len(heights)
+    return sum(heights) / float(len(heights))
 
 # ----------------------------------------------------------------------------------------
 def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=200, schema='newick', label_fcn=None):
@@ -1257,9 +1257,9 @@ def re_index_mut_info(indexing, annotation, aa_mutations, nuc_mutations, is_fake
         mcd['str'] = '%s%s%d%s' % (tch+':' if annotation.get('is_fake_paired', False) else '', mcd['initial'], mcd['pos'], mcd['final'])
     # ----------------------------------------------------------------------------------------
     def split_h_l(mcd):
-        tch = 'h' if mcd['pos'] < annotation['l_offset']/3 else 'l'
+        tch = 'h' if mcd['pos'] < annotation['l_offset']//3 else 'l'
         mcd['chain'] = tch
-        mcd['pos'] -= annotation['%s_offset'%tch] / 3
+        mcd['pos'] -= annotation['%s_offset'%tch] // 3
         update_str(mcd, tch=tch)
     # ----------------------------------------------------------------------------------------
     if indexing == 0:
@@ -1335,7 +1335,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
                 print '              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
             print '          %d with highest+lowest ratios:' % n_to_print
             srats = sorted(ratios.items(), key=operator.itemgetter(1), reverse=True)
-            for key, ratio in srats[:n_to_print/2] + srats[len(srats) - n_to_print/2:]:
+            for key, ratio in srats[:n_to_print//2] + srats[len(srats) - n_to_print//2:]:
                 print '              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
 
     if only_check_leaf_depths:  # the pairwise bit is slow
@@ -1347,7 +1347,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
     for n1, n2 in itertools.combinations([n for n in common_nodes if n.taxon in dmx_taxa], 2):
         tdist = dmatrix.distance(n1.taxon, n2.taxon)
         mdist = utils.hamming_fraction(utils.per_seq_val(annotation, 'seqs', n1.taxon.label), utils.per_seq_val(annotation, 'seqs', n2.taxon.label))
-        frac_diff = abs(tdist - mdist) / tdist if tdist > 0 else 0
+        frac_diff = abs(tdist - mdist) / float(tdist) if tdist > 0 else 0
         if frac_diff > max_frac_diff:
             key = (n1.taxon.label, n2.taxon.label)
             pv_tdists[key] = tdist
@@ -1361,7 +1361,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
             print '                  pairwise'
             print '             tree dist  seq dist    ratio   frac diff'
             for key, frac_diff in sorted(pw_fracs.items(), key=operator.itemgetter(1), reverse=True):
-                print '              %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / pv_mdists[key], frac_diff, key[0], key[1])
+                print '              %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / float(pv_mdists[key]), frac_diff, key[0], key[1])
 
     if debug > 1:
         print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
@@ -2604,7 +2604,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
             if tvar == 'affinity':
                 tfo['in'] += dtr_invals[cg]
                 max_affy = max(line['affinities'])
-                tfo['out'] += [a / max_affy for a in line['affinities']]
+                tfo['out'] += [a / float(max_affy) for a in line['affinities']]
             elif tvar == 'delta-affinity':
                 tmpvals = get_delta_affinity_vals()
                 tfo['in'] += tmpvals['in']

@@ -571,7 +571,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
 def remove_pair_info_from_bulk_data(outfos, metafos, bulk_data_fraction):
     if len(outfos) % 2 != 0:
         print '  %s outfos len not a multiple of 2' % utils.wrnstr()  # i think everybody's partner should still be in there
-    n_to_remove = int(bulk_data_fraction * len(outfos) / 2)
+    n_to_remove = int(bulk_data_fraction * len(outfos) / 2.)
     n_removed, single_cell_ids = 0, list(metafos)  # <single_cell_ids> is the list of all uids that still have pair info
     while n_removed < n_to_remove:
         uid_to_remove = numpy.random.choice(single_cell_ids)
@@ -580,7 +580,7 @@ def remove_pair_info_from_bulk_data(outfos, metafos, bulk_data_fraction):
             metafos[utmp]['paired-uids'] = []
             single_cell_ids.remove(utmp)
         n_removed += 1
-    print '  removed pair info for %d / %d = %.2f sequence pairs' % (n_to_remove, len(outfos) / 2, n_to_remove / float(len(outfos)/2))
+    print '  removed pair info for %d / %d = %.2f sequence pairs' % (n_to_remove, len(outfos) / 2., n_to_remove / float(len(outfos)/2.))
 
 # ----------------------------------------------------------------------------------------
 def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constant_n_cells=False):
@@ -604,7 +604,7 @@ def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constan
             del sfo_dict[uid]
     for sfo in outfos:
         metafos[sfo['name']]['paired-uids'] = [u for u in sfo['droplet-ids'] if u != sfo['name']]
-    print '  apportioned %d seqs among %d droplets (mean/2 %.1f): %s' % (len(outfos), n_droplets, numpy.mean([len(d) for d in droplet_ids]) / 2, ' '.join(str(len(d)) for d in droplet_ids))
+    print '  apportioned %d seqs among %d droplets (mean/2 %.1f): %s' % (len(outfos), n_droplets, numpy.mean([len(d) for d in droplet_ids]) / 2., ' '.join(str(len(d)) for d in droplet_ids))
 
 # ----------------------------------------------------------------------------------------
 def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
@@ -1632,7 +1632,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             jp_indices = {u : i for i, c in enumerate(joint_partitions[tch]) for u in c}  # just for speed
             for upid, nearfo in unpaired_seqs[ltmp].items():  # <upid> is uid of seq with bad/no pair info, <nearfo['nearest']> is uid of nearest seq in <upid>'s original family
                 if huge_dbg:
-                    if ihuge % (n_huge_dbg / 5) == 0:
+                    if ihuge % (n_huge_dbg // 5) == 0:
                         print ' %d' % ihuge,
                         sys.stdout.flush()
                     ihuge += 1
@@ -1724,7 +1724,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 print ('    %2s      %2s         %-'+str(cw)+'s%-s') % ('', '', '', lcstr)
                 print ('    %2s      %2s         %-'+str(cw)+'s%-'+str(cw)+'s   %s') % ('', '', '', '', overlapstr)
         if huge_dbg:
-            if ihuge % (n_huge_dbg / 5) == 0:
+            if ihuge % (n_huge_dbg // 5) == 0:
                 print ' %d' % ihuge,
                 sys.stdout.flush()
             ihuge += 1

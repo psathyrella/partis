@@ -56,7 +56,7 @@ class Hist(object):
             if len(set(xbins)) != len(xbins):
                 raise Exception('xbins has duplicate entries: %s' % xbins)
 
-        dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / self.n_bins
+        dx = 0.0 if self.n_bins == 0 else (self.xmax - self.xmin) / float(self.n_bins)
         for ib in range(self.n_bins + 2):  # using root conventions: zero is underflow and last bin is overflow
             self.bin_labels.append('')
             if xbins is None:  # uniform binning
@@ -329,9 +329,9 @@ class Hist(object):
             if self.bin_contents[ib] > 0:
                 if self.bin_contents[ib] <= factor:
                     raise Exception('factor %f passed to hist.logify() must be less than all non-zero bin entries, but found a bin with %f' % (factor, self.bin_contents[ib]))
-                self.bin_contents[ib] = math.log(self.bin_contents[ib] / factor)
+                self.bin_contents[ib] = math.log(self.bin_contents[ib] / float(factor))
             if self.errors[ib] > 0:  # I'm not actually sure this makes sense
-                self.errors[ib] = math.log(self.errors[ib] / factor)
+                self.errors[ib] = math.log(self.errors[ib] / float(factor))
 
     # ----------------------------------------------------------------------------------------
     def divide_by(self, denom_hist, debug=False):

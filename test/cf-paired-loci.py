@@ -418,7 +418,7 @@ for action in args.actions:
                     for ltmp in plot_loci():
                         if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):
                             continue
-                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[int(ipm/3) if 'pcfrac-' in pmetr else ipm], make_legend=ltmp=='igh', leg_label='-'+ptntype, script_base=script_base, debug=args.debug)
+                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[int(ipm//3) if 'pcfrac-' in pmetr else ipm], make_legend=ltmp=='igh', leg_label='-'+ptntype, script_base=script_base, debug=args.debug)
                         # iplot += 1
             fnames += [[os.path.dirname(fnames[0][0]) + '/legend-%s.svg'%ptntype] for ptntype in partition_types]
             plotting.make_html(cfpdir, n_columns=3 if len(plot_loci())==3 else 4, fnames=fnames)  # NOTE the pcfrac ones have to be first in the list for the ipm/3 thing to work

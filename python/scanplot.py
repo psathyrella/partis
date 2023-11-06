@@ -203,7 +203,7 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
     # ----------------------------------------------------------------------------------------
     def diff_fcn(affy_ptile, perf_ptile):
         if spec_corr:  # specificity correlation
-            return 1. - abs(perf_ptile - affy_ptile) / (perf_ptile - 50)  # NOTE this used to use plain 50 in the denominator (fcn was also elsewhere), but this makes more sense (not a huge difference tho)
+            return 1. - abs(perf_ptile - affy_ptile) / float(perf_ptile - 50)  # NOTE this used to use plain 50 in the denominator (fcn was also elsewhere), but this makes more sense (not a huge difference tho)
         else:  # raw difference
             return abs(perf_ptile - affy_ptile)
     # ----------------------------------------------------------------------------------------

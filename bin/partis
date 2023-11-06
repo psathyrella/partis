@@ -59,7 +59,7 @@ def run_simulation(args):
             assert subtype in ['trees', 'heavy-chain-events']
             subfname = '%s/%s-sub-%d.%s'%(args.workdir, subtype, iproc, 'nwk' if subtype=='trees' else 'yaml')
             utils.replace_in_arglist(clist, '--input-simulation-treefname' if subtype=='trees' else '--heavy-chain-event-fname', subfname)
-            n_sub_objs = len(objlist) / args.n_procs
+            n_sub_objs = len(objlist) // args.n_procs
             sub_obj_list = objlist[iproc * n_sub_objs : (iproc + 1) * n_sub_objs]
             if iproc == args.n_procs - 1 and len(objlist) % args.n_procs > 0:  # add any extra ones to the last proc (has to match n_sub_events above) NOTE it's important that we add them to the *last* proc (it used to be the first one), since otherwise the h/l paired correlations are wrong, since things end up in a different order after you read files
                 sub_obj_list += objlist[args.n_procs * n_sub_objs : ]

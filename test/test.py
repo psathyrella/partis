@@ -495,7 +495,7 @@ class Tester(object):
                     htmp = Hist(fname='%s/true-pair-clean-performance.csv' % self.opath(ptest, st=version_stype))
                     ttot = htmp.integral(False)
                     for pcat in self.pair_clean_metrics:
-                        pinfo[ptest][pcat] = htmp.bin_contents[htmp.find_bin(None, label=pcat)] / ttot
+                        pinfo[ptest][pcat] = htmp.bin_contents[htmp.find_bin(None, label=pcat)] / float(ttot)
             else:
                 ccfs = read_cpath(self.opath(ptest, st=version_stype))  # self.dirs(version_stype) + '/' + ptest + '.yaml')
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = ccfs
@@ -543,7 +543,7 @@ class Tester(object):
     def compare_performance(self, input_stype):
         # ----------------------------------------------------------------------------------------
         def print_comparison_str(ref_val, new_val, epsval, fw=7, dp=3, pm=False):
-            fractional_change = 0. if ref_val == 0. else (new_val - ref_val) / ref_val  # NOTE not the abs value yet
+            fractional_change = 0. if ref_val == 0. else (new_val - ref_val) / float(ref_val)  # NOTE not the abs value yet
             if abs(fractional_change) > epsval:
                 color = 'red'
             elif abs(fractional_change) > self.tiny_eps:
@@ -715,7 +715,7 @@ class Tester(object):
             if name not in times['new']:
                 print '  no new time for %s' % utils.color('red', name)
                 continue
-            fractional_change = (times['new'][name] - times['ref'][name]) / times['ref'][name]
+            fractional_change = (times['new'][name] - times['ref'][name]) / float(times['ref'][name])
             if abs(fractional_change) > 0.2:
                 print '--> %-5.1f %s' % (times['new'][name], utils.color('red', '(%+.3f)' % fractional_change)),
             elif abs(fractional_change) > 0.1:

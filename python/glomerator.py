@@ -76,7 +76,7 @@ class Glomerator(object):
         def homogenize():
             """ roughly equalize the cluster sizes """
             if debug:
-                print '  homogenizing', len(clusters[0]), len(clusters[-1])  #, len(clusters[-1]) / 3.
+                print '  homogenizing', len(clusters[0]), len(clusters[-1])
                 print '    before ', ' '.join([str(len(cl)) for cl in clusters])
 
             # move enough items from the end of the biggest cluster to the end of the smallest cluster that their sizes are equal (well, within one of each other, with the last cluster allowed to stay one bigger)

@@ -83,7 +83,7 @@ def set_delta_affinities(etree, affyfo):  # set change in affinity from parent f
 def get_size(vmin, vmax, val):
     if vmin == vmax:
         return 0
-    return min_size + (val - vmin) * (max_size - min_size) / (vmax - vmin)
+    return min_size + (val - vmin) * (max_size - min_size) / float(vmax - vmin)
 
 # ----------------------------------------------------------------------------------------
 def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):  # NOTE very similar to add_smap_legend() in plot_2d_scatter() in python/lbplotting.py
@@ -146,7 +146,7 @@ def label_node(node):
         if lstr.count(',') < 3:
             return lstr
         blist = lstr.split(', ')
-        return '%s\n%s' % (', '.join(blist[:len(blist)/2]), ', '.join(blist[len(blist)/2:]))
+        return '%s\n%s' % (', '.join(blist[:len(blist)//2]), ', '.join(blist[len(blist)//2:]))
     # ----------------------------------------------------------------------------------------
     if use_name():
         nlabel = node.name

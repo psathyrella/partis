@@ -1592,7 +1592,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         assert hist.overflow_contents() == 0.  # includes underflows
         max_contents = max(hist.bin_contents)
         for ibin in range(1, hist.n_bins + 1):
-            barheight = 0 if max_contents==0 else utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
+            barheight = 0. if max_contents==0 else utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
             if meta_info_key_to_color is not None:
                 bin_ids = [u for u, x in zip(antn['unique_ids'], get_xval_list(cluster, xkey)) if hist.find_bin(x)==ibin]  # uids in this bin
                 def psfcn(u): return utils.meta_emph_str(meta_info_key_to_color, utils.per_seq_val(antn, meta_info_key_to_color, u, use_default=True), formats=meta_emph_formats)
@@ -1600,14 +1600,14 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                 me_color_fracs = [(c, me_vals.count(v) / float(len(me_vals))) for v, c in emph_colors if v in me_vals]
             bin_color = base_color
             if offset is None:  # default: bar extends equally above + below center
-                y_lower, y_upper = yval - barheight/2, yval + barheight/2
+                y_lower, y_upper = yval - barheight/2., yval + barheight/2.
             else:  # this bar is only up or down (and presumably a different bar is being drawn the other direction)
                 y_lower, y_upper = yval, yval
                 bin_color = offcolor(offset)
                 if offset == 'up':
-                    y_upper += barheight / 2
+                    y_upper += barheight / 2.
                 elif offset == 'down':
-                    y_lower -= barheight / 2
+                    y_lower -= barheight / 2.
                 else:
                     assert False
             alpha = base_alpha
@@ -1649,7 +1649,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         y_bar_pixels = 20
     min_bar_height, max_bar_height = 0.3 / min_ypixels * total_delta_y, float(y_bar_pixels) / min_ypixels * total_delta_y
     ypixels = max(min_ypixels, y_bar_pixels * total_delta_y)
-    fig, ax = mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
+    fig, ax = mpl_init(figsize=(xpixels // dpi, ypixels // dpi))
     # min_alpha, max_alpha = 0.1, 1.
     base_alpha = 0.55
 
@@ -1728,7 +1728,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     n_x_ticks, xlabel, xticks, xticklabels = 4, x1label, None, None
     if x2key is not None:
         xlabel = x2label
-        xticks = [x for x in numpy.arange(xbounds[x1key][0], xbounds[x1key][1], (xbounds[x1key][1] - xbounds[x1key][0]) / (n_x_ticks-1))] + [xbounds[x1key][1]]
+        xticks = [x for x in numpy.arange(xbounds[x1key][0], xbounds[x1key][1], (xbounds[x1key][1] - xbounds[x1key][0]) / float(n_x_ticks-1))] + [xbounds[x1key][1]]
         xticklabels = ['%.1f' % utils.intexterpolate(xbounds[x1key][0], xbounds[x2key][0], xbounds[x1key][1], xbounds[x2key][1], x) for x in xticks]  # translate x1 tick positions to x2 tick labels
         fig.text(0.13, 0.07, '%.3f'%xbounds[x1key][0], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
         fig.text(0.89, 0.07, '%.3f'%xbounds[x1key][1], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)

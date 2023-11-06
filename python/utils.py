@@ -1227,7 +1227,7 @@ def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=Fa
     elif key == 'cdr3_seq_aa':
         return ltranslate(get_cdr3_seq(antn, iseq))
     elif key == 'imgt_cdr3_length_aa':  # ick
-        return antn['cdr3_length'] / 3 - 2
+        return antn['cdr3_length'] // 3 - 2
     else:
         if add_xtr_col:
             rval = add_extra_column(key, antn, None)  # try to add it NOTE this fcn even existing is pretty hackey, it was originally for transferring from info to outfo 
@@ -2384,7 +2384,7 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
             continue
         srt_chunks = sorted(pos_counts.items(), key=operator.itemgetter(1), reverse=True)
         if aa_ref_seq is not None:  # (try to) remove any that don't code for the residue in aa_ref_seq
-            aa_match_chunks = [c for c, _ in srt_chunks if ltranslate(c) == aa_ref_seq[ipos / 3]]
+            aa_match_chunks = [c for c, _ in srt_chunks if ltranslate(c) == aa_ref_seq[ipos // 3]]
             if debug > 1: removed_chunks = []  # arg
             if len(aa_match_chunks) > 0:  # if none match, we just have to keep all of them (this should be rare)
                 if debug > 1:
@@ -3257,9 +3257,9 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
             fbounds[left_region][1] -= (left_germ_len - 1)
         if rpair['right'] == 'd':
             if debug:
-                print 'shifting lower and uppper fbounds for %s by %d' % (right_region, right_germ_len / 2)
-            fbounds[right_region][0] += (right_germ_len / 2)
-            fbounds[right_region][1] += (right_germ_len / 2)
+                print 'shifting lower and uppper fbounds for %s by %d' % (right_region, right_germ_len // 2)
+            fbounds[right_region][0] += (right_germ_len // 2)
+            fbounds[right_region][1] += (right_germ_len // 2)
 
         if rpair['right'] == 'j' and right_germ_len > vj_flexbounds_shift:
             if debug:
@@ -5666,7 +5666,7 @@ def collision_fraction(partition):
 #   - "naive" collision fraction: fraction of naive rearrangement pairs that collide (measures density/inverse diversity of naive repertoire)
 #   - "mature" collision fraction: fraction of mature/mutated seq pairs from *different* families that collide (also adds in extra collisions from shm)
     def n_combos(n):
-        return n * (n - 1) / 2
+        return n * (n - 1) // 2
     n_collisions = sum(n_combos(len(c)) for c in partition)
     cfrac = float(n_collisions) / n_combos(sum(len(c) for c in partition))
     return cfrac
@@ -6083,7 +6083,7 @@ def intexterpolate(x1, y1, x2, y2, x):
     if x1 == x2:
         print '  %s x1 equal to x2 in utils.intexterpolate()' % wrnstr()
         return 0  # arg, maybe this is right?
-    m = (y2 - y1) / (x2 - x1)
+    m = (y2 - y1) / float(x2 - x1)
     b = 0.5 * (y1 + y2 - m*(x1 + x2))
     # if debug:
     #     for x in [x1, x2]:

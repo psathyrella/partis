@@ -91,7 +91,7 @@ def print_all_lines(lh_aa_seq_infos, pline, amino_acid=False):
     print '  %s:%s aa seq' % (anstr, (seq_len - utils.len_excluding_colors(anstr)) * ' ')
     if amino_acid:
         codon_str = utils.color('reverse_video', 'X')
-        vpos, jpos = [pline['codon_positions'][r] / 3 for r in ['v', 'j']]
+        vpos, jpos = [pline['codon_positions'][r] // 3 for r in ['v', 'j']]
         cdstr = '%s%s%s%s%s' % (' '*vpos, codon_str, '-'*(jpos - vpos - 1), codon_str, ' '*(seq_len - jpos - 1))
     else:
         cdstr = seq_len*' '

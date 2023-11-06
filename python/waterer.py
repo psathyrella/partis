@@ -345,7 +345,7 @@ class Waterer(object):
             if debug:
                 print '%d < %d' % (len(mismatch_vals), n_procs)
             largest_group = max(query_groups, key=len)
-            piece_a, piece_b = largest_group[ : len(largest_group) / 2], largest_group[len(largest_group) / 2 : ]  # split up the largest group into two [almost] equal pieces
+            piece_a, piece_b = largest_group[ : len(largest_group) // 2], largest_group[len(largest_group) // 2 : ]  # split up the largest group into two [almost] equal pieces
             ilargest = query_groups.index(largest_group)
             query_groups = query_groups[:ilargest] + [piece_a, piece_b] + query_groups[ilargest + 1:]
             mismatch_vals = mismatch_vals[:ilargest] + [mismatch_vals[ilargest], mismatch_vals[ilargest]] + mismatch_vals[ilargest + 1:]
@@ -657,9 +657,9 @@ class Waterer(object):
                 if qrb[r_gene][0] > qrb[l_gene][0]:  # in most (maybe all) cases we get here, it's because the d match is to the right of the j match
                     print '   huh, i should only get here if the start of the r_gene (j) is to the *left* of the start of the l_gene (d) [i.e. they\'re on the wrong side of each other], but here it looks like the opposite is true. Not really sure it\'s a problem, but it\'s probably worth looking in to'
             v_end = qrb[best['v']][1]
-            lpos = v_end + (qrb[r_gene][0] - v_end) / 2  # halfway between end of v and start of j
+            lpos = v_end + (qrb[r_gene][0] - v_end) // 2  # halfway between end of v and start of j
             qrb[l_gene] = (lpos, lpos + 1)  # swap whatever crummy nonsense d match we have now for a one-base match to the left of the j match (since unlike d, the j match is probably decent)
-            d_midpoint = len(self.glfo['seqs'][l_reg][l_gene]) / 2
+            d_midpoint = len(self.glfo['seqs'][l_reg][l_gene]) // 2
             glb[l_gene] = (d_midpoint, d_midpoint + 1)
             if l_reg in qinfo['new_indels']:  # d is not one base long, so it can't very well have an indel (also, we just moved it to a completely different location)
                 del qinfo['new_indels'][l_reg]
@@ -962,7 +962,7 @@ class Waterer(object):
                 for dg in self.glfo['seqs']['d']:  # NOTE duplicates a bit of code in check_boundaries()
                     qinfo['matches']['d'].append((0, dg))  # add the d gene as a match with score 0
                     qinfo['qrbounds'][dg] = (v_end, v_end + 1)
-                    d_midpoint = len(self.glfo['seqs']['d'][dg]) / 2
+                    d_midpoint = len(self.glfo['seqs']['d'][dg]) // 2
                     qinfo['glbounds'][dg] = (d_midpoint, d_midpoint + 1)
 
         # do we have a match for each region?

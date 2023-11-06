@@ -896,7 +896,7 @@ if args.action != 'alcluster':  # could also do this for data i think, if i remo
     args.varvals = utils.get_arg_list(args.varvals, **kwargs)
 if args.action == 'multi-nsnp':
     args.varvals = [[int(n) for n in gstr.split(',')] for gstr in args.varvals]  # list of nsnps for each test, e.g. '1,1:2,2' runs two tests: 1) two new alleles, each with one snp and 2) two new alleles each with 2 snps
-    factor = numpy.median([(len(nl) + 1) / 2. for nl in args.varvals])  # i.e. the ratio of (how many alleles we'll be dividing the events among), to (how many we'd be dividing them among for the other [single-nsnp] tests)
+    factor = numpy.median([(len(nl) + 1) // 2. for nl in args.varvals])  # i.e. the ratio of (how many alleles we'll be dividing the events among), to (how many we'd be dividing them among for the other [single-nsnp] tests)
     args.n_event_list = [int(factor * n) for n in args.n_event_list]
 
 if args.write_zenodo_files:

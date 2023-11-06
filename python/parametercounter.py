@@ -116,7 +116,7 @@ class ParameterCounter(object):
             self.sub_increment(column, index)
 
         # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
-        self.sub_increment('aa_cdr3_length', (info['cdr3_length'] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
+        self.sub_increment('aa_cdr3_length', (info['cdr3_length'] // 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
         self.sub_increment('non_vj_length', (utils.get_non_vj_len(info), ))
         self.sub_increment('cluster_size', (len(info['unique_ids']), ))
 

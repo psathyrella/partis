@@ -273,8 +273,8 @@ class PartitionDriver(object):
             for ich, cons_char in enumerate(cseq):
                 msa_chars = [s['seq'][ich] for s in aln_seqfos]
                 n_gap_chars = len([c for c in msa_chars if c in utils.gap_chars])
-                # print ''.join(msa_chars), n_gap_chars, len(msa_chars), cons_char if n_gap_chars <= len(msa_chars) / 2 else ''
-                if n_gap_chars <= len(msa_chars) / 2:  # if it's less than half gap chars, we want the cons char in indeld_cseq
+                # print ''.join(msa_chars), n_gap_chars, len(msa_chars), cons_char if n_gap_chars <= len(msa_chars) // 2 else ''
+                if n_gap_chars <= len(msa_chars) // 2:  # if it's less than half gap chars, we want the cons char in indeld_cseq
                     indeld_cseq.append(cons_char)
             indeld_cseq = ''.join(indeld_cseq)
             if debug:
@@ -1233,7 +1233,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
         max_bcrham_time = max([procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info])
-        if max_bcrham_time > 0. and wait_time / max_bcrham_time > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
+        if max_bcrham_time > 0. and wait_time / float(max_bcrham_time) > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
             print '    spent much longer waiting for bcrham (%.1fs) than bcrham reported taking (max per-proc time %.1fs)' % (wait_time, max_bcrham_time)
 
     # ----------------------------------------------------------------------------------------
@@ -1286,7 +1286,7 @@ class PartitionDriver(object):
             superclust = copy.deepcopy(superclust)  # should only need this if we shuffle, but you *really* don't want to modify it since if you change the clusters in <init_partition> you'll screw up the actual partition, and if you change the ones in <clusters_still_to_do> you'll end up losing them cause the uidstrs won't be right
             if shuffle:
                 random.shuffle(superclust)
-            # n_clusters = len(superclust) / self.args.subcluster_annotation_size  # old way: truncates the decimal (see note in subcl_split())
+            # n_clusters = len(superclust) // self.args.subcluster_annotation_size  # old way: truncates the decimal (see note in subcl_split())
             n_clusters = int(math.ceil(len(superclust) / float(self.args.subcluster_annotation_size)))  # taking the ceiling keeps the max un-split cluster size equal to <self.args.subcluster_annotation_size> (rather than one less than twice that)
             if n_clusters < 2:  # initially we don't call this function unless superclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
                 return [superclust]
@@ -1296,7 +1296,7 @@ class PartitionDriver(object):
                 seqfos = [{'name' : u, 'seq' : self.sw_info[u]['seqs'][0]} for u in superclust]
                 return_clusts = mds.run_sklearn_mds(None, n_clusters, seqfos, self.args.random_seed, aligned=True)
             else:
-                n_seq_list = [len(superclust) / n_clusters for _ in range(n_clusters)]  # start with the min possible number (without remainders) for each cluster
+                n_seq_list = [len(superclust) // n_clusters for _ in range(n_clusters)]  # start with the min possible number (without remainders) for each cluster
                 if sdbg:
                     print 'len %3d  sas %2d   r %2d  %s' % (len(superclust), self.args.subcluster_annotation_size, len(superclust) % n_clusters, n_seq_list),
                 for iextra in range(len(superclust) % n_clusters):  # spread out any extra ones
@@ -2066,7 +2066,7 @@ class PartitionDriver(object):
             elif self.args.n_simultaneous_seqs is not None:  # set number of simultaneous seqs
                 nlen = self.args.n_simultaneous_seqs  # shorthand
                 # nsets = [qlist[iq : min(iq + nlen, len(qlist))] for iq in range(0, len(qlist), nlen)]  # this way works fine, but it's hard to get right 'cause it's hard to understand 
-                nsets = [list(group) for _, group in itertools.groupby(qlist, key=lambda q: qlist.index(q) / nlen)]  # integer division
+                nsets = [list(group) for _, group in itertools.groupby(qlist, key=lambda q: qlist.index(q) // nlen)]  # integer division
             else:  # plain ol' singletons
                 nsets = [[q] for q in qlist]
 

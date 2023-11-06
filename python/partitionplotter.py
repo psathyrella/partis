@@ -711,7 +711,7 @@ class PartitionPlotter(object):
                 if annotation.get('is_fake_paired', False):
                     for tch in 'hl':
                         offset = annotation['%s_offset'%tch]
-                        cbounds = [(b-offset)/3 + self.indexing for b in annotation['%s_cdr3_bounds'%tch]]
+                        cbounds = [(b-offset)//3 + self.indexing for b in annotation['%s_cdr3_bounds'%tch]]
                         cdr3fo[tch] = '[%d - %d]' % tuple(cbounds)
             return metafo, cdr3fo
         # ----------------------------------------------------------------------------------------

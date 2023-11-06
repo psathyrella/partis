@@ -225,7 +225,7 @@ class Recombinator(object):
             return None
 
         version_freq_table = {}
-        n_skipped_gene, n_skipped_cdr3, n_used = 0, 0, 0
+        n_skipped_gene, n_skipped_cdr3, n_used = 0., 0., 0.
         cdr3_counts = {}
         with open(self.reco_parameter_dir + '/' + utils.get_parameter_fname('all', 'r')) as infile:
             in_data = csv.DictReader(infile)
@@ -309,7 +309,7 @@ class Recombinator(object):
         def get_heavy_del(region, erosion, gene_length):
             if self.args.no_insertions_or_deletions:
                 return 0
-            max_erosion = max(0, gene_length/2 - 2)  # heuristic
+            max_erosion = max(0, gene_length//2 - 2)  # heuristic
             if region in utils.conserved_codons[self.args.locus]:  # make sure not to erode a conserved codon
                 codon_pos = utils.cdn_pos(self.glfo, region, tmpline[region + '_gene'])
                 if '3p' in erosion:

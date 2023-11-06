@@ -365,7 +365,7 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
         djit = 0.2 #0.01 * (max(szvals) - min(szvals))
         fig, ax = plotting.mpl_init()
         for im, (mval, tstats) in enumerate(st_stats.items()):
-            jitval = ((im+1) / 2) * djit * (-1)**im if add_jitter else 0
+            jitval = ((im+1) // 2) * djit * (-1)**im if add_jitter else 0
             for sub_stat in tstats:
                 ax.scatter([sub_stat['size'] + jitval], [sub_stat[yvar]], facecolor=mcolors[mval], alpha=0.6) #, s=10)
         if max(szvals) <= 5:
@@ -850,7 +850,7 @@ def get_ptile_vals(lb_metric, plotvals, xvar, xlabel, dbgstr=None, use_relative_
             #     n_bins = int(n_bins / 2.)
         else:
             xmin, xmax = 0., 1.01 * max(plotvals[lb_metric])  # this is the low edge of the overflow bin, so needs to be a bit above the biggest value
-            n_bins = max(min_bins, int((xmax - xmin) / max_bin_width))  # for super large lbr values like 100 you need way more bins
+            n_bins = max(min_bins, int((xmax - xmin) / float(max_bin_width)))  # for super large lbr values like 100 you need way more bins
         distr_hists = [gethist(htp, ptb, xmin, xmax, n_bins, ptv) for htp, ptb, ptv in zip(['lo', 'hi'], [lower_ptile, upper_ptile], [lo_affy_ptile_val, hi_affy_ptile_val])]
         return tmp_ptvals, distr_hists
     else:
@@ -1398,7 +1398,7 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
             return None
         # xmin, xmax = [tfac * mfcn(plotvals[lb_metric]) for mfcn, tfac in zip((min, max), (0.9, 1.1))]
         xmin, xmax = 0., 1.01 * max(plotvals[lb_metric])  # this is the low edge of the overflow bin, so needs to be a bit above the biggest value
-        n_bins = max(min_bins, int((xmax - xmin) / max_bin_width))  # for super large lbr values like 100 you need way more bins
+        n_bins = max(min_bins, int((xmax - xmin) / float(max_bin_width)))  # for super large lbr values like 100 you need way more bins
         if xvar == 'n-ancestor':
             zero_hist = gethist('zero', lambda n: n == 0)  # lb values for nodes that are immediately below affy-increasing branch
             # <0 is a bit further right than >0, and abs(v)==1 is a bit further right than >1, but these differences are all small compared to the difference to ==0, which is much further right (this is in quick[ish] tests, not doing full parameter scans)
