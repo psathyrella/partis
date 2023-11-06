@@ -11,7 +11,7 @@ import csv
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import random
 from collections import OrderedDict
-from subprocess import Popen, check_call, PIPE, CalledProcessError, check_output
+from subprocess import check_call, CalledProcessError
 import copy
 import multiprocessing
 import operator

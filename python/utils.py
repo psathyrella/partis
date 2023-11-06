@@ -4723,7 +4723,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
 
     # then info on all current allocations
     quefo = {}  # node : (number of tasks allocated to that node, including ours)
-    squeue_str = subprocess.check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
+    squeue_str = subprocess.check_output(['squeue', '--format', '%.18i %.2t %.6D %R'], universal_newlines=True)
     headers = ['JOBID', 'ST',  'NODES', 'NODELIST(REASON)']
     for line in squeue_str.split('\n'):
         linefo = line.strip().split()
@@ -4939,7 +4939,7 @@ def limit_procs(cmdstr, n_max_procs=None, sleep_time=1, procs=None, debug=False)
                 return [p.poll() for p in procs].count(None)
     else:
         def n_running_jobs():
-            return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | grep -v defunct | wc -l' % cmdstr, shell=True))
+            return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | grep -v defunct | wc -l' % cmdstr, shell=True, universal_newlines=True))
     if n_max_procs is None:
         n_max_procs = auto_n_procs()
     n_jobs = n_running_jobs()
@@ -5093,7 +5093,7 @@ def get_slurm_node(errfname):
 
     jobid = None
     try:
-        jobid = subprocess.check_output(['head', '-n1', errfname]).split()[2]
+        jobid = subprocess.check_output(['head', '-n1', errfname], universal_newlines=True).split()[2]
     except (subprocess.CalledProcessError, IndexError) as err:
         print err
         print '      couldn\'t get jobid from err file %s with contents:' % errfname
@@ -5103,7 +5103,7 @@ def get_slurm_node(errfname):
     assert jobid is not None
     nodelist = None
     try:
-        nodelist = subprocess.check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
+        nodelist = subprocess.check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N'], universal_newlines=True).split()[1]
     except (subprocess.CalledProcessError, IndexError) as err:
         print err
         print '      couldn\'t get node list from jobid \'%s\'' % jobid
@@ -5152,14 +5152,14 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
             print '    failed on node %s' % nodelist
         # try:
         #     print '        sshing to %s' % nodelist
-        #     outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True)
+        #     outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True, universal_newlines=True)
         #     print pad_lines(outstr, padwidth=12)
         # except subprocess.CalledProcessError as err:
         #     print '        failed to ssh:'
         #     print err
     if os.path.exists(outfname + '.progress'):  # glomerator.cc is the only one that uses this at the moment
         print '        progress file (%s):' % (outfname + '.progress')
-        print pad_lines(subprocess.check_output(['cat', outfname + '.progress']), padwidth=12)
+        print pad_lines(subprocess.check_output(['cat', outfname + '.progress'], universal_newlines=True), padwidth=12)
 
     # ----------------------------------------------------------------------------------------
     def logfname(ltype):
@@ -5173,7 +5173,7 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         for ltype in logtypes:
             if os.path.exists(logfname(ltype)) and os.stat(logfname(ltype)).st_size > 0:
                 returnstr += ['        %s           %s' % (color('red', 'std%s:'%ltype), logfname(ltype))]
-                returnstr += [pad_lines(subprocess.check_output(['cat', logfname(ltype)]), padwidth=12)]
+                returnstr += [pad_lines(subprocess.check_output(['cat', logfname(ltype)], universal_newlines=True), padwidth=12)]
         return '\n'.join(returnstr)
 
     if n_tried < n_max_tries:
@@ -5984,7 +5984,7 @@ def auto_slurm(n_procs):
     def slurm_exists():
         try:
             fnull = open(os.devnull, 'w')
-            subprocess.check_output(['which', 'srun'], stderr=fnull, close_fds=True)
+            subprocess.check_output(['which', 'srun'], stderr=fnull, close_fds=True, universal_newlines=True)
             return True
         except subprocess.CalledProcessError:
             return False
@@ -6942,7 +6942,7 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 def get_version_info(debug=False):
     git_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/.git')
     vinfo = {}
-    vinfo['commit'] = subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD']).strip()
+    vinfo['commit'] = subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD'], universal_newlines=True).strip()
     if debug:
         print '  commit: %s' % vinfo['commit']
     cmd = 'git --git-dir %s describe --always --tags' % git_dir

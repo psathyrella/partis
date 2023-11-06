@@ -107,7 +107,7 @@ def get_file_list(extension=''):
         cmd += ['-type', 'f']
     else:
         cmd += ['-name', '*.' + extension]
-    output = check_output(cmd)
+    output = check_output(cmd, universal_newlines=True)
     return output.replace(args.dir1, '').split()
 
 # ----------------------------------------------------------------------------------------

@@ -342,7 +342,7 @@ class Tester(object):
             except CalledProcessError as err:
                 # print err  # this just says it exited with code != 0
                 print '  log tail:'
-                print utils.pad_lines(check_output(['tail', self.logfname]))
+                print utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True))
                 sys.exit(1)  # raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
 
@@ -660,7 +660,7 @@ class Tester(object):
             fname = self.opath(ptest)  # sometimes a dir rather than a file
             print '    %-30s' % fname,
             cmd = 'diff -qbr ' + ' '.join(self.dirs(st) + '/' + fname for st in self.stypes)
-            proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
+            proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE, universal_newlines=True)
             out, err = proc.communicate()
             if proc.returncode == 0:
                 print '       ok'
@@ -669,7 +669,7 @@ class Tester(object):
                 onlylines = [ l for l in out.split('\n') if 'Only' in l]
                 print ''
                 if len(differlines) > 0:
-                    n_total_files = int(check_output('find ' + self.dirs('ref') + '/' + fname + ' -type f | wc -l', shell=True))
+                    n_total_files = int(check_output('find ' + self.dirs('ref') + '/' + fname + ' -type f | wc -l', shell=True, universal_newlines=True))
                     if n_total_files == 1:
                         assert len(differlines) == 1
                         print utils.color('red', '      file differs'),
@@ -748,7 +748,7 @@ class Tester(object):
         # recursive_subdirs = []
         # for plotdir in plotdirs:
         #     find_plotdirs_cmd = 'find ' + self.dirs('ref') + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
-        #     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True).split()
+        #     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True, universal_newlines=True).split()
 
         for plotdir in plotdirs:
             print plotdir
