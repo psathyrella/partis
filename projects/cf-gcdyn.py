@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+from __future__ import absolute_import, division
 import argparse
 import os
 import sys
@@ -11,11 +12,11 @@ import glob
 import copy
 
 sys.path.insert(1, './python')
-import utils
-import paircluster
-import scanplot
-import plotting
-import clusterpath
+import python.utils as utils
+import python.paircluster as paircluster
+import python.scanplot as scanplot
+import python.plotting as plotting
+import python.clusterpath as clusterpath
 
 # ----------------------------------------------------------------------------------------
 # This is the template/minimal implementation (not necessarily functional) for scan scripts, final versions of which include test/{cf-{germline-inference,paired-loci,tree-metrics}.py and projects/cf-gcdyn.py

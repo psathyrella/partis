@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import absolute_import, division
 import sys
 import csv
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
@@ -16,9 +17,9 @@ import math
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
 sys.path.insert(1, partis_dir + '/python')
 
-import utils
-import glutils
-import hutils
+import python.utils as utils
+import python.glutils as glutils
+import python.hutils as hutils
 
 mdir = 'packages/MobiLLe/Data/Simulated_datasets'
 base_odir = '/fh/fast/matsen_e/dralph/partis/mobille-validation'
@@ -76,7 +77,7 @@ def write_metrics(spval, stype, mthd, debug=False):
     for iseed in range(1 if args.n_random_seeds is None else args.n_random_seeds):
         _, _, cpath = utils.read_output(ptnfn(spval, stype, mthd, iseed=iseed))
         inf_ptn = cpath.best()
-        # import plotting
+        # import python.plotting as plotting
         # print plotting.plot_cluster_similarity_matrix(pltdir()+'/csim-plots', 'csim-matrix-%s-%s%s'%(stype, spval, '' if args.n_random_seeds is None else '-seed-%d'%iseed), 'true', tru_ptn, mthd, inf_ptn, 100, debug=True) #, debug=True)
         vdict = {}
         for mtstr in ['pairwise', 'closeness']:
@@ -169,7 +170,7 @@ def make_plots(swarm=False, debug=False):
                                      xlabel='lambda 0', xticks=None if swarm else xvals, xticklabels=['%.2f'%v for v in xvals], ybounds=(0, 1.05), leg_loc=(0.1, 0.2))
             fnames[0 if 'pairwise' in mtr_type else (2 if mtr_type=='partis' else 1)].append(fn)
     # ----------------------------------------------------------------------------------------
-    import plotting
+    import python.plotting as plotting
     utils.prep_dir(pltdir(), wildlings=['*.csv', '*.svg'])
     fnames = [[], [], []]
     for mtstr in ['pairwise', 'closeness']:
@@ -179,7 +180,7 @@ def make_plots(swarm=False, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def plot_simulation():
-    import plotting
+    import python.plotting as plotting
     utils.prep_dir(pltdir(simu=True), wildlings=['*.csv', '*.svg'])
     for stype in stypes:
         # csize_hists = {}
