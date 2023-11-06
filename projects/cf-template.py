@@ -160,7 +160,7 @@ for action in args.actions:
         if args.dry:
             print '  --dry: not plotting'
             continue
-        _, varnames, val_lists, valstrs = utils.get_var_info(args, plt_scn_vars])
+        _, varnames, val_lists, valstrs = utils.get_var_info(args, plt_scn_vars)
         if action == 'plot':
             print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
@@ -171,7 +171,7 @@ for action in args.actions:
                         utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
                     for pmetr in args.perf_metrics:
                         print '  %12s %s%s' % (method, pmetr, '' if ltmp is None else ' %s'%ltmp)
-                        arglist, kwargs = (args, plt_scn_vars], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
+                        arglist, kwargs = (args, plt_scn_vars, action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
                         if args.test:
                             scanplot.make_plots(*arglist, **kwargs)
                         else:
@@ -190,7 +190,7 @@ for action in args.actions:
             for ipm, pmetr in enumerate(args.perf_metrics):
                 print '    ', pmetr
                 for ltmp in plot_loci():
-                    scanplot.make_plots(args, plt_scn_vars], action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], debug=args.debug)
+                    scanplot.make_plots(args, plt_scn_vars, action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], debug=args.debug)
             plotting.make_html(cfpdir, fnames=fnames)
         else:
             raise Exception('unsupported action %s' % action)
