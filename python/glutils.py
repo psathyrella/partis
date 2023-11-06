@@ -330,7 +330,7 @@ def get_new_alignments(glfo, region, aligned_seqs=None, use_old_mafft_merge_meth
         cmd = 'mafft --merge ' + msa_table_fname + ' ' + aligned_and_not_fname + ' >' + mafft_outfname  # options=  # "--localpair --maxiterate 1000"
         if debug > 1:
             print '          RUN %s' % cmd
-        proc = Popen(cmd, shell=True, stderr=PIPE)
+        proc = Popen(cmd, shell=True, stderr=PIPE, universal_newlines=True)
         _, err = proc.communicate()  # debug info goes to err
         aligned_seqfos = utils.read_fastx(mafft_outfname)
     else:

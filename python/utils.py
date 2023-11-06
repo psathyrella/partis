@@ -5013,7 +5013,8 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
     proc = subprocess.Popen(cstr if shell else cstr.split(),
                             stdout=None if fout is None else open(fout, 'w'),
                             stderr=None if ferr is None else open(ferr, 'w'),
-                            env=cmdfo.get('env'), shell=shell, executable='/bin/bash' if shell else None)  # adding executable= very late, not sure if it'll break something somewhere
+                            env=cmdfo.get('env'), shell=shell, universal_newlines=True,
+                            executable='/bin/bash' if shell else None)  # adding executable= very late, not sure if it'll break something somewhere
     return proc
 
 # ----------------------------------------------------------------------------------------
