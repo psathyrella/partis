@@ -15,6 +15,7 @@ from subprocess import check_call, Popen, PIPE
 
 from . import utils
 from . import indelutils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 glfo_dir = 'germline-sets'  # always put germline info into a subdir with this name

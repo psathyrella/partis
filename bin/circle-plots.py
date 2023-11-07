@@ -7,6 +7,7 @@ import circlify
 import json
 import argparse
 import csv
+from io import open
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('infname')

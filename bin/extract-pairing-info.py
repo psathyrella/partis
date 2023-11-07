@@ -3,6 +3,7 @@ from __future__ import absolute_import, division
 import csv
 import os
 import sys
+from io import open
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import argparse
 import colored_traceback.always

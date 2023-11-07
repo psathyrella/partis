@@ -11,6 +11,7 @@ import random
 import re
 
 from . import utils
+from io import open
 
 delimit_info = {'.csv' : ',', '.tsv' : '\t'}
 

@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import, division
 import copy
 import matplotlib as mpl
+from io import open
 mpl.use('Agg')
 mpl.rcParams['svg.fonttype'] = 'none'
 import matplotlib.pyplot as plt

@@ -12,6 +12,7 @@ import csv
 import re
 import yaml
 from subprocess import check_output
+from io import open
 
 # current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '') #'/python')
 # if not os.path.exists(current_script_dir):

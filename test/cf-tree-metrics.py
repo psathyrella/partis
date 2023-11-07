@@ -10,6 +10,7 @@ import numpy
 import subprocess
 import multiprocessing
 import copy
+from io import open
 
 # ----------------------------------------------------------------------------------------
 def ura_vals(xvar):  # list of whether we're using relative affinity values

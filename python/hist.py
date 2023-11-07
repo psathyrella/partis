@@ -6,6 +6,7 @@ import numpy
 import sys
 
 from . import utils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 class Hist(object):

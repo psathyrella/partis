@@ -10,6 +10,7 @@ import subprocess
 import sys
 import os
 import dendropy
+from io import open
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
 sys.path.insert(1, partis_dir) #'./python')

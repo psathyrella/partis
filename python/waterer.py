@@ -19,6 +19,7 @@ from . import indelutils
 from .parametercounter import ParameterCounter
 from .performanceplotter import PerformancePlotter
 from . import seqfileopener
+from io import open
 
 # best mismatch (with a match score of 5):
 # mfreq     boundaries     mutation

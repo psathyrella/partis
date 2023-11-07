@@ -8,6 +8,7 @@ import colored_traceback.always
 import glob
 import subprocess
 import operator
+from io import open
 
 # if you move this script, you'll need to change this method of getting the imports
 # partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')

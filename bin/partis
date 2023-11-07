@@ -14,6 +14,7 @@ import math
 import itertools
 import collections
 import traceback
+from io import open
 if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
     raise RuntimeError("scipy version 0.17 or later is required (found version %s)." % scipy.__version__)
 import colored_traceback.always

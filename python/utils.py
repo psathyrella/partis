@@ -26,6 +26,7 @@ import collections
 import operator
 import yaml
 import six
+from io import open
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:

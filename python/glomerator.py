@@ -8,6 +8,7 @@ import time
 
 from . import utils
 from .clusterpath import ClusterPath
+from io import open
 
 # ----------------------------------------------------------------------------------------
 class Glomerator(object):

@@ -13,6 +13,7 @@ import collections
 import itertools
 import math
 import yaml
+from io import open
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:

@@ -21,6 +21,7 @@ from . import treeutils
 from . import indelutils
 from . import treegenerator
 from .event import RecombinationEvent
+from io import open
 
 dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length before mrca, so we add a spurious leaf with this name and the same total depth as the rest of the tree, then remove it after getting bppseqgen's output
 

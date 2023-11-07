@@ -22,6 +22,7 @@ import json
 import pickle
 import warnings
 import traceback
+from io import open
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 import yaml

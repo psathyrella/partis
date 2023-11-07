@@ -13,6 +13,7 @@ from . import plotconfig
 from .mutefreqer import MuteFreqer
 from .corrcounter import CorrCounter
 from . import indelutils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 class ParameterCounter(object):

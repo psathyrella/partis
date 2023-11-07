@@ -8,6 +8,7 @@ import copy
 import collections
 import itertools
 import numpy
+from io import open
 csv.field_size_limit(sys.maxsize)
 
 from . import utils

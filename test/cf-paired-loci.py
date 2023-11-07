@@ -9,6 +9,7 @@ import math
 import collections
 import multiprocessing
 import yaml
+from io import open
 
 sys.path.insert(1, './python')
 import utils

@@ -6,6 +6,7 @@ from subprocess import check_call
 import time
 
 from . import utils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 def vollmers(info, threshold, debug=False):

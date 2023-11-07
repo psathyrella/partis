@@ -15,6 +15,7 @@ from .hist import Hist
 from . import hutils
 from . import utils
 from . import treeutils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 class TreeGenerator(object):

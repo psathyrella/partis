@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division
 from .cache import cached_uncertainties
 from scipy.stats import beta
+from io import open
 
 # ----------------------------------------------------------------------------------------
 def err(obs, total, use_cache=True):

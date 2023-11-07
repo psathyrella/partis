@@ -9,6 +9,7 @@ import argparse
 import numpy
 import operator
 import math
+from io import open
 
 sys.path.insert(1, './python')
 import utils

@@ -14,6 +14,7 @@ import subprocess
 import sys
 import colored_traceback.always
 from collections import OrderedDict
+from io import open
 try:
     import ete3
 except ImportError:

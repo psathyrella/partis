@@ -17,6 +17,7 @@ from . import utils
 from .clusterpath import ClusterPath
 from . import mds
 from . import treeutils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):

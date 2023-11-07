@@ -13,6 +13,7 @@ import time
 import traceback
 import itertools
 import yaml
+from io import open
 
 current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '.') #'/python')
 sys.path.insert(1, current_script_dir)

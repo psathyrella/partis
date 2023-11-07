@@ -6,6 +6,7 @@ import sys
 
 from . import glutils
 from . import utils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 def simplify_state_name(state_name):

@@ -13,6 +13,7 @@ from subprocess import Popen, PIPE, check_call, check_output, CalledProcessError
 import copy
 import colored_traceback.always
 import sys
+from io import open
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
 sys.path.insert(1, partis_dir) # + '/python')
 if os.getcwd() != partis_dir:

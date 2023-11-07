@@ -11,6 +11,7 @@ import math
 import itertools
 
 from . import utils
+from io import open
 
 mdir = "%s/work/partis/datascripts/meta/goo-dengue-10x/gex-markers" % os.getenv('HOME')
 fabio_fname = '%s/fabio-pb-markers.tsv' % mdir

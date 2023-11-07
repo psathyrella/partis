@@ -6,6 +6,7 @@ import argparse
 import pickle
 import csv
 from ete3 import TreeNode, TreeStyle, NodeStyle, SVG_COLORS
+from io import open
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle-tree-file', help='bcr phylo output pickle tree file')

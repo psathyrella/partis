@@ -10,6 +10,7 @@ import time
 import copy
 import numpy
 import yaml
+from io import open
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:

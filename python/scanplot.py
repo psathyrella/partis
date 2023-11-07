@@ -12,6 +12,7 @@ import math
 from .hist import Hist
 import copy
 import csv
+from io import open
 
 # ----------------------------------------------------------------------------------------
 vlabels = {

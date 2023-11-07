@@ -10,6 +10,7 @@ import subprocess
 import sys
 import os
 import json
+from io import open
 
 # sys.path.insert(1, './python')
 # if you move this script, you'll need to change this method of getting the imports

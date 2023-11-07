@@ -11,6 +11,7 @@ import collections
 
 from . import utils
 from .clusterpath import ClusterPath
+from io import open
 
 # ----------------------------------------------------------------------------------------
 def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):

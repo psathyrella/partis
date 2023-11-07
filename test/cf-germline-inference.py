@@ -14,6 +14,7 @@ import argparse
 import sys
 import subprocess
 import colored_traceback.always
+from io import open
 sys.path.insert(1, './python')
 
 import utils

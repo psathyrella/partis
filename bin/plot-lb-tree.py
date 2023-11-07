@@ -17,6 +17,7 @@ from collections import OrderedDict
 import numpy
 import math
 import re
+from io import open
 try:
     # NOTE install with http://etetoolkit.org/new_download/ (i.e. in a *separate* ~/anaconda_ete conda install dir)
     import ete3

@@ -16,6 +16,7 @@ from .clusterpath import ptnprint, ClusterPath
 from .hist import Hist
 from . import glutils
 from . import treeutils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 def chstr(n_before, n_after):  # empty if same number before and after, otherwise red +/-N

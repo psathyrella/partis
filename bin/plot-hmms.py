@@ -9,6 +9,7 @@ import yaml
 import sys
 from subprocess import check_call
 import matplotlib as mpl
+from io import open
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 

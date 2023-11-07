@@ -11,6 +11,7 @@ import sys
 import os
 import pwd
 import collections
+from io import open
 
 # sys.path.insert(1, './python')
 # if you move this script, you'll need to change this method of getting the imports
