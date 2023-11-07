@@ -290,7 +290,7 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     cigars = split_cigarstrs(cigarstr)
     if vsearch_conventions:
         assert 'v' in genes  # would need to be generalized
-        cigars = [(code.translate(string.maketrans('ID', 'DI')), length) for code, length in cigars]  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
+        cigars = [(code.translate(utils.make_unicode_translation('ID', 'DI')), length) for code, length in cigars]  # vsearch reverses what's the query and what's the target/gene/whathaveyou compared to what ig-sw does
         for iend in [0, -1]:
             if cigars[iend][0] == 'I':  # qr extends beyond gl: ig-sw calls these soft-clips, vsearch calls them insertions
                 cigars[iend] = ('S', cigars[iend][1])

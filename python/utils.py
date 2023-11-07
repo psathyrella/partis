@@ -699,10 +699,14 @@ adaptive_headers = {
 }
 
 # ----------------------------------------------------------------------------------------
+# make new-style (unicode) translation dict from two lists of strings (i.e. from input to old-style string.maketrans())
+def make_unicode_translation(str1, str2):
+    return {ord(a) : ord(b) for a, b in zip(str1, str2)}
+
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
-forbidden_character_translations = string.maketrans(':;,', 'csm')
+forbidden_character_translations = make_unicode_translation(':;,', 'csm')
 warn_chars = set('()')
-ambig_translations = string.maketrans(''.join(all_ambiguous_bases), ambig_base * len(all_ambiguous_bases))
+ambig_translations = make_unicode_translation(all_ambiguous_bases, ambig_base * len(all_ambiguous_bases))
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 

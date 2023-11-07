@@ -262,7 +262,7 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
 
     if debug:
         print '  distances'
-    # translations = string.maketrans('ACGT-', '01234')
+    # translations = utils.make_unicode_translation('ACGT-', '01234')
     # def convert(seq):
     #     return [int(c) for c in seq.translate(translations)]
     # converted_seqs = [convert(x['seq']) for x in seqfos]
