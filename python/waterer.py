@@ -884,7 +884,7 @@ class Waterer(object):
 
         matchfo = {}
         for region in utils.regions:
-            matchfo[region] = {  # NOTE could use an ordered dict, but json.dump() then writes it as a regular dict, so it's no longer ordered if read from sw cache file, so it's better to just have it alwyas be unsorted to avoid confusion
+            matchfo[region] = {  # NOTE could use an ordered dict, but json dump() then writes it as a regular dict, so it's no longer ordered if read from sw cache file, so it's better to just have it alwyas be unsorted to avoid confusion
                 gene : {'score' : score, 'glbounds' : qinfo['glbounds'][gene], 'qrbounds' : qinfo['qrbounds'][gene]} for score, gene in qinfo['matches'][region]
             }
         line['all_matches'] = [matchfo]

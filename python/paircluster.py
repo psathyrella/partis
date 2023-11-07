@@ -647,8 +647,7 @@ def write_combined_fasta_and_meta(fastafname, metafname, outfos, metafos):
     with open(fastafname, 'w') as outfile:
         for sfo in outfos:
             outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
-    with open(metafname, 'w') as mfile:
-        json.dump(metafos, mfile)
+    utils.jsdump(metafname, metafos)
 
 # ----------------------------------------------------------------------------------------
 def modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos):

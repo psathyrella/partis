@@ -2512,8 +2512,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
             dumpfo = {'unique_ids' : l['unique_ids']}
             dumpfo.update(l['tree-info'])
             return dumpfo
-        with open(outfname, 'w') as tfile:
-            json.dump([dumpfo(l) for l in antn_list if 'tree-info' in l], tfile)
+        utils.jsdump(outfname, [dumpfo(l) for l in antn_list if 'tree-info' in l])
     if args.tree_inference_method in ['gctree', 'iqtree'] and tree_inference_outdir is not None:
         anfname = '%s/%s-annotations.yaml' % (tree_inference_outdir, args.tree_inference_method)
         print '    writing annotations with inferred ancestral sequences from %s to %s' % (args.tree_inference_method, anfname)

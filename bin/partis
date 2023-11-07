@@ -739,8 +739,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 new_metafos[uid]['paired-uids'] = pids
         if not os.path.exists(getodir(lpair=lpair)):
             os.makedirs(getodir(lpair=lpair))
-        with open(getofn(ltmp, joint=True, lpair=lpair, input_meta=True), 'w') as mfile:
-            json.dump(new_metafos, mfile)
+        utils.jsdump(getofn(ltmp, joint=True, lpair=lpair, input_meta=True), new_metafos)
         work_fnames.append(getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
     # ----------------------------------------------------------------------------------------
     def write_joint_locus(ltmp, lpair, joint_partition, antn_dict, glfo, single_antn_list, unpaired_seqs, ccfs=None):  # have to use <single_antn_list> since <antn_dict> is missing input seqs, i think mostly/entirely from removing badly paired seqs

@@ -161,8 +161,8 @@ def convert_input():
         assert False
     # jdatas = dummy_jdatas
     utils.mkdir(ofn, isfile=True)
-    with open(ofn, 'w') as jfile:
-        json.dump(jdatas, jfile, indent=0)
+    raise Exception('see comment in next line')
+    utils.jsdump(ofn, jdatas)  # need to pass , indent=0 but don't want to add atm
     flines = []
     with open(ofn) as jfile:
         for line in jfile:
@@ -173,8 +173,7 @@ def convert_input():
     with open(ofn, 'w') as jfile:
         for fl in flines:
             jfile.write('%s\n' % ' '.join(fl))
-    with open(translation_fname(), 'w') as tfile:
-        json.dump(translations, tfile)
+    utils.jsdump(translation_fname(), translations)
 
 # ----------------------------------------------------------------------------------------
 def run_enclone():

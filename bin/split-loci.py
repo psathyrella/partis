@@ -253,8 +253,7 @@ for locus in outfos:  # first write the single files with all seqs for each locu
 
 omfname = '%s/meta.yaml' % args.outdir
 if args.guess_pairing_info:
-    with open(omfname, 'w') as outfile:  # NOTE file name duplicates code in bin/partis
-        json.dump(guessed_metafos, outfile)
+    utils.jsdump(omfname, guessed_metafos)  # NOTE file name duplicates code in bin/partis
 elif args.input_metafname is not None and not os.path.exists(omfname):
     utils.makelink(os.path.dirname(omfname), args.input_metafname, omfname)
 

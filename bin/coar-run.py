@@ -133,5 +133,4 @@ if args.outdir is None:
 
 ofn = '%s/coar-vals.yaml' % args.outdir
 print '  writing coar values to %s' % ofn
-with open(ofn, 'w') as cfile:
-    json.dump(jvals, cfile)
+utils.jsdump(ofn, jvals)

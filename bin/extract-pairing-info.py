@@ -50,5 +50,4 @@ if args.n_max_queries != -1 or args.n_random_queries is not None:
 metafos = utils.extract_pairing_info(seqfos, droplet_id_separators=args.droplet_id_separators, droplet_id_indices=args.droplet_id_indices, input_metafname=args.input_metafname)
 
 utils.mkdir(args.outfname, isfile=True)
-with open(args.outfname, 'w') as outfile:
-    json.dump(metafos, outfile)
+utils.jsdump(args.outfname, metafos)

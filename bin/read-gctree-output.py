@@ -152,8 +152,7 @@ if args.paired_loci:  # convert metafos to per-locus names
 
 # and write to json/yaml
 print '    writing input meta info to %s' % metafname()
-with open(metafname(), 'w') as mfile:
-    json.dump(metafos, mfile)
+utils.jsdump(metafname(), metafos)
 
 for action in args.actions:
     run_cmd(action)

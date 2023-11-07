@@ -95,8 +95,7 @@ def write_metrics(spval, stype, mthd, debug=False):
                 print '    %17s %12s %.4f +/- %.4f   %s' % (mname, mtype, mvals[mname][mtype]['mean'], mvals[mname][mtype]['err'], ' '.join('%.4f'%v for v in mvlist))
     utils.mkdir(ofn, isfile=True)
     print '  writing metrics to %s' % ofn
-    with open(ofn, 'w') as mfile:
-        json.dump(mvals, mfile)
+    utils.jsdump(ofn, mvals)
 
 # ----------------------------------------------------------------------------------------
 def run_method(mthd, spval, stype, iseed=0):

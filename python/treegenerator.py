@@ -267,14 +267,14 @@ class TreeGenerator(object):
             print '    mean over %d trees:   depth %.5f   leaves %.2f' % (len(mean_leaf_height_list), numpy.mean(mean_leaf_height_list), numpy.mean(n_leaf_list))
 
         # each tree is written with branch length the mean branch length over the whole sequence (which is different for each tree), but recombinator also needs the relative length for each region (which is the same, it's an average over the whole repertoire)
-        with open(outfname, 'w') as yfile:
-            if utils.getsuffix(outfname) == '.yaml':
-                yamlfo = {'branch-length-ratios' : {r : self.branch_lengths[r]['mean'] / self.branch_lengths['all']['mean'] for r in utils.regions},
-                          'trees' : treestrs}
-                json.dump(yamlfo, yfile)
-            elif utils.getsuffix(outfname) == '.nwk':
-                print '    writing trees to %s' % outfname
+        if utils.getsuffix(outfname) == '.yaml':
+            yamlfo = {'branch-length-ratios' : {r : self.branch_lengths[r]['mean'] / self.branch_lengths['all']['mean'] for r in utils.regions},
+                      'trees' : treestrs}
+            utils.jsdump(outfname, yamlfo)
+        elif utils.getsuffix(outfname) == '.nwk':
+            print '    writing trees to %s' % outfname
+            with open(outfname, 'w') as yfile:
                 for treestr in treestrs:
                     yfile.write(treestr + '\n')
-            else:
-                assert False
+        else:
+            assert False

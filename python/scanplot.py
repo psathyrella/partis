@@ -747,8 +747,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 xvals = [xleg_vals[tuple(x)] for x in xvals]
             plotcall(pvkey, xticks, diffs_to_perfect, yerrs, metric, ipv=ipv, label=pvkey, estr=metric_extra_str)
             outfo.append((pvkey, {'xvals' : xvals, 'yvals' : diffs_to_perfect, 'yerrs' : yerrs}))
-        with open(get_outfname(metric, metric_extra_str), 'w') as yfile:  # write json file to be read by 'combine-plots'
-            json.dump(outfo, yfile)
+        utils.jsdump(get_outfname(metric, metric_extra_str), outfo)  # write json file to be read by 'combine-plots'
         title = titlestr(metric)
         plotdir = get_comparison_plotdir(args, metric, **getkwargs(metric_extra_str))  # per_x=per_x, extra_str=metric_extra_str
     elif action == 'combine-plots':

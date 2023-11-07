@@ -1299,14 +1299,13 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, use_r
 
     yamlfo = {'percentiles' : pt_vals} #, 'correlations' : correlation_vals}
     if not no_plot:
-        with open('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), 'w') as yfile:
-            yamlfo['distr-hists'] = {}
-            n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
-            if n_missing > 0:
-                print '        %s missing %d / %d h lists for distr hists on %s tree (probably weren\'t any affinity increases in the tree)' % (utils.color('yellow', 'warning'), n_missing, len(distr_hists), 'true' if is_true_line else 'inf')
-            if hlist is not None:
-                yamlfo['distr-hists'] = {k : {h.title : h.getdict() for h in hlist} for k, hlist in distr_hists.items()}
-            json.dump(yamlfo, yfile)
+        yamlfo['distr-hists'] = {}
+        n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
+        if n_missing > 0:
+            print '        %s missing %d / %d h lists for distr hists on %s tree (probably weren\'t any affinity increases in the tree)' % (utils.color('yellow', 'warning'), n_missing, len(distr_hists), 'true' if is_true_line else 'inf')
+        if hlist is not None:
+            yamlfo['distr-hists'] = {k : {h.title : h.getdict() for h in hlist} for k, hlist in distr_hists.items()}
+        utils.jsdump('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), yamlfo)
 
     return yamlfo
 
@@ -1476,12 +1475,11 @@ def plot_lb_vs_ancestral_delta_affinity(baseplotdir, lines, lb_metric, is_true_l
                     make_ptile_plot(pt_vals['per-seq']['all-clusters'], xvar, getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None), xlist=per_seq_plotvals[xvar],
                                     xlabel=xlabel, ylabel=mtitlestr('per-seq', lb_metric), fnames=aptfns, true_inf_str=true_inf_str, n_clusters=len(lines), n_per_row=n_per_row)
 
-        with open('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), 'w') as yfile:
-            n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
-            if n_missing > 0:
-                print '        %s missing %d / %d h lists for distr hists on %s tree (probably weren\'t any affinity increases in the tree)' % (utils.color('yellow', 'warning'), n_missing, len(distr_hists), 'true' if is_true_line else 'inf')
-            yamlfo = {'percentiles' : pt_vals, 'distr-hists' : {k : {h.title : h.getdict() for h in hlist} for k, hlist in distr_hists.items() if hlist is not None}}
-            json.dump(yamlfo, yfile)  # not adding the new correlation keys atm (like in the lb vs affinity fcn)
+        n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
+        if n_missing > 0:
+            print '        %s missing %d / %d h lists for distr hists on %s tree (probably weren\'t any affinity increases in the tree)' % (utils.color('yellow', 'warning'), n_missing, len(distr_hists), 'true' if is_true_line else 'inf')
+        yamlfo = {'percentiles' : pt_vals, 'distr-hists' : {k : {h.title : h.getdict() for h in hlist} for k, hlist in distr_hists.items() if hlist is not None}}
+        utils.jsdump('%s/%s.yaml' % (getplotdir(xvar, extrastr='-ptiles'), ptile_plotname(xvar, None)), yamlfo)  # not adding the new correlation keys atm (like in the lb vs affinity fcn)
 
 # ----------------------------------------------------------------------------------------
 def plot_true_vs_inferred_lb(plotdir, true_lines, inf_lines, lb_metric, fnames=None, debug=False):
@@ -1544,8 +1542,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         treefile.write(treestr)
     cmdstr = '%s/bin/plot-lb-tree.py --treefname %s' % (utils.get_partis_dir(), treefname)
     if metafo is not None:
-        with open(metafname, 'w') as metafile:
-            json.dump(metafo, metafile) # had this here, but it was having a crash from a quoting bug (was using " when it should have used '): yaml.dump , Dumper=Dumper)
+        utils.jsdump(metafname, metafo) # had this here, but it was having a crash from a quoting bug (was using " when it should have used '): yaml.dump , Dumper=Dumper)
         cmdstr += ' --metafname %s' % metafname
     if queries_to_include is not None and len(queries_to_include) > 0:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)

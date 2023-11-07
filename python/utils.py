@@ -3076,7 +3076,7 @@ def re_sort_per_gene_support(line):
     for region in [r for r in regions if r + '_per_gene_support' in line]:
         if type(line[region + '_per_gene_support']) == type(collections.OrderedDict()):  # already ordered, don't need to do anything
             continue
-        elif type(line[region + '_per_gene_support']) == types.DictType:  # plain dict, i.e. we just read it from a json.dump()'d file
+        elif type(line[region + '_per_gene_support']) == types.DictType:  # plain dict, i.e. we just read it from a json dump()'d file
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
@@ -3391,7 +3391,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
     else:
         add_alignments(glfo, aligned_gl_seqs, line)
 
-    re_sort_per_gene_support(line)  # in case it was read from json.dump()'d file
+    re_sort_per_gene_support(line)  # in case it was read from json dump()'d file
 
     # for pskey in set(linekeys['per_seq']) & set(line):  # make sure all the per-seq keys have the right length (it happened once, admittedly cause i was editing by hand, but the consequences were extremely bad)
     #     if len(line[pskey]) != len(line['unique_ids']):
@@ -6325,10 +6325,14 @@ def kbound_str(kbounds):
     return ''.join(return_str).strip()
 
 # ----------------------------------------------------------------------------------------
+def jsdump(fname, jdata):
+    with open(fname, 'w') as jfile:
+        jfile.write(unicode(json.dumps(jdata)))
+
+# ----------------------------------------------------------------------------------------
 def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes any extra info (beyond name and seq)
     mkdir(fname, isfile=True)
-    with open(fname, 'w') as seqfile:
-        json.dump(seqfos, seqfile)
+    jsdump(fname, seqfos)
 
 # ----------------------------------------------------------------------------------------
 def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
@@ -7057,11 +7061,11 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
                 'germline-info' : glfo,
                 'partitions' : partition_lines,
                 'events' : yaml_annotations}
-    with open(fname, 'w') as yamlfile:
-        if use_pyyaml:  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
+    if use_pyyaml:  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
+        with open(fname, 'w') as yamlfile:
             yaml.dump(yamldata, yamlfile, width=400, Dumper=Dumper, default_flow_style=False, allow_unicode=False)  # set <allow_unicode> to false so the file isn't cluttered up with !!python.unicode stuff
-        else:  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
-            json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)
+    else:  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
+        jsdump(fname, yamldata) #, sort_keys=True, indent=4)
 
 # ----------------------------------------------------------------------------------------
 def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info):
