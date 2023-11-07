@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import absolute_import, division
+from __future__ import absolute_import, division, unicode_literals
 import numpy
 from backports import csv
 import yaml

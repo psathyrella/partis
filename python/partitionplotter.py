@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division
+from __future__ import absolute_import, division, unicode_literals
 from backports import csv
 import os
 import math
