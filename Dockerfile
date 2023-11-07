@@ -17,7 +17,7 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
 
 RUN conda install -y -cbioconda -cbiocore python=2.7 biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn mafft # -cbioconda is for pysam, -cbiocore is for mafft
 RUN conda update -y numpy  # the previous command downgrades numpy (I'm not sure why), which breaks the seaborn import
-RUN pip install colored-traceback dendropy==4.4.0 levenshtein
+RUN pip install colored-traceback dendropy==4.4.0 levenshtein backports.csv
 COPY . /partis
 WORKDIR /partis
 RUN ./bin/build.sh
