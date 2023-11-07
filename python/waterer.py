@@ -9,7 +9,7 @@ import operator
 import pysam
 import contextlib
 from collections import OrderedDict
-from backports import csv
+import csv
 import numpy
 import traceback
 

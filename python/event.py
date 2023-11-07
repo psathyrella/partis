@@ -1,6 +1,6 @@
 """ Container to hold the information for a single recombination event. """
 from __future__ import absolute_import, division, unicode_literals
-from backports import csv
+import csv
 import sys
 import random
 import numpy

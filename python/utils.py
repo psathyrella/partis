@@ -15,7 +15,7 @@ import math
 import glob
 from collections import Counter
 from collections import OrderedDict
-from backports import csv
+import csv
 import subprocess
 import multiprocessing
 import copy

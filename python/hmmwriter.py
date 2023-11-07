@@ -5,7 +5,7 @@ import re
 import math
 import collections
 from scipy.stats import norm
-from backports import csv
+import csv
 import time
 import copy
 import numpy

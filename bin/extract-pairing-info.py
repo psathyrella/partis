@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
-from backports import csv
+import csv
 import os
 import sys
 from io import open

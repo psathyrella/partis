@@ -7,7 +7,7 @@ import itertools
 import copy
 import collections
 import random
-from backports import csv
+import csv
 from cStringIO import StringIO
 import subprocess
 import tempfile

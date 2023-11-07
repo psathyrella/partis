@@ -6,7 +6,7 @@ import os
 import circlify
 import json
 import argparse
-from backports import csv
+import csv
 from io import open
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)

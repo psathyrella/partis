@@ -2,7 +2,7 @@
 from __future__ import absolute_import, division, unicode_literals
 import glob
 import sys
-from backports import csv
+import csv
 from io import open
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import os

@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, unicode_literals
 import argparse
 import numpy
 import os
-from backports import csv
+import csv
 import glob
 import math
 import shutil

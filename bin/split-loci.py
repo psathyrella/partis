@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
 import json
-from backports import csv
+import csv
 import os
 import sys
 import argparse

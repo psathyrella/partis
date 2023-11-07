@@ -3,7 +3,7 @@ import itertools
 import os
 import sys
 import math
-from backports import csv
+import csv
 import time
 
 from . import utils

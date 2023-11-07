@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, unicode_literals
 import sys
 import multiprocessing
-from backports import csv
+import csv
 import os
 
 from .hist import Hist

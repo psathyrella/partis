@@ -3,7 +3,7 @@ import dendropy
 import os
 import sys
 import math
-from backports import csv
+import csv
 import copy
 import collections
 import itertools

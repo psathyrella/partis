@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, unicode_literals
 import os
-from backports import csv
+import csv
 import operator
 import sys
 

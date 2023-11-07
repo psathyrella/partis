@@ -8,7 +8,7 @@ from __future__ import absolute_import, division, unicode_literals
 import argparse
 import os
 import sys
-from backports import csv
+import csv
 import re
 import yaml
 from subprocess import check_output

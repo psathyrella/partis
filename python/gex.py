@@ -5,7 +5,7 @@ import os
 import scipy
 import numpy
 import collections
-from backports import csv
+import csv
 import operator
 import math
 import itertools
