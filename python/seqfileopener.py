@@ -5,7 +5,7 @@ import gzip
 import copy
 import os
 import sys
-import csv
+from backports import csv
 from collections import OrderedDict
 import random
 import re

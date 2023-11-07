@@ -10,7 +10,7 @@ import re
 import numpy
 import glob
 from collections import OrderedDict
-import csv
+from backports import csv
 from subprocess import check_call, Popen, PIPE
 
 from . import utils

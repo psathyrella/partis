@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division
 import sys
-import csv
+from backports import csv
 import math
 from subprocess import check_call
 import time

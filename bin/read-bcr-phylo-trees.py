@@ -4,7 +4,7 @@ import os
 import sys
 import argparse
 import pickle
-import csv
+from backports import csv
 from ete3 import TreeNode, TreeStyle, NodeStyle, SVG_COLORS
 from io import open
 

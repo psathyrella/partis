@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division
-import csv
+from backports import csv
 import os
 import sys
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields

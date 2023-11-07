@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division
-import csv
+from backports import csv
 import os
 import math
 import numpy

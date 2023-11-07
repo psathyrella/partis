@@ -3,7 +3,7 @@ import copy
 import operator
 import tempfile
 import sys
-import csv
+from backports import csv
 import time
 import json
 import random

@@ -3,7 +3,7 @@ from __future__ import absolute_import, division
 import argparse
 import numpy
 import os
-import csv
+from backports import csv
 import glob
 import math
 import shutil

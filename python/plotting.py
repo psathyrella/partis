@@ -12,7 +12,7 @@ from scipy.interpolate import interp1d
 import os
 import glob
 import sys
-import csv
+from backports import csv
 import numpy
 import operator
 import itertools

@@ -11,7 +11,7 @@ import numpy
 import math
 from .hist import Hist
 import copy
-import csv
+from backports import csv
 from io import open
 
 # ----------------------------------------------------------------------------------------

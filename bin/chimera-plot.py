@@ -4,7 +4,7 @@ import collections
 import argparse
 import sys
 import os
-import csv
+from backports import csv
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):

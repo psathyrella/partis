@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division
 import numpy
-import csv
+from backports import csv
 import yaml
 import time
 import colored_traceback.always
