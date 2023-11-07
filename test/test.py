@@ -342,7 +342,7 @@ class Tester(object):
                     print '\n  %s' % 'ok'
             except CalledProcessError as err:
                 # print err  # this just says it exited with code != 0
-                print '  log tail:'
+                print '  log tail: %s' % self.logfname
                 print utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True))
                 sys.exit(1)  # raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
