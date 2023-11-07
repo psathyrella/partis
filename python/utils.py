@@ -5220,7 +5220,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
     def read_and_delete_file(fname):
         fstr = ''
         if os.stat(fname).st_size > 0:  # NOTE if <fname> doesn't exist, it probably means you have more than one process writing to the same log file
-            ftmp = open(fname)
+            ftmp = open(fname, encoding='ISO-8859-1')  # this encoding seems necessary for bppseqgen output, and doesn't seem to break anything else, at least yet?
             fstr = ''.join(ftmp.readlines())
             ftmp.close()
         os.remove(fname)
