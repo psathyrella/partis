@@ -30,7 +30,7 @@ def get_true_ptn(spval, stype):
     tcfn = '%s/True_cluster_by_simulator/%s_%s_true_cluster.txt' % (mdir, spval, stype)
     true_partition = []
     with open(tcfn) as tcfile:
-        reader = csv.DictReader(tcfile, delimiter='\t', fieldnames=['iclust', 'uids'])
+        reader = csv.DictReader(tcfile, delimiter=str('\t'), fieldnames=['iclust', 'uids'])
         for line in reader:
             cluster = [u.strip() for u in line['uids'].split()]
             true_partition.append(cluster)

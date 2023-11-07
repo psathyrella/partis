@@ -37,7 +37,11 @@ default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'cluster-bubble', 'sizes', '
 
 dummy_str = 'x-dummy-x'
 
-csv_wmode = 'wb' if sys.version_info.major < 3 else 'w'  # 2.7 csv module doesn't support unicode, this is the hackey fix
+def csv_wmode(mode='w'):
+    if sys.version_info.major < 3:  # 2.7 csv module doesn't support unicode, this is the hackey fix
+        return mode + 'b'
+    else:
+        return mode
 
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
@@ -1791,8 +1795,8 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
 def write_presto_annotations(outfname, annotation_list, failed_queries):
     print '   writing presto annotations to %s' % outfname
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
-    with open(outfname, csv_wmode) as outfile:
-        writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
+    with open(outfname, csv_wmode()) as outfile:
+        writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter=str('\t'))
         writer.writeheader()
 
         for line in annotation_list:
@@ -1977,11 +1981,11 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
     cluster_indices = None
     if cpath is not None:
         cluster_indices = {u : i for i, c in enumerate(cpath.best()) for u in c}
-    with open(outfname, csv_wmode) as outfile:
+    with open(outfname, csv_wmode()) as outfile:
         oheads = airr_headers.keys() + extra_columns
         if skip_columns is not None:
             oheads = [h for h in oheads if h not in skip_columns]
-        writer = csv.DictWriter(outfile, oheads, delimiter='\t')
+        writer = csv.DictWriter(outfile, oheads, delimiter=str('\t'))
         writer.writeheader()
         if len(annotation_list) == 0 and cpath is not None:
             print '    writing partition with no annotations'
@@ -2007,7 +2011,7 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
         glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
     failed_queries, clone_ids, plines, other_locus_ids = [], {}, [], []
     with open(fname) as afile:
-        reader = csv.DictReader(afile, delimiter=delimiter)
+        reader = csv.DictReader(afile, delimiter=str(delimiter))
         for aline in reader:
             if clone_id_field in reader.fieldnames:
                 # print '  note: no clone ids in airr file %s' % fname
@@ -2273,7 +2277,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
         print '             %% id  mism. len    n gaps    %s            %s   target match seq' % (wfmt('target', max_tlen, jfmt='-'), wfmt('query', max_qlen, jfmt='-'))
     fieldnames = ['query', 'subject', '% identity', 'alignment length', 'mismatches', 'gap opens', 'q. start', 'q. end', 's. start', 's. end']
     with open(ofn) as ofile:
-        reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter='\t', fieldnames=fieldnames)
+        reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter=str('\t'), fieldnames=fieldnames)
         for line in reader:
             qry, tgt, pct_id, alen, n_gaps = line['query'], line['subject'], float(line['% identity']), int(line['alignment length']), int(line['gap opens'])
             qbounds, tbounds = [[int(line['%s. start'%s]) - 1, int(line['%s. end'%s])] for s in ['q', 's']]
@@ -4541,7 +4545,7 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
             raise Exception('unhandled suffix, expected .csv or .tsv: %s' % infname)
         delimiter = ',' if getsuffix(infname) == '.csv' else '\t'
         with open(infname) as sub_outfile:
-            reader = csv.DictReader(sub_outfile, delimiter=delimiter)
+            reader = csv.DictReader(sub_outfile, delimiter=str(delimiter))
             header = reader.fieldnames
             if old_simulation:
                 n_event_list.append(0)
@@ -4559,8 +4563,8 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
             os.rmdir(os.path.dirname(infname))
 
     mkdir(outfname, isfile=True)
-    with open(outfname, csv_wmode) as outfile:
-        writer = csv.DictWriter(outfile, header, delimiter=delimiter)
+    with open(outfname, csv_wmode()) as outfile:
+        writer = csv.DictWriter(outfile, header, delimiter=str(delimiter))
         writer.writeheader()
         for line in outfo:
             writer.writerow(line)
@@ -5912,9 +5916,9 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
     """ rewrite csv files <fnames> to <outdir>, removing lines with uid not in <uids> """
     for fname in fnames:
         with open(fname) as infile:
-            reader = csv.DictReader(infile, delimiter=delimiter)
-            with open(outdir + '/' + os.path.basename(fname), csv_wmode) as outfile:
-                writer = csv.DictWriter(outfile, reader.fieldnames, delimiter=delimiter)
+            reader = csv.DictReader(infile, delimiter=str(delimiter))
+            with open(outdir + '/' + os.path.basename(fname), csv_wmode()) as outfile:
+                writer = csv.DictWriter(outfile, reader.fieldnames, delimiter=str(delimiter))
                 writer.writeheader()
                 for line in reader:
                     if line[uid_header] in uids:
@@ -5947,7 +5951,7 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
     uid_set = set()
     n_duplicate_ids = 0
     with open(infname) as infile:
-        reader = csv.DictReader(infile, delimiter=delimiter)
+        reader = csv.DictReader(infile, delimiter=str(delimiter))
         with open(outfname, 'w') as outfile:
             n_lines = 0
             for line in reader:
@@ -6587,7 +6591,7 @@ def insert_before_suffix(insert_str, fname):
 def read_vsearch_cluster_file(fname):
     id_clusters = {}
     with open(fname) as clusterfile:
-        reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
+        reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter=str('\t'))
         for line in reader:
             if line['type'] == 'C':  # some lines are a cluster, and some are a query sequence. Skip the cluster ones.
                 continue
@@ -6614,7 +6618,7 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
     # first we add every match (i.e. gene) for each query
     query_info = {}
     with open(fname) as alnfile:
-        reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
+        reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter=str('\t'))  # NOTE start/end positions are 1-indexed
         for line in reader:  # NOTE similarity to waterer.read_query()
             if line['query'] not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but in the end it doesn't/shouldn't matter
                 query_info[line['query']] = []
@@ -7008,7 +7012,7 @@ def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=F
 
 # ----------------------------------------------------------------------------------------
 def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False, glfo=None, failed_queries=None):
-    with open(fname, csv_wmode) as csvfile:
+    with open(fname, csv_wmode()) as csvfile:
         writer = csv.DictWriter(csvfile, headers)
         writer.writeheader()
         for line in annotation_list:
@@ -7277,7 +7281,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
         if csv_outdir is not None and len(writefos) > 0:
             cfn = '%s/%s-seq-alignments.csv'%(csv_outdir, tkey)
             print '      writing to %s' % cfn
-            with open(cfn, csv_wmode) as cfile:
+            with open(cfn, csv_wmode()) as cfile:
                 writer = csv.DictWriter(cfile, fieldnames=writefos[0].keys())
                 writer.writeheader()
                 for wfo in writefos:

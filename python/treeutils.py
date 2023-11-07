@@ -935,7 +935,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         if method == 'iqtree':
             inf_infos, skipped_rm_nodes = {}, set()
             with open('%s/%s.state'%(workdir, outfix)) as afile:
-                reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter='\t')
+                reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'))
                 for line in reader:
                     node = line['Node']
                     if removed_nodes is not None and node in removed_nodes:
@@ -1820,7 +1820,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
     # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
     lonr_names, input_names = {}, {}
     with open(outdir + '/' + lonr_files['names.fname']) as namefile:  # headers: "head	head2"
-        reader = csv.DictReader(namefile, delimiter='\t')
+        reader = csv.DictReader(namefile, delimiter=str('\t'))
         for line in reader:
             if line['head'][0] != 'L' and line['head'] != naive_seq_name:  # internal node
                 dummy_int = int(line['head'])  # check that it's just a (string of a) number
@@ -1835,7 +1835,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
     # read edge info (i.e., implicitly, the tree that lonr.r used)
     edgefos = []  # headers: "from    to      weight  distance"
     with open(outdir + '/' + lonr_files['edgefname']) as edgefile:
-        reader = csv.DictReader(edgefile, delimiter='\t')
+        reader = csv.DictReader(edgefile, delimiter=str('\t'))
         for line in reader:
             line['distance'] = int(line['distance'])
             line['weight'] = float(line['weight'])
@@ -1967,12 +1967,12 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
                 edgefos.append({'from' : node.taxon.label, 'to' : edge.head_node.taxon.label, 'weight' : edge.length})
         existing_edgefname = workdir + '/edges.csv'
         existing_node_seqfname = workdir + '/infered-node-seqs.fa'
-        with open(existing_edgefname, utils.csv_wmode) as edgefile:
+        with open(existing_edgefname, utils.csv_wmode()) as edgefile:
             writer = csv.DictWriter(edgefile, ('from', 'to', 'weight'))
             writer.writeheader()
             for line in edgefos:
                 writer.writerow(line)
-        with open(existing_node_seqfname, utils.csv_wmode) as node_seqfile:
+        with open(existing_node_seqfname, utils.csv_wmode()) as node_seqfile:
             writer = csv.DictWriter(node_seqfile, ('head', 'seq'))
             writer.writeheader()
             for sfo in utils.read_fastx(phylip_seqfile):
@@ -3260,7 +3260,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             return ofo
         # ----------------------------------------------------------------------------------------
         print '      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname)
-        with open(args.chosen_ab_fname, utils.csv_wmode) as cfile:
+        with open(args.chosen_ab_fname, utils.csv_wmode()) as cfile:
             outfos, fieldnames = [], None
             for mfo in all_chosen_mfos:
                 outfos.append(getofo(mfo))

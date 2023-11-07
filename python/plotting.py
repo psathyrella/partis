@@ -1764,7 +1764,7 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
     rfn = '%s/csize-radii.csv' % plotdir
     bpfn = '%s/bubble-positions.csv' % plotdir
     workfnames = [rfn, bpfn]
-    with open(rfn, utils.csv_wmode) as rfile:
+    with open(rfn, utils.csv_wmode()) as rfile:
         writer = csv.DictWriter(rfile, ['id', 'radius'])
         writer.writeheader()
         for bfo in bubfos:

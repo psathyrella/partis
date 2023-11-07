@@ -133,7 +133,7 @@ for hline, lline in lp_antn_pairs:
 if args.outfname is not None:
     print '  writing %d chosen seqs to %s' % (len(chosen_seqs), args.outfname)
     utils.mkdir(args.outfname, isfile=True)
-    with open(args.outfname, utils.csv_wmode) as ofile:
+    with open(args.outfname, utils.csv_wmode()) as ofile:
         writer = csv.DictWriter(ofile, sorted(chosen_seqs['igh'][0].keys()))  # NOTE dammit this is way too similar to treeutils.combine_selection_metrics(), i need to maybe split the csv writing code out of there?
         writer.writeheader()
         for ltmp, seqfos in chosen_seqs.items():

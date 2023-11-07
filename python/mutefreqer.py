@@ -208,7 +208,7 @@ class MuteFreqer(object):
     # ----------------------------------------------------------------------------------------
     def write_single_gene(self, gene, outfname):
         gcounts, freqs = self.counts[gene], self.freqs[gene]
-        with open(outfname, utils.csv_wmode) as outfile:
+        with open(outfname, utils.csv_wmode()) as outfile:
             nuke_header = [n + xtra for n in utils.nukes for xtra in ('', '_obs', '_lo_err', '_hi_err')]
             writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
             writer.writeheader()

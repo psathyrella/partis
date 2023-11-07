@@ -180,7 +180,7 @@ class PartitionDriver(object):
             if set(reader.fieldnames) == set(utils.annotation_headers):
                 raise Exception('doesn\'t work yet')
                 print '  parsing annotation output file %s to partition cache file %s' % (self.args.persistent_cachefname, self.hmm_cachefname)
-                with open(self.hmm_cachefname, utils.csv_wmode) as outcachefile:
+                with open(self.hmm_cachefname, utils.csv_wmode()) as outcachefile:
                     writer = csv.DictWriter(outcachefile, utils.partition_cachefile_headers)
                     writer.writeheader()
                     for line in reader:
@@ -1729,7 +1729,7 @@ class PartitionDriver(object):
         info = []
         seeded_clusters = {}
         with open(infname, 'r') as infile:
-            reader = csv.DictReader(infile, delimiter=' ')
+            reader = csv.DictReader(infile, delimiter=str(' '))
             for line in reader:
                 if separate_seeded_clusters and self.args.seed_unique_id in set(line['names'].split(':')):
                     if len(seeded_clusters) > 0 and ':' not in line['names']:  # the first time through, we add the seed uid to *every* process. So, when we read those results back in, the procs that didn't merge the seed with anybody will have it as a singleton still, and we only need the singleton once
@@ -1751,7 +1751,7 @@ class PartitionDriver(object):
         def get_sub_outfile(siproc, mode):
             return open(self.subworkdir(siproc, n_procs) + '/' + os.path.basename(infname), mode)
         def get_writer(sub_outfile):
-            return csv.DictWriter(sub_outfile, reader.fieldnames, delimiter=' ')
+            return csv.DictWriter(sub_outfile, reader.fieldnames, delimiter=str(' '))
         def copy_cache_files(n_procs):
             cmdfos = [{'cmd_str' : 'cp ' + self.hmm_cachefname + ' ' + self.subworkdir(iproc, n_procs) + '/',
                        'workdir' : self.subworkdir(iproc, n_procs),
@@ -1762,7 +1762,7 @@ class PartitionDriver(object):
         # initialize output/cache files
         for iproc in range(n_procs):
             utils.prep_dir(self.subworkdir(iproc, n_procs))
-            sub_outfile = get_sub_outfile(iproc, 'w')
+            sub_outfile = get_sub_outfile(iproc, utils.csv_wmode())
             get_writer(sub_outfile).writeheader()
             sub_outfile.close()  # can't leave 'em all open the whole time 'cause python has the thoroughly unreasonable idea that one oughtn't to have thousands of files open at once
         if self.current_action == 'partition' and os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir (first clause is just for so when we're getting cluster annotations we don't copy over the cache files)
@@ -1770,7 +1770,7 @@ class PartitionDriver(object):
 
         seed_clusters_to_write = seeded_clusters.keys()  # the keys in <seeded_clusters> that we still need to write
         for iproc in range(n_procs):
-            sub_outfile = get_sub_outfile(iproc, 'a')
+            sub_outfile = get_sub_outfile(iproc, utils.csv_wmode('a'))
             writer = get_writer(sub_outfile)
 
             # first deal with the seeded clusters
@@ -1817,7 +1817,7 @@ class PartitionDriver(object):
         outfile = None
         one_real_file = False
         if outfname not in infnames or not os.path.exists(outfname):  # if it *is* in <infnames> we assume we can just tack the other infnames onto the end of it and use <outfname>'s header
-            outfile = open(outfname, utils.csv_wmode)
+            outfile = open(outfname, utils.csv_wmode())
         for fname in infnames:
             if not os.path.exists(fname) or os.stat(fname).st_size == 0:
                 continue
@@ -1995,7 +1995,7 @@ class PartitionDriver(object):
             raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input file)')
 
         print '    %s true naive seqs in fake cache file' % utils.color('blue_bkg', 'caching')
-        with open(self.hmm_cachefname, utils.csv_wmode) as fakecachefile:
+        with open(self.hmm_cachefname, utils.csv_wmode()) as fakecachefile:
             writer = csv.DictWriter(fakecachefile, utils.partition_cachefile_headers)
             writer.writeheader()
             for query_name_list in nsets:
@@ -2006,9 +2006,9 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, shuffle_input=False):
-        csvfile = open(fname, utils.csv_wmode)
+        csvfile = open(fname, utils.csv_wmode())
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs']
-        writer = csv.DictWriter(csvfile, header, delimiter=' ')
+        writer = csv.DictWriter(csvfile, header, delimiter=str(' '))
         writer.writeheader()
 
         if shuffle_input:  # shuffle nset order (this is absolutely critical when clustering with more than one process, in order to redistribute sequences among the several processes)

@@ -1059,7 +1059,7 @@ def write_glfo(output_dir, glfo, only_genes=None, debug=False):
                 outfile.write('>' + gene + '\n')
                 outfile.write(glfo['seqs'][region][gene] + '\n')
 
-    with open(get_extra_fname(output_dir, glfo['locus']), utils.csv_wmode) as csvfile:
+    with open(get_extra_fname(output_dir, glfo['locus']), utils.csv_wmode()) as csvfile:
         writer = csv.DictWriter(csvfile, csv_headers)
         writer.writeheader()
         for region, codon in utils.conserved_codons[glfo['locus']].items():
@@ -1143,7 +1143,7 @@ def write_allele_prevalence_freqs(allele_prevalence_freqs, fname):
     # NOTE kinda weird to mash all the regions into one file here (as compared to parametercounter), but it seems to make more sense
     if not os.path.exists(os.path.dirname(fname)):
         os.makedirs(os.path.dirname(fname))
-    with open(fname, utils.csv_wmode) as pfile:
+    with open(fname, utils.csv_wmode()) as pfile:
         writer = csv.DictWriter(pfile, ('gene', 'freq'))
         writer.writeheader()
         for region in utils.regions:

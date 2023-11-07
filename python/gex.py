@@ -193,7 +193,7 @@ def gexdot(gvals1, gvals2=None, normalize=True, recursed=False, return_gene_cont
 def read_ref_data():
     fabfo = {vt : [] for vt in ['pb', 'naive']}
     with open(fabio_fname) as ffile:
-        reader = csv.DictReader(ffile, delimiter='\t')
+        reader = csv.DictReader(ffile, delimiter=str('\t'))
         for line in reader:
             pbval, nval = float(line['avg_plasma']), float(line['avg_naive'])
             if pbval == 0 or nval == 0:
