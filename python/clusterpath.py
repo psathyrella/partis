@@ -358,7 +358,7 @@ class ClusterPath(object):
             raise Exception('unhandled file extension %s' % outfname)
         if partition_lines is None:
             partition_lines = self.get_partition_lines(reco_info=reco_info, true_partition=true_partition, n_to_write=n_to_write, calc_missing_values=calc_missing_values)
-        with open(outfname, 'w') as outfile:
+        with open(outfname, utils.csv_wmode) as outfile:
             writer = csv.DictWriter(outfile, self.get_headers(not is_data))
             writer.writeheader()
             for row in partition_lines:

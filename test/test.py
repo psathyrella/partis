@@ -689,7 +689,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def write_run_times(self):
-        with open(self.dirs('new') + '/run-times.csv', 'w') as newfile:
+        with open(self.dirs('new') + '/run-times.csv', utils.csv_wmode) as newfile:
             writer = csv.DictWriter(newfile, ('name', 'seconds'))
             writer.writeheader()
             for name, seconds in self.run_times.items():

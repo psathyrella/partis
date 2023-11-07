@@ -37,6 +37,8 @@ default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'cluster-bubble', 'sizes', '
 
 dummy_str = 'x-dummy-x'
 
+csv_wmode = 'wb' if sys.version_info.major < 3 else 'w'  # 2.7 csv module doesn't support unicode, this is the hackey fix
+
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
     return os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
@@ -1789,7 +1791,7 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
 def write_presto_annotations(outfname, annotation_list, failed_queries):
     print '   writing presto annotations to %s' % outfname
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
-    with open(outfname, 'w') as outfile:
+    with open(outfname, csv_wmode) as outfile:
         writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
         writer.writeheader()
 
@@ -1975,7 +1977,7 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
     cluster_indices = None
     if cpath is not None:
         cluster_indices = {u : i for i, c in enumerate(cpath.best()) for u in c}
-    with open(outfname, 'w') as outfile:
+    with open(outfname, csv_wmode) as outfile:
         oheads = airr_headers.keys() + extra_columns
         if skip_columns is not None:
             oheads = [h for h in oheads if h not in skip_columns]
@@ -4557,7 +4559,7 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
             os.rmdir(os.path.dirname(infname))
 
     mkdir(outfname, isfile=True)
-    with open(outfname, 'w') as outfile:
+    with open(outfname, csv_wmode) as outfile:
         writer = csv.DictWriter(outfile, header, delimiter=delimiter)
         writer.writeheader()
         for line in outfo:
@@ -5911,7 +5913,7 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
     for fname in fnames:
         with open(fname) as infile:
             reader = csv.DictReader(infile, delimiter=delimiter)
-            with open(outdir + '/' + os.path.basename(fname), 'w') as outfile:
+            with open(outdir + '/' + os.path.basename(fname), csv_wmode) as outfile:
                 writer = csv.DictWriter(outfile, reader.fieldnames, delimiter=delimiter)
                 writer.writeheader()
                 for line in reader:
@@ -7006,7 +7008,7 @@ def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=F
 
 # ----------------------------------------------------------------------------------------
 def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False, glfo=None, failed_queries=None):
-    with open(fname, 'w') as csvfile:
+    with open(fname, csv_wmode) as csvfile:
         writer = csv.DictWriter(csvfile, headers)
         writer.writeheader()
         for line in annotation_list:
@@ -7275,7 +7277,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
         if csv_outdir is not None and len(writefos) > 0:
             cfn = '%s/%s-seq-alignments.csv'%(csv_outdir, tkey)
             print '      writing to %s' % cfn
-            with open(cfn, 'w') as cfile:
+            with open(cfn, csv_wmode) as cfile:
                 writer = csv.DictWriter(cfile, fieldnames=writefos[0].keys())
                 writer.writeheader()
                 for wfo in writefos:

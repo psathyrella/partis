@@ -1967,12 +1967,12 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
                 edgefos.append({'from' : node.taxon.label, 'to' : edge.head_node.taxon.label, 'weight' : edge.length})
         existing_edgefname = workdir + '/edges.csv'
         existing_node_seqfname = workdir + '/infered-node-seqs.fa'
-        with open(existing_edgefname, 'w') as edgefile:
+        with open(existing_edgefname, utils.csv_wmode) as edgefile:
             writer = csv.DictWriter(edgefile, ('from', 'to', 'weight'))
             writer.writeheader()
             for line in edgefos:
                 writer.writerow(line)
-        with open(existing_node_seqfname, 'w') as node_seqfile:
+        with open(existing_node_seqfname, utils.csv_wmode) as node_seqfile:
             writer = csv.DictWriter(node_seqfile, ('head', 'seq'))
             writer.writeheader()
             for sfo in utils.read_fastx(phylip_seqfile):
@@ -3260,7 +3260,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             return ofo
         # ----------------------------------------------------------------------------------------
         print '      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname)
-        with open(args.chosen_ab_fname, 'w') as cfile:
+        with open(args.chosen_ab_fname, utils.csv_wmode) as cfile:
             outfos, fieldnames = [], None
             for mfo in all_chosen_mfos:
                 outfos.append(getofo(mfo))

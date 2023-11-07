@@ -649,7 +649,7 @@ class Recombinator(object):
 
         # write the input file for bppseqgen, one base per line
         with open(reco_seq_fname, 'w') as reco_seq_file:
-            # NOTE really not sure why this doesn't really [seems to require an "extra" column] work with csv.DictWriter, but it doesn't -- bppseqgen barfs (I think maybe it expects a different newline character? don't feel like working it out)
+            # NOTE really not sure why this doesn't really [seems to require an "extra" column] work with csv DictWriter, but it doesn't -- bppseqgen barfs (I think maybe it expects a different newline character? don't feel like working it out)
             headstr = 'state'
             if not self.args.mutate_from_scratch:
                 headstr += '\trate'

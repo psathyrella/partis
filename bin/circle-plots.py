@@ -21,7 +21,7 @@ with open(args.infname) as ifile:
         radii.append({'id' : line['id'], 'radius' : float(line['radius'])})
 
 circlefos = circlify.circlify(radii, datum_field='radius', id_field='id')  # NOTE this doesn't return them in the same order
-with open(args.outfname, 'w') as ofile:
+with open(args.outfname, 'wb' if sys.version_info.majory < 3 else 'w') as ofile:
     def gfn(k, c): return getattr(c, k) if hasattr(c, k) else getattr(c, 'ex')[k]
     headers = ('id', 'x', 'y', 'r')
     writer = csv.DictWriter(ofile, headers)

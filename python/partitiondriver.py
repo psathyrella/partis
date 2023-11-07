@@ -180,7 +180,7 @@ class PartitionDriver(object):
             if set(reader.fieldnames) == set(utils.annotation_headers):
                 raise Exception('doesn\'t work yet')
                 print '  parsing annotation output file %s to partition cache file %s' % (self.args.persistent_cachefname, self.hmm_cachefname)
-                with open(self.hmm_cachefname, 'w') as outcachefile:
+                with open(self.hmm_cachefname, utils.csv_wmode) as outcachefile:
                     writer = csv.DictWriter(outcachefile, utils.partition_cachefile_headers)
                     writer.writeheader()
                     for line in reader:
@@ -1817,7 +1817,7 @@ class PartitionDriver(object):
         outfile = None
         one_real_file = False
         if outfname not in infnames or not os.path.exists(outfname):  # if it *is* in <infnames> we assume we can just tack the other infnames onto the end of it and use <outfname>'s header
-            outfile = open(outfname, 'w')
+            outfile = open(outfname, utils.csv_wmode)
         for fname in infnames:
             if not os.path.exists(fname) or os.stat(fname).st_size == 0:
                 continue
@@ -1995,7 +1995,7 @@ class PartitionDriver(object):
             raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input file)')
 
         print '    %s true naive seqs in fake cache file' % utils.color('blue_bkg', 'caching')
-        with open(self.hmm_cachefname, 'w') as fakecachefile:
+        with open(self.hmm_cachefname, utils.csv_wmode) as fakecachefile:
             writer = csv.DictWriter(fakecachefile, utils.partition_cachefile_headers)
             writer.writeheader()
             for query_name_list in nsets:
@@ -2006,7 +2006,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, shuffle_input=False):
-        csvfile = open(fname, 'w')
+        csvfile = open(fname, utils.csv_wmode)
         header = ['names', 'k_v_min', 'k_v_max', 'k_d_min', 'k_d_max', 'mut_freq', 'cdr3_length', 'only_genes', 'seqs']
         writer = csv.DictWriter(csvfile, header, delimiter=' ')
         writer.writeheader()

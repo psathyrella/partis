@@ -172,7 +172,7 @@ if args.paired:
     outfos, metafos = paircluster.get_combined_outmetafos(antn_lists)
     paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%args.outfile, '%s/meta.yaml'%args.outfile, outfos, metafos)
     outfos = paircluster.find_seq_pairs(antn_lists)
-    with open('%s/seq-pairs.csv'%args.outfile, 'w') as cfile:
+    with open('%s/seq-pairs.csv'%args.outfile, utils.csv_wmode) as cfile:
         okeys = ['%s_%s'%(c, s) for s in ('id', 'locus', 'seq') for c in 'hl']
         writer = csv.DictWriter(cfile, okeys)  # sorted(outfos[0].keys()))
         writer.writeheader()
@@ -245,7 +245,7 @@ if n_failed_to_add > 0:
     print '  %s couldn\'t add \'%s\' to %d / %d annotations' % (utils.wrnstr(), ecol, n_failed_to_add, len(clusters_to_use) - n_skipped)
 
 # write output
-with open(args.outfile, 'w') as ofile:
+with open(args.outfile, utils.csv_wmode) as ofile:
     if utils.getsuffix(args.outfile) in ['.csv', '.tsv']:
         print '  writing %d sequences to %s' % (len(seqfos), args.outfile)
         writer = csv.DictWriter(ofile, seqfos[0].keys(), delimiter=',' if utils.getsuffix(args.outfile)=='.csv' else '\t')

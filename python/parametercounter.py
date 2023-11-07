@@ -232,7 +232,7 @@ class ParameterCounter(object):
                 os.remove(outfname)
             elif not os.path.exists(base_outdir):
                 os.makedirs(base_outdir)
-            with open(outfname, 'w') as outfile:
+            with open(outfname, utils.csv_wmode) as outfile:
                 out_fieldnames = list(index)
                 out_fieldnames.append('count')
                 out_data = csv.DictWriter(outfile, out_fieldnames)

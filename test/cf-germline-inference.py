@@ -501,7 +501,7 @@ def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
                 for ogene in orf_genes:
                     del countfo[ogene]
                 assert old_total == sum(countfo.values())
-                with open('%s/%s_gene-probs.csv' % (zenodo_dir, tmpreg), 'w') as outfile:
+                with open('%s/%s_gene-probs.csv' % (zenodo_dir, tmpreg), utils.csv_wmode) as outfile:
                     writer = csv.DictWriter(outfile, ('%s_gene' % tmpreg, 'count'))
                     writer.writeheader()
                     for gene in countfo:
