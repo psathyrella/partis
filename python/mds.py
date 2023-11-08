@@ -284,7 +284,7 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
     kmeans = sys.modules['sklearn'].cluster.KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos if pos is not None else similarities)
     pcvals = {seqfos[iseq]['name'] : pos[iseq] if pos is not None else None for iseq in range(len(seqfos))}
     labels = {seqfos[iseq]['name'] : kmeans.labels_[iseq] for iseq in range(len(seqfos))}
-    partition = utils.group_seqs_by_value(pcvals.keys(), lambda q: labels[q])
+    partition = utils.group_seqs_by_value(list(pcvals.keys()), lambda q: labels[q])
 
     if plotdir is not None:
         utils.prep_dir(plotdir, wildlings=['*.svg'])

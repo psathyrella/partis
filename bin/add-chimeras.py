@@ -40,7 +40,7 @@ for uid, seqfo in input_info.items():
         continue
 
     break_point = random.randint(args.min_chunk_len, len(seqfo['seqs'][0]) - args.min_chunk_len)
-    switch_uid = numpy.random.choice(input_info.keys())
+    switch_uid = numpy.random.choice(input_info)
     switch_seq = input_info[switch_uid]['seqs'][0][ : break_point]
 
     if args.debug:

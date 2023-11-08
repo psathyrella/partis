@@ -7,6 +7,7 @@ import time
 
 from . import utils
 from io import open
+import six
 
 # ----------------------------------------------------------------------------------------
 def vollmers(info, threshold, debug=False):
@@ -98,7 +99,7 @@ def vollmers(info, threshold, debug=False):
     if any(len(l['unique_ids']) > 1 for l in info.values()):
         raise Exception('all initial annotations in annotation clustering need to have length 1, but got: %s' % [l['unique_ids'] for l in info.values() if len(l['unique_ids'])>1])
     print '  vj-cdr3 clustering %d sequences with threshold %.3f' % (len(info), threshold)
-    unclustered_seqs = info.keys()
+    unclustered_seqs = list(info.keys())
     last_cluster_id = 0
     while len(unclustered_seqs) > 0:
         add_cluster(last_cluster_id)
@@ -159,7 +160,7 @@ class SingleLinkClusterer(object):
 
         if first_cluster_id == second_cluster_id:  # already in the same cluster
             return
-        for name, cluster_id in self.query_clusters.iteritems():
+        for name, cluster_id in six.iteritems(self.query_clusters):
             if cluster_id == second_cluster_id:
                 self.query_clusters[name] = first_cluster_id
 
@@ -168,7 +169,7 @@ class SingleLinkClusterer(object):
         else:
             print 'oh, man, something\'s wrong'
             print 'uniqe_id,reco_id'
-            for name, cluster_id in self.query_clusters.iteritems():
+            for name, cluster_id in six.iteritems(self.query_clusters):
                 print '%s,%d' % (name, cluster_id)
             sys.exit()
 
@@ -246,7 +247,7 @@ class SingleLinkClusterer(object):
                 else:
                     outfile.write(outstr + '\n')
 
-        for query, cluster_id in self.query_clusters.iteritems():
+        for query, cluster_id in six.iteritems(self.query_clusters):
             if cluster_id not in self.id_clusters:
                 self.id_clusters[cluster_id] = []
             self.id_clusters[cluster_id].append(query)

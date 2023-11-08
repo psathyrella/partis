@@ -200,7 +200,7 @@ def set_lb_styles(args, etree, tstyle):
     lbfo = args.metafo[args.lb_metric]
     if 'lbr' in args.lb_metric or 'lbf' in args.lb_metric:  # remove zeros + maybe apply log()
         lbfo = {u : (math.log(v) if args.log_lbr else v) for u, v in lbfo.items() if v > 0}
-    lbvals = lbfo.values()
+    lbvals = list(lbfo.values())
     if len(lbvals) == 0:
         return
     lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis', hard_min=get_scale_min(args.lb_metric, lbvals) if args.lb_metric=='cons-dist-aa' else None)
@@ -210,7 +210,7 @@ def set_lb_styles(args, etree, tstyle):
     if args.affy_key in args.metafo and set(args.metafo[args.affy_key].values()) != set([None]):
         affyfo = args.metafo[args.affy_key]
         if args.lb_metric in treeutils.affy_metrics:
-            affyvals = affyfo.values()
+            affyvals = list(affyfo.values())
             affy_smap = plotting.get_normalized_scalar_map([a for a in affyvals if a is not None], 'viridis')
         elif args.lb_metric in treeutils.daffy_metrics:
             delta_affyvals = set_delta_affinities(etree, affyfo)

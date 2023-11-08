@@ -486,7 +486,7 @@ class AlleleFinder(object):
         freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for d in gcts.values()]
         total = [d['total'] for d in gcts.values()]
 
-        n_mutelist = gcts.keys()
+        n_mutelist = list(gcts.keys())
 
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
@@ -929,7 +929,7 @@ class AlleleFinder(object):
             'gene' : final_name,  # reminder: <final_name> doesn't necessarily correspond to 'snp-positions'
             'seq' : new_seq,
             'cpos' : utils.cdn_pos(self.glfo, self.region, template_gene),
-            'snp-positions' : mutfo.keys(),  # reminder: *not* necessarily the same as <final_mutfo>
+            'snp-positions' : list(mutfo.keys()),  # reminder: *not* necessarily the same as <final_mutfo>
             'aligned-seq' : None,
             'plot-paths' : []  # not filled until we plot, since there may not be a plotdir defined
         })

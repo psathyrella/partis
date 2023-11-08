@@ -35,7 +35,7 @@ def lb_metric_axis_cfg(metric_method, final_plots=False):  # x axis variables ag
                                         ('lbf', [('n-ancestor', 'N ancestors')]),  # , ('branch-length', 'branch length')])  # turning off branch length at least for now (for run time reasons)
     ])
     if metric_method is None:
-       return base_cfg.items()
+       return list(base_cfg.items())
     base_cfg['dtr'] = [('affinity', 'affinity'),] if final_plots else [('affinity', 'affinity'), ('n-ancestor', 'N ancestors')]  # hack hack hack
     if metric_method in base_cfg:
         return [(m, cfg) for m, cfg in base_cfg.items() if m == metric_method]
@@ -651,7 +651,7 @@ def plot_lb_distributions(lb_metric, baseplotdir, lines_to_use, is_true_line=Fal
         if is_true_line:
             iclust_plotvals = [lbfo[u] for u in line['unique_ids'] if u in lbfo]  # for the true plots, we *don't* want to include any inferred ancestor nodes that weren't actually sampled, since we don't have affinity info for them, and it'd make it look like there's a mismatch between these distributions and the lb vs affinity plots (which won't have them)
         else:
-            iclust_plotvals = lbfo.values()  # whereas for real data, we want to include the inferred ancestor nodes for which we don't have sequences (although I guess in most cases where we're really interested in them, we would've used a phylogenetics program that also inferred their sequences, so they'd presumably have been added to <line['unique_ids']>)
+            iclust_plotvals = list(lbfo.values())  # whereas for real data, we want to include the inferred ancestor nodes for which we don't have sequences (although I guess in most cases where we're really interested in them, we would've used a phylogenetics program that also inferred their sequences, so they'd presumably have been added to <line['unique_ids']>)
         cluster_size = len(iclust_plotvals)  # i.e. including leaves
         if 'lbr' in lb_metric or 'lbf' in lb_metric:
             iclust_plotvals = [v for v in iclust_plotvals if v > 0.]  # don't plot the leaf values, they just make the plot unreadable

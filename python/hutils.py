@@ -140,7 +140,7 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
     if not no_sort:
         bin_labels = sorted(values)  # by default sort by keys in dict (i.e. these aren't usually actually string "labels")
     else:
-        bin_labels = values.keys()
+        bin_labels = list(values.keys())
     if sort_by_counts:  # instead sort by counts
         bin_labels = sorted(values, key=values.get, reverse=True)
 

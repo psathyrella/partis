@@ -381,7 +381,7 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
 
         if template_glfo is not None:  # add one of the genes from the template glfo
             renamed_template_gene = None
-            template_gene = template_glfo[codon + '-positions'].keys()[0]
+            template_gene = list(template_glfo[codon + '-positions'].keys())[0]
             if template_gene in glfo['seqs'][region]:
                 if template_gene not in glfo[codon + '-positions']:  # if it's already in the new glfo, but for some reason not in extras.csv (presumably because we don't have an extras.csv)
                     glfo[codon + '-positions'][template_gene] = template_glfo[codon + '-positions'][template_gene]

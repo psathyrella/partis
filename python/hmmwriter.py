@@ -28,7 +28,7 @@ def get_bin_list(values, bin_type):
     lists['all'] = []
     lists['empty'] = []
     lists['full'] = []
-    for bin_val, bin_contents in values.iteritems():
+    for bin_val, bin_contents in values.items():
         lists['all'].append(bin_val)
         if bin_contents < utils.eps:
             lists['empty'].append(bin_val)
@@ -147,7 +147,7 @@ class State(object):
 
     def check(self):
         total = 0.0
-        for _, prob in self.transitions.iteritems():
+        for _, prob in self.transitions.items():
             assert prob >= 0.0
             total += prob
         if not utils.is_normed(total):
@@ -158,7 +158,7 @@ class State(object):
 
         if self.emissions is not None:
             total = 0.0
-            for _, prob in self.emissions['probs'].iteritems():
+            for _, prob in self.emissions['probs'].items():
                 assert prob >= 0.0
                 total += prob
             assert utils.is_normed(total)
@@ -470,7 +470,7 @@ class HmmWriter(object):
 
             # and finally, normalize
             total = 0.0
-            for _, val in eprobs[erosion].iteritems():
+            for _, val in eprobs[erosion].items():
                 total += val
 
             test_total = 0.0
@@ -541,7 +541,7 @@ class HmmWriter(object):
 
             # and finally, normalize
             total = 0.0
-            for _, val in iprobs[insertion].iteritems():
+            for _, val in iprobs[insertion].items():
                 total += val
             test_total = 0.0
             for n_inserted in iprobs[insertion]:
@@ -663,7 +663,7 @@ class HmmWriter(object):
     def get_mean_insert_length(self, insertion, debug=False):
         if insertion in utils.boundaries:  # for real insertions, use the mean of the inferred histogram
             total, n_tot = 0.0, 0.0
-            for length, prob in self.insertion_probs[insertion].iteritems():
+            for length, prob in self.insertion_probs[insertion].items():
                 total += prob*length
                 n_tot += prob
             if n_tot == 0.0:
@@ -733,7 +733,7 @@ class HmmWriter(object):
             return 1.0 - inverse_length  # i.e. the prob of remaining in the insert state is [1 - 1/mean_insert_length]
         else:  # while if (mean length) <=1, return the fraction of entries in bins greater than zero. NOTE this is a weird heuristic, *but* it captures the general features (it gets bigger if we have more insertions longer than zero)
             non_zero_sum = 0.0
-            for length, prob in self.insertion_probs[insertion].iteritems():
+            for length, prob in self.insertion_probs[insertion].items():
                 if length != 0:
                     non_zero_sum += prob
             self_transition_prob = non_zero_sum / float(non_zero_sum + self.insertion_probs[insertion][0])  # NOTE this otter be less than 1, since we only get here if the mean length is less than 1
