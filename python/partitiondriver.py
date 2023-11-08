@@ -317,7 +317,7 @@ class PartitionDriver(object):
             alclusterer = AlleleClusterer(self.args, glfo=self.glfo, reco_info=self.reco_info, simglfo=self.simglfo)
             alcluster_alleles = alclusterer.get_alleles(self.sw_info, debug=self.args.debug_allele_finding, plotdir=None if self.args.plotdir is None else self.args.plotdir + '/sw/alcluster')
             if len(alcluster_alleles) > 0:
-                glutils.add_new_alleles(self.glfo, alcluster_alleles.values(), use_template_for_codon_info=False, simglfo=self.simglfo, debug=True)
+                glutils.add_new_alleles(self.glfo, list(alcluster_alleles.values()), use_template_for_codon_info=False, simglfo=self.simglfo, debug=True)
                 if self.aligned_gl_seqs is not None:
                     glutils.add_missing_alignments(self.glfo, self.aligned_gl_seqs, debug=True)
             alclusterer = None
@@ -807,7 +807,7 @@ class PartitionDriver(object):
     def synth_sw_info(self, queries):  # only used for passing info to utils.collapse_naive_seqs()
         # this uses the cached hmm naive seqs (since we have them and they're better) but then later we pass the hmm the sw annotations, so we have to make sure the sw cdr3 length is the same within each cluster (it's very rare that it isn't)
         synth_sw_info = {q : {'naive_seq' : s, 'cdr3_length' : self.sw_info[q]['cdr3_length']} for q, s in self.get_cached_hmm_naive_seqs(queries).items()}  # NOTE code duplication in cluster_with_bcrham()
-        synth_sw_info['queries'] = synth_sw_info.keys()
+        synth_sw_info['queries'] = list(synth_sw_info.keys())
         return synth_sw_info
 
     # ----------------------------------------------------------------------------------------
@@ -1768,7 +1768,7 @@ class PartitionDriver(object):
         if self.current_action == 'partition' and os.path.exists(self.hmm_cachefname):  # copy cachefile to this subdir (first clause is just for so when we're getting cluster annotations we don't copy over the cache files)
             copy_cache_files(n_procs)
 
-        seed_clusters_to_write = seeded_clusters.keys()  # the keys in <seeded_clusters> that we still need to write
+        seed_clusters_to_write = list(seeded_clusters.keys())  # the keys in <seeded_clusters> that we still need to write
         for iproc in range(n_procs):
             sub_outfile = get_sub_outfile(iproc, utils.csv_wmode('a'))
             writer = get_writer(sub_outfile)
@@ -2245,7 +2245,7 @@ class PartitionDriver(object):
         line['input_seqs'] = [self.sw_info[uid]['input_seqs'][0] for uid in uids]  # not in <line>, since the hmm doesn't know anything about the input (i.e. non-indel-reversed) sequences
         line['duplicates'] = [self.duplicates.get(uid, []) for uid in uids]
         def gv(lkey, uid): return self.sw_info[uid][lkey][0] if lkey in self.sw_info[uid] else utils.input_metafile_defaults(lkey)
-        for lkey in utils.input_metafile_keys.values() + ['leader_seqs', 'c_gene_seqs']:
+        for lkey in list(utils.input_metafile_keys.values()) + ['leader_seqs', 'c_gene_seqs']:
             if any(lkey in self.sw_info[u] for u in uids):  # it used to be that if it was in one it had to be in all, but now no longer (see comments in input meta info reading in seqfileopener)
                 line[lkey] = [gv(lkey, u) for u in uids]
 
@@ -2355,7 +2355,7 @@ class PartitionDriver(object):
             else:
                 print '          %s unknown ecode \'%s\': %s' % (utils.color('red', 'warning'), ecode, ' '.join(errorfo[ecode]))
 
-        annotation_list = eroded_annotations.values() if self.args.mimic_data_read_length else padded_annotations.values()
+        annotation_list = list(eroded_annotations.values()) if self.args.mimic_data_read_length else list(padded_annotations.values())
         seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities'])  # don't overwrite any info that's already in there (presumably multiplicities) since it will have been updated in waterer after collapsing duplicates NOTE/UPDATE if you screw something up though, this may end up not overwriting 'paired-uids' that you *do* want it to overwrite
         if not is_subcluster_recursed:
             self.process_annotation_output(annotation_list, hmm_failures, count_parameters=count_parameters, parameter_out_dir=parameter_out_dir, print_annotations=print_annotations)

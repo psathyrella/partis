@@ -372,7 +372,7 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def bust_cache(self):
         test_outputs = [self.opath(k) for k in self.tests if not self.is_prod_test(k)]
-        expected_content = set(test_outputs + self.perfdirs.values() + [os.path.basename(self.logfname), self.label])
+        expected_content = set(test_outputs + list(self.perfdirs.values()) + [os.path.basename(self.logfname), self.label])
         if not args.paired:
             expected_content |= set(self.all_ptn_cachefns())  # they're in the partition outdir if --paired is set, so don't need to be moved
         expected_content.add('run-times.csv')
@@ -513,7 +513,7 @@ class Tester(object):
                 lbfos = yaml.load(yfile, Loader=yaml.CLoader)
             for metric in self.selection_metrics:
                 for lbfo in lbfos:  # one lbfo for each cluster
-                    smfo[metric] += lbfo['lb'][metric].values()
+                    smfo[metric] += list(lbfo['lb'][metric].values())
             if debug:
                 print '      read lbfos for %d cluster%s from %s' % (len(lbfos), utils.plural(len(lbfos)), fname)
         # ----------------------------------------------------------------------------------------

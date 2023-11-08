@@ -170,7 +170,7 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
 
     if args.n_random_queries is not None:
         included_queries = set()  # only for dbg printing
-        uids_to_choose_from = input_info.keys()
+        uids_to_choose_from = list(input_info.keys())
         if args.seed_unique_id is not None:
             uids_to_choose_from.remove(args.seed_unique_id)
             included_queries.add(args.seed_unique_id)
@@ -324,7 +324,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             found_seed = True
         input_info.update(more_input_info)
     if args is not None and args.input_metafnames is not None:
-        read_input_metafo(args.input_metafnames, input_info.values())
+        read_input_metafo(args.input_metafnames, list(input_info.values()))
     post_process(input_info, reco_info, args, infname, found_seed, is_data, iline)
 
     if len(input_info) == 0:

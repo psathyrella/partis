@@ -160,7 +160,7 @@ class ParameterCounter(object):
             if column == 'all':
                 continue
             values, gene_values = {}, {}
-            for index, count in self.counts[column].iteritems():
+            for index, count in self.counts[column].items():
                 column_val = index[0]
 
                 if column_val not in values:
@@ -238,7 +238,7 @@ class ParameterCounter(object):
                 out_data = csv.DictWriter(outfile, out_fieldnames)
                 out_data.writeheader()
                 # NOTE this will in general not be sorted
-                for key, count in self.counts[column].iteritems():
+                for key, count in self.counts[column].items():
                     line = {}
                     for ic in range(len(key)):
                         line[index[ic]] = key[ic]

@@ -613,7 +613,7 @@ def get_mean_leaf_height(tree=None, treestr=None):
     assert tree is None or treestr is None
     if tree is None:
         tree = get_dendro_tree(treestr=treestr, schema='newick')
-    heights = get_leaf_depths(tree).values()
+    heights = list(get_leaf_depths(tree).values())
     return sum(heights) / float(len(heights))
 
 # ----------------------------------------------------------------------------------------
@@ -921,7 +921,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     dtree = get_dendro_tree(treefname=ofn(workdir), taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree',
                             suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
     if method == 'iqtree':
-        translate_labels(dtree, translations.items(), expect_missing=True)  # we only need to replace ones with '+'s, so in general lots will be missing
+        translate_labels(dtree, list(translations.items()), expect_missing=True)  # we only need to replace ones with '+'s, so in general lots will be missing
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
@@ -1377,7 +1377,7 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
     # <iclust> is just to give a little more granularity in dbg
 
     if metrics_to_calc is None:
-        metrics_to_calc = lb_metrics.keys()
+        metrics_to_calc = list(lb_metrics.keys())
     else:
         if any(m not in lb_metrics for m in metrics_to_calc):
             raise Exception('unsupported lb metrics in %s (allowed: %s)' % (metrics_to_calc, lb_metrics))
@@ -1562,9 +1562,9 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
             label_nodes(dtree)
             lbvals = calculate_lb_values(dtree, tau, metrics_to_calc=[metric], dont_normalize=True, debug=debug)
             bfcn = __builtins__[bound]  # min() or max()
-            info[metric][bound] = {metric : bfcn(lbvals[metric].values()), 'vals' : lbvals}
+            info[metric][bound] = {metric : bfcn(list(lbvals[metric].values())), 'vals' : lbvals}
             if debug:
-                bname, bval = bfcn(lbvals[metric].items(), key=operator.itemgetter(1))
+                bname, bval = bfcn(list(lbvals[metric].items()), key=operator.itemgetter(1))
                 print '     %s of %d %s values (%.1fs): %s  %.4f' % (bound, len(lbvals[metric]), metric, time.time() - start, bname, bval)
 
     return info
@@ -1906,7 +1906,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
 
     # check for duplicate nodes (not sure why lonr.r kicks these, but I should probably collapse them at some point)
     # in simulation, we sample internal nodes, but then lonr.r's tree construction forces these to be leaves, but then frequently they're immediately adjacent to internal nodes in lonr.r's tree... so we try to collapse them
-    duplicate_groups = utils.group_seqs_by_value(nodefos.keys(), keyfunc=lambda q: nodefos[q]['seq'])
+    duplicate_groups = utils.group_seqs_by_value(list(nodefos.keys()), keyfunc=lambda q: nodefos[q]['seq'])
     duplicate_groups = [g for g in duplicate_groups if len(g) > 1]
     if len(duplicate_groups) > 0:
         n_max = 15
@@ -2064,7 +2064,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
             chosen_ustrs.add(ustr_to_use)
             inf_lines_to_use.append(annotations[ustr_to_use])
     else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
-        inf_lines_to_use = annotations.values()  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
+        inf_lines_to_use = list(annotations.values())  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
         if only_use_best_partition:
             assert cpath is not None and cpath.i_best is not None
             inf_lines_to_use = [l for l in inf_lines_to_use if l['unique_ids'] in cpath.partitions[cpath.i_best]]
@@ -2130,7 +2130,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     if args.sub_plotdir is not None:
         plotdir = '%s/%s' % (plotdir, args.sub_plotdir)
     print '    plotting selection metrics to %s' % plotdir
-    utils.prep_dir(plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
+    utils.prep_dir(plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=list(lb_metrics.keys()))
     fnames = lbplotting.add_fn(None, init=True)
 
     if has_affinities:
@@ -2868,8 +2868,8 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
     # ----------------------------------------------------------------------------------------
     def read_cfgfo():
         def iconvert(tcfg, vname):
-            imax = max(tcfg.keys() + [cfgfo.get('n-families', 0) - 1])
-            def_val = False if tcfg.values()[0] is True else 0
+            imax = max(list(tcfg.keys()) + [cfgfo.get('n-families', 0) - 1])
+            def_val = False if list(tcfg.values())[0] is True else 0
             nvals = [tcfg.get(i, def_val) for i in range(imax+1)]
             # if 'n-families' in cfgfo and cfgfo['n-families'] != imax + 1:  # i tried setting n-families automatically, but in practice it just tends to break things if you make it guess
             #     print '  %s \'n-families\' not equal to imax + 1 for %s' % (utils.wrnstr(), vname)
@@ -3264,8 +3264,8 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             outfos, fieldnames = [], None
             for mfo in all_chosen_mfos:
                 outfos.append(getofo(mfo))
-                if fieldnames is None or len(outfos[-1].keys()) > len(fieldnames):
-                    fieldnames = outfos[-1].keys()
+                if fieldnames is None or len(list(outfos[-1].keys())) > len(fieldnames):
+                    fieldnames = list(outfos[-1].keys())
             if len(all_chosen_mfos) > 0:
                 writer = csv.DictWriter(cfile, fieldnames)
                 writer.writeheader()
@@ -3446,7 +3446,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                  tree_inference_outdir=tree_inference_outdir,
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
     if inf_lines is not None:  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
-        inf_lines = utils.get_annotation_dict(inf_lines.values())  # don't need this any more (partition plotting used to be right here) but too chicken to remove it atm
+        inf_lines = utils.get_annotation_dict(list(inf_lines.values()))  # don't need this any more (partition plotting used to be right here) but too chicken to remove it atm
     if debug:
         print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):

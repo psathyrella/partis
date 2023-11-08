@@ -565,7 +565,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 if args.make_hist_plots and any(len(l)>0 for l in plothists[pvkey].values()):
                     tmphistdict = get_tvd(plothists[pvkey])
                 use_sort = False # UPDATE i think we can just not sort? it means you have to have the order right on the command line # xvar != 'parameter-variances' and 'None' not in tmpvaldict.keys()  # we want None to be first
-                tvd_keys = sorted(tmpvaldict) if use_sort else tmpvaldict.keys()  # for parameter-variances we want to to keep the original ordering from the command line
+                tvd_keys = sorted(tmpvaldict) if use_sort else list(tmpvaldict.keys())  # for parameter-variances we want to to keep the original ordering from the command line
                 for tau in tvd_keys:  # note that the <ltmp> for each <tau> are in general different if some replicates/clusters are missing or empty
                     ltmp = tmpvaldict[tau]  # len of <ltmp> is N seeds (i.e. procs) times N clusters per seed
                     mean_vals.append((tau, numpy.mean(ltmp)))

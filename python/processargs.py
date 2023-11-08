@@ -136,7 +136,7 @@ def process(args):
             assert args.persistent_cachefname == 'paired-outdir'
 
         args.light_chain_fractions = utils.get_arg_list(args.light_chain_fractions, key_val_pairs=True, floatify=True, choices=utils.light_loci(args.ig_or_tr))
-        if args.light_chain_fractions is not None and not utils.is_normed(args.light_chain_fractions.values()):
+        if args.light_chain_fractions is not None and not utils.is_normed(list(args.light_chain_fractions.values())):
             raise Exception('--light-chain-fractions %s don\'t add to 1: %f' % (args.light_chain_fractions, sum(args.light_chain_fractions.values())))
         if args.single_light_locus is not None:
             if args.single_light_locus not in utils.light_loci(args.ig_or_tr):

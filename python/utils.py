@@ -674,7 +674,7 @@ column_dependencies['jf_insertion'] = []
 # tuples with the column and its dependencies mashed together
 # (first entry is the column of interest, and it depends upon the following entries)
 column_dependency_tuples = []
-for column, deps in column_dependencies.iteritems():
+for column, deps in column_dependencies.items():
     tmp_list = [column]
     tmp_list.extend(deps)
     column_dependency_tuples.append(tuple(tmp_list))
@@ -823,7 +823,7 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     # 'chosen' : 'chosens',
     # 'paired' : 'paireds',
 }
-linekeys['per_seq'] += input_metafile_keys.values()
+linekeys['per_seq'] += list(input_metafile_keys.values())
 def input_metafile_defaults(mkey):  # default values to use if the info isn't there (have to use a fcn rather than dict so e.g. [] doesn't give the same object each time)
     if mkey == 'multiplicities':
         return 1
@@ -913,7 +913,7 @@ special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reverse
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates', 'leader_seqs', 'c_gene_seqs', 'leaders', 'c_genes'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
-                     + functional_columns + input_metafile_keys.values() \
+                     + functional_columns + list(input_metafile_keys.values()) \
                      + ['codon_positions', 'tree-info', 'alternative-annotations']
 simulation_headers = linekeys['simu'] + [h for h in annotation_headers if h not in linekeys['hmm']]
 sw_cache_headers = [h for h in annotation_headers if h not in linekeys['hmm']] + linekeys['sw']
@@ -1132,7 +1132,7 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
     if debug > 1:
         print '           did       N     uids'
         max_len = max(len(u) for u in metafos)
-        dgpairs = [(did, list(dgroup)) for did, dgroup in get_droplet_groups(metafos.keys(), droplet_id_separators, droplet_id_indices)]
+        dgpairs = [(did, list(dgroup)) for did, dgroup in get_droplet_groups(list(metafos.keys()), droplet_id_separators, droplet_id_indices)]
         for did, dgroup in sorted(dgpairs, key=lambda x: len(x[1]), reverse=True):
             print '      %10s   %3d   %s' % (did, len(dgroup), '   '.join([did_fcn(u, return_colored=True)+(max_len-len(u))*' ' for u in dgroup]))
 
@@ -1982,7 +1982,7 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
     if cpath is not None:
         cluster_indices = {u : i for i, c in enumerate(cpath.best()) for u in c}
     with open(outfname, csv_wmode()) as outfile:
-        oheads = airr_headers.keys() + extra_columns
+        oheads = list(airr_headers.keys()) + extra_columns
         if skip_columns is not None:
             oheads = [h for h in oheads if h not in skip_columns]
         writer = csv.DictWriter(outfile, oheads, delimiter=str('\t'))
@@ -2028,7 +2028,7 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
                 continue
             plines.append(convert_airr_line(aline, glfo))
     if len(clone_ids) > 0:
-        partition = group_seqs_by_value(clone_ids.keys(), lambda q: clone_ids[q])
+        partition = group_seqs_by_value(list(clone_ids.keys()), lambda q: clone_ids[q])
     else:
         partition = [[l['unique_ids'][0]] for l in plines]
     if skip_other_locus:
@@ -3072,8 +3072,8 @@ def process_per_gene_support(line, debug=False):
                 print '   %5.2f     %5.2f   %s' % (support[gene], math.exp(support[gene] - logtotal), color_gene(gene))
             support[gene] = math.exp(support[gene] - logtotal)
 
-        if len(support.keys()) > 0 and support.keys()[0] != line[region + '_gene']:
-            print '   %s best-supported gene %s not same as viterbi gene %s' % (color('yellow', 'warning'), color_gene(support.keys()[0]), color_gene(line[region + '_gene']))
+        if len(list(support.keys())) > 0 and list(support.keys())[0] != line[region + '_gene']:
+            print '   %s best-supported gene %s not same as viterbi gene %s' % (color('yellow', 'warning'), color_gene(list(support.keys())[0]), color_gene(line[region + '_gene']))
 
         line[region + '_per_gene_support'] = support
 
@@ -3155,9 +3155,9 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
 
         for region in getregions(get_locus(line['v_gene'])):
             left_region, right_region = region + '_l', region + '_r'
-            fbounds[left_region] = dict(swfo['flexbounds'][left_region].items() + fbounds[left_region].items())
-            fbounds[right_region] = dict(swfo['flexbounds'][right_region].items() + fbounds[right_region].items())
-        rpos = dict(swfo['relpos'].items() + rpos.items())
+            fbounds[left_region] = dict(list(swfo['flexbounds'][left_region].items()) + list(fbounds[left_region].items()))
+            fbounds[right_region] = dict(list(swfo['flexbounds'][right_region].items()) + list(fbounds[right_region].items()))
+        rpos = dict(list(swfo['relpos'].items()) + list(rpos.items()))
 
         del dists_to_cons[query_name]
 
@@ -3197,8 +3197,8 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
                 return get_null_linearham_info()
 
         # compute the initial left/right flexbounds
-        left_flexbounds = span(fbounds[left_region].values())
-        right_flexbounds = span(fbounds[right_region].values())
+        left_flexbounds = span(list(fbounds[left_region].values()))
+        right_flexbounds = span(list(fbounds[right_region].values()))
         germ_len = right_flexbounds[0] - left_flexbounds[1]
         # make sure there is no overlap between the left/right flexbounds
         while germ_len < 1:
@@ -3212,8 +3212,8 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
             # check removing all items from fbounds 
             if are_fbounds_empty(fbounds, region, k, 'right flexbounds was less than left for {}'.format(region)):
                 return get_null_linearham_info()
-            left_flexbounds = span(fbounds[left_region].values())
-            right_flexbounds = span(fbounds[right_region].values())
+            left_flexbounds = span(list(fbounds[left_region].values()))
+            right_flexbounds = span(list(fbounds[right_region].values()))
             germ_len = right_flexbounds[0] - left_flexbounds[1]
         fbounds[left_region] = left_flexbounds
         fbounds[right_region] = right_flexbounds
@@ -3709,7 +3709,7 @@ def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None, debug=Fals
         return False  # if we fall through, nobody in this class was close to <seq>
 
     if genelist is None:
-        genelist = glfo['seqs'][region].keys()
+        genelist = list(glfo['seqs'][region].keys())
     snp_groups = []
     for gene in genelist:
         seq = getseq(gene)
@@ -4500,7 +4500,7 @@ def get_line_for_output(headers, info, glfo=None):
 
         if key in io_column_configs['lists-of-lists']:
             if '_per_gene_support' in key:
-                outfo[key] = outfo[key].items()
+                outfo[key] = list(outfo[key].items())
             for isl in range(len(outfo[key])):
                 outfo[key][isl] = ':'.join([str_fcn(s) for s in outfo[key][isl]])
             outfo[key] = ';'.join(outfo[key])
@@ -4726,7 +4726,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
     if debug:
         print '    info for %d nodes in %s' % (len(nodefo), batch_config_fname)
 
-    our_nodes = get_nodelist_from_slurm_shorthand(os.getenv('SLURM_NODELIST'), known_nodes=nodefo.keys())
+    our_nodes = get_nodelist_from_slurm_shorthand(os.getenv('SLURM_NODELIST'), known_nodes=list(nodefo.keys()))
     if len(our_nodes) == 0:
         return []
 
@@ -4745,7 +4745,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
             assert linefo == headers
         if linefo[headers.index('ST')] != 'R':  # skip jobs that aren't running
             continue
-        nodes = get_nodelist_from_slurm_shorthand(linefo[headers.index('NODELIST(REASON)')], known_nodes=nodefo.keys())
+        nodes = get_nodelist_from_slurm_shorthand(linefo[headers.index('NODELIST(REASON)')], known_nodes=list(nodefo.keys()))
         for node in nodes:
             if node not in our_nodes:
                 continue
@@ -5428,7 +5428,7 @@ def get_partition_from_reco_info(reco_info, ids=None):
     #  - if <ids> is None, it returns the actual, complete, true partition.
     #  - if <ids> is set, it groups them into the clusters dictated by the true partition in/implied by <reco_info> NOTE these are not, in general, complete clusters
     if ids is None:
-        ids = reco_info.keys()
+        ids = list(reco_info.keys())
     def keyfunc(q):
         return reco_info[q]['reco_id']
     return [list(group) for _, group in itertools.groupby(sorted(ids, key=keyfunc), key=keyfunc)]  # sort 'em beforehand so all the ones with the same reco id are consecutive (if there are non-consecutive ones with the same reco id, it means there were independent events with the same rearrangment parameters)
@@ -6600,7 +6600,7 @@ def read_vsearch_cluster_file(fname):
                 id_clusters[cluster_id] = []
             uid = line['query']
             id_clusters[cluster_id].append(uid)
-    partition = id_clusters.values()
+    partition = list(id_clusters.values())
     return partition
 
 # ----------------------------------------------------------------------------------------
@@ -6915,7 +6915,7 @@ def compare_vsearch_to_sw(sw_info, vs_info):
     from . import plotting
     for name, hist in hists.items():
         fig, ax = plotting.mpl_init()
-        hist.mpl_plot(ax, hist, label=name, color=plotting.default_colors[hists.keys().index(name)])
+        hist.mpl_plot(ax, hist, label=name, color=plotting.default_colors[list(hists.keys()).index(name)])
         # hist.write('_output/vsearch-test/%s/%s.csv' % (match_mismatch.replace(':', '-'), name))
         plotting.mpl_finish(ax, '.', name, xlabel='vs - sw')
 
@@ -7282,7 +7282,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
             cfn = '%s/%s-seq-alignments.csv'%(csv_outdir, tkey)
             print '      writing to %s' % cfn
             with open(cfn, csv_wmode()) as cfile:
-                writer = csv.DictWriter(cfile, fieldnames=writefos[0].keys())
+                writer = csv.DictWriter(cfile, fieldnames=list(writefos[0].keys()))
                 writer.writeheader()
                 for wfo in writefos:
                     writer.writerow(wfo)

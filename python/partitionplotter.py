@@ -77,7 +77,7 @@ class PartitionPlotter(object):
                 if self.args.queries_to_include is not None:
                     tqtis |= set(cluster) & set(self.args.queries_to_include)
                 if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(cluster):
-                    key, val = self.args.meta_info_to_emphasize.items()[0]
+                    key, val = list(self.args.meta_info_to_emphasize.items())[0]
                     tqtis.add(utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats))
                 if len(tqtis) == 0:
                     continue
@@ -151,7 +151,7 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def meta_emph(self, cluster, uid):  # return True if <uid> from <cluster> satisfies criteria in self.args.meta_info_to_emphasize
         antn = self.antn_dict[':'.join(cluster)]
-        key, val = self.args.meta_info_to_emphasize.items()[0]
+        key, val = list(self.args.meta_info_to_emphasize.items())[0]
         return key in antn and utils.meta_info_equal(key, val, utils.per_seq_val(antn, key, uid), formats=self.args.meta_emph_formats)
 
     # ----------------------------------------------------------------------------------------
@@ -383,7 +383,7 @@ class PartitionPlotter(object):
             if self.args.queries_to_include is not None:
                 addqtis(tqtis, {u : u for u in self.args.queries_to_include})
             if self.args.meta_info_to_emphasize is not None:
-                key, val = self.args.meta_info_to_emphasize.items()[0]
+                key, val = list(self.args.meta_info_to_emphasize.items())[0]
                 addqtis(tqtis, {full_cluster[i] : utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats) for i in kept_indices if self.meta_emph(full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
             addseq('_naive', full_info['naive_seq%s'%tstr])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
             addseq('_consensus', utils.cons_seq_of_line(full_info, aa=aa))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix

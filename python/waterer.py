@@ -1394,7 +1394,7 @@ class Waterer(object):
         lkseqs, long_seqs = None, {}
         if self.args.also_remove_duplicate_sequences_with_different_lengths:
             long_seqs, lkseqs = get_long_seqs()
-            process_seqs(long_seqs.values())  # I'm not setting remove=True, but there shouldn't/can't be any duplicates anyway
+            process_seqs(list(long_seqs.values()))  # I'm not setting remove=True, but there shouldn't/can't be any duplicates anyway
 
         removed_queries = set()
         process_seqs(set(self.info['queries']) - pre_kept_uids - set(long_seqs.values()), remove=True, lkseqs=lkseqs)

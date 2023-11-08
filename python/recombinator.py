@@ -576,7 +576,7 @@ class Recombinator(object):
             mute_freqs = self.get_mute_freqs(rgene)
             if not self.args.no_per_base_mutation:
                 mute_counts = self.get_mute_counts(rgene)
-            all_erosions = dict(reco_event.erosions.items() + reco_event.effective_erosions.items())  # arg, this is hackey, but I don't want to change Event right now
+            all_erosions = dict(list(reco_event.erosions.items()) + list(reco_event.effective_erosions.items()))  # arg, this is hackey, but I don't want to change Event right now
             cposlist = None
             if not self.args.mutate_conserved_codons and region in utils.conserved_codons[self.args.locus]:
                 codon = utils.conserved_codons[self.args.locus][region]

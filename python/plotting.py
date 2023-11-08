@@ -1667,7 +1667,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         return 'no values' if high_x_val is None else high_x_clusters  # 'no values' isn't really a file name, it just shows up as a dead link in the html
     fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
     if meta_info_to_emphasize is not None:
-        meta_emph_key, meta_emph_val = meta_info_to_emphasize.items()[0]
+        meta_emph_key, meta_emph_val = list(meta_info_to_emphasize.items())[0]
         if all(meta_emph_key not in l for l in annotations.values()):
             print '  %s emphasis key \'%s\' not found in any of %d annotations' % (utils.color('yellow', 'warning'), meta_emph_key, len(annotations))
 
