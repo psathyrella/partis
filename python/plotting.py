@@ -143,7 +143,7 @@ def getgrey(gtype='medium'):
 # ----------------------------------------------------------------------------------------
 def rgb_to_hex(rgb_tuple):
     assert len(rgb_tuple) == 3
-    return '#%02x%02x%02x' %tuple(map(lambda x: int(x*255), rgb_tuple[:3]))
+    return '#%02x%02x%02x' %tuple([int(x*255) for x in rgb_tuple[:3]])
 
 # ----------------------------------------------------------------------------------------
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):

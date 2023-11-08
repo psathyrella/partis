@@ -12,8 +12,9 @@ libmodernize.fixes.fix_basestring \
 libmodernize.fixes.fix_open \
 fissix.fixes.fix_has_key \
 libmodernize.fixes.fix_dict_six \
+libmodernize.fixes.fix_map \
 "
-fixers=libmodernize.fixes.fix_dict_six
+fixers=libmodernize.fixes.fix_map
 paths="python/*.py test bin/*.py datascripts/*.py projects/*.py"
 for fixer in $fixers; do
     modernize -wnf $fixer $paths
