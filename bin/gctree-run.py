@@ -12,7 +12,7 @@ import os
 import dendropy
 from io import open
 
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 sys.path.insert(1, partis_dir) #'./python')
 import python.utils as utils
 import python.glutils as glutils
@@ -96,6 +96,10 @@ def parse_output():
 
     # read fasta (mostly for inferred intermediate seqs)
     seqfos = utils.read_fastx(gctofn('seqs'), look_for_tuples=True)
+    if any(s['name']=='' for s in seqfos):
+        n_removed = len([s for s in seqfos if s['name']==''])
+        seqfos = [s for s in seqfos if s['name']!='']
+        print '  %s removed %d seqs with zero-length names \'\' (I\'m *not* sure this is the right thing to do, but it just kicked this error when I was doing the python 3 conversion)' % (utils.wrnstr(), n_removed)
     nfos = [s for s in seqfos if s['name']==args.root_label]
     if len(nfos) != 1:
         print '  %s expected 1 naive seq with label \'%s\' but found %d: %s  (in %s)' % (utils.wrnstr(), args.root_label, len(nfos), ' '.join(n['name'] for n in nfos), gctofn('seqs'))

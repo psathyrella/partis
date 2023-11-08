@@ -24,7 +24,6 @@ from .hist import Hist
 from . import treeutils
 from . import plotting
 from . import hutils
-from . import scanplot
 from . import mds
 from . import plotconfig
 
@@ -950,6 +949,7 @@ def make_ptile_plot(tmp_ptvals, xvar, plotdir, plotname, xlabel=None, ylabel='?'
 
 # ----------------------------------------------------------------------------------------
 def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=False, only_csv=False, fnames=None, separate_rows=False, use_quantile=False, paired=False, n_bin_cfg_fname=None, make_slice_ptile_plots=False, debug=False):
+    from . import scanplot
     # make_slice_ptile_plots = True
     # debug = True
     n_bin_cfg = {'default' : 5}
@@ -1538,7 +1538,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
         os.makedirs(subworkdir)
-    with open(treefname, 'w') as treefile:
+    with open(treefname, utils.csv_wmode()) as treefile:
         treefile.write(treestr)
     cmdstr = '%s/bin/plot-lb-tree.py --treefname %s' % (utils.get_partis_dir(), treefname)
     if metafo is not None:

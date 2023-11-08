@@ -9,15 +9,18 @@ import math
 import collections
 import multiprocessing
 import yaml
+import operator
+import random
 from io import open
 
-sys.path.insert(1, './python')
-import utils
-import paircluster
-import scanplot
-import plotting
-import clusterpath
-import glutils
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
+sys.path.insert(1, partis_dir) # + '/python')
+import python.utils as utils
+import python.paircluster as paircluster
+import python.scanplot as scanplot
+import python.plotting as plotting
+import python.clusterpath as clusterpath
+import python.glutils as glutils
 
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
@@ -308,8 +311,7 @@ def imbalfname(ibval):
 def parse_linearham_trees():
     # downloaded from here https://zenodo.org/record/3746832, then cat'd together all the trees
     # here we sort by the imbalance, then put in separated files rounded to second decimal place
-    import treeutils
-    import operator
+    import python.treeutils as treeutils
     ibtrees, ibvals = {}, []
     with open('/fh/local/dralph/partis/paired-loci/linearham-simulation/simulation_trees/all.trees') as tfile:
         for line in tfile:
@@ -368,7 +370,6 @@ def skip_this(pmetr, ptntype, method, ltmp):
     return False
 
 # ----------------------------------------------------------------------------------------
-import random
 random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
 if args.workdir is None:

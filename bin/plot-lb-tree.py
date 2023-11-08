@@ -126,14 +126,14 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         tstyle.legend.add_face(ete3.TextFace(tfstr, fsize=fsize), column=start_column + 2)
 
 # ----------------------------------------------------------------------------------------
-def label_node(node):
+def label_node(node, root_node):
     # ----------------------------------------------------------------------------------------
     def use_name():
         if args.label_all_nodes:
             return True
         if args.queries_to_include is not None and node.name in args.queries_to_include:
             return True
-        if args.label_root_node and node is etree.get_tree_root():
+        if args.label_root_node and node is root_node:
             return True
         if args.meta_info_to_emphasize is not None:
             key, val = args.meta_info_to_emphasize.items()[0]
@@ -253,7 +253,7 @@ def set_lb_styles(args, etree, tstyle):
                     node.img_style['hz_line_width'] = 1.2
                 else:
                     node.img_style['hz_line_color'] = plotting.getgrey()
-        label_node(node)
+        label_node(node, etree.get_tree_root())
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
@@ -292,7 +292,7 @@ def set_meta_styles(args, etree, tstyle):
         if args.meta_info_key_to_color is not None and node.name in mvals:
             bgcolor = mcolors.get(mvals[node.name], bgcolor)
 
-        label_node(node)
+        label_node(node, etree.get_tree_root())
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
@@ -356,7 +356,6 @@ try:
     import python.glutils as glutils
     import python.plotting as plotting
     import python.lbplotting as lbplotting
-    import python.gctlb as gctlb
 except ImportError as e:
     print e
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)

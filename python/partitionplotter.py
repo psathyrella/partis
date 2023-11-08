@@ -26,7 +26,7 @@ class PartitionPlotter(object):
         self.args = args
         self.glfo = glfo
         from . import plotting
-        self.plotting = sys.modules['plotting']
+        self.plotting = sys.modules['python.plotting']
 
         self.n_clusters_per_joy_plot = 50 if self.args.meta_info_key_to_color is None else 30
         self.n_max_joy_plots = 12

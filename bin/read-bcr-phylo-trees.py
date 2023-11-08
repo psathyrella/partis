@@ -27,7 +27,7 @@ with open(args.newick_tree_file, 'w') as ntfile:
     ntfile.write(treestr)
 
 if args.kdfile is not None:
-    with open(args.kdfile, 'wb' if sys.version_info.majory < 3 else 'w') as kdfile:
+    with open(args.kdfile, 'wb' if sys.version_info.major < 3 else 'w') as kdfile:
         writer = csv.DictWriter(kdfile, ('uid', 'kd', 'time', 'relative_kd', 'lambda', 'target_index', 'target_distance'))
         writer.writeheader()
         for node in tree.traverse():  # small kd is higher affinity
