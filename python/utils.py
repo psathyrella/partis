@@ -2317,7 +2317,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
         mstats[tgt] = list(tgroup)
     mstats = sorted(mstats.items(), key=lambda x: len(x[1]), reverse=True)
 
-    dbfns = ['%s/%s.%s%s'%(wkdir, tgn, 'p' if aa else 'n', s) for s in 'hr', 'in', 'og', 'sd', 'si', 'sq']
+    dbfns = ['%s/%s.%s%s'%(wkdir, tgn, 'p' if aa else 'n', s) for s in ('hr', 'in', 'og', 'sd', 'si', 'sq')]
     for fn in [tgfn, qrfn, ofn] + dbfns:
         os.remove(fn)
     os.rmdir(wkdir)

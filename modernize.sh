@@ -22,9 +22,10 @@ libmodernize.fixes.fix_input_six \
 libmodernize.fixes.fix_file \
 fissix.fixes.fix_apply \
 fissix.fixes.fix_reduce \
-fissix.fixes.fix_exec
+fissix.fixes.fix_exec \
+fissix.fixes.fix_paren
 "
-fixers=fissix.fixes.fix_exec
+fixers=fissix.fixes.fix_paren
 paths="python/*.py test bin/*.py datascripts/*.py projects/*.py"
 for fixer in $fixers; do
     modernize -wnf $fixer $paths
