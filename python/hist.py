@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import csv
 import math
 import os
@@ -39,7 +40,7 @@ class Hist(object):
                 raise Exception('nan value in value_list: %s' % value_list)
             if any(v < xmin or v >= xmax for v in value_list):  # probably because you forgot that xmax is low edge of overflow bin, so it's included in that
                 # NOTE it would be nice to integrate this with hutils.make_hist_from_list_of_values() and hutils.make_hist_from_dict_of_counts()
-                print '  %s value[s] %s outside bounds [%s, %s] in hist list fill' % (utils.color('yellow', 'warning'), [v for v in value_list if v < xmin or v >= xmax], xmin, xmax)
+                print('  %s value[s] %s outside bounds [%s, %s] in hist list fill' % (utils.color('yellow', 'warning'), [v for v in value_list if v < xmin or v >= xmax], xmin, xmax))
             self.list_fill(value_list, weight_list=weight_list)
 
     # ----------------------------------------------------------------------------------------
@@ -153,7 +154,7 @@ class Hist(object):
             self.sum_weights_squared[ibin] += weight*weight
         if self.errors is not None:
             if weight != 1.0:
-                print 'WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()'
+                print('WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()')
             self.errors[ibin] = math.sqrt(self.bin_contents[ibin])
 
     # ----------------------------------------------------------------------------------------
@@ -171,7 +172,7 @@ class Hist(object):
             for ib in range(self.n_bins + 2):  # loop over all the bins (including under/overflow)
                 if value >= self.low_edges[ib] and value < self.low_edges[ib+1]:  # NOTE <ib> never gets to <n_bins> + 1 because we already get all the overflows above (which is good 'cause this'd fail with an IndexError)
                     return ib
-        print self
+        print(self)
         raise Exception('couldn\'t find bin for value %f (see lines above)' % value)
 
     # ----------------------------------------------------------------------------------------
@@ -211,7 +212,7 @@ class Hist(object):
             if ymax is None or self.bin_contents[ibin] > ymax:
                 ymax = self.bin_contents[ibin]
         if ymin is None and exclude_empty:
-            print '  %s couldn\'t find ymin for hist, maybe because <exclude_empty> was set (setting ymin arbitrarily to -99999)' % utils.wrnstr()
+            print('  %s couldn\'t find ymin for hist, maybe because <exclude_empty> was set (setting ymin arbitrarily to -99999)' % utils.wrnstr())
             ymin = -99999
         assert ymin is not None and ymax is not None
 
@@ -278,12 +279,12 @@ class Hist(object):
     def normalize(self, include_overflows=True, expect_overflows=False, overflow_eps_to_ignore=1e-15, multiply_by_bin_width=False):
         sum_value = self.integral(include_overflows, multiply_by_bin_width=multiply_by_bin_width)
         if multiply_by_bin_width and any(abs(self.binwidth(i)-self.binwidth(1)) > utils.eps for i in self.ibiniter(False)):
-            print '  %s normalizing with multiply_by_bin_width set, but bins aren\'t all the same width, which may not work' % utils.wrnstr()  # it would be easy to add but i don't want to test it now
+            print('  %s normalizing with multiply_by_bin_width set, but bins aren\'t all the same width, which may not work' % utils.wrnstr())  # it would be easy to add but i don't want to test it now
         imin, imax = self.get_bounds(include_overflows)
         if sum_value == 0.0:
             return
         if not expect_overflows and not include_overflows and (self.bin_contents[0]/sum_value > overflow_eps_to_ignore or self.bin_contents[self.n_bins+1]/sum_value > overflow_eps_to_ignore):
-            print 'WARNING under/overflows in Hist::normalize()'
+            print('WARNING under/overflows in Hist::normalize()')
         for ib in range(imin, imax):
             self.bin_contents[ib] /= sum_value
             if self.sum_weights_squared is not None:
@@ -341,7 +342,7 @@ class Hist(object):
             raise Exception('ERROR bad limits in Hist::divide_by')
         for ib in range(0, self.n_bins + 2):
             if debug:
-                print ib, self.bin_contents[ib], float(denom_hist.bin_contents[ib])
+                print(ib, self.bin_contents[ib], float(denom_hist.bin_contents[ib]))
             if denom_hist.bin_contents[ib] == 0.0:
                 self.bin_contents[ib] = 0.0
             else:
@@ -355,7 +356,7 @@ class Hist(object):
             raise Exception('ERROR bad limits in Hist::add')
         for ib in range(0, self.n_bins + 2):
             if debug:
-                print ib, self.bin_contents[ib], float(h2.bin_contents[ib])
+                print(ib, self.bin_contents[ib], float(h2.bin_contents[ib]))
             self.bin_contents[ib] += h2.bin_contents[ib]
 
     # ----------------------------------------------------------------------------------------
@@ -407,12 +408,12 @@ class Hist(object):
         if ibounds is not None:
             imin, imax = ibounds
             if self.integral(False, ibounds=(0, imin)) > 0 or self.integral(False, ibounds=(imax, self.n_bins + 2)) > 0:
-                print '  %s called hist.get_mean() with ibounds %s that exclude bins with nonzero entries:  below %.3f   above %.3f' % (utils.color('yellow', 'warning'), ibounds, self.integral(False, ibounds=(0, imin)), self.integral(False, ibounds=(imax, self.n_bins + 2)))
+                print('  %s called hist.get_mean() with ibounds %s that exclude bins with nonzero entries:  below %.3f   above %.3f' % (utils.color('yellow', 'warning'), ibounds, self.integral(False, ibounds=(0, imin)), self.integral(False, ibounds=(imax, self.n_bins + 2))))
             if imin < 0:
-                print '  %s increasing specified imin %d to 0' % (utils.wrnstr(), imin)
+                print('  %s increasing specified imin %d to 0' % (utils.wrnstr(), imin))
                 imin = 0
             if imax > self.n_bins + 2:
-                print '  %s decreasing specified imax %d to %d' % (utils.wrnstr(), imax, self.n_bins + 2)
+                print('  %s decreasing specified imax %d to %d' % (utils.wrnstr(), imax, self.n_bins + 2))
                 imax = self.n_bins + 2
         elif ignore_overflows:
             imin, imax = 1, self.n_bins + 1
@@ -430,7 +431,7 @@ class Hist(object):
 
     # ----------------------------------------------------------------------------------------
     def rebin(self, factor):
-        print 'TODO implement Hist::rebin()'
+        print('TODO implement Hist::rebin()')
 
     # ----------------------------------------------------------------------------------------
     def horizontal_print(self, bin_centers=False, bin_decimals=4, contents_decimals=3):
@@ -476,7 +477,7 @@ class Hist(object):
                 tplt = ax.plot([self.low_edges[ibin+1], self.low_edges[ibin+1]], [self.bin_contents[ibin], 0], **kwargs)  # vertical line for right side of last bin
             return tplt  # not sure if this gets used anywhere?
             # TODO some oldercalls of this may require the following code, so I need to figure shit out
-            print '  %s square_bins option needs to be checked/fixed, it does not work in some cases (seems to eat bins)' % utils.wrnstr()
+            print('  %s square_bins option needs to be checked/fixed, it does not work in some cases (seems to eat bins)' % utils.wrnstr())
             import matplotlib.pyplot as plt
             if abs(xvals[-1] - xvals[0]) > 5:  # greater/less than five is kind of a shitty way to decide whether to int() and +/- 0.5 or not, but I'm calling it now with a range much less than 1, and I don't want the int()s, but where I call it elsewhere I do and the range is much larger, so...
                 npbins = list(numpy.arange(int(xvals[0]) - 0.5, int(xvals[-1]) - 0.5))

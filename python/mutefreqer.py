@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import multiprocessing
 import csv
@@ -155,7 +156,7 @@ class MuteFreqer(object):
             freqs = self.freqs[gene]
             if len(freqs) == 0:
                 if gene not in glutils.dummy_d_genes.values():
-                    print '    %s no mutefreqer obs for %s' % (utils.color('red', 'warning'), utils.color_gene(gene))
+                    print('    %s no mutefreqer obs for %s' % (utils.color('red', 'warning'), utils.color_gene(gene)))
                 continue
             sorted_positions = sorted(freqs.keys())
             genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='position', ytitle='mut freq', title=gene)

@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import os
 import csv
 import time
@@ -144,7 +145,7 @@ class ParameterCounter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, only_overall=False, make_per_base_plots=False):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it write() wasn't called first, that is)
         from . import plotting
-        print '  plotting parameters in %s' % plotdir,
+        print('  plotting parameters in %s' % plotdir, end=' ')
         sys.stdout.flush()
         start = time.time()
 
@@ -194,11 +195,11 @@ class ParameterCounter(object):
         if not only_csv:
             plotting.make_html(overall_plotdir)
 
-        print '(%.1f sec)' % (time.time()-start)
+        print('(%.1f sec)' % (time.time()-start))
 
     # ----------------------------------------------------------------------------------------
     def write(self, base_outdir):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it plot() wasn't called first, that is)
-        print '    writing parameters to %s' % base_outdir,
+        print('    writing parameters to %s' % base_outdir, end=' ')
         sys.stdout.flush()
         start = time.time()
 
@@ -245,4 +246,4 @@ class ParameterCounter(object):
                     line['count'] = count
                     out_data.writerow(line)
 
-        print '(%.1f sec)' % (time.time()-start)
+        print('(%.1f sec)' % (time.time()-start))

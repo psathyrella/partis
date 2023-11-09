@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import itertools
 import os
 import sys
@@ -27,7 +28,7 @@ class Glomerator(object):
         seqs_per_cluster = float(len(clusters)) / n_clusters
         max_per_cluster = int(math.ceil(seqs_per_cluster))
         if debug:
-            print '  max %d per cluster' % max_per_cluster
+            print('  max %d per cluster' % max_per_cluster)
 
         distances = {}  # cache the calculated fractional hamming distances
 
@@ -53,22 +54,22 @@ class Glomerator(object):
                     clusters_to_merge = (clust_a, clust_b)
 
             if debug and n_skipped > 0:
-                print '      skipped: %d ' % n_skipped
+                print('      skipped: %d ' % n_skipped)
 
             return clusters_to_merge
 
         # ----------------------------------------------------------------------------------------
         def glomerate():
             if debug:
-                print '    current ', ' '.join([str(len(cl)) for cl in clusters])
+                print('    current ', ' '.join([str(len(cl)) for cl in clusters]))
             clusters_to_merge = get_clusters_to_merge()
             if clusters_to_merge is None:  # if we didn't find a suitable pair
                 if debug:
-                    print '    didn\'t find shiznitz'
+                    print('    didn\'t find shiznitz')
                 glomerate.merge_whatever_you_got = True  # next time through, merge whatever's best regardless of size
             else:
                 if debug:
-                    print '    merging', len(clusters_to_merge[0]), len(clusters_to_merge[1])
+                    print('    merging', len(clusters_to_merge[0]), len(clusters_to_merge[1]))
                 clusters.append(clusters_to_merge[0] + clusters_to_merge[1])
                 clusters.remove(clusters_to_merge[0])
                 clusters.remove(clusters_to_merge[1])
@@ -77,18 +78,18 @@ class Glomerator(object):
         def homogenize():
             """ roughly equalize the cluster sizes """
             if debug:
-                print '  homogenizing', len(clusters[0]), len(clusters[-1])
-                print '    before ', ' '.join([str(len(cl)) for cl in clusters])
+                print('  homogenizing', len(clusters[0]), len(clusters[-1]))
+                print('    before ', ' '.join([str(len(cl)) for cl in clusters]))
 
             # move enough items from the end of the biggest cluster to the end of the smallest cluster that their sizes are equal (well, within one of each other, with the last cluster allowed to stay one bigger)
             n_to_keep_in_biggest_cluster = int(math.ceil(float(len(clusters[0]) + len(clusters[-1])) / 2))
             clusters[0] = clusters[0] + clusters[-1][n_to_keep_in_biggest_cluster : ]
             clusters[-1] = clusters[-1][ : n_to_keep_in_biggest_cluster]
             if debug:
-                print '    after  ', ' '.join([str(len(cl)) for cl in clusters])
+                print('    after  ', ' '.join([str(len(cl)) for cl in clusters]))
             clusters.sort(key=len)
             if debug:
-                print '    sorted ', ' '.join([str(len(cl)) for cl in clusters])
+                print('    sorted ', ' '.join([str(len(cl)) for cl in clusters]))
 
         # ----------------------------------------------------------------------------------------
         # da bizniz
@@ -107,20 +108,20 @@ class Glomerator(object):
                 itries += 1
                 if itries > len(clusters):
                     if debug:
-                        print '  too many homogenization tries'
+                        print('  too many homogenization tries')
                     break
 
-        print '    divvy time: %.3f' % (time.time()-start)
+        print('    divvy time: %.3f' % (time.time()-start))
         return clusters
 
     # ----------------------------------------------------------------------------------------
     def print_true_partition(self):
-        print '  true partition'
-        print '   clonal?   ids'
+        print('  true partition')
+        print('   clonal?   ids')
         true_partition = utils.get_partition_from_reco_info(self.reco_info)
         for cluster in true_partition:
-            print '     %d    %s' % (utils.from_same_event(self.reco_info, cluster),
-                                     ':'.join([str(uid) for uid in cluster]))
+            print('     %d    %s' % (utils.from_same_event(self.reco_info, cluster),
+                                     ':'.join([str(uid) for uid in cluster])))
 
     # ----------------------------------------------------------------------------------------
     def read_file_info(self, infname, n_paths):
@@ -130,7 +131,7 @@ class Glomerator(object):
             reader = csv.DictReader(csvfile)
             for line in reader:
                 if line['partition'] == '':
-                    print '    %s null partition (one of the processes probably got passed zero sequences)' % utils.color('red', 'warning')
+                    print('    %s null partition (one of the processes probably got passed zero sequences)' % utils.color('red', 'warning'))
                     return paths
                 path_index = int(line['path_index']) if 'path_index' in line else 0
                 initial_path_index = int(line['initial_path_index']) if 'initial_path_index' in line else 0
@@ -164,14 +165,14 @@ class Glomerator(object):
             assert len(previous_info) == len(fileinfos)  # both are the number of processes we're merging into one
             # it would be nice to prevent this from adding duplicate adjacent partitions (well... not that important)
             if debug:
-                print 'prepend previous history'
+                print('prepend previous history')
             for ifile in range(len(fileinfos)):
                 if debug:
-                    print 'ifile', ifile
+                    print('ifile', ifile)
                 for ipath in range(smc_particles):
                     if debug:
-                        print '  ipath', ipath
-                        print '    before'
+                        print('  ipath', ipath)
+                        print('    before')
                         fileinfos[ifile][ipath].print_partitions(self.reco_info)
                     initial_path_index = fileinfos[ifile][ipath].initial_path_index  # which previous path are we hooking up to?
                     previous_path = previous_info[ifile][initial_path_index]
@@ -187,14 +188,14 @@ class Glomerator(object):
                     fileinfos[ifile][ipath] = extended_path
                     fileinfos[ifile][ipath].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                     if debug:
-                        print '    after'
+                        print('    after')
                         fileinfos[ifile][ipath].print_partitions(self.reco_info)
 
         # do the actual process-merging
         for ipath in range(smc_particles):
 
             if debug and len(fileinfos) > 1:
-                print 'merge path %d from %d processes:' % (ipath, len(fileinfos))
+                print('merge path %d from %d processes:' % (ipath, len(fileinfos)))
                 for ifile in range(len(fileinfos)):
                     fileinfos[ifile][ipath].print_partitions(self.reco_info, extrastr=('%d ' % (ifile)), print_header=ifile==0)
 
@@ -235,19 +236,19 @@ class Glomerator(object):
             if smc_particles > 1:
                 self.paths[ipath].set_synthetic_logweight_history(self.reco_info)
             if debug:
-                print '  merged path %d with %d glomeration steps and %d final clusters' % (ipath, len(self.paths[ipath].partitions), len(self.paths[ipath].partitions[-1]))
+                print('  merged path %d with %d glomeration steps and %d final clusters' % (ipath, len(self.paths[ipath].partitions), len(self.paths[ipath].partitions[-1])))
                 self.paths[ipath].print_partitions(self.reco_info)
 
         if smc_particles == 1:  # XX: ...whereas if we're *not* doing smc, we have to add the previous histories *afterward*, since the previous histories are all in one piece
             if previous_info is None:
                 if debug:
-                    print '  no previous history'
+                    print('  no previous history')
             else:
                 # it would be nice to prevent this from adding duplicate adjacent partitions
                 if debug:
-                    print 'prepend previous history'
+                    print('prepend previous history')
                 if debug:
-                    print '    before'
+                    print('    before')
                     assert len(self.paths) == 1  # in case gremlins sneak in and add some between lines of code
                     self.paths[0].print_partitions(self.reco_info)
                 # initial_path_index = fileinfos[ifile][ipath].initial_path_index  # which previous path are we hooking up to?
@@ -264,7 +265,7 @@ class Glomerator(object):
                 self.paths[0] = extended_path
                 # self.paths[0].set_synthetic_logweight_history(self.reco_info)  # need to multiply the combinatorical factors in the later partitions by the factors from the earlier partitions
                 if debug:
-                    print '    after'
+                    print('    after')
                     self.paths[0].print_partitions(self.reco_info)
 
     # ----------------------------------------------------------------------------------------
@@ -279,7 +280,7 @@ class Glomerator(object):
             fileinfos.append(paths)
         self.merge_fileinfos(fileinfos, smc_particles, previous_info=previous_info, debug=debug)
         if debug:
-            print '        read cached glomeration time: %.3f' % (time.time()-start)
+            print('        read cached glomeration time: %.3f' % (time.time()-start))
 
         assert len(self.paths) == 1
         return self.paths[0]

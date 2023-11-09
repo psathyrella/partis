@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import string
 import re
@@ -141,7 +142,7 @@ def add_indels(n_indels, qrseq, glseq, mean_length, codon_positions, indel_locat
     if indel_positions is None:
         indel_positions = [None for _ in range(n_indels)]
     if debug:
-        print '%sadding %d indel%s' % (dbg_pad * ' ', n_indels, utils.plural(n_indels))
+        print('%sadding %d indel%s' % (dbg_pad * ' ', n_indels, utils.plural(n_indels)))
 
     # then build the indelfo
     indelfo = get_empty_indel()
@@ -160,7 +161,7 @@ def add_indels(n_indels, qrseq, glseq, mean_length, codon_positions, indel_locat
         codon_positions[region] -= utils.count_gap_chars(indelfo['qr_gap_seq'], aligned_pos=codon_positions[region])
 
     if debug:
-        print utils.pad_lines(get_dbg_str(indelfo), dbg_pad + 4)
+        print(utils.pad_lines(get_dbg_str(indelfo), dbg_pad + 4))
 
     return input_seq, indelfo
 
@@ -171,7 +172,7 @@ def add_single_indel(indelfo, pos, length, gapped_codon_positions, keep_in_frame
         ifo['type'] = 'insertion'
         ifo['seqstr'] = ''.join([utils.nukes[random.randint(0, len(utils.nukes) - 1)] for _ in range(length)])
         if utils.gap_len(ifo['seqstr']) > 0:  # this is a backup for the uncommon cases where overlaps() in the calling fcn doesn't catch something
-            print '  failed adding indel (overlaps with previous one)'
+            print('  failed adding indel (overlaps with previous one)')
             return
         indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][:pos] + ifo['seqstr'] + indelfo['qr_gap_seq'][pos:]
         indelfo['gl_gap_seq'] = indelfo['gl_gap_seq'][:pos] + length * utils.gap_chars[0] + indelfo['gl_gap_seq'][pos:]
@@ -185,19 +186,19 @@ def add_single_indel(indelfo, pos, length, gapped_codon_positions, keep_in_frame
         ifo['type'] = 'deletion'
         ifo['seqstr'] = indelfo['gl_gap_seq'][pos : pos + length]  # NOTE it's kind of unclear whether this should be the bit in the qr or gl seq. Using the gl like this probably makes more sense, since it corresponds to what we would infer in s-w (i.e., if we _do_ delete some SHMd positions, we will never know about it, so who cares)
         if utils.gap_len(ifo['seqstr']) > 0:  # this is a backup for the uncommon cases where overlaps() in the calling fcn doesn't catch something
-            print '  failed adding indel (overlaps with previous one)'
+            print('  failed adding indel (overlaps with previous one)')
             return
         indelfo['qr_gap_seq'] = indelfo['qr_gap_seq'][:pos] + length * utils.gap_chars[0] + indelfo['qr_gap_seq'][pos + length : ]
 
     if not utils.codon_unmutated('cyst', indelfo['qr_gap_seq'], gapped_codon_positions['v']):
         if debug:
-            print '  adding indel within %s codon' % 'cyst'
+            print('  adding indel within %s codon' % 'cyst')
 
     indelfo['indels'].append(ifo)
     indelfo['indels'] = sorted(indelfo['indels'], key=lambda q: q['pos'])
 
     if debug:
-        print get_dbg_str(indelfo)
+        print(get_dbg_str(indelfo))
 
 # ----------------------------------------------------------------------------------------
 def color_cigar(cigarstr):
@@ -219,8 +220,8 @@ def split_cigarstrs(cstrs):
 # ----------------------------------------------------------------------------------------
 def get_dbg_str(indelfo):
     if len(indelfo['qr_gap_seq']) != len(indelfo['gl_gap_seq']):
-        print indelfo['qr_gap_seq']
-        print indelfo['gl_gap_seq']
+        print(indelfo['qr_gap_seq'])
+        print(indelfo['gl_gap_seq'])
         raise Exception('different length qr and gl gap seqs (see previous lines)')
     qrprintstr, glprintstr = [], []
     for ich in range(len(indelfo['qr_gap_seq'])):
@@ -260,10 +261,10 @@ def get_reversed_seq(qr_gap_seq, gl_gap_seq, v_5p_del_str, j_3p_del_str):
 # ----------------------------------------------------------------------------------------
 def check_cigar_len(cigars, qrseq, glseq, uid=None, debug=False):  # check consistency between cigar and qr/gl seqs (similar to code in get_cigarstr_from_gap_seqs(), except that checks consistency with gap seqs)
     if debug:
-        print '  checking cigar lengths: %s' % cigars
+        print('  checking cigar lengths: %s' % cigars)
     for seqtype, tmpseq, tmpcode in (('qr', qrseq, 'D'), ('gl', glseq, 'I')):
         if debug:
-            print '    %s %s %s' % (seqtype, tmpcode, tmpseq)
+            print('    %s %s %s' % (seqtype, tmpcode, tmpseq))
         cigar_len = sum([length for code, length in cigars if code != tmpcode])
         if cigar_len != len(tmpseq):
             # raise Exception('cigar length %d (without %s) doesn\'t match %s seq length %d%s' % (cigar_len, tmpcode, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
@@ -282,10 +283,10 @@ def get_indelfo_from_cigar_and_line(cigarstr, line, iseq, debug=False):
 def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds, genes, vsearch_conventions=False, uid=None, debug=False):
     # debug = 'D' in cigarstr or 'I' in cigarstr
     if debug:
-        print '  initial%s:' % ((' for %s' % uid) if uid is not None else '')
-        print '    %s' % color_cigar(cigarstr)
-        print '    qr %3d %3d %s' % (qrbounds[0], qrbounds[1], full_qrseq)
-        print '    gl %3d %3d %s' % (glbounds[0], glbounds[1], full_glseq)
+        print('  initial%s:' % ((' for %s' % uid) if uid is not None else ''))
+        print('    %s' % color_cigar(cigarstr))
+        print('    qr %3d %3d %s' % (qrbounds[0], qrbounds[1], full_qrseq))
+        print('    gl %3d %3d %s' % (glbounds[0], glbounds[1], full_glseq))
 
     cigars = split_cigarstrs(cigarstr)
     if vsearch_conventions:
@@ -302,18 +303,18 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     glseq = full_glseq[glbounds[0] : glbounds[1]]
 
     if debug:
-        print '  parsed:'
-        print '    %s' % color_cigar(cigarstr)
-        print '    %s' % '   '.join(['%s %d' % (c, l) for c, l in cigars])
-        print '    qr %s' % qrseq
-        print '    gl %s' % glseq
+        print('  parsed:')
+        print('    %s' % color_cigar(cigarstr))
+        print('    %s' % '   '.join(['%s %d' % (c, l) for c, l in cigars]))
+        print('    qr %s' % qrseq)
+        print('    gl %s' % glseq)
 
     check_cigar_len(cigars, qrseq, glseq, uid=uid, debug=debug)
 
     indelfo = get_empty_indel()  # replacement_seq: query seq with insertions removed and germline bases inserted at the position of deletions
     if 'I' not in cigarstr and 'D' not in cigarstr:  # has to happen after we've changed from vsearch conventions
         if debug:
-            print '  no indels'
+            print('  no indels')
         return indelfo
 
     # each position is the cigar code corresponding to that position in the alignment
@@ -323,10 +324,10 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     indel_pos = 0  # position within alignment (god damnit, I used to have written here that it was the query sequence position)
     tmp_indices = []  # integer for each position in the alignment, giving the index of the indel that we're within (None if we're not in an indel)
     if debug:
-        print '      code  length'
+        print('      code  length')
     for code, length in cigars:
         if debug:
-            print '        %s     %3d' % (code, length)
+            print('        %s     %3d' % (code, length))
         if code == 'I':  # advance qr seq but not gl seq
             indelfo['indels'].append({'type' : 'insertion', 'pos' : indel_pos, 'len' : length, 'seqstr' : []})  # insertion begins at <pos> (note that 'seqstr' later on gets converted from a list to a string)
             tmp_indices += [len(indelfo['indels']) - 1  for _ in range(length)]  # indel index corresponding to this position in the alignment
@@ -338,8 +339,8 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
         indel_pos += length
 
     if debug:
-        print '      %s  codestr' % ''.join([c if c not in 'ID' else utils.color('blue', c) for c in codestr])
-        print '      %s  indel index' % ''.join([str(ti if ti is not None else ' ') for ti in tmp_indices])
+        print('      %s  codestr' % ''.join([c if c not in 'ID' else utils.color('blue', c) for c in codestr]))
+        print('      %s  indel index' % ''.join([str(ti if ti is not None else ' ') for ti in tmp_indices]))
 
     # then construct the dbg strings, indel-reversed input sequence, and 'seqstr' entries in indelfo
     qr_gap_seq, gl_gap_seq = [], []
@@ -381,7 +382,7 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
     indelfo['reversed_seq'] = get_reversed_seq(qr_gap_seq, gl_gap_seq, full_qrseq[ : qrbounds[0]], full_qrseq[qrbounds[1] : ])
 
     if debug:
-        print utils.pad_lines(get_dbg_str(indelfo), 0)
+        print(utils.pad_lines(get_dbg_str(indelfo), 0))
 
     return indelfo
 
@@ -439,7 +440,7 @@ class IndelfoReconstructionError(Exception):
 # ----------------------------------------------------------------------------------------
 def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  # old-style files
     if 'reversed_seq' in indel_list:  # handle super-old files
-        print '%s encountered file with super old, unhandled indel format, proceeding, but indel info may be inconsistent' % (utils.color('red', 'error'))
+        print('%s encountered file with super old, unhandled indel format, proceeding, but indel info may be inconsistent' % (utils.color('red', 'error')))
         return
 
     line['indelfos'][iseq] = get_empty_indel()
@@ -448,39 +449,39 @@ def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  #
 
     ifo_positions = [ifo['pos'] for ifo in indel_list]
     if len(ifo_positions) != len(set(ifo_positions)):
-        print '%s two indels at the same position, everything will be kinda messed up' % utils.color('red', 'error')
+        print('%s two indels at the same position, everything will be kinda messed up' % utils.color('red', 'error'))
     ifos_by_pos = {ifo['pos'] : ifo for ifo in indel_list}
     qr_gap_seq, gl_gap_seq = [], []
     iqr, igl, iindel = 0, 0, 0
     if debug:
-        print len(line['input_seqs'][iseq]), line['input_seqs'][iseq]
-        print len(line['naive_seq']), line['naive_seq']
+        print(len(line['input_seqs'][iseq]), line['input_seqs'][iseq])
+        print(len(line['naive_seq']), line['naive_seq'])
     while iqr < len(line['input_seqs'][iseq]):
         if debug:
-            print '  %3d  %3d' % (iqr, igl),
+            print('  %3d  %3d' % (iqr, igl), end=' ')
         if igl >= len(line['naive_seq']):  # if the pos is longer than the qr seq, we won't fall off the end (so i'm ignoring that case here), but we presumably will miss an indel and crash somewhere else. Note that I can't just check before the loop, since indel positions can be longer than the initial sequence lengths (i.e. before adding other indels)
             offending_indels = [ifo for p, ifo in ifos_by_pos.items() if p >= len(line['naive_seq'])]
-            print '%s %s indel position beyond end of sequence len %d (setting to invalid): %s' % (utils.color('red', 'error'), ':'.join(line['unique_ids']), len(line['naive_seq']), offending_indels)
+            print('%s %s indel position beyond end of sequence len %d (setting to invalid): %s' % (utils.color('red', 'error'), ':'.join(line['unique_ids']), len(line['naive_seq']), offending_indels))
             raise IndelfoReconstructionError()  # no, I don't like doing it this way, I don't like using exceptions for control flow. But, this only happens when we read in an old file with ridiculous inconsistent info (so I can't fix the underlying wrong info), and there's no way to know it's inconsistent until we get to here (so I can't just throw it away earlier)
         if iindel in ifos_by_pos:
             ifo = ifos_by_pos[iindel]
             if ifo['type'] == 'insertion':
                 if ifo['seqstr'] != line['input_seqs'][iseq][iqr : iqr + ifo['len']]:
-                    print '%s indel info seqstr doesn\'t match input seq str:' % utils.color('red', 'error')
+                    print('%s indel info seqstr doesn\'t match input seq str:' % utils.color('red', 'error'))
                     utils.color_mutants(ifo['seqstr'], line['input_seqs'][iseq][iqr : iqr + ifo['len']], align=True, print_result=True, extra_str='        ')
                 qr_gap_seq += ifo['seqstr'].split()
                 gl_gap_seq += [ifo['len'] * utils.gap_chars[0]]
                 if debug:
-                    print '  %s    %s' % (ifo['seqstr'].split(), [ifo['len'] * utils.gap_chars[0]])
+                    print('  %s    %s' % (ifo['seqstr'].split(), [ifo['len'] * utils.gap_chars[0]]))
                 iqr += ifo['len']
             else:
                 if ifo['seqstr'] != line['naive_seq'][igl : igl + ifo['len']]:
-                    print '%s indel info seqstr doesn\'t match naive seq str:' % utils.color('red', 'error')
+                    print('%s indel info seqstr doesn\'t match naive seq str:' % utils.color('red', 'error'))
                     utils.color_mutants(ifo['seqstr'], line['naive_seq'][igl : igl + ifo['len']], align=True, print_result=True, extra_str='        ')
                 qr_gap_seq += [ifo['len'] * utils.gap_chars[0]]
                 gl_gap_seq += ifo['seqstr'].split()
                 if debug:
-                    print '  %s    %s' % ([ifo['len'] * utils.gap_chars[0]], ifo['seqstr'].split())
+                    print('  %s    %s' % ([ifo['len'] * utils.gap_chars[0]], ifo['seqstr'].split()))
                 igl += ifo['len']
             del ifos_by_pos[iindel]
             iindel += ifo['len']
@@ -488,7 +489,7 @@ def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  #
             qr_gap_seq += [line['input_seqs'][iseq][iqr]]
             gl_gap_seq += [line['naive_seq'][igl]]
             if debug:
-                print '  %s    %s' % (line['input_seqs'][iseq][iqr], line['naive_seq'][igl])
+                print('  %s    %s' % (line['input_seqs'][iseq][iqr], line['naive_seq'][igl]))
             iqr += 1
             igl += 1
             iindel += 1
@@ -499,8 +500,8 @@ def reconstruct_indelfo_from_indel_list(indel_list, line, iseq, debug=False):  #
     line['indelfos'][iseq]['reversed_seq'] = line['indel_reversed_seqs'][iseq]
     line['indelfos'][iseq]['genes'] = {r : line[r + '_gene'] for r in utils.regions}
     if debug:
-        print '  reconstructed indelfo'
-        print get_dbg_str(line['indelfos'][iseq])
+        print('  reconstructed indelfo')
+        print(get_dbg_str(line['indelfos'][iseq]))
 
 # ----------------------------------------------------------------------------------------
 def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
@@ -516,9 +517,9 @@ def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
             assert False  # they shouldn't both be gaps
 
     if debug:
-        print '  reconstructing cigar'
-        print '     qr  %3d  %s' % (len(qr_gap_seq), qr_gap_seq)
-        print '     gl  %3d  %s' % (len(gl_gap_seq), gl_gap_seq)
+        print('  reconstructing cigar')
+        print('     qr  %3d  %s' % (len(qr_gap_seq), qr_gap_seq))
+        print('     gl  %3d  %s' % (len(gl_gap_seq), gl_gap_seq))
 
     assert len(gl_gap_seq) == len(qr_gap_seq)
     ctypes = [gettype(i) for i in range(len(qr_gap_seq))]
@@ -529,7 +530,7 @@ def get_cigarstr_from_gap_seqs(qr_gap_seq, gl_gap_seq, debug=False):
         cigars[-1][1] += 1
 
     if debug:
-        print '   cigars: %s' % cigars
+        print('   cigars: %s' % cigars)
 
     cigar_len = sum([length for code, length in cigars])  # similar to code in check_cigar_len(), except that checks consistency with un-gapped seqs
     if cigar_len != len(qr_gap_seq):
@@ -576,19 +577,19 @@ def check_single_sequence_indels(line, iseq, print_on_err=True, debug=False):
     # debug = 2
     def check_single_ifo(old_ifo, new_ifo):
         if debug:
-            print '  len %d  pos %d  seqstr %s' % (old_ifo['len'], old_ifo['pos'], old_ifo['seqstr']),
+            print('  len %d  pos %d  seqstr %s' % (old_ifo['len'], old_ifo['pos'], old_ifo['seqstr']), end=' ')
         if new_ifo != old_ifo:
             if debug:
-                print '  %s' % utils.color('red', 'nope')
+                print('  %s' % utils.color('red', 'nope'))
             new_seqstr, old_seqstr = utils.color_mutants(old_ifo['seqstr'], new_ifo['seqstr'], return_ref=True, align=True) #len(old_ifo['seqstr']) != len(new_ifo['seqstr']))
             if print_on_err:
-                print '  pos %d --> %s    len %d --> %s    seqstr %s --> %s' % (old_ifo['pos'], utils.color(None if new_ifo['pos'] == old_ifo['pos'] else 'red', '%d' % new_ifo['pos']),
+                print('  pos %d --> %s    len %d --> %s    seqstr %s --> %s' % (old_ifo['pos'], utils.color(None if new_ifo['pos'] == old_ifo['pos'] else 'red', '%d' % new_ifo['pos']),
                                                                                 old_ifo['len'], utils.color(None if new_ifo['len'] == old_ifo['len'] else 'red', '%d' % new_ifo['len']),
-                                                                                old_seqstr, new_seqstr)
+                                                                                old_seqstr, new_seqstr))
             return False
         else:
             if debug:
-                print '  %s' % utils.color('green', 'ok')
+                print('  %s' % utils.color('green', 'ok'))
             return True
 
     indelfo = line['indelfos'][iseq]
@@ -601,34 +602,34 @@ def check_single_sequence_indels(line, iseq, print_on_err=True, debug=False):
 
     if set(new_indelfo['genes']) != set(indelfo['genes']):
         if print_on_err:
-            print '%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((indelfo['genes'].keys())), ' '.join(new_indelfo['genes'].keys()))
+            print('%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((indelfo['genes'].keys())), ' '.join(new_indelfo['genes'].keys())))
         consistent = False
     else:
         for region in indelfo['genes']:
             if new_indelfo['genes'][region] != indelfo['genes'][region]:
                 if print_on_err:
-                    print '%s different indel genes before %s and after %s reconstruction' % (utils.color('red', 'error'), utils.color_gene(indelfo['genes'][region]), utils.color_gene(new_indelfo['genes'][region]))
+                    print('%s different indel genes before %s and after %s reconstruction' % (utils.color('red', 'error'), utils.color_gene(indelfo['genes'][region]), utils.color_gene(new_indelfo['genes'][region])))
                 consistent = False
 
     if len(new_indelfo['indels']) != len(indelfo['indels']):
         if print_on_err:
-            print '%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(indelfo['indels']), len(new_indelfo['indels']))
+            print('%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(indelfo['indels']), len(new_indelfo['indels'])))
         consistent = False
 
     old_indel_list, new_indel_list = copy.deepcopy(indelfo['indels']), copy.deepcopy(new_indelfo['indels'])
     old_positions, new_positions = [ifo['pos'] for ifo in old_indel_list], [ifo['pos'] for ifo in new_indel_list]
     if old_positions == new_positions:
         if debug:
-            print '  same positions in old and new indelfos: %s' % ' '.join([str(p) for p in old_positions])
+            print('  same positions in old and new indelfos: %s' % ' '.join([str(p) for p in old_positions]))
     elif set(new_positions) == set(old_positions):
         if debug:  # I think this'll only happen on old simulation files (ok, I can't really call them "old" yet since I haven't fixed it, but at some point I will, and then everybody's positions will then be sorted)
-            print '  sorting both indel lists'
+            print('  sorting both indel lists')
         old_indel_list = sorted(old_indel_list, key=lambda q: q['pos'])
         new_indel_list = sorted(new_indel_list, key=lambda q: q['pos'])
     else:
         consistent = False
         if print_on_err:
-            print '  inconsistent position lists:\n  old  %s\n  new  %s' % (' '.join([str(p) for p in sorted(old_positions)]), ' '.join([str(p) for p in sorted(new_positions)]))
+            print('  inconsistent position lists:\n  old  %s\n  new  %s' % (' '.join([str(p) for p in sorted(old_positions)]), ' '.join([str(p) for p in sorted(new_positions)])))
 
     if consistent:  # i.e. if nothing so far has been inconsistent
         for old_ifo, new_ifo in zip(old_indel_list, new_indel_list):
@@ -636,11 +637,11 @@ def check_single_sequence_indels(line, iseq, print_on_err=True, debug=False):
 
     if not consistent:
         if print_on_err:
-            print '%s inconsistent indel info for %s (see previous lines)' % (utils.color('red', 'error'), ':'.join(line['unique_ids']))
-            print '       original:'
-            print utils.pad_lines(get_dbg_str(indelfo), 8)
-            print '       reconstructed:'
-            print utils.pad_lines(get_dbg_str(new_indelfo), 8)
+            print('%s inconsistent indel info for %s (see previous lines)' % (utils.color('red', 'error'), ':'.join(line['unique_ids'])))
+            print('       original:')
+            print(utils.pad_lines(get_dbg_str(indelfo), 8))
+            print('       reconstructed:')
+            print(utils.pad_lines(get_dbg_str(new_indelfo), 8))
 
 # ----------------------------------------------------------------------------------------
 def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=False):
@@ -655,14 +656,14 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
         raise Exception('qrbounds %s extend beyond sequence with len %d:\n  %s' % (qrbounds, len(full_qrseq), full_qrseq))
 
     if debug > 1:
-        print 'combining %d indelfo%s from %s' % (len(regional_indelfos), utils.plural(len(regional_indelfos)), ' '.join([r for r in utils.regions if r in regional_indelfos]))
-        print '  qrbounds:   %s' % '   '.join([('%s %s' % (r, qrbounds[r])) for r in utils.regions])
-        print '     full qr %s' % full_qrseq
+        print('combining %d indelfo%s from %s' % (len(regional_indelfos), utils.plural(len(regional_indelfos)), ' '.join([r for r in utils.regions if r in regional_indelfos])))
+        print('  qrbounds:   %s' % '   '.join([('%s %s' % (r, qrbounds[r])) for r in utils.regions]))
+        print('     full qr %s' % full_qrseq)
     qr_gap_seq, gl_gap_seq = [], []
     for region in utils.regions:
         ireg = utils.regions.index(region)
         if debug > 1:
-            print '  %s' % region
+            print('  %s' % region)
         if region in regional_indelfos:
             rfo = regional_indelfos[region]
             assert has_indels(rfo)  # calling fcn needs to not add it if it doesn't have indels
@@ -682,13 +683,13 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
                 for ifo in reg_indel_list:
                     ifo['pos'] += prev_reg_gaps
                     if debug > 1:
-                        print '    add %d to pos for gaps in %s' % (prev_reg_gaps, prev_reg)
+                        print('    add %d to pos for gaps in %s' % (prev_reg_gaps, prev_reg))
             joint_indelfo['indels'] += reg_indel_list
         else:
             qr_gap_seq += [full_qrseq[qrbounds[region][0] : qrbounds[region][1]]]
             gl_gap_seq += [utils.ambig_base * (qrbounds[region][1] - qrbounds[region][0])]
         if debug > 1:
-            print '    %s\n    %s' % (qr_gap_seq[-1].replace(utils.gap_chars[0], utils.color('red', utils.gap_chars[0])), gl_gap_seq[-1].replace(utils.gap_chars[0], utils.color('red', utils.gap_chars[0])))
+            print('    %s\n    %s' % (qr_gap_seq[-1].replace(utils.gap_chars[0], utils.color('red', utils.gap_chars[0])), gl_gap_seq[-1].replace(utils.gap_chars[0], utils.color('red', utils.gap_chars[0]))))
 
         if ireg < len(utils.regions) - 1:
             next_reg = utils.regions[ireg + 1]
@@ -696,13 +697,13 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
             qr_gap_seq += [full_qrseq[qrbounds[region][1] : qrbounds[next_reg][0]]]
             gl_gap_seq += [utils.ambig_base * (qrbounds[next_reg][0] - qrbounds[region][1])]
             if debug > 1:
-                print '  %s%s' % (region, next_reg)
-                print '    %s\n    %s' % (full_qrseq[qrbounds[region][1] : qrbounds[next_reg][0]], utils.ambig_base * (qrbounds[next_reg][0] - qrbounds[region][1]))
+                print('  %s%s' % (region, next_reg))
+                print('    %s\n    %s' % (full_qrseq[qrbounds[region][1] : qrbounds[next_reg][0]], utils.ambig_base * (qrbounds[next_reg][0] - qrbounds[region][1])))
 
     if debug > 1:
-        print 'combined gap seqs:'
-        print '  qr %s' % '  '.join(qr_gap_seq)
-        print '  gl %s' % '  '.join(gl_gap_seq)
+        print('combined gap seqs:')
+        print('  qr %s' % '  '.join(qr_gap_seq))
+        print('  gl %s' % '  '.join(gl_gap_seq))
 
     joint_indelfo['qr_gap_seq'] = ''.join(qr_gap_seq)
     joint_indelfo['gl_gap_seq'] = ''.join(gl_gap_seq)
@@ -714,7 +715,7 @@ def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=Fals
     joint_indelfo['gl_gap_seq'] = utils.ambig_base * qrbounds['v'][0] + joint_indelfo['gl_gap_seq'] + utils.ambig_base * (len(full_qrseq) - qrbounds['j'][1])
 
     if debug:
-        print 'combined'
-        print get_dbg_str(joint_indelfo)
+        print('combined')
+        print(get_dbg_str(joint_indelfo))
 
     return joint_indelfo

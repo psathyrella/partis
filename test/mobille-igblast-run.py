@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import numpy
 import random
 import glob
@@ -246,7 +247,7 @@ def convert_mobille_output():
             _, _, true_cpath = utils.read_output(simfn(locus), skip_annotations=True)
             true_partition = true_cpath.best()
         plines = ClusterPath(partition=partition).get_partition_lines(true_partition=true_partition, calc_missing_values='best')
-        print '    writing partition to %s' % pfn 
+        print('    writing partition to %s' % pfn) 
         utils.write_annotations(pfn, {}, [], utils.annotation_headers, partition_lines=plines)
 
 # # ----------------------------------------------------------------------------------------

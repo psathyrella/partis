@@ -16,9 +16,10 @@ libmodernize.fixes.fix_map \
 libmodernize.fixes.fix_filter \
 libmodernize.fixes.fix_zip \
 libmodernize.fixes.fix_xrange_six \
-libmodernize.fixes.fix_next
+libmodernize.fixes.fix_next \
+libmodernize.fixes.fix_print
 "
-fixers=libmodernize.fixes.fix_next
+fixers=libmodernize.fixes.fix_print
 paths="python/*.py test bin/*.py datascripts/*.py projects/*.py"
 for fixer in $fixers; do
     modernize -wnf $fixer $paths

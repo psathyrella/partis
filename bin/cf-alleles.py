@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import os
 import sys
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
+    print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
 sys.path.insert(1, partis_dir) # + '/python')
 
 import python.utils as utils
@@ -92,4 +93,4 @@ def print_str(gene, seqstr, snpstr):
     return '%s  %s  %s  %s' % (utils.color_gene(gene, width=gene_str_width), seqstr, utils.color_gene(gene, width=gene_str_width), snpstr)
 
 for igene in range(len(genes)):
-    print print_str(genes[igene], seqstrs[igene], snpstrs[igene])
+    print(print_str(genes[igene], seqstrs[igene], snpstrs[igene]))

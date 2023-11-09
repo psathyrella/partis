@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import collections
 import argparse
 import sys
@@ -8,7 +9,7 @@ import csv
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
+    print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
 sys.path.insert(1, partis_dir) # + '/python')
 
 import python.utils as utils
@@ -42,12 +43,12 @@ annotations = collections.OrderedDict((line['unique_ids'][0], line) for line in 
 chfo = {uid : {k : v for k, v in zip(('imax', 'max_abs_diff'), utils.get_chimera_max_abs_diff(annotations[uid], iseq=0, chunk_len=args.chunk_len))} for uid in annotations}
 biggest_adiffs = sorted(chfo, key=lambda q: chfo[q]['max_abs_diff'], reverse=True)
 for uid in biggest_adiffs[:5]:
-    print '%-3d  %6.3f' % (chfo[uid]['imax'], chfo[uid]['max_abs_diff'])
+    print('%-3d  %6.3f' % (chfo[uid]['imax'], chfo[uid]['max_abs_diff']))
     utils.print_reco_event(annotations[uid])
 
 n_above_cutoff = len([_ for cfo in chfo.values() if cfo['max_abs_diff'] > args.cutoff])
 chimeric_fraction = n_above_cutoff / float(len(chfo))
-print '  %d / %d = %.3f above chimeric cutoff' % (n_above_cutoff, len(chfo), chimeric_fraction)
+print('  %d / %d = %.3f above chimeric cutoff' % (n_above_cutoff, len(chfo), chimeric_fraction))
 
 hmaxval = Hist(45, 0., 0.65)
 for uid in annotations:
@@ -64,7 +65,7 @@ fig, ax = plotting.mpl_init()
 xvals, yvals = list(zip(*[(v['imax'], v['max_abs_diff']) for v in chfo.values()]))
 plt.scatter(xvals, yvals, alpha=0.4)
 
-print 'writing to %s' % args.plotdir
+print('writing to %s' % args.plotdir)
 plotting.mpl_finish(ax, args.plotdir, 'hexbin', title=args.title, xlabel='break point', ylabel='abs mfreq diff')
 
 plotting.draw_no_root(hmaxval, plotdir=args.plotdir, plotname='mfreq-diff', shift_overflows=True, xtitle='abs mfreq diff', ytitle='seqs')

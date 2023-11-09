@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import numpy
 import os
@@ -257,7 +258,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):
-        print '%s input' % input_stype
+        print('%s input' % input_stype)
         for version_stype in self.stypes:  # <version_stype> is the code version, i.e. 'ref' is the reference results, 'new' is the results we just made with the new code
             self.read_annotation_performance(version_stype, input_stype)
             self.read_partition_performance(version_stype, input_stype)  # NOTE also calls read_annotation_performance()
@@ -276,7 +277,7 @@ class Tester(object):
             cachefnames = ['%s/%s' % (self.dirs('new'), f) for f in self.all_ptn_cachefns()]
             for cfn in [f for f in cachefnames if os.path.exists(f)]:
                 if args.dry_run:
-                    print '   would remove %s' % cfn
+                    print('   would remove %s' % cfn)
                 else:
                     check_call(['rm', '-v', cfn])
 
@@ -329,7 +330,7 @@ class Tester(object):
                 cmd_str += ' --%s %s' % (self.astr('out'), self.opath(name, st='new'))
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
-            print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
+            print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
             if args.dry_run:
                 continue
             logfile = open(self.logfname, 'a')
@@ -339,11 +340,11 @@ class Tester(object):
             try:
                 check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
                 if args.quick:
-                    print '\n  %s' % 'ok'
+                    print('\n  %s' % 'ok')
             except CalledProcessError as err:
                 # print err  # this just says it exited with code != 0
-                print '  log tail: %s' % self.logfname
-                print utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True))
+                print('  log tail: %s' % self.logfname)
+                print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
                 sys.exit(1)  # raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
 
@@ -352,16 +353,16 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_reference_results(self, expected_content):
-        print '  removing ref files'
+        print('  removing ref files')
         dir_content = set([os.path.basename(f) for f in glob.glob(self.dirs('ref') + '/*')])
         if len(dir_content - expected_content) > 0 or len(expected_content - dir_content) > 0:
             if len(dir_content - expected_content) > 0:
-                print 'in ref dir but not expected\n    %s' % (utils.color('red', ' '.join(dir_content - expected_content)))
+                print('in ref dir but not expected\n    %s' % (utils.color('red', ' '.join(dir_content - expected_content))))
             if len(expected_content - dir_content) > 0:
-                print 'expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content)))
+                print('expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content))))
             raise Exception('unexpected or missing content in reference dir (see above)')
         for fname in [self.dirs('ref') + '/' + ec for ec in expected_content]:
-            print '    rm %s' % fname
+            print('    rm %s' % fname)
             if args.dry_run:
                 continue
             if os.path.isdir(fname):
@@ -381,9 +382,9 @@ class Tester(object):
         self.remove_reference_results(expected_content)
 
         # copy over parameters, simulation, and plots
-        print '  copy new files to ref'
+        print('  copy new files to ref')
         for fname in expected_content:
-            print '    mv %s   -->  %s/' % (fname, self.dirs('ref'))
+            print('    mv %s   -->  %s/' % (fname, self.dirs('ref')))
             if args.dry_run:
                 continue
             shutil.move(self.dirs('new') + '/' + fname, self.dirs('ref') + '/')
@@ -464,7 +465,7 @@ class Tester(object):
             if None in ccfs:
                 raise Exception('none type ccf read from %s' % fname)
             if debug:
-                print '    %5.2f          %5.2f      %-28s   to true partition' % (ccfs[0], ccfs[1], fname) #os.path.basename(fname))
+                print('    %5.2f          %5.2f      %-28s   to true partition' % (ccfs[0], ccfs[1], fname)) #os.path.basename(fname))
             return ccfs
         # ----------------------------------------------------------------------------------------
         ptest_list = [k for k in self.tests.keys() if self.do_this_test('partition', input_stype, k)]
@@ -474,8 +475,8 @@ class Tester(object):
             self.perf_info[version_stype][input_stype] = OrderedDict()
         pinfo = self.perf_info[version_stype][input_stype]
         if debug:
-            print '  version %s input %s partitioning' % (version_stype, input_stype)
-            print '  purity         completeness        test                    description'
+            print('  version %s input %s partitioning' % (version_stype, input_stype))
+            print('  purity         completeness        test                    description')
         for ptest in ptest_list:
             if ptest not in pinfo:
                 pinfo[ptest] = OrderedDict()
@@ -515,7 +516,7 @@ class Tester(object):
                 for lbfo in lbfos:  # one lbfo for each cluster
                     smfo[metric] += list(lbfo['lb'][metric].values())
             if debug:
-                print '      read lbfos for %d cluster%s from %s' % (len(lbfos), utils.plural(len(lbfos)), fname)
+                print('      read lbfos for %d cluster%s from %s' % (len(lbfos), utils.plural(len(lbfos)), fname))
         # ----------------------------------------------------------------------------------------
         def read_chosen_abs(fname):
             with open(fname) as chfile:
@@ -524,7 +525,7 @@ class Tester(object):
         # ----------------------------------------------------------------------------------------
         pinfo = self.perf_info[version_stype][input_stype]
         if debug:
-            print '  version %s input %s selection metrics' % (version_stype, input_stype)
+            print('  version %s input %s selection metrics' % (version_stype, input_stype))
         ptest_list = [k for k in self.tests.keys() if self.do_this_test('get-selection', input_stype, k)]
         for ptest in ptest_list:
             if ptest not in pinfo:  # perf_info should already have all the parent keys cause we run read_partition_performance() first
@@ -535,7 +536,7 @@ class Tester(object):
                         smfname = '%s/%s/partition-%s-selection-metrics.yaml' % (self.opath(ptest.replace('get-selection-metrics', 'partition'), st=version_stype), '+'.join(lpair), locus)
                         read_smfile(smfname, pinfo[ptest])
                 if debug:
-                    print '  total values read: %s' % '  '.join('%s %d'%(m, len(pinfo[ptest][m])) for m in self.selection_metrics)
+                    print('  total values read: %s' % '  '.join('%s %d'%(m, len(pinfo[ptest][m])) for m in self.selection_metrics))
                 pinfo[ptest]['chosen-abs'] = read_chosen_abs(self.opath(ptest, st=version_stype))
             else:
                 read_smfile(self.opath(ptest, st=version_stype), pinfo[ptest])
@@ -556,10 +557,10 @@ class Tester(object):
                 if pm:
                     fmstr = fmstr.replace('%', '%+')
                 return fmstr % v
-            print '  %s%s  ' % (floatstr(ref_val), (fw+4)*' ' if color is None else utils.color(color, '--> %s'%floatstr(new_val))),
+            print('  %s%s  ' % (floatstr(ref_val), (fw+4)*' ' if color is None else utils.color(color, '--> %s'%floatstr(new_val))), end=' ')
 
         # ----------------------------------------------------------------------------------------
-        print '  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype
+        print('  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype)
         all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'multi-annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
         all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
         annotation_ptests = [pt for pt in all_annotation_ptests if pt in self.perf_info['ref'][input_stype]]
@@ -585,7 +586,7 @@ class Tester(object):
 
 
         # print annotation header
-        print '%8s %9s' % ('', ''),
+        print('%8s %9s' % ('', ''), end=' ')
         for ptest in annotation_ptests:
             for method in [m for m in refpfo[ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
                 printstr = method
@@ -593,30 +594,30 @@ class Tester(object):
                     printstr = 'multi %s' % method
                 if 'partition' in ptest:
                     printstr = 'partition %s' % method
-                print '    %-15s' % printstr,
-        print ''
+                print('    %-15s' % printstr, end=' ')
+        print('')
 
         # print values
         if 'hmm' in refpfo[annotation_ptests[0]]:  # it's not in there for paired partition test, since (at least atm) we don't do annotation tests for it
             allmetrics = [m for m in refpfo[annotation_ptests[0]]['hmm']]
             for metric in allmetrics:
                 alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
-                print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
+                print(('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)), end=' ')
                 for ptest in annotation_ptests:
                     for method in [m for m in refpfo[ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
                         if set(refpfo[ptest]) != set(newpfo[ptest]):
                             raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))
                         print_comparison_str(refpfo[ptest][method][metric], newpfo[ptest][method][metric], self.eps_vals.get(metric, 0.1))
-                print ''
+                print('')
 
         # print partition header
-        print '%8s %5s' % ('', ''),
+        print('%8s %5s' % ('', ''), end=' ')
         for ptest in partition_ptests:
-            print '    %-18s' % ptest.split('-')[0],
-        print ''
+            print('    %-18s' % ptest.split('-')[0], end=' ')
+        print('')
         for metric in ['purity', 'completeness'] + self.pair_clean_metrics:
             alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
-            print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
+            print(('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)), end=' ')
             for ptest in partition_ptests:
                 if 'seed-' in ptest and metric in self.pair_clean_metrics:  # ick
                     continue
@@ -626,12 +627,12 @@ class Tester(object):
                 if metric != 'purity':
                     method = ''
                 print_comparison_str(refpfo[ptest][metric], newpfo[ptest][metric], self.eps_vals.get(metric, 0.1))
-            print ''
+            print('')
 
         # selection metrics
-        print '                      %s' % ''.join(['%-23s'%metricstrs.get(m, m) for m in self.selection_metrics])
+        print('                      %s' % ''.join(['%-23s'%metricstrs.get(m, m) for m in self.selection_metrics]))
         for mfname, mfcn in [('mean', numpy.mean), ('min', min), ('max', max), ('len', len)]:
-            print '             %5s' % mfname,
+            print('             %5s' % mfname, end=' ')
             for metric in self.selection_metrics:
                 for ptest in selection_metric_tests:  # this'll break if there's more than one selection metric ptest
                     if set(refpfo[ptest]) != set(newpfo[ptest]):
@@ -640,7 +641,7 @@ class Tester(object):
                     dp = 1 if metric=='cons-dist-aa' else 3
                     if mfname=='len': dp = 0
                     print_comparison_str(mfcn(ref_list), mfcn(new_list), self.eps_vals.get(metric, 0.1), dp=dp, pm=metric=='cons-dist-aa')
-            print ''
+            print('')
         if args.paired:
             ptest = utils.get_single_entry(selection_metric_tests)
             ref_abs, new_abs = refpfo[ptest]['chosen-abs'], newpfo[ptest]['chosen-abs']
@@ -650,42 +651,42 @@ class Tester(object):
             diffstr = '    ok'
             if n_ref != n_new or n_only_ref > 0 or n_only_new > 0:
                 diffstr = '       %s in common, %s only in ref, %s only in new' % (utils.color(None if n_common==n_ref else 'red', str(n_common)), utils.color(None if n_only_ref==0 else 'red',  str(n_only_ref)), utils.color(None if n_only_new==0 else 'red',  str(n_only_new)))
-            print '    chose %d abs %s%s' % (n_ref, '' if n_new==n_ref else utils.color('red', '--> %d'%n_new), diffstr)
+            print('    chose %d abs %s%s' % (n_ref, '' if n_new==n_ref else utils.color('red', '--> %d'%n_new), diffstr))
 
     # ----------------------------------------------------------------------------------------
     def compare_production_results(self, ptests):
-        print 'diffing production results'
+        print('diffing production results')
         for ptest in ptests:
             if args.quick and ptest not in self.quick_tests:
                 continue
             fname = self.opath(ptest)  # sometimes a dir rather than a file
-            print '    %-30s' % fname,
+            print('    %-30s' % fname, end=' ')
             cmd = 'diff -qbr ' + ' '.join(self.dirs(st) + '/' + fname for st in self.stypes)
             proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE, universal_newlines=True)
             out, err = proc.communicate()
             if proc.returncode == 0:
-                print '       ok'
+                print('       ok')
             else:
                 differlines = [ l for l in out.split('\n') if 'differ' in l]
                 onlylines = [ l for l in out.split('\n') if 'Only' in l]
-                print ''
+                print('')
                 if len(differlines) > 0:
                     n_total_files = int(check_output('find ' + self.dirs('ref') + '/' + fname + ' -type f | wc -l', shell=True, universal_newlines=True))
                     if n_total_files == 1:
                         assert len(differlines) == 1
-                        print utils.color('red', '      file differs'),
+                        print(utils.color('red', '      file differs'), end=' ')
                     else:
-                        print utils.color('red', '      %d / %d files differ' % (len(differlines), n_total_files)),
+                        print(utils.color('red', '      %d / %d files differ' % (len(differlines), n_total_files)), end=' ')
                 if len(onlylines) > 0:
                     for st in self.stypes:
                         theseonlylines = [l for l in onlylines if self.dirs(st) + '/' + fname in l]
                         if len(theseonlylines) > 0:
-                            print utils.color('red', '      %d files only in %s' % (len(theseonlylines), st)),
+                            print(utils.color('red', '      %d files only in %s' % (len(theseonlylines), st)), end=' ')
                 if differlines == 0 and onlylines == 0:
-                    print utils.color('red', '      not sure why, but diff returned %d' % proc.returncode),
-                print '  (%s)' % cmd
+                    print(utils.color('red', '      not sure why, but diff returned %d' % proc.returncode), end=' ')
+                print('  (%s)' % cmd)
                 if err != '':
-                    print err
+                    print(err)
 
     # ----------------------------------------------------------------------------------------
     def write_run_times(self):
@@ -697,7 +698,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_run_times(self):
-        print 'checking run times'
+        print('checking run times')
 
         def read_run_times(stype):
             times[stype] = {}
@@ -712,18 +713,18 @@ class Tester(object):
         for name in self.tests:
             if args.quick and name not in self.quick_tests:
                 continue
-            print '  %30s   %7.1f' % (name, times['ref'][name]),
+            print('  %30s   %7.1f' % (name, times['ref'][name]), end=' ')
             if name not in times['new']:
-                print '  no new time for %s' % utils.color('red', name)
+                print('  no new time for %s' % utils.color('red', name))
                 continue
             fractional_change = (times['new'][name] - times['ref'][name]) / float(times['ref'][name])
             if abs(fractional_change) > 0.2:
-                print '--> %-5.1f %s' % (times['new'][name], utils.color('red', '(%+.3f)' % fractional_change)),
+                print('--> %-5.1f %s' % (times['new'][name], utils.color('red', '(%+.3f)' % fractional_change)), end=' ')
             elif abs(fractional_change) > 0.1:
-                print '--> %-5.1f %s' % (times['new'][name], utils.color('yellow', '(%+.3f)' % fractional_change)),
+                print('--> %-5.1f %s' % (times['new'][name], utils.color('yellow', '(%+.3f)' % fractional_change)), end=' ')
             else:
-                print '    ok   ',
-            print ''
+                print('    ok   ', end=' ')
+            print('')
 
     # ----------------------------------------------------------------------------------------
     def make_comparison_plots(self):
@@ -752,7 +753,7 @@ class Tester(object):
         #     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True, universal_newlines=True).split()
 
         for plotdir in plotdirs:
-            print plotdir
+            print(plotdir)
             check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs('ref') + '/' + plotdir + ':' + self.dirs('new') + '/' + plotdir
             check_cmd += ' --outdir ' + www_dir + '/' + plotdir
             check_call(check_cmd.split())
@@ -764,18 +765,18 @@ class Tester(object):
     def compare_partition_cachefiles(self, input_stype, debug=False):
         # ----------------------------------------------------------------------------------------
         def print_key_differences(vtype, refkeys, newkeys):
-            print '    %s keys' % vtype
+            print('    %s keys' % vtype)
             if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
                 if len(refkeys - newkeys) > 0:
-                    print utils.color('red', '      %d only in ref version' % len(refkeys - newkeys))
+                    print(utils.color('red', '      %d only in ref version' % len(refkeys - newkeys)))
                 if len(newkeys - refkeys) > 0:
-                    print utils.color('red', '      %d only in new version' % len(newkeys - refkeys))
-                print '      %d in common' % len(refkeys & newkeys)
+                    print(utils.color('red', '      %d only in new version' % len(newkeys - refkeys)))
+                print('      %d in common' % len(refkeys & newkeys))
             else:
-                print '        %d identical keys in new and ref cache' % len(refkeys)
+                print('        %d identical keys in new and ref cache' % len(refkeys))
         # ----------------------------------------------------------------------------------------
         def readcache(fname):
-            if debug: print '      reading partition cache from %s' % fname
+            if debug: print('      reading partition cache from %s' % fname)
             cache = {'naive_seqs' : {}, 'logprobs' : {}}
             with open(fname) as cachefile:
                 reader = csv.DictReader(cachefile)
@@ -787,7 +788,7 @@ class Tester(object):
             return cache
         # ----------------------------------------------------------------------------------------
         def compare_files(fname):
-            print '  %s input partition cache file' % input_stype
+            print('  %s input partition cache file' % input_stype)
             refcache = readcache(self.dirs('ref') + '/' + fname)
             newcache = readcache(self.dirs('new') + '/' + fname)
 
@@ -841,11 +842,11 @@ class Tester(object):
             if n_big_delta_logprobs > 0:
                 diff_logprob_str = utils.color('red', diff_logprob_str)
                 mean_logprob_str = utils.color('red', mean_logprob_str)
-            print '                  fraction different     mean abs difference among differents'
-            print '      naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
-            print '      log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str)
+            print('                  fraction different     mean abs difference among differents')
+            print('      naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str))
+            print('      log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str))
             if n_different_length > 0:
-                print utils.color('red', '        %d different length' % n_different_length)
+                print(utils.color('red', '        %d different length' % n_different_length))
 
         # ----------------------------------------------------------------------------------------
         ptest = 'partition-' + input_stype + '-simu'

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import csv
 import os
@@ -52,7 +53,7 @@ class TreeGenerator(object):
                 length_vals = [v for v in numpy.random.exponential(mean_mute_val, n_entries)]  # count doesn't work on numpy.ndarray objects
                 max_val = 0.8  # this is arbitrary, but you shouldn't be calling this with anything that gets a significant number anywhere near there, anyway
                 if length_vals.count(max_val):
-                    print '%s lots of really high mutation rates treegenerator::get_mute_hist()' % utils.color('yellow', 'warning')
+                    print('%s lots of really high mutation rates treegenerator::get_mute_hist()' % utils.color('yellow', 'warning'))
                 length_vals = [min(v, max_val) for v in length_vals]
                 hist = Hist(30, 0., max_val)
                 for val in length_vals:
@@ -90,7 +91,7 @@ class TreeGenerator(object):
         def init_n_leaf_hist():
             csfname = '%s/cluster_size.csv' % self.parameter_dir if self.args.n_leaf_hist_fname is None else self.args.n_leaf_hist_fname
             if not os.path.exists(csfname):
-                print '  %s tried to use cluster size hist for N leaf distribution, but it doesn\'t exist: %s' % (utils.color('yellow', 'warning'), csfname)
+                print('  %s tried to use cluster size hist for N leaf distribution, but it doesn\'t exist: %s' % (utils.color('yellow', 'warning'), csfname))
                 return
             csizes = {}
             with open(csfname) as csfile:
@@ -100,7 +101,7 @@ class TreeGenerator(object):
             hist = hutils.make_hist_from_dict_of_counts(csizes, 'int', 'cluster_size')  # maybe there's no reason to do this whole conversion, maybe should just sample from the dict of counts? I do that in a bunch of other places (I guess this made sense because I was thinking I would actually use bigger bins, but then decided to use single-int bins)
             hist.normalize(include_overflows=False)
             if hist.bin_contents[hist.find_bin(1)] == 1:
-                print '  %s cluster size hist was made from the singleton partition, suggesting that parameters may have been inferred without partitioning (override use of the hist by setting --n-leaf-distribution)' % utils.color('yellow', 'warning')
+                print('  %s cluster size hist was made from the singleton partition, suggesting that parameters may have been inferred without partitioning (override use of the hist by setting --n-leaf-distribution)' % utils.color('yellow', 'warning'))
             self.n_leaf_hist = hist
         # ----------------------------------------------------------------------------------------
         if self.args.constant_number_of_leaves:
@@ -156,15 +157,15 @@ class TreeGenerator(object):
     # ----------------------------------------------------------------------------------------
     def run_treesim(self, seed, outfname, workdir):
         if self.args.debug or utils.getsuffix(outfname) == '.nwk':
-            print '  generating %d tree%s,' % (self.args.n_trees, utils.plural(self.args.n_trees)),
+            print('  generating %d tree%s,' % (self.args.n_trees, utils.plural(self.args.n_trees)), end=' ')
             if self.args.constant_number_of_leaves:
-                print 'all with %s leaves' % str(self.args.n_leaves)
+                print('all with %s leaves' % str(self.args.n_leaves))
             else:
-                print 'n-leaves from %s' % ('hist in parameter dir' if self.final_nldist == 'hist' else '%s distribution with parameter %s' % (self.final_nldist, str(self.args.n_leaves)))
+                print('n-leaves from %s' % ('hist in parameter dir' if self.final_nldist == 'hist' else '%s distribution with parameter %s' % (self.final_nldist, str(self.args.n_leaves))))
             if self.args.debug:
-                print '        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch')
+                print('        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch'))
                 for mtype in ['all',] + utils.regions:
-                    print '         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean'])
+                    print('         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean']))
 
         ages, treestrs = [], []
 
@@ -222,7 +223,7 @@ class TreeGenerator(object):
     # ----------------------------------------------------------------------------------------
     def read_input_tree_file(self, outfname):
         if self.args.debug:
-            print '  reading trees from %s' % self.args.input_simulation_treefname
+            print('  reading trees from %s' % self.args.input_simulation_treefname)
         utils.simplerun('cp %s %s' % (self.args.input_simulation_treefname, outfname), debug=False)
         ages, treestrs = [], []
         with open(outfname) as treefile:
@@ -237,17 +238,17 @@ class TreeGenerator(object):
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
                 age = self.choose_full_sequence_branch_length()
                 if self.args.debug > 1:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height
-                    print '    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age)
+                    print('    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age))
                 treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
                 ages.append(age)
                 treestrs.append(dtree.as_string(schema='newick').strip())
                 if self.args.debug > 1:
-                    print utils.pad_lines(treeutils.get_ascii_tree(dtree))
+                    print(utils.pad_lines(treeutils.get_ascii_tree(dtree)))
         if any(a > 1. for a in ages):  # maybe it's ok to change this to a warning? seems to be working
             # raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
-            print '  %s read tree[s] with depth[s] greater than 1. from %s (see comment in choose_full_sequence_branch_length()): %s' % (utils.color('yellow', 'warning'), self.args.input_simulation_treefname, ' '.join('%.2f'%a for a in sorted(ages, reverse=True)))
+            print('  %s read tree[s] with depth[s] greater than 1. from %s (see comment in choose_full_sequence_branch_length()): %s' % (utils.color('yellow', 'warning'), self.args.input_simulation_treefname, ' '.join('%.2f'%a for a in sorted(ages, reverse=True))))
         if len(ages) != self.args.n_trees:
-            print '    resetting --n-trees from %d to %d to match trees read from %s' % (self.args.n_trees, len(ages), self.args.input_simulation_treefname)
+            print('    resetting --n-trees from %d to %d to match trees read from %s' % (self.args.n_trees, len(ages), self.args.input_simulation_treefname))
         self.args.n_trees = len(ages)
 
         return ages, treestrs
@@ -264,7 +265,7 @@ class TreeGenerator(object):
             dtreelist = [treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True) for tstr in treestrs]
             mean_leaf_height_list = [treeutils.get_mean_leaf_height(tree=dt) for dt in dtreelist]
             n_leaf_list = [treeutils.get_n_leaves(dt) for dt in dtreelist]
-            print '    mean over %d trees:   depth %.5f   leaves %.2f' % (len(mean_leaf_height_list), numpy.mean(mean_leaf_height_list), numpy.mean(n_leaf_list))
+            print('    mean over %d trees:   depth %.5f   leaves %.2f' % (len(mean_leaf_height_list), numpy.mean(mean_leaf_height_list), numpy.mean(n_leaf_list)))
 
         # each tree is written with branch length the mean branch length over the whole sequence (which is different for each tree), but recombinator also needs the relative length for each region (which is the same, it's an average over the whole repertoire)
         if utils.getsuffix(outfname) == '.yaml':
@@ -272,7 +273,7 @@ class TreeGenerator(object):
                       'trees' : treestrs}
             utils.jsdump(outfname, yamlfo)
         elif utils.getsuffix(outfname) == '.nwk':
-            print '    writing trees to %s' % outfname
+            print('    writing trees to %s' % outfname)
             with open(outfname, 'w') as yfile:
                 for treestr in treestrs:
                     yfile.write(treestr + '\n')

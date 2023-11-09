@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import numpy
 import random
 import glob
@@ -140,7 +141,7 @@ def get_jdata(sfo, barstr, translations, tch=None):
 def convert_input():
     ofn = encifn()
     if utils.output_exists(args, ofn, debug=False):
-        print '    converted input already there %s' % ofn
+        print('    converted input already there %s' % ofn)
         return
     jdatas, translations = [], {}
     if args.simdir is not None:
@@ -180,7 +181,7 @@ def run_enclone():
     ofn, cmdfos, n_already_there, n_total = None, [], 0, 1
     ofn = encofn()
     if utils.output_exists(args, ofn, debug=False): # and not args.dry:  # , offset=8):
-        print '    enclone output already there %s' % ofn
+        print('    enclone output already there %s' % ofn)
         return
     # description of output fields here https://10xgenomics.github.io/enclone/pages/auto/help.parseable.html
     out_columns = ['barcode', 'group_id', 'datasets_cell']  # still don't understand what these other ones ('clonotype_id', 'exact_subclonotype_id') are, but they're not the index of the family
@@ -193,12 +194,12 @@ def run_enclone():
     }]
     start = time.time()
     utils.run_scan_cmds(args, cmdfos, 'enclone.log', n_total, n_already_there, ofn, dbstr='enclone run')
-    print 'enclone time: %.1f' % (time.time() - start)
+    print('enclone time: %.1f' % (time.time() - start))
 
 # ----------------------------------------------------------------------------------------
 def convert_output():
     if utils.all_outputs_exist(args, [getofn(l) for l in gloci()], debug=False):
-        print '    converted ouputs already there %s' % ', '.join(getofn(l) for l in gloci())
+        print('    converted ouputs already there %s' % ', '.join(getofn(l) for l in gloci()))
         return
     airr_fn = '%s/airr-partition.tsv' % wkdir()
     utils.simplerun('sed -e \"s/group_id/clone_id/\" -e \"s/barcode/sequence_id/\" %s >%s' % (encofn(), airr_fn), shell=True)
@@ -216,9 +217,9 @@ def convert_output():
                 for uid in translations[barstr.replace('-1', '')]:
                     input_uids.remove(uid)
         if len(input_uids) > 0:
-            print '  %s missing %d / %d input uids: %s' % (utils.wrnstr(), len(input_uids), len(seqfos), ' '.join(input_uids))
+            print('  %s missing %d / %d input uids: %s' % (utils.wrnstr(), len(input_uids), len(seqfos), ' '.join(input_uids)))
         else:
-            print '  found all input uids'
+            print('  found all input uids')
     else:
         cpaths = {l : ClusterPath(partition=[]) for l in gloci()}
         for bclust in barcode_cpath.best():
@@ -236,7 +237,7 @@ def convert_output():
         for locus in gloci():
             _, _, true_cpath = utils.read_output(simfn(locus), skip_annotations=True)
             plines = cpaths[locus].get_partition_lines(true_partition=true_cpath.best(), calc_missing_values='best', fail_frac=0.10)
-            print '    writing partition to %s' % getofn(locus)
+            print('    writing partition to %s' % getofn(locus))
             utils.write_annotations(getofn(locus), {}, [], utils.annotation_headers, partition_lines=plines)
 
 # ----------------------------------------------------------------------------------------

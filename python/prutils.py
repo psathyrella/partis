@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import copy
 import sys
 
@@ -20,21 +21,21 @@ def get_uid_str(line, iseq, queries_to_emphasize, duplicated_uids=None):
 def check_outsr_lengths(line, outstrs, fix=False, debug=False):
     if len(set([len(ostr) for ostr in outstrs])) == 1:  # could put this in a bunch of different places, but things're probably most likely to get screwed up either when initally building the four lines, or dealing with the stupid gaps
         if debug:
-            print '    outstr lengths ok'
+            print('    outstr lengths ok')
         return
 
     if fix:
         max_len = max([len(ostr) for ostr in outstrs])
         if debug:
-            print '      fixing outstr lengths: %s --> %d' % (' '.join(str(len(ostr)) for ostr in outstrs), max_len)
+            print('      fixing outstr lengths: %s --> %d' % (' '.join(str(len(ostr)) for ostr in outstrs), max_len))
         for istr in range(len(outstrs)):
             if len(outstrs[istr]) < max_len:
                 outstrs[istr] += ' ' * (max_len - len(outstrs[istr]))
         return
 
-    print ':'.join(line['unique_ids'])
+    print(':'.join(line['unique_ids']))
     for ostr in outstrs:
-        print '%s%s%s' % (utils.color('red', 'x'), ostr, utils.color('red', 'x'))
+        print('%s%s%s' % (utils.color('red', 'x'), ostr, utils.color('red', 'x')))
     raise Exception('outstrs not all the same length %s' % [len(ostr) for ostr in outstrs])
 
 # ----------------------------------------------------------------------------------------
@@ -86,7 +87,7 @@ def old_indel_shenanigans(line, iseq, outstrs, colors, debug=False):  # NOTE sim
 # ----------------------------------------------------------------------------------------
 def indel_shenanigans(line, iseq, outstrs, colors, delstrs, debug=False):  # NOTE similar to/overlaps with get_seq_with_indels_reinstated()
     if debug:
-        print '%s' % utils.color('blue', 'shenanigans')
+        print('%s' % utils.color('blue', 'shenanigans'))
 
     def get_itype(qrchar, glchar):
         if qrchar not in utils.gap_chars and glchar not in utils.gap_chars:
@@ -138,13 +139,13 @@ def indel_shenanigans(line, iseq, outstrs, colors, delstrs, debug=False):  # NOT
             continue
 
         if iqrgap >= len(ifo['qr_gap_seq']) or iglgap >= len(ifo['gl_gap_seq']):
-            print ' ins     %3d  x%sx' % (ipos, outstrs[0])
-            print '  d           x%sx' % (outstrs[1])
-            print ' vj           x%sx' % (outstrs[2])
-            print ' qr           x%sx' % (outstrs[3])
-            print ' qr gap  %s  x%sx' % (utils.color('red' if iqrgap >= len(ifo['qr_gap_seq']) else None, '%3d' % iqrgap), ifo['qr_gap_seq'])
-            print ' gl gap  %s  x%sx' % (utils.color('red' if iglgap >= len(ifo['gl_gap_seq']) else None, '%3d' % iglgap), ifo['gl_gap_seq'])
-            print '%s index problem when adding indel info to print strings in prutils.indel_shenanigans() (probably due to overlapping indels)' % utils.color('red', 'error')
+            print(' ins     %3d  x%sx' % (ipos, outstrs[0]))
+            print('  d           x%sx' % (outstrs[1]))
+            print(' vj           x%sx' % (outstrs[2]))
+            print(' qr           x%sx' % (outstrs[3]))
+            print(' qr gap  %s  x%sx' % (utils.color('red' if iqrgap >= len(ifo['qr_gap_seq']) else None, '%3d' % iqrgap), ifo['qr_gap_seq']))
+            print(' gl gap  %s  x%sx' % (utils.color('red' if iglgap >= len(ifo['gl_gap_seq']) else None, '%3d' % iglgap), ifo['gl_gap_seq']))
+            print('%s index problem when adding indel info to print strings in prutils.indel_shenanigans() (probably due to overlapping indels)' % utils.color('red', 'error'))
             break
         # print ipos, iqrgap, iglgap, ifo['qr_gap_seq'][iqrgap], ifo['gl_gap_seq'][iglgap]
         if ifo['qr_gap_seq'][iqrgap] not in utils.gap_chars and ifo['gl_gap_seq'][iglgap] not in utils.gap_chars:
@@ -177,7 +178,7 @@ def indel_shenanigans(line, iseq, outstrs, colors, delstrs, debug=False):  # NOT
 
     if debug:
         for ostr in outstrs:
-            print '    %s' % ostr
+            print('    %s' % ostr)
 
     return outstrs, colors
 
@@ -323,19 +324,19 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
         removed_str = outstrs[0][offset : offset + utils.len_excluding_colors(label)]
         outstrs[0] = outstrs[0][ : offset] + label + outstrs[0][utils.len_excluding_colors(label) + offset : ]  # NOTE this *replaces* the bases in <extra_str> with <label>, which is only fine if they're spaces
         if removed_str.strip() != '':
-            print '%s%s (covered by label \'%s\')' % (' ' * offset, utils.color('red', removed_str), label)
+            print('%s%s (covered by label \'%s\')' % (' ' * offset, utils.color('red', removed_str), label))
 
     if one_line:
         outstrs = outstrs[-1:]  # remove all except the query seq line
     elif not utils.has_d_gene(utils.get_locus(line['v_gene'])) and len(vj_delstr) == 0:
         outstrs.pop(1)  # remove the d germline line
 
-    print ''.join(outstrs),
+    print(''.join(outstrs), end=' ')
 
     if check_line_integrity:
         if set(line.keys()) != set(original_line.keys()):
             raise Exception('ack 1')
         for k in line:
             if line[k] != original_line[k]:
-                print 'key %s differs:\n  %s\n  %s ' % (k, line[k], original_line[k])
+                print('key %s differs:\n  %s\n  %s ' % (k, line[k], original_line[k]))
                 raise Exception('')

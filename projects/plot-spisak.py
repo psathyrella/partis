@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import csv
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
@@ -55,7 +56,7 @@ ptndir = '/fh/fast/matsen_e/processed-data/partis/spisak-simu/%s' % vsn
 simdir = '/fh/fast/matsen_e/data/spisak-simu'
 
 outdirs = sorted(glob.glob('%s/partitions/cdr_*set_?%s'%(ptndir, '' if logstr=='' else '-%s'%logstr)))
-print '  found %d output dirs (e.g. %s)' % (len(outdirs), outdirs[0])
+print('  found %d output dirs (e.g. %s)' % (len(outdirs), outdirs[0]))
 for iod, odir in enumerate(outdirs):
     sample = os.path.basename(odir).replace('-'+logstr, '')
 

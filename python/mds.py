@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import time
 import os
@@ -28,7 +29,7 @@ def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
 
             clidline = lines[iline]
             if debug:
-                print 'clid  ', clidline
+                print('clid  ', clidline)
             if clidline[0] != '$' or int(clidline.lstrip('$').strip('`')) != len(partition) + 1:
                 raise Exception('couldn\'t convert %s to the expected cluster id %d' % (clidline, len(partition) + 1))
             partition.append([])
@@ -39,11 +40,11 @@ def read_kmeans_clusterfile(clusterfname, seqfos, debug=False):
                 iline += 1
                 uidline = lines[iline]
                 if debug:
-                    print 'uid   ', uidline
+                    print('uid   ', uidline)
                 iline += 1
                 floatline = lines[iline]  # some info about the kmean cluster quality i think? don't care a.t.m.
                 if debug:
-                    print 'float ', floatline
+                    print('float ', floatline)
 
                 uids = set([u for u in uidline.split()])
                 if len(uids - all_uids) > 0:
@@ -128,7 +129,7 @@ def plot_mds(n_components, pcvals, plotdir, basepltname, labels=None, partition=
     from matplotlib import pyplot as plt
     # plt.rcParams['axes.facecolor'] = '#f1efef'
     if n_components % 2 != 0:
-        print '%s odd number of components' % utils.color('red', 'warning')
+        print('%s odd number of components' % utils.color('red', 'warning'))
 
     # set values in <color_map>
     color_map = {}
@@ -143,7 +144,7 @@ def plot_mds(n_components, pcvals, plotdir, basepltname, labels=None, partition=
                 leg_entries[gval] = {'color' : clrlist[igroup%len(clrlist)], 'alpha' : 0.4}
                 partition.append(list(group))
         if len(partition) > len(clrlist):
-            print '  %s more clusters/labels %d than colors %d' % (utils.wrnstr(), len(partition), len(clrlist))
+            print('  %s more clusters/labels %d than colors %d' % (utils.wrnstr(), len(partition), len(clrlist)))
         color_map = {uid : clrlist[iclust%len(clrlist)] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
     elif color_scale_vals is not None:  # map with a number for each sequence (e.g. number of mutations) that we use to make a new color scale
         cmap = plt.cm.get_cmap(cmapstr) #'Blues') #viridis plt.cm.Blues  # 'Blues'
@@ -216,14 +217,14 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
     try:
         utils.run_r(cmdlines, workdir, remove_cmdfile=True)  #, print_time='kmeans')
     except subprocess.CalledProcessError as e:  # typically happens because of complex eigenvalues
-        print e
-        print '   mds failed on cluster'  # NOTE will still crash in read_kmeans_clusterfile(), but I'm not using that a.t.m.
+        print(e)
+        print('   mds failed on cluster')  # NOTE will still crash in read_kmeans_clusterfile(), but I'm not using that a.t.m.
         title = (title if title is not None else '') + ' mds failed'
     pcvals = read_component_file(mdsfname, n_components, seqfos)
     partition = read_kmeans_clusterfile(clusterfname, seqfos) if n_clusters is not None else None
     rstop = time.time()
     if debug and partition is not None:
-        print '  kmeans partition:'
+        print('  kmeans partition:')
         cp = ClusterPath(partition=partition)
         cp.print_partitions(abbreviate=False)
 
@@ -238,7 +239,7 @@ def run_bios2mds(n_components, n_clusters, seqfos, base_workdir, seed, aligned=F
             labels = {uid : reco_info[uid][region + '_gene'] for uid in pcvals}
             plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels, queries_to_include=queries_to_include, color_scale_vals=color_scale_vals, title=title, leg_title=leg_title, cmapstr=cmapstr)
     if not debug:  # this isn't a great way to do this, but I don't want to deal with finding all the calling functions, I just want to add some debug printing to this fcn
-        print '    %5.1f  %5.1f' % (rstop - rstart, time.time() - plotstart),
+        print('    %5.1f  %5.1f' % (rstop - rstart, time.time() - plotstart), end=' ')
 
     return partition
 
@@ -257,11 +258,11 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
 
     if not aligned:  # NOTE unlike the bios2mds version above, this modifies <seqfos>
         if debug:
-            print 'align'
+            print('align')
         seqfos = utils.align_many_seqs(seqfos)
 
     if debug:
-        print '  distances'
+        print('  distances')
     # translations = utils.make_unicode_translation('ACGT-', '01234')
     # def convert(seq):
     #     return [int(c) for c in seq.translate(translations)]
@@ -274,13 +275,13 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
     pos = None
     if n_components is not None:
         if debug:
-            print '  mds'
+            print('  mds')
         mds = sys.modules['sklearn'].manifold.MDS(n_components=n_components, n_init=n_init, max_iter=max_iter, eps=eps, random_state=random_state, dissimilarity="precomputed", n_jobs=n_jobs)
         pos = mds.fit_transform(similarities)
         # pos = mds.fit(similarities).embedding_
 
     if debug:
-        print '    kmeans clustering with %d clusters' % n_clusters
+        print('    kmeans clustering with %d clusters' % n_clusters)
     kmeans = sys.modules['sklearn'].cluster.KMeans(n_clusters=n_clusters, random_state=random_state).fit(pos if pos is not None else similarities)
     pcvals = {seqfos[iseq]['name'] : pos[iseq] if pos is not None else None for iseq in range(len(seqfos))}
     labels = {seqfos[iseq]['name'] : kmeans.labels_[iseq] for iseq in range(len(seqfos))}
@@ -289,7 +290,7 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
     if plotdir is not None:
         utils.prep_dir(plotdir, wildlings=['*.svg'])
         if debug:
-            print '    plot'
+            print('    plot')
         plot_mds(n_components, pcvals, plotdir, 'mds', partition=partition)
 
         if reco_info is not None:
@@ -297,6 +298,6 @@ def run_sklearn_mds(n_components, n_clusters, seqfos, seed, reco_info=None, regi
             plot_mds(n_components, pcvals, plotdir, 'true-genes', labels=labels)
 
     if debug:
-        print '    kmeans time %.1f' % (time.time() - start)
+        print('    kmeans time %.1f' % (time.time() - start))
 
     return partition

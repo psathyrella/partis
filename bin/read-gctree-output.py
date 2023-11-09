@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import glob
 import sys
 import csv
@@ -70,7 +71,7 @@ if args.paired_loci:
 else:
     if args.seqfname is None:
         args.seqfname = '%s/%s.fasta' % (args.gctreedir, gctree_outstr)
-        print '    set --seqfname to default location in --gctreedir: %s' % args.seqfname
+        print('    set --seqfname to default location in --gctreedir: %s' % args.seqfname)
     if args.locus is None:
         raise Exception('have to set --locus for single chain')
 
@@ -122,7 +123,7 @@ utils.mkdir(args.outdir)
 metafos = {}
 if args.multiplicity_column is None:  # if not set, read abundances from args.abundance_basename
     abfn = '%s/%s' % (args.gctreedir, args.abundance_basename)
-    print '    reading abundance info from %s' % abfn
+    print('    reading abundance info from %s' % abfn)
     with open(abfn) as afile:
         reader = csv.DictReader(afile, fieldnames=('name', 'abundance'))
         for line in reader:
@@ -130,7 +131,7 @@ if args.multiplicity_column is None:  # if not set, read abundances from args.ab
                 metafos[line['name']] = {}
             metafos[line['name']]['multiplicity'] = max(1, int(line['abundance']))  # increase 0s (inferred ancestors) to 1
 if args.kdfname is not None:
-    print '    reading kd info%s from %s' % ('' if args.multiplicity_column is None else ' and multiplicity info', args.kdfname)
+    print('    reading kd info%s from %s' % ('' if args.multiplicity_column is None else ' and multiplicity info', args.kdfname))
     with open(args.kdfname) as kfile:
         reader = csv.DictReader(kfile)
         for line in reader:
@@ -151,7 +152,7 @@ if args.paired_loci:  # convert metafos to per-locus names
         del metafos[base_id]
 
 # and write to json/yaml
-print '    writing input meta info to %s' % metafname()
+print('    writing input meta info to %s' % metafname())
 utils.jsdump(metafname(), metafos)
 
 for action in args.actions:

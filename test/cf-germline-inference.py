@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import operator
 import yaml
 import glob
@@ -126,11 +127,11 @@ def get_single_performance(region, outdir, method, debug=False):
     spurious_alleles = set(iglfo['seqs'][region]) - set(sglfo['seqs'][region])
     if debug:
         if len(missing_alleles) > 0:
-            print '    %2d  missing %s' % (len(missing_alleles), ' '.join([utils.color_gene(g) for g in missing_alleles]))
+            print('    %2d  missing %s' % (len(missing_alleles), ' '.join([utils.color_gene(g) for g in missing_alleles])))
         if len(spurious_alleles) > 0:
-            print '    %2d spurious %s' % (len(spurious_alleles), ' '.join([utils.color_gene(g) for g in spurious_alleles]))
+            print('    %2d spurious %s' % (len(spurious_alleles), ' '.join([utils.color_gene(g) for g in spurious_alleles])))
         if len(missing_alleles) == 0 and len(spurious_alleles) == 0:
-            print '    none missing'
+            print('    none missing')
     return {
         'missing' : len(missing_alleles),
         'spurious' : len(spurious_alleles),
@@ -214,14 +215,14 @@ def print_gls_gen_summary_table(args, region, baseoutdir):
             for status in statuses:
                 meanvals[method][status].append(len(yamlfo[status]))
 
-    print '%20s     %s' % ('', ' '.join([('%-16s' % st) for st in statuses]))
+    print('%20s     %s' % ('', ' '.join([('%-16s' % st) for st in statuses])))
     for meth in args.methods:
-        print '%20s' % methstr(meth),
+        print('%20s' % methstr(meth), end=' ')
         for status in statuses:
             mean = float(sum(meanvals[meth][status])) / len(meanvals[meth][status])
             err = numpy.std(meanvals[meth][status], ddof=1) / math.sqrt(len(meanvals[meth][status]))
-            print '  %s   %s%4.1f %s %-4.1f%s' % ('&' if latex else '', '$' if latex else '', mean, '\\pm' if latex else '+/-', err, '$' if latex else ''),
-        print '%s' % ('\\\\' if latex else '')
+            print('  %s   %s%4.1f %s %-4.1f%s' % ('&' if latex else '', '$' if latex else '', mean, '\\pm' if latex else '+/-', err, '$' if latex else ''), end=' ')
+        print('%s' % ('\\\\' if latex else ''))
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_annotation_performance_plots(args, region, baseoutdir):
@@ -246,12 +247,12 @@ def get_gls_gen_annotation_performance_plots(args, region, baseoutdir):
     plotnames = ['v_hamming_to_true_naive', 'v_muted_bases']
     xtitles = ['V distance to true naive', 'inferred - true']
     meanvals = {pn : {m : [] for m in args.methods} for pn in plotnames}
-    print '  annotations: %s' % get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events)
+    print('  annotations: %s' % get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events))
     all_hists = {pn : [] for pn in plotnames}
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)  # duplicates code in bin/test-germline-inference.py
         plotdir = outdir + '/annotation-performance-plots'
-        print '    %s' % plotdir
+        print('    %s' % plotdir)
         if not args.only_print:
             utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
 
@@ -268,7 +269,7 @@ def get_gls_gen_annotation_performance_plots(args, region, baseoutdir):
             hists = {meth : Hist(fname=hfnames[meth] + '/' + plotname + '.csv', title=methstr(meth) if make_legend else None) for meth in args.methods}
             for meth in args.methods:
                 if hists[meth].overflow_contents() != 0.0:
-                    print '  %s %s non-zero under/overflow %f' % (utils.color('red', 'error'), methstr(meth), hists[meth].overflow_contents())
+                    print('  %s %s non-zero under/overflow %f' % (utils.color('red', 'error'), methstr(meth), hists[meth].overflow_contents()))
                 meanvals[plotname][meth].append(hists[meth].get_mean())
             if args.only_print:
                 continue
@@ -278,9 +279,9 @@ def get_gls_gen_annotation_performance_plots(args, region, baseoutdir):
                                   linewidths=linewidths, linestyles=linestyles, alphas=alphas, remove_empty_bins=True, square_bins=True)
             all_hists[plotname].append(hists)
 
-    print '  total plots'
+    print('  total plots')
     plotdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/annotation-performance-plots'
-    print '    %s' % plotdir
+    print('    %s' % plotdir)
     if not args.only_print:
         utils.prep_dir(plotdir, wildlings=['*.png', '*.svg', '*.csv'])
     for plotname in plotnames:
@@ -304,11 +305,11 @@ def get_gls_gen_annotation_performance_plots(args, region, baseoutdir):
     for plotname in plotnames:
         if 'muted_bases' in plotname:  #  mean value isn't meaningful
             continue
-        print plotname
+        print(plotname)
         for meth in args.methods:
             mean = float(sum(meanvals[plotname][meth])) / len(meanvals[plotname][meth])
             err = numpy.std(meanvals[plotname][meth], ddof=1) / math.sqrt(len(meanvals[plotname][meth]))
-            print '   %15s  %6.3f / %d = %6.2f +/- %6.2f' % (methstr(meth), sum(meanvals[plotname][meth]), len(meanvals[plotname][meth]), mean, err)
+            print('   %15s  %6.3f / %d = %6.2f +/- %6.2f' % (methstr(meth), sum(meanvals[plotname][meth]), len(meanvals[plotname][meth]), mean, err))
 
 # ----------------------------------------------------------------------------------------
 def get_gls_gen_tree_plots(args, region, baseoutdir, method):
@@ -316,7 +317,7 @@ def get_gls_gen_tree_plots(args, region, baseoutdir, method):
     varval = 'simu'
     for iproc in range(args.iteststart, args.n_tests):
         outdir = get_outdir(args, baseoutdir, varname, varval, n_events=args.gls_gen_events) + '/' + str(iproc)
-        print '%-2d                            %s' % (iproc, outdir)
+        print('%-2d                            %s' % (iproc, outdir))
         simfname = get_gls_fname(region, outdir, method=None, locus=args.locus, sim_truth=True)
         inffname = get_gls_fname(region, outdir, method, args.locus)
         plotdir = outdir + '/' + method + '/gls-gen-plots'
@@ -401,7 +402,7 @@ def get_data_plots(args, region, baseoutdir, methods, study, dsets):
         title_color = methods[0]
         legends = get_dset_legends([metafos[ds] for ds in dsets])
         legend_title = methstr(methods[0]) if study == 'kate-qrs' else None  # for kate-qrs we need to put the subject _and_ the isotype in the title, so there's no room for the method
-        print '%s:' % utils.color('green', methods[0]),
+        print('%s:' % utils.color('green', methods[0]), end=' ')
     elif len(methods) > 1 and len(dsets) == 1:  # method vs method
         glslabels = methods
         title = get_dset_title([mfo])
@@ -409,10 +410,10 @@ def get_data_plots(args, region, baseoutdir, methods, study, dsets):
         legends = [methstr(m) + ' only' for m in methods]
         legend_title = None
         pie_chart_faces = len(methods) > 2  # True
-        print '%s:' % utils.color('green', dsets[0]),
+        print('%s:' % utils.color('green', dsets[0]), end=' ')
     else:  # single sample plot
         glslabels = dsets
-    print '%s' % (' %s ' % utils.color('blue', 'vs')).join(glslabels)
+    print('%s' % (' %s ' % utils.color('blue', 'vs')).join(glslabels))
     plotdir = outdir + '/' + '-vs-'.join(methods) + '/gls-gen-plots'
     if args.all_regions:  # NOTE not actually checking this by running... but it's the same as the gls-gen one, so it should be ok
         plotdir += '/' + region
@@ -445,21 +446,21 @@ def plot_single_test(args, region, baseoutdir, method):
 
     plotvals = []
     for varval in args.varvals:
-        print '%s %s' % (args.action, varvalstr(args.action, varval))
+        print('%s %s' % (args.action, varvalstr(args.action, varval)))
         plotvals.append({pt : {k : [] for k in ['xvals', 'ycounts', 'ytotals']} for pt in plot_types})
         for n_events in args.n_event_list:
             perf_vals = get_performance(varname=args.action, varval=varval)
-            print '  %d' % n_events
-            print '    iproc    %s' % ' '.join([str(i) for i in range(args.iteststart, args.n_tests)])
-            print '    missing  %s' % ' '.join([str(v) for v in perf_vals['missing']]).replace('0', ' ')
-            print '    spurious %s' % ' '.join([str(v) for v in perf_vals['spurious']]).replace('0', ' ')
+            print('  %d' % n_events)
+            print('    iproc    %s' % ' '.join([str(i) for i in range(args.iteststart, args.n_tests)]))
+            print('    missing  %s' % ' '.join([str(v) for v in perf_vals['missing']]).replace('0', ' '))
+            print('    spurious %s' % ' '.join([str(v) for v in perf_vals['spurious']]).replace('0', ' '))
             for ptype in plot_types:
                 count = sum(perf_vals[ptype])
                 plotvals[-1][ptype]['xvals'].append(n_events)
                 plotvals[-1][ptype]['ycounts'].append(count)
                 plotvals[-1][ptype]['ytotals'].append(sum(perf_vals['total']))
     for ptype in plot_types:
-        print '    %s' % baseoutdir + '/' + ptype + '.svg'
+        print('    %s' % baseoutdir + '/' + ptype + '.svg')
         plotting.plot_gl_inference_fractions(baseoutdir, ptype,
                                              [pv[ptype] for pv in plotvals],
                                              labels=[legend_str(args, v) for v in args.varvals],
@@ -473,7 +474,7 @@ def plot_single_test(args, region, baseoutdir, method):
 def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
     method_outdir = heads.get_datadir(study, 'processed', extra_str=args.label) + '/' + dset
     gls_dir = get_gls_dir(method_outdir, method, data=True)
-    print '            %s --> %s' % (gls_dir, zenodo_dir)
+    print('            %s --> %s' % (gls_dir, zenodo_dir))
     glfo = glutils.read_glfo(gls_dir, mfo['locus'], remove_orfs='partis' in method)
     glutils.write_glfo(zenodo_dir, glfo)
     if method == 'partis':
@@ -519,11 +520,11 @@ def write_single_zenodo_subdir(zenodo_dir, args, study, dset, method, mfo):
 # ----------------------------------------------------------------------------------------
 def write_zenodo_files(args, baseoutdir):
     for study, dset in [v.split('/') for v in args.varvals]:
-        print '%-10s  %15s   %s' % (study, dset, baseoutdir)
+        print('%-10s  %15s   %s' % (study, dset, baseoutdir))
         metafos = heads.read_metadata(study)
         for method in args.methods:
             outdir = get_outdir(args, baseoutdir, varname='data', varval='zenodo/%s/%s/%s' % (study_translations.get(study, study), dset, method.replace('-default', '')))
-            print '  %-15s' % method
+            print('  %-15s' % method)
             write_single_zenodo_subdir(outdir, args, study, dset, method, metafos[dset])
 
 # ----------------------------------------------------------------------------------------
@@ -541,7 +542,7 @@ def print_data_table(dsetfos, method, latex=False, emph_genes=['IGHV1-2*02+G35A'
                 gstr = utils.color_gene(gene, width=18)
             return '%s  %s%5.2f%s %s %-20s' % (cstr, estr, 100 * val, estr, cstr, gstr)
     def print_line(rfos):
-        print '  %s%s'  % ('   '.join([getvalstr(g, v) for g, v in rfos]), lstr)
+        print('  %s%s'  % ('   '.join([getvalstr(g, v) for g, v in rfos]), lstr))
     def ds_str(ds, region):
         lstr = ds.split('-')[1]
         return ('IG%s%s' % (('h' if lstr in ['g', 'm'] else lstr).upper(), region.upper())) if latex else ds
@@ -557,7 +558,7 @@ def print_data_table(dsetfos, method, latex=False, emph_genes=['IGHV1-2*02+G35A'
         if latex:
             hstr = '\\hline'
             tmpline = '  %s\n%s\n  %s' % (hstr, tmpline, hstr)
-        print tmpline
+        print(tmpline)
         rowfos = [sorted(cfo.items(), key=operator.itemgetter(1), reverse=True) for cfo in countfos]
         irow = 0
         while True:
@@ -595,7 +596,7 @@ def plot_tests(args, region, baseoutdir, method, method_vs_method=False, annotat
                 for sample in samples:
                     dsetfos.remove([study, sample])
             if len(dsetfos) > 0:
-                print '  note: %d leftover dsets (%s)' % (len(dsetfos), ' '.join(d for _, d in dsetfos))
+                print('  note: %d leftover dsets (%s)' % (len(dsetfos), ' '.join(d for _, d in dsetfos)))
         else:  # single sample data plots
             for study, dset in dsetfos:  # duplicates the stuff for method_vs_method above, but I don't want to change that behavior now
                 get_data_plots(args, region, baseoutdir, [method], study, [dset])
@@ -911,7 +912,7 @@ elif args.plot:
         sys.exit(0)
 
     for region in ['v'] if not args.all_regions else utils.loci[args.locus]:  # this is messy... but it makes it so existing result directory structures are still parseable (i.e. the structure only changes if you set --all-regions)
-        print '%s' % utils.color('reverse_video', utils.color('green', region))
+        print('%s' % utils.color('reverse_video', utils.color('green', region)))
         if args.method_vs_method:
             plot_tests(args, region, baseoutdir, method=None, method_vs_method=True)
         elif args.plot_annotation_performance:

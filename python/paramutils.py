@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import os
 import csv
 import operator
@@ -35,14 +36,14 @@ def read_mute_counts(indir, gene, locus, extra_genes=None, debug=False):  # NOTE
                 assert pos not in observed_counts
                 observed_counts[pos] = {n : int(line[n + '_obs']) for n in utils.nukes}
         if debug:
-            print '    read %d per-base mute counts from %s' % (len(observed_counts), mfname)
+            print('    read %d per-base mute counts from %s' % (len(observed_counts), mfname))
         return observed_counts
 
     # ----------------------------------------------------------------------------------------
     if extra_genes is not None:  # I don't want to fix it cause it'd be kinda hard, and also I don't think it ever happens under normal circumstances -- it's only called with this arg from simulation, in which case you should always have parameters for the gene you're asking for
-        print '%s Reading per-base mutation counts for genes (%s) in addition to the desired one (%s), which doesn\'t really make sense, since the counts will be wrong at the positions at which the genes differ.' % (utils.color('red', 'warning'), utils.color_genes(extra_genes), utils.color_gene(gene))
-        print '   This should only happen if you\'re doing something weird, probably running simulation asking for genes for which you don\'t have parameters.'
-        print '   If this is the case and you only care that it doesn\'t crash, and not that the mutation model is particularly accurate, this is fine.'
+        print('%s Reading per-base mutation counts for genes (%s) in addition to the desired one (%s), which doesn\'t really make sense, since the counts will be wrong at the positions at which the genes differ.' % (utils.color('red', 'warning'), utils.color_genes(extra_genes), utils.color_gene(gene)))
+        print('   This should only happen if you\'re doing something weird, probably running simulation asking for genes for which you don\'t have parameters.')
+        print('   If this is the case and you only care that it doesn\'t crash, and not that the mutation model is particularly accurate, this is fine.')
     if gene == glutils.dummy_d_genes[locus]:
         return {}
 
@@ -71,7 +72,7 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
         return {'overall_mean' : 0.5, 'unweighted_overall_mean' : 0.5}
 
     if debug:
-        print '    reading mute freqs from %s for %d gene%s: %s' % (indir, len(approved_genes), utils.plural(len(approved_genes)), utils.color_genes(approved_genes))
+        print('    reading mute freqs from %s for %d gene%s: %s' % (indir, len(approved_genes), utils.plural(len(approved_genes)), utils.color_genes(approved_genes)))
 
     # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
     observed_freqs = {}
@@ -125,12 +126,12 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
         iskipstart = 35  # i.e. for v genes skip the middle positions
         positions = sorted(observed_freqs)
         if len(positions) > 2 * iskipstart:
-            print '      %s%s%s' % (' '.join([('%4d' % p) for p in positions[:iskipstart]]), utils.color('blue', ' [...] '), ' '.join([('%4d' % p) for p in positions[len(positions) - iskipstart :]]))
-            print '      %s%s%s' % (' '.join([('%4.2f' % mute_freqs[p]) for p in positions[:iskipstart]]), utils.color('blue', ' [...] '), ' '.join([('%4.2f' % mute_freqs[p]) for p in positions[len(positions) - iskipstart :]]))
+            print('      %s%s%s' % (' '.join([('%4d' % p) for p in positions[:iskipstart]]), utils.color('blue', ' [...] '), ' '.join([('%4d' % p) for p in positions[len(positions) - iskipstart :]])))
+            print('      %s%s%s' % (' '.join([('%4.2f' % mute_freqs[p]) for p in positions[:iskipstart]]), utils.color('blue', ' [...] '), ' '.join([('%4.2f' % mute_freqs[p]) for p in positions[len(positions) - iskipstart :]])))
         else:
-            print '      %s' % ' '.join([('%4d' % p) for p in positions])
-            print '      %s' % ' '.join([('%4.2f' % mute_freqs[p]) for p in positions])
-        print '        overall mean: %5.3f (unweighted %5.3f)' % (mute_freqs['overall_mean'], mute_freqs['unweighted_overall_mean'])
+            print('      %s' % ' '.join([('%4d' % p) for p in positions]))
+            print('      %s' % ' '.join([('%4.2f' % mute_freqs[p]) for p in positions]))
+        print('        overall mean: %5.3f (unweighted %5.3f)' % (mute_freqs['overall_mean'], mute_freqs['unweighted_overall_mean']))
 
     return mute_freqs
 
@@ -144,7 +145,7 @@ def make_mutefreq_plot(plotdir, gene_name, positions, debug=False):
 
     ibin = 0
     if debug:
-        print '  %s' % utils.color_gene(utils.unsanitize_name(gene_name))
+        print('  %s' % utils.color_gene(utils.unsanitize_name(gene_name)))
     legend_colors = set()
     for info in positions:
         posname = info['name']

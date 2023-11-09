@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import csv
 import math
@@ -74,7 +75,7 @@ def vollmers(info, threshold, debug=False):
             #     continue
             if from_same_lineage(last_cluster_id, unique_id):
                 if debug:
-                    print '     adding', unique_id
+                    print('     adding', unique_id)
                 id_clusters[last_cluster_id].append(unique_id)
                 uids_to_remove.append(unique_id)
         for uid in uids_to_remove:
@@ -82,7 +83,7 @@ def vollmers(info, threshold, debug=False):
 
     def add_cluster(clid):
         if debug:
-            print '  starting cluster %d' % clid
+            print('  starting cluster %d' % clid)
         id_clusters[clid] = [unclustered_seqs[0],]
         unclustered_seqs.remove(unclustered_seqs[0])
         while True:
@@ -91,14 +92,14 @@ def vollmers(info, threshold, debug=False):
             if last_size == len(id_clusters[clid]):  # stop when cluster stops growing
                 break
             if debug:
-                print '    running again (%d --> %d)' % (last_size, len(id_clusters[clid]))
+                print('    running again (%d --> %d)' % (last_size, len(id_clusters[clid])))
 
     # ----------------------------------------------------------------------------------------
     # the business
     start = time.time()
     if any(len(l['unique_ids']) > 1 for l in info.values()):
         raise Exception('all initial annotations in annotation clustering need to have length 1, but got: %s' % [l['unique_ids'] for l in info.values() if len(l['unique_ids'])>1])
-    print '  vj-cdr3 clustering %d sequences with threshold %.3f' % (len(info), threshold)
+    print('  vj-cdr3 clustering %d sequences with threshold %.3f' % (len(info), threshold))
     unclustered_seqs = list(info.keys())
     last_cluster_id = 0
     while len(unclustered_seqs) > 0:
@@ -106,7 +107,7 @@ def vollmers(info, threshold, debug=False):
         last_cluster_id += 1
 
     partition = [uids for uids in id_clusters.values()]  # convert to list of lists (no clid info)
-    print '  vjcdr3 time: %.1f' % (time.time() - start)
+    print('  vjcdr3 time: %.1f' % (time.time() - start))
     return partition
 
 # ----------------------------------------------------------------------------------------
@@ -167,10 +168,10 @@ class SingleLinkClusterer(object):
         if second_cluster_id in self.cluster_ids:
             self.cluster_ids.remove(second_cluster_id)
         else:
-            print 'oh, man, something\'s wrong'
-            print 'uniqe_id,reco_id'
+            print('oh, man, something\'s wrong')
+            print('uniqe_id,reco_id')
             for name, cluster_id in six.iteritems(self.query_clusters):
-                print '%s,%d' % (name, cluster_id)
+                print('%s,%d' % (name, cluster_id))
             sys.exit()
 
     # ----------------------------------------------------------------------------------------
@@ -191,7 +192,7 @@ class SingleLinkClusterer(object):
     def incorporate_into_clusters(self, query_name, second_query_name, score, dbg_str_list):
         """ figure out how to add query pair into clusters using single-link"""
         if math.isnan(score):
-            print 'ERROR nan passed for %d %d (dbg %s)' %(query_name, second_query_name, dbg_str_list)
+            print('ERROR nan passed for %d %d (dbg %s)' %(query_name, second_query_name, dbg_str_list))
             sys.exit()
         if self.is_removable(score):
             dbg_str_list.append('    removing link')
@@ -243,7 +244,7 @@ class SingleLinkClusterer(object):
             if debug:
                 outstr = ''.join(dbg_str_list)
                 if outfile == None:
-                    print outstr
+                    print(outstr)
                 else:
                     outfile.write(outstr + '\n')
 
@@ -260,6 +261,6 @@ class SingleLinkClusterer(object):
         for cluster_id in self.id_clusters:
             out_str_list.append('   ' + ' '.join([str(x) for x in self.id_clusters[cluster_id]]) + '\n')
         if outfile == None:
-            print ''.join(out_str_list)
+            print(''.join(out_str_list))
         else:
             outfile.write(''.join(out_str_list))

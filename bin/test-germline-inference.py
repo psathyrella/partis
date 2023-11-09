@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import numpy
 import copy
 import random
@@ -187,12 +188,12 @@ def run_partis_parameter_cache(args, method):
 def write_inf_glfo(args):  # read default glfo, restrict it to the specified alleles, and write to somewhere where all the methods can read it
     # NOTE this dir should *not* be modified by any of the methods
     inf_glfo = glutils.read_glfo(args.default_germline_dir, locus=args.locus, only_genes=args.inf_v_genes + args.dj_genes)
-    print '  writing initial inference glfo with %d v: %s' % (len(inf_glfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in inf_glfo['seqs']['v']]))
+    print('  writing initial inference glfo with %d v: %s' % (len(inf_glfo['seqs']['v']), ' '.join([utils.color_gene(g) for g in inf_glfo['seqs']['v']])))
     glutils.write_glfo(args.inf_glfo_dir, inf_glfo)
 
 # ----------------------------------------------------------------------------------------
 def run_tests(args):
-    print 'seed %d' % args.seed
+    print('seed %d' % args.seed)
     # all fcns return immediately if output already exists
 
     if 'simu' in args.methods:
@@ -248,7 +249,7 @@ def multiple_tests(args):
             while os.path.exists(logd + '/log.' + str(ilog)):
                 ilog += 1
             check_call(['mv', '-v', logd + '/log', logd + '/log.' + str(ilog)])
-    print '  look for logs in %s' % args.outdir
+    print('  look for logs in %s' % args.outdir)
     utils.run_cmds(cmdfos, debug='write')
 
 # ----------------------------------------------------------------------------------------
@@ -376,7 +377,7 @@ available_methods = set(['simu', 'partis', 'full', 'tigger-default', 'tigger-tun
 if len(set(args.methods) - available_methods) > 0:
     raise Exception('unexpected --methods: %s' % ' '.join(set(args.methods) - available_methods))
 # args.default_germline_dir = 'old-glfo/%s' % args.species  # 'data/germlines/%s' % args.species  # NOTE gad damnit, I just deleted old-glfo, had no idea what it was for
-print '  %s hopefully old-glfo/ isn\'t needed to recreate old results (see comment)' % utils.color('yellow', 'note:')
+print('  %s hopefully old-glfo/ isn\'t needed to recreate old results (see comment)' % utils.color('yellow', 'note:'))
 args.default_germline_dir = 'data/germlines/%s' % args.species  # 'data/germlines/%s' % args.species
 
 args.generate_germline_set = args.gls_gen  # for compatibility with bin/partis (i.e. so they can both use the fcn in processargs, but I don't have to rewrite either)

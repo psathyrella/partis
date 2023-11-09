@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import csv
 from io import open
@@ -68,7 +69,7 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
     # ----------------------------------------------------------------------------------------
     def check_seqs(uid, seq_i, seq_t, force=False, dont_fix=False):
         if debug:
-            print uid
+            print(uid)
         if seq_t == seq_i:
             return False  # return whether we fixed it or not
         seq_i = combine_chain_seqs(uid, seq_i)
@@ -76,13 +77,13 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
             assert force  # for seqs that are in inferred but not true, we already know we need to fix them (and how)
         else:
             if seq_t != seq_i and not dont_fix:
-                print '%s tried to fix %s but seqs still differenet:' % (utils.wrnstr(), uid)
+                print('%s tried to fix %s but seqs still differenet:' % (utils.wrnstr(), uid))
                 utils.color_mutants(seq_t, seq_i, print_result=True, align_if_necessary=True, ref_label='true ', seq_label='inf ')
                 assert False
             seqs_t[uid] = seq_t
         seqs_i[uid] = seq_i
         if debug:
-            print '    fixed seq for %s' % uid
+            print('    fixed seq for %s' % uid)
         return True
     # ----------------------------------------------------------------------------------------
     leaf_ids_t = [l.taxon.label for l in tr_t.leaf_node_iter() if l.taxon.label in atn_t['unique_ids']]
@@ -107,11 +108,11 @@ def trnfn(u): return u + '_contig_igh+igk'
 utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
 jvals = {'coar' : []}
 for atn_t in tru_atn_list:
-    print '  starting true annotation with size %d' % len(atn_t['unique_ids'])
+    print('  starting true annotation with size %d' % len(atn_t['unique_ids']))
     atn_i = None
     for tatn in inf_atn_list:
         if len(set(atn_t['unique_ids']) & set(tatn['unique_ids'])) > 0:
-            print '    found inferred annotation with %d / %d uids in common' % (len(set(atn_t['unique_ids']) & set(tatn['unique_ids'])), len(atn_t['unique_ids']))
+            print('    found inferred annotation with %d / %d uids in common' % (len(set(atn_t['unique_ids']) & set(tatn['unique_ids'])), len(atn_t['unique_ids'])))
             atn_i = tatn
             break
     if atn_i is None:
@@ -120,17 +121,17 @@ for atn_t in tru_atn_list:
     seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i) #, debug=args.debug)
     if args.debug:
         for tstr, ttr in zip(['true', 'inf'], [dtree_t, dtree_i]):
-            print '    %4s:' % tstr
-            print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ttr, width=250))
+            print('    %4s:' % tstr)
+            print(utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ttr, width=250)))
     for ttr, seqdict, tfn in zip([dtree_t, dtree_i], [seqs_t, seqs_i], [args.true_tree_file, args.inferred_tree_file]):
         add_seqs_to_nodes(ttr, seqdict, tfn)
     cval = coar.COAR(dtree_t, dtree_i, debug=args.debug)
     jvals['coar'].append(cval)
 
 if args.outdir is None:
-    print '  %s no --outdir specified, so not writing anything' % utils.wrnstr()
+    print('  %s no --outdir specified, so not writing anything' % utils.wrnstr())
     sys.exit(0)
 
 ofn = '%s/coar-vals.yaml' % args.outdir
-print '  writing coar values to %s' % ofn
+print('  writing coar values to %s' % ofn)
 utils.jsdump(ofn, jvals)

@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 from .cache import cached_uncertainties
 from scipy.stats import beta
 from io import open
@@ -55,7 +56,7 @@ def chk():  # check current version output against cached values
         for iv in range(2):
             diff = new[iv] - cached[iv]
             if diff > eps:
-                print '   %20s   %s: diff %.0e    (%f --> %f)' % (key, ['lo', 'hi'][iv], diff, cached[iv], new[iv])
+                print('   %20s   %s: diff %.0e    (%f --> %f)' % (key, ['lo', 'hi'][iv], diff, cached[iv], new[iv]))
         # print ' %8.5f  %8.5f   %s' % (cached[0], new[0])
         iline += 1
         # if iline % 1000 == 0:

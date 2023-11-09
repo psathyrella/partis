@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import numpy
 import random
 import glob
@@ -103,10 +104,10 @@ def run_linearham():
     def prep_cmd(cmdfos, locus, iclust, ofn):
         workd = wkdir(locus, iclust=iclust)
         if iclust==0 and locus=='igh':
-            print '    workdir: %s' % workd
+            print('    workdir: %s' % workd)
         utils.mkdir(workd)
         if not os.path.exists(prmd(locus)):
-            print '  %s parameter dir doesn\'t exist, maybe need to ln it in from somewhere else? %s' % (utils.wrnstr, prmd(locus))
+            print('  %s parameter dir doesn\'t exist, maybe need to ln it in from somewhere else? %s' % (utils.wrnstr, prmd(locus)))
         shlines = ['#!/bin/bash']
         # shlines += ['ls -ltrh %s %s' % (dckr_trns(ptnfn(locus, for_work=True)), dckr_trns(prmd(locus)))]
         if not args.docker:
@@ -148,7 +149,7 @@ def run_linearham():
                new_atn = utils.get_non_implicit_copy(atn)
                if len(iseqs_to_keep) == 0:
                    if len(atn['unique_ids']) >= args.min_cluster_size:
-                       print '  %s no mutated seqs in %s cluster with size %d, so keeping all seqs' % (utils.wrnstr(), locus, len(atn['unique_ids']))  #  (yeah yeah this is dumb but whatever, i just don\'t want the indices to get screwed up)
+                       print('  %s no mutated seqs in %s cluster with size %d, so keeping all seqs' % (utils.wrnstr(), locus, len(atn['unique_ids'])))  #  (yeah yeah this is dumb but whatever, i just don\'t want the indices to get screwed up)
                    utils.add_implicit_info(glfo, new_atn)  # could probably just keep the original one, but maybe i'll want to modify them at some point
                else:
                    utils.restrict_to_iseqs(new_atn, iseqs_to_keep, glfo)
@@ -171,9 +172,9 @@ def run_linearham():
             prep_cmd(cmdfos, locus, iclust, ofn)
 
     if n_too_small > 0:
-        print '    skipped %d clusters smaller than %d (leaving %d)' % (n_too_small, args.min_cluster_size, n_total)
+        print('    skipped %d clusters smaller than %d (leaving %d)' % (n_too_small, args.min_cluster_size, n_total))
     if n_non_seed > 0:
-        print '    skipped %d clusters that didn\'t contain the seed id (leaving %d)' % (n_non_seed, n_total)
+        print('    skipped %d clusters that didn\'t contain the seed id (leaving %d)' % (n_non_seed, n_total))
     utils.run_scan_cmds(args, cmdfos, 'linearham.log', n_total, n_already_there, None, example_existing_ofn=example_existing_ofn, dbstr='linearham run')
 
 # ----------------------------------------------------------------------------------------
@@ -181,7 +182,7 @@ def read_lh_trees(locus, iclust, best=False):  # read trees and inferred ancestr
     # ----------------------------------------------------------------------------------------
     def fix_ambig_regions(new_seqfos, tatn, dbg=False):
         if len(set(len(s) for s in tatn['seqs'])) > 1:
-            print '  %s seqs not all the same length, so giving up on fixing ambiguous regions' % utils.wrnstr()
+            print('  %s seqs not all the same length, so giving up on fixing ambiguous regions' % utils.wrnstr())
             return
         ambig_positions = []
         for ichar in range(len(tatn['seqs'][0])):
@@ -190,7 +191,7 @@ def read_lh_trees(locus, iclust, best=False):  # read trees and inferred ancestr
                 ambig_positions.append(ichar)
         if len(ambig_positions) > 0:
             if dbg:
-                print '  %d entirely ambiguous positions (in %d seqs), so setting those positions to %s in inferred ancestors' % (len(ambig_positions), len(tatn['seqs']), utils.ambig_base)
+                print('  %d entirely ambiguous positions (in %d seqs), so setting those positions to %s in inferred ancestors' % (len(ambig_positions), len(tatn['seqs']), utils.ambig_base))
             for sfo in new_seqfos:
                 assert len(sfo['seq']) == len(tatn['seqs'][0])
                 # utils.color_mutants(sfo['seq'], ''.join([utils.ambig_base if i in ambig_positions else c for i, c in enumerate(sfo['seq'])]), print_result=True)
@@ -271,9 +272,9 @@ def processs_linearham_output():
             all_antns.append(a_atns)
 
         if len(best_antns) == 0:
-            print '  %s zero annotations to write, so exiting' % utils.wrnstr()
+            print('  %s zero annotations to write, so exiting' % utils.wrnstr())
             sys.exit(0)
-        print '    %s %d cluster%s to %s output file: %s' % ('would write' if args.dry else 'writing', len(best_antns), utils.plural(len(best_antns)), 'single chain' if os.path.basename(os.path.dirname(fofn))=='single-chain' else '???', fofn)  # ??? need updating if i decide to write the joint ones
+        print('    %s %d cluster%s to %s output file: %s' % ('would write' if args.dry else 'writing', len(best_antns), utils.plural(len(best_antns)), 'single chain' if os.path.basename(os.path.dirname(fofn))=='single-chain' else '???', fofn))  # ??? need updating if i decide to write the joint ones
         if not args.dry:
             utils.write_annotations(fofn, glfo, best_antns, utils.annotation_headers + ['logprob'])  # best annotation for each cluster, with inferred ancestral sequences added from one of the sampled trees for that annotation
             with open(finalfn(locus, nwk=True), 'w') as tfile:  # for convenience, write to fasta the tree from the best annotation from which we took inferred ancestors
@@ -293,13 +294,13 @@ def processs_linearham_output():
             utils.simplerun(cmd, logfname='%s/plot-performance.log'%wkdir(locus), dryrun=args.dry)
 
     if n_too_small > 0:
-        print '    skipped %d clusters smaller than %d (leaving %d)' % (n_too_small, args.min_cluster_size, n_total_iclusts)
+        print('    skipped %d clusters smaller than %d (leaving %d)' % (n_too_small, args.min_cluster_size, n_total_iclusts))
     if n_non_seed > 0:
-        print '    skipped %d clusters that didn\'t contain the seed id (leaving %d)' % (n_non_seed, n_total)
+        print('    skipped %d clusters that didn\'t contain the seed id (leaving %d)' % (n_non_seed, n_total))
     if len(missing_iclusts) > 0:
-        print '  missing %d / %d linearham output files (e.g. %s)' % (len(missing_iclusts), n_total_iclusts, missing_icpaths[0]) # , ' '.join(str(i) for i in missing_iclusts)
+        print('  missing %d / %d linearham output files (e.g. %s)' % (len(missing_iclusts), n_total_iclusts, missing_icpaths[0])) # , ' '.join(str(i) for i in missing_iclusts)
     if n_already_there > 0:
-        print '      %d / %d final output files already there (e.g. %s' % (n_already_there, n_total_out, fofn)
+        print('      %d / %d final output files already there (e.g. %s' % (n_already_there, n_total_out, fofn))
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
@@ -331,7 +332,7 @@ if not args.docker and (args.linearham_dir is None or args.linearham_dir not in 
     utils.mkdir(args.original_outdir)
     args.outdir = '%s/work/%s' % (args.linearham_dir, args.original_outdir.lstrip('/'))  # ok it's a little over verbose to use the full original path, but whatever
     if not os.path.exists(args.outdir):
-        print '     --outdir is not a subdir of --linearham-dir, so %s it so it looks like one' % ('would link' if args.dry else 'linking')
+        print('     --outdir is not a subdir of --linearham-dir, so %s it so it looks like one' % ('would link' if args.dry else 'linking'))
         if not args.dry:
             utils.mkdir(os.path.dirname(args.outdir))
             utils.makelink(os.path.dirname(args.outdir), args.original_outdir, args.outdir)

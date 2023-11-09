@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import numpy as np
 # from GCutils import hamming_distance
 from random import randint
@@ -72,7 +73,7 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
             gp_i = gap_penalty
             gp_j = gap_penalty
         if debug:
-            print '      gap penalties:  %.0f   i %.0f  j %.0f' % (gap_penalty, gp_i, gp_j)
+            print('      gap penalties:  %.0f   i %.0f  j %.0f' % (gap_penalty, gp_i, gp_j))
         return gap_penalty, gp_i, gp_j
     # ----------------------------------------------------------------------------------------
     def check_test_values(alignment_score, max_penalty, align_t, align_i):
@@ -87,7 +88,7 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
             raise Exception('incorrect true alignment %s (should be %s' % (align_t, correct_align_t))
         if align_i != correct_align_i:
             raise Exception('incorrect inferred alignment %s (should be %s' % (align_i, correct_align_i))
-        print '  all test values ok'
+        print('  all test values ok')
 
     # ----------------------------------------------------------------------------------------
     gap_seq = '-'
@@ -103,9 +104,9 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
     if len(lt) <= 2 and len(li) <= 2:
         return False
     if debug:
-        print '      aligning lineage for true node %s: found inf node %s' % (uids_t[0], uids_i[0])
-        print '        true: %s' % ' '.join(uids_t)
-        print '         inf: %s' % ' '.join(uids_i)
+        print('      aligning lineage for true node %s: found inf node %s' % (uids_t[0], uids_i[0]))
+        print('        true: %s' % ' '.join(uids_t))
+        print('         inf: %s' % ' '.join(uids_i))
 
     len_t, len_i = [len(l) for l in [lt, li]]
     gap_penalty, gp_i, gp_j = get_gap_penalties(len_t, len_i)
@@ -187,8 +188,8 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
 
     if debug:
         max_len = max(len(s) for slist in [align_t, align_i] for s in slist)
-        print '      aligned lineages:'
-        print ('          hdist  %'+str(max_len)+'s  %'+str(max_len)+'s')  % ('true', 'inferred')
+        print('      aligned lineages:')
+        print(('          hdist  %'+str(max_len)+'s  %'+str(max_len)+'s')  % ('true', 'inferred'))
         for seq_t, seq_i in zip(align_t, align_i):
             def cfn(s): return utils.color('blue', s, width=max_len, padside='right') if s == gap_seq else s
             str_t, str_i = cfn(seq_t), cfn(seq_i)
@@ -196,10 +197,10 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
             if all(s != gap_seq for s in (seq_t, seq_i)):
                 str_i, isnps = utils.color_mutants(seq_t, seq_i, return_isnps=True)
                 hdstr = utils.color('red' if len(isnps) > 0 else None, '%3d' % len(isnps))
-            print '           %s  %s   %s' % (hdstr, str_t, str_i)
+            print('           %s  %s   %s' % (hdstr, str_t, str_i))
         if alignment_score % 1 != 0 or max_penalty % 1 != 0:
             raise Exception('alignment_score score %s or max_penalty %s not integers, so need to fix dbg print in next line' % (alignment_score, max_penalty))
-        print '      alignment score: %.0f   max penalty: %.0f' % (alignment_score, max_penalty)
+        print('      alignment score: %.0f   max penalty: %.0f' % (alignment_score, max_penalty))
         if test:
             check_test_values(alignment_score, max_penalty, align_t, align_i)
 
@@ -211,10 +212,10 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
     inf_leaf_nodes = [n.taxon.label for n in inferred_tree.leaf_node_iter()]  # just so we can skip true leaf nodes that were inferred to be internal
     for node_t in true_tree.leaf_node_iter():
         if debug:
-            print '%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq)
+            print('%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq))
         if node_t.taxon.label not in inf_leaf_nodes:
             is_internal = any(n.taxon.label == node_t.taxon.label for n in inferred_tree.preorder_node_iter())
-            print '  %s true node %s not in inferred leaf nodes%s' % (utils.wrnstr(), node_t.taxon.label, ' (it\'s an inferred internal node)' if is_internal else '(not present in inferred tree)')
+            print('  %s true node %s not in inferred leaf nodes%s' % (utils.wrnstr(), node_t.taxon.label, ' (it\'s an inferred internal node)' if is_internal else '(not present in inferred tree)'))
             continue
         aln_res = align_lineages(node_t, true_tree, inferred_tree, known_root=known_root, allow_double_gap=allow_double_gap, debug=debug)
         if aln_res is False:  # Skip lineages less than three members long
@@ -223,15 +224,15 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
         if max_penalty < 0:
             lineage_dists.append(final_score / float(max_penalty))
             if debug:
-                print '    normalized dist: %.3f' % lineage_dists[-1]
+                print('    normalized dist: %.3f' % lineage_dists[-1])
         else:
             if debug:
-                print '    max penalty not less than zero: %.3f' % max_penalty
+                print('    max penalty not less than zero: %.3f' % max_penalty)
 
     if len(lineage_dists) == 0:  # max_penalty is 0 when all lineages have less than three members
         if debug:
-            print '  all lineages shorter than 3, returning 0'
+            print('  all lineages shorter than 3, returning 0')
         return 0
     if debug:
-        print '  mean over %d lineages: %.5f' % (len(lineage_dists), sum(lineage_dists) / float(len(lineage_dists)))
+        print('  mean over %d lineages: %.5f' % (len(lineage_dists), sum(lineage_dists) / float(len(lineage_dists))))
     return sum(lineage_dists) / float(len(lineage_dists))

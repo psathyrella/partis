@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import csv
 from io import open
@@ -92,9 +93,9 @@ def write_metrics(spval, stype, mthd, debug=False):
         for mtype, mvlist in mvals[mname].items():
             mvals[mname][mtype] = {'mean' : numpy.mean(mvlist), 'err' : numpy.std(mvlist, ddof=1) / math.sqrt(len(mvlist)), 'vals' : mvlist}
             if debug:
-                print '    %17s %12s %.4f +/- %.4f   %s' % (mname, mtype, mvals[mname][mtype]['mean'], mvals[mname][mtype]['err'], ' '.join('%.4f'%v for v in mvlist))
+                print('    %17s %12s %.4f +/- %.4f   %s' % (mname, mtype, mvals[mname][mtype]['mean'], mvals[mname][mtype]['err'], ' '.join('%.4f'%v for v in mvlist)))
     utils.mkdir(ofn, isfile=True)
-    print '  writing metrics to %s' % ofn
+    print('  writing metrics to %s' % ofn)
     utils.jsdump(ofn, mvals)
 
 # ----------------------------------------------------------------------------------------
@@ -146,11 +147,11 @@ def make_plots(swarm=False, debug=False):
             for mthd in args.methods:
                 plotvals = read_files(mthd)
                 if debug:
-                    print '  %s' % mthd
+                    print('  %s' % mthd)
                 xvals, yvals = list(zip(*plotvals[mthd][stype].items()))
                 if debug:
                     if ist==0:
-                        print '  %-18s %2s %s' % (mtr_type, '', '  '.join('%5s'%lzv(v) for v in xvals))
+                        print('  %-18s %2s %s' % (mtr_type, '', '  '.join('%5s'%lzv(v) for v in xvals)))
                     # print '    %8s  %8s  %s' % (stype, mthd, '  '.join('%.3f'%v for v in yvals))
                 xvals = [lzv(v) for v in xvals]
                 if not swarm:

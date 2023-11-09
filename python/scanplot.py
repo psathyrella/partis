@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import os
 import sys
 from . import utils
@@ -82,7 +83,7 @@ def cp_val(cpath, ptilestr, yfname):
     else:
         assert False
     if rval is None:
-        print '  %s read none type val from %s' % (utils.color('yellow', 'warning'), yfname)
+        print('  %s read none type val from %s' % (utils.color('yellow', 'warning'), yfname))
     return rval
 
 # ----------------------------------------------------------------------------------------
@@ -218,7 +219,7 @@ def get_ptile_diff_vals(yamlfo, iclust=None, min_ptile_to_plot=75., ptilestr='af
         subfo = yamlfo
         if iclust is not None:
             if 'iclust-%d' % iclust not in subfo:
-                print '    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning')  # I think it's just going to crash on the next line anyway
+                print('    %s requested per-cluster ptile vals, but they\'re not in the yaml file (probably just an old file)' % utils.color('yellow', 'warning'))  # I think it's just going to crash on the next line anyway
             subfo = subfo['iclust-%d' % iclust]
     if distr_hists:
         return subfo
@@ -402,7 +403,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 fval = ytmpfo[ptilestr]
                 fhist = ytmpfo.get('hist')
                 if debug:
-                    print ' %.2f' % fval,
+                    print(' %.2f' % fval, end=' ')
             elif distr_hists:
                 n_zero, n_other, lo_edge = get_dhist_vals(ytmpfo, iclust=iclust)
                 if n_zero + n_other == 0:
@@ -411,7 +412,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 fval =  n_zero / float(n_zero + n_other)
                 if debug:
                     nd = str(0 if lo_edge >= 10. else 1)
-                    print '%s%d/%d=%.2f (%s)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, fval, ('%3.'+nd+'f')%lo_edge),
+                    print('%s%d/%d=%.2f (%s)' % ('    ' if iclust in [0, None] else ' ', n_zero, n_zero + n_other, fval, ('%3.'+nd+'f')%lo_edge), end=' ')
             else:
                 diff_vals = get_ptile_diff_vals(ytmpfo, iclust=iclust, ptilestr=ptilestr, per_x=per_x, choice_grouping=choice_grouping, spec_corr=not no_spec_corr)  # kind of duplicates lbplotting.get_mean_ptile_vals() (although there we're averaging over the actual values, not the difference to perfect)
                 if len(diff_vals) == 0:
@@ -419,7 +420,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     return
                 fval = numpy.mean(diff_vals)  # diff_to_perfect
                 if debug:
-                    print ' %.2f' % fval,
+                    print(' %.2f' % fval, end=' ')
             tau = utils.vlval(args, vlists, varnames, xvar)  # not necessarily tau anymore (i think it's just final_plot_xvar?)
             ikey, initfcn = getikey()
             pvkey = pvkeystr(vlists, varnames)  # key identifying each line in the plot, each with a different color, (it's kind of ugly to get the label here but not use it til we plot, but oh well)
@@ -444,7 +445,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     xleg_vals[tuple(tau)] = mstr
                 else:
                     if mstr != xleg_vals[tuple(tau)]:
-                        print '  %s different values for derived var %s: %s vs %s' % (utils.color('yellow', 'warning'), args.x_legend_var, mstr, xleg_vals[tuple(tau)])
+                        print('  %s different values for derived var %s: %s vs %s' % (utils.color('yellow', 'warning'), args.x_legend_var, mstr, xleg_vals[tuple(tau)]))
         # ----------------------------------------------------------------------------------------
         def get_iclusts(yamlfo, yfname):
             assert per_x is not None  # just to make clear we don't get here for paired
@@ -455,14 +456,14 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 iclusts_in_file = sorted([int(k.split('-')[1]) for k in yamlfo if 'iclust-' in k])
             missing_iclusts = [i for i in range(nsimevts()) if i not in iclusts_in_file]
             if len(missing_iclusts) > 0:
-                print '  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), nsimevts(), ' '.join(str(i) for i in missing_iclusts), yfname)
+                print('  %s missing %d/%d iclusts (i = %s) from file %s' % (utils.color('red', 'error'), len(missing_iclusts), nsimevts(), ' '.join(str(i) for i in missing_iclusts), yfname))
             # assert iclusts_in_file == list(range(nsimevts()))  # I'm not sure why I added this (presumably because I thought I might not see missing ones any more), but I'm seeing missing ones now (because clusters were smaller than min_selection_metric_cluster_size)
             return iclusts_in_file
         # ----------------------------------------------------------------------------------------
         def read_smetric_file(vlists, vstrs):
             if debug:
                 dbgstr = get_obs_frac(vlists, varnames, return_dbg=True)
-                print '%s   | %s' % (get_varval_str(vstrs), dbgstr),
+                print('%s   | %s' % (get_varval_str(vstrs), dbgstr), end=' ')
             yfname = fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)
             try:
                 with open(yfname) as yfile:
@@ -478,7 +479,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         # ----------------------------------------------------------------------------------------
         def read_new_script_file(vlists, vstrs):
             if debug:
-                print '%s   | %s' % (get_varval_str(vstrs), ''),
+                print('%s   | %s' % (get_varval_str(vstrs), ''), end=' ')
             yfname = fnfcn(varnames, vstrs)
             try:
                 if script_base in ['paired-loci', 'template']:
@@ -515,9 +516,9 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         # ----------------------------------------------------------------------------------------
         if debug:
             if is_new_script():
-                print '%s              values' % get_varname_str()
+                print('%s              values' % get_varname_str())
             else:
-                print '%s   | obs times    N/gen        carry cap       fraction sampled           values' % get_varname_str()
+                print('%s   | obs times    N/gen        carry cap       fraction sampled           values' % get_varname_str())
         missing_vstrs = {'missing' : [], 'empty' : []}
         for vlists, vstrs in zip(val_lists, valstrs):  # why is this called vstrs rather than vstr?
             if is_new_script():
@@ -525,36 +526,36 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             else:
                 read_smetric_file(vlists, vstrs)
             if debug:
-                print ''
+                print('')
 
         # print info about missing and empty results
         n_printed, n_max_print = 0, 5
         for mkey, vstrs_list in missing_vstrs.items():  # ok now it's iclust and vstrs list, but what tf am I going to name that
             if len(vstrs_list) == 0:
                 continue
-            print '        %s: %d families' % (mkey, len(vstrs_list))
-            print '     %s   iclust' % get_varname_str()
+            print('        %s: %d families' % (mkey, len(vstrs_list)))
+            print('     %s   iclust' % get_varname_str())
             for iclust, vstrs in vstrs_list:
                 tfn = fnfcn(varnames, vstrs) if is_new_script() else fnfcn(varnames, vstrs, metric, ptilestr, cg=choice_grouping, tv=lbplotting.ungetptvar(ptilestr), use_relative_affy=use_relative_affy, extra_str=metric_extra_str)  # arg this is ugly
-                print '      %s    %4s    %s' % (get_varval_str(vstrs), iclust, tfn)
+                print('      %s    %4s    %s' % (get_varval_str(vstrs), iclust, tfn))
                 n_printed += 1
                 if n_printed >= n_max_print:
-                    print '             [...]'
-                    print '      skipping %d more lines' % (len(vstrs_list) - n_max_print)
+                    print('             [...]')
+                    print('      skipping %d more lines' % (len(vstrs_list) - n_max_print))
                     break
 
         # average over the replicates/clusters
         if (args.n_replicates > 1 or not treat_clusters_together) and len(plotvals) > 0:
             if debug:
-                print '  averaging over %d replicates' % args.n_replicates,
+                print('  averaging over %d replicates' % args.n_replicates, end=' ')
                 if per_x is not None and nsimevts() is not None:
                     if treat_clusters_together:
-                        print '(treating %d clusters per proc together)' % nsimevts(),
+                        print('(treating %d clusters per proc together)' % nsimevts(), end=' ')
                     else:
-                        print 'times %d clusters per proc:' % nsimevts(),
-                print ''
+                        print('times %d clusters per proc:' % nsimevts(), end=' ')
+                print('')
                 tmplen = str(max(len(pvkey) for pvkey in plotvals))
-                print ('    %'+tmplen+'s   N used  N expected') % 'pvkey'
+                print(('    %'+tmplen+'s   N used  N expected') % 'pvkey')
                 dbgvals = []
             for pvkey, ofvals in plotvals.items():
                 mean_vals, err_vals, hist_vals = [], [], []
@@ -583,11 +584,11 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     n_expected = args.n_replicates
                     if not treat_clusters_together:
                         n_expected *= nsimevts()
-                    print ('     %'+tmplen+'s     %s     %4d%s') % (pvkey if pvkey!='' else '-', ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--'))
+                    print(('     %'+tmplen+'s     %s     %4d%s') % (pvkey if pvkey!='' else '-', ('%4d' % n_used[0]) if len(set(n_used)) == 1 else utils.color('red', ' '.join(str(n) for n in set(n_used))), n_expected, '' if n_used[0] == n_expected else utils.color('red', ' <--')))
             if debug:
-                print '    final values:'
+                print('    final values:')
                 for tau, meanval, errval in dbgvals:
-                    print '     %6s  %5.2f +/- %.1f' % (tau, meanval, errval)
+                    print('     %6s  %5.2f +/- %.1f' % (tau, meanval, errval))
     # ----------------------------------------------------------------------------------------
     def apply_val_cfgs(label, ctype, cval):
         if all(n not in plotting.val_cfgs[ctype] for n in pvl_list()):  # if nobody's in there don't do anything
@@ -717,7 +718,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         assert not hasattr(args, 'n_sim_events_list') and hasattr(args, 'n_sim_events_per_proc')
         assert choice_grouping is not None
         if metric == 'lbr' and args.dont_observe_common_ancestors:
-            print '    skipping lbr when only observing leaves'
+            print('    skipping lbr when only observing leaves')
             return
         affy_key_str = 'relative-' if (use_relative_affy and ptilestr=='affinity') else ''  # NOTE somewhat duplicates lbplotting.rel_affy_str()
         treat_clusters_together = nsimevts() is None or (per_x == 'per-seq' and choice_grouping == 'among-families')  # if either there's only one family per proc, or we're choosing cells among all the clusters in a proc together, then things here generally work as if there were only one family per proc (note that I think I don't need the 'per-seq' since it shouldn't be relevant for 'per-cluster', but it makes it clearer what's going on)
@@ -734,7 +735,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         read_plot_info()
         outfo = []
         if len(plotvals) == 0:
-            print '  %s no plotvals for %s %s %s' % (utils.color('yellow', 'warning'), metric, per_x if per_x is not None else '', choice_grouping if choice_grouping is not None else '')
+            print('  %s no plotvals for %s %s %s' % (utils.color('yellow', 'warning'), metric, per_x if per_x is not None else '', choice_grouping if choice_grouping is not None else ''))
             return
         for ipv, pvkey in enumerate(plotvals):
             xvals, diffs_to_perfect = zip(*plotvals[pvkey])
@@ -758,7 +759,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 continue
             ofn = get_outfname(mtmp, estr)
             if not os.path.exists(ofn):
-                print '    %s missing %s' % (utils.color('yellow', 'warning'), ofn)
+                print('    %s missing %s' % (utils.color('yellow', 'warning'), ofn))
                 continue
             with open(ofn) as yfile:
                 mkey = mtmp
@@ -768,11 +769,11 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 if len(plotfos[mkey]) == 0:
                     raise Exception('read zero length info from %s' % ofn)  # if this happens when we're writing the file (above), we can skip it, but  I think we have to crash here (just rerun without this metric/extra_str). It probably means you were missing the dtr files for this per_x/cgroup
         if len(plotfos) == 0:
-            print '  nothing to plot'
+            print('  nothing to plot')
             return
         pvks_from_file = set([tuple(pfo.keys()) for pfo in plotfos.values()])  # list of lists of pv keys (to make sure the ones from each metric's file are the same)
         if len(pvks_from_file) > 1:  # eh, they can be different now if I ran different metrics with different argument lists
-            print '  %s different lists of pv keys for different metrics: %s' % (utils.color('yellow', 'warning'), pvks_from_file)
+            print('  %s different lists of pv keys for different metrics: %s' % (utils.color('yellow', 'warning'), pvks_from_file))
             pvk_list = sorted(pvks_from_file, key=len)[0]  # use the shortest one
         else:
             pvk_list = list(pvks_from_file)[0]

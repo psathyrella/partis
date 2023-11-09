@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import time
 import yaml
 import itertools
@@ -228,7 +229,7 @@ def set_lb_styles(args, etree, tstyle):
         bgcolor = plotting.getgrey()
         if args.lb_metric in treeutils.affy_metrics:
             if node.name not in lbfo:  # really shouldn't happen
-                print '  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name)
+                print('  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name))
                 continue
             if affyfo is not None:
                 rfsize = get_size(lb_min, lb_max, lbfo[node.name])
@@ -320,7 +321,7 @@ def plot_trees(args):
         if args.meta_info_key_to_color is not None or args.meta_info_to_emphasize:
             set_meta_styles(args, etree, tstyle)
     else:
-        print '  %s --metafo is not set, so no node formats (e.g. labels) will be set)' % utils.wrnstr()
+        print('  %s --metafo is not set, so no node formats (e.g. labels) will be set)' % utils.wrnstr())
 
     # print '      %s' % args.outfname
     tstyle.show_leaf_name = False
@@ -357,14 +358,14 @@ try:
     import python.plotting as plotting
     import python.lbplotting as lbplotting
 except ImportError as e:
-    print e
+    print(e)
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
 args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
 utils.meta_emph_arg_process(args)
 args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
 if args.node_label_regex is not None and not args.label_all_nodes:
-    print '  note: turning on --label-all-nodes'
+    print('  note: turning on --label-all-nodes')
     args.label_all_nodes = True
 
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)

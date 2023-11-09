@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import csv
 import sys
 from io import open
@@ -45,7 +46,7 @@ args.labels = utils.get_arg_list(args.labels)
 args.parameter_dirs = utils.get_arg_list(args.parameter_dirs)
 assert len(args.infiles) == len(args.labels)
 if len(args.parameter_dirs) == 1:
-    print '  note: using same glfo for all infiles'
+    print('  note: using same glfo for all infiles')
     args.parameter_dirs = [args.parameter_dirs[0] for _ in args.labels]
 assert len(args.parameter_dirs) == len(args.labels)
 
@@ -103,10 +104,10 @@ min_inner_sizes = [args.min_inner_size if args.min_inner_rep_frac is None else a
 min_outer_sizes = [args.min_outer_size if args.min_outer_rep_frac is None else args.min_outer_rep_frac * repertoire_sizes[isample] for isample in range(len(args.infiles))]
 max_label_width = max([len(l) for l in args.labels])
 label_strs = [('%' + str(max_label_width) + 's') % l for l in args.labels]
-print (' %' + str(max_label_width) + 's         total    min cluster') % ''
-print (' %' + str(max_label_width) + 's    size   outer  inner') % 'sample'
+print((' %' + str(max_label_width) + 's         total    min cluster') % '')
+print((' %' + str(max_label_width) + 's    size   outer  inner') % 'sample')
 for isample in range(len(partitions)):
-    print '  %s %6d    %3d  %3d' % (label_strs[isample], repertoire_sizes[isample], min_outer_sizes[isample], min_inner_sizes[isample])
+    print('  %s %6d    %3d  %3d' % (label_strs[isample], repertoire_sizes[isample], min_outer_sizes[isample], min_inner_sizes[isample]))
 
 partitions = [[c for c in partitions[isample] if len(c) > min_inner_sizes[isample]] for isample in range(len(partitions))]
 annotations = [read_annotations(args.infiles[ifn], glfos[ifn]) for ifn in range(len(args.infiles))]
@@ -114,13 +115,13 @@ annotations = [read_annotations(args.infiles[ifn], glfos[ifn]) for ifn in range(
 nearest_cluster_lists = {l1 : {l2 : [] for l2 in args.labels if l2 != l1} for l1 in args.labels}
 for if1 in range(len(args.infiles)):
     label1 = args.labels[if1]
-    print '%s' % utils.color('green', label1)
+    print('%s' % utils.color('green', label1))
     for if2 in range(len(args.infiles)):
         if if1 == if2:
             continue
         label2 = args.labels[if2]
-        print '\n       %5s      %5s    cdr3' % ('', utils.color('green', label2, width=5))
-        print '     size index  size index  dist'
+        print('\n       %5s      %5s    cdr3' % ('', utils.color('green', label2, width=5)))
+        print('     size index  size index  dist')
         for cluster1 in partitions[if1]:  # for each cluster in the first partition
             if len(cluster1) < min_outer_sizes[if1]:
                 continue
@@ -136,9 +137,9 @@ for if1 in range(len(args.infiles)):
                 # extra_str = utils.color('yellow', '-', width=3)
                 inner_loop_str = utils.color('yellow', '-    -', width=8)
             size_index_str = '%s %3d' % (utils.color('blue', '%4d' % len(cluster1)), partitions[if1].index(cluster1))
-            print '  %-3s%s   %8s        %-30s%3s' % (extra_str, size_index_str, inner_loop_str, cdr3_translation(info1), extra_str)
+            print('  %-3s%s   %8s        %-30s%3s' % (extra_str, size_index_str, inner_loop_str, cdr3_translation(info1), extra_str))
             for nclust in sorted_clusters:
                 nclust_naive_cdr3 = cdr3_translation(annotations[if2][getkey(nclust)])
                 hdist = naive_hdist_or_none(info1, annotations[if2][getkey(nclust)])
-                print '               %s %4d   %2s   %-30s' % (utils.color('blue', '%4d' % len(nclust)), partitions[if2].index(nclust), '%d' % hdist if hdist > 0 else '',
-                                                                utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True))
+                print('               %s %4d   %2s   %-30s' % (utils.color('blue', '%4d' % len(nclust)), partitions[if2].index(nclust), '%d' % hdist if hdist > 0 else '',
+                                                                utils.color_mutants(cdr3_translation(info1), nclust_naive_cdr3, amino_acid=True)))

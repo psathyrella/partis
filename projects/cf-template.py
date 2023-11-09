@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import os
 import sys
@@ -118,13 +119,13 @@ def plot_loci():
 def run_scan(action):
     base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action])
     cmdfos = []
-    print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
+    print('  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames)))
     if args.debug:
-        print '   %s' % ' '.join(varnames)
+        print('   %s' % ' '.join(varnames))
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
-            print '   %s' % ' '.join(vstrs)
+            print('   %s' % ' '.join(vstrs))
 
         single_file, locus = (True, None) if args.data_in_cfg is None else (True, args.data_in_cfg[vstrs[0]]['locus'])  # locus may need fixing for data_in_cfg
         ofn = ofname(args, varnames, vstrs, action, single_file=single_file, locus=locus)
@@ -159,11 +160,11 @@ for action in args.actions:
     elif action in ['plot', 'combine-plots']:
         plt_scn_vars = args.scan_vars['partition']  # NOTE may need to switch this from 'partition'
         if args.dry:
-            print '  --dry: not plotting'
+            print('  --dry: not plotting')
             continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, plt_scn_vars)
         if action == 'plot':
-            print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
+            print('plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None)))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             procs = []
             for method in args.plot_metrics:
@@ -171,7 +172,7 @@ for action in args.actions:
                     for pmetr in args.perf_metrics:
                         utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
                     for pmetr in args.perf_metrics:
-                        print '  %12s %s%s' % (method, pmetr, '' if ltmp is None else ' %s'%ltmp)
+                        print('  %12s %s%s' % (method, pmetr, '' if ltmp is None else ' %s'%ltmp))
                         arglist, kwargs = (args, plt_scn_vars, action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
                         if args.test:
                             scanplot.make_plots(*arglist, **kwargs)
@@ -189,7 +190,7 @@ for action in args.actions:
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])
             fnames = [[] for _ in args.perf_metrics]
             for ipm, pmetr in enumerate(args.perf_metrics):
-                print '    ', pmetr
+                print('    ', pmetr)
                 for ltmp in plot_loci():
                     scanplot.make_plots(args, plt_scn_vars, action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], debug=args.debug)
             plotting.make_html(cfpdir, fnames=fnames)

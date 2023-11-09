@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import json
 import csv
 import os
@@ -65,7 +66,7 @@ def use_rev_comp(pline, rline):  # decide whether positive sense <pline> or nega
 
 # ----------------------------------------------------------------------------------------
 def run_vsearch(seqfos):  # run vsearch to see if you can get a match for each locus for every sequence
-    print '  running vsearch on %d sequences:' % len(seqfos)
+    print('  running vsearch on %d sequences:' % len(seqfos))
     n_rev_compd, n_total = 0, 0
     for locus in utils.sub_loci(args.ig_or_tr):
         lglfo = glutils.read_glfo(args.germline_dir, locus)
@@ -83,7 +84,7 @@ def run_vsearch(seqfos):  # run vsearch to see if you can get a match for each l
             sfo[locus] = line  # add info for each locus to the input seqfos
             n_total += 1
     if args.reverse_negative_strands:
-        print '  used rev comp for %d/%d locus results (for %d seqs)' % (n_rev_compd, n_total, len(seqfos))
+        print('  used rev comp for %d/%d locus results (for %d seqs)' % (n_rev_compd, n_total, len(seqfos)))
 
 # ----------------------------------------------------------------------------------------
 def write_locus_file(locus, ofos, lpair=None, extra_str='  '):
@@ -96,7 +97,7 @@ def write_locus_file(locus, ofos, lpair=None, extra_str='  '):
         # print '%s%s: nothing to write' % (extra_str, locus)
         open(ofn, 'w').close()
         return
-    print '%s%s: %d to %s/%s' % (extra_str, locus, len(ofos), os.path.basename(os.path.dirname(ofn)), os.path.basename(ofn))
+    print('%s%s: %d to %s/%s' % (extra_str, locus, len(ofos), os.path.basename(os.path.dirname(ofn)), os.path.basename(ofn)))
     with open(ofn, 'w') as lfile:
         for sfo in ofos:
             lfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
@@ -112,13 +113,13 @@ def read_meta_info(seqfos):  # read all input meta info, and add pairing info (i
         if 'paired-uids' in line:
             paired_uids[uid] = line['paired-uids'][0]
     if len(paired_uids) > 0:
-        print '    read pairing info for %d seqs from input meta file' % len(paired_uids)
+        print('    read pairing info for %d seqs from input meta file' % len(paired_uids))
         if len(paired_uids) < len(seqfos):
-            print '      %s only read pairing info for %d/%d seqfos' % (utils.color('yellow', 'warning'), len(paired_uids), len(seqfos))
+            print('      %s only read pairing info for %d/%d seqfos' % (utils.color('yellow', 'warning'), len(paired_uids), len(seqfos)))
     if len(meta_loci) > 0:
-        print '    read loci for %d sequences from input meta file (so not running vsearch)' % len(meta_loci)
+        print('    read loci for %d sequences from input meta file (so not running vsearch)' % len(meta_loci))
         if len(meta_loci) < len(seqfos):
-            print '      %s only read locus info for %d/%d seqfos' % (utils.color('yellow', 'warning'), len(meta_loci), len(seqfos))
+            print('      %s only read locus info for %d/%d seqfos' % (utils.color('yellow', 'warning'), len(meta_loci), len(seqfos)))
     input_metafos = utils.read_json_yaml(args.input_metafname)
     for uid in input_metafos:  # we want to copy over any additional meta info (not paired uids or loci) to the output meta info file (since if we're guessing pair info, the uid names will change, so the original one is no good)
         additional_mfo = {k : v for k, v in input_metafos[uid].items() if k not in ['loci', 'paired-uids']}
@@ -130,7 +131,7 @@ def read_meta_info(seqfos):  # read all input meta info, and add pairing info (i
 def print_pairing_info(outfos, paired_uids):
     loci_by_uid = {sfo['name'] : l for l in outfos for sfo in outfos[l]}  # locus of each sequence, just for counting below
     print_cutoff = 0.01
-    print '            count  frac  paired with'
+    print('            count  frac  paired with')
     for locus in utils.sub_loci(args.ig_or_tr):
         plocicounts = {}
         for sfo in outfos[locus]:
@@ -144,9 +145,9 @@ def print_pairing_info(outfos, paired_uids):
             if counts / float(total) < print_cutoff:
                 n_skipped += counts
                 continue
-            print '       %s  %6d  %5.2f   %s' % (utils.locstr(locus) if ipl==0 else ' ', counts, counts / float(total), plstr)
+            print('       %s  %6d  %5.2f   %s' % (utils.locstr(locus) if ipl==0 else ' ', counts, counts / float(total), plstr))
         if n_skipped > 0:
-            print '                +%d counts skipped with <%.3f each' % (n_skipped , print_cutoff) # utils.color('yellow', 'note
+            print('                +%d counts skipped with <%.3f each' % (n_skipped , print_cutoff)) # utils.color('yellow', 'note
 
 # ----------------------------------------------------------------------------------------
 args = parser.parse_args()
@@ -163,7 +164,7 @@ if any(os.path.exists(ofn) for ofn in paircluster.paired_dir_fnames(args.outdir)
     if args.overwrite:
         paircluster.clean_paired_dir(args.outdir)
     else:
-        print '  split-loci.py output exists and --overwrite was not set, so not doing anything: %s' % args.outdir
+        print('  split-loci.py output exists and --overwrite was not set, so not doing anything: %s' % args.outdir)
         sys.exit(0)
 
 seqfos = utils.read_fastx(args.fname, n_max_queries=args.for_testing_n_max_queries)
@@ -189,7 +190,7 @@ if len(meta_loci) == 0:  # default: no input locus info
 outfos = collections.OrderedDict(((l, []) for l in utils.sub_loci(args.ig_or_tr)))
 failed_seqs = []
 if args.debug > 1:
-    print '    printing scores for locus determination:'
+    print('    printing scores for locus determination:')
     n_skipped = 0
 for sfo in seqfos:
     if len(meta_loci) == 0:  # default: use vsearch match scores
@@ -208,11 +209,11 @@ for sfo in seqfos:
         if lscores.values().count(0) == 2:
             n_skipped += 1
         else:
-            print '       %s   %s' % ('  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)), sfo['name'])
+            print('       %s   %s' % ('  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)), sfo['name']))
 if args.debug > 1 and n_skipped > 0:
-    print '      skipped %d seqs with non-zero scores from only one locus' % n_skipped
+    print('      skipped %d seqs with non-zero scores from only one locus' % n_skipped)
 
-print 'totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_seqs) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_seqs)))
+print('totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_seqs) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_seqs))))
 assert sum(len(ofo) for ofo in outfos.values()) + len(failed_seqs) == len(seqfos)
 
 if args.guess_pairing_info:
@@ -239,12 +240,12 @@ for fid in failed_uids:
         del paired_uids[fid]
         n_removed += 1
 paired_uids = {uid : list(set(paired_uids[uid]) - failed_uids) for uid in paired_uids}
-print '  removed %d failed uids from paired_uids' % n_removed
+print('  removed %d failed uids from paired_uids' % n_removed)
 
 if args.debug and len(paired_uids) > 0:
     print_pairing_info(outfos, paired_uids)
 
-print 'writing to %s/' % args.outdir
+print('writing to %s/' % args.outdir)
 if len(failed_seqs) > 0:
     write_locus_file('failed', failed_seqs)
 
@@ -258,9 +259,9 @@ elif args.input_metafname is not None and not os.path.exists(omfname):
     utils.makelink(os.path.dirname(omfname), args.input_metafname, omfname)
 
 if len(paired_uids) == 0:
-    print 'no pairing info'
+    print('no pairing info')
 else:
-    print 'writing to paired subdirs'
+    print('writing to paired subdirs')
     for lpair in utils.locus_pairs[args.ig_or_tr]:
         h_locus, l_locus = lpair
         all_paired_uids = set(pid for s in outfos[l_locus] for pid in paired_uids[s['name']])  # all uids that are paired with any <l_locus> uid (note that in general not all of these are heavy chain)
@@ -269,7 +270,7 @@ else:
         #     l_uids = set(sfo['name'] for sfo in outfos[l_locus])
         #     h_outfo = [sfo for sfo in outfos[h_locus] if sfo['name'] in l_uids]  # if no meta file specified, just pair up the ones with identical uids
 
-        print '    %d/%d %s seqs pair with %s%s' % (len(h_outfo), len(outfos[h_locus]), h_locus, l_locus, utils.color('yellow', ' (warning)') if len(h_outfo)==0 else '')
+        print('    %d/%d %s seqs pair with %s%s' % (len(h_outfo), len(outfos[h_locus]), h_locus, l_locus, utils.color('yellow', ' (warning)') if len(h_outfo)==0 else ''))
         if len(h_outfo) == 0:
             outfos[l_locus] = []  # makes more sense to not write them if there's no heavy paired with them, since it'd just duplicate the unpaired ones in the parent dir
         write_locus_file(h_locus, h_outfo, lpair=lpair, extra_str='      ')

@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import os
 import random
 import sys
@@ -23,7 +24,7 @@ def process_gls_gen_args(args):  # well, also does stuff with non-gls-gen new al
         # ----------------------------------------------------------------------------------------
         args.n_genes_per_region = utils.get_arg_list(args.n_genes_per_region, intify=True, key_list=utils.regions, default_vals=get_defaults('n_genes_per_region'))
         if args.n_genes_per_region is not None and not utils.has_d_gene(args.locus) and args.n_genes_per_region['d'] > 1:
-            print '  --n-genes-per-region: reducing light chain d genes from %d to 1' % args.n_genes_per_region['d']  # this is kind of hackey/annoying, but atm it's better than adding a separate arg for light chain genes
+            print('  --n-genes-per-region: reducing light chain d genes from %d to 1' % args.n_genes_per_region['d'])  # this is kind of hackey/annoying, but atm it's better than adding a separate arg for light chain genes
             args.n_genes_per_region['d'] = 1
         args.n_sim_alleles_per_gene = utils.get_arg_list(args.n_sim_alleles_per_gene, floatify=True, key_list=utils.regions, default_vals=get_defaults('n_sim_alleles_per_gene'))
     positions = {
@@ -75,28 +76,28 @@ def get_workdir(batch_system):  # split this out so we can use it in datascripts
     else:
         workdir = utils.choose_random_subdir('/tmp/%s/hmms' % basestr)
         if batch_system is not None:
-            print '  %s: using batch system %s with default --workdir (%s) -- if this dir isn\'t visible to your batch nodes, you\'ll need to set --workdir to something that is' % (utils.color('red', 'warning'), batch_system, workdir)
+            print('  %s: using batch system %s with default --workdir (%s) -- if this dir isn\'t visible to your batch nodes, you\'ll need to set --workdir to something that is' % (utils.color('red', 'warning'), batch_system, workdir))
     return workdir
 
 # ----------------------------------------------------------------------------------------
 def process(args):
     if args.action == 'run-viterbi':
-        print'  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (you don\'t need to change anything unless you want this warning message to go away)'
+        print('  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (you don\'t need to change anything unless you want this warning message to go away)')
         args.action = 'annotate'
     if args.action == 'view-alternative-naive-seqs':
-        print'  note: replacing deprecated action name \'view-alternative-naive-seqs\' with current name \'view-alternative-annotations\' (you don\'t need to change anything unless you want this warning message to go away)'
+        print('  note: replacing deprecated action name \'view-alternative-naive-seqs\' with current name \'view-alternative-annotations\' (you don\'t need to change anything unless you want this warning message to go away)')
         args.action = 'view-alternative-annotations'
     if args.seed_seq is not None:
         raise Exception('--seed-seq is deprecated, use --seed-unique-id and --queries-to-include-fname')
     if args.seed is not None:
-        print '  note: moving value from deprecated arg --seed to --random-seed (you don\'t need to change anything unless you want this warning message to go away)'
+        print('  note: moving value from deprecated arg --seed to --random-seed (you don\'t need to change anything unless you want this warning message to go away)')
         args.random_seed = args.seed
         delattr(args, 'seed')
         assert '--seed' in sys.argv
         utils.replace_in_arglist(sys.argv, '--seed', str(args.random_seed))  # have to also modify argv in case we're using it e.g. in paired locus stuff
         sys.argv[utils.arglist_index(sys.argv, '--seed')] = '--random-seed'
     if args.input_metafname is not None:
-        print '  note: moving value from deprecated arg --input-metafname to --input-metafnames [note plural] (you don\'t need to change anything unless you want this warning message to go away)'
+        print('  note: moving value from deprecated arg --input-metafname to --input-metafnames [note plural] (you don\'t need to change anything unless you want this warning message to go away)')
         assert args.input_metafnames is None
         args.input_metafnames = args.input_metafname
         delattr(args, 'input_metafname')
@@ -112,10 +113,10 @@ def process(args):
             raise Exception('can\'t specify both --infname and --paired-indir')
         if args.paired_indir is not None:
             if args.guess_pairing_info:
-                print '  %s --guess-pairing-info has no effect on input when --paired-indir is set (only when --infname is set)' % utils.wrnstr()
+                print('  %s --guess-pairing-info has no effect on input when --paired-indir is set (only when --infname is set)' % utils.wrnstr())
             for attrname in ['max', 'random']:
                 if getattr(args, 'n_%s_queries'%attrname) != (-1 if attrname=='max' else None):  # ick ick ick i wish i could go back and make default for max be None
-                    print '  %s --n-%s-queries can only try to choose properly paired seqs if --infname is set (since the args can then be passed to bin/split-loci.py); otherwise seqs are chosen from the different locus input files without regard to whether they\'re paired with each other.\n          But since --paired-indir is set we now have to assume the args were passed when that dir was generated (if they were, then all is well).' % (utils.wrnstr(), attrname)
+                    print('  %s --n-%s-queries can only try to choose properly paired seqs if --infname is set (since the args can then be passed to bin/split-loci.py); otherwise seqs are chosen from the different locus input files without regard to whether they\'re paired with each other.\n          But since --paired-indir is set we now have to assume the args were passed when that dir was generated (if they were, then all is well).' % (utils.wrnstr(), attrname))
         if args.outfname is not None:
             raise Exception('can\'t set --outfname if --paired-loci is set (use --paired-outdir)')
         if args.plotdir == 'paired-outdir':
@@ -147,7 +148,7 @@ def process(args):
         if [args.droplet_id_separators, args.droplet_id_indices].count(None) not in [0, 2]:
             raise Exception('if you set either --droplet-id-separators or --droplet-id-indicies you need to set both of them (guessing defaults is proving to be too dangerous)')
         if args.plot_annotation_performance:
-            print '  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning')
+            print('  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning'))
     else:
         if args.paired_indir is not None:
             raise Exception('need to set --paired-loci if --paired-indir is set')
@@ -163,7 +164,7 @@ def process(args):
             if len([g for g in args.only_genes if utils.get_locus(g)==l_locus]) == 0:
                 args.light_chain_fractions[l_locus] = 0
                 args.light_chain_fractions[utils.get_single_entry([l for l in args.light_chain_fractions if l!=l_locus])] = 1
-                print '  note: no %s genes among --only-genes %s, so setting --light-chain-fractions accordingly (%s)' % (l_locus, ':'.join(args.only_genes), args.light_chain_fractions)
+                print('  note: no %s genes among --only-genes %s, so setting --light-chain-fractions accordingly (%s)' % (l_locus, ':'.join(args.only_genes), args.light_chain_fractions))
     args.queries = utils.get_arg_list(args.queries)
     args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 
@@ -187,7 +188,7 @@ def process(args):
 
     args.input_metafnames = utils.get_arg_list(args.input_metafnames)
     if args.input_metafnames is not None and len(args.input_metafnames) > 1 and os.path.exists(':'.join(args.input_metafnames)):  # hackishly try to handle single meta fname paths that have ':'s in them (this will break if you *also* try to have multiple input metfnames
-        print '  %s: guessing that --input-metafnames is only length one despite \':\'s: %s' % (utils.color('yellow', 'warning'), ':'.join(args.input_metafnames))
+        print('  %s: guessing that --input-metafnames is only length one despite \':\'s: %s' % (utils.color('yellow', 'warning'), ':'.join(args.input_metafnames)))
         args.input_metafnames = [':'.join(args.input_metafnames)]
 
     args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)
@@ -198,9 +199,9 @@ def process(args):
         if pair_allow_fmt:
             missing_loci = [l for l in utils.sub_loci(args.ig_or_tr) if l not in args.allowed_cdr3_lengths]
             if len(missing_loci) > 0:
-                print '  note: missing %d loc%s (%s) from --allowed-cdr3-lengths, so %s lengths will not be restricted' % (len(missing_loci), 'us' if len(missing_loci)==1 else 'i', ' '.join(missing_loci), 'its' if len(missing_loci)==1 else 'their')
+                print('  note: missing %d loc%s (%s) from --allowed-cdr3-lengths, so %s lengths will not be restricted' % (len(missing_loci), 'us' if len(missing_loci)==1 else 'i', ' '.join(missing_loci), 'its' if len(missing_loci)==1 else 'their'))
         else:
-            print '  --allowed-cdr3-lengths: restricting to %s' % args.allowed_cdr3_lengths
+            print('  --allowed-cdr3-lengths: restricting to %s' % args.allowed_cdr3_lengths)
 
     args.region_end_exclusions = {r : [args.region_end_exclusion_length if ('%s_%s' % (r, e)) in utils.real_erosions else 0 for e in ['5p', '3p']] for r in utils.regions}
     args.region_end_exclusion_length = None  # there isn't really a big reason to set it to None, but this makes clear that I should only be using the dict version
@@ -228,10 +229,10 @@ def process(args):
         if not args.is_simu:
             raise Exception('--synthetic-distance-based-partition: have to set --is-simu (and be running on a simulation file)')
         if not args.dont_calculate_annotations:
-            print '  --synthetic-distance-based-partition: turning on --dont-calculate-annotations, since things may crash otherwise (because true naive seqs can be out of sync with sw info)'
+            print('  --synthetic-distance-based-partition: turning on --dont-calculate-annotations, since things may crash otherwise (because true naive seqs can be out of sync with sw info)')
             args.dont_calculate_annotations = True
         if not args.naive_vsearch:
-            print '  --synthetic-distance-based-partition: turning on --naive-vsearch'
+            print('  --synthetic-distance-based-partition: turning on --naive-vsearch')
             args.naive_vsearch = True
             args.naive_hamming_cluster = False
     if args.small_clusters_to_ignore is not None:
@@ -269,7 +270,7 @@ def process(args):
     args.is_data = not args.is_simu  # whole code base uses is_data, this is better than changing all of that
 
     if args.collapse_duplicate_sequences and not args.is_data:
-        print '  %s collapsing duplicates on simulation, which is often not a good idea since it makes keeping track of performance harder (e.g. purity/completeness of partitions is harder to calculate)' % utils.color('red', 'warning')
+        print('  %s collapsing duplicates on simulation, which is often not a good idea since it makes keeping track of performance harder (e.g. purity/completeness of partitions is harder to calculate)' % utils.color('red', 'warning'))
 
     if args.simultaneous_true_clonal_seqs:
         if args.is_data:
@@ -282,7 +283,7 @@ def process(args):
         raise Exception('doesn\'t make sense to set both --n-simultaneous-seqs and --all-seqs-simultaneous.')
 
     if args.no_indels or args.all_seqs_simultaneous: # or args.simultaneous_true_clonal_seqs:
-        print '  forcing --gap-open-penalty to %d to prevent indels, since --no-indels or --all-seqs-simultaneous were set (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty  # for all_seqs_simultaneous, we run the msa indel stuff so don't also want sw indels
+        print('  forcing --gap-open-penalty to %d to prevent indels, since --no-indels or --all-seqs-simultaneous were set (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty)  # for all_seqs_simultaneous, we run the msa indel stuff so don't also want sw indels
         args.gap_open_penalty = args.no_indel_gap_open_penalty
 
     if args.indel_frequency > 0.:
@@ -293,7 +294,7 @@ def process(args):
         if int(args.indel_location) in range(500):
             args.indel_location = int(args.indel_location)
             if any(n > 1 for n in args.n_indels_per_indeld_seq):
-                print '  note: removing entries from --n-indels-per-indeld-seq (%s), since --indel-location was set to a single position.' % [n for n in args.n_indels_per_indeld_seq if n > 1]
+                print('  note: removing entries from --n-indels-per-indeld-seq (%s), since --indel-location was set to a single position.' % [n for n in args.n_indels_per_indeld_seq if n > 1])
                 args.n_indels_per_indeld_seq = [n for n in args.n_indels_per_indeld_seq if n <= 1]
         else:
             raise Exception('--indel-location \'%s\' neither one of None, \'v\' or \'cdr3\', nor an integer less than 500' % args.indel_location)
@@ -310,13 +311,13 @@ def process(args):
 
     if args.batch_system == 'sge' and args.batch_options is not None:
         if '-e' in args.batch_options or '-o' in args.batch_options:
-            print '%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir)
+            print('%s --batch-options contains \'-e\' or \'-o\', but we add these automatically since we need to be able to parse each job\'s stdout and stderr. You can control the directory under which they\'re written with --workdir (which is currently %s).' % (utils.color('red', 'warning'), args.workdir))
 
     if args.outfname is not None and not args.presto_output and not args.airr_output and not args.generate_trees:
         if utils.getsuffix(args.outfname) not in ['.csv', '.yaml']:
             raise Exception('unhandled --outfname suffix %s' % utils.getsuffix(args.outfname))
         if utils.getsuffix(args.outfname) != '.yaml':
-            print '  %s --outfname uses deprecated file format %s. This will still mostly work ok, but the new default .yaml format doesn\'t have to do all the string conversions by hand (so is less buggy), and includes annotations, partitions, and germline info in the same file (so you don\'t get crashes or inconsistent results if you don\'t keep track of what germline info goes with what output file).' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname))
+            print('  %s --outfname uses deprecated file format %s. This will still mostly work ok, but the new default .yaml format doesn\'t have to do all the string conversions by hand (so is less buggy), and includes annotations, partitions, and germline info in the same file (so you don\'t get crashes or inconsistent results if you don\'t keep track of what germline info goes with what output file).' % (utils.color('yellow', 'note:'), utils.getsuffix(args.outfname)))
         if args.action in ['view-annotations', 'view-partitions'] and utils.getsuffix(args.outfname) == '.yaml':
             raise Exception('have to use \'view-output\' action to view .yaml output files')
 
@@ -335,12 +336,12 @@ def process(args):
     if not args.paired_loci and args.airr_output:
         if args.outfname is None:
             if args.action != 'cache-parameters':
-                print '  note: no --outfname set'
+                print('  note: no --outfname set')
         else:
             if utils.getsuffix(args.outfname) == '.tsv':
-                print '  note: writing only airr .tsv to %s' % args.outfname
+                print('  note: writing only airr .tsv to %s' % args.outfname)
             elif utils.getsuffix(args.outfname) in ['.yaml', '.csv']:
-                print '  note: writing both partis %s to %s and airr .tsv to %s' % (utils.getsuffix(args.outfname), args.outfname, utils.replace_suffix(args.outfname, '.tsv'))
+                print('  note: writing both partis %s to %s and airr .tsv to %s' % (utils.getsuffix(args.outfname), args.outfname, utils.replace_suffix(args.outfname, '.tsv')))
             else:
                 raise Exception('--outfname suffix has to be either .tsv or .yaml if --airr-output is set (got %s)' % utils.getsuffix(args.outfname))
     if args.airr_input:
@@ -368,12 +369,12 @@ def process(args):
             args.persistent_cachefname = utils.getprefix(args.outfname) + '-hmm-cache.csv'  # written by bcrham, so has to be csv, not yaml
 
     if args.min_largest_cluster_size is not None and args.n_final_clusters is not None:
-        print '  note: both --min-largest-cluster-size and --n-final-clusters are set, which means we\'ll stop clustering when *either* of their criteria are satisfied (not both)'  # maybe it should be both, but whatever
+        print('  note: both --min-largest-cluster-size and --n-final-clusters are set, which means we\'ll stop clustering when *either* of their criteria are satisfied (not both)')  # maybe it should be both, but whatever
     if args.min_largest_cluster_size is not None or args.n_final_clusters is not None:
         if args.seed_unique_id is not None and args.n_procs == 1:
             raise Exception('--n-procs must be set to greater than 1 if --seed-unique-id, and either --min-largest-cluster-size or --n-final-clusters, are set (so that a second clustering iteration is run after removing)')  # yes, this could also be fixed by making the algorithm that decides when to stop clustering smarter, but that would be hard
         args.n_partitions_to_write = 999  # need to make sure to get all the ones after the best partition, and this is a somewhat hackey way to do that
-        print '  note: setting --n-partitions-to-write to 999 since either --min-largest-cluster-size or --n-final-clusters was set'  # bcrham argument parser barfs if you use sys.maxint
+        print('  note: setting --n-partitions-to-write to 999 since either --min-largest-cluster-size or --n-final-clusters was set')  # bcrham argument parser barfs if you use sys.maxint
 
     args.existing_output_run_cfg = utils.get_arg_list(args.existing_output_run_cfg, choices=['single', 'paired', 'merged'])
     if args.existing_output_run_cfg is None:
@@ -382,14 +383,14 @@ def process(args):
     if args.action == 'get-selection-metrics' or args.get_selection_metrics:
         if args.paired_loci:
             if args.paired_outdir is None and args.selection_metric_fname is None:
-                print '    %s calculating selection metrics, but neither --paired-outdir nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
+                print('    %s calculating selection metrics, but neither --paired-outdir nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning'))
             elif args.selection_metric_fname is None:
                 if args.add_selection_metrics_to_outfname:
-                    print '  note: --add-selection-metrics-to-outfname has no effect on final output files when --paired-loci is set since there isn\'t a unique output file (although if --existing-output-run-cfg is set they can get written to those files)'
+                    print('  note: --add-selection-metrics-to-outfname has no effect on final output files when --paired-loci is set since there isn\'t a unique output file (although if --existing-output-run-cfg is set they can get written to those files)')
                 args.selection_metric_fname = treeutils.smetric_fname(args.paired_outdir)
         else:
             if args.outfname is None and args.selection_metric_fname is None:
-                    print '    %s calculating selection metrics, but neither --outfname nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning')
+                    print('    %s calculating selection metrics, but neither --outfname nor --selection-metric-fname were set, which means nothing will be written to disk' % utils.color('yellow', 'warning'))
             elif args.selection_metric_fname is None and args.action == 'get-selection-metrics' and not args.add_selection_metrics_to_outfname:
                 args.selection_metric_fname = treeutils.smetric_fname(args.outfname)
     args.selection_metrics_to_calculate = utils.get_arg_list(args.selection_metrics_to_calculate, choices=treeutils.selection_metrics)
@@ -399,7 +400,7 @@ def process(args):
         raise Exception('--affinity-key must be set if setting --invert-affinity')
     args.extra_daffy_metrics = utils.get_arg_list(args.extra_daffy_metrics)
     if args.extra_daffy_metrics is not None:
-        print '  --extra-daffy-metrics: adding %d metrics to treeutils.daffy_metrics (%s)' % (len(args.extra_daffy_metrics), ':'.join(args.extra_daffy_metrics))
+        print('  --extra-daffy-metrics: adding %d metrics to treeutils.daffy_metrics (%s)' % (len(args.extra_daffy_metrics), ':'.join(args.extra_daffy_metrics)))
         treeutils.daffy_metrics += args.extra_daffy_metrics
     args.tree_inference_outdir = None
     if args.tree_inference_method is not None:
@@ -421,7 +422,7 @@ def process(args):
         if args.action not in ['annotate', 'partition']:
             raise Exception('--input-partition-fname only makes sense/has an effect for actions \'annotate\' and \'partition\' (at least at the moment)')
     if args.action == 'annotate' and args.plot_partitions and args.input_partition_fname is None:  # could set this up to use e.g. --simultaneous-true-clonal-seqs as well, but it can't atm
-        print '  %s running annotate with --plot-partitions, but --input-partition-fname is not set, which likely means the partitions will be trivial/singleton partitions' % utils.color('yellow', 'warning')
+        print('  %s running annotate with --plot-partitions, but --input-partition-fname is not set, which likely means the partitions will be trivial/singleton partitions' % utils.color('yellow', 'warning'))
 
     if args.make_per_gene_per_base_plots and not args.make_per_gene_plots:  # the former doesn't do anything unless the latter is turned on
         args.make_per_gene_plots = True
@@ -433,13 +434,13 @@ def process(args):
         if args.n_trees is None and not args.paired_loci:
             args.n_trees = max(1, int(float(args.n_sim_events) / args.n_procs))
         if args.n_procs > args.n_sim_events:
-            print '  note: reducing --n-procs to %d (was %d) so it isn\'t bigger than --n-sim-events' % (args.n_sim_events, args.n_procs)
+            print('  note: reducing --n-procs to %d (was %d) so it isn\'t bigger than --n-sim-events' % (args.n_sim_events, args.n_procs))
             args.n_procs = args.n_sim_events
         if args.n_max_queries != -1:
-            print '  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)'
+            print('  note: --n-max-queries is not used when simulating (use --n-sim-events to set the simulated number of rearrangemt events)')
 
         if args.outfname is None and args.paired_outdir is None:
-            print '  note: no %s specified, so nothing will be written to disk' % ('--paired-outdir' if args.paired_loci else '--outfname')
+            print('  note: no %s specified, so nothing will be written to disk' % ('--paired-outdir' if args.paired_loci else '--outfname'))
             args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the whole run_simulation() in bin/partis to handle None type outfname
 
         if args.simulate_from_scratch:
@@ -450,7 +451,7 @@ def process(args):
         if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:
             assert args.mutate_from_scratch
         if args.mutate_from_scratch and not args.no_per_base_mutation:
-            print '  note: setting --no-per-base-mutation since --mutate-from-scratch was set'
+            print('  note: setting --no-per-base-mutation since --mutate-from-scratch was set')
             args.no_per_base_mutation = True
 
         # end result of this block: shm/reco parameter dirs are set (unless we're doing their bit from scratch), --parameter-dir is set to None (and if --parameter-dir was set but shm/reco were _not_ set, we've just used --parameter-dir for either/both as needed)
@@ -524,10 +525,10 @@ def process(args):
 
         if args.allowed_cdr3_lengths is not None and not args.paired_loci and args.rearrange_from_scratch and any(l < 30 for l in args.allowed_cdr3_lengths):  # ick
             factor = 3
-            print '  note: asked for cdr3 lengths <30 with --rearrange-from-scratch set, so increasing scratch mean deletion lengths and decreasing scratch mean insertion lengths by factor of %.1f:' % factor
+            print('  note: asked for cdr3 lengths <30 with --rearrange-from-scratch set, so increasing scratch mean deletion lengths and decreasing scratch mean insertion lengths by factor of %.1f:' % factor)
             for tdict, tfact in zip([utils.scratch_mean_erosion_lengths[args.locus], utils.scratch_mean_insertion_lengths[args.locus]], [factor, 1./factor]):
                 for tstr in tdict:
-                    print '    %8s  %5.1f --> %5.1f' % (tstr, tdict[tstr], tfact * tdict[tstr])
+                    print('    %8s  %5.1f --> %5.1f' % (tstr, tdict[tstr], tfact * tdict[tstr]))
                     tdict[tstr] *= tfact
 
     if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
@@ -541,7 +542,7 @@ def process(args):
         args.default_initial_germline_dir += '/' + args.species
 
     if args.species != 'human' and not args.allele_cluster and args.action == 'cache-parameters':
-        print '  non-human species \'%s\', turning on allele clustering' % args.species
+        print('  non-human species \'%s\', turning on allele clustering' % args.species)
         args.allele_cluster = True
 
     if args.n_max_snps is not None and args.n_max_mutations_per_segment is not None:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import operator
 import os
@@ -36,7 +37,7 @@ def make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=
                 ax.plot(ax.get_xlim(), (lb_list[-1], lb_list[-1]), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
             ax.plot(n_gen_list, lb_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)
             if print_results and log == '':
-                print '      %7.4f    %6.4f' % (lbt, lb_list[-1])
+                print('      %7.4f    %6.4f' % (lbt, lb_list[-1]))
         plotname = 'tau-vs-n-gen-vs-%s-%s' % (btype, metric)
         if log == '':
             ybounds = None
@@ -52,7 +53,7 @@ def make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=
                             xlabel='N generations', ylabel='%s %s' % (btype.capitalize(), metric.upper()), leg_title='tau', leg_prop={'size' : 12}, leg_loc=leg_loc)
 
     if print_results:
-        print '%s:     tau    %s %s' % (btype, btype, metric)
+        print('%s:     tau    %s %s' % (btype, btype, metric))
 
     for log in ['', 'y']:
         make_plot(log, parsed_info)
@@ -67,18 +68,18 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
     parsed_info = {m : {b : {} for b in btypes} for m in args.only_metrics}
     for lbt in args.lb_tau_list:
         if args.make_plots and (lbt < lbt_bounds[0] or lbt > lbt_bounds[1]):
-            print '    skipping tau %.4f outside of bounds [%.4f, %.4f] for bound plotting' % (lbt, lbt_bounds[0], lbt_bounds[1])
+            print('    skipping tau %.4f outside of bounds [%.4f, %.4f] for bound plotting' % (lbt, lbt_bounds[0], lbt_bounds[1]))
             continue
 
         gen_list = args.n_generations_list
         if gen_list is None:
             gen_list = [get_n_generations(ntl, lbt) for ntl in args.n_tau_lengths_list]
         if args.lb_tau_list.index(lbt) == 0 or args.n_tau_lengths_list is not None:  # if --n-tau-lengths-list is set, they could be different for each tau
-            print ' seq len: %d   N gen list: %s' % (args.seq_len, ' '.join(str(n) for n in gen_list))
-        print '   %s %.4f' % (utils.color('green', 'lb tau'), lbt)
+            print(' seq len: %d   N gen list: %s' % (args.seq_len, ' '.join(str(n) for n in gen_list)))
+        print('   %s %.4f' % (utils.color('green', 'lb tau'), lbt))
         for n_gen in gen_list:
             if args.debug:
-                print '     %s %d  %s %.4f' % (utils.color('purple', 'N gen'), n_gen, utils.color('purple', 'lb tau'), lbt)
+                print('     %s %d  %s %.4f' % (utils.color('purple', 'N gen'), n_gen, utils.color('purple', 'lb tau'), lbt))
 
             this_outdir = '%s/n_gen-%d-lbt-%.4f' % (outdir, n_gen, lbt)  # if for some reason I want to specify --n-tau-lengths-list instead of --n-generations-list, this makes the output path structure still correspond to n generations, but that's ok since that's what the trees do
 
@@ -94,7 +95,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
             elif utils.output_exists(args, get_outfname(this_outdir)):
                 continue
 
-            print '         running n gen %d' % n_gen
+            print('         running n gen %d' % n_gen)
 
             if not os.path.exists(this_outdir):
                 os.makedirs(this_outdir)
@@ -119,13 +120,13 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
                     utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
 
     if args.make_plots:
-        print '  writing plots to %s' % outdir
+        print('  writing plots to %s' % outdir)
         for metric in args.only_metrics:
             for btype in btypes:
                 if 'lbr' in metric and btype == 'min':  # it's just zero, and confuses the log plots
                     continue
                 if len(parsed_info[metric][btype]) == 0:
-                    print 'nothing to do (<parsed_info> empty)'
+                    print('nothing to do (<parsed_info> empty)')
                     continue
                 make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=print_results)
 
@@ -208,13 +209,13 @@ def get_all_tm_fnames(varnames, vstr, metric_method=None, extra_str=''):
 def run_bcr_phylo(args):  # also caches parameters
     base_args, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['simu'])
     cmdfos = []
-    print '  bcr-phylo: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames))
+    print('  bcr-phylo: running %d combinations of: %s' % (len(valstrs), ' '.join(varnames)))
     if args.debug:
-        print '   %s' % ' '.join(varnames)
+        print('   %s' % ' '.join(varnames))
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
-            print '   %s' % ' '.join(vstrs)
+            print('   %s' % ' '.join(vstrs))
         outdir = get_bcr_phylo_outdir(varnames, vstrs)
         if utils.output_exists(args, get_partition_fname(varnames, vstrs, 'bcr-phylo'), offset=8, debug=args.debug):
             n_already_there += 1
@@ -255,23 +256,23 @@ def run_bcr_phylo(args):  # also caches parameters
             'workdir' : '%s/bcr-phylo-work/%d' % (args.workdir, icombo),
         }]
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, 'bcr-phylo'))
+        print('      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_partition_fname(varnames, vstrs, 'bcr-phylo')))
     if len(cmdfos) > 0:
         if args.dry:
-            print '    %s' % '\n    '.join(cfo['cmd_str'] for cfo in cmdfos)
+            print('    %s' % '\n    '.join(cfo['cmd_str'] for cfo in cmdfos))
         else:
-            print '      starting %d jobs' % len(cmdfos)
+            print('      starting %d jobs' % len(cmdfos))
             utils.run_cmds(cmdfos, debug='write:bcr-phylo.log', batch_system='slurm' if args.slurm else None, n_max_procs=args.n_max_procs, allow_failure=True)
 
 # ----------------------------------------------------------------------------------------
 def get_tree_metrics(args):
     _, varnames, _, valstrs = utils.get_var_info(args, args.scan_vars['get-tree-metrics'])  # can't use base_args a.t.m. since it has the simulation/bcr-phylo args in it
     cmdfos = []
-    print '  get-tree-metrics (%s): running %d combinations of: %s' % (args.metric_method, len(valstrs), ' '.join(varnames))
+    print('  get-tree-metrics (%s): running %d combinations of: %s' % (args.metric_method, len(valstrs), ' '.join(varnames)))
     n_already_there = 0
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
-            print '   %s' % ' '.join(vstrs)
+            print('   %s' % ' '.join(vstrs))
 
         if utils.all_outputs_exist(args, get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr), outlabel='get-tree-metrics', offset=8, debug=args.debug):
             n_already_there += 1
@@ -327,11 +328,11 @@ def get_tree_metrics(args):
 
     # TODO use utils.run_scan_cmds()
     if n_already_there > 0:
-        print '      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)[0])
+        print('      %d / %d skipped (outputs exist, e.g. %s)' % (n_already_there, len(valstrs), get_all_tm_fnames(varnames, vstrs, metric_method=args.metric_method, extra_str=args.extra_plotstr)[0]))
     if len(cmdfos) > 0:
-        print '      %s %d jobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos))
+        print('      %s %d jobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos)))
         if args.dry:
-            print '  first command: %s' % cmdfos[0]['cmd_str']
+            print('  first command: %s' % cmdfos[0]['cmd_str'])
         else:
             logstr = 'get-tree-metrics'
             if args.metric_method == 'dtr':
@@ -424,7 +425,7 @@ try:
     import scanplot
     from hist import Hist
 except ImportError as e:
-    print e
+    print(e)
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 
 args.actions = utils.get_arg_list(args.actions, choices=all_actions)
@@ -436,7 +437,7 @@ args.obs_times_list = utils.get_arg_list(args.obs_times_list, list_of_lists=True
 if args.lb_tau_list == 'auto':
     assert 'get-lb-bounds' in args.actions
     args.lb_tau_list = '%f' % utils.round_to_n_digits(1. / args.seq_len, 2)  # (1. / args.seq_len) #
-    print '  setting --lb-tau-list to 1 / %d = %s' % (args.seq_len, args.lb_tau_list)
+    print('  setting --lb-tau-list to 1 / %d = %s' % (args.seq_len, args.lb_tau_list))
 args.lb_tau_list = utils.get_arg_list(args.lb_tau_list, floatify=True, forbid_duplicates=True)
 args.target_distance_list = utils.get_arg_list(args.target_distance_list, intify=True)
 args.metric_for_target_distance_list = utils.get_arg_list(args.metric_for_target_distance_list, forbid_duplicates=True, choices=['aa', 'nuc', 'aa-sim-ascii', 'aa-sim-blosum'])
@@ -500,7 +501,7 @@ for action in args.actions:
         assert args.extra_plotstr == ''  # only use --extra-plotstr for get-tree-metrics, for this use --plot-metric-extra-strs (because we in general have multiple --plot-metrics when we're here)
         assert args.metric_method is None  # when plotting, you should only be using --plot-metrics
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['get-tree-metrics'])
-        print 'plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None))
+        print('plotting %d combinations of %d variable%s (%s) with %d families per combination to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), 1 if args.n_sim_events_per_proc is None else args.n_sim_events_per_proc, scanplot.get_comparison_plotdir(args, None)))
         pchoice = 'per-seq'
         if action == 'plot':
             procs = []
@@ -509,9 +510,9 @@ for action in args.actions:
                 cfg_list = lbplotting.single_lbma_cfg_vars(metric)
                 cfg_list = lbplotting.add_lbma_cfg_permutations(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots, make_distr_hists=True)
                 for ptvar, ptlabel, use_relative_affy, distr_hists in cfg_list:
-                    print '  %s  %-s %-13s%-s' % (utils.color('blue', metric), utils.color('purple', estr, width=20, padside='right') if estr != '' else 20*' ', ptvar, utils.color('green', '(relative)') if use_relative_affy else '')
+                    print('  %s  %-s %-13s%-s' % (utils.color('blue', metric), utils.color('purple', estr, width=20, padside='right') if estr != '' else 20*' ', ptvar, utils.color('green', '(relative)') if use_relative_affy else ''))
                     for cgroup in treeutils.cgroups:
-                        print '    %-12s  %15s  %s' % (pchoice, cgroup, ptvar)
+                        print('    %-12s  %15s  %s' % (pchoice, cgroup, ptvar))
                         arglist, kwargs = (args, args.scan_vars['get-tree-metrics'], action, metric, ptvar, args.final_plot_xvar), {'ptilelabel' : ptlabel, 'fnfcn' : get_tm_fname, 'per_x' : pchoice, 'choice_grouping' : cgroup, 'use_relative_affy' : use_relative_affy, 'distr_hists' : distr_hists, 'metric_extra_str' : estr, 'debug' : args.debug}
                         if args.test:
                             scanplot.make_plots(*arglist, **kwargs)
@@ -527,9 +528,9 @@ for action in args.actions:
             cfg_list = lbplotting.add_lbma_cfg_permutations(cfg_list, include_relative_affy_plots=args.include_relative_affy_plots, make_distr_hists=True)
             iplot = 0
             for ptvar, ptlabel, use_relative_affy, distr_hists in cfg_list:
-                print ptvar
+                print(ptvar)
                 for cgroup in treeutils.cgroups:
-                    print '  ', cgroup
+                    print('  ', cgroup)
                     scanplot.make_plots(args, args.scan_vars['get-tree-metrics'], action, None, ptvar, args.final_plot_xvar, ptilelabel=ptlabel, per_x=pchoice, choice_grouping=cgroup, use_relative_affy=use_relative_affy, distr_hists=distr_hists, make_legend=iplot==0)
                     iplot += 1
             plotting.make_html(scanplot.get_comparison_plotdir(args, 'combined', per_x=pchoice), n_columns=2)

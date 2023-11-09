@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import os
 import argparse
 from collections import OrderedDict
@@ -15,7 +16,7 @@ import matplotlib.pyplot as plt
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
+    print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
 sys.path.insert(1, partis_dir) # + '/python')
 import python.plotting as plotting
 import python.paramutils as paramutils
@@ -27,7 +28,7 @@ class ModelPlotter(object):
         self.base_plotdir = base_plotdir
 
         self.eps_to_skip = 1e-3
-        print 'skipping eps %f' % self.eps_to_skip
+        print('skipping eps %f' % self.eps_to_skip)
 
         plot_types = ('transitions', 'emissions')
         for ptype in plot_types:
@@ -57,7 +58,7 @@ class ModelPlotter(object):
         fig.set_size_inches(plotting.plot_ratios[utils.get_region(gene_name)])
 
         ibin = 0
-        print utils.color_gene(utils.unsanitize_name(gene_name))
+        print(utils.color_gene(utils.unsanitize_name(gene_name)))
         legend_colors = set()  # add a color to this the first time you plot it
         for state in model.states:
 
@@ -142,7 +143,7 @@ if args.hmmdir is None and args.infiles is None:
     raise Exception('have to specify either --hmmdir or --infiles')
 
 if __name__ == '__main__':
-    print '  %s the top line in the emission plots is usually yellow because the three non-germline bases are equally likely, and G comes last when sorted alphabetically' % utils.color('red', 'note')
+    print('  %s the top line in the emission plots is usually yellow because the three non-germline bases are equally likely, and G comes last when sorted alphabetically' % utils.color('red', 'note'))
     if not os.path.exists(args.outdir):
         raise Exception('output directory %s does not exist' % args.outdir)
     mplot = ModelPlotter(args, args.outdir) # + '/modelplots')

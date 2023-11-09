@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import csv
 import colored_traceback.always
@@ -128,7 +129,7 @@ def get_vpar_val(parg, pval, debug=False):  # get value of parameter/command lin
     if parg != 'selection-strength':
         return_val = int(return_val)
     if debug:
-        print '  %30s --> %-7s  %s' % (dbgstr, sfcn(return_val), parg)
+        print('  %30s --> %-7s  %s' % (dbgstr, sfcn(return_val), parg))
     return return_val
 
 # ----------------------------------------------------------------------------------------
@@ -188,7 +189,7 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None, igcr=None):
                 isfos = utils.read_fastx(bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1)))
                 if args.n_reentry_seqs is not None:
                     if args.n_reentry_seqs > len(isfos):
-                        print '  %s --n-reentry-seqs %d greater than number of observed seqs %d in %s' % (utils.wrnstr(), args.n_reentry_seqs, len(isfos), bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1)))
+                        print('  %s --n-reentry-seqs %d greater than number of observed seqs %d in %s' % (utils.wrnstr(), args.n_reentry_seqs, len(isfos), bcr_phylo_fasta_fname(evtdir(ievent, igcr=igcr - 1))))
                     isfos = numpy.random.choice(isfos, size=args.n_reentry_seqs, replace=False)
                 utils.write_fasta(init_fn, isfos)
             cmd += ' --initial_seq_file %s' % init_fn
@@ -263,9 +264,9 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
             try:
                 utils.add_implicit_info(glfo, mline)
             except:  # TODO not sure if I really want to leave this in long term, but it shouldn't hurt anything (it's crashing on unequal naive/mature sequence lengths, and I need this to track down which event it is) UPDATE: yeah it was just because something crashed in the middle of writing a .fa file
-                print 'implicit info adding failed for ievent %d in %s' % (ievent, outdir)
+                print('implicit info adding failed for ievent %d in %s' % (ievent, outdir))
                 lines = traceback.format_exception(*sys.exc_info())
-                print utils.pad_lines(''.join(lines))  # NOTE this will still crash on the next line if implicit info adding failed
+                print(utils.pad_lines(''.join(lines)))  # NOTE this will still crash on the next line if implicit info adding failed
         final_line = utils.synthesize_multi_seq_line_from_reco_info([sfo['name'] for sfo in sfos], reco_info)
 
         ftree = copy.deepcopy(dtree)
@@ -303,9 +304,9 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
 
         # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
         if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
-            print '        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(nodefo) - set(final_line['unique_ids']))
+            print('        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(nodefo) - set(final_line['unique_ids'])))
         if len(set(final_line['unique_ids']) - set(nodefo)) > 0:
-            print '        in final_line, but missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(nodefo))
+            print('        in final_line, but missing from kdvals: %s' % ' '.join(set(final_line['unique_ids']) - set(nodefo)))
         final_line['affinities'] = [1. / nodefo[u]['kd'] for u in final_line['unique_ids']]
         if args.affinity_measurement_error is not None:
             # before = final_line['affinities']
@@ -320,7 +321,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         ftree.scale_edges(1. / numpy.mean([len(s) for s in final_line['seqs']]))  # note that if --paired-loci is set then most edges will still be the wrong length (compared to the mutations in the single-locus sequences), i.e. best not to use this much until treeutils.combine_selection_metrics(), where we rescale to the full h+l length
         # treeutils.compare_tree_distance_to_shm(ftree, final_line, debug=True)
         if args.debug:
-            print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ftree), padwidth=12)
+            print(utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ftree), padwidth=12))
         final_line['tree'] = ftree.as_string(schema='newick')
         if args.debug:
             utils.print_reco_event(final_line) #, extra_print_keys=['lambdas'])
@@ -376,7 +377,7 @@ def read_rearrangements():
 # ----------------------------------------------------------------------------------------
 def write_simulation(glfos, mutated_events, unsampled=False):
     opath = spath('mutated', unsampled=unsampled)
-    print '  writing%s annotations to %s' % ('' if not args.tpsample else (' unsampled' if unsampled else ' timepoint sampled'), opath)
+    print('  writing%s annotations to %s' % ('' if not args.tpsample else (' unsampled' if unsampled else ' timepoint sampled'), opath))
     mheads = []
     if args.n_gc_rounds is not None:
         mheads += ['gc-rounds', 'generation-times']
@@ -433,7 +434,7 @@ def combine_gc_rounds(glfos, mevt_lists):
             for evt in mevt_lists[igcr]:
                 fix_evt(igcr, sum_time, evt, all_gtimes)
         sum_time += args.obs_times[igcr][-1]
-    print '    merging %d events over %d gc rounds with final generation times: %s' % (len(mevt_lists[0]), args.n_gc_rounds, ' '.join(str(t) for t in sorted(all_gtimes)))
+    print('    merging %d events over %d gc rounds with final generation times: %s' % (len(mevt_lists[0]), args.n_gc_rounds, ' '.join(str(t) for t in sorted(all_gtimes))))
     merged_events = []
     for ievt in range(len(mevt_lists[0])):
         if args.paired_loci:
@@ -458,31 +459,31 @@ def sample_tp_seqs(glfos, evt_list, l_evts=None, ltmp=None):
         raise Exception('duplicate ids in final events')  # shouldn't be able to get to here, but if it does it'll break stuff below
     for fevt in evt_list:
         if 'timepoints' in fevt:  # shouldn't be in there
-            print '  %s \'timepoints\' already in event (overwriting)' % utils.wrnstr()
+            print('  %s \'timepoints\' already in event (overwriting)' % utils.wrnstr())
         fevt['timepoints'] = [None for _ in fevt['unique_ids']]
     all_gtimes = set(t for l in evt_list for t in l['generation-times'])
     gt_ids = {t : [] for t in all_gtimes}  # map from each generation time to list of all remaining uids with that time
     for tline in evt_list:
         for tid, gtime in zip(tline['unique_ids'], tline['generation-times']):
             gt_ids[gtime].append(tid)
-    print '                       N      generation     N          N'
-    print '         timepoint   total      time       chosen   remaining'
+    print('                       N      generation     N          N')
+    print('         timepoint   total      time       chosen   remaining')
     for tpfo in args.sequence_sample_times:
         if any(t not in all_gtimes for t in tpfo['times']):
             raise Exception('generation time %s not among actual final times: %s' % (' '.join(str(t) for t in tpfo['times'] if t not in all_gtimes), ' '.join(str(t) for t in sorted(all_gtimes))))
         allowed_uids = [u for gt in tpfo['times'] for u in gt_ids[gt]]
         if tpfo['n'] > len(allowed_uids):
-            print '  %s not enough allowed seqs remain (%d > %d, probably didn\'t sample enough sequences at allowed times %s)' % (utils.wrnstr(), tpfo['n'], len(allowed_uids), ' '.join(str(t) for t in tpfo['times']))
+            print('  %s not enough allowed seqs remain (%d > %d, probably didn\'t sample enough sequences at allowed times %s)' % (utils.wrnstr(), tpfo['n'], len(allowed_uids), ' '.join(str(t) for t in tpfo['times'])))
         chosen_ids = numpy.random.choice(allowed_uids, size=tpfo['n'], replace=False)
         if len(chosen_ids) != tpfo['n']:
-            print '  %s couldn\'t choose enough seqs (only got %d)' % (utils.wrnstr(), len(chosen_ids))
+            print('  %s couldn\'t choose enough seqs (only got %d)' % (utils.wrnstr(), len(chosen_ids)))
         n_chosen = {}
         for gtime in tpfo['times']:
             n_before = len(gt_ids[gtime])
             gt_ids[gtime] = [u for u in gt_ids[gtime] if u not in chosen_ids]
             n_chosen[gtime] = n_before - len(gt_ids[gtime])
         for igt, gtime in enumerate(tpfo['times']):
-            print '    %12s      %3s      %3d         %4d       %4d' % (tpfo['name'] if igt==0 else '', '%d'%tpfo['n'] if igt==0 else '', gtime, n_chosen[gtime], len(gt_ids[gtime]))
+            print('    %12s      %3s      %3d         %4d       %4d' % (tpfo['name'] if igt==0 else '', '%d'%tpfo['n'] if igt==0 else '', gtime, n_chosen[gtime], len(gt_ids[gtime])))
         for fevt in evt_list:
             fevt['timepoints'] = [tpfo['name'] if u in chosen_ids else t for u, t in zip(fevt['unique_ids'], fevt['timepoints'])]
     for ievt, fevt in enumerate(evt_list):
@@ -521,7 +522,7 @@ def simulate(igcr=None):
             _ = run_bcr_phylo('<NAIVE_SEQ>', evtdir(ievent, igcr=igcr), ievent, igcr=igcr)
         return None, None
     if args.restrict_to_single_naive_seq:
-        print '  --restrict-to-single-naive-seq: using same naive event for all mutation simulations'
+        print('  --restrict-to-single-naive-seq: using same naive event for all mutation simulations')
         assert len(naive_events) == 1
         naive_events = [naive_events[0] for _ in range(args.n_sim_events)]
     else:
@@ -532,11 +533,11 @@ def simulate(igcr=None):
     start = time.time()
     cmdfos = []
     if args.n_procs > 1:
-        print '    starting %d events' % len(naive_events)
+        print('    starting %d events' % len(naive_events))
     uid_str_len = args.min_ustr_len  # UPDATE don't need to increase this any more since I'm handling duplicates when above + int(math.log(len(naive_events), 7))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates (note that this starts getting pretty slow if it's bigger than 7 or so)
     for ievent, outdir in enumerate(outdirs):
         if args.n_sim_events > 1 and args.n_procs == 1:
-            print '  %s %d' % (utils.color('blue', 'ievent'), ievent)
+            print('  %s %d' % (utils.color('blue', 'ievent'), ievent))
         if args.paired_loci:
             hnseq, lnseq = [l['naive_seq'] for l in naive_events[ievent]]
             naive_seq = utils.pad_nuc_seq(hnseq) + lnseq
@@ -544,11 +545,11 @@ def simulate(igcr=None):
             naive_seq = naive_events[ievent]['naive_seq']
         cfo = run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=uid_str_len, igcr=igcr)  # if n_procs > 1, doesn't run, just returns cfo
         if cfo is not None:
-            print '      %s %s' % (utils.color('red', 'run'), cfo['cmd_str'])
+            print('      %s %s' % (utils.color('red', 'run'), cfo['cmd_str']))
             cmdfos.append(cfo)
     if args.n_procs > 1 and len(cmdfos) > 0:
         utils.run_cmds(cmdfos, shell=True, n_max_procs=args.n_procs, batch_system='slurm' if args.slurm else None, allow_failure=True, debug='print')
-    print '  bcr-phylo run time: %.1fs' % (time.time() - start)
+    print('  bcr-phylo run time: %.1fs' % (time.time() - start))
 
     if utils.output_exists(args, get_simfn('igh'), outlabel='mutated simu', offset=4):  # i guess if it crashes during the plotting just below, this'll get confused
         return None, None
@@ -559,8 +560,8 @@ def simulate(igcr=None):
     for ievent, outdir in enumerate(outdirs):
         mutated_events.append(parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info))
     if uid_info['n_duplicate_uids'] > 0:
-        print '  %s renamed %d duplicate uids from %d bcr-phylo events' % (utils.color('yellow', 'warning'), uid_info['n_duplicate_uids'], len(mutated_events))
-    print '  parsing time: %.1fs' % (time.time() - start)
+        print('  %s renamed %d duplicate uids from %d bcr-phylo events' % (utils.color('yellow', 'warning'), uid_info['n_duplicate_uids'], len(mutated_events)))
+    print('  parsing time: %.1fs' % (time.time() - start))
 
     if igcr is None:
         write_simulation(glfos, mutated_events, unsampled=args.tpsample)
@@ -583,18 +584,18 @@ def simulate(igcr=None):
 def simulseq_args():
     cstr = ''
     if args.restrict_to_single_naive_seq:
-        print '  note: using --all-seqs-simultaneous because --restrict-to-single-naive-seq was set'
+        print('  note: using --all-seqs-simultaneous because --restrict-to-single-naive-seq was set')
         cstr += ' --all-seqs-simultaneous'
     if args.n_gc_rounds is None and not args.tpsample:
         cstr += ' --is-simu'
         if '--all-seqs-simultaneous' not in cstr:
             cstr += ' --simultaneous-true-clonal-seqs'
     elif args.n_sim_events == 1:
-        print '  %s not using --is-simu since --n-gc-rounds or --sequence-sample-time-fname are set, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr()
+        print('  %s not using --is-simu since --n-gc-rounds or --sequence-sample-time-fname are set, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr())
         if '--all-seqs-simultaneous' not in cstr:
             cstr += ' --all-seqs-simultaneous'
     else:
-        print '  %s not using any of --is-simu or --simultaneous-true-clonal-seqs since either --n-gc-rounds or --sequence-sample-time-fname are set with more than one event, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr()
+        print('  %s not using any of --is-simu or --simultaneous-true-clonal-seqs since either --n-gc-rounds or --sequence-sample-time-fname are set with more than one event, so e.g. plots won\'t use true info, and true tree won\'t be set' % utils.wrnstr())
     return cstr
 
 # ----------------------------------------------------------------------------------------
@@ -723,7 +724,7 @@ parser.add_argument('--min-ustr-len', type=int, default=5, help='min length of h
 args = parser.parse_args()
 
 if args.parameter_plots:
-    print '  %s transferring deprecated arg --parameter-plots to --all-inference-plots' % utils.wrnstr()
+    print('  %s transferring deprecated arg --parameter-plots to --all-inference-plots' % utils.wrnstr())
     args.all_inference_plots = True
     delattr(args, 'parameter_plots')
 if args.seed is not None:
@@ -740,7 +741,7 @@ if args.inf_extra_args is not None:
 if args.affinity_measurement_error is not None:
     assert args.affinity_measurement_error >= 0
     if args.affinity_measurement_error > 1:
-        print '  note: --affinity-measurement-error %.2f is greater than 1 -- this is fine as long as it\'s on purpose, but will result in smearing by a normal with width larger than each affinity value (and probably result in some negative values).' % args.affinity_measurement_error
+        print('  note: --affinity-measurement-error %.2f is greater than 1 -- this is fine as long as it\'s on purpose, but will result in smearing by a normal with width larger than each affinity value (and probably result in some negative values).' % args.affinity_measurement_error)
 if args.n_gc_rounds is not None:
     assert len(args.obs_times) == args.n_gc_rounds
     for otlist in args.obs_times:
@@ -754,7 +755,7 @@ if args.n_gc_rounds is not None:
 setattr(args, 'sequence_sample_times', None)
 setattr(args, 'tpsample', False)
 if args.sequence_sample_time_fname is not None:
-    print '  reading timepoint sample times from %s' % args.sequence_sample_time_fname
+    print('  reading timepoint sample times from %s' % args.sequence_sample_time_fname)
     with open(args.sequence_sample_time_fname) as sfile:
         yamlfo = yaml.load(sfile, Loader=yaml.CLoader)
     if args.n_gc_rounds is not None:  # have to translate the "local" gc round times to final times, then also concatenate them into ones list for all gc rounds

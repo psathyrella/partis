@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import dendropy
 import os
 import sys
@@ -114,7 +115,7 @@ class ClusterPath(object):
                 check(iptn, cluster, duplicate_ids)
             self.partitions[iptn].append(cluster)
         if debug and len(duplicate_ids) > 0:
-            print '  %s %d uid%s appeared multiple times when adding cluster to all partitions%s' % (utils.color('yellow', 'warning'), len(duplicate_ids), utils.plural(len(duplicate_ids)), ': '+' '.join(duplicate_ids) if len(duplicate_ids) < 10 else '')
+            print('  %s %d uid%s appeared multiple times when adding cluster to all partitions%s' % (utils.color('yellow', 'warning'), len(duplicate_ids), utils.plural(len(duplicate_ids)), ': '+' '.join(duplicate_ids) if len(duplicate_ids) < 10 else ''))
 
     # ----------------------------------------------------------------------------------------
     def add_partition(self, partition, logprob, n_procs, logweight=None, ccfs=None, perf_metrics=None):
@@ -179,7 +180,7 @@ class ClusterPath(object):
                 if self.seed_unique_id is None:
                     self.seed_unique_id = line['seed_unique_id']
                 if line['seed_unique_id'] != self.seed_unique_id:
-                    print '%s seed uids for each line not all the same %s %s' % (utils.color('yellow', 'warning'), line['seed_unique_id'], self.seed_unique_id)
+                    print('%s seed uids for each line not all the same %s %s' % (utils.color('yellow', 'warning'), line['seed_unique_id'], self.seed_unique_id))
 
             if process_csv:
                 line['partition'] = [cluster_str.split(':') for cluster_str in line['partition'].split(';')]
@@ -244,10 +245,10 @@ class ClusterPath(object):
             delta_str = '%.1f' % (self.logprobs[ip] - self.logprobs[ip-1])
         else:
             delta_str = ''
-        print '      %s  %-12.2f%-7s   %s%-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, ('%-5d  ' % ip) if print_partition_indices else '', len(self.partitions[ip]), self.n_procs[ip]),
+        print('      %s  %-12.2f%-7s   %s%-5d  %4d' % (extrastr, self.logprobs[ip], delta_str, ('%-5d  ' % ip) if print_partition_indices else '', len(self.partitions[ip]), self.n_procs[ip]), end=' ')
 
         if self.we_have_a_ccf:
-            print '    ' + self.get_ccf_str(ip),
+            print('    ' + self.get_ccf_str(ip), end=' ')
 
         if not dont_print_clusters:
             sorted_clusters = self.partitions[ip]
@@ -256,7 +257,7 @@ class ClusterPath(object):
             n_total_seqs = sum(len(c) for c in self.partitions[ip])
             csstr = ' '.join(ccol(c, str(len(c)), i) for i, c in enumerate(sorted_clusters) if len(c) > 1)  # would be nice to use utils.cluster_size_str(), but i need more color configurability atm
             csstr += ' (+%d)' % len([c for c in sorted_clusters if len(c)==1])
-            print '   %s%s' % (csstr, ' '*(max_sizestr_len - utils.len_excluding_colors(csstr))),
+            print('   %s%s' % (csstr, ' '*(max_sizestr_len - utils.len_excluding_colors(csstr))), end=' ')
             for iclust in range(len(sorted_clusters)):
                 tclust = sorted_clusters[iclust]
                 cstr = ''
@@ -264,9 +265,9 @@ class ClusterPath(object):
                     def ustr(u): return 'o' if len(u) > 3 and abbreviate else str(u)
                     cstr = ':'.join(ustr(u) for u in tclust)
                 cstr = ccol(tclust, cstr, iclust)
-                print ' %s%s' % ('' if abbreviate else '  ', cstr),
-        print '%s' % right_extrastr,
-        print ''
+                print(' %s%s' % ('' if abbreviate else '  ', cstr), end=' ')
+        print('%s' % right_extrastr, end=' ')
+        print('')
 
     # ----------------------------------------------------------------------------------------
     def print_partitions(self, reco_info=None, true_partition=None, extrastr='', abbreviate=True, dont_print_clusters=False, print_header=True, n_to_print=None, calc_missing_values='none',
@@ -276,11 +277,11 @@ class ClusterPath(object):
             self.calculate_missing_values(reco_info=reco_info, true_partition=true_partition)
 
         if print_header:
-            print '    %s%7s %10s   %-7s %s%5s  %4s' % (' '*utils.len_excluding_colors(extrastr), '', 'logprob', 'delta', 'index  ' if print_partition_indices else '', 'clusters', 'n_procs'),
+            print('    %s%7s %10s   %-7s %s%5s  %4s' % (' '*utils.len_excluding_colors(extrastr), '', 'logprob', 'delta', 'index  ' if print_partition_indices else '', 'clusters', 'n_procs'), end=' ')
             if reco_info is not None or self.we_have_a_ccf:
-                print ' %5s %5s' % ('purity', 'completeness'),
-            print '    sizes'
-            print ''
+                print(' %5s %5s' % ('purity', 'completeness'), end=' ')
+            print('    sizes')
+            print('')
 
         ptns_to_print = self.get_surrounding_partitions(n_to_print, i_center=ipart_center)
         max_sizestr_len = max(len(' '.join(str(len(c)) for c in self.partitions[i])) for i in ptns_to_print)
@@ -408,13 +409,13 @@ class ClusterPath(object):
     # ----------------------------------------------------------------------------------------
     def seed_cluster(self, ipart=None):
         if self.seed_unique_id is None:
-            print '  %s self.seed_unique_id isn\'t set' % utils.color('red', 'error')
+            print('  %s self.seed_unique_id isn\'t set' % utils.color('red', 'error'))
             return  # I don't like returning different types of things, but this lets the calling code handle things
         seed_clusters = [c for c in self.partitions[ipart if ipart is not None else self.i_best] if self.seed_unique_id in c]
         if len(seed_clusters) == 0:
-            print '  %s couldn\'t find cluster containing seed %s' % (utils.color('red', 'error'), self.seed_unique_id)
+            print('  %s couldn\'t find cluster containing seed %s' % (utils.color('red', 'error'), self.seed_unique_id))
         elif len(seed_clusters) > 1:
-            print '  %s more than one cluster containing seed %s (this can be expected if this is the non-best partition)' % (utils.color('red', 'error'), self.seed_unique_id)
+            print('  %s more than one cluster containing seed %s (this can be expected if this is the non-best partition)' % (utils.color('red', 'error'), self.seed_unique_id))
         else:
             return seed_clusters[0]
 
@@ -427,7 +428,7 @@ class ClusterPath(object):
         non_qti_size = len(set(seed_cluster) - set(queries_to_include + [self.seed_unique_id]))  # NOTE don't modify queries_to_include
         qtistr = '%s %d' % (qtistr, non_qti_size)
         pstr = '%spartition' % lstr
-        print '  seed cluster size in %s: %d, %s' % (('best %s'%pstr) if ipart is None else '%s with index %d (best at index %d)'%(pstr, ipart, self.i_best), len(seed_cluster), qtistr)
+        print('  seed cluster size in %s: %d, %s' % (('best %s'%pstr) if ipart is None else '%s with index %d (best at index %d)'%(pstr, ipart, self.i_best), len(seed_cluster), qtistr))
 
     # ----------------------------------------------------------------------------------------
     def get_bad_clusters(self, partition, reco_info, true_partition):
@@ -456,7 +457,7 @@ class ClusterPath(object):
 
     # ----------------------------------------------------------------------------------------
     def write_presto_partitions(self, outfname, input_info):
-        print '   writing presto partition %s' % outfname
+        print('   writing presto partition %s' % outfname)
         assert utils.getsuffix(outfname) in ['.fa', '.fasta']  # already checked in processargs.py
         with open(outfname, 'w') as outfile:
             iclust = 0
@@ -513,7 +514,7 @@ class ClusterPath(object):
         root_node.uids = uid_set  # each node keeps track of the uids of its children
         dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node, is_rooted=True)
         if debug:
-            print '    starting tree with %d leaves and %d partition%s:' % (len(uid_set), len(partitions), utils.plural(len(partitions)))
+            print('    starting tree with %d leaves and %d partition%s:' % (len(uid_set), len(partitions), utils.plural(len(partitions))))
             for ip, ptn in enumerate(partitions):
                 ptnprint(ptn, extrastr='        ', print_header=ip==0)
         for ipart in reversed(range(len(partitions) - 1)):  # dendropy seems to only have fcns to build a tree from the root downward, so we loop starting with the last partition (- 1 is because the last partition is guaranteed to be just one cluster)
@@ -527,8 +528,8 @@ class ClusterPath(object):
                     child = lnode.new_child(taxon=ttaxon, edge_length=default_edge_length)
                     child.uids = set(tclust)
                 if debug:
-                    print '      ipart %d' % ipart
-                    print '        split node: %d --> %s      %s --> %s' % (len(lnode.uids), ' '.join([str(len(tc)) for tc in tclusts]), lnode.taxon.label, ' '.join([c.taxon.label for c in lnode.child_node_iter()]))
+                    print('      ipart %d' % ipart)
+                    print('        split node: %d --> %s      %s --> %s' % (len(lnode.uids), ' '.join([str(len(tc)) for tc in tclusts]), lnode.taxon.label, ' '.join([c.taxon.label for c in lnode.child_node_iter()])))
 
         # split existing leaves, which are probably not singletons (they're probably from the initial naive sequence collapse step) into subtrees such that each leaf is a singleton
         for lnode in dtree.leaf_node_iter():
@@ -547,8 +548,8 @@ class ClusterPath(object):
                         subtree.taxon_namespace.add_taxon(ttaxon)
                         tmpnode.taxon = ttaxon  # ...and use the string of leaf nodes, even though they'll be in the wrong order (I think these get ignored when I call label_nodes() below, but it's still tidier to have them right in the meantime, and anyway since I'm suppressing internal taxa I think I need to set them to something)
                 if debug:
-                    print '   adding subtree with %d leaves from fastree at leaf node %s' % (len(seqfos), lnode.taxon.label)
-                    print utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=subtree, width=350, label_fcn=lambda x: '<combo>' if ':' in x else x))
+                    print('   adding subtree with %d leaves from fastree at leaf node %s' % (len(seqfos), lnode.taxon.label))
+                    print(utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=subtree, width=350, label_fcn=lambda x: '<combo>' if ':' in x else x)))
                 dtree.taxon_namespace.add_taxa(subtree.taxon_namespace)
                 lnode.add_child(subtree.seed_node)
                 assert len(lnode.child_edges()) == 1  # we're iterating over leaves, so this should always be true
@@ -560,7 +561,7 @@ class ClusterPath(object):
                     child = lnode.new_child(taxon=ttaxon, edge_length=default_edge_length)
                     child.uids = set([uid])
                 if debug:
-                    print '      added %d singleton children for %s' % (len(lnode.uids), lnode.taxon.label)
+                    print('      added %d singleton children for %s' % (len(lnode.uids), lnode.taxon.label))
 
         # in order to set edge lengths, we need node sequences, so first set leaf node seqs
         for lnode in dtree.leaf_node_iter():
@@ -570,7 +571,7 @@ class ClusterPath(object):
 
         # then set internal node seqs as the consensus of their children, and set the distance as hamming distance to child seqs
         if debug:
-            print '    adding edge lengths either from fasttree %s or cons seq %s' % (utils.color('blue', 'x'), utils.color('red', 'x'))
+            print('    adding edge lengths either from fasttree %s or cons seq %s' % (utils.color('blue', 'x'), utils.color('red', 'x')))
         min_edge_length = None  # setting this is nice for better debug viewing
         for node in dtree.postorder_internal_node_iter():  # includes root node
             child_cons_seq_counts = [c.n_descendent_leaves for c in node.child_node_iter()]
@@ -579,9 +580,9 @@ class ClusterPath(object):
                 child_cons_seq_counts = [int(n_max_cons_seqs * csc / float(total_descendent_leaves)) for csc in child_cons_seq_counts]
                 child_cons_seq_counts = [max(1, csc) for csc in child_cons_seq_counts]  # don't eliminate any sequences entirely (this makes the proportions less accurate (in some cases), but is the easy way to handle the case where there's a ton of singleton children
             if debug:
-                print '  %s' % utils.color('green', node.taxon.label)
+                print('  %s' % utils.color('green', node.taxon.label))
                 csc_str = '  (reduced: %s)' % ' '.join([str(csc) for csc in child_cons_seq_counts]) if total_descendent_leaves > n_max_cons_seqs else ''
-                print '      desc leaves per child: %s%s' % (' '.join(str(c.n_descendent_leaves) for c in node.child_node_iter()), csc_str)
+                print('      desc leaves per child: %s%s' % (' '.join(str(c.n_descendent_leaves) for c in node.child_node_iter()), csc_str))
             child_seqfos = [{'name' : cn.taxon.label + '-leaf-' + str(il), 'seq' : cn.seq} for cn, count in zip(node.child_node_iter(), child_cons_seq_counts) for il in range(count)]
             # node.seq = utils.old_bio_cons_seq(0.01, aligned_seqfos=child_seqfos, tie_resolver_seq=getline(root_label)['naive_seq'])  #, debug=debug)  # the consensus has an N at every position where the constituent sequences gave a tie. But Ns screw up the distances (especially because once we *get* an N, we can't get rid of it and it's propagated all the way up the tree), and in almost all cases the correct choice should be the naive base, so we use that
             node.seq = utils.cons_seq(aligned_seqfos=child_seqfos)  # UPDATE using new fcn that just picks one if there's a tie (and is ten times faster)
@@ -595,14 +596,14 @@ class ClusterPath(object):
                 if min_edge_length is not None:
                     edge.length = max(min_edge_length, edge.length)
                 if debug:
-                    print '       %6.3f   %s  %s' % (edge.length, utils.color('blue' if from_fasttree else 'red', 'x'), edge.head_node.taxon.label)
+                    print('       %6.3f   %s  %s' % (edge.length, utils.color('blue' if from_fasttree else 'red', 'x'), edge.head_node.taxon.label))
 
         hfrac, hdist = utils.hamming_fraction(get_naive_seq(root_label), dtree.seed_node.seq, also_return_distance=True)
         if debug:
             if hdist > 0:
-                print '  note: naive and root cons seq differ at %d positions (hfrac %.2f)' % (hdist, hfrac)
-            print '        naive seq %s' % get_naive_seq(root_label) # NOTE might be worthwhile to add an edge connecting seed node and the actual naive sequence (i.e. for cases where our approximate naive is off)
-            print '    root cons seq %s' % utils.color_mutants(get_naive_seq(root_label), dtree.seed_node.seq)
+                print('  note: naive and root cons seq differ at %d positions (hfrac %.2f)' % (hdist, hfrac))
+            print('        naive seq %s' % get_naive_seq(root_label)) # NOTE might be worthwhile to add an edge connecting seed node and the actual naive sequence (i.e. for cases where our approximate naive is off)
+            print('    root cons seq %s' % utils.color_mutants(get_naive_seq(root_label), dtree.seed_node.seq))
 
         for node in dtree.preorder_node_iter():
             del node.uids
@@ -618,13 +619,13 @@ class ClusterPath(object):
         for edge in naive_node.child_edge_iter():
             edge.length = hfrac
         if debug:
-            print '  added new naive root node at distance %.3f above previous root' % hfrac
+            print('  added new naive root node at distance %.3f above previous root' % hfrac)
 
         treeutils.label_nodes(dtree, ignore_existing_internal_node_labels=True, ignore_existing_internal_taxon_labels=True, root_is_external=True, debug=debug)
         treeutils.collapse_zero_length_leaves(dtree, uid_set, debug=debug)
         # dtree.update_bipartitions(suppress_unifurcations=False)  # probably don't really need this UPDATE now i'm commenting it since it gets run by the zero length leaf collapse fcn
         if debug:
-            print treeutils.utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250))
+            print(treeutils.utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree, width=250)))
 
         # make sure we didn't lose any uids in the process of making the tree (this shouldn't happen any more, but it kept happening when i thought i'd fixed it before, so...)
         node_set = set(n.taxon.label for n in dtree.preorder_node_iter())
@@ -652,7 +653,7 @@ class ClusterPath(object):
                 if len(new_cluster) > 0:
                     new_partitions[ipart].append(new_cluster)
         if debug:
-            print '  removed seed uid %s from %s clusters across %d partitions' % (self.seed_unique_id, ' '.join([str(n) for n in n_removed_list]), len(n_removed_list))
+            print('  removed seed uid %s from %s clusters across %d partitions' % (self.seed_unique_id, ' '.join([str(n) for n in n_removed_list]), len(n_removed_list)))
 
         return new_partitions
 
@@ -682,7 +683,7 @@ class ClusterPath(object):
             partitions = self.deduplicate_seed_uid(debug=debug)
 
         if debug:
-            print '  making %d tree%s over %d partitions' % (len(partitions[self.i_best]) if i_only_cluster is None else 1, 's' if i_only_cluster is None else '', self.i_best + 1)
+            print('  making %d tree%s over %d partitions' % (len(partitions[self.i_best]) if i_only_cluster is None else 1, 's' if i_only_cluster is None else '', self.i_best + 1))
         if self.trees is None:
             self.trees = [None for _ in partitions[self.i_best]]
         else:

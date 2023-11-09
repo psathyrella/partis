@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import time
 import copy
 import sys
@@ -106,7 +107,7 @@ class Waterer(object):
             mismatches, gap_opens, queries_for_each_proc = self.split_queries(self.args.n_procs)  # NOTE can tell us to run more than <self.args.n_procs> (we run at least one proc for each different mismatch score)
             self.write_input_files(base_infname, queries_for_each_proc)
 
-            print '    running %d proc%s for %d seq%s' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries), utils.plural(len(self.remaining_queries)))
+            print('    running %d proc%s for %d seq%s' % (len(mismatches), utils.plural(len(mismatches)), len(self.remaining_queries), utils.plural(len(self.remaining_queries))))
             sys.stdout.flush()
             self.execute_commands(base_infname, base_outfname, mismatches, gap_opens)
 
@@ -118,16 +119,16 @@ class Waterer(object):
             itry += 1
 
         self.finalize(cachefname)
-        print '    water time: %.1f  (ig-sw %.1f  processing %.1f)' % (time.time() - start, time.time() - processing_start, self.ig_sw_time)
+        print('    water time: %.1f  (ig-sw %.1f  processing %.1f)' % (time.time() - start, time.time() - processing_start, self.ig_sw_time))
 
     # ----------------------------------------------------------------------------------------
     def clean_cache(self, cache_path):
         for suffix in ['.csv', '.yaml']:
             if os.path.exists(cache_path + suffix):
-                print '  removing old sw cache %s%s' % (cache_path, suffix)
+                print('  removing old sw cache %s%s' % (cache_path, suffix))
                 os.remove(cache_path + suffix)
         if os.path.exists(cache_path + '-glfo'):
-            print '  removing old sw cache glfo %s-glfo' % cache_path
+            print('  removing old sw cache glfo %s-glfo' % cache_path)
             glutils.remove_glfo_files(cache_path + '-glfo', self.args.locus)
 
     # ----------------------------------------------------------------------------------------
@@ -135,14 +136,14 @@ class Waterer(object):
         no_input_info = len(self.input_info) == 0
         if not quiet:  # ok i'm also using this as an indicator of how much dbg i want, which maybe is dumb
             start = time.time()
-            print '        reading sw results from %s' % cachefname
+            print('        reading sw results from %s' % cachefname)
 
         if utils.getsuffix(cachefname) == '.csv':  # old way
             cachebase = utils.getprefix(cachefname)
             if os.path.exists(cachebase + '-glfo'):  # NOTE replaces original <self.glfo>
                 self.glfo = glutils.read_glfo(cachebase + '-glfo', self.args.locus)
             else:
-                print '    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning')
+                print('    %s didn\'t find a germline info dir along with sw cache file, but trying to read it anyway' % utils.color('red', 'warning'))
             cachefile = open(cachefname)  # closes on function exit, and no this isn't a great way of doing it (but it needs to stay open for the loop over <reader>)
             reader = csv.DictReader(cachefile)
         elif utils.getsuffix(cachefname) == '.yaml':  # new way
@@ -174,11 +175,11 @@ class Waterer(object):
 
         self.finalize(cachefname=None, just_read_cachefile=True, ignore_seed_unique_id=ignore_seed_unique_id, quiet=quiet)
         if not quiet:
-            print '        water time: %.1f' % (time.time()-start)
+            print('        water time: %.1f' % (time.time()-start))
 
     # ----------------------------------------------------------------------------------------
     def write_cachefile(self, cachefname):
-        print '        writing sw results to %s' % cachefname
+        print('        writing sw results to %s' % cachefname)
 
         if utils.getsuffix(cachefname) == '.csv':
             cachebase = utils.getprefix(cachefname)
@@ -191,13 +192,13 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def finalize(self, cachefname=None, just_read_cachefile=False, ignore_seed_unique_id=False, quiet=False):
         if self.debug:
-            print '%s' % utils.color('green', 'finalizing')
+            print('%s' % utils.color('green', 'finalizing'))
 
         self.info['queries'] = [q for q in self.input_info if q in self.info['passed-queries']]  # it might be cleaner eventually to just make self.info['queries'] a set, but it's used in so many other places that I'm worried about changing it
         self.info['failed-queries'] |= set(self.remaining_queries)  # perhaps it doesn't make sense to keep both of 'em around after finishing?
 
         if len(self.info['queries']) == 0:
-            print '%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning')
+            print('%s no queries passing smith-waterman, exiting' % utils.color('red', 'warning'))
             sys.exit(0)
 
         if not quiet:  # don't want any debug printing if we're ignoring seed id (i.e. just reading cache file for paired h/l seed clustering)
@@ -207,24 +208,24 @@ class Waterer(object):
                 n_dupes = sum([len(dupes) for dupes in self.duplicates.values()])
                 dupl_str = ', %d duplicates [removed when cache file was written]' % n_dupes
             tmp_pass_frac = float(len(self.info['queries']) + n_dupes + len(self.skipped_unproductive_queries) + len(self.skipped_in_frame_queries)) / len(self.input_info)
-            print '      info for %d / %d = %.3f   (removed: %d failed%s)' % (len(self.info['queries']), len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str)
+            print('      info for %d / %d = %.3f   (removed: %d failed%s)' % (len(self.info['queries']), len(self.input_info), tmp_pass_frac, len(self.info['failed-queries']), dupl_str))
             if tmp_pass_frac < 0.80:
-                print '  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning())
+                print('  %s smith-waterman step failed to find alignments for a large fraction of input sequences (see previous line)   %s'  % (utils.color('red', 'warning'), utils.reverse_complement_warning()))
             if len(self.kept_unproductive_queries) > 0:
-                print '      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info))
+                print('      kept %d (%.3f) unproductive' % (len(self.kept_unproductive_queries), float(len(self.kept_unproductive_queries)) / len(self.input_info)))
 
         if not just_read_cachefile:  # it's past tense!
             if len(self.skipped_unproductive_queries) > 0:
-                print '         skipped %d unproductive' % len(self.skipped_unproductive_queries)
+                print('         skipped %d unproductive' % len(self.skipped_unproductive_queries))
             if len(self.skipped_in_frame_queries) > 0:
-                print '         skipped %d with in frame rearrangement (i.e. cdr3 len % 3 == 0)' % len(self.skipped_in_frame_queries)
+                print('         skipped %d with in frame rearrangement (i.e. cdr3 len % 3 == 0)' % len(self.skipped_in_frame_queries))
             if self.debug:
                 if len(self.info['indels']) > 0:
-                    print '      indels: %s' % ':'.join(self.info['indels'].keys())
+                    print('      indels: %s' % ':'.join(self.info['indels'].keys()))
                 if len(self.info['failed-queries']) > 0:
-                    print '            missing annotations: ' + ' '.join(self.info['failed-queries'])
+                    print('            missing annotations: ' + ' '.join(self.info['failed-queries']))
                     if not self.args.is_data:
-                        print 'true annotations for remaining events:'
+                        print('true annotations for remaining events:')
                         for qry in self.info['failed-queries']:
                             utils.print_reco_event(self.reco_info[qry], extra_str='      ', label='true:')
 
@@ -247,7 +248,7 @@ class Waterer(object):
             if self.args.seed_unique_id in self.info['queries']:
                 seed_cdr3_length = self.info[self.args.seed_unique_id]['cdr3_length']
             else:  # if it failed
-                print '    %s seed unique id \'%s\' not in final s-w queries, so removing all queries (if seed seq is coming from --queries-to-include-fname, maybe need to run parameter caching with this arg set?)' % (utils.color('yellow', 'note:'), self.args.seed_unique_id)
+                print('    %s seed unique id \'%s\' not in final s-w queries, so removing all queries (if seed seq is coming from --queries-to-include-fname, maybe need to run parameter caching with this arg set?)' % (utils.color('yellow', 'note:'), self.args.seed_unique_id))
                 seed_cdr3_length = -1
             initial_n_queries = len(self.info['queries'])
             for query in copy.deepcopy(self.info['queries']):
@@ -255,7 +256,7 @@ class Waterer(object):
                     self.remove_query(query)
             n_removed = initial_n_queries - len(self.info['queries'])
             if n_removed > 0 and not quiet:
-                print '      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries']))
+                print('      removed %d / %d = %.2f sequences with cdr3 length different from seed sequence (leaving %d)' % (n_removed, initial_n_queries, float(n_removed) / initial_n_queries, len(self.info['queries'])))
 
         seqfileopener.add_input_metafo(self.input_info, [self.info[q] for q in self.info['queries']], keys_not_to_overwrite=['multiplicities'] if just_read_cachefile else None)  # need to do this before removing duplicates, so the duplicate info (from waterer) can get combined with multiplicities (from input metafo). And, if we just read the cache file, then we already collapsed duplicates so we don't want to overwrite multiplicity info
         if self.args.is_data:  # it's too much trouble updating reco_info on simulation, and I don't think we can add fwk insertions in simulation atm anyway
@@ -291,7 +292,7 @@ class Waterer(object):
             # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
 
         if self.debug and len(queries_with_indels) > 0:
-            print '    added %d %s indel%s%s' % (len(queries_with_indels), 'vsearch' if self.msa_vs_info is None else 'mafft msa', utils.plural(len(queries_with_indels)), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else '')
+            print('    added %d %s indel%s%s' % (len(queries_with_indels), 'vsearch' if self.msa_vs_info is None else 'mafft msa', utils.plural(len(queries_with_indels)), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else ''))
 
     # ----------------------------------------------------------------------------------------
     def subworkdir(self, iproc, n_procs):
@@ -337,14 +338,14 @@ class Waterer(object):
         # note: it'd be nice to be able to give ig-sw a different match:mismatch for each sequence (rather than running separate procs for each match:mismatch), but it initializes a matrix using the match:mismatch values before looping over sequences, so that's probably infeasible
 
         if debug:
-            print 'start'
+            print('start')
             for m, queries in zip(mismatch_vals, query_groups):
-                print '  %d   %d    %s' % (m, len(queries), ' '.join(queries))
+                print('  %d   %d    %s' % (m, len(queries), ' '.join(queries)))
 
         # first give one proc to each mismatch (note that this takes at least as many procs as there are different mismatch values, even if --n-procs is smaller)
         while len(mismatch_vals) < n_procs:
             if debug:
-                print '%d < %d' % (len(mismatch_vals), n_procs)
+                print('%d < %d' % (len(mismatch_vals), n_procs))
             largest_group = max(query_groups, key=len)
             piece_a, piece_b = largest_group[ : len(largest_group) // 2], largest_group[len(largest_group) // 2 : ]  # split up the largest group into two [almost] equal pieces
             ilargest = query_groups.index(largest_group)
@@ -352,7 +353,7 @@ class Waterer(object):
             mismatch_vals = mismatch_vals[:ilargest] + [mismatch_vals[ilargest], mismatch_vals[ilargest]] + mismatch_vals[ilargest + 1:]
             if debug:
                 for m, queries in zip(mismatch_vals, query_groups):
-                    print '  %d   %d    %s' % (m, len(queries), ' '.join(queries))
+                    print('  %d   %d    %s' % (m, len(queries), ' '.join(queries)))
 
         return mismatch_vals, query_groups
 
@@ -488,7 +489,7 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def read_output(self, base_outfname, n_procs=1):
         if self.debug:
-            print '%s' % utils.color('green', 'reading output')
+            print('%s' % utils.color('green', 'reading output'))
 
         queries_read_from_file = set()  # should be able to remove this, eventually
         for iproc in range(n_procs):
@@ -507,7 +508,7 @@ class Waterer(object):
 
         not_read = self.remaining_queries - queries_read_from_file
         if len(not_read) > 0:  # ig-sw (now) doesn't write matches for cases in which cigar and read length differ, which means there are now queries for which it finds zero matches (well, it didn't seem to happen before... but not sure that it couldn't have)
-            print '\n%s didn\'t read %s from %s' % (utils.color('red', 'warning'), ' '.join(not_read), self.args.workdir)
+            print('\n%s didn\'t read %s from %s' % (utils.color('red', 'warning'), ' '.join(not_read), self.args.workdir))
 
         for iproc in range(n_procs):
             workdir = self.subworkdir(iproc, n_procs)
@@ -593,7 +594,7 @@ class Waterer(object):
         if skipping:
             out_str_list.append('skipping!')
 
-        print ''.join(out_str_list)
+        print(''.join(out_str_list))
 
     # ----------------------------------------------------------------------------------------
     def super_high_mutation(self, qinfo, best):
@@ -607,7 +608,7 @@ class Waterer(object):
         vj_mute_freq = utils.hamming_fraction(''.join(gl_seqs), ''.join(qr_seqs))
         if vj_mute_freq > self.args.max_vj_mut_freq:
             if self.debug:
-                print '      rerun: super high vj mutation (%.3f > %.3f)' % (vj_mute_freq, self.args.max_vj_mut_freq)
+                print('      rerun: super high vj mutation (%.3f > %.3f)' % (vj_mute_freq, self.args.max_vj_mut_freq))
             return True
         else:
             return False
@@ -635,11 +636,11 @@ class Waterer(object):
         if debug:
             lb = qinfo['qrbounds'][l_gene]  # shorthands
             rb = qinfo['qrbounds'][r_gene]
-            print '   %schecking %s/%s boundary overlap status' % ('recursively ' if recursed else '', l_reg, r_reg)
-            print '       %s %s' % (' ', qinfo['seq'])
-            print '       %s %s%s' % (l_reg, ' ' * lb[0], qinfo['seq'][lb[0] : lb[1]])
-            print '       %s %s%s' % (r_reg, ' ' * rb[0], qinfo['seq'][rb[0] : rb[1]])
-            print '     %s %s    overlap %d    available space %d' % (l_reg, r_reg, overlap, available_space)
+            print('   %schecking %s/%s boundary overlap status' % ('recursively ' if recursed else '', l_reg, r_reg))
+            print('       %s %s' % (' ', qinfo['seq']))
+            print('       %s %s%s' % (l_reg, ' ' * lb[0], qinfo['seq'][lb[0] : lb[1]]))
+            print('       %s %s%s' % (r_reg, ' ' * rb[0], qinfo['seq'][rb[0] : rb[1]]))
+            print('     %s %s    overlap %d    available space %d' % (l_reg, r_reg, overlap, available_space))
 
         status = 'ok'
         if overlap > 0:  # positive overlap means they actually overlap
@@ -648,15 +649,15 @@ class Waterer(object):
             status = 'nonsense'
 
         if debug:
-            print '  overlap status: %s' % status
+            print('  overlap status: %s' % status)
 
         if not recursed and status == 'nonsense' and l_reg == 'd':  # on rare occasions with very high mutation, vdjalign refuses to give us a j match that's at all to the right of the d match
             assert l_reg == 'd' and r_reg == 'j'
             qrb, glb = [qinfo[t+'bounds'] for t in ('qr', 'gl')]  # shorthands
             if debug:
-                print '  %s: synthesizing d match' % qinfo['name']
+                print('  %s: synthesizing d match' % qinfo['name'])
                 if qrb[r_gene][0] > qrb[l_gene][0]:  # in most (maybe all) cases we get here, it's because the d match is to the right of the j match
-                    print '   huh, i should only get here if the start of the r_gene (j) is to the *left* of the start of the l_gene (d) [i.e. they\'re on the wrong side of each other], but here it looks like the opposite is true. Not really sure it\'s a problem, but it\'s probably worth looking in to'
+                    print('   huh, i should only get here if the start of the r_gene (j) is to the *left* of the start of the l_gene (d) [i.e. they\'re on the wrong side of each other], but here it looks like the opposite is true. Not really sure it\'s a problem, but it\'s probably worth looking in to')
             v_end = qrb[best['v']][1]
             lpos = v_end + (qrb[r_gene][0] - v_end) // 2  # halfway between end of v and start of j
             qrb[l_gene] = (lpos, lpos + 1)  # swap whatever crummy nonsense d match we have now for a one-base match to the left of the j match (since unlike d, the j match is probably decent)
@@ -672,12 +673,12 @@ class Waterer(object):
                     ifo['qr_gap_seq'] = ifo['qr_gap_seq'][1 : ]
                     ifo['gl_gap_seq'] = ifo['gl_gap_seq'][1 : ]
                     if debug:
-                        print '    removed one base from left side of %s indel gap seqs (to match j bound moved because of new synthetic d match)' % r_reg
+                        print('    removed one base from left side of %s indel gap seqs (to match j bound moved because of new synthetic d match)' % r_reg)
 
             status = self.check_boundaries(rpair, qinfo, best, recursed=True, debug=debug)
             if status == 'overlap':
                 if debug:
-                    print '  \'overlap\' status after synthesizing d match. Setting to \'nonsense\', this is too darn hard.'
+                    print('  \'overlap\' status after synthesizing d match. Setting to \'nonsense\', this is too darn hard.')
                 status = 'nonsense'
 
         return status
@@ -697,12 +698,12 @@ class Waterer(object):
         def dbg_print(l_length, r_length, l_portion, r_portion):
             lb = qrb[l_gene]  # shorthands
             rb = qrb[r_gene]
-            print '      %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion)
+            print('      %4d %4d      %4d %4d' % (l_length, r_length, l_portion, r_portion))
             l_gene_seq = qinfo['seq'][lb[0] : lb[1] - l_portion]
             r_gene_seq = qinfo['seq'][rb[0] + r_portion : rb[1]]
             l_offset = min(rb[0] + r_portion, lb[0])
-            print '                                    %s%s' % ((lb[0] - l_offset) * ' ', l_gene_seq)
-            print '                                    %s%s' % ((rb[0] + r_portion - l_offset) * ' ', r_gene_seq)
+            print('                                    %s%s' % ((lb[0] - l_offset) * ' ', l_gene_seq))
+            print('                                    %s%s' % ((rb[0] + r_portion - l_offset) * ' ', r_gene_seq))
         # ----------------------------------------------------------------------------------------
         def shift_bounds(l_portion, r_portion):  # shift match boundaries of best left gene <l_gene> and best right gene <r_gene> according to <l_portion> and <r_portion>, then also shift other/non-best gene boundaries
             for gtmp in qrb:
@@ -730,20 +731,20 @@ class Waterer(object):
         overlap, available_space = self.get_overlap_and_available_space(rpair, best, qrb)
 
         if overlap <= 0:  # nothing to do, they're already consistent
-            print 'shouldn\'t get here any more if there\'s no overlap'
+            print('shouldn\'t get here any more if there\'s no overlap')
             return
 
         if overlap > available_space:
             raise Exception('overlap %d bigger than available space %d between %s and %s for %s' % (overlap, available_space, l_reg, r_reg, qinfo['name']))
 
         if debug:
-            print '   fixing %s%s overlap:  %d-%d overlaps with %d-%d by %d' % (l_reg, r_reg, qrb[l_gene][0], qrb[l_gene][1], qrb[r_gene][0], qrb[r_gene][1], overlap)
+            print('   fixing %s%s overlap:  %d-%d overlaps with %d-%d by %d' % (l_reg, r_reg, qrb[l_gene][0], qrb[l_gene][1], qrb[r_gene][0], qrb[r_gene][1], overlap))
 
         l_length = qrb[l_gene][1] - qrb[l_gene][0]  # initial length of lefthand gene match
         r_length = qrb[r_gene][1] - qrb[r_gene][0]  # and same for the righthand one
         l_portion, r_portion = 0, 0  # portion of the initial overlap that we give to each side
         if debug:
-            print '        lengths        portions     '
+            print('        lengths        portions     ')
             dbg_print(l_length, r_length, l_portion, r_portion)
         while l_portion + r_portion < overlap:
             if l_length <= 1 and r_length <= 1:  # don't want to erode match (in practice it'll be the d match) all the way to zero
@@ -763,7 +764,7 @@ class Waterer(object):
                 r_length -= 1
             if check_indel_interference(l_length, r_length, l_portion, r_portion):
                 if debug:
-                    print '  failed: apportionment encountered an indel'
+                    print('  failed: apportionment encountered an indel')
                 return True
             # if debug:  # uncomment to get more verbosity
             #     dbg_print(l_length, r_length, l_portion, r_portion)
@@ -771,7 +772,7 @@ class Waterer(object):
             dbg_print(l_length, r_length, l_portion, r_portion)
 
         if debug:
-            print '      %s apportioned %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion)
+            print('      %s apportioned %d bases between %s (%d) match and %s (%d) match' % (qinfo['name'], overlap, l_reg, l_portion, r_reg, r_portion))
         assert l_portion + r_portion == overlap
         shift_bounds(l_portion, r_portion)
         if l_reg in qinfo['new_indels'] and l_portion > 0:  # it would be nice to check indel consistency after doing this, but my indel consistency checkers seem to only operate on <line>s, and I don't have one of those yet
@@ -779,13 +780,13 @@ class Waterer(object):
             ifo['qr_gap_seq'] = ifo['qr_gap_seq'][ : -l_portion]  # this should really check that l_portion is shorter than the qr gap seq... but it _should_ be impossible
             ifo['gl_gap_seq'] = ifo['gl_gap_seq'][ : -l_portion]
             if debug:
-                print '    removed %d base%s from right side of %s indel gap seqs' % (l_portion, utils.plural(l_portion), l_reg)
+                print('    removed %d base%s from right side of %s indel gap seqs' % (l_portion, utils.plural(l_portion), l_reg))
         if r_reg in qinfo['new_indels'] and r_portion > 0:
             ifo = qinfo['new_indels'][r_reg]
             ifo['qr_gap_seq'] = ifo['qr_gap_seq'][r_portion : ]
             ifo['gl_gap_seq'] = ifo['gl_gap_seq'][r_portion : ]
             if debug:
-                print '    removed %d base%s from left side of %s indel gap seqs' % (r_portion, utils.plural(r_portion), r_reg)
+                print('    removed %d base%s from left side of %s indel gap seqs' % (r_portion, utils.plural(r_portion), r_reg))
 
         return False
 
@@ -798,20 +799,20 @@ class Waterer(object):
                 if region == 'v' and glb[gene][1] < utils.cdn_pos(self.glfo, region, gene) + 3:
                     n_to_expand = len(self.glfo['seqs'][region][gene]) - glb[gene][1]  # expand all the way to the end of the gl seq, since if it deleted way past the conserved codon it probably has no idea what's actually right, so we want the hmm to check everything
                     if debug:
-                        print '      %s_%s %s match deletes conserved codon, so increasing righthand bounds: qr %d --> %d, gl %d --> %d' % (region, side, utils.color_gene(gene), qrb[gene][1], qrb[gene][1] + n_to_expand, glb[gene][1], glb[gene][1] + n_to_expand)
+                        print('      %s_%s %s match deletes conserved codon, so increasing righthand bounds: qr %d --> %d, gl %d --> %d' % (region, side, utils.color_gene(gene), qrb[gene][1], qrb[gene][1] + n_to_expand, glb[gene][1], glb[gene][1] + n_to_expand))
                     qrb[gene] = (qrb[gene][0], qrb[gene][1] + n_to_expand)
                     glb[gene] = (glb[gene][0], glb[gene][1] + n_to_expand)
                 elif region == 'j' and glb[gene][0] > utils.cdn_pos(self.glfo, region, gene):
                     n_to_expand = glb[gene][0]  # i guess also extend the j all the way? this is starting to make less sense
                     if debug:
-                        print '      %s_%s %s match deletes conserved codon, so increasing lefthand bounds: qr %d --> %d, gl %d --> %d' % (region, side, utils.color_gene(gene), qrb[gene][1], qrb[gene][1] + n_to_expand, glb[gene][1], glb[gene][1] + n_to_expand)
+                        print('      %s_%s %s match deletes conserved codon, so increasing lefthand bounds: qr %d --> %d, gl %d --> %d' % (region, side, utils.color_gene(gene), qrb[gene][1], qrb[gene][1] + n_to_expand, glb[gene][1], glb[gene][1] + n_to_expand))
                     qrb[gene] = (qrb[gene][0] - n_to_expand, qrb[gene][1])
                     glb[gene] = (glb[gene][0] - n_to_expand, glb[gene][1])  # this just takes the start bound it to 0
 
     # ----------------------------------------------------------------------------------------
     def remove_probably_spurious_deletions(self, qinfo, best, debug=False):  # remove probably-spurious v_5p and j_3p deletions
         if debug:
-            print '  looking for spurious v_5p and j_3p deletions'
+            print('  looking for spurious v_5p and j_3p deletions')
         for erosion in utils.effective_erosions:
             region = erosion[0]
             if region == 'v':
@@ -824,7 +825,7 @@ class Waterer(object):
                 assert False
 
             if debug:
-                print '      %s   deletion len: %3d   insertion: %s' % (erosion, d_len, insertion)
+                print('      %s   deletion len: %3d   insertion: %s' % (erosion, d_len, insertion))
 
             if d_len == 0 or len(insertion) == 0:
                 continue
@@ -835,7 +836,7 @@ class Waterer(object):
             if spurious_bases.count(utils.ambig_base) == len(spurious_bases):  # don't do it if it's all Ns
                 continue
             if debug:
-                print 'EXPANDING %s %s d_len: %d   insertion: %s (len %d)   spurious: %s (len %d)' % (qinfo['name'], region, d_len, insertion, len(insertion), spurious_bases, len(spurious_bases))
+                print('EXPANDING %s %s d_len: %d   insertion: %s (len %d)   spurious: %s (len %d)' % (qinfo['name'], region, d_len, insertion, len(insertion), spurious_bases, len(spurious_bases)))
             for gene in [g for g in qinfo['glbounds'] if utils.get_region(g) == region]:  # it's ok to assume glbounds and qrbounds have the same keys
                 if region == 'v':
                     qinfo['glbounds'][gene] = (qinfo['glbounds'][gene][0] - len(spurious_bases), qinfo['glbounds'][gene][1])
@@ -904,7 +905,7 @@ class Waterer(object):
         true_kbounds['d']['best'] = true_line['regional_bounds']['d'][1] - true_line['regional_bounds']['v'][1]
 
         def print_kbound_warning():
-            print '  %s true kset (%s) not within kbounds (%s) for %s' % (utils.color('red', 'warning'), utils.kbound_str(true_kbounds), utils.kbound_str({r : line['k_' + r] for r in true_kbounds}), ':'.join(line['unique_ids']))
+            print('  %s true kset (%s) not within kbounds (%s) for %s' % (utils.color('red', 'warning'), utils.kbound_str(true_kbounds), utils.kbound_str({r : line['k_' + r] for r in true_kbounds}), ':'.join(line['unique_ids'])))
 
         for region in true_kbounds:
             if true_kbounds[region]['best'] < line['k_' + region]['min'] or true_kbounds[region]['best'] >= line['k_' + region]['max']:
@@ -947,13 +948,13 @@ class Waterer(object):
         """
         def dbgfcn(dbgstr):  # doesn't return anything, but it makes things more concise
             if self.debug:
-                print '      rerun: %s' % dbgstr
+                print('      rerun: %s' % dbgstr)
 
         qname = qinfo['name']
         qseq = qinfo['seq']
         assert qname not in self.info
         if self.debug:
-            print '  %s' % qname
+            print('  %s' % qname)
 
         # in very rare cases the j match gets extended so far left it touches the v, in which case we get no d match, but we don't really want to throw these out
         tmpbest = {r : qinfo['matches'][r][0][1] for r in utils.regions if len(qinfo['matches'][r]) > 0}  # this is hackey and duplicates too much code from just below, but I don't want to change anything that's down there since it's been there for so long and is so thoroughly tested
@@ -1040,21 +1041,21 @@ class Waterer(object):
             utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs, reset_indel_genes=True)
         except:
             elines = traceback.format_exception(*sys.exc_info())
-            print utils.pad_lines(''.join(elines))
-            print '      rerun: implicit info adding failed for %s (see above), rerunning' % qname  # shouldn't be able to happen, so print even if debug isn't set
+            print(utils.pad_lines(''.join(elines)))
+            print('      rerun: implicit info adding failed for %s (see above), rerunning' % qname)  # shouldn't be able to happen, so print even if debug isn't set
             return dbgfcn('see above')
 
         # deal with unproductive rearrangements
         if not utils.is_functional(line, iseq=0):
             if self.args.skip_unproductive:
                 if self.debug:
-                    print '      skipping unproductive (%s)' % utils.is_functional_dbg_str(line, iseq=0)
+                    print('      skipping unproductive (%s)' % utils.is_functional_dbg_str(line, iseq=0))
                 self.skipped_unproductive_queries.add(qname)
                 self.remaining_queries.remove(qname)
                 return
         if self.args.skip_in_frame_rearrangements and line['cdr3_length'] % 3 == 0:  # NOTE *not* the same as line['in_frames'][0] (since here we're caring if the original rearrangement was productive, whereas 'in_frames' depends also on shm indels)
             if self.debug:
-                print '      skipping in frame rearrangement'
+                print('      skipping in frame rearrangement')
             self.skipped_in_frame_queries.add(qname)
             self.remaining_queries.remove(qname)
             return
@@ -1073,7 +1074,7 @@ class Waterer(object):
         #  - k_v is index of first d/dj insert base (i.e. length of v match)
         #  - k_v + k_d is index of first j/dj insert base (i.e. length of v + vd insert + d match)
         if debug:
-            print '%s for %s' % (utils.color('blue', 'get kbounds'), line['unique_ids'][0])
+            print('%s for %s' % (utils.color('blue', 'get kbounds'), line['unique_ids'][0]))
 
         best_k_v = line['regional_bounds']['v'][1]  # end of v match
         best_k_d = line['regional_bounds']['d'][1] - line['regional_bounds']['v'][1]  # end of d minus end of v
@@ -1086,30 +1087,30 @@ class Waterer(object):
 
         # first make sure the hmm will check for cases in which sw over-expanded v
         if debug:
-            print 'k_v_min --- %d' % k_v_min
+            print('k_v_min --- %d' % k_v_min)
         n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
         qrseq = line['fv_insertion'] + line['v_qr_seqs'][0]
         glseq = line['fv_insertion'] + line['v_gl_seq']
         if k_v_min > len(qrseq):
             if debug:
-                print 'k_v_min too big %d %d' % (k_v_min, len(qrseq))
+                print('k_v_min too big %d %d' % (k_v_min, len(qrseq)))
             return None
         icheck = k_v_min
         while icheck > line['codon_positions']['v'] + 3:  # i.e. stop when the last v base is the last base of the cysteine
             icheck -= 1
             if debug:
-                print '    check %d' % icheck
+                print('    check %d' % icheck)
             if qrseq[icheck] == glseq[icheck]:
                 n_matched += 1
                 if debug:
-                    print '      match number %d' % n_matched
+                    print('      match number %d' % n_matched)
                 if n_matched >= n_matched_to_break:
                     if debug:
-                        print '      break on %d matches' % n_matched_to_break
+                        print('      break on %d matches' % n_matched_to_break)
                     break
             else:  # set <k_v_min> to <icheck>, i.e. move first possible d/dj insert base to index <icheck>
                 if debug:
-                    print '      set k_v_min to %d' % icheck
+                    print('      set k_v_min to %d' % icheck)
                 k_v_min = icheck
                 n_matched = 0
 
@@ -1117,20 +1118,20 @@ class Waterer(object):
         if k_v_max < line['codon_positions']['v'] + 3:  # i.e. if first d/dj insert base (k_v_max) is within the three bases in the codon
             n_to_right_of_codon = len(self.glfo['seqs']['v'][line['v_gene']]) - utils.cdn_pos(self.glfo, 'v', line['v_gene'])  # number of bases to right of first position in codon
             if debug:
-                print 'k_v_max --- %d' % k_v_max
-                print '    set to length of v: %d' % (line['codon_positions']['v'] + n_to_right_of_codon)
+                print('k_v_max --- %d' % k_v_max)
+                print('    set to length of v: %d' % (line['codon_positions']['v'] + n_to_right_of_codon))
             k_v_max = line['codon_positions']['v'] + n_to_right_of_codon  # extend all the way to end of v gene
         if k_v_min + k_d_min > line['codon_positions']['j']:  # i.e. if the first possible j base (k_v_min + k_d_min) is within the conserved codon
             n_to_left_of_codon = utils.cdn_pos(self.glfo, 'j', line['j_gene'])
             new_k_d_min = max(1, line['codon_positions']['j'] - n_to_left_of_codon - k_v_min - typical_dj_insert_len)
             if debug:
-                print 'k_d_min --- %d' % k_d_min
-                print '    k_v_min + k_d_min = %d + %d = %d > j cpos = %d, so set k_d_min to %d (so sum is at start of j, minus a bit)' % (k_v_min, k_d_min, k_v_min + k_d_min, line['codon_positions']['j'], new_k_d_min)
+                print('k_d_min --- %d' % k_d_min)
+                print('    k_v_min + k_d_min = %d + %d = %d > j cpos = %d, so set k_d_min to %d (so sum is at start of j, minus a bit)' % (k_v_min, k_d_min, k_v_min + k_d_min, line['codon_positions']['j'], new_k_d_min))
             k_d_min = new_k_d_min
 
         # then make sure the hmm will check for cases in which sw over-expanded j
         if debug:
-            print 'k_d_max --- %d' % k_d_max
+            print('k_d_max --- %d' % k_d_max)
         k_v_min_CHK = k_v_min  # make sure we don't accidentally change it
         n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
         qrseq, glseq = line['j_qr_seqs'][0], line['j_gl_seq']
@@ -1141,32 +1142,32 @@ class Waterer(object):
         while k_v_min + icheck + 1 < line['codon_positions']['j']:  # usually: stop when the first j/dj base is the first base of the tryp (even for the smallest k_v), but add min() with len(qrseq) to avoid extremely rare pathologies
             icheck += 1
             if debug:
-                print '    check %d' % icheck,
+                print('    check %d' % icheck, end=' ')
             if k_v_min + icheck - j_start >= len(qrseq) or k_v_min + icheck - j_start >= len(glseq):  # shouldn't happen any more (min() in while statement should avoid it), but just in case
-                print '    %s for query %s: k_v_min + icheck - j_start = %d + %d - %d = %d [ < 0 or >= len(qrseq) = %d   or   len(glseq) = %d]' % (utils.color('red', 'warning'), ' '.join(line['unique_ids']), k_v_min, icheck, j_start, k_v_min + icheck - j_start, len(qrseq), len(glseq))
+                print('    %s for query %s: k_v_min + icheck - j_start = %d + %d - %d = %d [ < 0 or >= len(qrseq) = %d   or   len(glseq) = %d]' % (utils.color('red', 'warning'), ' '.join(line['unique_ids']), k_v_min, icheck, j_start, k_v_min + icheck - j_start, len(qrseq), len(glseq)))
                 return None
             if k_v_min + icheck < j_start:  # make sure we're at least as far as the start of the j (i.e. let the hmm arbitrate between d match and dj insertion)
                 if debug:
-                    print '      not yet to start of j (%d + %d < %d)' % (k_v_min, icheck, j_start)
+                    print('      not yet to start of j (%d + %d < %d)' % (k_v_min, icheck, j_start))
                 k_d_max = icheck + 1
             elif qrseq[k_v_min + icheck - j_start] == glseq[k_v_min + icheck - j_start]:
                 n_matched += 1
                 if debug:
-                    print '      match number %d' % n_matched
+                    print('      match number %d' % n_matched)
                 if n_matched >= n_matched_to_break:
                     if debug:
-                        print '      break on %d matches' % n_matched_to_break
+                        print('      break on %d matches' % n_matched_to_break)
                     break
             else:  # set <k_d_max> to <icheck>, i.e. move first possible d/dj insert base to index <icheck>
                 if debug:
-                    print '      set k_d_max to %d' % (icheck + 1)
+                    print('      set k_d_max to %d' % (icheck + 1))
                 k_d_max = icheck + 1  # i.e. if <icheck> doesn't match, we want the first d/dj base to be the *next* one (whereas for k_v, if <icheck> didn't match, we wanted <icheck> to be the first d/vd match)
                 n_matched = 0
 
         assert k_v_min_CHK == k_v_min
 
         if debug:
-            print 'k_d_min --- %d' % k_d_min
+            print('k_d_min --- %d' % k_d_min)
         k_v_max_CHK = k_v_max  # make sure we don't accidentally change it
         n_matched = 0  # if <n_matched_to_break> bases match, assume we're definitely within the germline
         qrseq, glseq = line['d_qr_seqs'][0], line['d_gl_seq']
@@ -1175,18 +1176,18 @@ class Waterer(object):
         while k_v_max < d_start and icheck > d_start - k_v_max + 1:  # i.e. icheck/k_d_min can't be smaller than the distance between d start and the furthest right possible v end (if k_v_max is larger than d_start, it's probably because we increased k_v_max above [a change which isn't reflected in d regional bounds in <line>])
             icheck -= 1
             if debug:
-                print '    check %d' % icheck
+                print('    check %d' % icheck)
             if k_v_max + icheck - d_start < len(qrseq) and qrseq[k_v_max + icheck - d_start] == glseq[k_v_max + icheck - d_start]:  # note that it's <k_v_max> here, since even with the longest k_v we want to make sure to check as short of a d as we mean to
                 n_matched += 1
                 if debug:
-                    print '      match number %d' % n_matched
+                    print('      match number %d' % n_matched)
                 if n_matched >= n_matched_to_break:
                     if debug:
-                        print '      break on %d matches' % n_matched_to_break
+                        print('      break on %d matches' % n_matched_to_break)
                     break
             else:  # set <k_d_min> to <icheck>, i.e. move first possible d/dj insert base to index <icheck>
                 if debug:
-                    print '      set k_d_min to %d' % icheck
+                    print('      set k_d_min to %d' % icheck)
                 k_d_min = icheck
                 n_matched = 0
 
@@ -1207,7 +1208,7 @@ class Waterer(object):
             k_v_min = min(this_k_v, k_v_min)
             k_v_max = max(this_k_v, k_v_max)
             if debug:
-                print '    %s %d %d' % (utils.color_gene(gene, width=15), k_v_min, k_v_max)
+                print('    %s %d %d' % (utils.color_gene(gene, width=15), k_v_min, k_v_max))
 
         # k_d
         tmpreg = 'd'
@@ -1218,7 +1219,7 @@ class Waterer(object):
             k_d_min = min(max(1, this_k_d), k_d_min)
             k_d_max = max(this_k_d, k_d_max)
             if debug:
-                print '    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max)
+                print('    %s %d %d' % (utils.color_gene(gene, width=15), k_d_min, k_d_max))
 
         # ----------------------------------------------------------------------------------------
         # switch to usual indexing conventions, i.e. that start with min and do not include max NOTE would be clearer to do this more coherently
@@ -1235,15 +1236,15 @@ class Waterer(object):
 
         if best_k_v < k_v_min or best_k_v > k_v_max or best_k_d < k_d_min or best_k_d > k_d_max:
             if self.debug:
-                print '  %s inconsistent best kset for %s (v: %d (%d %d)  d: %d (%d %d)' % (utils.color('red', 'error'), qinfo['name'], best_k_v, k_v_min, k_v_max, best_k_d, k_d_min, k_d_max)
+                print('  %s inconsistent best kset for %s (v: %d (%d %d)  d: %d (%d %d)' % (utils.color('red', 'error'), qinfo['name'], best_k_v, k_v_min, k_v_max, best_k_d, k_d_min, k_d_max))
             return None
         if k_v_min <= 0 or k_d_min <= 0 or k_v_min >= k_v_max or k_d_min >= k_d_max:
             if self.debug:
-                print '  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max)
+                print('  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max))
             return None
         if self.args.is_data and k_v_min - len(line['fv_insertion']) < 0:
             if self.debug:
-                print '%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d   %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']), utils.reverse_complement_warning())
+                print('%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d   %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']), utils.reverse_complement_warning()))
             return None
 
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
@@ -1258,9 +1259,9 @@ class Waterer(object):
             assert len(swfo['seqs']) == 1
 
             if debug:
-                print '  %-12s' % swfo['unique_ids'][0]
-                print '     fv  %s' % utils.color('blue', swfo['fv_insertion'])
-                print '     jf  %s' % utils.color('blue', swfo['jf_insertion'])
+                print('  %-12s' % swfo['unique_ids'][0])
+                print('     fv  %s' % utils.color('blue', swfo['fv_insertion']))
+                print('     jf  %s' % utils.color('blue', swfo['jf_insertion']))
 
             fv_len = len(swfo['fv_insertion'])
             jf_len = len(swfo['jf_insertion'])
@@ -1290,7 +1291,7 @@ class Waterer(object):
                     gfo['qrbounds'] = tuple(b - fv_len for b in gfo['qrbounds'])
 
             if debug:
-                print '    after %s' % swfo['seqs'][0]
+                print('    after %s' % swfo['seqs'][0])
 
             # *sigh* not super happy about it, but I think the best way to handle this is to also remove these bases from the simulation info
             if self.reco_info is not None:
@@ -1326,7 +1327,7 @@ class Waterer(object):
                 pre_kept_uids |= set(self.args.queries_to_include)
             info_queries = set(self.info['queries'])
             if len(pre_kept_uids - info_queries) > 0:
-                print '  %s %d requested uid%s not in sw info: %s' % (utils.color('yellow', 'warning'), len(pre_kept_uids - info_queries), utils.plural(len(pre_kept_uids - info_queries)), ' '.join(pre_kept_uids - info_queries))
+                print('  %s %d requested uid%s not in sw info: %s' % (utils.color('yellow', 'warning'), len(pre_kept_uids - info_queries), utils.plural(len(pre_kept_uids - info_queries)), ' '.join(pre_kept_uids - info_queries)))
             pre_kept_uids &= info_queries
             return pre_kept_uids
         # ----------------------------------------------------------------------------------------
@@ -1354,7 +1355,7 @@ class Waterer(object):
                     if useq in lseq:  # if lseq is longer (or they're the same), keep the one that's in there (lseq)
                         found = True
                         if uid in pre_kept_uids and len(useq) < len(lseq) and lid not in pre_kept_uids:
-                            print '  %s pre-included query \'%s\' is being kept, but has shorter sequence than \'%s\', which we\'re marking as duplicate:\n    %s %s\n    %s %s' % (utils.color('yellow', 'warning'), uid, lid, useq, uid, lseq, lid)
+                            print('  %s pre-included query \'%s\' is being kept, but has shorter sequence than \'%s\', which we\'re marking as duplicate:\n    %s %s\n    %s %s' % (utils.color('yellow', 'warning'), uid, lid, useq, uid, lseq, lid))
                         break
                     elif lseq in useq:  # but useq is longer, we need to switch to useq
                         found = True
@@ -1365,17 +1366,17 @@ class Waterer(object):
                         long_seqs[useq] = uid
                         seq_classes[useq] = seq_classes[lseq] + [uid]
                         if tdbg:
-                            print '  %s --> %s (%s)' % (lid, uid, ' '.join(seq_classes[useq]))
+                            print('  %s --> %s (%s)' % (lid, uid, ' '.join(seq_classes[useq])))
                         if lseq != useq:  # if they're the same this must be a pre-kept query
                             del long_seqs[lseq]
                             del seq_classes[lseq]
                     else:
                         seq_classes[lseq].append(uid)
                         if tdbg:
-                            print '    add %s: %s' % (uid, ' '.join(seq_classes[lseq]))
+                            print('    add %s: %s' % (uid, ' '.join(seq_classes[lseq])))
                 else:
                     if tdbg:
-                        print '  new: %s' % uid
+                        print('  new: %s' % uid)
                     assert useq not in long_seqs
                     long_seqs[useq] = uid
                     seq_classes[useq] = [uid]
@@ -1389,7 +1390,7 @@ class Waterer(object):
         pre_kept_uids = get_pre_kept_queries()  # set of seqs that we definitely keep, all as separate seqs (even if some are duplicates of each other, which occurs e.g. if there's duplicate sequences in --queries or --queries-to-include)
         process_seqs(pre_kept_uids)
         if len(seqs_to_keep) < len(pre_kept_uids):
-            print '  %s keeping duplicate sequences in pre-kept queries: %s' % (utils.color('yellow', 'warning'), ',   '.join(' '.join(uids) for uids in seqs_to_keep.values() if len(uids) > 1))
+            print('  %s keeping duplicate sequences in pre-kept queries: %s' % (utils.color('yellow', 'warning'), ',   '.join(' '.join(uids) for uids in seqs_to_keep.values() if len(uids) > 1)))
 
         lkseqs, long_seqs = None, {}
         if self.args.also_remove_duplicate_sequences_with_different_lengths:
@@ -1412,7 +1413,7 @@ class Waterer(object):
                 self.info[kept_uid]['multiplicities'] = [sum(getmult(self.input_info[u]) for u in [kept_uid] + all_duplicates)]
 
         if len(removed_queries) > 0:
-            print '      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (len(removed_queries), len(removed_queries) + len(self.info['queries']), len(removed_queries) / float(len(removed_queries) + len(self.info['queries'])), len(self.info['queries']))
+            print('      removed %d / %d = %.2f duplicate sequences after trimming framework insertions (leaving %d)' % (len(removed_queries), len(removed_queries) + len(self.info['queries']), len(removed_queries) / float(len(removed_queries) + len(self.info['queries'])), len(self.info['queries'])))
 
     # ----------------------------------------------------------------------------------------
     def get_padding_parameters(self, debug=False):
@@ -1448,18 +1449,18 @@ class Waterer(object):
             check_set_maxima('gl_cpos_to_j_end', gl_cpos_to_j_end, swfo['cdr3_length'])
 
         if debug:
-            print '  maxima:',
+            print('  maxima:', end=' ')
             for k in padnames:
-                print '%s %d    ' % (k, maxima[k]),
-            print ''
+                print('%s %d    ' % (k, maxima[k]), end=' ')
+            print('')
 
-            print '    per-cdr3 maxima:'
-            print '         %s  %s  %s' % ('cdr3', padnames[0], padnames[1])
+            print('    per-cdr3 maxima:')
+            print('         %s  %s  %s' % ('cdr3', padnames[0], padnames[1]))
             for cdr3 in per_cdr3_maxima:
-                print '         %3d' % cdr3,
+                print('         %3d' % cdr3, end=' ')
                 for k in padnames:
-                    print '   %d    ' % (per_cdr3_maxima[cdr3][k]),
-                print ''
+                    print('   %d    ' % (per_cdr3_maxima[cdr3][k]), end=' ')
+                print('')
 
         return maxima, per_cdr3_maxima
 
@@ -1473,12 +1474,12 @@ class Waterer(object):
         cluster_different_cdr3_lengths = False  # if you want glomerator.cc to try to cluster different cdr3 lengths, you need to pass it *everybody* with the same N padding... but then you're padding way more than you need to on almost every sequence, which is really wasteful and sometimes confuses bcrham
 
         if debug:
-            print 'padding %d seqs to same length (%s cdr3 length classes)' % (len(self.info['queries']), 'within' if not cluster_different_cdr3_lengths else 'merging')
+            print('padding %d seqs to same length (%s cdr3 length classes)' % (len(self.info['queries']), 'within' if not cluster_different_cdr3_lengths else 'merging'))
 
         maxima, per_cdr3_maxima = self.get_padding_parameters(debug=debug)
 
         if debug:
-            print '    left  right    uid'
+            print('    left  right    uid')
         for query in self.info['queries']:
             swfo = self.info[query]
             assert len(swfo['seqs']) == 1
@@ -1519,31 +1520,31 @@ class Waterer(object):
             swfo['padlefts'] = [padleft, ]
             swfo['padrights'] = [padright, ]
             if debug:
-                print '    %3d   %3d    %s' % (padleft, padright, query)
+                print('    %3d   %3d    %s' % (padleft, padright, query))
 
         if debug:
-            print '    cdr3        uid                 padded seq'
+            print('    cdr3        uid                 padded seq')
             for query in sorted(self.info['queries'], key=lambda q: self.info[q]['cdr3_length']):
-                print '    %3d   %20s    %s' % (self.info[query]['cdr3_length'], query, self.info[query]['seqs'][0])
+                print('    %3d   %20s    %s' % (self.info[query]['cdr3_length'], query, self.info[query]['seqs'][0]))
 
     # ----------------------------------------------------------------------------------------
     def combine_indels(self, qinfo, best, debug=False):
         # debug = 2
         if debug:
-            print '  %s: combine with %d sw indels: %s' % (qinfo['name'], len(qinfo['new_indels']), ' '.join(qinfo['new_indels'].keys()))
+            print('  %s: combine with %d sw indels: %s' % (qinfo['name'], len(qinfo['new_indels']), ' '.join(qinfo['new_indels'].keys())))
             for ifo in qinfo['new_indels'].values():
-                print indelutils.get_dbg_str(ifo)
+                print(indelutils.get_dbg_str(ifo))
 
         regional_indelfos = {}
         qrbounds = {r : qinfo['qrbounds'][best[r]] for r in utils.regions}
         full_qrseq = qinfo['seq']
         if self.vs_info is not None and qinfo['name'] in self.vs_indels:
             if debug:
-                print '    has a vsearch v indel'
+                print('    has a vsearch v indel')
 
             if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, we rerun sw with <self.args.no_indel_gap_open_penalty>
                 if debug:
-                    print '      sw called a v indel, but there\'s already a vsearch v indel, so give up (rerun sw forbidding indels)'
+                    print('      sw called a v indel, but there\'s already a vsearch v indel, so give up (rerun sw forbidding indels)')
                 return None
 
             vs_indelfo = self.info['indels'][qinfo['name']]
@@ -1551,7 +1552,7 @@ class Waterer(object):
 
             if any(ifo['pos'] >= qrbounds['v'][1] for ifo in vs_indelfo['indels']):  # if any of the vsearch indels are to the right of the sw v bounds, we want to ignore them all (well, really I guess we only want to ignore the ones that're to the right of the sw bounds, but this is so incredibly rare that I think this is ok)
                 if self.debug:
-                    print '    ignoring vsearch v indel that\'s to the right of the sw v bounds'
+                    print('    ignoring vsearch v indel that\'s to the right of the sw v bounds')
             else:
                 non_v_bases = len(qinfo['seq']) - qrbounds['v'][1]  # have to trim things to correspond to the new (and potentially different) sw bounds (note that qinfo['seq'] corresponds to the indel reversion from vs, but not from sw)
                 vs_indelfo['qr_gap_seq'] = vs_indelfo['qr_gap_seq'][qrbounds['v'][0] : len(vs_indelfo['qr_gap_seq']) - non_v_bases]

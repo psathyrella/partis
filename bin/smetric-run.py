@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import colored_traceback.always
 import os
@@ -42,7 +43,7 @@ if args.make_tree_plots or 'tree' in args.selection_metric_plot_cfg:
     workdir = utils.choose_random_subdir('/tmp/%s/tree-metrics' % os.getenv('USER'))
 
 if args.n_max_queries is not None:
-    print '    --n-max-queries set to %d' % args.n_max_queries
+    print('    --n-max-queries set to %d' % args.n_max_queries)
 glfo, true_lines, _ = utils.read_output(args.infname, n_max_queries=args.n_max_queries)
 
 # numpy.random.seed(1)

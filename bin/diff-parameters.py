@@ -5,6 +5,7 @@ control of yamls (e.g. floating point precision) and csvs (e.g. line order)
 """
 
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import os
 import sys
@@ -78,12 +79,12 @@ def check_textfile(fname):
     difflines1 = check_lines(lines1, lines2)
     difflines2 = check_lines(lines2, lines1)
     if len(difflines1 + difflines2) > 0:
-        print 'differing lines from', args.dir1 + fname
+        print('differing lines from', args.dir1 + fname)
         for line in difflines1:
-            print ' ', line.strip()
-        print 'differing lines from', args.dir2 + fname
+            print(' ', line.strip())
+        print('differing lines from', args.dir2 + fname)
         for line in difflines2:
-            print ' ', line.strip()
+            print(' ', line.strip())
         if not args.keep_going:
             sys.exit(1)
 

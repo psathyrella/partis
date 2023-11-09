@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import os
 import sys
@@ -85,7 +86,7 @@ args.paired_loci = True
 if args.antn_perf:
     if any(a in phylo_actions for a in args.actions):
         raise Exception('can\'t set --antn-perf for phylo actions, since --antn-perf requires --is-simu and thus reads true annotations, but phylo actions infer trees on inferred annotations')
-    print '  --antn-perf: turning on --make-plots'
+    print('  --antn-perf: turning on --make-plots')
     args.make_plots = True
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 
@@ -141,7 +142,7 @@ def make_synthetic_partition(action, varnames, vstrs):
         new_cpath.calculate_missing_values(true_partition=true_cpath.best())
         ofn = ofname(args, varnames, vstrs, action, locus=ltmp, single_chain=True)
         utils.write_annotations(ofn, None, [], utils.annotation_headers, partition_lines=new_cpath.get_partition_lines())  # could now use utils.write_only_partition()
-        print '    %s: wrote synthetic partition to %s' % (ltmp, ofn)
+        print('    %s: wrote synthetic partition to %s' % (ltmp, ofn))
 
 # ----------------------------------------------------------------------------------------
 def get_replacefo():  # ick
@@ -267,13 +268,13 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
 def run_scan(action):
     base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action])
     cmdfos = []
-    print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
+    print('  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames)))
     if args.debug:
-        print '   %s' % ' '.join(varnames)
+        print('   %s' % ' '.join(varnames))
     n_already_there, existing_ofn = 0, None
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
-            print '   %s' % ' '.join(vstrs)
+            print('   %s' % ' '.join(vstrs))
 
         single_file, locus = (True, None) if args.data_in_cfg is None else (False, args.data_in_cfg[vstrs[0]]['locus'])
         ofn = ofname(args, varnames, vstrs, action, single_file=single_file, locus=locus)
@@ -322,11 +323,11 @@ def parse_linearham_trees():
                 ibtrees[rval] = []
             ibtrees[rval].append(dtr)
             ibvals.append(imbal)
-    print ' '.join(['%.3f'%v for v in sorted(ibvals)])
+    print(' '.join(['%.3f'%v for v in sorted(ibvals)]))
     utils.mkdir(imbalfname('xxx'), isfile=True)
-    print '    writing trees to %s' % os.path.dirname(imbalfname('xxx'))
+    print('    writing trees to %s' % os.path.dirname(imbalfname('xxx')))
     for ibval, treelist in sorted(ibtrees.items(), key=operator.itemgetter(0)):
-        print '      %3d trees to %s' % (len(treelist), os.path.basename(imbalfname(ibval)))
+        print('      %3d trees to %s' % (len(treelist), os.path.basename(imbalfname(ibval))))
         with open(imbalfname(ibval), 'w') as ofile:
             for dtr in treelist:
                 ofile.write(dtr.as_string(schema='newick'))
@@ -382,11 +383,11 @@ for action in args.actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots']:
         if args.dry:
-            print '  --dry: not plotting'
+            print('  --dry: not plotting')
             continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars['partition'])
         if action == 'plot':
-            print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
+            print('plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None)))
             fnames = {meth : {pmetr : [[] for _ in partition_types] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             procs = []
             for method in args.plot_metrics:  # NOTE in cf-tree-metrics.py these are [selection] metrics, but here they're [clustering] methods
@@ -397,7 +398,7 @@ for action in args.actions:
                         for pmetr in args.perf_metrics:
                             if skip_this(pmetr, ptntype, method, ltmp):
                                 continue
-                            print '  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr)
+                            print('  %12s  %6s partition: %3s %s' % (method, ptntype.replace('single', 'single chain'), ltmp, pmetr))
                             arglist, kwargs = (args, args.scan_vars['partition'], action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, ltmp, ptntype, pmetr), 'locus' : ltmp, 'ptntype' : ptntype, 'fnames' : fnames[method][pmetr][ipt], 'pdirfcn' : get_pdirfcn(ltmp), 'script_base' : script_base, 'debug' : args.debug}
                             if args.test:
                                 scanplot.make_plots(*arglist, **kwargs)
@@ -415,7 +416,7 @@ for action in args.actions:
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])
             fnames, iplot = [[] for _ in args.perf_metrics], 0
             for ipm, pmetr in enumerate([m for m in args.perf_metrics if 'pcfrac-correct-family' not in m]):  # see note in read_hist_csv()
-                print '    ', pmetr
+                print('    ', pmetr)
                 for ptntype in partition_types:
                     for ltmp in plot_loci():
                         if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):

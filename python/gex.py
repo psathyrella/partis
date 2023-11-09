@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import time
 import os
@@ -127,7 +128,7 @@ def run_msigdbr(outdir):  # download the sets and write to csvs
         'alldf <- data.frame()',
     ]
     for ctype, gsname in msigdb_sets('UP'):  # TODO should probably use the 'DN' ones in some way?
-        print '    %8s %s' % (ctype, gsname)
+        print('    %8s %s' % (ctype, gsname))
         rcmds += [
             'glist <- all_gene_sets[all_gene_sets$gs_name=="%s",]$human_gene_symbol' % gsname,  # gives list of gene names
             'df <- data.frame(glist, tag="%s")' % ctype,
@@ -177,12 +178,12 @@ def gexdot(gvals1, gvals2=None, normalize=True, recursed=False, return_gene_cont
         if debug > 1:
             lm = max(len(g) for g in gvals1.keys() + gvals2.keys())
             def dstr(vl): return '  '.join('%s %-5.1f'%(utils.color('red' if g in common_genes else None, g, width=lm), v) for g, v in vl.items())
-            print '      %s' % dstr(gvals1)
-            print '      %s' % dstr(gvals2)
+            print('      %s' % dstr(gvals1))
+            print('      %s' % dstr(gvals2))
         if len(common_genes) == 0:
             pass  # print '              none in common'
         else:
-            print '            %s%5.2f  %2d / (%2d | %2d): %s' % (lbstr, dprod, len(common_genes), len(gvals1), len(gvals2), ' '.join(common_genes))
+            print('            %s%5.2f  %2d / (%2d | %2d): %s' % (lbstr, dprod, len(common_genes), len(gvals1), len(gvals2), ' '.join(common_genes)))
     if return_gene_contributions:
         return dprod, gene_contribs
     else:
@@ -230,7 +231,7 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
             assert icount == len(barcode_vals) + 1  # <icount> is the R-style (1-based) index of the first element in this line
             barcode_vals += [s.strip('"') for s in lstrs]
     if debug:
-        print '    read %d barcodes' % len(barcode_vals)
+        print('    read %d barcodes' % len(barcode_vals))
 
     # pca values
     rotation_vals = collections.OrderedDict()  # relationship between pca and gene names (map from gene name to list of pca components)
@@ -248,7 +249,7 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
             assert len(lstrs) == len(pca_comps)
             rotation_vals[gene] = [float(vstr) for vstr in lstrs]
     if debug:
-        print '      %d pca components for %d genes: %s' % (len(pca_comps), len(rotation_vals), ' '.join(rotation_vals))
+        print('      %d pca components for %d genes: %s' % (len(pca_comps), len(rotation_vals), ' '.join(rotation_vals)))
 
     # umap values
     umap_vals = []  # list of (x, y) umap values for each cell
@@ -262,7 +263,7 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
                 assert icount == len(umap_vals) + 1
                 umap_vals.append([float(v) for v in lstrs])
     if debug:
-        print '      %d umap values' % len(umap_vals)
+        print('      %d umap values' % len(umap_vals))
     assert len(umap_vals) == len(barcode_vals)
 
     # cluster assignments
@@ -279,7 +280,7 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
                 assert cluster_ints == list(range(min(cluster_ints), max(cluster_ints) + 1))
                 assert set(cluster_ints) == set(cluster_vals)
     if debug:
-        print '      %d values in %d clusters: %s' % (len(cluster_vals), len(cluster_ints), ' '.join(str(c) for c in cluster_ints))
+        print('      %d values in %d clusters: %s' % (len(cluster_vals), len(cluster_ints), ' '.join(str(c) for c in cluster_ints)))
     assert len(cluster_vals) == len(barcode_vals)
 
     # markers for each cluster
@@ -305,10 +306,10 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
     # reference marker genes
     fabfo, waickfo = read_ref_data()
 
-    print '  interpretation: "this cluster is much more <type>-like than <clusters>, based on relative upregulation of <N genes>"'
-    print '        type    any (N genes)   vs. single clusters                                                     gene contributions (sum over clusters)'
+    print('  interpretation: "this cluster is much more <type>-like than <clusters>, based on relative upregulation of <N genes>"')
+    print('        type    any (N genes)   vs. single clusters                                                     gene contributions (sum over clusters)')
     for cname in cluster_ints:
-        print '  %s' % utils.color('green', 'cluster %d' % cname)
+        print('  %s' % utils.color('green', 'cluster %d' % cname))
         for vtype in waickfo:
             clprods = []
             all_contribs = {}
@@ -338,12 +339,12 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
                 anystr = ''
                 if sumclprod['dprod'] > min_dprod:
                     anystr = '%s (%2d)' % (dpstr(sumclprod), len(sumclprod['gene_contribs']))
-                print '      %s  %-s    %-s  %s' % (utils.color('purple', vtype, width=8),
+                print('      %s  %-s    %-s  %s' % (utils.color('purple', vtype, width=8),
                                                    # utils.color('blue', ' '.join('%d'%d['c2'] for d in clprods), width=20, padside='right'),
                                                    anystr + ' ' * (12 - utils.len_excluding_colors(anystr)),
                                                    tmpstr + ' ' * (70 - utils.len_excluding_colors(tmpstr)),
                                                    '  '.join('%s %.1f'%(g.lower(), c)for g, c in sorted(all_contribs.items(), key=operator.itemgetter(1), reverse=True)),
-                )
+                ))
 
     # return barcode_vals, rotation_vals, umap_vals, cluster_vals
 

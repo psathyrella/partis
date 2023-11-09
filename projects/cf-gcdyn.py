@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import os
 import sys
@@ -79,12 +80,12 @@ if 'all-test-dl' in args.perf_metrics:
     args.perf_metrics.remove('all-test-dl')
 if 'group-expts' in args.plot_metrics and any('train' in m for m in args.perf_metrics):
     acts_to_remove = [m for m in args.perf_metrics if 'train' in m]
-    print '    can\'t plot any training metrics for \'group-expts\' so removing: %s' % ' '.join(acts_to_remove)
+    print('    can\'t plot any training metrics for \'group-expts\' so removing: %s' % ' '.join(acts_to_remove))
     args.perf_metrics = [m for m in args.perf_metrics if 'train' not in m]
 if args.params_to_predict is not None:
     before_metrics = copy.copy(args.perf_metrics)
     args.perf_metrics = [m for m in args.perf_metrics if any(p in m for p in args.params_to_predict)]
-    print '    restricting perf metrics to correspond to --params-to-predict (removed %s)' % (' '.join(m for m in before_metrics if m not in args.perf_metrics))
+    print('    restricting perf metrics to correspond to --params-to-predict (removed %s)' % (' '.join(m for m in before_metrics if m not in args.perf_metrics)))
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
@@ -171,7 +172,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
         ptnfn = '%s/true-partition.yaml' % simdir
         if not os.path.exists(ptnfn):
-            print '    writing true partitions: %s' % ptnfn
+            print('    writing true partitions: %s' % ptnfn)
             all_seqs = [s['name'] for s in utils.read_fastx(ofname(args, varnames, vstrs, 'simu'))]  # just to make sure we get the names right
             true_partition = []
             for sfn in glob.glob('%s/seqs_*.fasta'%simdir):
@@ -206,14 +207,14 @@ def run_scan(action):
     # ----------------------------------------------------------------------------------------
     base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action])
     cmdfos = []
-    print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
+    print('  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames)))
     if args.debug:
-        print '   %s' % ' '.join(varnames)
+        print('   %s' % ' '.join(varnames))
     n_already_there, n_missing_input, ifn = 0, 0, None
     all_simdirs = []
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
-            print '   %s' % ' '.join(vstrs)
+            print('   %s' % ' '.join(vstrs))
 
         ofn = ofname(args, varnames, vstrs, action) if action not in merge_actions else ofname(args, [], [], action)  #, single_file=True)
         if utils.output_exists(args, ofn, debug=False):
@@ -233,7 +234,7 @@ def run_scan(action):
 
     if action in merge_actions and len(all_simdirs) > 0:
         if action == 'merge-simu' and n_missing_input > 0:
-            print '    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr()
+            print('    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr())
         init_cmd([], [], ofn, 0)
 
     utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=any('micromamba activate' in c['cmd_str'] for c in cmdfos))
@@ -256,18 +257,18 @@ for action in args.actions:
     elif action in ['plot', 'combine-plots']:
         plt_scn_vars = args.scan_vars['group-expts']
         if args.dry:
-            print '  --dry: not plotting'
+            print('  --dry: not plotting')
             continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, plt_scn_vars)
         if action == 'plot':
-            print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
+            print('plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None)))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             procs = []
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
                     utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
                 for pmetr in args.perf_metrics:
-                    print '  %12s %s' % (method, pmetr)
+                    print('  %12s %s' % (method, pmetr))
                     arglist, kwargs = (args, plt_scn_vars, action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
                     if args.test:
                         scanplot.make_plots(*arglist, **kwargs)
@@ -285,7 +286,7 @@ for action in args.actions:
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])
             fnames = [[] for _ in args.perf_metrics]
             for ipm, pmetr in enumerate(args.perf_metrics):
-                print '    ', pmetr
+                print('    ', pmetr)
                 scanplot.make_plots(args, plt_scn_vars, action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], make_legend=True, debug=args.debug)
             plotting.make_html(cfpdir, fnames=fnames)
         else:

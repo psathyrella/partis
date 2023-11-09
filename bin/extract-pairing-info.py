@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import csv
 import os
 import sys
@@ -41,7 +42,7 @@ numpy.random.seed(args.random_seed)
 args.droplet_id_indices = utils.get_arg_list(args.droplet_id_indices, intify=True)
 
 if utils.output_exists(args, args.outfname, offset=4, debug=False):
-    print '  extract-pairing-info.py output exists and --overwrite was not set, so not doing anything: %s' % args.outfname
+    print('  extract-pairing-info.py output exists and --overwrite was not set, so not doing anything: %s' % args.outfname)
     sys.exit(0)
 
 seqfos = utils.read_fastx(args.infname, n_max_queries=args.for_testing_n_max_queries)

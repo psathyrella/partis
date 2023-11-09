@@ -1,4 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import copy
 import operator
 import tempfile
@@ -32,7 +33,7 @@ class Recombinator(object):
         self.args = args
         self.glfo = glfo
         if len(glfo['seqs']['v']) > 100:  # this is kind of a shitty criterion, but I don't know what would be better (we basically just want to warn people if they're simulating from data/germlines/human)
-            print '  note: simulating with a very large number (%d) of V genes (the use of realistic diploid sets can be controlled either by using inferred germline sets that you\'ve got lying around (--reco-parameter-dir), or with --generate-germline-set)' % len(glfo['seqs']['v'])
+            print('  note: simulating with a very large number (%d) of V genes (the use of realistic diploid sets can be controlled either by using inferred germline sets that you\'ve got lying around (--reco-parameter-dir), or with --generate-germline-set)' % len(glfo['seqs']['v']))
 
         self.workdir = tempfile.mkdtemp()
         utils.prep_dir(self.workdir)
@@ -40,7 +41,7 @@ class Recombinator(object):
         assert self.args.parameter_dir is None  # we don't use the overall dir anywhere here, only reco_ and shm_
         self.reco_parameter_dir = utils.parameter_type_subdir(self.args, self.args.reco_parameter_dir) if self.args.reco_parameter_dir is not None else None  # only used if not rearranging from scratch
         self.shm_parameter_dir = utils.parameter_type_subdir(self.args, self.args.shm_parameter_dir) if self.args.shm_parameter_dir is not None else None  # only used if not mutating from scratch
-        print '    reco params: %s     shm params: %s' % (utils.non_none([self.reco_parameter_dir, 'scratch']), utils.non_none([self.shm_parameter_dir, 'scratch']))
+        print('    reco params: %s     shm params: %s' % (utils.non_none([self.reco_parameter_dir, 'scratch']), utils.non_none([self.shm_parameter_dir, 'scratch'])))
 
         self.index_keys = {}  # this is kind of hackey, but I suspect indexing my huge table of freqs with a tuple is better than a dict
         self.mute_models = {}
@@ -88,7 +89,7 @@ class Recombinator(object):
         if len(os.listdir(self.workdir)) == 0:
             os.rmdir(self.workdir)
         else:
-            print '  couldn\'t exit cleanly, workdir %s not empty' % self.workdir
+            print('  couldn\'t exit cleanly, workdir %s not empty' % self.workdir)
 
     # ----------------------------------------------------------------------------------------
     def read_insertion_content(self):
@@ -112,7 +113,7 @@ class Recombinator(object):
                 if total > 0:
                     for nuke in utils.nukes:
                         if nuke not in insertion_content_probs[bound]:
-                            print '    %s not in insertion content probs, adding with zero' % nuke
+                            print('    %s not in insertion content probs, adding with zero' % nuke)
                             insertion_content_probs[bound][nuke] = 0
                         insertion_content_probs[bound][nuke] /= float(total)
                 else:  # i think this will only happen for light chain (i.e. when one of the bounds has all-zero counts)
@@ -162,7 +163,7 @@ class Recombinator(object):
         itry = 0
         while line is None:
             if itry > 0 and self.args.debug:
-                print '    unproductive event -- rerunning (try %d)  ' % itry  # probably a weirdly long v_3p or j_5p deletion
+                print('    unproductive event -- rerunning (try %d)  ' % itry)  # probably a weirdly long v_3p or j_5p deletion
             line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event)
             itry += 1
             if itry > 9999:
@@ -177,7 +178,7 @@ class Recombinator(object):
         If combine() is called with the same <irandom>, it will find the same event, i.e. it should be a random number, not just a seed
         """
         if self.args.debug:
-            print 'combine (seed %d)' % irandom
+            print('combine (seed %d)' % irandom)
         numpy.random.seed(irandom)
         random.seed(irandom)
 
@@ -248,10 +249,10 @@ class Recombinator(object):
                         cdr3_counts[int(line['cdr3_length'])] = 0
                     cdr3_counts[int(line['cdr3_length'])] += float(line['count'])
             if n_skipped_gene > 0:
-                print '    skipped %.0f / %.0f (%.3f) vdj freq counts with genes not in glfo (used %.0f)' % (n_skipped_gene, n_skipped_gene + n_used, n_skipped_gene / (n_skipped_gene + n_used), n_used)
+                print('    skipped %.0f / %.0f (%.3f) vdj freq counts with genes not in glfo (used %.0f)' % (n_skipped_gene, n_skipped_gene + n_used, n_skipped_gene / (n_skipped_gene + n_used), n_used))
             if n_skipped_cdr3 > 0:
-                print '    skipped %.0f / %.0f (%.3f) vdj freq counts with cdr3 lengths not among [%s] (used %.0f)' % (n_skipped_cdr3, n_skipped_cdr3 + n_used, n_skipped_cdr3 / (n_skipped_cdr3 + n_used), ' '.join(str(c) for c in self.args.allowed_cdr3_lengths), n_used)
-                print '       final cdr3 lengths: %s' % '   '.join(('%d: %.0f'%(l, cdr3_counts[l])) for l in sorted(cdr3_counts))
+                print('    skipped %.0f / %.0f (%.3f) vdj freq counts with cdr3 lengths not among [%s] (used %.0f)' % (n_skipped_cdr3, n_skipped_cdr3 + n_used, n_skipped_cdr3 / (n_skipped_cdr3 + n_used), ' '.join(str(c) for c in self.args.allowed_cdr3_lengths), n_used))
+                print('       final cdr3 lengths: %s' % '   '.join(('%d: %.0f'%(l, cdr3_counts[l])) for l in sorted(cdr3_counts)))
 
         if len(version_freq_table) == 0:
             raise Exception('didn\'t find any gene combinations in %s' % self.reco_parameter_dir + '/' + utils.get_parameter_fname('all', 'r'))
@@ -291,16 +292,16 @@ class Recombinator(object):
             if self.args.debug > 1:
                 def cstr(i, cfcn): return utils.color('red' if cfcn(i) else None, str(i), width=3)
                 pair_lstrs = ('', '') if self.args.paired_correlation_values is None else [' (%s)  '%utils.color('blue', l) for l in (utils.get_locus(parent_line['v_gene']), self.args.locus)]
-                print '     %s%s %s%s correlation: %.2f, parent val %s iother %d, restricting to max(1, (1 - %.2f) * %d) = %d values starting from index %d %% %d = %d' % (param_pair[0], pair_lstrs[0], param_pair[1], pair_lstrs[1],
-                                                                                                                                                            corr_val, parent_line[pother], iother, corr_val, len(this_options), n_to_take, iother, len(this_options), istart)
-                print '      %10s: %s' % (param_pair[0], ' '.join(cstr(i, lambda x: x==iother) for i in range(len(allowed_vals['parent'][pother]))))
-                print '      %10s: %s' % (param_pair[1], ' '.join(cstr(i, lambda x: x in i_taken) for i in range(len(this_options))))
+                print('     %s%s %s%s correlation: %.2f, parent val %s iother %d, restricting to max(1, (1 - %.2f) * %d) = %d values starting from index %d %% %d = %d' % (param_pair[0], pair_lstrs[0], param_pair[1], pair_lstrs[1],
+                                                                                                                                                            corr_val, parent_line[pother], iother, corr_val, len(this_options), n_to_take, iother, len(this_options), istart))
+                print('      %10s: %s' % (param_pair[0], ' '.join(cstr(i, lambda x: x==iother) for i in range(len(allowed_vals['parent'][pother])))))
+                print('      %10s: %s' % (param_pair[1], ' '.join(cstr(i, lambda x: x in i_taken) for i in range(len(this_options)))))
             this_options = [this_options[i] for i in i_taken]
             if probs is not None:
                 assert len(probs) == n_before
                 probs = [probs[i] for i in i_taken]
             if self.args.debug:
-                print '        reducing options for %s (given previous choice of %s) from %d to %d' % (pthis, pother, n_before, len(this_options))
+                print('        reducing options for %s (given previous choice of %s) from %d to %d' % (pthis, pother, n_before, len(this_options)))
 
         return this_options, None if probs is None else utils.normalize(probs)
 
@@ -350,8 +351,8 @@ class Recombinator(object):
             tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=i_len, p=cnt_probs))
 
         if debug:
-            print '    erosions:  %s' % ('   '.join([('%s %d' % (e, tmpline[e + '_del'])) for e in utils.real_erosions]))
-            print '    insertions:  %s' % ('   '.join([('%s %s' % (b, tmpline[b + '_insertion'])) for b in utils.boundaries]))
+            print('    erosions:  %s' % ('   '.join([('%s %d' % (e, tmpline[e + '_del'])) for e in utils.real_erosions])))
+            print('    insertions:  %s' % ('   '.join([('%s %s' % (b, tmpline[b + '_insertion'])) for b in utils.boundaries])))
 
         # have to add some things by hand so utils.add_implicit_info() doesn't barf (this duplicates code later on in recombinator)
         gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}
@@ -393,7 +394,7 @@ class Recombinator(object):
                 allowed_vals['parent'] = self.heavy_chain_events[i_heavy_event]['heavy-chain-correlation-info']
                 parent_line = self.heavy_chain_events[i_heavy_event]
                 if self.args.debug:
-                    print '    taking parent values for correlation from heavy chain event with: %s  %s  %s  cdr3: %d  uids: %s' % (utils.color_gene(parent_line['v_gene']), utils.color_gene(parent_line['d_gene']), utils.color_gene(parent_line['j_gene']), parent_line['cdr3_length'], ' '.join(parent_line['unique_ids']))
+                    print('    taking parent values for correlation from heavy chain event with: %s  %s  %s  cdr3: %d  uids: %s' % (utils.color_gene(parent_line['v_gene']), utils.color_gene(parent_line['d_gene']), utils.color_gene(parent_line['j_gene']), parent_line['cdr3_length'], ' '.join(parent_line['unique_ids'])))
 
         # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
         for region in utils.regions:
@@ -426,11 +427,11 @@ class Recombinator(object):
         itry = 0
         while itry == 0 or keep_trying(tmpline):  # keep trying until it's both in frame and has no stop codons
             if self.args.debug and itry > 0:
-                print '    %s: retrying scratch rearrangement' % utils.color('blue', 'itry %d'%itry)
+                print('    %s: retrying scratch rearrangement' % utils.color('blue', 'itry %d'%itry))
             self.try_scratch_erode_insert(tmpline, corr_vals=corr_vals, allowed_vals=allowed_vals, parent_line=parent_line)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
             itry += 1
             if itry % 50 == 0:
-                print '%s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry)
+                print('%s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry))
 
         # convert insertions back to lengths (hoo boy this shouldn't need to be done)
         for bound in utils.all_boundaries:
@@ -480,11 +481,11 @@ class Recombinator(object):
             fragment_after = '...' + new_seq[len(new_seq) - n_to_erode - 3 :]
 
         if self.args.debug:
-            print '    %3d from %s' % (n_to_erode, erosion[2:]),
-            print 'of %s: %15s' % (erosion[0], fragment_before),
-            print ' --> %-15s' % fragment_after
+            print('    %3d from %s' % (n_to_erode, erosion[2:]), end=' ')
+            print('of %s: %15s' % (erosion[0], fragment_before), end=' ')
+            print(' --> %-15s' % fragment_after)
         if len(fragment_after) == 0:
-            print '    NOTE eroded away entire sequence'
+            print('    NOTE eroded away entire sequence')
 
         reco_event.eroded_seqs[erosion[0]] = new_seq
 
@@ -510,7 +511,7 @@ class Recombinator(object):
     def erode_and_insert(self, reco_event):
         """ Erode the germline seqs, and add insertions, based on the info in <reco_event> """
         if self.args.debug:
-            print '  eroding'
+            print('  eroding')
         for region in utils.regions:
             reco_event.eroded_seqs[region] = reco_event.original_seqs[region]
         for erosion in utils.real_erosions:
@@ -528,15 +529,15 @@ class Recombinator(object):
             reco_event.set_naive_seq()
             itry += 1
             if itry % 50 == 0:
-                print '%s adding insertions is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), itry)
+                print('%s adding insertions is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), itry))
 
         if self.args.debug:
-            print '  joining eroded seqs'
-            print '         v: %s' % reco_event.eroded_seqs['v']
-            print '    insert: %s' % reco_event.insertions['vd']
-            print '         d: %s' % reco_event.eroded_seqs['d']
-            print '    insert: %s' % reco_event.insertions['dj']
-            print '         j: %s' % reco_event.eroded_seqs['j']
+            print('  joining eroded seqs')
+            print('         v: %s' % reco_event.eroded_seqs['v'])
+            print('    insert: %s' % reco_event.insertions['vd'])
+            print('         d: %s' % reco_event.eroded_seqs['d'])
+            print('    insert: %s' % reco_event.insertions['dj'])
+            print('         j: %s' % reco_event.eroded_seqs['j'])
         reco_event.set_post_erosion_codon_positions()
 
     # ----------------------------------------------------------------------------------------
@@ -554,7 +555,7 @@ class Recombinator(object):
                 return max(count, min_fraction * tot_counts)  # if count/tot_counts is less than min_fraction, return min_fraction
             if debug and pbcounts is not None:  # originally just to check that we have the right position in the gene and counts (but it happens too much just from random stuff to be worth printing unless debug is one)
                 if sum(pbcounts.values()) > 10 and any(c > pbcounts[naive_base] for n, c in pbcounts.items() if n != naive_base):  # ok now that i've actually run with this check, it picks up quite a few cases where I'm presuming we have the wrong germline gene, in which case it's probably better that it's "wrong"? jeez i dunno, doesn't matter
-                    print '    %s non-germline base has more counts than germline base (%s) at ipos %s in %s: %s' % (utils.color('red', 'warning'), naive_base, inuke, utils.color_gene(rgene), pbcounts)  # formatting inuke as string on the off chance we get here when the calling fcn doesn't pass it
+                    print('    %s non-germline base has more counts than germline base (%s) at ipos %s in %s: %s' % (utils.color('red', 'warning'), naive_base, inuke, utils.color_gene(rgene), pbcounts))  # formatting inuke as string on the off chance we get here when the calling fcn doesn't pass it
             if pbcounts is None:
                 pbcounts = {n : def_count(n) for n in utils.nukes}
             pbcounts = {n : def_count(n, count=c) for n, c in pbcounts.items()}  # add pseudocounts (NOTE this is quite a bit less involved than in hmmwriter.py process_mutation_info() and get_emission_prob())
@@ -611,8 +612,8 @@ class Recombinator(object):
             rtotals[region] *= rlength_ratio
 
             if debug:
-                print '    %s: read freqs for %d positions: %d to %d' % (region, len(rfreqs[region]), all_erosions[region + '_5p'], len(rseq) - 1 + all_erosions[region + '_5p'])
-                print '          normalized to 1, then multiplied by %.3f (total %.3f)' % (rlength_ratio, rtotals[region])
+                print('    %s: read freqs for %d positions: %d to %d' % (region, len(rfreqs[region]), all_erosions[region + '_5p'], len(rseq) - 1 + all_erosions[region + '_5p']))
+                print('          normalized to 1, then multiplied by %.3f (total %.3f)' % (rlength_ratio, rtotals[region]))
 
         # ----------------------------------------------------------------------------------------
         rfreqs, rtotals = {}, {}
@@ -625,7 +626,7 @@ class Recombinator(object):
             rfreqs[bound] = [mean_freq for _ in range(len(reco_event.insertions[bound]))]
             rtotals[bound] = mean_freq * len(reco_event.insertions[bound])
             if debug:
-                print '    %s: added %d positions with freq %.3f from %s' % (bound, len(rfreqs[bound]), mean_freq, 'd' if utils.has_d_gene(self.args.locus) else 'v')
+                print('    %s: added %d positions with freq %.3f from %s' % (bound, len(rfreqs[bound]), mean_freq, 'd' if utils.has_d_gene(self.args.locus) else 'v'))
             if not self.args.no_per_base_mutation:
                 per_base_freqs[bound] = [get_pbfreqs(nb) for nb in reco_event.insertions[bound]]
 
@@ -660,7 +661,7 @@ class Recombinator(object):
                     linestr += '\t%f' % final_freqs[inuke]
                 reco_seq_file.write(linestr + '\n')
         if debug:
-            print '    wrote %d positions%s to %s' % (len(final_seq), '' if self.args.mutate_from_scratch else ' with per-position rates', reco_seq_fname)
+            print('    wrote %d positions%s to %s' % (len(final_seq), '' if self.args.mutate_from_scratch else ' with per-position rates', reco_seq_fname))
 
     # ----------------------------------------------------------------------------------------
     def prepare_bppseqgen(self, cmdfos, reco_event, seed):
@@ -668,7 +669,7 @@ class Recombinator(object):
         tmptree = copy.deepcopy(reco_event.tree)  # we really don't want to modify the tree in the event
         if not self.args.no_per_base_mutation:
             if self.args.debug:
-                print '      rescaling tree by %.2f to account for non-equilibrium per-base mutation' % self.per_base_mutation_multiplier
+                print('      rescaling tree by %.2f to account for non-equilibrium per-base mutation' % self.per_base_mutation_multiplier)
             tmptree.scale_edges(self.per_base_mutation_multiplier)
         for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
             node.taxon = None
@@ -801,14 +802,14 @@ class Recombinator(object):
     def add_shm_indels(self, reco_event):
         # NOTE that it will eventually make sense to add shared indel mutation according to the chosen tree -- i.e., probably, with some probability apply an indel instead of a point mutation
         if self.args.debug and self.args.indel_frequency > 0.:
-            print '      indels'
+            print('      indels')
         reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
         for iseq in range(len(reco_event.final_seqs)):
             if self.args.indel_frequency == 0.:  # no indels at all
                 continue
             if numpy.random.uniform(0, 1) > self.args.indel_frequency:  # no indels for this sequence
                 if self.args.debug:
-                    print '        0'
+                    print('        0')
                 continue
             n_indels = numpy.random.choice(self.args.n_indels_per_indeld_seq)
             input_seq, indelfo = indelutils.add_indels(n_indels, reco_event.final_seqs[iseq], reco_event.recombined_seq,  # NOTE modifies <indelfo> and <codon_positions>
@@ -824,7 +825,7 @@ class Recombinator(object):
             reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
             # reco_event.setline(irandom)  # doesn't work
             if self.args.rearrange_from_scratch:
-                print '  %s not setting reco_event.line, which may cause a crash. If you\'re setting --mutation-multiplier to exactly zero you can fix this by setting it to arbitrary very small value e.g. 0.00000001 (sorry)' % utils.wrnstr()
+                print('  %s not setting reco_event.line, which may cause a crash. If you\'re setting --mutation-multiplier to exactly zero you can fix this by setting it to arbitrary very small value e.g. 0.00000001 (sorry)' % utils.wrnstr())
             return
 
         # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)
@@ -834,22 +835,22 @@ class Recombinator(object):
         if i_choose_tree is not None:
             if i_choose_tree >= len(self.treeinfo['trees']):
                 if self.args.debug:  # it should have warned about this (well, more events than trees) already when first dealing with trees, before running anything
-                    print '      i_choose_tree %d larger than n trees %d, %%\'ing down to %d' % (i_choose_tree, len(self.treeinfo['trees']), i_choose_tree % len(self.treeinfo['trees']))
+                    print('      i_choose_tree %d larger than n trees %d, %%\'ing down to %d' % (i_choose_tree, len(self.treeinfo['trees']), i_choose_tree % len(self.treeinfo['trees'])))
                 i_choose_tree = i_choose_tree % len(self.treeinfo['trees'])
             itree = i_choose_tree
         else:
             itree = random.randint(0, len(self.treeinfo['trees'])-1)
         chosen_treestr = self.treeinfo['trees'][itree]
         if self.args.debug:
-            print '    choosing itree %d (of %d)' % (itree, len(self.treeinfo['trees']))
+            print('    choosing itree %d (of %d)' % (itree, len(self.treeinfo['trees'])))
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)
 
         if self.args.debug:
             mheight = treeutils.get_mean_leaf_height(tree=reco_event.tree)
-            print '  chose tree with total height %f%s' % (mheight, (' (includes factor %.2f from --mutation-multiplier)' % self.args.mutation_multiplier) if self.args.mutation_multiplier is not None else '')
-            print '    regional heights:  %s' % ('   '.join(['%s %.3f' % (r, mheight * self.treeinfo['branch-length-ratios'][r]) for r in utils.regions]))
+            print('  chose tree with total height %f%s' % (mheight, (' (includes factor %.2f from --mutation-multiplier)' % self.args.mutation_multiplier) if self.args.mutation_multiplier is not None else ''))
+            print('    regional heights:  %s' % ('   '.join(['%s %.3f' % (r, mheight * self.treeinfo['branch-length-ratios'][r]) for r in utils.regions])))
 
         cmdfos = []
         self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom)
@@ -867,8 +868,8 @@ class Recombinator(object):
             self.check_tree_simulation(reco_event)
 
         if self.args.debug:
-            print '  bppseqgen ran on the following tree (mean depth %.3f, imbalance %.4f) in %.2fs:' % (treeutils.get_mean_leaf_height(tree=reco_event.tree), treeutils.get_imbalance(reco_event.tree), self.validation_values['bpp-times'][-1])
-            print treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      ')
+            print('  bppseqgen ran on the following tree (mean depth %.3f, imbalance %.4f) in %.2fs:' % (treeutils.get_mean_leaf_height(tree=reco_event.tree), treeutils.get_imbalance(reco_event.tree), self.validation_values['bpp-times'][-1]))
+            print(treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      '))
             utils.print_reco_event(reco_event.line, extra_str='    ')
 
     # ----------------------------------------------------------------------------------------
@@ -883,27 +884,27 @@ class Recombinator(object):
         ltmp = reco_event.line
         mheight = treeutils.get_mean_leaf_height(tree=reco_event.tree)
         if debug:
-            print '          in       out    (input tree heights vs output fraction of positions mutated)'
+            print('          in       out    (input tree heights vs output fraction of positions mutated)')
         for rname in ['all'] + utils.regions:
             input_height = mheight * (1 if rname=='all' else self.treeinfo['branch-length-ratios'][rname])
             mean_obs = numpy.mean([utils.get_mutation_rate(ltmp, iseq=i, restrict_to_region='' if rname=='all' else rname) for i in range(len(ltmp['unique_ids']))])  # could use the 'mut_freqs' key to avoid recalculatation, but this is a bit cleaner
             self.validation_values['heights'][rname]['in'].append(input_height)
             self.validation_values['heights'][rname]['out'].append(mean_obs)
             if debug:
-                print '  %4s %7.3f  %7.3f' % (rname, input_height, mean_obs)
+                print('  %4s %7.3f  %7.3f' % (rname, input_height, mean_obs))
 
         if self.args.debug:  # <debug> above is for if we're debugging this function, whereas we want to print this stuff when --debug is set
             if any(indelutils.has_indels(reco_event.line['indelfos'][i]) for i in range(len(reco_event.line['unique_ids']))):
-                print '    skipping tree difference metrics since there\'s shm indels (would have to align before passing to fasttree)'
+                print('    skipping tree difference metrics since there\'s shm indels (would have to align before passing to fasttree)')
             else:
                 treeutils.get_tree_difference_metrics('all', reco_event.line['tree'], reco_event.final_seqs, ltmp['naive_seq'])  # NOTE we want to pass in the treestr rather than the dendro tree because a) the stupid dendropy functions modify the dendro tree you give them b) they also need the two trees to have the same taxon namespace so we'd have to make a new one anyway
 
     # ----------------------------------------------------------------------------------------
     def print_validation_values(self):  # the point of having this separate from the previous function is that it's run after you've simulated lots of different events (unlike everything else in this class, the validation values aggregate over different events)
-        print '  input tree height vs output mut frac (means over leaves/seqs) averaged over %d events:' % len(self.validation_values['heights']['all']['in'])
-        print '             in      out       diff    std err   std dev'
+        print('  input tree height vs output mut frac (means over leaves/seqs) averaged over %d events:' % len(self.validation_values['heights']['all']['in']))
+        print('             in      out       diff    std err   std dev')
         for vtype in ['all'] + utils.regions:
             vvals = self.validation_values['heights'][vtype]
             deltas = [(vvals['out'][i] - vvals['in'][i]) for i in range(len(vvals['in']))]
             std_val = numpy.std(deltas, ddof=1) if len(deltas) > 1 else float('nan')
-            print '       %3s  %.3f   %.3f    %+.3f +/- %.3f     %.3f' % (vtype, numpy.mean(vvals['in']), numpy.mean(vvals['out']), numpy.mean(deltas), std_val / math.sqrt(len(deltas)), std_val)  # NOTE each delta is already the mean of <n_leaves> (non-independent) measurements
+            print('       %3s  %.3f   %.3f    %+.3f +/- %.3f     %.3f' % (vtype, numpy.mean(vvals['in']), numpy.mean(vvals['out']), numpy.mean(deltas), std_val / math.sqrt(len(deltas)), std_val))  # NOTE each delta is already the mean of <n_leaves> (non-independent) measurements

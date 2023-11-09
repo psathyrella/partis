@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import numpy
 import csv
 import yaml
@@ -99,10 +100,10 @@ def parse_output():
     if any(s['name']=='' for s in seqfos):
         n_removed = len([s for s in seqfos if s['name']==''])
         seqfos = [s for s in seqfos if s['name']!='']
-        print '  %s removed %d seqs with zero-length names \'\' (I\'m *not* sure this is the right thing to do, but it just kicked this error when I was doing the python 3 conversion)' % (utils.wrnstr(), n_removed)
+        print('  %s removed %d seqs with zero-length names \'\' (I\'m *not* sure this is the right thing to do, but it just kicked this error when I was doing the python 3 conversion)' % (utils.wrnstr(), n_removed))
     nfos = [s for s in seqfos if s['name']==args.root_label]
     if len(nfos) != 1:
-        print '  %s expected 1 naive seq with label \'%s\' but found %d: %s  (in %s)' % (utils.wrnstr(), args.root_label, len(nfos), ' '.join(n['name'] for n in nfos), gctofn('seqs'))
+        print('  %s expected 1 naive seq with label \'%s\' but found %d: %s  (in %s)' % (utils.wrnstr(), args.root_label, len(nfos), ' '.join(n['name'] for n in nfos), gctofn('seqs')))
     seqfos = [s for s in seqfos if s['name'] != args.root_label]  # don't want naive seq in final fasta
     seqfos = [s for s in seqfos if s['name'] not in idm_trns]  # also remove input seqs
     inf_int_trns = []
@@ -130,8 +131,8 @@ def parse_output():
     treeutils.translate_labels(dtree, inf_int_trns, debug=args.debug)
 
     if args.debug:
-        print '    final tree:'
-        print treeutils.get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
+        print('    final tree:')
+        print(treeutils.get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350))
     with open(fofn('tree'), 'w') as ofile:
         ofile.write('%s\n' % treeutils.as_str(dtree))
     utils.write_fasta(fofn('seqs'), seqfos)

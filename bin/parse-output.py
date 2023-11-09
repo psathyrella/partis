@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import csv
 from io import open
@@ -54,7 +55,7 @@ def count_plot(tglfo, tlist, plotdir, paired_loci=None):
                 _ = perfplotter.evaluate(true_antn_dict[uid], utils.synthesize_single_seq_line(line, iseq), simglfo=simglfo)
         perfplotter.plot(args.plotdir, only_csv=args.only_csv_plots)
         if n_failed > 0:
-            print '  %s %d / %d failed queries' % (utils.color('yellow', 'warning'), n_failed, len([u for l in tlist for u in l['unique_ids']]))
+            print('  %s %d / %d failed queries' % (utils.color('yellow', 'warning'), n_failed, len([u for l in tlist for u in l['unique_ids']])))
         if args.only_plot_performance:
             return
     assert not args.paired  # only handled for correlation counting atm
@@ -112,8 +113,8 @@ parser.add_argument('--meta-emph-formats', help='see partis help')
 parser.add_argument('--meta-info-to-emphasize', help='see partis help')
 
 if 'extract-fasta.py' in sys.argv[0]:  # if they're trying to run this old script, which is now just a link to this one, print a warning and rejigger the arguments so it still works
-    print '  note: running deprecated script %s, which currently is just a link pointing to %s' % (os.path.basename(sys.argv[0]), os.path.basename(os.path.realpath( __file__)))
-    print '  note: transferring deprecated arguments --input-file and --fasta-output-file to the first two positional arguments (this will continue to work, you only need to change things if you want this warning to go away)'
+    print('  note: running deprecated script %s, which currently is just a link pointing to %s' % (os.path.basename(sys.argv[0]), os.path.basename(os.path.realpath( __file__))))
+    print('  note: transferring deprecated arguments --input-file and --fasta-output-file to the first two positional arguments (this will continue to work, you only need to change things if you want this warning to go away)')
     utils.insert_in_arglist(sys.argv, [utils.get_val_from_arglist(sys.argv, '--input-file'), utils.get_val_from_arglist(sys.argv, '--fasta-output-file')], sys.argv[0])
     utils.remove_from_arglist(sys.argv, '--input-file', has_arg=True)
     utils.remove_from_arglist(sys.argv, '--fasta-output-file', has_arg=True)
@@ -130,7 +131,7 @@ else:
 
 default_glfo_dir = partis_dir + '/data/germlines/human'
 if utils.getsuffix(args.infile) in ['.csv', '.tsv'] and args.glfo_dir is None:
-    print '  note: reading csv/tsv format without germline info, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir
+    print('  note: reading csv/tsv format without germline info, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir)
     args.glfo_dir = default_glfo_dir
 
 # ----------------------------------------------------------------------------------------
@@ -183,25 +184,25 @@ if args.paired:
 # restrict to certain partitions/clusters
 if cpath is None or cpath.i_best is None:
     clusters_to_use = [l['unique_ids'] for l in annotation_list]
-    print '  no cluster path in input file, so just using all %d sequences (in %d clusters) in annotations' % (sum(len(c) for c in clusters_to_use), len(clusters_to_use))
+    print('  no cluster path in input file, so just using all %d sequences (in %d clusters) in annotations' % (sum(len(c) for c in clusters_to_use), len(clusters_to_use)))
 else:
     ipartition = cpath.i_best if args.partition_index is None else args.partition_index
-    print '  found %d clusters in %s' % (len(cpath.partitions[ipartition]), 'best partition' if args.partition_index is None else 'partition at index %d (of %d)' % (ipartition, len(cpath.partitions)))
+    print('  found %d clusters in %s' % (len(cpath.partitions[ipartition]), 'best partition' if args.partition_index is None else 'partition at index %d (of %d)' % (ipartition, len(cpath.partitions))))
     modified = False
     if args.cluster_index is None:
         clusters_to_use = cpath.partitions[ipartition]
-        print '    taking all %d clusters' % len(clusters_to_use)
+        print('    taking all %d clusters' % len(clusters_to_use))
     else:
         ptn = cpath.partitions[ipartition]
         if args.sort_by_size:
             ptn = sorted(cpath.partitions[ipartition], key=len, reverse=True)
         clusters_to_use = [ptn[args.cluster_index]]
         modified = True
-        print '    taking cluster at index %d with size %d%s' % (args.cluster_index, len(clusters_to_use[0]), ' after sorting by size' if args.sort_by_size else '')
+        print('    taking cluster at index %d with size %d%s' % (args.cluster_index, len(clusters_to_use[0]), ' after sorting by size' if args.sort_by_size else ''))
     if args.seed_unique_id is not None:
         clusters_to_use = [c for c in clusters_to_use if args.seed_unique_id in c]  # NOTE can result in more than one cluster with the seed sequence (e.g. if this file contains intermediate annotations from seed partitioning))
         modified = True
-        print '    removing clusters not containing sequence \'%s\' (leaving %d)' % (args.seed_unique_id, len(clusters_to_use))
+        print('    removing clusters not containing sequence \'%s\' (leaving %d)' % (args.seed_unique_id, len(clusters_to_use)))
     if modified:
         cpath = ClusterPath(partition=clusters_to_use, seed_unique_id=args.seed_unique_id)
         antn_dict = utils.get_annotation_dict(annotation_list)
@@ -211,7 +212,7 @@ if not os.path.exists(os.path.dirname(os.path.abspath(args.outfile))):
     os.makedirs(os.path.dirname(os.path.abspath(args.outfile)))
 
 if args.airr_output:
-    print '  writing %d annotations%s to %s' % (len(annotation_list), '' if cpath is None else ' (with partition: %d seqs in %d clusters)'%(sum(len(c) for c in cpath.best()), len(cpath.best())), args.outfile)
+    print('  writing %d annotations%s to %s' % (len(annotation_list), '' if cpath is None else ' (with partition: %d seqs in %d clusters)'%(sum(len(c) for c in cpath.best()), len(cpath.best())), args.outfile))
     utils.write_airr_output(args.outfile, annotation_list, cpath=cpath, extra_columns=args.extra_columns, skip_columns=args.skip_columns)
     sys.exit(0)
 
@@ -240,20 +241,20 @@ for cluster in clusters_to_use:
                 newfos[iseq][ecol] = ival
     seqfos += newfos
 if n_skipped > 0:
-    print '  missing annotations for %d sequences' % n_skipped
+    print('  missing annotations for %d sequences' % n_skipped)
 if n_failed_to_add > 0:
-    print '  %s couldn\'t add \'%s\' to %d / %d annotations' % (utils.wrnstr(), ecol, n_failed_to_add, len(clusters_to_use) - n_skipped)
+    print('  %s couldn\'t add \'%s\' to %d / %d annotations' % (utils.wrnstr(), ecol, n_failed_to_add, len(clusters_to_use) - n_skipped))
 
 # write output
 with open(args.outfile, utils.csv_wmode()) as ofile:
     if utils.getsuffix(args.outfile) in ['.csv', '.tsv']:
-        print '  writing %d sequences to %s' % (len(seqfos), args.outfile)
+        print('  writing %d sequences to %s' % (len(seqfos), args.outfile))
         writer = csv.DictWriter(ofile, seqfos[0].keys(), delimiter=str(',') if utils.getsuffix(args.outfile)=='.csv' else '\t')
         writer.writeheader()
         for sfo in seqfos:
             writer.writerow(sfo)
     elif utils.getsuffix(args.outfile) in ['.fa', '.fasta']:
-        print '  writing %d sequences to %s' % (len(seqfos), args.outfile)
+        print('  writing %d sequences to %s' % (len(seqfos), args.outfile))
         for sfo in seqfos:
             estr = ''
             if args.extra_columns is not None:
@@ -263,11 +264,11 @@ with open(args.outfile, utils.csv_wmode()) as ofile:
     elif utils.getsuffix(args.outfile) == '.yaml':
         true_partition = None
         if args.simfname is not None:
-            print '    reading true partition from %s' % args.simfname
+            print('    reading true partition from %s' % args.simfname)
             _, _, true_cpath = utils.read_output(args.simfname, skip_annotations=True)
             true_partition = true_cpath.best()
         plines = cpath.get_partition_lines(true_partition=true_partition, calc_missing_values='none' if true_partition is None else 'best')
-        print '  writing %d annotations with %d partition%s to %s' % (len(annotation_list), len(plines), utils.plural(len(plines)), args.outfile)
+        print('  writing %d annotations with %d partition%s to %s' % (len(annotation_list), len(plines), utils.plural(len(plines)), args.outfile))
         utils.write_annotations(args.outfile, glfo, annotation_list, utils.add_lists(utils.annotation_headers, args.extra_columns), partition_lines=plines)
     else:
         assert False
