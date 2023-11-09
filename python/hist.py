@@ -131,7 +131,7 @@ class Hist(object):
             istart = istop - 1
             istop = itmp - 1
             step = -1
-        return range(istart, istop, step)
+        return list(range(istart, istop, step))
 
     # ----------------------------------------------------------------------------------------
     def set_ibin(self, ibin, value, error, label=None):

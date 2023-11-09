@@ -311,7 +311,7 @@ def sargval(args, sv):  # ick this name sucks
     def dkey(sv):
         return sv.replace('-', '_') + '_list'
     if sv == 'seed':
-        riter = range(args.n_replicates) if args.iseeds is None else args.iseeds
+        riter = list(range(args.n_replicates)) if args.iseeds is None else args.iseeds
         return [args.random_seed + i for i in riter]
     else:
         return args.__dict__[dkey(sv)]
@@ -4665,7 +4665,7 @@ def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
                 if len(startstoplist) != 2:
                     raise Exception('wtf %s' % subnodestr)
                 istart, istop = startstoplist
-                bracketnodes += range(istart, istop + 1)
+                bracketnodes += list(range(istart, istop + 1))
             else: # single node
                 bracketnodes.append(int(subnodestr))
         namestr = nodestr[bfo['comma'] + 1 : ibp[0]]  # the texty bit of the name (i.e. without the numbers)

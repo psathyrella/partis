@@ -951,7 +951,7 @@ class AlleleFinder(object):
             return skip_str
 
         glseq = self.glfo['seqs'][self.region][gene]
-        too_close_to_ends = range(self.n_bases_to_exclude['5p'][gene]) + range(len(glseq) - self.n_bases_to_exclude['3p'][gene], len(glseq))
+        too_close_to_ends = list(range(self.n_bases_to_exclude['5p'][gene])) + list(range(len(glseq) - self.n_bases_to_exclude['3p'][gene], len(glseq)))
         not_enough_counts = set(positions) - set(positions_to_try_to_fit) - set(too_close_to_ends)  # well, not enough counts, *and* not too close to the ends
 
         print '          skipping',

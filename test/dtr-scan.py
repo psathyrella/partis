@@ -104,7 +104,7 @@ for n_estimators in [30, 100]:
             logdir = '%s/%s/seed-%d/dtr/%s%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'], trainstr)
         elif args.action == 'plot':
             def pdfcn(tmpseed): return '%s/%s/seed-%d/dtr/%s%s-plots' % (args.base_outdir, args.label, tmpseed, xtrastrs['test'], trainstr)
-            seed_iter = [args.plot_seed] if args.plot_seed is not None else range(int(utils.get_val_from_arglist(cmd.split(), '--n-replicates')))
+            seed_iter = [args.plot_seed] if args.plot_seed is not None else list(range(int(utils.get_val_from_arglist(cmd.split(), '--n-replicates'))))
             plotfo.append({'cfg' : cfgfo, 'plotdirs' : [(s, pdfcn(s)) for s in seed_iter if os.path.exists(pdfcn(s))]})
             continue
         else:

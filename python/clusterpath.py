@@ -304,7 +304,7 @@ class ClusterPath(object):
         if i_center is None:
             i_center = self.i_best
         if n_partitions is None:  # print all partitions
-            ilist = range(len(self.partitions))
+            ilist = list(range(len(self.partitions)))
         else:  # print the specified number surrounding (by default) the maximum logprob
             if n_partitions < 0 or n_partitions >= len(self.partitions):
                 n_partitions = len(self.partitions)

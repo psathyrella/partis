@@ -595,7 +595,7 @@ def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constan
                 ichoices = list(igroup)
                 break
             if len(ichoices) == 0:
-                ichoices = range(len(droplet_ids))
+                ichoices = list(range(len(droplet_ids)))
             idrop = numpy.random.choice(ichoices)
         else:
             idrop = numpy.random.choice(range(len(droplet_ids)))

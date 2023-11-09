@@ -237,7 +237,7 @@ def process(args):
     if args.small_clusters_to_ignore is not None:
         if '-' in args.small_clusters_to_ignore:
             lo, hi = [int(cluster_size) for cluster_size in args.small_clusters_to_ignore.split('-')]
-            args.small_clusters_to_ignore = range(lo, hi + 1)
+            args.small_clusters_to_ignore = list(range(lo, hi + 1))
         else:
             args.small_clusters_to_ignore = utils.get_arg_list(args.small_clusters_to_ignore, intify=True)
     if not args.paired_loci and args.seed_unique_id is not None:  # if --paired-loci is set, there will be two seed uids/seqs, which requires totally different handling, so do it above
