@@ -73,7 +73,7 @@ class CorrCounter(object):
         for hk in self.cvecs:
             if self.paired and hk[1] in self.non_light_chain_headers:
                 continue
-            xvals, yvals = zip(*self.cvecs[hk])
+            xvals, yvals = list(zip(*self.cvecs[hk]))
             if len(set(xvals)) == 1 or len(set(yvals)) == 1:
                 continue
 

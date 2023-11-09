@@ -147,14 +147,14 @@ def make_plots(swarm=False, debug=False):
                 plotvals = read_files(mthd)
                 if debug:
                     print '  %s' % mthd
-                xvals, yvals = zip(*plotvals[mthd][stype].items())
+                xvals, yvals = list(zip(*plotvals[mthd][stype].items()))
                 if debug:
                     if ist==0:
                         print '  %-18s %2s %s' % (mtr_type, '', '  '.join('%5s'%lzv(v) for v in xvals))
                     # print '    %8s  %8s  %s' % (stype, mthd, '  '.join('%.3f'%v for v in yvals))
                 xvals = [lzv(v) for v in xvals]
                 if not swarm:
-                    yvals, yerrs = zip(*yvals)
+                    yvals, yerrs = list(zip(*yvals))
                 if args.n_random_seeds is None:
                     ax.plot(xvals, yvals, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.', color=method_colors.get(mthd))
                 else:

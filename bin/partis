@@ -897,7 +897,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         sw_antns = {l : read_sw(l) for l in utils.sub_loci(ig_or_tr)}
         seed_lines = [utils.get_single_entry([l for l in sw_antns[ltmp] if l['unique_ids'][0]==seedid(ltmp)]) for ltmp in args.seed_loci]
         def hbfcn(ltmp): return utils.get_naive_hamming_bounds('likelihood', overall_mute_freq=numpy.mean([f for l in sw_antns[ltmp] for f in l['mut_freqs']]))  # with 'likelihood', these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
-        _, hi_hbounds = zip(*[hbfcn(l) for l in args.seed_loci])
+        _, hi_hbounds = list(zip(*[hbfcn(l) for l in args.seed_loci]))
         def hfrc(tl, sl): return utils.hamming_fraction(tl['naive_seq'], sl['naive_seq'], align_if_necessary=True)
         def hfracs(tlines): return [hfrc(tl, sl) for tl, sl in zip(tlines, seed_lines)]  # shouldn't need to align, but if it does it'll print a warning, which is probably better than crashing? but if it's aligning i think something is probably pretty wrong
 

@@ -258,7 +258,7 @@ def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
         return []
     if len(set(len(lpfos['antn_lists'][l]) for l in lpair)) != 1:  # if the lists for both loci aren't the same length, you should probably use find_cluster_pairs() (although in reality length differences are probably from unpaired singletons getting added, so it's probably ok)
         print '  %s different length annotation lists (probably just from unpaired singletons) among %s: %s' % (utils.wrnstr(), lpair, [len(lpfos['antn_lists'][l]) for l in lpair])
-    return zip(*[lpfos['antn_lists'][l] for l in lpair])
+    return list(zip(*[lpfos['antn_lists'][l] for l in lpair]))
 
 # ----------------------------------------------------------------------------------------
 def find_all_cluster_pairs(lp_infos, required_keys=None, quiet=False, min_cluster_size=None, ig_or_tr='ig', debug=False):
@@ -1769,5 +1769,5 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         assert iparts is None  # just for now
         ccfs = evaluate_joint_partitions(ploci, true_outfos, {tch : input_cpaths[ploci[tch]].best() for tch in utils.chains}, joint_partitions, antn_lists, seed_unique_ids=seed_unique_ids, unpaired_seqs=unpaired_seqs, fail_frac=fail_frac, debug=debug)
 
-    cluster_pairs = zip(*[joint_partitions[c] for c in 'hl'])
+    cluster_pairs = list(zip(*[joint_partitions[c] for c in 'hl']))
     return {ploci[ch] : jp for ch, jp in joint_partitions.items()}, cluster_pairs, ccfs

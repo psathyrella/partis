@@ -367,7 +367,7 @@ def get_var_info(args, scan_vars, debug=False):
         else:
             assert len(args.zip_vars) == 2  # nothing wrong with more, but I don't feel like testing it right now
             assert len(sargval(args, args.zip_vars[0])) == len(sargval(args, args.zip_vars[1]))  # doesn't make sense unless you provide a corresponding value for each
-            ok_zipvals = zip(sargval(args, args.zip_vars[0]), sargval(args, args.zip_vars[1]))
+            ok_zipvals = list(zip(sargval(args, args.zip_vars[0]), sargval(args, args.zip_vars[1])))
             zval_lists, zvalstrs = [], []  # new ones, only containing zipped values
             for vlist, vstrlist in zip(val_lists, valstrs):
                 zvals = tuple([vlval(args, vlist, varnames, zv) for zv in args.zip_vars])  # values for this combo of the vars we want to zip
@@ -5378,7 +5378,7 @@ def split_partition_with_criterion(partition, criterion_fcn):  # this would prob
 def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
     vals, groups = zip(*[(val, list(group)) for val, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)])
     if return_values:
-        return zip(*(vals, groups))
+        return list(zip(*(vals, groups)))
     else:
         return list(groups)
 

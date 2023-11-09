@@ -61,7 +61,7 @@ utils.prep_dir(args.plotdir, wildlings=['*.svg', '*.csv'])
 import matplotlib
 from matplotlib import pyplot as plt
 fig, ax = plotting.mpl_init()
-xvals, yvals = zip(*[(v['imax'], v['max_abs_diff']) for v in chfo.values()])
+xvals, yvals = list(zip(*[(v['imax'], v['max_abs_diff']) for v in chfo.values()]))
 plt.scatter(xvals, yvals, alpha=0.4)
 
 print 'writing to %s' % args.plotdir

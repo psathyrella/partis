@@ -502,7 +502,7 @@ def write_timepoint_sampled_sequences(glfos, final_events):
     if utils.output_exists(args, get_simfn('igh'), outlabel='mutated simu', offset=4):
         return None
     if args.paired_loci:
-        h_evts, l_evts = zip(*final_events)
+        h_evts, l_evts = list(zip(*final_events))
         sample_tp_seqs(glfos, h_evts, l_evts=l_evts, ltmp=h_evts[0]['loci'][0])
     else:
         sample_tp_seqs(glfos, final_events)
