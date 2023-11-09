@@ -155,7 +155,7 @@ def add_indels(n_indels, qrseq, glseq, mean_length, codon_positions, indel_locat
         add_single_indel(indelfo, pos, length, codon_positions, keep_in_frame=keep_in_frame, debug=debug)
 
     # make the "input seq", i.e. without gaps, and account for this in the codon positions
-    input_seq = filter(utils.alphabet.__contains__, indelfo['qr_gap_seq'])
+    input_seq = ''.join(filter(utils.alphabet.__contains__, indelfo['qr_gap_seq']))
     for region in codon_positions:
         codon_positions[region] -= utils.count_gap_chars(indelfo['qr_gap_seq'], aligned_pos=codon_positions[region])
 

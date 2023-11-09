@@ -601,7 +601,7 @@ def non_gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment
     return len(seq) - gap_len(seq)
 def ambig_frac(seq, aa=False):
     assert not aa  # just to remind you that this fcn doesn't handle aa
-    # ambig_seq = filter(all_ambiguous_bases.__contains__, seq)
+    # ambig_seq = ''.join(filter(all_ambiguous_bases.__contains__, seq))
     # return float(len(ambig_seq)) / len(seq)
     return float(seq.count(ambig_base)) / len(seq)
 
@@ -2162,7 +2162,7 @@ def len_excluding_colors(seq):  # NOTE this won't work if you inserted a color c
     return len(seq)
 
 def len_only_letters(seq):  # usually the same as len_excluding_colors(), except it doesn't count gap chars or spaces
-    return len(filter((alphabet).__contains__, seq))
+    return len(list(filter((alphabet).__contains__, seq)))
 
 def wrnstr():  # adding this very late, so could use it in a *lot* of places
     return color('yellow', 'warning')

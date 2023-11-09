@@ -201,7 +201,7 @@ def add_colors(outstrs, colors, line):  # NOTE do *not* modify <line>
         glchars = ''.join([ostr[inuke] for ostr in outstrs[:3]])
         if '*' in glchars:  # if any of the germline lines have a star at this position, i.e. if we're in an shm insertion (if the query line has a star, it's an shm deletion, i.e. the star's position was actually there as a base in the hmm)
             continue
-        alphagl = filter((utils.alphabet).__contains__, glchars)  # glchars that are also alphabet chars
+        alphagl = ''.join(filter((utils.alphabet).__contains__, glchars))  # glchars that are also alphabet chars
         if len(alphagl) == 0:  # if none of the germline lines have an alphabet base, we're not within the coding region
             if qrseq[inuke] in utils.alphabet:  # fv insertions
                 ipos += 1
@@ -216,7 +216,7 @@ def add_colors(outstrs, colors, line):  # NOTE do *not* modify <line>
 
     # then add the blues for everybody
     for istr in range(len(outstrs)):
-        if len(filter((bluechars).__contains__, outstrs[istr])) == 0:  # skip anybody that doesn't have any blue chars
+        if len(list(filter((bluechars).__contains__, outstrs[istr]))) == 0:  # skip anybody that doesn't have any blue chars
             continue
         blue_indices = [inuke for inuke in range(len(outstrs[istr])) if outstrs[istr][inuke] in bluechars]
         for inuke in blue_indices:
