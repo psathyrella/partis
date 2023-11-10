@@ -286,19 +286,6 @@ def process(args):
         print('  forcing --gap-open-penalty to %d to prevent indels, since --no-indels or --all-seqs-simultaneous were set (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty)  # for all_seqs_simultaneous, we run the msa indel stuff so don't also want sw indels
         args.gap_open_penalty = args.no_indel_gap_open_penalty
 
-    if args.indel_frequency > 0.:
-        if args.indel_frequency < 0. or args.indel_frequency > 1.:
-            raise Exception('--indel-frequency must be in [0., 1.] (got %f)' % args.indel_frequency)
-    args.n_indels_per_indeld_seq = utils.get_arg_list(args.n_indels_per_indeld_seq, intify=True)
-    if args.indel_location not in [None, 'v', 'cdr3']:
-        if int(args.indel_location) in range(500):
-            args.indel_location = int(args.indel_location)
-            if any(n > 1 for n in args.n_indels_per_indeld_seq):
-                print('  note: removing entries from --n-indels-per-indeld-seq (%s), since --indel-location was set to a single position.' % [n for n in args.n_indels_per_indeld_seq if n > 1])
-                args.n_indels_per_indeld_seq = [n for n in args.n_indels_per_indeld_seq if n <= 1]
-        else:
-            raise Exception('--indel-location \'%s\' neither one of None, \'v\' or \'cdr3\', nor an integer less than 500' % args.indel_location)
-
     if args.locus is not None and 'tr' in args.locus and args.mutation_multiplier is None:
         args.mutation_multiplier = 0.
 
@@ -482,6 +469,19 @@ def process(args):
             args.mean_cells_per_droplet = None
         if args.mean_cells_per_droplet is not None:  # ick
             args.mean_cells_per_droplet = float(args.mean_cells_per_droplet)
+
+        if args.indel_frequency > 0.:
+            if args.indel_frequency < 0. or args.indel_frequency > 1.:  # < 0. is there in case previous if statement or default value change
+                raise Exception('--indel-frequency must be in [0., 1.] (got %f)' % args.indel_frequency)
+        args.n_indels_per_indeld_seq = utils.get_arg_list(args.n_indels_per_indeld_seq, intify=True)
+        if args.indel_location not in [None, 'v', 'cdr3']:  # if it's not default (None) and also not set to a region ('v', 'cdr3')
+            if int(args.indel_location) in range(500):
+                args.indel_location = int(args.indel_location)
+                if any(n > 1 for n in args.n_indels_per_indeld_seq):
+                    print('  note: removing entries from --n-indels-per-indeld-seq (%s), since --indel-location was set to a single position.' % [n for n in args.n_indels_per_indeld_seq if n > 1])
+                    args.n_indels_per_indeld_seq = [n for n in args.n_indels_per_indeld_seq if n <= 1]
+            else:
+                raise Exception('--indel-location \'%s\' neither one of None, \'v\' or \'cdr3\', nor an integer less than 500' % args.indel_location)
 
         if args.simulation_germline_dir is not None:
             raise Exception('--simulation-germline-dir has no effect on simulation (maybe you meant --initial-germline-dir?)')

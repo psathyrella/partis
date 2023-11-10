@@ -9,7 +9,7 @@ import copy
 import collections
 import random
 import csv
-from cStringIO import StringIO
+from io import StringIO
 import subprocess
 import tempfile
 import os

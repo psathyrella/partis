@@ -2435,7 +2435,7 @@ def old_bio_cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=F
     """ return consensus sequence from either aligned or unaligned seqfos """
     # <threshold>: If the percentage*0.01 of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added. e.g. 0.1 means if fewer than 10% of sequences have the most common base, it gets an N.
     # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (we used to use the naive sequence for this, but now I don't think that makes sense) NOTE if you *don't* set this argument, all tied bases will be Ns
-    from cStringIO import StringIO
+    from io import StringIO
     from Bio.Align import AlignInfo
     import Bio.AlignIO
 
@@ -4903,8 +4903,8 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)  # maybe should add executable='/bin/bash'?
             fout.seek(0)
             ferr.seek(0)
-            outstr = ''.join(fout.readlines())
-            errstr = ''.join(ferr.readlines())
+            outstr = ''.join(l.decode() for l in fout.readlines())
+            errstr = ''.join(l.decode() for l in ferr.readlines())
     else:
         if logfname is not None:  # write cmd_str to logfname, then redirect stdout to it as well
             mkdir(logfname, isfile=True)
