@@ -1349,7 +1349,7 @@ class Waterer(object):
                 found, switch = False, False
                 if uid in pre_kept_uids:  # NOTE that if two pre-kept queries have the same seq, we'll just keep whichever one is last, which isn't really right but oh well
                     switch = True
-                for lseq, lid in long_seqs.items():
+                for lseq, lid in list(long_seqs.items()):
                     if self.info[lid]['cdr3_length'] != self.info[uid]['cdr3_length']:
                         continue
                     if useq in lseq:  # if lseq is longer (or they're the same), keep the one that's in there (lseq)

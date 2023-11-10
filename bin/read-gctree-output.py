@@ -145,7 +145,7 @@ if args.kdfname is not None:
                 metafos[uid]['multiplicity'] = int(line[args.multiplicity_column])
 
 if args.paired_loci:  # convert metafos to per-locus names
-    for base_id in metafos.keys():
+    for base_id in list(metafos.keys()):
         for ltmp in utils.sub_loci('ig'):
             new_id = '%s-%s' % (base_id, ltmp)
             metafos[new_id] = metafos[base_id]

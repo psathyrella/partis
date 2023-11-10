@@ -505,7 +505,7 @@ def process(args):
             if not args.rearrange_from_scratch:
                 raise Exception('--%scorrelation-values has no effect unless --rearrange-from-scratch (or --simulate-from-scratch) is set' % estr)
             cvals = utils.get_arg_list(cvals, key_val_pairs=True, floatify=True)
-            for kpstr in cvals.keys():
+            for kpstr in list(cvals.keys()):
                 ppair = tuple(kpstr.split('.'))
                 avail_corrs = utils.available_simu_correlations if estr=='' else utils.paired_available_simu_correlations
                 if ppair not in avail_corrs:

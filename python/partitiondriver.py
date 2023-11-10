@@ -1435,7 +1435,7 @@ class PartitionDriver(object):
                 n_whole_finished += 1
             # finalize any subclustered clusters that're finished (i.e. that only had one subcluster this time through)
             n_sub_finished = 0
-            for uidstr, subcluster_lists in subd_clusters.items():  # handle the ones that're done (at this point they should be an annotation of about length self.args.subcluster_annotation_size consisting of just inferred subcluster naives)
+            for uidstr, subcluster_lists in list(subd_clusters.items()):  # handle the ones that're done (at this point they should be an annotation of about length self.args.subcluster_annotation_size consisting of just inferred subcluster naives)
                 if len(subcluster_lists[-1]) > 1:  # not finished yet
                     continue
                 sclust = skey_inverse(uidstr)

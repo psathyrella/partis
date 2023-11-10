@@ -460,7 +460,7 @@ class HmmWriter(object):
             self.add_pseudocounts(erosion, eprobs[erosion])
 
             if not self.args.allow_conserved_codon_deletion:  # we could also just not add them to start with when reading the file, but then they'd get added by the interpolation and pseudocount stuff
-                for n_eroded in eprobs[erosion].keys():
+                for n_eroded in list(eprobs[erosion].keys()):
                     if self.would_erode_conserved_codon(erosion, n_eroded):
                         del eprobs[erosion][n_eroded]
 

@@ -3183,7 +3183,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
         left_region, right_region = region + '_l', region + '_r'
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
         # remove the gene matches with zero support
-        for k in fbounds[left_region].keys():
+        for k in list(fbounds[left_region].keys()):
             support_check1 = (k not in per_gene_support)
             support_check2 = (math.fabs(per_gene_support[k] - 0.0) < eps) if not support_check1 else False
             if support_check1 or support_check2:
@@ -6334,7 +6334,10 @@ def kbound_str(kbounds):
 # ----------------------------------------------------------------------------------------
 def jsdump(fname, jdata):
     with open(fname, 'w') as jfile:
-        jfile.write(unicode(json.dumps(jdata)))
+        jfo = json.dumps(jdata)
+        if sys.version_info.major < 3:
+            jfo = jfo.decode()
+        jfile.write(jfo)
 
 # ----------------------------------------------------------------------------------------
 def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes any extra info (beyond name and seq)
@@ -6633,7 +6636,7 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
 
     # then we throw out all the matches (genes) that have id/score lower than the best one
     failed_queries = list(set(seqdict) - set(query_info))
-    for query in query_info:
+    for query in list(query_info):
         if len(query_info[query]) == 0:
             print('%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query))
             del query_info[query]  # uh... need to handle failures better than this
