@@ -1304,7 +1304,7 @@ def plot_lb_vs_affinity(baseplotdir, lines, lb_metric, is_true_line=False, use_r
         n_missing = len([hlist for hlist in distr_hists.values() if hlist is None])
         if n_missing > 0:
             print('        %s missing %d / %d h lists for distr hists on %s tree (probably weren\'t any affinity increases in the tree)' % (utils.color('yellow', 'warning'), n_missing, len(distr_hists), 'true' if is_true_line else 'inf'))
-        if hlist is not None:
+        if distr_hists is not None:  # not sure if this is right, but it had hlist here which was definitely wrong
             yamlfo['distr-hists'] = {k : {h.title : h.getdict() for h in hlist} for k, hlist in distr_hists.items()}
         utils.jsdump('%s/%s.yaml' % (getplotdir('-ptiles'), ptile_plotname()), yamlfo)
 

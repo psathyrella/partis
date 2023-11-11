@@ -3083,7 +3083,7 @@ def re_sort_per_gene_support(line):
     for region in [r for r in regions if r + '_per_gene_support' in line]:
         if type(line[region + '_per_gene_support']) == type(collections.OrderedDict()):  # already ordered, don't need to do anything
             continue
-        elif type(line[region + '_per_gene_support']) == types.DictType:  # plain dict, i.e. we just read it from a json dump()'d file
+        elif isinstance(line[region + '_per_gene_support'], dict):  # plain dict, i.e. we just read it from a json dump()'d file
             line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------

@@ -173,6 +173,7 @@ if args.paired:
     outfos, metafos = paircluster.get_combined_outmetafos(antn_lists)
     paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%args.outfile, '%s/meta.yaml'%args.outfile, outfos, metafos)
     outfos = paircluster.find_seq_pairs(antn_lists)
+    print('    writing sequence id pairs to %s' % '%s/seq-pairs.csv'%args.outfile)
     with open('%s/seq-pairs.csv'%args.outfile, utils.csv_wmode()) as cfile:
         okeys = ['%s_%s'%(c, s) for s in ('id', 'locus', 'seq') for c in 'hl']
         writer = csv.DictWriter(cfile, okeys)  # sorted(outfos[0].keys()))

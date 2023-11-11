@@ -382,7 +382,7 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
             print('     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace]))
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True, rooting='force-rooted')  # make sure the tree is rooted, to avoid nodes disappearing in remove_dummy_branches() (and proably other places as well)
-    if dtree.seed_node.edge_length > 0 and not no_warn:
+    if dtree.seed_node.edge_length is not None and dtree.seed_node.edge_length > 0 and not no_warn:
         # this would be easy to fix, but i think it only happens from simulation trees from treegenerator UPDATE ok also happens for trees from the linearham paper
         print('  %s seed/root node has non-zero edge length (i.e. there\'s a branch above it)' % utils.color('red', 'warning'))
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=False)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)

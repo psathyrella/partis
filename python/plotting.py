@@ -18,6 +18,7 @@ import numpy
 import operator
 import itertools
 import collections
+import six
 
 from . import utils
 from . import plotconfig
@@ -1293,7 +1294,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
             if not isinstance(rowfnames, list):
                 raise Exception('each entry in fnames should be a list of strings, but got a %s: %s' % (type(rowfnames), rowfnames))
             for fn in rowfnames:
-                if not isinstance(fn, (str, unicode)):
+                if not isinstance(fn, six.string_types):
                     raise Exception('each entry in each row should be a string (file name), but got a %s: %s' % (type(fn), fn))
     if plotdir[-1] == '/':  # remove trailings slash, if present
         plotdir = plotdir[:-1]

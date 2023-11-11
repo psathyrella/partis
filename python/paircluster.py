@@ -644,6 +644,7 @@ def get_combined_outmetafos(antn_lists, extra_meta_headers=None):  # <extra_meta
 # ----------------------------------------------------------------------------------------
 # write fasta and meta file with all simulation loci together
 def write_combined_fasta_and_meta(fastafname, metafname, outfos, metafos):
+    print('    writing combined h/l info to fasta and meta files in %s' % os.path.dirname(fastafname))
     utils.mkdir(fastafname, isfile=True)
     with open(fastafname, 'w') as outfile:
         for sfo in outfos:
