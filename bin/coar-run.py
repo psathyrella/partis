@@ -134,4 +134,6 @@ if args.outdir is None:
 
 ofn = '%s/coar-vals.yaml' % args.outdir
 print('  writing coar values to %s' % ofn)
+if not os.path.exists(args.outdir):
+    os.makedirs(args.outdir)
 utils.jsdump(ofn, jvals)

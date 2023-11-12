@@ -2510,8 +2510,8 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         print('  writing selection metrics to %s' % outfname)
         utils.prep_dir(None, fname=outfname, allow_other_files=True)
         def dumpfo(tl):
-            dumpfo = {'unique_ids' : l['unique_ids']}
-            dumpfo.update(l['tree-info'])
+            dumpfo = {'unique_ids' : tl['unique_ids']}
+            dumpfo.update(tl['tree-info'])
             return dumpfo
         utils.jsdump(outfname, [dumpfo(l) for l in antn_list if 'tree-info' in l])
     if args.tree_inference_method in ['gctree', 'iqtree'] and tree_inference_outdir is not None:

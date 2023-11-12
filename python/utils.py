@@ -2183,13 +2183,13 @@ def color_chars(chars, col, seq):
 def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False, aa=False, no_gaps=False, extra_str='', debug=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
     def outfile_fcn():
         if outfname is None:
-            return tempfile.NamedTemporaryFile()
+            return tempfile.NamedTemporaryFile(mode='w')
         else:
             return open(outfname, 'w')
     if existing_aligned_seqfos is not None and len(existing_aligned_seqfos) == 0:
         existing_aligned_seqfos = None
 
-    with tempfile.NamedTemporaryFile() as fin, outfile_fcn() as fout:
+    with tempfile.NamedTemporaryFile(mode='w') as fin, outfile_fcn() as fout:
         for seqfo in seqfos:
             fin.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
         fin.flush()
