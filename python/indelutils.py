@@ -602,7 +602,7 @@ def check_single_sequence_indels(line, iseq, print_on_err=True, debug=False):
 
     if set(new_indelfo['genes']) != set(indelfo['genes']):
         if print_on_err:
-            print('%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((indelfo['genes'].keys())), ' '.join(new_indelfo['genes'].keys())))
+            print('%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((list(indelfo['genes'].keys()))), ' '.join(list(new_indelfo['genes'].keys()))))
         consistent = False
     else:
         for region in indelfo['genes']:

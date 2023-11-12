@@ -50,7 +50,7 @@ parser.add_argument('--input-metafname', help='yaml file with meta information k
 parser.add_argument('--for-testing-n-max-queries', type=int, default=-1, help='only for testing, applied when reading initial fasta file, just in case it\'s huge and you want to run quickly without having to read the whole file')
 parser.add_argument('--n-max-queries', type=int, default=-1, help='see partis help (although here it applies to droplets, not individual seqs)')
 parser.add_argument('--n-random-queries', type=int, help='see partis help (although here it applies to droplets, not individual seqs)')
-parser.add_argument('--ig-or-tr', default='ig', choices=utils.locus_pairs.keys(), help='antibodies or TCRs?')
+parser.add_argument('--ig-or-tr', default='ig', choices=list(utils.locus_pairs.keys()), help='antibodies or TCRs?')
 
 # ----------------------------------------------------------------------------------------
 def use_rev_comp(pline, rline):  # decide whether positive sense <pline> or negative sense <rline> has better alignment
@@ -141,7 +141,7 @@ def print_pairing_info(outfos, paired_uids):
             plocicounts[plstr] += 1
         total = sum(plocicounts.values())
         n_skipped = 0
-        for ipl, (plstr, counts) in enumerate(sorted(plocicounts.items(), key=operator.itemgetter(1), reverse=True)):
+        for ipl, (plstr, counts) in enumerate(sorted(list(plocicounts.items()), key=operator.itemgetter(1), reverse=True)):
             if counts / float(total) < print_cutoff:
                 n_skipped += counts
                 continue
@@ -195,7 +195,7 @@ if args.debug > 1:
 for sfo in seqfos:
     if len(meta_loci) == 0:  # default: use vsearch match scores
         lscores = {l : sfo[l]['score'] if 'invalid' not in sfo[l] else 0 for l in utils.sub_loci(args.ig_or_tr)}
-        locus, max_score = sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)[0]
+        locus, max_score = sorted(list(lscores.items()), key=operator.itemgetter(1), reverse=True)[0]
         if max_score == 0:
             failed_seqs.append(sfo)
             continue
@@ -206,10 +206,10 @@ for sfo in seqfos:
         def lpstr(spair):
             l, s = spair
             return '%s %s' % (utils.locstr(l) if l==locus else l.replace('ig', ''), utils.color('red' if s!=0 else None, '%3d'%s))
-        if lscores.values().count(0) == 2:
+        if list(lscores.values()).count(0) == 2:
             n_skipped += 1
         else:
-            print('       %s   %s' % ('  '.join(lpstr(s) for s in sorted(lscores.items(), key=operator.itemgetter(1), reverse=True)), sfo['name']))
+            print('       %s   %s' % ('  '.join(lpstr(s) for s in sorted(list(lscores.items()), key=operator.itemgetter(1), reverse=True)), sfo['name']))
 if args.debug > 1 and n_skipped > 0:
     print('      skipped %d seqs with non-zero scores from only one locus' % n_skipped)
 

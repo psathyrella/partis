@@ -326,7 +326,7 @@ def parse_linearham_trees():
     print(' '.join(['%.3f'%v for v in sorted(ibvals)]))
     utils.mkdir(imbalfname('xxx'), isfile=True)
     print('    writing trees to %s' % os.path.dirname(imbalfname('xxx')))
-    for ibval, treelist in sorted(ibtrees.items(), key=operator.itemgetter(0)):
+    for ibval, treelist in sorted(list(ibtrees.items()), key=operator.itemgetter(0)):
         print('      %3d trees to %s' % (len(treelist), os.path.basename(imbalfname(ibval))))
         with open(imbalfname(ibval), 'w') as ofile:
             for dtr in treelist:

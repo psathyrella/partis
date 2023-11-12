@@ -102,7 +102,7 @@ def convert_to_duplicate_name(glfo, gene):
                 if alternate_name != gene and alternate_name in glfo['seqs'][utils.get_region(gene)]:
                     # print 'converting %s --> %s' % (gene, alternate_name)
                     return alternate_name
-    raise Exception('couldn\'t find alternate name for %s (and we\'re probably looking for an alternate name because it wasn\'t in glfo to start with) choices: %s' % (utils.color_gene(gene), utils.color_genes(glfo['seqs'][utils.get_region(gene)].keys())))
+    raise Exception('couldn\'t find alternate name for %s (and we\'re probably looking for an alternate name because it wasn\'t in glfo to start with) choices: %s' % (utils.color_gene(gene), utils.color_genes(list(glfo['seqs'][utils.get_region(gene)].keys()))))
 
 #----------------------------------------------------------------------------------------
 def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons: list of (seq, pos) pairs
@@ -393,7 +393,7 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
                 if renamed_template_gene in glfo['seqs'][region]:  # ok there's not really any way that could happen
                     raise Exception('%s already in glfo' % renamed_template_gene)
                 newfo = {'gene' : renamed_template_gene, 'seq' : template_glfo['seqs'][region][template_gene], 'cpos' : template_glfo[codon + '-positions'][template_gene]}
-                if newfo['seq'] in glfo['seqs'][region].values():  # if it's in there under a different name, just tweak the seq a bit
+                if newfo['seq'] in list(glfo['seqs'][region].values()):  # if it's in there under a different name, just tweak the seq a bit
                     if debug:
                         print('    had to add an N to the right side of template glfo\'s gene %s, since it\'s in <glfo> under a different name %s' % (utils.color_gene(template_gene), ' '.join([utils.color_gene(g) for g, s in glfo['seqs'][region].items() if s == newfo['seq']])))
                     newfo['seq'] += 'N'  # this is kind of hackey, but we don't have Ns in current germline seqs, so it at least shouldn't clash with anybody
@@ -935,7 +935,7 @@ def add_new_allele(glfo, newfo, remove_template_genes=False, use_template_for_co
     if newfo['gene'] in glfo['seqs'][region]:
         print('  %s attempted to add name %s that already exists in glfo (returning without doing anything)' % (utils.color('yellow', 'warning'), utils.color_gene(newfo['gene'])))
         return
-    if newfo['seq'] in glfo['seqs'][region].values():  # it's nice to allow duplicate seqs e.g. if you want to rename a gene
+    if newfo['seq'] in list(glfo['seqs'][region].values()):  # it's nice to allow duplicate seqs e.g. if you want to rename a gene
         names_with_this_seq = [utils.color_gene(g) for g, seq in glfo['seqs'][region].items() if seq == newfo['seq']]
         print('  %s attempted to add sequence (with name %s) that\'s already in glfo with name%s %s (returning without doing anything)\n    %s' % (utils.color('yellow', 'warning'), utils.color_gene(newfo['gene']), utils.plural(len(names_with_this_seq)), ' '.join(names_with_this_seq), newfo['seq']))
         return
@@ -1173,7 +1173,7 @@ def choose_allele_prevalence_freqs(glfo, allele_prevalence_freqs, region, min_al
     n_alleles = len(glfo['seqs'][region])
     prevalence_counts = numpy.random.randint(1, int(1. / min_allele_prevalence_freq), size=n_alleles)  # ensures that any two alleles have a prevalence ratio between <min_allele_prevalence_freq> and 1. NOTE it's inclusive
     prevalence_freqs = [float(c) / sum(prevalence_counts) for c in prevalence_counts]
-    allele_prevalence_freqs[region] = {g : f for g, f in zip(glfo['seqs'][region].keys(), prevalence_freqs)}
+    allele_prevalence_freqs[region] = {g : f for g, f in zip(list(glfo['seqs'][region].keys()), prevalence_freqs)}
     assert utils.is_normed(allele_prevalence_freqs[region])
     if debug:
         print('    choosing %s allele prevalence freqs:' % region)
@@ -1204,7 +1204,7 @@ def generate_germline_set(glfo, args, new_allele_info=None, dont_remove_template
     print('  generated germline set with n alleles (n genes):', end=' ')
     allelic_groups = utils.separate_into_allelic_groups(glfo)
     for region in utils.regions:
-        n_genes = sum([len(allelic_groups[region][pv].keys()) for pv in allelic_groups[region]])
+        n_genes = sum([len(list(allelic_groups[region][pv].keys())) for pv in allelic_groups[region]])
         print(' %s %2d (%d) ' % (region, len(glfo['seqs'][region]), n_genes), end=' ')
     print('')
 
@@ -1263,7 +1263,7 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
 
 # ----------------------------------------------------------------------------------------
 def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, region='v', debug=False):  # NOTE should really be merged with find_nearest_gene_with_same_cpos()
-    if new_seq in glfo['seqs'][region].values():
+    if new_seq in list(glfo['seqs'][region].values()):
         raise Exception('exact sequence already in glfo')
     seqfos = [{'name' : g, 'seq' : s} for g, s in glfo['seqs'][region].items()]
     seqfos.append({'name' : 'new', 'seq' : new_seq})
@@ -1405,7 +1405,7 @@ def find_equivalent_gene_in_glfo(glfo, new_seq, new_cpos=None, new_name=None, ex
         raise Exception('you have to check for new name in glfo before calling this (%s)' % utils.color_gene(new_name))
 
     # first see if the exact sequence is in there
-    if new_seq in glfo['seqs'][region].values():
+    if new_seq in list(glfo['seqs'][region].values()):
         names_for_this_seq = [g for g in glfo['seqs'][region] if glfo['seqs'][region][g] == new_seq]
         assert len(names_for_this_seq) == 1  # this should have already been verified in glutils
         new_name = names_for_this_seq[0]

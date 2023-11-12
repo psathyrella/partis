@@ -148,7 +148,7 @@ if args.action == 'plot':
             print('  %s %s   train: %s   test: %s' % (cg, tv, args.training_label if args.training_label is not None else args.label, args.label))
             print('    %s    diff to perfect   seeds' % ' '.join(tuple('%20s'%k for k in sorted(plotfo[0]['cfg']))))
             for pfo in plotfo:
-                paramstr = '    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0))))
+                paramstr = '    '.join(tuple('%15d'%v for k, v in sorted(list(pfo['cfg'].items()), key=operator.itemgetter(0))))
                 fstr = '1' if tv == 'affinity' else '2'
                 estr = str(int(fstr)+1)
                 diff_val_list, seed_list = [], []  # for each seed

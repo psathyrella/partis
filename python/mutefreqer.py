@@ -155,7 +155,7 @@ class MuteFreqer(object):
                 continue
             freqs = self.freqs[gene]
             if len(freqs) == 0:
-                if gene not in glutils.dummy_d_genes.values():
+                if gene not in list(glutils.dummy_d_genes.values()):
                     print('    %s no mutefreqer obs for %s' % (utils.color('red', 'warning'), utils.color_gene(gene)))
                 continue
             sorted_positions = sorted(freqs.keys())

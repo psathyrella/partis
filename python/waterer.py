@@ -221,7 +221,7 @@ class Waterer(object):
                 print('         skipped %d with in frame rearrangement (i.e. cdr3 len % 3 == 0)' % len(self.skipped_in_frame_queries))
             if self.debug:
                 if len(self.info['indels']) > 0:
-                    print('      indels: %s' % ':'.join(self.info['indels'].keys()))
+                    print('      indels: %s' % ':'.join(list(self.info['indels'].keys())))
                 if len(self.info['failed-queries']) > 0:
                     print('            missing annotations: ' + ' '.join(self.info['failed-queries']))
                     if not self.args.is_data:
@@ -1002,7 +1002,7 @@ class Waterer(object):
             else:
                 self.info['indels'][qinfo['name']] = indelfo
                 self.indel_reruns.add(qname)
-                return dbgfcn(' new indels in %s' % ' '.join(qinfo['new_indels'].keys()))  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
+                return dbgfcn(' new indels in %s' % ' '.join(list(qinfo['new_indels'].keys())))  # utils.pad_lines(indelutils.get_dbg_str(self.info['indels'][qinfo['name']]), 10)
 
         if self.debug >= 2:  # keep this after the indel stuff, since it will crash (from different-length strings) if there's indels
             for region in utils.regions:
@@ -1531,7 +1531,7 @@ class Waterer(object):
     def combine_indels(self, qinfo, best, debug=False):
         # debug = 2
         if debug:
-            print('  %s: combine with %d sw indels: %s' % (qinfo['name'], len(qinfo['new_indels']), ' '.join(qinfo['new_indels'].keys())))
+            print('  %s: combine with %d sw indels: %s' % (qinfo['name'], len(qinfo['new_indels']), ' '.join(list(qinfo['new_indels'].keys()))))
             for ifo in qinfo['new_indels'].values():
                 print(indelutils.get_dbg_str(ifo))
 

@@ -153,7 +153,7 @@ def make_mutefreq_plot(plotdir, gene_name, positions, debug=False):
         # make label below bin for position and germline nuke
         ax.text(-0.5 + ibin, -0.075, simplify_state_name(posname), rotation='vertical', size=8)
         ax.text(-0.5 + ibin, -0.15, info.get('gl_nuke', '?'), fontsize=10, fontweight='bold')
-        sorted_nukes, _ = zip(*sorted(info['nuke_freqs'].items(), key=operator.itemgetter(1), reverse=True))
+        sorted_nukes, _ = zip(*sorted(list(info['nuke_freqs'].items()), key=operator.itemgetter(1), reverse=True))
         if 'gl_nuke' in info and info['gl_nuke'] in info['nuke_freqs']:  # put the germline nuke first if we have it (second clause is for states with germline N))
             sorted_nukes = [info['gl_nuke']] + [n for n in sorted_nukes if n != info['gl_nuke']]
 

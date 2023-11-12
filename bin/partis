@@ -190,7 +190,7 @@ def run_simulation(args):
         _, alist, _ = utils.read_output(args.outfname)
         clens = [l['cdr3_length'] for l in alist]
         clcounts = {l : clens.count(l) for l in set(clens)}
-        print('  final cdr3 lengths: %s (with counts: %s)' % (' '.join(str(l) for l in sorted(set(clens))), ',  '.join('%d %d'%(l, c) for l, c in sorted(clcounts.items(), key=operator.itemgetter(0)))))
+        print('  final cdr3 lengths: %s (with counts: %s)' % (' '.join(str(l) for l in sorted(set(clens))), ',  '.join('%d %d'%(l, c) for l, c in sorted(list(clcounts.items()), key=operator.itemgetter(0)))))
 
     if working_gldir is not None:
         glutils.remove_glfo_files(working_gldir, args.locus)
@@ -807,7 +807,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         for lpair in spairs():
             lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug)
             lp_infos[tuple(lpair)] = lpfos
-            if None in lpfos.values():
+            if None in list(lpfos.values()):
                 continue
             print('%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair)))
             for hline, lline in paircluster.get_antn_pairs(lpair, lpfos):
@@ -1042,7 +1042,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # doesn't work: (see note above)
         # if args.seed_unique_id is not None:
         #     reinstate_missing_uids(single_outfos)
-        if None in single_outfos.values():
+        if None in list(single_outfos.values()):
             return None
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
             print('  no paired uids in any annotations, not merging single chain partitions')
@@ -1227,7 +1227,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if fake_pntns is None:
                 antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns()  # smetrics=True
             inf_lines, true_lines = (None, fake_pntns) if not args.is_data else (utils.get_annotation_dict(fake_pntns), None)
-            partplotter.plot('%s/partitions/%s'%(getplotdir(None), 'true' if not args.is_data else 'inferred'), [l['unique_ids'] for l in (true_lines if not args.is_data else inf_lines.values()) if len(l['unique_ids']) > 0], utils.get_annotation_dict(true_lines) if not args.is_data else inf_lines, args=args)  # you get len 0 uids e.g. if reading simulation with multiple cells per droplet/missing reads
+            partplotter.plot('%s/partitions/%s'%(getplotdir(None), 'true' if not args.is_data else 'inferred'), [l['unique_ids'] for l in (true_lines if not args.is_data else list(inf_lines.values())) if len(l['unique_ids']) > 0], utils.get_annotation_dict(true_lines) if not args.is_data else inf_lines, args=args)  # you get len 0 uids e.g. if reading simulation with multiple cells per droplet/missing reads
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         if args.paired_outdir is None and args.seed_unique_id is not None:
@@ -1568,7 +1568,7 @@ subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs
 
 def get_arg_names(actions):  # return set of all arg names (in the form they appear in args.__dict__) for the specified actions
     if actions == 'all':
-        actions = subconfig.keys()
+        actions = list(subconfig.keys())
     return set([actionconf['name'][2:].replace('-', '_') for action in actions for actionconf in subargs[action]])
 
 # above we just made a dict with lists of args, here we actually make the sub parsers

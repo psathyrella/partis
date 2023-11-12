@@ -71,7 +71,7 @@ class ModelPlotter(object):
                     sorted_to_states[name] = int(paramutils.simplify_state_name(name))
                 else:
                     sorted_to_states[name] = name
-            sorted_to_states = sorted(sorted_to_states.items(), key=operator.itemgetter(1))
+            sorted_to_states = sorted(list(sorted_to_states.items()), key=operator.itemgetter(1))
 
             total = 0.0
             for to_state, simple_to_state in sorted_to_states:

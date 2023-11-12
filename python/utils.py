@@ -485,7 +485,7 @@ def make_scanvar_data_links(args, varnames, vstrs, action, outfn, ofn_fcn, odir_
         raise Exception('at least for now, if --data-in-cfg/--dataset-in-list are set, \'dataset-in\' must be a scan var (and be the only one), but got %s' % (varnames))
     sample = vstrs[0]
     if sample not in args.data_in_cfg:
-        raise Exception('sample \'%s\' not found in meta info with choices: %s' % (sample, args.data_in_cfg.keys()))
+        raise Exception('sample \'%s\' not found in meta info with choices: %s' % (sample, list(args.data_in_cfg.keys())))
     inpath = args.data_in_cfg[sample]['infname']
     if inpath[0] != '/':
         inpath = os.path.realpath(inpath)
@@ -1111,7 +1111,7 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
     print('    contigs per')
     print('      droplet     count   fraction')
     total = sum(count_info.values())
-    for size, count in sorted(count_info.items(), key=operator.itemgetter(0)):
+    for size, count in sorted(list(count_info.items()), key=operator.itemgetter(0)):
         frac = count / float(total)
         print('       %2d        %5d     %s' % (size, count, ('%.3f'%frac) if frac > 0.001 else ('%.1e'%frac)))
 
@@ -1797,7 +1797,7 @@ def write_presto_annotations(outfname, annotation_list, failed_queries):
     print('   writing presto annotations to %s' % outfname)
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
     with open(outfname, csv_wmode()) as outfile:
-        writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter=str('\t'))
+        writer = csv.DictWriter(outfile, list(presto_headers.keys()), delimiter=str('\t'))
         writer.writeheader()
 
         for line in annotation_list:
@@ -2313,9 +2313,9 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
         print('      no blast matches')
     mstats = {}  # ends up as a sorted list of pairs <target name, list of matched seqfos>
     def kfn(q): return q['targets'][0]
-    for tgt, tgroup in itertools.groupby(sorted(matchfos.values(), key=kfn), key=kfn):
+    for tgt, tgroup in itertools.groupby(sorted(list(matchfos.values()), key=kfn), key=kfn):
         mstats[tgt] = list(tgroup)
-    mstats = sorted(mstats.items(), key=lambda x: len(x[1]), reverse=True)
+    mstats = sorted(list(mstats.items()), key=lambda x: len(x[1]), reverse=True)
 
     dbfns = ['%s/%s.%s%s'%(wkdir, tgn, 'p' if aa else 'n', s) for s in ('hr', 'in', 'og', 'sd', 'si', 'sq')]
     for fn in [tgfn, qrfn, ofn] + dbfns:
@@ -2395,7 +2395,7 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
         if len(pos_counts) == 0:  # every sequence has a gap char here
             cseq.append(gap_chars[0])
             continue
-        srt_chunks = sorted(pos_counts.items(), key=operator.itemgetter(1), reverse=True)
+        srt_chunks = sorted(list(pos_counts.items()), key=operator.itemgetter(1), reverse=True)
         if aa_ref_seq is not None:  # (try to) remove any that don't code for the residue in aa_ref_seq
             aa_match_chunks = [c for c, _ in srt_chunks if ltranslate(c) == aa_ref_seq[ipos // 3]]
             if debug > 1: removed_chunks = []  # arg
@@ -2419,7 +2419,7 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
         if debug > 1:
             def tcol(cstr, dfo): return 'blue' if cstr in dfo['best'] else ('red' if cstr in dfo['rmd'] and dfo['cnts'][cstr]>=dfo['cnts'][dfo['best'][0]] else None)
             print('        ipos %s' % ''.join(wfmt(codon_len*i, prlen, fmt='d') for i in range(len(dbgfo))))
-            for cstr, _ in sorted(all_counts.items(), key=operator.itemgetter(1), reverse=True):
+            for cstr, _ in sorted(list(all_counts.items()), key=operator.itemgetter(1), reverse=True):
                 print('        %s %s' % (wfmt(cstr, prlen), ''.join(color(tcol(cstr, dfo), str(dfo['cnts'][cstr]), width=prlen) if cstr in dfo['cnts'] else ' '*prlen for dfo in dbgfo)))
             print('      colors: %s %s %s' % (color('blue_bkg', 'ties'), color('blue', 'best'), color('red', 'removed (not aa_ref_seq)') if aa_ref_seq is not None else ''))
 
@@ -3084,7 +3084,7 @@ def re_sort_per_gene_support(line):
         if type(line[region + '_per_gene_support']) == type(collections.OrderedDict()):  # already ordered, don't need to do anything
             continue
         elif isinstance(line[region + '_per_gene_support'], dict):  # plain dict, i.e. we just read it from a json dump()'d file
-            line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
+            line[region + '_per_gene_support'] = collections.OrderedDict(sorted(list(line[region + '_per_gene_support'].items()), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
 def get_null_linearham_info():
@@ -3122,7 +3122,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     """ compute the flexbounds/relpos values and return in a dict """  # NOTE deep copies per_gene_support, and then modifies this copy
     def get_swfo(uid):
         def getmatches(matchfo):  # get list of gene matches sorted by decreasing score
-            genes, gfos = zip(*sorted(matchfo.items(), key=lambda x: x[1]['score'], reverse=True))
+            genes, gfos = zip(*sorted(list(matchfo.items()), key=lambda x: x[1]['score'], reverse=True))
             return genes
         swfo = {'flexbounds' : {}, 'relpos' : {}}
         for region in getregions(get_locus(line['v_gene'])):
@@ -3170,7 +3170,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
 
     def are_fbounds_empty(fbounds, region, gene_removed, reason_removed):
         left_region, right_region = region + '_l', region + '_r'
-        if len(fbounds[left_region].values()) == 0 or len(fbounds[right_region].values()) == 0:
+        if len(list(fbounds[left_region].values())) == 0 or len(list(fbounds[right_region].values())) == 0:
             print('{}: removed all genes from flexbounds for region {}: {}. The last gene removed was {}. It was removed because {}. Returning null linearham info'.format(color('yellow', 'warning'), region, fbounds, gene_removed, reason_removed))
             return True
         return False
@@ -3774,7 +3774,7 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
     if debug:
         for region in regions:
             print('  %s' % color('green', region))
-            for gene, count in sorted(counts[region].items(), key=operator.itemgetter(1), reverse=True):
+            for gene, count in sorted(list(counts[region].items()), key=operator.itemgetter(1), reverse=True):
                 print('    %5d  %5.4f   %s' % (count, probs[region][gene], color_gene(gene, width='default')))
 
     if only_gene is not None and only_gene not in counts[get_region(only_gene)]:
@@ -4444,7 +4444,7 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
                 outfo[key] = None
         else:
             return  # only here to remind you that nothing happens
-    elif key in input_metafile_keys.values():  # uh, not really sure what's the best thing to do, but this only gets called on deprecated csv files, so oh well
+    elif key in list(input_metafile_keys.values()):  # uh, not really sure what's the best thing to do, but this only gets called on deprecated csv files, so oh well
         outfo[key] = [None for _ in info['unique_ids']]
     elif key == 'has_shm_indels':
         outfo[key] = [indelutils.has_indels_line(info, i) for i in range(len(info['unique_ids']))]
@@ -4722,7 +4722,7 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
     # multiply sockets times cores/socket
     for node, info in nodefo.items():
         if 'Sockets' not in info or 'CoresPerSocket' not in info:
-            raise Exception('missing keys in: %s' % ' '.join(info.keys()))
+            raise Exception('missing keys in: %s' % ' '.join(list(info.keys())))
         info['nproc'] = int(info['Sockets']) * int(info['CoresPerSocket'])
     if debug:
         print('    info for %d nodes in %s' % (len(nodefo), batch_config_fname))
@@ -5957,10 +5957,10 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
             n_lines = 0
             for line in reader:
                 if seq_column not in line:
-                    raise Exception('specified <seq_column> \'%s\' not in line (keys in line: %s)' % (seq_column, ' '.join(line.keys())))
+                    raise Exception('specified <seq_column> \'%s\' not in line (keys in line: %s)' % (seq_column, ' '.join(list(line.keys()))))
                 if name_column is not None:
                     if name_column not in line:
-                        raise Exception('specified <name_column> \'%s\' not in line (keys in line: %s)' % (name_column, ' '.join(line.keys())))
+                        raise Exception('specified <name_column> \'%s\' not in line (keys in line: %s)' % (name_column, ' '.join(list(line.keys()))))
                     uid = line[name_column]
                 else:
                     uid = str(abs(hash(line[seq_column])))
@@ -7040,7 +7040,7 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     for key in [k for k in headers if k not in yamlfo]:
         if key in line:
             yamlfo[key] = line[key]
-        elif key in input_metafile_keys.values():  # these are optional, so if they're missing, don't worry about it
+        elif key in list(input_metafile_keys.values()):  # these are optional, so if they're missing, don't worry about it
             continue
         else:
             if line['invalid']:
@@ -7249,7 +7249,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
         # leader_seq_infos = []  # final/new leader seqs
         writefos = []
         print('      gene    families  seqs')
-        for ivg, (vgene, vgalist) in enumerate(sorted(vg_antns.items(), key=lambda q: sum(len(l['unique_ids']) for l in q[1]), reverse=True)):
+        for ivg, (vgene, vgalist) in enumerate(sorted(list(vg_antns.items()), key=lambda q: sum(len(l['unique_ids']) for l in q[1]), reverse=True)):
             print('    %s %3d     %3d' % (color_gene(vgene, width=10), len(vgalist), sum(len(l['unique_ids']) for l in vgalist)))
             if ivg > 2 and sum(len(l['unique_ids']) for l in vgalist) < n_min_seqs:  # always do the first 3 v gene groups, but past that skip any vgene groups that have too few sequences
                 print('            too few seqs')

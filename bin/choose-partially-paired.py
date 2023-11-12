@@ -109,7 +109,7 @@ for iclust, hclust in enumerate(sorted_hclusters):
     for ltmp, tline in zip(('igh', l_locus), (hline, lline)):
         tline['tree-info'] = {'lb' : {}}
         treeutils.add_cdists_to_lbfo(tline, tline['tree-info']['lb'], 'cons-dist-aa')
-        tmpids[ltmp], _ = list(zip(*sorted(tline['tree-info']['lb']['cons-dist-aa'].items(), key=operator.itemgetter(1), reverse=True)))
+        tmpids[ltmp], _ = list(zip(*sorted(list(tline['tree-info']['lb']['cons-dist-aa'].items()), key=operator.itemgetter(1), reverse=True)))
         tmpids[ltmp] = tmpids[ltmp][:args.n_to_choose]
         for uid in tmpids[ltmp]:
             addseq(ltmp, tline, uid, iclust)

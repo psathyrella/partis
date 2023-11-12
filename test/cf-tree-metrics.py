@@ -32,7 +32,7 @@ def make_lb_bound_plots(args, outdir, metric, btype, parsed_info, print_results=
     def make_plot(log, parsed_info):
         fig, ax = plotting.mpl_init()
         for lbt in sorted(parsed_info[metric][btype], reverse=True):
-            n_gen_list, lb_list = zip(*sorted(parsed_info[metric][btype][lbt].items(), key=operator.itemgetter(0)))
+            n_gen_list, lb_list = zip(*sorted(list(parsed_info[metric][btype][lbt].items()), key=operator.itemgetter(0)))
             if lbt == 1. / args.seq_len:  # add a horizontal line corresponding to the asymptote for tau = 1/seq_len
                 ax.plot(ax.get_xlim(), (lb_list[-1], lb_list[-1]), linewidth=3, alpha=0.7, color='darkred', linestyle='--') #, label='1/seq len')
             ax.plot(n_gen_list, lb_list, label='%.4f' % lbt, alpha=0.7, linewidth=4)

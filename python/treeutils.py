@@ -414,7 +414,7 @@ def get_bio_tree(treestr=None, treefname=None, schema='newick'):  # NOTE don't u
 # ----------------------------------------------------------------------------------------
 def get_imbalance(dtree, treetype='dendropy'):  # tree imbalance as std dev in root-to-tip branch lengths (see here https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008030#pcbi-1008030-g001)
     depths = get_leaf_depths(dtree, treetype=treetype)
-    imbal = numpy.std(depths.values(), ddof=1)
+    imbal = numpy.std(list(depths.values()), ddof=1)
     # print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
     # print ' '.join(['%.3f'%v for v in sorted(depths.values())])
     # print 'imbal', imbal
@@ -1300,7 +1300,7 @@ def collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=False, 
     if debug:
         for tkey in mcounts:
             print('      count   %s' % (tkeys[tkey])) #, '   chain' if annotation.get('is_fake_paired', False) else '')
-            for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
+            for mstr, mct in sorted(list(mcounts[tkey].items()), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
                 tch = mstr[0] if is_fake_paired else ''
                 print('       %3d   %s  %s' % (mct['count'], utils.color('blue' if tch=='h' else 'purple', tch) if is_fake_paired else '', mstr[2:] if is_fake_paired else mstr))
 
@@ -1327,16 +1327,16 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
         if debug or warnstr != '':
             idstr = '(note that this is expected if these are single chain sequences being compared to a paired h+l tree)'
             print('                %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s %s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str, idstr))
-            print('                    mean values:  tree depth %.3f  mfreq %.3f  diff %.3f  abs(frac diff) %.0f%%  ratio %.1f' % (numpy.mean(tdepths.values()), numpy.mean(mfreqs.values()), numpy.mean([tdepths[k] - mfreqs[k] for k in tdepths]),
+            print('                    mean values:  tree depth %.3f  mfreq %.3f  diff %.3f  abs(frac diff) %.0f%%  ratio %.1f' % (numpy.mean(list(tdepths.values())), numpy.mean(list(mfreqs.values())), numpy.mean([tdepths[k] - mfreqs[k] for k in tdepths]),
                                                                                                                                    100*numpy.mean([(tdepths[k] - mfreqs[k])/mfreqs[k] for k in tdepths if mfreqs[k]>0]),
                                                                                                                                    numpy.mean([tdepths[k]/mfreqs[k] for k in tdepths if mfreqs[k]>0])))
         if (debug and len(fracs) > 0) or len(fracs) > 0:
             print('          %d with highest abs(diff):' % n_to_print)
             print('            tree depth   mfreq      ratio    diff')
-            for key, adiff in sorted(abs_diffs.items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
+            for key, adiff in sorted(list(abs_diffs.items()), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
                 print('              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key))
             print('          %d with highest+lowest ratios:' % n_to_print)
-            srats = sorted(ratios.items(), key=operator.itemgetter(1), reverse=True)
+            srats = sorted(list(ratios.items()), key=operator.itemgetter(1), reverse=True)
             for key, ratio in srats[:n_to_print//2] + srats[len(srats) - n_to_print//2:]:
                 print('              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key))
 
@@ -1362,7 +1362,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
         if debug and len(pw_fracs) > 0:
             print('                  pairwise')
             print('             tree dist  seq dist    ratio   frac diff')
-            for key, frac_diff in sorted(pw_fracs.items(), key=operator.itemgetter(1), reverse=True):
+            for key, frac_diff in sorted(list(pw_fracs.items()), key=operator.itemgetter(1), reverse=True):
                 print('              %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / float(pv_mdists[key]), frac_diff, key[0], key[1]))
 
     if debug > 1:
@@ -2748,7 +2748,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             _, lbfo = get_combo_lbfo(cmetrics, iclust, line, lb_tau, is_aa_lb=True)
             mbounds = {}
             for mtr in cmetrics:
-                mbounds[mtr] = [mfn(lbfo[mtr].values()) for mfn in (min, max)]
+                mbounds[mtr] = [mfn(list(lbfo[mtr].values())) for mfn in (min, max)]
             def zscore(mtr, uid):
                 return (lbfo[mtr][uid] - mbounds[mtr][0]) / float(mbounds[mtr][1] - mbounds[mtr][0])
             def mcombine(uid):

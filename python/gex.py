@@ -176,7 +176,7 @@ def gexdot(gvals1, gvals2=None, normalize=True, recursed=False, return_gene_cont
         dprod /= gexdot(gvals1, normalize=False, recursed=True) + gexdot(gvals2, normalize=False, recursed=True)
     if debug and not recursed:
         if debug > 1:
-            lm = max(len(g) for g in gvals1.keys() + gvals2.keys())
+            lm = max(len(g) for g in list(gvals1.keys()) + list(gvals2.keys()))
             def dstr(vl): return '  '.join('%s %-5.1f'%(utils.color('red' if g in common_genes else None, g, width=lm), v) for g, v in vl.items())
             print('      %s' % dstr(gvals1))
             print('      %s' % dstr(gvals2))
@@ -343,7 +343,7 @@ def read_gex(outdir, min_dprod=0.001, debug=True):
                                                    # utils.color('blue', ' '.join('%d'%d['c2'] for d in clprods), width=20, padside='right'),
                                                    anystr + ' ' * (12 - utils.len_excluding_colors(anystr)),
                                                    tmpstr + ' ' * (70 - utils.len_excluding_colors(tmpstr)),
-                                                   '  '.join('%s %.1f'%(g.lower(), c)for g, c in sorted(all_contribs.items(), key=operator.itemgetter(1), reverse=True)),
+                                                   '  '.join('%s %.1f'%(g.lower(), c)for g, c in sorted(list(all_contribs.items()), key=operator.itemgetter(1), reverse=True)),
                 ))
 
     # return barcode_vals, rotation_vals, umap_vals, cluster_vals

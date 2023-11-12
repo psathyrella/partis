@@ -148,7 +148,7 @@ def make_plots(swarm=False, debug=False):
                 plotvals = read_files(mthd)
                 if debug:
                     print('  %s' % mthd)
-                xvals, yvals = list(zip(*plotvals[mthd][stype].items()))
+                xvals, yvals = list(zip(*list(plotvals[mthd][stype].items())))
                 if debug:
                     if ist==0:
                         print('  %-18s %2s %s' % (mtr_type, '', '  '.join('%5s'%lzv(v) for v in xvals)))

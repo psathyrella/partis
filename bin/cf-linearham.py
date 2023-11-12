@@ -128,7 +128,7 @@ def get_partis_nsinfo(pline, amino_acid=False):
             sdict[aseq] = []
         pdict[aseq] += prob
         sdict[aseq].append(nseq)
-    aa_naive_seqs = sorted(pdict.items(), key=operator.itemgetter(1), reverse=True)
+    aa_naive_seqs = sorted(list(pdict.items()), key=operator.itemgetter(1), reverse=True)
     if amino_acid:
         return [(s, p, i) for i, (s, p) in enumerate(aa_naive_seqs)]
     else:

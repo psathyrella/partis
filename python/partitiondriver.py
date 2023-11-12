@@ -111,7 +111,7 @@ class PartitionDriver(object):
                     raise Exception('couldn\'t find any sw cache files in %s, despite setting <find_any>' % self.args.parameter_dir)
                 return utils.getprefix(fnames[0])
             else:
-                return self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(self.input_info.keys()))))  # remain suffix-agnostic
+                return self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(list(self.input_info.keys())))))  # remain suffix-agnostic
         else:
             return None
 
@@ -348,7 +348,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
         _, annotations, hmm_failures = self.run_hmm('viterbi', self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True, partition=self.input_partition)
         if self.args.outfname is not None and self.current_action == self.all_actions[-1]:
-            self.write_output(annotations.values(), hmm_failures, cpath=self.input_cpath)
+            self.write_output(list(annotations.values()), hmm_failures, cpath=self.input_cpath)
         self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
@@ -371,7 +371,7 @@ class PartitionDriver(object):
             self.get_annotations_for_partitions(antn_cpath)  # get new annotations corresponding to <antn_ptn>
         else:
             if self.args.outfname is not None:
-                self.write_output(annotations.values(), hmm_failures, cpath=antn_cpath if self.args.annotation_clustering else self.input_cpath)
+                self.write_output(list(annotations.values()), hmm_failures, cpath=antn_cpath if self.args.annotation_clustering else self.input_cpath)
             if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
                 assert self.input_partition is not None
                 partplotter = PartitionPlotter(self.args, glfo=self.glfo)
@@ -382,7 +382,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
         if annotation_list is None:
-            annotation_list = annotation_dict.values()
+            annotation_list = list(annotation_dict.values())
         if self.current_action == 'get-selection-metrics' and self.args.input_metafnames is not None:  # presumably if you're running 'get-selection-metrics' with --input-metafnames set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
             seqfileopener.read_input_metafo(self.args.input_metafnames, annotation_list)
         if self.args.seed_unique_id is not None:  # restrict to seed cluster in the best partition (clusters from non-best partition have duplicate uids, which then make fasttree barf, and it doesn't seem worth the trouble to fix it now)
@@ -450,7 +450,7 @@ class PartitionDriver(object):
             print('  skipped %d clusters smaller than --min-selection-metric-cluster-size %d' % (n_skipped, self.args.min_selection_metric_cluster_size))
 
         print('  note: rewriting output file with newly-calculated alternative annotation info')
-        self.write_output(cluster_annotations.values(), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
+        self.write_output(list(cluster_annotations.values()), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
     # ----------------------------------------------------------------------------------------
     def print_results(self, cpath, annotation_list, dont_sort=False, label_list=None, extra_str=''):
@@ -1019,7 +1019,7 @@ class PartitionDriver(object):
                 self.process_alternative_annotations(cluster, all_annotations, cpath=cpath, debug=self.args.debug)  # NOTE modifies the annotations (adds 'alternative-annotations' key)
 
         if self.args.outfname is not None:
-            self.write_output(all_annotations.values(), hmm_failures, cpath=cpath)
+            self.write_output(list(all_annotations.values()), hmm_failures, cpath=cpath)
 
         if self.args.count_parameters and not self.args.dont_write_parameters:  # not sure this is absolutely the most sensible place to put this, but I'm trying to kind of mimic where we write the hmms in self.cache_parameters()
             self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
@@ -1035,7 +1035,7 @@ class PartitionDriver(object):
 
         if self.args.debug:
             print('final')
-            self.print_results(cpath, all_annotations.values())
+            self.print_results(cpath, list(all_annotations.values()))
 
     # ----------------------------------------------------------------------------------------
     def get_cached_hmm_naive_seqs(self, queries=None):
@@ -1618,7 +1618,7 @@ class PartitionDriver(object):
             print('                      seqs  frac          cluster sizes (+singletons)')
             for region in utils.regions:
                 print('    %s' % utils.color('green', region))
-                for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
+                for gene_call, uids in sorted(list(unique_seqs_for_each_gene[region].items()), key=lambda s: len(s[1]), reverse=True):
                     csizes = cluster_sizes_for_each_gene[region][gene_call]
                     if self.args.print_all_annotations:
                         print('  printing annotations for all clusters supprting gene call with fraction %.3f:' % final_info['gene-calls'][region][gene_call])
@@ -1707,13 +1707,13 @@ class PartitionDriver(object):
         # divide by totals for gene call info (to get fractions)
         for region in utils.regions:
             total_unique_seqs_this_region = sum(len(uids) for uids in unique_seqs_for_each_gene[region].values())  # yes, it is in general different for each region
-            for gene_call, uids in sorted(unique_seqs_for_each_gene[region].items(), key=lambda s: len(s[1]), reverse=True):
+            for gene_call, uids in sorted(list(unique_seqs_for_each_gene[region].items()), key=lambda s: len(s[1]), reverse=True):
                 final_info['gene-calls'][region][gene_call] = len(uids) / float(total_unique_seqs_this_region)
         if debug:
             print_gene_call_summary()
 
         # this is messy because we want to acces them as dicts in this fcn, for dbg printing, but want them in the output file as simple combinations of lists/tuples
-        line_of_interest['alternative-annotations'] = {'naive-seqs' : final_info['naive-seqs'].items(), 'gene-calls' : {r : final_info['gene-calls'][r].items() for r in utils.regions}}
+        line_of_interest['alternative-annotations'] = {'naive-seqs' : list(final_info['naive-seqs'].items()), 'gene-calls' : {r : list(final_info['gene-calls'][r].items()) for r in utils.regions}}
 
     # ----------------------------------------------------------------------------------------
     def get_padded_true_naive_seq(self, qry):
@@ -1947,7 +1947,7 @@ class PartitionDriver(object):
         cdr3_lengths = [self.sw_info[name]['cdr3_length'] for name in query_names]
         if cdr3_lengths.count(cdr3_lengths[0]) != len(cdr3_lengths):
             uids_and_lengths = {q : self.sw_info[q]['cdr3_length'] for q in query_names}
-            uids_and_lengths = sorted(uids_and_lengths.items(), key=operator.itemgetter(1))
+            uids_and_lengths = sorted(list(uids_and_lengths.items()), key=operator.itemgetter(1))
             uids, lengths = zip(*uids_and_lengths)
             raise Exception('cdr3 lengths not all the same (%s) for %s (probably need to add more criteria for call to utils.split_clusters_by_cdr3())' % (' '.join([str(c) for c in lengths])), ' '.join(uids))
         combo['cdr3_length'] = cdr3_lengths[0]
@@ -2132,9 +2132,9 @@ class PartitionDriver(object):
             if d_qr_base != gl_v_base and d_qr_base != gl_j_base:
                 votes['dj_insertion'] += 1
 
-        sorted_votes = sorted(votes.items(), key=operator.itemgetter(1), reverse=True)
+        sorted_votes = sorted(list(votes.items()), key=operator.itemgetter(1), reverse=True)
         winner = sorted_votes[0][0]
-        sorted_qr_base_votes = sorted(qr_base_votes.items(), key=operator.itemgetter(1), reverse=True)
+        sorted_qr_base_votes = sorted(list(qr_base_votes.items()), key=operator.itemgetter(1), reverse=True)
         qr_base_winner = sorted_qr_base_votes[0][0]
         if debug:
             print('   ', sorted_votes)

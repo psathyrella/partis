@@ -64,10 +64,10 @@ class AlleleClusterer(object):
                 if gene not in true_glcounts:
                     true_glcounts[gene] = 0
                 true_glcounts[gene] += 1
-        sorted_glcounts = sorted(glcounts.items(), key=operator.itemgetter(1), reverse=True)
+        sorted_glcounts = sorted(list(glcounts.items()), key=operator.itemgetter(1), reverse=True)
         true_sorted_glcounts = None
         if self.reco_info is not None:
-            true_sorted_glcounts = sorted(true_glcounts.items(), key=operator.itemgetter(1), reverse=True)
+            true_sorted_glcounts = sorted(list(true_glcounts.items()), key=operator.itemgetter(1), reverse=True)
         return sorted_glcounts, true_sorted_glcounts
 
     # ----------------------------------------------------------------------------------------
@@ -89,7 +89,7 @@ class AlleleClusterer(object):
         for cluster in clusters:
             clusterstr = ':'.join(cluster)
             j_mutations = {q : utils.get_n_muted(swfo[q], iseq=0, restrict_to_region=self.other_region) for q in cluster}
-            best_query, smallest_j_mutations = sorted(j_mutations.items(), key=operator.itemgetter(1))[0]  # take the sequence with the lowest j mutation for each cluster, if it doesn't have too many j mutations NOTE choose_cluster_representatives() in allelefinder is somewhat similar
+            best_query, smallest_j_mutations = sorted(list(j_mutations.items()), key=operator.itemgetter(1))[0]  # take the sequence with the lowest j mutation for each cluster, if it doesn't have too many j mutations NOTE choose_cluster_representatives() in allelefinder is somewhat similar
             if smallest_j_mutations < self.max_mutations['j']:
                 qr_seqs[best_query] = indelutils.get_qr_seqs_with_indels_reinstated(swfo[best_query], iseq=0)[self.region]
             for query in cluster:
@@ -103,7 +103,7 @@ class AlleleClusterer(object):
             'v' : {q : utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='v') for q in qr_seqs},
             'j' : {q : utils.get_mutation_rate(swfo[q], iseq=0, restrict_to_region='j') for q in qr_seqs},
         }
-        self.mean_mfreqs = {r : numpy.mean(self.mfreqs[r].values()) for r in self.mfreqs}
+        self.mean_mfreqs = {r : numpy.mean(list(self.mfreqs[r].values())) for r in self.mfreqs}
         # assert self.region == 'v'  # this won't work if our region is j, since it's too short; there's always/often a dip/gap between 0 mutations and the rest of the distribution
         # self.mfreq_hists = {self.region : Hist(30, 0., 0.3)}  # not reall sure whether it's better to use n_mutes or mfreq, but I already have mfreq
         # for query in qr_seqs:
@@ -277,7 +277,7 @@ class AlleleClusterer(object):
 
         if debug:
             print('  final counts:')
-            for gene, counts in sorted(self.adjusted_glcounts.items(), key=operator.itemgetter(1), reverse=True):
+            for gene, counts in sorted(list(self.adjusted_glcounts.items()), key=operator.itemgetter(1), reverse=True):
                 print('    %4d  %s' % (counts, utils.color_gene(gene)))
 
     # # ----------------------------------------------------------------------------------------
@@ -369,7 +369,7 @@ class AlleleClusterer(object):
                 if debug:
                     print('%s (%s)' % (utils.color_gene(new_name), utils.color('red', 'new')))
                 continue
-            assert new_seq not in new_alleles.values()  # if it's the same seq, it should've got the same damn name
+            assert new_seq not in list(new_alleles.values())  # if it's the same seq, it should've got the same damn name
 
             if not has_indels:  # we assume that the presence of indels somewhat precludes false positives, which is equivalent to an assumption about the rarity of shm indels
                 if self.too_close_to_existing_glfo_gene(clusterfo, new_seq, template_seq, template_cpos, template_gene, debug=debug):  # presumably if it were really close to another (non-template) existing glfo gene, that one would've been the template

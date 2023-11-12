@@ -255,7 +255,7 @@ def get_all_antn_pairs(lp_infos, size_sort=False, ig_or_tr='ig'):  # same as pre
 # ----------------------------------------------------------------------------------------
 # similar to find_cluster_pairs(), but this just assumes the annotations are in order (i.e. probably only really safe for simulation)
 def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
-    if None in lpfos.values():
+    if None in list(lpfos.values()):
         return []
     if len(set(len(lpfos['antn_lists'][l]) for l in lpair)) != 1:  # if the lists for both loci aren't the same length, you should probably use find_cluster_pairs() (although in reality length differences are probably from unpaired singletons getting added, so it's probably ok)
         print('  %s different length annotation lists (probably just from unpaired singletons) among %s: %s' % (utils.wrnstr(), lpair, [len(lpfos['antn_lists'][l]) for l in lpair]))
@@ -295,7 +295,7 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
 
     lp_antn_pairs = []
     lpk = tuple(lpair)
-    if None in lp_infos[lpk].values():
+    if None in list(lp_infos[lpk].values()):
         return lp_antn_pairs
     h_part, l_part = [sorted(lp_infos[lpk]['cpaths'][l].best(), key=len, reverse=True) for l in lpair]
     h_atn_dict, l_atn_dict = [utils.get_annotation_dict(lp_infos[lpk]['antn_lists'][l], cpath=lp_infos[lpk]['cpaths'][l]) for l in lpair]
@@ -636,8 +636,8 @@ def get_combined_outmetafos(antn_lists, extra_meta_headers=None):  # <extra_meta
                 outfos.append({'name' : uid, 'seq' : seq})
                 metafos[uid] = {'locus' : ltmp, 'paired-uids' : pids}
                 if extra_meta_headers is not None:
-                    if any(h not in utils.input_metafile_keys.values() for h in extra_meta_headers):  # they have to be in utils.input_metafile_keys so we know what the "meta file" (i.e. usually singular) version is
-                        raise Exception('extra meta headers have to be in utils.input_metafile_keys, but got unknown ones: %s' % list((h for h in extra_meta_headers if h not in utils.input_metafile_keys.values())))
+                    if any(h not in list(utils.input_metafile_keys.values()) for h in extra_meta_headers):  # they have to be in utils.input_metafile_keys so we know what the "meta file" (i.e. usually singular) version is
+                        raise Exception('extra meta headers have to be in utils.input_metafile_keys, but got unknown ones: %s' % list((h for h in extra_meta_headers if h not in list(utils.input_metafile_keys.values()))))
                     metafos[uid].update({utils.reversed_input_metafile_keys[h] : tline[h][iseq] for h in extra_meta_headers if h in tline})
     return outfos, metafos
 
@@ -1065,7 +1065,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                     flfracs[ck] = 0
                 flfracs[ck] += flcounts[fk][ck] / (float(ctotals[fk]) * len(ctotals))
         assert utils.is_normed(flfracs)
-        binlabels, _ = zip(*sorted(flfracs.items(), key=operator.itemgetter(1), reverse=True))
+        binlabels, _ = zip(*sorted(list(flfracs.items()), key=operator.itemgetter(1), reverse=True))
 
         fhists = {f : Hist(len(binlabels), -0.5, len(binlabels) - 0.5) for f in ['func', 'nonfunc']}
         for fstr in ['func', 'nonfunc']:
@@ -1215,7 +1215,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
             # ----------------------------------------------------------------------------------------
             def prpfd(pfdict, extra_str=''):
                 print('        %7s votes size  id  cdr3' % extra_str)
-                for fkey, fdct in sorted(pfdict.items(), key=lambda x: x[1]['count'], reverse=True):
+                for fkey, fdct in sorted(list(pfdict.items()), key=lambda x: x[1]['count'], reverse=True):
                     if utils.samechain(fdct['locus'], uloc):
                         continue
                     print('           %s    %3d   %3d  %2d %s  %3d' % (utils.locstr(fdct['locus']), fdct['count'], len(antn_dicts[fdct['locus']][fkey]['unique_ids']), fdct['id'], fidstr(fdct['id']), antn_dicts[fdct['locus']][fkey]['cdr3_length']))
@@ -1392,7 +1392,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
     if debug:
         def prcgrps(cdict, prestr):
             print('    %s' % prestr)
-            for lstr, count in sorted(cdict.items(), key=operator.itemgetter(1), reverse=True):
+            for lstr, count in sorted(list(cdict.items()), key=operator.itemgetter(1), reverse=True):
                 print('      %3d  %s' % (count, lstr))
         prcgrps(ok_groups, 'ok to start with:')
         prcgrps(id_removed_groups, 'removed ids from:')
@@ -1664,7 +1664,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         # for tch in 'hl':
         #     print '       %s      %4d      %4d    %4d' % (utils.locstr(ploci[tch]), n_added[tch]['singleton'], n_added[tch]['new-cluster'], n_added[tch]['existing-cluster'])
     # ----------------------------------------------------------------------------------------
-    print('    merging %s partitions' % '+'.join(ploci.values()))
+    print('    merging %s partitions' % '+'.join(list(ploci.values())))
     sys.stdout.flush()
     init_partitions = {}
     for tch in utils.chains:

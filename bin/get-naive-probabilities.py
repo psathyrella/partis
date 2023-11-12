@@ -109,7 +109,7 @@ if args.debug:
 
     if non_summed_column is not None:
         print('    %18s      count      / %d = fraction' % (non_summed_column, counts_used))
-        for val, count in sorted(info.items(), key=operator.itemgetter(1), reverse=True):  # sort by counts
+        for val, count in sorted(list(info.items()), key=operator.itemgetter(1), reverse=True):  # sort by counts
         # for val, count in sorted(info.items()):  # sort by column value (e.g. cdr3 length)
             print('   %18s   %6d          %.3f +/- %.3f' % (val, count, count / float(counts_used), frac_err(count, counts_used)))
 

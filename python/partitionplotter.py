@@ -775,7 +775,7 @@ class PartitionPlotter(object):
         def process_single_tree(tkey, mcounts, dtree, antn, tdbg=False):
             meta_vals = {u : utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats) for u, v in zip(antn['unique_ids'], antn[self.args.meta_info_key_to_color])}
             mutfos, ncounts = {}, {}
-            for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True):  # loop over observed mutations/positions
+            for mstr, mct in sorted(list(mcounts[tkey].items()), key=operator.itemgetter(1), reverse=True):  # loop over observed mutations/positions
                 # if len(mct['nodes']) < min_n_muts:  # ignore mutations that we saw fewer than <min_n_muts> times (can't do this here if we're averaging over multiple trees since we'd ignore mutations in some trees but not others
                 #     continue
                 if tdbg:
@@ -794,7 +794,7 @@ class PartitionPlotter(object):
                 ntot = sum(nodevals.values())
                 nodevals = {k : v / float(ntot) for k, v in nodevals.items()}
                 if tdbg:
-                    srtd_vals = sorted(nodevals.items(), key=operator.itemgetter(1))
+                    srtd_vals = sorted(list(nodevals.items()), key=operator.itemgetter(1))
                     print('    %d total nodes:  %s  (%s)' % (ntot, '  '.join('%s %d'%(k, v*ntot) for k, v in srtd_vals), '  '.join('%s %.3f'%(k, v) for k, v in srtd_vals)))
                 mutfos[mstr] = nodevals
                 ncounts[mstr] = {'n-obs' : len(mct['nodes']), 'n-total-nodes' : ntot}

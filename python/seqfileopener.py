@@ -166,7 +166,7 @@ def post_process(input_info, reco_info, args, infname, found_seed, is_data, ilin
     if args.seed_unique_id is not None and not found_seed:
         raise Exception('couldn\'t find seed unique id %s in %s' % (args.seed_unique_id, infname))
     elif args.random_seed_seq:  # already checked (in bin/partis) that other seed args aren't set
-        args.seed_unique_id = random.choice(input_info.keys())
+        args.seed_unique_id = random.choice(list(input_info.keys()))
         print('    chose random seed unique id %s' % args.seed_unique_id)
 
     if args.n_random_queries is not None:

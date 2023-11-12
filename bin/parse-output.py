@@ -250,7 +250,7 @@ if n_failed_to_add > 0:
 with open(args.outfile, utils.csv_wmode()) as ofile:
     if utils.getsuffix(args.outfile) in ['.csv', '.tsv']:
         print('  writing %d sequences to %s' % (len(seqfos), args.outfile))
-        writer = csv.DictWriter(ofile, seqfos[0].keys(), delimiter=str(',') if utils.getsuffix(args.outfile)=='.csv' else '\t')
+        writer = csv.DictWriter(ofile, list(seqfos[0].keys()), delimiter=str(',') if utils.getsuffix(args.outfile)=='.csv' else '\t')
         writer.writeheader()
         for sfo in seqfos:
             writer.writerow(sfo)

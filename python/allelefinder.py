@@ -866,7 +866,7 @@ class AlleleFinder(object):
         mutfo = {}
         for pos in sorted(candidfo['positions']):
             obs_counts = {nuke : self.counts[template_gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
-            sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
+            sorted_obs_counts = sorted(list(obs_counts.items()), key=operator.itemgetter(1), reverse=True)
             original_nuke = self.glfo['seqs'][self.region][template_gene][pos]
             new_nuke = None
             for nuke, _ in sorted_obs_counts:  # take the most common one that isn't the existing gl nuke
@@ -1079,7 +1079,7 @@ class AlleleFinder(object):
                 these_positions = set(candidfo['positions'])
                 if len(these_positions & already_used_positions) > 0:
                     continue
-                alleles_this_gene = [g for g in (self.counts.keys() + [gfo['gene'] for gfo in self.new_allele_info]) if utils.are_alleles(g, gene)]  # <gene> is the template gene
+                alleles_this_gene = [g for g in (list(self.counts.keys()) + [gfo['gene'] for gfo in self.new_allele_info]) if utils.are_alleles(g, gene)]  # <gene> is the template gene
                 if len(alleles_this_gene) >= self.n_warn_alleles_per_gene:
                     print('  %s inferred %d alleles for gene %s' % (utils.color('yellow', 'note:'), len(alleles_this_gene), gene))
                 if self.args.n_max_alleles_per_gene is not None:  # NOTE we're not really looping over the most likely new alleles first here (and there isn't really a good way to do that), so it's pretty arbitrary which ones get skipped

@@ -358,7 +358,7 @@ def get_character_str(character, charval):
 # ----------------------------------------------------------------------------------------
 def all_the_same(chstr, mfolist):
     if chstr not in mfolist[0]:
-        raise Exception('column \'%s\' not available for %s (choices: %s)' % (chstr, nstr, ' '.join(mfolist[0].keys())))
+        raise Exception('column \'%s\' not available for %s (choices: %s)' % (chstr, nstr, ' '.join(list(mfolist[0].keys()))))
     return len(set([mfo[chstr] for mfo in mfolist])) == 1
 
 # ----------------------------------------------------------------------------------------
@@ -559,7 +559,7 @@ def print_data_table(dsetfos, method, latex=False, emph_genes=['IGHV1-2*02+G35A'
             hstr = '\\hline'
             tmpline = '  %s\n%s\n  %s' % (hstr, tmpline, hstr)
         print(tmpline)
-        rowfos = [sorted(cfo.items(), key=operator.itemgetter(1), reverse=True) for cfo in countfos]
+        rowfos = [sorted(list(cfo.items()), key=operator.itemgetter(1), reverse=True) for cfo in countfos]
         irow = 0
         while True:
             rfos = [rfo[irow] if irow < len(rfo) else (None, None) for rfo in rowfos]
