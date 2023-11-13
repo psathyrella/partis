@@ -100,7 +100,7 @@ def make_tree(all_genes, workdir, use_cache=False):
 
     # write and align an .fa with all alleles from any gl set
     start = time.time()
-    with tempfile.NamedTemporaryFile() as tmpfile:
+    with tempfile.NamedTemporaryFile(mode='w') as tmpfile:
         for name, seq in all_genes.items():
             tmpfile.write('>%s\n%s\n' % (name, seq))
         tmpfile.flush()  # BEWARE if you forget this you are fucked

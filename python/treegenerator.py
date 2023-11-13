@@ -8,7 +8,6 @@ import re
 import random
 import numpy
 import math
-import tempfile
 import json
 from subprocess import check_call
 

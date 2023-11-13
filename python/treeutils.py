@@ -11,7 +11,6 @@ import random
 import csv
 from io import StringIO
 import subprocess
-import tempfile
 import os
 import numpy
 import sys

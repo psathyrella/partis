@@ -10,7 +10,6 @@ import argparse
 import copy
 import random
 import os
-import tempfile
 import subprocess
 import sys
 import colored_traceback.always

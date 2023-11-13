@@ -2200,7 +2200,7 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
             # subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
             outstr, errstr = simplerun('%s --quiet %s >%s' % (cmd, fin.name, fout.name), shell=True, return_out_err=True, debug=False)
         else:  # if <existing_aligned_seqfos> is set, we instead add the sequences in <seqfos> to the alignment in <existing_aligned_seqfos>
-            with tempfile.NamedTemporaryFile() as existing_alignment_file:  # NOTE duplicates code in glutils.get_new_alignments()
+            with tempfile.NamedTemporaryFile(mode='w') as existing_alignment_file:  # NOTE duplicates code in glutils.get_new_alignments()
                 biggest_length = max(len(sfo['seq']) for sfo in existing_aligned_seqfos)
                 for sfo in existing_aligned_seqfos:
                     dashstr = '-' * (biggest_length - len(sfo['seq']))
@@ -2240,7 +2240,7 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
 
 # ----------------------------------------------------------------------------------------
 def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs() or something
-    with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
+    with tempfile.NamedTemporaryFile(mode='w') as fin, tempfile.NamedTemporaryFile(mode='w') as fout:
         fin.write('>%s\n%s\n' % ('ref', ref_seq))
         fin.write('>%s\n%s\n' % ('new', seq))
         fin.flush()
