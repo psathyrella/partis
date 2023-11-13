@@ -2091,7 +2091,8 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
 # ----------------------------------------------------------------------------------------
 def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, queries_to_include=None,
                       paired=False, debug=False):
-    reqd_args = [('selection_metric_plot_cfg', None), ('slice_bin_fname', None), ('queries_to_include', None), ('label_tree_nodes', False), ('label_root_node', False), ('affinity_key', None)]
+    reqd_args = [('selection_metric_plot_cfg', None), ('slice_bin_fname', None), ('queries_to_include', None), ('label_tree_nodes', False), ('label_root_node', False),
+                 ('affinity_key', None), ('sub_plotdir', None), ('tree_inference_method', None), ('node_label_regex', None)]
     for marg, dval in [(a, v) for a, v in reqd_args if not hasattr(args, a)]:  # "required" args, just so when i add an arg to bin/partis i don't also have to add it to smetric-run.py
         setattr(args, marg, dval)
 

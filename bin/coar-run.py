@@ -116,7 +116,7 @@ for atn_t in tru_atn_list:
             atn_i = tatn
             break
     if atn_i is None:
-        raise Exception('couldn\'t find inferred annotation')
+        raise Exception('couldn\'t find inferred annotation (looked in %d inferred annotations)' % len(inf_atn_list))
     dtree_t, dtree_i = [treeutils.get_dendro_tree(treestr=lbplotting.get_tree_in_line(l, is_true)) for is_true, l in [[True, atn_t], [False, atn_i]]]
     seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i) #, debug=args.debug)
     if args.debug:

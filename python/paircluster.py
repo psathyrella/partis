@@ -1423,7 +1423,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 if len(pantn['paired-uids'][ipid]) == 0:
                     pantn['paired-uids'][ipid] = [uid]
                     n_fixed[getloc(pids[0])] += 1
-    if n_fixed > 0:
+    if len(n_fixed) > 0:
         print('     synchronized/fixed %d pairs where one had no pair info after cleaning: %s' % (sum(n for n in n_fixed.values()), '  '.join('%s %d'%(utils.locstr(l), n_fixed[l]) for l in sorted(n_fixed))))
 
     if not args.is_data and (performance_outdir is not None or plotdir is not None):

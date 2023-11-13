@@ -529,9 +529,9 @@ class Hist(object):
             def keep_bin(ib):
                 if isinstance(remove_empty_bins, list):
                     xmin, xmax = remove_empty_bins
-                    if xvals[iv] > xmin and xvals[iv] < xmax:
+                    if xvals[ib] > xmin and xvals[ib] < xmax:
                         return True  # always keep within range
-                return yvals[iv] != 0.
+                return yvals[ib] != 0.
             # ----------------------------------------------------------------------------------------
             xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if keep_bin(iv)])
         if errors and not square_bins:
