@@ -1,429 +1,429 @@
 !!python/object:python.hmmwriter.HMM
 extras:
-  !!python/unicode gene_prob: 0.0625
-  !!python/unicode overall_mute_freq: 0.02520833333333333
-  !!python/unicode per_gene_mute_freq: 0.11455283306510781
-name: !!python/unicode IGHD4-17_star_01
+  gene_prob: 0.0625
+  overall_mute_freq: 0.02520833333333333
+  per_gene_mute_freq: 0.11455283306510781
+name: IGHD4-17_star_01
 states:
 - !!python/object:python.hmmwriter.State
   emissions: null
   extras: {}
-  name: !!python/unicode init
+  name: init
   transitions:
-    !!python/unicode IGHD4-17_star_01_0: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_1: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_10: 3.881898687500548e-19
-    !!python/unicode IGHD4-17_star_01_11: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_12: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_13: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_14: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_15: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_2: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_3: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_4: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_5: 0.006993006993006994
-    !!python/unicode IGHD4-17_star_01_6: 0.005594405594405595
-    !!python/unicode IGHD4-17_star_01_7: 0.004195804195804197
-    !!python/unicode IGHD4-17_star_01_8: 0.0027972027972027976
-    !!python/unicode IGHD4-17_star_01_9: 0.001398601398601399
-    !!python/unicode insert_left_A: 0.14297275424871864
-    !!python/unicode insert_left_C: 0.29134070677097385
-    !!python/unicode insert_left_G: 0.27785271108713244
-    !!python/unicode insert_left_T: 0.19692473698408416
+    IGHD4-17_star_01_0: 0.006993006993006994
+    IGHD4-17_star_01_1: 0.006993006993006994
+    IGHD4-17_star_01_10: 3.881898687500548e-19
+    IGHD4-17_star_01_11: 0.006993006993006994
+    IGHD4-17_star_01_12: 0.006993006993006994
+    IGHD4-17_star_01_13: 0.006993006993006994
+    IGHD4-17_star_01_14: 0.006993006993006994
+    IGHD4-17_star_01_15: 0.006993006993006994
+    IGHD4-17_star_01_2: 0.006993006993006994
+    IGHD4-17_star_01_3: 0.006993006993006994
+    IGHD4-17_star_01_4: 0.006993006993006994
+    IGHD4-17_star_01_5: 0.006993006993006994
+    IGHD4-17_star_01_6: 0.005594405594405595
+    IGHD4-17_star_01_7: 0.004195804195804197
+    IGHD4-17_star_01_8: 0.0027972027972027976
+    IGHD4-17_star_01_9: 0.001398601398601399
+    insert_left_A: 0.14297275424871864
+    insert_left_C: 0.29134070677097385
+    insert_left_G: 0.27785271108713244
+    insert_left_T: 0.19692473698408416
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.8854471669348922
-      !!python/unicode C: 0.038184277688369274
-      !!python/unicode G: 0.038184277688369274
-      !!python/unicode T: 0.038184277688369274
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.8854471669348922
+      C: 0.038184277688369274
+      G: 0.038184277688369274
+      T: 0.038184277688369274
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode A
-  name: !!python/unicode insert_left_A
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: insert_left_A
   transitions:
-    !!python/unicode IGHD4-17_star_01_0: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_1: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_10: 6.262796549167552e-19
-    !!python/unicode IGHD4-17_star_01_11: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_12: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_13: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_14: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_15: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_2: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_3: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_4: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_5: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_6: 0.00902564102564103
-    !!python/unicode IGHD4-17_star_01_7: 0.006769230769230773
-    !!python/unicode IGHD4-17_star_01_8: 0.004512820512820515
-    !!python/unicode IGHD4-17_star_01_9: 0.002256410256410258
-    !!python/unicode insert_left_A: 0.13420375865479722
-    !!python/unicode insert_left_C: 0.2734718100890208
-    !!python/unicode insert_left_G: 0.260811078140455
-    !!python/unicode insert_left_T: 0.18484668644906033
+    IGHD4-17_star_01_0: 0.011282051282051286
+    IGHD4-17_star_01_1: 0.011282051282051286
+    IGHD4-17_star_01_10: 6.262796549167552e-19
+    IGHD4-17_star_01_11: 0.011282051282051286
+    IGHD4-17_star_01_12: 0.011282051282051286
+    IGHD4-17_star_01_13: 0.011282051282051286
+    IGHD4-17_star_01_14: 0.011282051282051286
+    IGHD4-17_star_01_15: 0.011282051282051286
+    IGHD4-17_star_01_2: 0.011282051282051286
+    IGHD4-17_star_01_3: 0.011282051282051286
+    IGHD4-17_star_01_4: 0.011282051282051286
+    IGHD4-17_star_01_5: 0.011282051282051286
+    IGHD4-17_star_01_6: 0.00902564102564103
+    IGHD4-17_star_01_7: 0.006769230769230773
+    IGHD4-17_star_01_8: 0.004512820512820515
+    IGHD4-17_star_01_9: 0.002256410256410258
+    insert_left_A: 0.13420375865479722
+    insert_left_C: 0.2734718100890208
+    insert_left_G: 0.260811078140455
+    insert_left_T: 0.18484668644906033
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.038184277688369274
-      !!python/unicode C: 0.8854471669348922
-      !!python/unicode G: 0.038184277688369274
-      !!python/unicode T: 0.038184277688369274
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.038184277688369274
+      C: 0.8854471669348922
+      G: 0.038184277688369274
+      T: 0.038184277688369274
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode C
-  name: !!python/unicode insert_left_C
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: insert_left_C
   transitions:
-    !!python/unicode IGHD4-17_star_01_0: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_1: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_10: 6.262796549167552e-19
-    !!python/unicode IGHD4-17_star_01_11: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_12: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_13: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_14: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_15: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_2: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_3: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_4: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_5: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_6: 0.00902564102564103
-    !!python/unicode IGHD4-17_star_01_7: 0.006769230769230773
-    !!python/unicode IGHD4-17_star_01_8: 0.004512820512820515
-    !!python/unicode IGHD4-17_star_01_9: 0.002256410256410258
-    !!python/unicode insert_left_A: 0.13420375865479722
-    !!python/unicode insert_left_C: 0.2734718100890208
-    !!python/unicode insert_left_G: 0.260811078140455
-    !!python/unicode insert_left_T: 0.18484668644906033
+    IGHD4-17_star_01_0: 0.011282051282051286
+    IGHD4-17_star_01_1: 0.011282051282051286
+    IGHD4-17_star_01_10: 6.262796549167552e-19
+    IGHD4-17_star_01_11: 0.011282051282051286
+    IGHD4-17_star_01_12: 0.011282051282051286
+    IGHD4-17_star_01_13: 0.011282051282051286
+    IGHD4-17_star_01_14: 0.011282051282051286
+    IGHD4-17_star_01_15: 0.011282051282051286
+    IGHD4-17_star_01_2: 0.011282051282051286
+    IGHD4-17_star_01_3: 0.011282051282051286
+    IGHD4-17_star_01_4: 0.011282051282051286
+    IGHD4-17_star_01_5: 0.011282051282051286
+    IGHD4-17_star_01_6: 0.00902564102564103
+    IGHD4-17_star_01_7: 0.006769230769230773
+    IGHD4-17_star_01_8: 0.004512820512820515
+    IGHD4-17_star_01_9: 0.002256410256410258
+    insert_left_A: 0.13420375865479722
+    insert_left_C: 0.2734718100890208
+    insert_left_G: 0.260811078140455
+    insert_left_T: 0.18484668644906033
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.038184277688369274
-      !!python/unicode C: 0.038184277688369274
-      !!python/unicode G: 0.8854471669348922
-      !!python/unicode T: 0.038184277688369274
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.038184277688369274
+      C: 0.038184277688369274
+      G: 0.8854471669348922
+      T: 0.038184277688369274
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode G
-  name: !!python/unicode insert_left_G
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: insert_left_G
   transitions:
-    !!python/unicode IGHD4-17_star_01_0: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_1: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_10: 6.262796549167552e-19
-    !!python/unicode IGHD4-17_star_01_11: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_12: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_13: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_14: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_15: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_2: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_3: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_4: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_5: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_6: 0.00902564102564103
-    !!python/unicode IGHD4-17_star_01_7: 0.006769230769230773
-    !!python/unicode IGHD4-17_star_01_8: 0.004512820512820515
-    !!python/unicode IGHD4-17_star_01_9: 0.002256410256410258
-    !!python/unicode insert_left_A: 0.13420375865479722
-    !!python/unicode insert_left_C: 0.2734718100890208
-    !!python/unicode insert_left_G: 0.260811078140455
-    !!python/unicode insert_left_T: 0.18484668644906033
+    IGHD4-17_star_01_0: 0.011282051282051286
+    IGHD4-17_star_01_1: 0.011282051282051286
+    IGHD4-17_star_01_10: 6.262796549167552e-19
+    IGHD4-17_star_01_11: 0.011282051282051286
+    IGHD4-17_star_01_12: 0.011282051282051286
+    IGHD4-17_star_01_13: 0.011282051282051286
+    IGHD4-17_star_01_14: 0.011282051282051286
+    IGHD4-17_star_01_15: 0.011282051282051286
+    IGHD4-17_star_01_2: 0.011282051282051286
+    IGHD4-17_star_01_3: 0.011282051282051286
+    IGHD4-17_star_01_4: 0.011282051282051286
+    IGHD4-17_star_01_5: 0.011282051282051286
+    IGHD4-17_star_01_6: 0.00902564102564103
+    IGHD4-17_star_01_7: 0.006769230769230773
+    IGHD4-17_star_01_8: 0.004512820512820515
+    IGHD4-17_star_01_9: 0.002256410256410258
+    insert_left_A: 0.13420375865479722
+    insert_left_C: 0.2734718100890208
+    insert_left_G: 0.260811078140455
+    insert_left_T: 0.18484668644906033
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.038184277688369274
-      !!python/unicode C: 0.038184277688369274
-      !!python/unicode G: 0.038184277688369274
-      !!python/unicode T: 0.8854471669348922
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.038184277688369274
+      C: 0.038184277688369274
+      G: 0.038184277688369274
+      T: 0.8854471669348922
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode T
-  name: !!python/unicode insert_left_T
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: insert_left_T
   transitions:
-    !!python/unicode IGHD4-17_star_01_0: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_1: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_10: 6.262796549167552e-19
-    !!python/unicode IGHD4-17_star_01_11: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_12: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_13: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_14: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_15: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_2: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_3: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_4: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_5: 0.011282051282051286
-    !!python/unicode IGHD4-17_star_01_6: 0.00902564102564103
-    !!python/unicode IGHD4-17_star_01_7: 0.006769230769230773
-    !!python/unicode IGHD4-17_star_01_8: 0.004512820512820515
-    !!python/unicode IGHD4-17_star_01_9: 0.002256410256410258
-    !!python/unicode insert_left_A: 0.13420375865479722
-    !!python/unicode insert_left_C: 0.2734718100890208
-    !!python/unicode insert_left_G: 0.260811078140455
-    !!python/unicode insert_left_T: 0.18484668644906033
+    IGHD4-17_star_01_0: 0.011282051282051286
+    IGHD4-17_star_01_1: 0.011282051282051286
+    IGHD4-17_star_01_10: 6.262796549167552e-19
+    IGHD4-17_star_01_11: 0.011282051282051286
+    IGHD4-17_star_01_12: 0.011282051282051286
+    IGHD4-17_star_01_13: 0.011282051282051286
+    IGHD4-17_star_01_14: 0.011282051282051286
+    IGHD4-17_star_01_15: 0.011282051282051286
+    IGHD4-17_star_01_2: 0.011282051282051286
+    IGHD4-17_star_01_3: 0.011282051282051286
+    IGHD4-17_star_01_4: 0.011282051282051286
+    IGHD4-17_star_01_5: 0.011282051282051286
+    IGHD4-17_star_01_6: 0.00902564102564103
+    IGHD4-17_star_01_7: 0.006769230769230773
+    IGHD4-17_star_01_8: 0.004512820512820515
+    IGHD4-17_star_01_9: 0.002256410256410258
+    insert_left_A: 0.13420375865479722
+    insert_left_C: 0.2734718100890208
+    insert_left_G: 0.260811078140455
+    insert_left_T: 0.18484668644906033
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.038184277688369274
-      !!python/unicode C: 0.038184277688369274
-      !!python/unicode G: 0.038184277688369274
-      !!python/unicode T: 0.8854471669348922
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.038184277688369274
+      C: 0.038184277688369274
+      G: 0.038184277688369274
+      T: 0.8854471669348922
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode T
-  name: !!python/unicode IGHD4-17_star_01_0
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHD4-17_star_01_0
   transitions:
-    !!python/unicode IGHD4-17_star_01_1: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_1: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.03792734186994953
-      !!python/unicode C: 0.03792734186994953
-      !!python/unicode G: 0.8862179743901514
-      !!python/unicode T: 0.03792734186994953
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.03792734186994953
+      C: 0.03792734186994953
+      G: 0.8862179743901514
+      T: 0.03792734186994953
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode G
-  name: !!python/unicode IGHD4-17_star_01_1
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHD4-17_star_01_1
   transitions:
-    !!python/unicode IGHD4-17_star_01_2: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_2: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.8869887818454105
-      !!python/unicode C: 0.037670406051529805
-      !!python/unicode G: 0.037670406051529805
-      !!python/unicode T: 0.037670406051529805
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.8869887818454105
+      C: 0.037670406051529805
+      G: 0.037670406051529805
+      T: 0.037670406051529805
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode A
-  name: !!python/unicode IGHD4-17_star_01_2
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHD4-17_star_01_2
   transitions:
-    !!python/unicode IGHD4-17_star_01_3: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_3: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.03813230718397396
-      !!python/unicode C: 0.8856030784480782
-      !!python/unicode G: 0.03813230718397396
-      !!python/unicode T: 0.03813230718397396
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.03813230718397396
+      C: 0.8856030784480782
+      G: 0.03813230718397396
+      T: 0.03813230718397396
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode C
-  name: !!python/unicode IGHD4-17_star_01_3
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHD4-17_star_01_3
   transitions:
-    !!python/unicode IGHD4-17_star_01_4: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_4: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.03811498368250885
-      !!python/unicode C: 0.03811498368250885
-      !!python/unicode G: 0.03811498368250885
-      !!python/unicode T: 0.8856550489524735
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.03811498368250885
+      C: 0.03811498368250885
+      G: 0.03811498368250885
+      T: 0.8856550489524735
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode T
-  name: !!python/unicode IGHD4-17_star_01_4
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHD4-17_star_01_4
   transitions:
-    !!python/unicode IGHD4-17_star_01_5: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_5: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.8843488199464521
-      !!python/unicode C: 0.03855039335118264
-      !!python/unicode G: 0.03855039335118264
-      !!python/unicode T: 0.03855039335118264
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.8843488199464521
+      C: 0.03855039335118264
+      G: 0.03855039335118264
+      T: 0.03855039335118264
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode A
-  name: !!python/unicode IGHD4-17_star_01_5
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHD4-17_star_01_5
   transitions:
-    !!python/unicode IGHD4-17_star_01_6: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_6: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.0386236164837453
-      !!python/unicode C: 0.8841291505487641
-      !!python/unicode G: 0.0386236164837453
-      !!python/unicode T: 0.0386236164837453
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.0386236164837453
+      C: 0.8841291505487641
+      G: 0.0386236164837453
+      T: 0.0386236164837453
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode C
-  name: !!python/unicode IGHD4-17_star_01_6
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHD4-17_star_01_6
   transitions:
-    !!python/unicode IGHD4-17_star_01_7: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_7: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.03863988829098146
-      !!python/unicode C: 0.03863988829098146
-      !!python/unicode G: 0.8840803351270556
-      !!python/unicode T: 0.03863988829098146
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.03863988829098146
+      C: 0.03863988829098146
+      G: 0.8840803351270556
+      T: 0.03863988829098146
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode G
-  name: !!python/unicode IGHD4-17_star_01_7
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHD4-17_star_01_7
   transitions:
-    !!python/unicode IGHD4-17_star_01_8: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_8: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.03863988829098145
-      !!python/unicode C: 0.03863988829098145
-      !!python/unicode G: 0.8840803351270556
-      !!python/unicode T: 0.03863988829098145
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.03863988829098145
+      C: 0.03863988829098145
+      G: 0.8840803351270556
+      T: 0.03863988829098145
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode G
-  name: !!python/unicode IGHD4-17_star_01_8
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHD4-17_star_01_8
   transitions:
-    !!python/unicode IGHD4-17_star_01_9: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_9: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.0386236164837453
-      !!python/unicode C: 0.0386236164837453
-      !!python/unicode G: 0.0386236164837453
-      !!python/unicode T: 0.8841291505487641
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.0386236164837453
+      C: 0.0386236164837453
+      G: 0.0386236164837453
+      T: 0.8841291505487641
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode T
-  name: !!python/unicode IGHD4-17_star_01_9
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHD4-17_star_01_9
   transitions:
-    !!python/unicode IGHD4-17_star_01_10: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_10: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.03855039335118264
-      !!python/unicode C: 0.03855039335118264
-      !!python/unicode G: 0.8843488199464521
-      !!python/unicode T: 0.03855039335118264
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.03855039335118264
+      C: 0.03855039335118264
+      G: 0.8843488199464521
+      T: 0.03855039335118264
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode G
-  name: !!python/unicode IGHD4-17_star_01_10
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHD4-17_star_01_10
   transitions:
-    !!python/unicode IGHD4-17_star_01_11: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_11: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.8845684893441401
-      !!python/unicode C: 0.03847717021861996
-      !!python/unicode G: 0.03847717021861996
-      !!python/unicode T: 0.03847717021861996
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.8845684893441401
+      C: 0.03847717021861996
+      G: 0.03847717021861996
+      T: 0.03847717021861996
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode A
-  name: !!python/unicode IGHD4-17_star_01_11
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHD4-17_star_01_11
   transitions:
-    !!python/unicode IGHD4-17_star_01_12: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_12: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.03840394708605729
-      !!python/unicode C: 0.8847881587418281
-      !!python/unicode G: 0.03840394708605729
-      !!python/unicode T: 0.03840394708605729
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.03840394708605729
+      C: 0.8847881587418281
+      G: 0.03840394708605729
+      T: 0.03840394708605729
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode C
-  name: !!python/unicode IGHD4-17_star_01_12
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHD4-17_star_01_12
   transitions:
-    !!python/unicode IGHD4-17_star_01_13: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_13: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.038330723953494614
-      !!python/unicode C: 0.038330723953494614
-      !!python/unicode G: 0.038330723953494614
-      !!python/unicode T: 0.8850078281395162
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.038330723953494614
+      C: 0.038330723953494614
+      G: 0.038330723953494614
+      T: 0.8850078281395162
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode T
-  name: !!python/unicode IGHD4-17_star_01_13
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHD4-17_star_01_13
   transitions:
-    !!python/unicode IGHD4-17_star_01_14: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_14: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.8852274975372042
-      !!python/unicode C: 0.03825750082093195
-      !!python/unicode G: 0.03825750082093195
-      !!python/unicode T: 0.03825750082093195
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.8852274975372042
+      C: 0.03825750082093195
+      G: 0.03825750082093195
+      T: 0.03825750082093195
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode A
-  name: !!python/unicode IGHD4-17_star_01_14
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHD4-17_star_01_14
   transitions:
-    !!python/unicode IGHD4-17_star_01_15: 0.9444444444444444
-    !!python/unicode end: 0.05555555555555555
+    IGHD4-17_star_01_15: 0.9444444444444444
+    end: 0.05555555555555555
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.038184277688369274
-      !!python/unicode C: 0.8854471669348922
-      !!python/unicode G: 0.038184277688369274
-      !!python/unicode T: 0.038184277688369274
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.038184277688369274
+      C: 0.8854471669348922
+      G: 0.038184277688369274
+      T: 0.038184277688369274
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode C
-  name: !!python/unicode IGHD4-17_star_01_15
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHD4-17_star_01_15
   transitions:
-    !!python/unicode end: 1.0
+    end: 1.0
 tracks:
-  !!python/unicode nukes:
-  - !!python/unicode A
-  - !!python/unicode C
-  - !!python/unicode G
-  - !!python/unicode T
+  nukes:
+  - A
+  - C
+  - G
+  - T
