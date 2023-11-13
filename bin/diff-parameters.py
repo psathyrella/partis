@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ 
 Replacement for diff -qr  -x\'*.svg\' -x params -x plots.html <arg1> <arg2>, but with more intelligent
 control of yamls (e.g. floating point precision) and csvs (e.g. line order)

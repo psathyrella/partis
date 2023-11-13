@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
 from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
