@@ -200,10 +200,6 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
-        if args.comparison_plots:
-            assert False  # needs updating
-            self.make_comparison_plots()
-            return
         if not args.dont_run:
             self.run(args)
         if args.dry_run or args.bust_cache or args.quick:
@@ -239,8 +235,6 @@ class Tester(object):
             argfo['action'] = 'get-selection-metrics'  # could really remove almost all of the arguments, mostly just need --outfname
         elif 'cache-parameters-' in ptest:
             argfo['action'] = 'cache-parameters'
-            # if True:  #args.make_plots:
-            #     argfo['extras'] += ['--plotdir', 'paired-outdir' if args.paired else self.dirs('new') + '/' + self.label + '/plots/' + input_dtype]  # NOTE this needs lots of testing if i ever uncomment it
         else:
             argfo['action'] = ptest
 
@@ -397,22 +391,6 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def read_each_annotation_performance(self, sequence_multiplicity, version_stype, input_stype, these_are_cluster_annotations=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
         """ version_stype is the code version, while input_stype is the input data version, i.e. 'ref', 'new' is the reference code version (last commit) run on the then-new simulation and parameters"""
-        def read_performance_file(fname, column, only_ibin=None):
-            values = []
-            with open(fname) as csvfile:
-                reader = csv.DictReader(csvfile)
-                ibin = 0
-                for line in reader:
-                    if only_ibin is not None and ibin != only_ibin:
-                        ibin += 1
-                        continue
-                    values.append(float(line[column]))
-                    ibin += 1
-            if len(values) == 1:
-                return values[0]
-            else:
-                return values
-
         if these_are_cluster_annotations:
             ptest = '-'.join(['partition', input_stype, 'simu'])
             methods = ['hmm']
@@ -441,9 +419,6 @@ class Tester(object):
                 perffo[method][bound + '_insertion'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + bound + '_insertion.csv').get_mean(absval=True)
             for erosion in utils.real_erosions:
                 perffo[method][erosion + '_del'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + erosion + '_del.csv').get_mean(absval=True)
-            # for region in utils.regions:
-            #     fraction_correct = read_performance_file(perfdir + '/' + method + '/gene-call/' + region + '_gene.csv', 'contents', only_ibin=1)
-            #     perffo[method][region + '_call'] = fraction_correct
 
     # ----------------------------------------------------------------------------------------
     def do_this_test(self, tstr, input_stype, pt):
@@ -727,41 +702,6 @@ class Tester(object):
             print('')
 
     # ----------------------------------------------------------------------------------------
-    def make_comparison_plots(self):
-        assert False  # self.perfdirs treatment (among probably lots of other things) needs work
-        plotdirs = [
-            # self.perfdirs['ref'] + '/sw',  # ref sw performance
-            # self.perfdirs['ref'] + '/hmm', # ref hmm performance
-            'test/plots/data/sw/overall',          # sw data parameters
-            'test/plots/data/hmm/overall',         # hmm data parameters
-            'test/plots/data/hmm/mute-freqs/overall',
-            'test/plots/data/sw/mute-freqs/overall'
-            # 'test/plots/data/hmm/mute-freqs'
-            # 'test/plots/simu/hmm-true',    # true simulation parameters
-            # 'test/plots/simu/hmm-true/mute-freqs'
-        ]
-        base_check_cmd = './bin/compare.py --linewidths 7:2 --alphas 0.55:1 --str-colors #006600:#990012 --markersizes 3:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414 "
-        if os.getenv('www') is None:
-            www_dir = '_test-plots'
-        else:
-            www_dir = os.getenv('www') + '/partis/test'
-
-        # # if you want to do *all* the subdirs use this:
-        # recursive_subdirs = []
-        # for plotdir in plotdirs:
-        #     find_plotdirs_cmd = 'find ' + self.dirs('ref') + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
-        #     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True, universal_newlines=True).split()
-
-        for plotdir in plotdirs:
-            print(plotdir)
-            check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs('ref') + '/' + plotdir + ':' + self.dirs('new') + '/' + plotdir
-            check_cmd += ' --outdir ' + www_dir + '/' + plotdir
-            check_call(check_cmd.split())
-        
-#            # env.Command('test/_results/%s.passed' % name, out,
-#            #             './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
-        
-    # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype, debug=False):
         # ----------------------------------------------------------------------------------------
         def print_key_differences(vtype, refkeys, newkeys):
@@ -871,11 +811,7 @@ parser.add_argument('--only-bust-current', action='store_true', help='only bust 
 parser.add_argument('--paired', action='store_true', help='run paired tests, i.e. with --paired-loci. Note that this doesn\'t test all the things (e.g. seed partitioning) that non-paired does.')
 parser.add_argument('--run-all', action='store_true', help='run all four combinations of tests: paired/non-paired and slow/non-slow (by default only runs one). *Not* for use with --bust-cache, which runs all of them by default.')
 parser.add_argument('--ig-or-tr', default='ig')
-parser.add_argument('--comparison-plots', action='store_true')
 parser.add_argument('--print-width', type=int, default=300, help='set to 0 for infinite')
-# parser.add_argument('--make-plots', action='store_true')  # needs updating
-# example to make comparison plots:
-#   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
 
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
