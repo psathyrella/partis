@@ -407,7 +407,7 @@ def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, 
 
 # ----------------------------------------------------------------------------------------
 def add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='partition'):
-    parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
+    parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs', default=os.getenv('HOME')), script_base))
     parser.add_argument('--version', default='v0')
     parser.add_argument('--label', default='test')
     parser.add_argument('--dry', action='store_true')

@@ -15,6 +15,7 @@ done
 ./bin/partis plot-partitions --outfname test/ref-results/partition-new-simu.yaml --plotdir $fs/partis/tmp/tmp-plots --partition-plot-cfg trees
 ./bin/plot-hmms.py --outdir $fs/partis/tmp/plots --infiles test/ref-results/test/parameters/data/hmm/hmms/IGHD1-20_star_01.yaml 
 
+# TODO copy yaml file before running selection metrics
 ./bin/partis get-selection-metrics --outfname test/ref-results/partition-new-simu.yaml --tree-inference-method gctree
 ./bin/read-gctree-output.py --locus igh --gctreedir test/ref-results/partition-new-simu/gctree/iclust-0 --outdir $fs/partis/tmp/pout
 
