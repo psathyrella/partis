@@ -2919,11 +2919,11 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             hsil = mtmp[tch]['has_shm_indels']
             tstr = '(%d / %d = %.2f)' % (hsil.count(True), len(hsil), hsil.count(True) / float(len(hsil)))
             if hsil.count(True) / float(len(hsil)) > threshold:
-                print('        %s more than %.2f %s of %s seqs have indels, so using *input* cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), threshold, tstr, tch))
+                print('           %s more than %.2f %s of %s seqs have indels, so using \'input\' (rather than \'indel-reversed\') seqs to calculate cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), threshold, tstr, tch))
                 return True
             else:
                 if any(hsil):  # if none of them have indels, don't print anything
-                    print('        less than %.2f %s of %s seqs have indels, so not using input seqs for cons seq' % (threshold, tstr, tch))
+                    print('           less than %.2f %s of %s seqs have indels, so using \'indel-reversed\' seqs (rather than \'input\' seqs) to calculate cons seq' % (threshold, tstr, utils.locstr(tch)))
                 return False
         # ----------------------------------------------------------------------------------------
         def getcseqs(tch, use_input_seqs, aa=False, aa_ref_seq=None):
@@ -2992,10 +2992,11 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
         if 'max-ambig-positions' in cfgfo:
             obs_mfos = [m for m in obs_mfos if sum(nambig(m, c) for c in 'hl') <= cfgfo['max-ambig-positions']]
         if len(obs_mfos) > 0:  # if we observed the cons seq, use [one of] the observed ones
+            print('           using observed %s seq' % stype)
             obs_mfos = sorted(obs_mfos, key=lambda m: sumv(m, 'seq_mtps', imtp), reverse=True)  # sort by mtpys
             consfo = obs_mfos[0]  # choose the first one
         else:  # if we didn't observe it (with some criteria),  make consfo from scratch
-            print('            %s seq not observed' % stype)
+            print('           %s seq not observed' % stype)
             consfo = get_unobs_mfo(stype, metric_pairs)
             n_ambig_bases = sum(nambig(consfo, c, antn=metric_pairs[0][c]) for c in 'hl')
             if 'max-ambig-positions' in cfgfo and n_ambig_bases > cfgfo['max-ambig-positions']:
@@ -3176,6 +3177,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             sorted_mfos = metric_pairs
             sorted_mfos = sorted(sorted_mfos, key=lambda m: sumv(m, 'seq_mtps', imtp), reverse=True)
             sorted_mfos = sorted(sorted_mfos, key=lambda m: sumv(m, sortvar, imtp), reverse=vcfg['sort']=='high')
+            shm_indel_ids = []
             for mfo in sorted_mfos:
                 if finished(tcfg=vcfg, n_newly_chosen=n_this_var_chosen):
                     break
@@ -3189,11 +3191,14 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                     n_too_close += 1
                     continue
                 if any(gsval(mfo, c, 'has_shm_indels') for c in 'hl'):
-                    print('          %s choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids')))
+                    shm_indel_ids.append([gsval(mfo, c, 'unique_ids') for c in 'hl' if gsval(mfo, c, 'has_shm_indels')])
                 chosen_mfos.append(mfo)
                 all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                 n_this_var_chosen += 1  # number chosen from this sortvar
 
+            if len(shm_indel_ids) > 0:
+                print('          %s chose %d abs with shm indels): the consensus sequence may or may not reflect the indels (see previous lines -- whether \'input\' or \'indel-reversed\' seqs were used to calculate consensus depends on the fraction of seqs in the family with indels). uids: %s' %
+                      (utils.color('yellow', 'warning'), len(shm_indel_ids), ' '.join(sorted(u for ulist in shm_indel_ids for u in ulist))))
             if tdbg:
                 print('        %s: chose %d%s%s%s' % (sortvar, n_this_var_chosen,
                                                     '' if n_prev_var_chosen==0 else ' (%d were in common with a previous var)'%n_prev_var_chosen,
