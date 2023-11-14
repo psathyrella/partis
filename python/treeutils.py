@@ -3235,7 +3235,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
                 for kn in [('aa-cfrac',), ('aa-cdist',), ('tot-shm-aa', 'shm-aa'), ('tot-shm-nuc-pct', 'mut_freqs')] + [(m,) for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']:
                     ok, lk = kn if len(kn)==2 else (kn[0], kn[0])
-                    ofo.update([(ok, gsval(mfo, 'p', lk))])
+                    ofo.update([(ok, gsval(mfo, 'p', lk, no_fail=True))])
             else:
                 def gid(mfo, c):
                     hstr = utils.uidhashstr(getseq(mfo, c, aa=True))[:hash_len]

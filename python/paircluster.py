@@ -366,6 +366,7 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
 def gsval(mfo, tch, vname, no_fail=False):
     if tch+'_iseq' not in mfo:  # ick
         return None
+    assert tch in 'hlp'  # heavy, light, or fake paired
     cln, iseq = mfo[tch if tch in 'hl' else tch+'_atn'], mfo[tch+'_iseq']
     return utils.antnval(cln, vname, iseq, use_default=no_fail)
 # ----------------------------------------------------------------------------------------
