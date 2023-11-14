@@ -272,15 +272,23 @@ class Tester(object):
                 print('    removing %s' % sdir)
                 shutil.rmtree(sdir)
         # ----------------------------------------------------------------------------------------
-        # delete old partition cache file
+        def rm_file(fn):
+            if args.dry_run:
+                print('   would remove %s' % fn)
+            else:
+                check_call(['rm', '-v', fn])
+        # ----------------------------------------------------------------------------------------
+        # delete any old partition cache files
         if name == 'partition-' + info['input_stype'] + '-simu':
-            # cachefnames = [self.dirs('new') + '/' + self.ptn_cachefn(info['input_stype'], locus=l) for l in (utils.sub_loci(args.ig_or_tr) if args.paired else [None])]
             cachefnames = ['%s/%s' % (self.dirs('new'), f) for f in self.all_ptn_cachefns()]
             for cfn in [f for f in cachefnames if os.path.exists(f)]:
-                if args.dry_run:
-                    print('   would remove %s' % cfn)
-                else:
-                    check_call(['rm', '-v', cfn])
+                rm_file(cfn)
+        # and any old tree inference files
+        if name == 'partition-' + info['input_stype'] + '-simu':
+            ft_fnames = glob.glob('%s/fasttree/iclust-*/fasttree.out' % self.opath('partition-new-simu', st='new'))
+            iq_fnames = glob.glob('%s/iqtree/iclust-*/out.treefile' % self.opath('partition-new-simu', st='new'))
+            for ffn in [f for f in ft_fnames + iq_fnames if os.path.exists(f)]:
+                rm_file(ffn)
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
