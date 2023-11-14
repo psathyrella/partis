@@ -170,7 +170,7 @@ class Tester(object):
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
                 self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
-            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired']}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
+            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired', '--min-selection-metric-cluseter-size', '3']}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
         if args.quick:
             self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.nqr('quick'))]}
@@ -180,7 +180,7 @@ class Tester(object):
             n_events = int(self.nqr('simu') / float(self.n_simu_leaves))
             simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', str(self.n_simu_leaves)]}
             if args.paired:
-                simulate_args['extras'] += ['--min-observations-per-gene', '5', '--mean-cells-per-droplet', '1.5', '--constant-cells-per-droplet', '--fraction-of-reads-to-remove', '0.15']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
+                simulate_args['extras'] += ['--min-observations-per-gene', '5', '--mean-cells-per-droplet', '1.25', '--constant-cells-per-droplet', '--fraction-of-reads-to-remove', '0.15']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
             if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
                 self.tests['cache-parameters-data'] = pcache_data_args
                 self.tests['simulate'] = simulate_args
@@ -264,7 +264,14 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def prepare_to_run(self, args, name, info):
         """ Pre-run stuff that you don't want to do until *right* before you actually run. """
-
+        # ----------------------------------------------------------------------------------------
+        def clean_old_seed_dir(sdir):  # rm whole seed dir to make sure the dir for the previous seed id doesn't hang around
+            if args.dry_run:
+                print('    would rm %s' % sdir)
+            else:  # maybe i should just rm the output dir for every test before running? although it might get complicated since some of them i think share dirs
+                print('    removing %s' % sdir)
+                shutil.rmtree(sdir)
+        # ----------------------------------------------------------------------------------------
         # delete old partition cache file
         if name == 'partition-' + info['input_stype'] + '-simu':
             # cachefnames = [self.dirs('new') + '/' + self.ptn_cachefn(info['input_stype'], locus=l) for l in (utils.sub_loci(args.ig_or_tr) if args.paired else [None])]
@@ -282,6 +289,9 @@ class Tester(object):
             if args.paired:
                 seed_uid, seed_loci = seed_uid
                 info['extras'] += ['--seed-unique-id', ':'.join(seed_uid), '--seed-loci', ':'.join(seed_loci)]
+                sdir = '%s/seeds' % self.opath(name, st=info['input_stype'])
+                if os.path.exists(sdir):
+                    clean_old_seed_dir(sdir)
             else:
                 info['extras'] += ['--seed-unique-id', seed_uid]
 
@@ -356,7 +366,7 @@ class Tester(object):
                 print('expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content))))
             raise Exception('unexpected or missing content in reference dir (see above)')
         for fname in [self.dirs('ref') + '/' + ec for ec in expected_content]:
-            print('    rm %s' % fname)
+            print('    %srm %s' % ('(would) ' if args.dry_run else '', fname))
             if args.dry_run:
                 continue
             if os.path.isdir(fname):
@@ -376,7 +386,7 @@ class Tester(object):
         self.remove_reference_results(expected_content)
 
         # copy over parameters, simulation, and plots
-        print('  copy new files to ref')
+        print('  mv new files to ref')
         for fname in expected_content:
             print('    mv %s   -->  %s/' % (fname, self.dirs('ref')))
             if args.dry_run:
@@ -484,6 +494,7 @@ class Tester(object):
         # ----------------------------------------------------------------------------------------
         def read_smfile(fname, smfo):
             if not os.path.exists(fname):  # probably e.g. igh+igl for a sample with only igh+igk
+                print('  %s selection metric output file doesn\'t exist: %s' % (utils.wrnstr(), fname))
                 return
             with open(fname) as yfile:
                 lbfos = yaml.load(yfile, Loader=yaml.CLoader)

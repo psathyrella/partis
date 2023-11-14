@@ -6157,6 +6157,23 @@ def find_genes_that_have_hmms(parameter_dir):
 #   - for paired, pass in the output dir
 # <iseed>: skip this many clusters that meet the other criteria (then choose the next one)
 def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=None, n_max_queries=-1, choose_random=False, paired=False, ig_or_tr='ig', debug=True):
+    # ----------------------------------------------------------------------------------------
+    def choose_sid(sclust):
+        iseq = 0
+        if not paired:
+            return sclust[iseq], None  # don't think it matters which one
+        antn_dict = get_annotation_dict(annotation_list)
+        antn = antn_dict[':'.join(sclust)]
+        for iseq, uid in enumerate(antn['unique_ids']):
+            pids = antn['paired-uids'][iseq]
+            if len(pids) == 0:
+                continue
+            correctly_paired_ids = [p for p in pids if is_correctly_paired(uid, p)]
+            if len(correctly_paired_ids) == 0:
+                continue
+            return uid, get_single_entry(correctly_paired_ids)
+        raise Exception('couldn\'t find a seed id in cluster with size %d (none had their correct paired id among their \'paired-uids\')')
+    # ----------------------------------------------------------------------------------------
     if paired:
         from . import paircluster  # it barfs if i import at the top, and i know that means i'm doing something dumb, but whatever
         infname = paircluster.paired_fn(infname, heavy_locus(ig_or_tr), suffix='.yaml')  # heavy chains seqs paired with either light chain
@@ -6166,8 +6183,8 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
         iseed = random.randint(0, len(cpath.best()) - 1)  # inclusive
 
     nth_seed = 0  # numbrer of clusters we've passed that meet the other criteria
-    sid, scluster = None, None
-    for cluster in cpath.best():
+    sid, pid, scluster = None, None, None
+    for cluster in sorted(cpath.best(), key=len, reverse=True):
         if min_cluster_size is not None and len(cluster) < min_cluster_size:
             continue
         if max_cluster_size is not None and len(cluster) > max_cluster_size:
@@ -6175,14 +6192,13 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
         if iseed is not None and int(iseed) > nth_seed:
             nth_seed += 1
             continue
-        sid, scluster = cluster[0], cluster
+        scluster = cluster
+        sid, pid = choose_sid(cluster)
         break
     if sid is None:
         raise Exception('couldn\'t find seed in cluster between size %d and %d' % (min_cluster_size, max_cluster_size))
 
     if paired:
-        antn_dict = get_annotation_dict(annotation_list)
-        pid = get_single_entry([p for p in per_seq_val(antn_dict[':'.join(scluster)], 'paired-uids', sid) if is_correctly_paired(sid, p)])
         plocus = pid.split('-')[-1]
         if plocus not in loci:
             raise Exception('couldn\'t get allowed locus (got \'%s\') from uid \'%s\'' % (plocus, pid))
