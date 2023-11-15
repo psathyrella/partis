@@ -702,7 +702,12 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq):
     out_height = get_mean_leaf_height(tree=out_dtree)
     base_width = 100
     in_ascii_str = get_ascii_tree(dendro_tree=in_dtree, extra_str='      ', width=base_width)  # make copies before the following functions mess the trees up
-    out_ascii_str = get_ascii_tree(dendro_tree=out_dtree, extra_str='        ', width=int(base_width*out_height/in_height))
+    if in_height > 0:
+        out_width = int(base_width*out_height/in_height)
+    else:
+        out_width = base_width
+        print('  %s in_height is zero, so can\'t properly scale output ascii tree width' % utils.wrnstr())
+    out_ascii_str = get_ascii_tree(dendro_tree=out_dtree, extra_str='        ', width=out_width)
     print('  comparing input and bppseqgen output trees:')
     print('                   heights: %.3f   %.3f' % (in_height, out_height))
     print('      symmetric difference: %d' % dendropy.calculate.treecompare.symmetric_difference(in_dtree, out_dtree))  # WARNING these functions modify the tree (i think by removing unifurcations) becuase OF COURSE THEY DO, wtf
