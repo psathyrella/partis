@@ -1,6 +1,6 @@
 [92mcache-parameters-data[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --paired-loci --infname test/paired-data/all-seqs.fa --parameter-dir test/paired/new-results/test/parameters/data --n-max-queries 100 --random-seed 1 --n-procs 10
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
-[91mrun[0m /home/dralph/work/partis/bin/extract-pairing-info.py test/paired-data/all-seqs.fa /tmp/dralph/hmms/750091/meta.yaml --n-max-queries 100
+[91mrun[0m /home/dralph/work/partis/bin/extract-pairing-info.py test/paired-data/all-seqs.fa /tmp/dralph/hmms/916011/meta.yaml --n-max-queries 100
   --n-max-queries: chose 48 / 48 droplets (first 100, after sorting alphabetically by droplet id) which had 100 / 100 seqs
   extract_pairing_info(): read 100 sequences with 48 droplet ids
     droplet id separators (set automatically): _  indices: [0]
@@ -11,9 +11,9 @@
         2           42     0.875
         3            2     0.042
         4            2     0.042
-[91mrun[0m /home/dralph/work/partis/bin/split-loci.py test/paired-data/all-seqs.fa --outdir /tmp/dralph/hmms/750091 --input-metafname /tmp/dralph/hmms/750091/meta.yaml --n-max-queries 100
+[91mrun[0m /home/dralph/work/partis/bin/split-loci.py test/paired-data/all-seqs.fa --outdir /tmp/dralph/hmms/916011 --input-metafname /tmp/dralph/hmms/916011/meta.yaml --n-max-queries 100
   --n-max-queries: chose 48 / 48 droplets (first 100, after sorting alphabetically by droplet id) which had 100 / 100 seqs
-  --input-metafnames: added meta info for 100 sequences from /tmp/dralph/hmms/750091/meta.yaml: paired-uids
+  --input-metafnames: added meta info for 100 sequences from /tmp/dralph/hmms/916011/meta.yaml: paired-uids
     read pairing info for 100 seqs from input meta file
   running vsearch on 100 sequences:
     igh:   49 / 100 v annotations (51 failed) with 28 v genes in 0.1 sec
@@ -37,10 +37,10 @@ totals: igh 48 igk 37 igl 15
                2   0.13   [94mh[0m [92ml[0m
                1   0.07   [94mh[0m [94mh[0m [95mk[0m
                1   0.07   [94mh[0m [95mk[0m
-writing to /tmp/dralph/hmms/750091/
-  igh: 48 to 750091/igh.fa
-  igk: 37 to 750091/igk.fa
-  igl: 15 to 750091/igl.fa
+writing to /tmp/dralph/hmms/916011/
+  igh: 48 to 916011/igh.fa
+  igk: 37 to 916011/igk.fa
+  igl: 15 to 916011/igl.fa
 writing to paired subdirs
     36/48 igh seqs pair with igk
       igh: 36 to igh+igk/igh.fa
@@ -49,10 +49,10 @@ writing to paired subdirs
       igh: 15 to igh+igl/igh.fa
       igl: 15 to igh+igl/igl.fa
 [44mcache-parameters[0m [94migh[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igh --dont-write-git-info --infname /tmp/dralph/hmms/750091/igh.fa --parameter-dir test/paired/new-results/test/parameters/data/igh --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results/test/parameters/data/igh/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/750091/meta.yaml
-  --input-metafnames: added meta info for 48 sequences from /tmp/dralph/hmms/750091/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igh --dont-write-git-info --infname /tmp/dralph/hmms/916011/igh.fa --parameter-dir test/paired/new-results/test/parameters/data/igh --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results/test/parameters/data/igh/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/916011/meta.yaml
+  --input-metafnames: added meta info for 48 sequences from /tmp/dralph/hmms/916011/meta.yaml: paired-uids
 caching parameters
-  vsearch: 48 / 48 v annotations (0 failed) with 27 v genes in 0.1 sec
+  vsearch: 48 / 48 v annotations (0 failed) with 27 v genes in 0.2 sec
     keeping 23 / 198 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 48 / 48 v annotations (0 failed) with 23 v genes in 0.1 sec
@@ -60,7 +60,7 @@ smith-waterman  (new-allele fitting)
     running 10 procs for 48 seqs
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
-    water time: 0.1  (ig-sw 0.0  processing 0.1)
+    water time: 0.2  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 48 / 48 v annotations (0 failed) with 23 v genes in 0.1 sec
     running 10 procs for 48 seqs
@@ -68,7 +68,7 @@ smith-waterman  (writing parameters)
       kept 1 (0.021) unproductive
         writing sw results to test/paired/new-results/test/parameters/data/igh/sw-cache.yaml
     writing parameters to test/paired/new-results/test/parameters/data/igh/sw (2.6 sec)
-    water time: 2.8  (ig-sw 2.6  processing 0.1)
+    water time: 2.8  (ig-sw 2.7  processing 0.1)
   writing hmms     removed 13 genes from glfo (leaving v 23  d 19  j 6)
 (0.2 sec)
 hmm
@@ -79,10 +79,10 @@ hmm
       hmm step time: 2.8
   writing hmms     removed 1  genes from glfo (leaving v 23  d 18  j 6)
 (0.2 sec)
-      total time: 6.5
+      total time: 6.6
 [44mcache-parameters[0m [94migk[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --infname /tmp/dralph/hmms/750091/igk.fa --parameter-dir test/paired/new-results/test/parameters/data/igk --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results/test/parameters/data/igk/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/750091/meta.yaml
-  --input-metafnames: added meta info for 37 sequences from /tmp/dralph/hmms/750091/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --infname /tmp/dralph/hmms/916011/igk.fa --parameter-dir test/paired/new-results/test/parameters/data/igk --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results/test/parameters/data/igk/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/916011/meta.yaml
+  --input-metafnames: added meta info for 37 sequences from /tmp/dralph/hmms/916011/meta.yaml: paired-uids
 caching parameters
   vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
     keeping 16 / 64 v genes
@@ -94,7 +94,7 @@ smith-waterman  (new-allele fitting)
       kept 1 (0.027) unproductive
     water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
+  vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.0 sec
     running 10 procs for 37 seqs
       info for 37 / 37 = 1.000   (removed: 0 failed)
       kept 1 (0.027) unproductive
@@ -106,15 +106,15 @@ smith-waterman  (writing parameters)
 hmm
     reading output
         read 37 hmm output lines with 37 sequences in 37 events  (0 failures)
-    writing parameters to test/paired/new-results/test/parameters/data/igk/hmm (1.5 sec)
+    writing parameters to test/paired/new-results/test/parameters/data/igk/hmm (1.6 sec)
          infra time: 1.6
       hmm step time: 1.9
   writing hmms     removed 0  genes from glfo (leaving v 16  d 1  j 7)
 (0.1 sec)
       total time: 4.5
 [44mcache-parameters[0m [94migl[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --infname /tmp/dralph/hmms/750091/igl.fa --parameter-dir test/paired/new-results/test/parameters/data/igl --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results/test/parameters/data/igl/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/750091/meta.yaml
-  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/hmms/750091/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --infname /tmp/dralph/hmms/916011/igl.fa --parameter-dir test/paired/new-results/test/parameters/data/igl --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results/test/parameters/data/igl/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/916011/meta.yaml
+  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/hmms/916011/meta.yaml: paired-uids
 caching parameters
   vsearch: 15 / 15 v annotations (0 failed) with 12 v genes in 0.1 sec
     keeping 10 / 80 v genes
@@ -137,13 +137,13 @@ hmm
     reading output
         read 15 hmm output lines with 15 sequences in 15 events  (0 failures)
     writing parameters to test/paired/new-results/test/parameters/data/igl/hmm (1.0 sec)
-         infra time: 1.0
+         infra time: 1.1
       hmm step time: 1.2
   writing hmms     removed 0  genes from glfo (leaving v 10  d 1  j 3)
 (0.1 sec)
       total time: 3.1
-      [93mwarning[0m expected to remove 1/11 files+dirs that weren't in /tmp/dralph/hmms/750091/: failed.fa
-      total time: 16.0
+      [93mwarning[0m expected to remove 1/11 files+dirs that weren't in /tmp/dralph/hmms/916011/: failed.fa
+      total time: 16.1
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --paired-loci --parameter-dir test/paired/new-results/test/parameters/data --n-sim-events 10 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/test/simu --indel-frequency 0.2
     cleaning paired files in test/paired/new-results/test/simu/
 [94migh+igk[0m: simulating 7 events
@@ -160,91 +160,91 @@ hmm
 simulating
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/461432/trees-sub-0.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/6063/trees-sub-0.nwk
     made 1 event with 12 seqs in 0.3s (0.2s of which was running bppseqgen)
       total time: 0.6
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/461432/trees-sub-1.nwk
-    made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/6063/trees-sub-1.nwk
+    made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/461432/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/6063/trees-sub-2.nwk
     made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 3
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/461432/trees-sub-3.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/6063/trees-sub-3.nwk
     made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 4
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/461432/trees-sub-4.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/6063/trees-sub-4.nwk
     made 1 event with 2 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 5
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/461432/trees-sub-5.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/6063/trees-sub-5.nwk
     made 1 event with 9 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 6
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/461432/trees-sub-6.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/6063/trees-sub-6.nwk
     made 1 event with 8 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.5
 
    read 7 events with 39 seqs from 7 .yaml files
-      total time: 1.3
+      total time: 1.4
 [44msimulate[0m [94migh+igk[0m:[94m igk[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igk --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 2077655082 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igk/igk.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igk/trees.nwk
   note: reducing --n-procs to 7 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/298583/trees-sub-0.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/586070/trees-sub-0.nwk
     made 1 event with 12 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.6
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/298583/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/586070/trees-sub-1.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.4
+      total time: 0.5
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/298583/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/586070/trees-sub-2.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 3
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/298583/trees-sub-3.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/586070/trees-sub-3.nwk
     made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 4
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/298583/trees-sub-4.nwk
-    made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/586070/trees-sub-4.nwk
+    made 1 event with 2 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 5
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/298583/trees-sub-5.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/586070/trees-sub-5.nwk
     made 1 event with 9 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.6
+      total time: 0.5
 
       --> proc 6
     reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/298583/trees-sub-6.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/586070/trees-sub-6.nwk
     made 1 event with 8 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.5
 
@@ -264,60 +264,540 @@ simulating
 simulating
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/999156/trees-sub-0.nwk
-    made 1 event with 14 seqs in 0.2s (0.2s of which was running bppseqgen)
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/563747/trees-sub-0.nwk
+    made 1 event with 14 seqs in 0.3s (0.2s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/999156/trees-sub-1.nwk
-    made 1 event with 3 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.5
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/563747/trees-sub-1.nwk
+    made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
+      total time: 0.4
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/999156/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/563747/trees-sub-2.nwk
     made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 0.4
+      total time: 0.5
 
    read 3 events with 27 seqs from 3 .yaml files
-      total time: 1.1
+      total time: 1.2
 [44msimulate[0m [94migh+igl[0m:[94m igl[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igl --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1083609742 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igl/igl.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igl/trees.nwk
   note: reducing --n-procs to 3 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 0
     reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/134317/trees-sub-0.nwk
-    made 1 event with 14 seqs in 0.3s (0.2s of which was running bppseqgen)
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/849640/trees-sub-0.nwk
+    made 1 event with 14 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.5
 
       --> proc 1
     reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/134317/trees-sub-1.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/849640/trees-sub-1.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 0.3
+      total time: 0.4
 
       --> proc 2
     reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/134317/trees-sub-2.nwk
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/849640/trees-sub-2.nwk
     made 1 event with 10 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.4
 
    read 3 events with 27 seqs from 3 .yaml files
       total time: 1.1
 [94migh+igk[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results/test/simu/igh+igk/
+    before:
+      heavy:
+                                                                                                              /----------------------------------------------------------------------------------- [94m6f9651598e[0m   
+                             /--------------------------------------------------------------------------------[94macj[0m                                                                                               
+                             |                                                                                \----------------------------------------------------------------------------------- [94m9304545d73[0m   
+                             |                                                                                                                                                                                  
+                             |               /---------------------------------------------------------------------------------------------------------------------------------------------------- [94m812fe48997[0m   
+                             |      /--------[94mqtz[0m                                                                                                                                                                
+                          /--[94moxy[0m    |        |        /------------------------------------------------------------------------------------------------------------------------------------------- [94m4c55c69cad[0m   
+                          |  |      |        \--------[94mabi[0m                                                                                                                                                       
+                          |  |     /[94mltu[0m               |    /-------------------------------------------------------------------------------------------------------------------------------------- [94m6cc9162fd7[0m   
+                          |  |     ||                 \----[94mbtu[0m                                                                                                                                                  
+                          |  |     ||                      \-------------------------------------------------------------------------------------------------------------------------------------- [94m2a590602b5[0m   
+                          |  |     ||                                                                                                                                                                           
+                          |  \-----[94mlnz[0m  ---------------------------------------------------------------------------------------------------------------------------------------------------------- [94m0faf0b57d9[0m   
+                          |        |                                                                                                                                                                            
+        [94makt[0m  -------------[94mdhn[0m      |  /------------------------------------------------------------------------------------------------------------------------------------------------------------ [94mf0d4e06671[0m  
+                          |        |  |                                                                                                                                                                         
+                          |        \--[94mfop[0m                                                                                                                    /------------------------------------ [94m38b17e4e56[0m   
+                          |           |                          /-------------------------------------------------------------------------------------------[94mioz[0m                                                
+                          |           \--------------------------[94mahm[0m                                                                                         \------------------------------------ [94m1449b86210[0m   
+                          |                                      |                                                                                                                                              
+                          |                                      \-------------------------------------------------------------------------------------------------------------------------------- [94m2d9b0548e0[0m   
+                          |                                                                                                                                                                                     
+                          \----------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94m83585ecba0[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+                                                                                                              /----------------------------------------------------------------------------------- [94me0c5d92a36[0m   
+                             /--------------------------------------------------------------------------------[94majt[0m                                                                                               
+                             |                                                                                \----------------------------------------------------------------------------------- [94mbc8308392a[0m   
+                             |                                                                                                                                                                                  
+                             |               /---------------------------------------------------------------------------------------------------------------------------------------------------- [94m785b68c2a0[0m   
+                             |      /--------[94mijo[0m                                                                                                                                                                
+                          /--[94mgvw[0m    |        |        /------------------------------------------------------------------------------------------------------------------------------------------- [94m48b1de810a[0m   
+                          |  |      |        \--------[94mhxy[0m                                                                                                                                                       
+                          |  |     /[94mlot[0m               |    /-------------------------------------------------------------------------------------------------------------------------------------- [94mc7f2f21b0f[0m   
+                          |  |     ||                 \----[94moux[0m                                                                                                                                                  
+                          |  |     ||                      \-------------------------------------------------------------------------------------------------------------------------------------- [94mfd7126e73f[0m   
+                          |  |     ||                                                                                                                                                                           
+                          |  \-----[94mlmr[0m  ---------------------------------------------------------------------------------------------------------------------------------------------------------- [94m7c10df8e5b[0m   
+                          |        |                                                                                                                                                                            
+        [94mbkq[0m  -------------[94mjwy[0m      |  /------------------------------------------------------------------------------------------------------------------------------------------------------------ [94m41c9b22379[0m  
+                          |        |  |                                                                                                                                                                         
+                          |        \--[94mflx[0m                                                                                                                    /------------------------------------ [94m12243cc549[0m   
+                          |           |                          /-------------------------------------------------------------------------------------------[94mdmy[0m                                                
+                          |           \--------------------------[94mjmo[0m                                                                                         \------------------------------------ [94mf1879a493f[0m   
+                          |                                      |                                                                                                                                              
+                          |                                      \-------------------------------------------------------------------------------------------------------------------------------- [94mff0d65e2c7[0m   
+                          |                                                                                                                                                                                     
+                          \----------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94m59b9a13e26[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+    after:
+      symmetric difference: 0
+      heavy:
+                                                                                                            /--------------------------------------------------------------------------------- [94m3c5f4c778a-igh[0m   
+                            /-------------------------------------------------------------------------------[94macj[0m                                                                                                 
+                            |                                                                               \--------------------------------------------------------------------------------- [94m276733008f-igh[0m   
+                            |                                                                                                                                                                                   
+                            |               /------------------------------------------------------------------------------------------------------------------------------------------------- [94mdb63559ea9-igh[0m   
+                            |       /-------[94mqtz[0m                                                                                                                                                                 
+                         /--[94moxy[0m     |       |        /---------------------------------------------------------------------------------------------------------------------------------------- [94mbb82ebe094-igh[0m   
+                         |  |       |       \--------[94mabi[0m                                                                                                                                                        
+                         |  |      /[94mltu[0m              |    /----------------------------------------------------------------------------------------------------------------------------------- [94m83d3e14e07-igh[0m   
+                         |  |      ||                \----[94mbtu[0m                                                                                                                                                   
+                         |  |      ||                     \----------------------------------------------------------------------------------------------------------------------------------- [94m2f53ff19a5-igh[0m   
+                         |  |      ||                                                                                                                                                                           
+                         |  \------[94mlnz[0m  ------------------------------------------------------------------------------------------------------------------------------------------------------ [94m19936ac0d3-igh[0m   
+                         |         |                                                                                                                                                                            
+        [94makt[0m  ------------[94mdhn[0m       | /--------------------------------------------------------------------------------------------------------------------------------------------------------- [94m3542bd38d8-igh[0m  
+                         |         | |                                                                                                                                                                          
+                         |         \-[94mfop[0m                                                                                                                  /----------------------------------- [94m3b28d3b9d7-igh[0m   
+                         |           |                          /-----------------------------------------------------------------------------------------[94mioz[0m                                                   
+                         |           \--------------------------[94mahm[0m                                                                                       \----------------------------------- [94m337126e87c-igh[0m   
+                         |                                      |                                                                                                                                               
+                         |                                      \----------------------------------------------------------------------------------------------------------------------------- [94mf9dc4ecafe-igh[0m   
+                         |                                                                                                                                                                                      
+                         \-------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94me6fa048856-igh[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+                                                                                                            /--------------------------------------------------------------------------------- [94m3c5f4c778a-igk[0m   
+                            /-------------------------------------------------------------------------------[94majt[0m                                                                                                 
+                            |                                                                               \--------------------------------------------------------------------------------- [94m276733008f-igk[0m   
+                            |                                                                                                                                                                                   
+                            |               /------------------------------------------------------------------------------------------------------------------------------------------------- [94mdb63559ea9-igk[0m   
+                            |       /-------[94mijo[0m                                                                                                                                                                 
+                         /--[94mgvw[0m     |       |        /---------------------------------------------------------------------------------------------------------------------------------------- [94mbb82ebe094-igk[0m   
+                         |  |       |       \--------[94mhxy[0m                                                                                                                                                        
+                         |  |      /[94mlot[0m              |    /----------------------------------------------------------------------------------------------------------------------------------- [94m83d3e14e07-igk[0m   
+                         |  |      ||                \----[94moux[0m                                                                                                                                                   
+                         |  |      ||                     \----------------------------------------------------------------------------------------------------------------------------------- [94m2f53ff19a5-igk[0m   
+                         |  |      ||                                                                                                                                                                           
+                         |  \------[94mlmr[0m  ------------------------------------------------------------------------------------------------------------------------------------------------------ [94m19936ac0d3-igk[0m   
+                         |         |                                                                                                                                                                            
+        [94mbkq[0m  ------------[94mjwy[0m       | /--------------------------------------------------------------------------------------------------------------------------------------------------------- [94m3542bd38d8-igk[0m  
+                         |         | |                                                                                                                                                                          
+                         |         \-[94mflx[0m                                                                                                                  /----------------------------------- [94m3b28d3b9d7-igk[0m   
+                         |           |                          /-----------------------------------------------------------------------------------------[94mdmy[0m                                                   
+                         |           \--------------------------[94mjmo[0m                                                                                       \----------------------------------- [94m337126e87c-igk[0m   
+                         |                                      |                                                                                                                                               
+                         |                                      \----------------------------------------------------------------------------------------------------------------------------- [94mf9dc4ecafe-igk[0m   
+                         |                                                                                                                                                                                      
+                         \-------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94me6fa048856-igk[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+    before:
+      heavy:
+        zero height
+      light:
+        zero height
+    after:
+      symmetric difference: 0
+      heavy:
+        zero height
+      light:
+        zero height
+    before:
+      heavy:
+        zero height
+      light:
+        zero height
+    after:
+      symmetric difference: 0
+      heavy:
+        zero height
+      light:
+        zero height
+    before:
+      heavy:
+        zero height
+      light:
+                                                                                                                /---------------------------------------------------------------------------------- [94mc4072561c8[0m  
+        [94mmrx[0m  ---------------------------------------------------------------------------------------------------[94mdku[0m                                                                                             
+                                                                                                                \---------------------------------------------------------------------------------- [94m0591bc23c8[0m  
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+    after:
+      symmetric difference: 0
+      heavy:
+        zero height
+      light:
+                                                                                                              /-------------------------------------------------------------------------------- [94ma972a88eeb-igk[0m  
+        [94mmrx[0m  -------------------------------------------------------------------------------------------------[94mdku[0m                                                                                               
+                                                                                                              \-------------------------------------------------------------------------------- [94m75cdfafb3b-igk[0m  
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+    before:
+      heavy:
+        zero height
+      light:
+        zero height
+    after:
+      symmetric difference: 0
+      heavy:
+        zero height
+      light:
+        zero height
+    before:
+      heavy:
+                                                                                                                                                                                            /----- [94m09f774de3e[0m   
+                                                /-------------------------------------------------------------------------------------------------------------------------------------------[94mchv[0m                 
+                                                |                                                                                                                                           \----- [94m75f148a3c3[0m   
+          /-------------------------------------[94msyz[0m                                                                                                                                                             
+          |                                     |                            /-------------------------------------------------------------------------------------------------------------------- [94m86b31b6ab6[0m   
+          |                                     |                       /----[94mdgx[0m                                                                                                                                
+          |                                     \-----------------------[94mixz[0m  \-------------------------------------------------------------------------------------------------------------------- [94mb96edeb439[0m   
+        [94memy[0m  x[0m                                                           |                                                                                                                                       
+          |                                                             \------------------------------------------------------------------------------------------------------------------------- [94m2e4f1325ed[0m   
+          |                                                                                                                                                                                                     
+          | /-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94mf23fe28832[0m  
+          | |                                                                                                                                                                                                   
+          \-[94mkuw[0m                                                                                                                                                                     /------------- [94mf7b8587457[0m   
+            |                                                                                                                                                         /-------------[94mily[0m                         
+            \---------------------------------------------------------------------------------------------------------------------------------------------------------[94mcdf[0m           \------------- [94ma736d240cd[0m   
+                                                                                                                                                                      |                                         
+                                                                                                                                                                      \---------------------------- [94m73ca933b55[0m  
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+        zero height
+    after:
+      symmetric difference: 0
+      heavy:
+                                                                                                                                                                                        /----- [94mc51fbabcf9-igh[0m   
+                                               /----------------------------------------------------------------------------------------------------------------------------------------[94mchv[0m                     
+                                               |                                                                                                                                        \----- [94m5aabb5deee-igh[0m   
+          /------------------------------------[94msyz[0m                                                                                                                                                              
+          |                                    |                           /------------------------------------------------------------------------------------------------------------------ [94m7dddfb14d9-igh[0m   
+          |                                    |                       /---[94mdgx[0m                                                                                                                                  
+          |                                    \-----------------------[94mixz[0m  ------------------------------------------------------------------------------------------------------------------ [94m2e7eba8d20-igh[0m   
+        [94memy[0m  x[0m                                                          |                                                                                                                                        
+          |                                                            \---------------------------------------------------------------------------------------------------------------------- [94mfb4fd083fc-igh[0m   
+          |                                                                                                                                                                                                     
+          | /---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94m6fe3e55607-igh[0m  
+          | |                                                                                                                                                                                                   
+          \-[94mkuw[0m                                                                                                                                                                 /------------- [94m083663e4ff-igh[0m   
+            |                                                                                                                                                      /------------[94mily[0m                             
+            \------------------------------------------------------------------------------------------------------------------------------------------------------[94mcdf[0m          \------------- [94md1ee7f9ce6-igh[0m   
+                                                                                                                                                                   |                                            
+                                                                                                                                                                   \--------------------------- [94m665985d2d1-igh[0m  
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+        zero height
+    before:
+      heavy:
+            /-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94m8a48aa0f1a[0m  
+            |                                                                                                                                                                                                   
+            |                                                                                                                                                                      /-------------- [94me21e185c53[0m   
+            |                                                                                                                   /--------------------------------------------------[94maik[0m                          
+        [94mhkw[0m  vwz[0m                                                                                                                 |                                                  \-------------- [94m96b71743d3[0m   
+            |                     /---------------------------------------------------------------------------------------------[94maem[0m                                                                             
+            |                     |                                                                                             |                        /---------------------------------------- [94m83beb0c4a3[0m   
+            |                     |                                                                                             \------------------------[94mder[0m                                                    
+            \---------------------[94mmtv[0m                                                                                                                    \---------------------------------------- [94m250395c7ce[0m   
+                                  |                                                                                                                                                                             
+                                  |                             /--------------------------------------------------------------------------------------------------------------------------------- [94m2c4d08e744[0m   
+                                  |                           /-[94mbfo[0m                                                                                                                                             
+                                  \---------------------------[94mmqw[0m  ------------------------------------------------------------------------------------------------------------------------------- [94mea3bba2acb[0m   
+                                                              |                                                                                                                                                 
+                                                              \----------------------------------------------------------------------------------------------------------------------------------- [94m4db3c98fe2[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+            /-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94md85a43117a[0m  
+            |                                                                                                                                                                                                   
+            |                                                                                                                                                                      /-------------- [94m0a8e9558b9[0m   
+            |                                                                                                                   /--------------------------------------------------[94muvy[0m                          
+        [94mcuy[0m  pqv[0m                                                                                                                 |                                                  \-------------- [94m9427e1345a[0m   
+            |                     /---------------------------------------------------------------------------------------------[94mefv[0m                                                                             
+            |                     |                                                                                             |                        /---------------------------------------- [94m2638547fa3[0m   
+            |                     |                                                                                             \------------------------[94mlqu[0m                                                    
+            \---------------------[94mgly[0m                                                                                                                    \---------------------------------------- [94m0c909145d8[0m   
+                                  |                                                                                                                                                                             
+                                  |                             /--------------------------------------------------------------------------------------------------------------------------------- [94meb10c52f99[0m   
+                                  |                           /-[94mhlv[0m                                                                                                                                             
+                                  \---------------------------[94mgpw[0m  ------------------------------------------------------------------------------------------------------------------------------- [94m45de2de8b9[0m   
+                                                              |                                                                                                                                                 
+                                                              \----------------------------------------------------------------------------------------------------------------------------------- [94mcb310e7f07[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+    after:
+      symmetric difference: 0
+      heavy:
+            /---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94m453132f3ab-igh[0m  
+            |                                                                                                                                                                                                   
+            |                                                                                                                                                                  /-------------- [94mf3509e0ef3-igh[0m   
+            |                                                                                                                /-------------------------------------------------[94maik[0m                              
+        [94mhkw[0m  vwz[0m                                                                                                              |                                                 \-------------- [94mb997fa9304-igh[0m   
+            |                     /------------------------------------------------------------------------------------------[94maem[0m                                                                                
+            |                     |                                                                                          |                        /--------------------------------------- [94mab95d633d6-igh[0m   
+            |                     |                                                                                          \------------------------[94mder[0m                                                       
+            \---------------------[94mmtv[0m                                                                                                                 \--------------------------------------- [94m9c1dc5e656-igh[0m   
+                                  |                                                                                                                                                                             
+                                  |                            /------------------------------------------------------------------------------------------------------------------------------ [94m7334912e1e-igh[0m   
+                                  |                          /-[94mbfo[0m                                                                                                                                              
+                                  \--------------------------[94mmqw[0m  ---------------------------------------------------------------------------------------------------------------------------- [94m6f767917a3-igh[0m   
+                                                             |                                                                                                                                                  
+                                                             \-------------------------------------------------------------------------------------------------------------------------------- [94m3a07b6f0a9-igh[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+            /--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94m453132f3ab-igk[0m   
+            |                                                                                                                                                                                                   
+            |                                                                                                                                                                  /-------------- [94mf3509e0ef3-igk[0m   
+            |                                                                                                                /-------------------------------------------------[94muvy[0m                              
+        [94mcuy[0m  pqv[0m                                                                                                              |                                                 \-------------- [94mb997fa9304-igk[0m   
+            |                     /------------------------------------------------------------------------------------------[94mefv[0m                                                                                
+            |                     |                                                                                          |                        /--------------------------------------- [94mab95d633d6-igk[0m   
+            |                     |                                                                                          \------------------------[94mlqu[0m                                                       
+            \---------------------[94mgly[0m                                                                                                                 \--------------------------------------- [94m9c1dc5e656-igk[0m   
+                                  |                                                                                                                                                                             
+                                  |                            /------------------------------------------------------------------------------------------------------------------------------ [94m7334912e1e-igk[0m   
+                                  |                          /-[94mhlv[0m                                                                                                                                              
+                                  \--------------------------[94mgpw[0m  ---------------------------------------------------------------------------------------------------------------------------- [94m6f767917a3-igk[0m   
+                                                             |                                                                                                                                                  
+                                                             \-------------------------------------------------------------------------------------------------------------------------------- [94m3a07b6f0a9-igk[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
 [94migh+igl[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results/test/simu/igh+igl/
+    before:
+      heavy:
+                                                                                                                                                    /--------------------------------------------- [94m29a22a20b2[0m   
+                                                                                                                 /----------------------------------[94mgju[0m                                                         
+                                                                                                /----------------[94mgko[0m                                \--------------------------------------------- [94m1509bebd63[0m   
+                                                                                                |                |                                                                                              
+                                                                   /----------------------------[94muwz[0m              \-------------------------------------------------------------------------------- [94md08defedbf[0m   
+                                                                   |                            |                                                                                                               
+                                                                   |                            |     /------------------------------------------------------------------------------------------- [94md5f5bf2fb3[0m   
+                                                                   |                            \-----[94mbej[0m                                                                                                       
+                                                                   |                                  \------------------------------------------------------------------------------------------- [94m0cc63a71b6[0m   
+                                                                   |                                                                                                                                            
+        [94memp[0m  ------------------------------------------------------[94mhtz[0m                                                                                                            /--------------- [94ma70f3f4e2a[0m   
+                                                                   |    /---------------------------------------------------------------------------------------------------------[94mgqw[0m                           
+                                                                   |    |                                                                                                         \--------------- [94m79963fe909[0m   
+                                                                   |    |                                                                                                                                       
+                                                                   |    |                                                  /----------------------------------------------------------------------- [94m160e7bc209[0m  
+                                                                   |    |                                                  |                                                                                    
+                                                                   \----[94mdlt[0m  /---------------------------------------------[94movz[0m                                                           /-------- [94mff7e14fc8f[0m   
+                                                                        |    |                                             |                                                           /-[94mdhk[0m                    
+                                                                        |    |                                             |                                                           | \-------- [94mce6acdc8cc[0m   
+                                                                        |    |                                             \-----------------------------------------------------------[94mhpz[0m                      
+                                                                        |    |                                                                                                         | /-------- [94mf9324e0b43[0m   
+                                                                        \----[94mhko[0m                                                                                                       |-[94mguv[0m                    
+                                                                             |                                                                                                         [94mijy[0m  ------ [94mf0f876bed0[0m   
+                                                                             |                                                                                                         |                        
+                                                                             |                                                                                                         \---------- [94m622b342feb[0m   
+                                                                             |                                                                                                                                  
+                                                                             \-------------------------------------------------------------------------------------------------------------------- [94m3aba932ecd[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+                                                                                                                                                    /--------------------------------------------- [94mcf385e2c39[0m   
+                                                                                                                 /----------------------------------[94mbkm[0m                                                         
+                                                                                                /----------------[94miqr[0m                                \--------------------------------------------- [94m3c2966c4de[0m   
+                                                                                                |                |                                                                                              
+                                                                   /----------------------------[94mahz[0m              \-------------------------------------------------------------------------------- [94mfc072359ea[0m   
+                                                                   |                            |                                                                                                               
+                                                                   |                            |     /------------------------------------------------------------------------------------------- [94mfad6700024[0m   
+                                                                   |                            \-----[94mgis[0m                                                                                                       
+                                                                   |                                  \------------------------------------------------------------------------------------------- [94m6301e7f273[0m   
+                                                                   |                                                                                                                                            
+        [94malp[0m  ------------------------------------------------------[94mbuv[0m                                                                                                            /--------------- [94m67e69e755e[0m   
+                                                                   |    /---------------------------------------------------------------------------------------------------------[94mmos[0m                           
+                                                                   |    |                                                                                                         \--------------- [94m47ff9c19bb[0m   
+                                                                   |    |                                                                                                                                       
+                                                                   |    |                                                  /----------------------------------------------------------------------- [94mf2f5b21708[0m  
+                                                                   |    |                                                  |                                                                                    
+                                                                   \----[94mags[0m  /---------------------------------------------[94mefn[0m                                                           /-------- [94m73d214de45[0m   
+                                                                        |    |                                             |                                                           /-[94mfnr[0m                    
+                                                                        |    |                                             |                                                           | \-------- [94m92d8a2d174[0m   
+                                                                        |    |                                             \-----------------------------------------------------------[94madh[0m                      
+                                                                        |    |                                                                                                         | /-------- [94meaf5e0ce39[0m   
+                                                                        \----[94mclt[0m                                                                                                       |-[94mhkt[0m                    
+                                                                             |                                                                                                         [94mbeo[0m  ------ [94m3097fed99d[0m   
+                                                                             |                                                                                                         |                        
+                                                                             |                                                                                                         \---------- [94m8a7b6d0018[0m   
+                                                                             |                                                                                                                                  
+                                                                             \-------------------------------------------------------------------------------------------------------------------- [94m9a90706145[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+    after:
+      symmetric difference: 0
+      heavy:
+                                                                                                                                                 /-------------------------------------------- [94m9ed10b6475-igh[0m   
+                                                                                                              /----------------------------------[94mgju[0m                                                            
+                                                                                              /---------------[94mgko[0m                                \-------------------------------------------- [94maa25e6c0ce-igh[0m   
+                                                                                              |               |                                                                                                 
+                                                                 /----------------------------[94muwz[0m             \------------------------------------------------------------------------------- [94m73b7148c7e-igh[0m   
+                                                                 |                            |                                                                                                                 
+                                                                 |                            |     /----------------------------------------------------------------------------------------- [94m4d37fe487e-igh[0m   
+                                                                 |                            \-----[94mbej[0m                                                                                                         
+                                                                 |                                  \----------------------------------------------------------------------------------------- [94m7588f09c07-igh[0m   
+                                                                 |                                                                                                                                              
+        [94memp[0m  ----------------------------------------------------[94mhtz[0m                                                                                                           /-------------- [94m0a5798f7b7-igh[0m   
+                                                                 |     /-------------------------------------------------------------------------------------------------------[94mgqw[0m                              
+                                                                 |     |                                                                                                       \-------------- [94m3f337e6349-igh[0m   
+                                                                 |     |                                                                                                                                        
+                                                                 |     |                                                 /--------------------------------------------------------------------- [94mc2272283dc-igh[0m  
+                                                                 |     |                                                 |                                                                                      
+                                                                 \-----[94mdlt[0m  ---------------------------------------------[94movz[0m                                                         /-------- [94m39e0ae6e64-igh[0m   
+                                                                       |   |                                             |                                                         /-[94mdhk[0m                        
+                                                                       |   |                                             |                                                         | \-------- [94ma1b046ad77-igh[0m   
+                                                                       |   |                                             \---------------------------------------------------------[94mhpz[0m                          
+                                                                       |   |                                                                                                       |  /------- [94mf0a62c811f-igh[0m   
+                                                                       \---[94mhko[0m                                                                                                     |/-[94mguv[0m                       
+                                                                           |                                                                                                       \[94mijy[0m  ----- [94md1f405ddfd-igh[0m   
+                                                                           |                                                                                                        |                           
+                                                                           |                                                                                                        \--------- [94m08ffa9f078-igh[0m   
+                                                                           |                                                                                                                                    
+                                                                           \------------------------------------------------------------------------------------------------------------------ [94m7a72096b61-igh[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+                                                                                                                                                 /-------------------------------------------- [94m9ed10b6475-igl[0m   
+                                                                                                              /----------------------------------[94mbkm[0m                                                            
+                                                                                              /---------------[94miqr[0m                                \-------------------------------------------- [94maa25e6c0ce-igl[0m   
+                                                                                              |               |                                                                                                 
+                                                                 /----------------------------[94mahz[0m             \------------------------------------------------------------------------------- [94m73b7148c7e-igl[0m   
+                                                                 |                            |                                                                                                                 
+                                                                 |                            |     /----------------------------------------------------------------------------------------- [94m4d37fe487e-igl[0m   
+                                                                 |                            \-----[94mgis[0m                                                                                                         
+                                                                 |                                  \----------------------------------------------------------------------------------------- [94m7588f09c07-igl[0m   
+                                                                 |                                                                                                                                              
+        [94malp[0m  ----------------------------------------------------[94mbuv[0m                                                                                                           /-------------- [94m0a5798f7b7-igl[0m   
+                                                                 |     /-------------------------------------------------------------------------------------------------------[94mmos[0m                              
+                                                                 |     |                                                                                                       \-------------- [94m3f337e6349-igl[0m   
+                                                                 |     |                                                                                                                                        
+                                                                 |     |                                                 /--------------------------------------------------------------------- [94mc2272283dc-igl[0m  
+                                                                 |     |                                                 |                                                                                      
+                                                                 \-----[94mags[0m  ---------------------------------------------[94mefn[0m                                                         /-------- [94m39e0ae6e64-igl[0m   
+                                                                       |   |                                             |                                                         /-[94mfnr[0m                        
+                                                                       |   |                                             |                                                         | \-------- [94ma1b046ad77-igl[0m   
+                                                                       |   |                                             \---------------------------------------------------------[94madh[0m                          
+                                                                       |   |                                                                                                       |  /------- [94mf0a62c811f-igl[0m   
+                                                                       \---[94mclt[0m                                                                                                     |/-[94mhkt[0m                       
+                                                                           |                                                                                                       \[94mbeo[0m  ----- [94md1f405ddfd-igl[0m   
+                                                                           |                                                                                                        |                           
+                                                                           |                                                                                                        \--------- [94m08ffa9f078-igl[0m   
+                                                                           |                                                                                                                                    
+                                                                           \------------------------------------------------------------------------------------------------------------------ [94m7a72096b61-igl[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+    before:
+      heavy:
+                                                                                                                                                                     /----------------------------- [94m08698ed6f2[0m  
+                                                             /-------------------------------------------------------------------------------------------------------[94mady[0m                                        
+        [94mivw[0m  ------------------------------------------------[94mqtx[0m                                                                                                     \----------------------------- [94m9ccb5987ab[0m  
+                                                             |                                                                                                                                                  
+                                                             \------------------------------------------------------------------------------------------------------------------------------------ [94m259387ca6e[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+        zero height
+    after:
+      symmetric difference: 0
+      heavy:
+                                                                                                                                                                 /----------------------------- [94m710fd2ceca-igh[0m  
+                                                           /-----------------------------------------------------------------------------------------------------[94mady[0m                                            
+        [94mivw[0m  ----------------------------------------------[94mqtx[0m                                                                                                   \----------------------------- [94ma3758414ae-igh[0m  
+                                                           |                                                                                                                                                    
+                                                           \---------------------------------------------------------------------------------------------------------------------------------- [94m5104b1525e-igh[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+        zero height
+    before:
+      heavy:
+                                                                                                                                             /---------------------------------------------------- [94m284e1352c0[0m   
+                                            /------------------------------------------------------------------------------------------------[94mgrs[0m                                                                
+                                            |                                                                                                \---------------------------------------------------- [94m6d9064a427[0m   
+                                            |                                                                                                                                                                   
+                                         /--[94mgyz[0m                                                                                                                 /--------------------------------- [94m53df749c87[0m   
+                                         |  |                                                          /--------------------------------------------------------[94marx[0m                                             
+                                         |  |                          /-------------------------------[94meqt[0m                                                      \--------------------------------- [94m6c4e79f8bb[0m   
+                                         |  |                          |                               |                                                                                                        
+                                         |  \--------------------------[94meku[0m                             \------------------------------------------------------------------------------------------ [94m37b534ae3b[0m   
+              /--------------------------[94mnyz[0m                           |                                                                                                                                        
+              |                          |                             |                                                      /------------------------------------------------------------------- [94md5c579e9c2[0m   
+              |                          |                             \------------------------------------------------------[94maiv[0m                                                                               
+              |                          |                                                                                    \------------------------------------------------------------------- [94m442a56a337[0m   
+        [94mgko[0m  -[94mefh[0m                        |                                                                                                                                                                      
+              |                          |                       /--------------------------------------------------------------------------------------------------------------------------------- [94mcb1740101c[0m  
+              |                          \-----------------------[94moqr[0m                                                                                                                                            
+              |                                                  \--------------------------------------------------------------------------------------------------------------------------------- [94m8a2ca1d56c[0m  
+              |                                                                                                                                                                                                 
+              \----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94m9d8e369ddf[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+        zero height
+    after:
+      symmetric difference: 0
+      heavy:
+                                                                                                                                          /--------------------------------------------------- [94m8b9ef6b10e-igh[0m   
+                                            /---------------------------------------------------------------------------------------------[94mgrs[0m                                                                   
+                                            |                                                                                             \--------------------------------------------------- [94m20909c3943-igh[0m   
+                                            |                                                                                                                                                                   
+                                         /--[94mgyz[0m                                                                                                              /-------------------------------- [94m14195e4958-igh[0m   
+                                         |  |                                                        /-------------------------------------------------------[94marx[0m                                                
+                                         |  |                         /------------------------------[94meqt[0m                                                     \-------------------------------- [94m8807c8ff04-igh[0m   
+                                         |  |                         |                              |                                                                                                          
+                                         |  \-------------------------[94meku[0m                            \---------------------------------------------------------------------------------------- [94m50d46735fd-igh[0m   
+              /--------------------------[94mnyz[0m                          |                                                                                                                                         
+              |                          |                            |                                                    /------------------------------------------------------------------ [94meee2c7797d-igh[0m   
+              |                          |                            \----------------------------------------------------[94maiv[0m                                                                                  
+              |                          |                                                                                 \------------------------------------------------------------------ [94me11acbe3ab-igh[0m   
+        [94mgko[0m  -[94mefh[0m                        |                                                                                                                                                                      
+              |                          |                      /------------------------------------------------------------------------------------------------------------------------------ [94m09c437f6a2-igh[0m  
+              |                          \----------------------[94moqr[0m                                                                                                                                             
+              |                                                 \------------------------------------------------------------------------------------------------------------------------------ [94m57537e5f22-igh[0m  
+              |                                                                                                                                                                                                 
+              \------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- [94m461616a6d8-igh[0m   
+                                                                                                                                                                                                                
+                                                                                                                                                                                                                
+      light:
+        zero height
   apportioned 132 seqs among 52 droplets (mean/2 1.3): 4 2 2 2 2 4 2 2 2 2 2 2 4 2 2 2 4 4 2 2 4 2 2 2 2 2 2 4 2 2 4 2 4 2 2 2 2 2 2 2 2 2 4 4 2 4 2 2 2 4 4 2
   removed 19 / 132 = 0.14 seqs from outfos (leaving 7 / 113 unpaired)
+     removed ids: 08ffa9f078-igh 20909c3943-igh 461616a6d8-igl 50d46735fd-igh 51c4c0cd70-igh 584ba32878-igk 73b7148c7e-igh 73b7148c7e-igl 7d4166ae48-igk 83d3e14e07-igh 8807c8ff04-igh 8b9ef6b10e-igl 9c1dc5e656-igh 9ed10b6475-igl ab95d633d6-igh b997fa9304-igk e11acbe3ab-igl eee2c7797d-igl f9dc4ecafe-igh
+     left unpaired: 584ba32878-igh b997fa9304-igh 83d3e14e07-igk f9dc4ecafe-igk ab95d633d6-igk 9c1dc5e656-igk 20909c3943-igl
     writing combined h/l info to fasta and meta files in test/paired/new-results/test/simu
-      total time: 10.2
+      total time: 10.5
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
 [44mcache-parameters[0m [94migh[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results/test/simu/igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 56 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
+  --input-metafnames: added meta info for 56 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
 caching parameters
   vsearch: 56 / 56 v annotations (0 failed) with 9 v genes in 0.1 sec
     keeping 6 / 198 v genes
@@ -328,7 +808,7 @@ smith-waterman  (new-allele fitting)
     running 10 procs for 56 seqs
       info for 56 / 56 = 1.000   (removed: 0 failed)
       kept 30 (0.536) unproductive
-    water time: 0.1  (ig-sw 0.0  processing 0.1)
+    water time: 0.1  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 56 / 56 v annotations (0 failed) with 6 v genes in 0.1 sec
     running 10 procs for 56 seqs
@@ -352,7 +832,7 @@ hmm
 [44mcache-parameters[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results/test/simu/igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 36 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+  --input-metafnames: added meta info for 36 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
 caching parameters
   vsearch: 36 / 36 v annotations (0 failed) with 6 v genes in 0.0 sec
     keeping 5 / 64 v genes
@@ -373,7 +853,7 @@ smith-waterman  (writing parameters)
       kept 14 (0.389) unproductive
         writing sw results to test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
     writing parameters to test/paired/new-results/test/parameters/simu/igk/sw (0.8 sec)
-    water time: 1.1  (ig-sw 0.9  processing 0.1)
+    water time: 1.0  (ig-sw 0.8  processing 0.1)
   writing hmms     removed 2  genes from glfo (leaving v 5  d 1  j 5)
 (0.1 sec)
 hmm
@@ -381,8 +861,8 @@ hmm
         read 36 hmm output lines with 36 sequences in 36 events  (0 failures)
     writing parameters to test/paired/new-results/test/parameters/simu/igk/hmm (0.5 sec)
     writing parameters to test/paired/new-results/test/parameters/simu/igk/true (0.5 sec)
-         infra time: 1.2
-      hmm step time: 1.4
+         infra time: 1.1
+      hmm step time: 1.3
   writing hmms     removed 0  genes from glfo (leaving v 5  d 1  j 5)
 (0.1 sec)
       total time: 3.0
@@ -427,7 +907,7 @@ hmm
 [44mpartition[0m [94migh[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igh --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igh.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 56 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
+  --input-metafnames: added meta info for 56 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
 partitioning     (with test/paired/new-results/test/parameters/simu/igh/hmm)
 smith-waterman
   vsearch: 56 / 56 v annotations (0 failed) with 6 v genes in 0.1 sec
@@ -445,10 +925,10 @@ hmm
    45 clusters with 7 procs (0.4s)
    42 clusters with 5 procs (0.7s)
    32 clusters with 3 procs (0.5s)
-   27 clusters with 2 procs (0.4s)
-   23 clusters with 1 proc (1.0s)
+   27 clusters with 2 procs (0.5s)
+   23 clusters with 1 proc (0.9s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 3.4
+      partition loop time: 3.5
 getting annotations for final partition
   subcluster annotating 20 clusters with steps:  (0.3s) (0.2s)   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: db63559ea9-igh
@@ -459,7 +939,7 @@ getting annotations for final partition
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igk --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igk.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 36 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+  --input-metafnames: added meta info for 36 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
 partitioning     (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
   vsearch: 36 / 36 v annotations (0 failed) with 5 v genes in 0.1 sec
@@ -476,7 +956,7 @@ hmm
    7 clusters with 5 procs (0.2s)
    7 clusters with 3 procs (0.2s)
    7 clusters with 2 procs (0.2s)
-   6 clusters with 1 proc (0.2s)
+   6 clusters with 1 proc (0.3s)
        partition loop time: 0.9
 getting annotations for final partition
   subcluster annotating 6 clusters with steps:  (0.2s) (0.1s) (0.1s)   plotting performance (0.0 sec)
@@ -486,7 +966,7 @@ getting annotations for final partition
 [44mpartition[0m [94migl[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igl --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igl.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 21 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+  --input-metafnames: added meta info for 21 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
 partitioning     (with test/paired/new-results/test/parameters/simu/igl/hmm)
 smith-waterman
   vsearch: 21 / 21 v annotations (0 failed) with 3 v genes in 0.1 sec
@@ -494,7 +974,7 @@ smith-waterman
       info for 21 / 21 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 14 (0.667) unproductive
   plotting performance (0.0 sec)
-        water time: 0.5
+        water time: 0.4
 hmm
   caching all 21 naive sequences (0.2s)
     collapsed 21 queries into 3 clusters with identical naive seqs (0.0 sec)
@@ -502,7 +982,7 @@ hmm
   3 clusters with 3 procs (0.1s)
    3 clusters with 2 procs (0.1s)
    3 clusters with 1 proc (0.2s)
-       partition loop time: 0.4
+       partition loop time: 0.3
 getting annotations for final partition
   subcluster annotating 3 clusters with steps:  (0.2s) (0.1s) (0.1s)   plotting performance (0.0 sec)
 
@@ -533,7 +1013,7 @@ getting annotations for final partition
       single   0.949  1.000
        joint   0.963  0.557
   merge time 0.0
-  need to get annotations for 12/18 joint igh clusters
+  need to get annotations for 13/18 joint igh clusters
 [44mannotate[0m [94migh+igk[0m:[94m igh[0m
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igk/meta-igh.yaml --input-partition-fname test/paired/new-results/partition-new-simu/igh+igk/partition-igh-only-partition.yaml
@@ -546,14 +1026,14 @@ smith-waterman
       info for 39 / 39 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 17 (0.436) unproductive
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '083663e4ff-igh': [['083663e4ff-igk', '50d46735fd-igl']] --> [['083663e4ff-igk']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'eee2c7797d-igh': [['3b28d3b9d7-igk', '3b28d3b9d7-igh']] --> [['3b28d3b9d7-igk']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'eee2c7797d-igh': [['3b28d3b9d7-igh', '3b28d3b9d7-igk']] --> [['3b28d3b9d7-igk']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'e11acbe3ab-igh': [['db63559ea9-igh', 'db63559ea9-igk']] --> [['db63559ea9-igk']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '337126e87c-igh': [['337126e87c-igk', '8807c8ff04-igl']] --> [['337126e87c-igk']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '3b28d3b9d7-igh': [['3b28d3b9d7-igk', 'eee2c7797d-igh']] --> [[]]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '6f767917a3-igh': [['6f767917a3-igk', '09c437f6a2-igh', '09c437f6a2-igl']] --> [['6f767917a3-igk']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '6f767917a3-igh': [['09c437f6a2-igh', '09c437f6a2-igl', '6f767917a3-igk']] --> [['6f767917a3-igk']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'a3758414ae-igh': [['19936ac0d3-igh', '19936ac0d3-igk', 'a3758414ae-igl']] --> [['19936ac0d3-igk']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '710fd2ceca-igh': [['cfe3b29587-igh', 'cfe3b29587-igk', '710fd2ceca-igl']] --> [['cfe3b29587-igk']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '7ba384a461-igh': [['7ba384a461-igk', '57537e5f22-igh', '57537e5f22-igl']] --> [['7ba384a461-igk']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '710fd2ceca-igh': [['710fd2ceca-igl', 'cfe3b29587-igh', 'cfe3b29587-igk']] --> [['cfe3b29587-igk']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '7ba384a461-igh': [['57537e5f22-igh', '57537e5f22-igl', '7ba384a461-igk']] --> [['7ba384a461-igk']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '7d4166ae48-igh': [['9ed10b6475-igh']] --> [[]]
 [93mwarning[0m replaced input metafo for 1 total key in 13 seqs (13 clusters): paired-uids (see above, only printed the first 10 clusters)
   add_input_metafo(): transferring input metafo from <input_info> to <line> (counts in table are uids, not lines)
@@ -562,10 +1042,10 @@ smith-waterman
                     loci        0       39        0       39        0        0
         water time: 0.0
 hmm
-  subcluster annotating 18 clusters with steps:  (0.3s) (0.2s) 
+  subcluster annotating 18 clusters with steps:  (0.2s) (0.1s) 
     subcluster annotation time 0.4
       total time: 0.5
-  need to get annotations for 13/15 joint igk clusters
+  need to get annotations for 14/15 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igk/meta-igk.yaml --input-partition-fname test/paired/new-results/partition-new-simu/igh+igk/partition-igk-only-partition.yaml
@@ -579,12 +1059,12 @@ smith-waterman
       kept 14 (0.389) unproductive
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '083663e4ff-igk': [['083663e4ff-igh', '50d46735fd-igl']] --> [['083663e4ff-igh']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '3b28d3b9d7-igk': [['3b28d3b9d7-igh', 'eee2c7797d-igh']] --> [['eee2c7797d-igh']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'db63559ea9-igk': [['e11acbe3ab-igh', 'db63559ea9-igh']] --> [['e11acbe3ab-igh']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'db63559ea9-igk': [['db63559ea9-igh', 'e11acbe3ab-igh']] --> [['e11acbe3ab-igh']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '337126e87c-igk': [['337126e87c-igh', '8807c8ff04-igl']] --> [['337126e87c-igh']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '6f767917a3-igk': [['6f767917a3-igh', '09c437f6a2-igh', '09c437f6a2-igl']] --> [['6f767917a3-igh']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '6f767917a3-igk': [['09c437f6a2-igh', '09c437f6a2-igl', '6f767917a3-igh']] --> [['6f767917a3-igh']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '19936ac0d3-igk': [['19936ac0d3-igh', 'a3758414ae-igh', 'a3758414ae-igl']] --> [['a3758414ae-igh']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'cfe3b29587-igk': [['cfe3b29587-igh', '710fd2ceca-igh', '710fd2ceca-igl']] --> [['710fd2ceca-igh']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '7ba384a461-igk': [['7ba384a461-igh', '57537e5f22-igh', '57537e5f22-igl']] --> [['7ba384a461-igh']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'cfe3b29587-igk': [['710fd2ceca-igh', '710fd2ceca-igl', 'cfe3b29587-igh']] --> [['710fd2ceca-igh']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '7ba384a461-igk': [['57537e5f22-igh', '57537e5f22-igl', '7ba384a461-igh']] --> [['7ba384a461-igh']]
 [93mwarning[0m replaced input metafo for 1 total key in 8 seqs (8 clusters): paired-uids
   add_input_metafo(): transferring input metafo from <input_info> to <line> (counts in table are uids, not lines)
                             no-info  with-info  one-src ident. not-overwr. replaced
@@ -625,16 +1105,16 @@ smith-waterman
         reading sw results from test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
       info for 24 / 24 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 14 (0.583) unproductive
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '57537e5f22-igh': [['7ba384a461-igh', '7ba384a461-igk', '57537e5f22-igl']] --> [['57537e5f22-igl']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '09c437f6a2-igh': [['6f767917a3-igh', '6f767917a3-igk', '09c437f6a2-igl']] --> [['09c437f6a2-igl']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '09c437f6a2-igh': [['09c437f6a2-igl', '6f767917a3-igh', '6f767917a3-igk']] --> [['09c437f6a2-igl']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '57537e5f22-igh': [['57537e5f22-igl', '7ba384a461-igh', '7ba384a461-igk']] --> [['57537e5f22-igl']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '461616a6d8-igh': [['7588f09c07-igh', '7588f09c07-igl']] --> [['7588f09c07-igl']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '0a5798f7b7-igh': [['0a5798f7b7-igl', '5104b1525e-igh', '5104b1525e-igl']] --> [['0a5798f7b7-igl']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '9ed10b6475-igh': [['7d4166ae48-igh']] --> [[]]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '14195e4958-igh': [['14195e4958-igl', '08ffa9f078-igl']] --> [['08ffa9f078-igl']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '14195e4958-igh': [['08ffa9f078-igl', '14195e4958-igl']] --> [['08ffa9f078-igl']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '19936ac0d3-igh': [['19936ac0d3-igk', 'a3758414ae-igh', 'a3758414ae-igl']] --> [['a3758414ae-igl']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '5104b1525e-igh': [['0a5798f7b7-igh', '0a5798f7b7-igl', '5104b1525e-igl']] --> [['5104b1525e-igl']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '7588f09c07-igh': [['461616a6d8-igh', '7588f09c07-igl']] --> [[]]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'cfe3b29587-igh': [['cfe3b29587-igk', '710fd2ceca-igh', '710fd2ceca-igl']] --> [['710fd2ceca-igl']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'cfe3b29587-igh': [['710fd2ceca-igh', '710fd2ceca-igl', 'cfe3b29587-igk']] --> [['710fd2ceca-igl']]
 [93mwarning[0m replaced input metafo for 1 total key in 13 seqs (13 clusters): paired-uids (see above, only printed the first 10 clusters)
   add_input_metafo(): transferring input metafo from <input_info> to <line> (counts in table are uids, not lines)
                             no-info  with-info  one-src ident. not-overwr. replaced
@@ -657,12 +1137,12 @@ smith-waterman
         reading sw results from test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
       info for 21 / 21 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 14 (0.667) unproductive
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '57537e5f22-igl': [['7ba384a461-igh', '7ba384a461-igk', '57537e5f22-igh']] --> [['57537e5f22-igh']]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '09c437f6a2-igl': [['6f767917a3-igh', '6f767917a3-igk', '09c437f6a2-igh']] --> [['09c437f6a2-igh']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '09c437f6a2-igl': [['09c437f6a2-igh', '6f767917a3-igh', '6f767917a3-igk']] --> [['09c437f6a2-igh']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '57537e5f22-igl': [['57537e5f22-igh', '7ba384a461-igh', '7ba384a461-igk']] --> [['57537e5f22-igh']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '50d46735fd-igl': [['083663e4ff-igh', '083663e4ff-igk']] --> [[]]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '8807c8ff04-igl': [['337126e87c-igk', '337126e87c-igh']] --> [[]]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '14195e4958-igl': [['14195e4958-igh', '08ffa9f078-igl']] --> [[]]
-  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '7588f09c07-igl': [['7588f09c07-igh', '461616a6d8-igh']] --> [['461616a6d8-igh']]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '8807c8ff04-igl': [['337126e87c-igh', '337126e87c-igk']] --> [[]]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '14195e4958-igl': [['08ffa9f078-igl', '14195e4958-igh']] --> [[]]
+  [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '7588f09c07-igl': [['461616a6d8-igh', '7588f09c07-igh']] --> [['461616a6d8-igh']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '0a5798f7b7-igl': [['0a5798f7b7-igh', '5104b1525e-igh', '5104b1525e-igl']] --> [['0a5798f7b7-igh']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster '08ffa9f078-igl': [['14195e4958-igh', '14195e4958-igl']] --> [['14195e4958-igh']]
   [93mwarning[0m replacing input metafo 'paired-uids' value for 1 seq cluster 'a3758414ae-igl': [['19936ac0d3-igh', '19936ac0d3-igk', 'a3758414ae-igh']] --> [['19936ac0d3-igh']]
@@ -683,7 +1163,7 @@ hmm
         [94mh[0m   20 --> 26   [91m+6[0m
         [95mk[0m    6 --> 15   [91m+9[0m
         [92ml[0m    3 --> 8    [91m+5[0m
-      total time: 15.8
+      total time: 15.9
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --max-ccf-fail-frac 0.10 --is-simu --seed-unique-id 3542bd38d8-igh:3542bd38d8-igk --seed-loci igh:igk --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/seed-partition-new-simu
    removing seqs very different from seed seq
                            wrong/no     removed      singly         kept   missing
@@ -710,7 +1190,7 @@ smith-waterman
 hmm
   caching all 17 naive sequences (0.2s)
     collapsed 17 queries into 17 clusters with identical naive seqs (0.0 sec)
-  17 clusters with 10 procs (0.2s)
+  17 clusters with 10 procs (0.3s)
    17 clusters with 7 procs (0.2s)
    17 clusters with 5 procs (0.2s)
    16 clusters with 3 procs (0.3s)
@@ -721,11 +1201,11 @@ getting annotations for final partition
     reading output
         read 12 hmm output lines with 17 sequences in 12 events  (0 failures)
       hmm step time: 0.2
-      total time: 2.1
+      total time: 2.2
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/single-chain/input-seqs-igk.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 12 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+  --input-metafnames: added meta info for 12 sequences from test/paired/new-results/test/simu/meta.yaml: paired-uids loci
 partitioning     (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
   vsearch: 12 / 12 v annotations (0 failed) with 2 v genes in 0.1 sec
@@ -739,12 +1219,12 @@ hmm
   reducing n procs to number of clusters: 10 --> 3
   3 clusters with 3 procs (0.1s)
    3 clusters with 2 procs (0.1s)
-   3 clusters with 1 proc (0.1s)
+   3 clusters with 1 proc (0.2s)
        partition loop time: 0.3
 getting annotations for final partition
   subcluster annotating 2 clusters with steps:  (0.1s) (0.1s) (0.1s) 
-    subcluster annotation time 0.4
-      total time: 0.9
+    subcluster annotation time 0.3
+      total time: 0.8
 [44mpartition[0m [94migl[0m:
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/single-chain/input-seqs-igl.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
@@ -800,7 +1280,7 @@ getting annotations for final partition
     removed 2 arg strs that were specific to action 'partition': --seed-unique-id 3542bd38d8-igh:3542bd38d8-igk
   note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis annotate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/igh+igk/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/igh+igk/meta-igh.yaml --input-partition-fname test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/igh+igk/partition-igh-only-partition.yaml
-  --input-metafnames: added meta info for 1 sequences from test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/igh+igk/meta-igh.yaml: paired-uids loci
+  --input-metafnames: added meta info for 1 sequences from test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/igh+igk/meta-igh.yaml: loci paired-uids
   note: reducing N procs to the number of seqs 10 --> 1
   --input-partition-fname: read best partition with 1 sequences in 1 clusters from test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/igh+igk/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results/test/parameters/simu/igh/hmm)
@@ -826,7 +1306,7 @@ hmm
   --input-partition-fname: read best partition with 1 sequences in 1 clusters from test/paired/new-results/seed-partition-new-simu/seeds/3542bd38d8-igh+3542bd38d8-igk/igh+igk/partition-igk-only-partition.yaml
 annotating    (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
-  vsearch: 1 / 1 v annotations (0 failed) with 1 v gene in 0.0 sec
+  vsearch: 1 / 1 v annotations (0 failed) with 1 v gene in 0.1 sec
         reading sw results from test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
       info for 1 / 1 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 1 (1.000) unproductive
@@ -850,7 +1330,7 @@ hmm
    N clusters with all seqs:
         [94mh[0m   12 --> 1    [91m-11[0m
         [95mk[0m    2 --> 1    [91m-1[0m
-      total time: 5.7
+      total time: 5.9
 [92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --paired-loci --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/partition-new-simu --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
 [44mget-selection-metrics[0m [94migh+igk[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 3 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igh.yaml
@@ -863,15 +1343,15 @@ hmm
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/140891/fasttree.out /tmp/dralph/tree-inference/140891/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/596853/fasttree.out /tmp/dralph/tree-inference/596853/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/888598/fasttree.out /tmp/dralph/tree-inference/888598/input-seqs.fa
-      made 3 fasttree trees (0.2s)
+      made 3 fasttree trees (0.1s)
     tree origins: 3 ran fasttree
     skipped 3/6 clusters smaller than 4
       setting default tau to 1 / 373 = 0.0027
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0027
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 9/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dko amz bnw ikn
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 9/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw amz dko ikn
       setting default tau to 1 / 373 = 0.0027
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0027
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: eov npq ily flx
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ily flx npq eov
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 5/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: eyz fnv
     skipped 3/6 clusters that had no uids in common with tree
   writing selection metrics to test/paired/new-results/partition-new-simu/igh+igk/partition-igh-selection-metrics.yaml
@@ -887,7 +1367,7 @@ hmm
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/140891/fasttree.out /tmp/dralph/tree-inference/140891/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/596853/fasttree.out /tmp/dralph/tree-inference/596853/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/888598/fasttree.out /tmp/dralph/tree-inference/888598/input-seqs.fa
-      made 3 fasttree trees (0.2s)
+      made 3 fasttree trees (0.1s)
     tree origins: 3 ran fasttree
     skipped 2/5 clusters smaller than 4
       setting default tau to 1 / 337 = 0.0030
@@ -913,20 +1393,23 @@ hmm
     skipped 1/2 clusters smaller than 4
       setting default tau to 1 / 376 = 0.0027
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0027
-                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/9 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.077  mfreq 0.067  diff 0.010  abs(frac diff) 14%  ratio 1.1
+                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/9 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.079  mfreq 0.068  diff 0.011  abs(frac diff) 16%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.1180    0.0904       1.3     0.0275     9ed10b6475-igh
+              0.1197    0.0904       1.3     0.0292     9ed10b6475-igh
+              0.1166    0.0931       1.3     0.0235     4d37fe487e-igh
           10 with highest+lowest ratios:
-              0.1180    0.0904       1.3     0.0275     9ed10b6475-igh
-              0.1180    0.0904       1.3     0.0275     9ed10b6475-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 15/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw ikm dkn pvw bev amz bop
+              0.1197    0.0904       1.3     0.0292     9ed10b6475-igh
+              0.1166    0.0931       1.3     0.0235     4d37fe487e-igh
+              0.1197    0.0904       1.3     0.0292     9ed10b6475-igh
+              0.1166    0.0931       1.3     0.0235     4d37fe487e-igh
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 15/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: pvw amz bev ikm dkn bnw bop
       setting default tau to 1 / 376 = 0.0027
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0027
     skipped 1/2 clusters that had no uids in common with tree
   writing selection metrics to test/paired/new-results/partition-new-simu/igh+igl/partition-igh-selection-metrics.yaml
-      total time: 0.1
+      total time: 0.2
 [44mget-selection-metrics[0m [94migh+igl[0m:[94m igl[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igl --dont-write-git-info --min-selection-metric-cluster-size 3 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igl/partition-igl.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
@@ -941,7 +1424,7 @@ hmm
     tree origins: 2 ran fasttree
       setting default tau to 1 / 334 = 0.0030
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0030
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 7/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amz bnw ikn
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 7/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw amz ikn
       setting default tau to 1 / 334 = 0.0030
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0030
   writing selection metrics to test/paired/new-results/partition-new-simu/igh+igl/partition-igl-selection-metrics.yaml
@@ -957,4 +1440,4 @@ hmm
       skipped 0 smaller than 3
       [93mwarning[0m no inferred annotations for selection metrics, returning without doing anything
       writing 0 chosen abs to test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
-      total time: 2.1
+      total time: 2.2
