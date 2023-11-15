@@ -5082,18 +5082,23 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
         if n_max_procs is not None:
             limit_procs(proc_limit_str, n_max_procs, procs=procs)  # NOTE now that I've added the <procs> arg, I should remove all the places where I'm using the old cmd str method (I mean, it works fine, but it's hackier/laggier, and in cases where several different parent procs are running a log of the same-named subprocs on the same machine, the old way will be wrong [i.e. limit_procs was originally intended as a global machine-wide limit, whereas in this fcn we usually call it wanting to set a specific number of subproces for this process])
 
+    dbgstrs = ['' for _ in procs]
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                status = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, allow_failure=allow_failure)
+                status, dbgstrs[iproc] = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, allow_failure=allow_failure)
                 if status == 'restart':
+                    print(dbgstrs[iproc])
                     procs[iproc] = run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)
                     n_tries_list[iproc] += 1
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
+    for dstr in dbgstrs:
+        if dstr != '':
+            print(dstr)
 
 # ----------------------------------------------------------------------------------------
 def pad_lines(linestr, padwidth=8):
@@ -5132,53 +5137,9 @@ def get_slurm_node(errfname):
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and tell the calling fcn to restart it if so)
 def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_system=None, debug=None, ignore_stderr=False, clean_on_success=False, allow_failure=False):
-    procs[iproc].communicate()
-    outfname = cmdfo['outfname']
-
-    # success
-    if procs[iproc].returncode == 0:
-        if not os.path.exists(outfname):
-            print('      proc %d succeeded but its output isn\'t there, so sleeping for a bit: %s' % (iproc, outfname))  # give a networked file system some time to catch up
-            time.sleep(0.5)
-        if os.path.exists(outfname):
-            process_out_err(cmdfo['logdir'], extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)
-            procs[iproc] = None  # job succeeded
-            if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
-                if cmdfo.get('workfnames') is not None:
-                    for fn in [f for f in cmdfo['workfnames'] if os.path.exists(f)]:
-                        os.remove(fn)
-                if os.path.isdir(cmdfo['workdir']):
-                    os.rmdir(cmdfo['workdir'])
-            return 'ok'
-
-    # handle failure
-    print('    proc %d try %d' % (iproc, n_tried), end=' ')
-    if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
-        print('succeeded but output is missing: %s' % outfname)
-    else:
-        print('failed with exit code %d, %s: %s' % (procs[iproc].returncode, 'but output exists' if os.path.exists(outfname) else 'and output is missing',  outfname))
-    if batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
-        if 'nodelist' in cmdfo:  # if we're doing everything from within an existing slurm allocation
-            nodelist = cmdfo['nodelist']
-        else:  # if, on the other hand, each process made its own allocation on the fly
-            nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
-        if nodelist is not None:
-            print('    failed on node %s' % nodelist)
-        # try:
-        #     print '        sshing to %s' % nodelist
-        #     outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True, universal_newlines=True)
-        #     print pad_lines(outstr, padwidth=12)
-        # except subprocess.CalledProcessError as err:
-        #     print '        failed to ssh:'
-        #     print err
-    if os.path.exists(outfname + '.progress'):  # glomerator.cc is the only one that uses this at the moment
-        print('        progress file (%s):' % (outfname + '.progress'))
-        print(pad_lines(subprocess.check_output(['cat', outfname + '.progress'], universal_newlines=True), padwidth=12))
-
     # ----------------------------------------------------------------------------------------
     def logfname(ltype):
         return cmdfo['logdir'] + '/' + ltype
-
     # ----------------------------------------------------------------------------------------
     def getlogstrs(logtypes=None):  # not actually using stdout at all, but maybe I should?
         if logtypes is None:
@@ -5189,21 +5150,67 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
                 returnstr += ['        %s           %s' % (color('red', 'std%s:'%ltype), logfname(ltype))]
                 returnstr += [pad_lines(subprocess.check_output(['cat', logfname(ltype)], universal_newlines=True), padwidth=12)]
         return '\n'.join(returnstr)
+    # ----------------------------------------------------------------------------------------
+    procs[iproc].communicate()
+    outfname = cmdfo['outfname']
+    rtn_strs = []
 
+    # success
+    if procs[iproc].returncode == 0:
+        if not os.path.exists(outfname):
+            rtn_strs.append('      proc %d succeeded but its output isn\'t there, so sleeping for a bit: %s' % (iproc, outfname))  # give a networked file system some time to catch up
+            time.sleep(0.5)
+        if os.path.exists(outfname):
+            oestr = process_out_err(cmdfo['logdir'], extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)
+            if debug == 'print':
+                rtn_strs.append(oestr)
+            procs[iproc] = None  # job succeeded
+            if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
+                if cmdfo.get('workfnames') is not None:
+                    for fn in [f for f in cmdfo['workfnames'] if os.path.exists(f)]:
+                        os.remove(fn)
+                if os.path.isdir(cmdfo['workdir']):
+                    os.rmdir(cmdfo['workdir'])
+            return 'ok', '\n'.join(rtn_strs)
+
+    # handle failure
+    status_str = '    proc %d try %d' % (iproc, n_tried)
+    if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
+        status_str += ' succeeded but output is missing: %s' % outfname
+    else:
+        status_str += ' failed with exit code %d, %s: %s' % (procs[iproc].returncode, 'but output exists' if os.path.exists(outfname) else 'and output is missing',  outfname)
+    if batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
+        if 'nodelist' in cmdfo:  # if we're doing everything from within an existing slurm allocation
+            nodelist = cmdfo['nodelist']
+        else:  # if, on the other hand, each process made its own allocation on the fly
+            nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
+        if nodelist is not None:
+            status_str += '     failed on node %s' % nodelist
+        # try:
+        #     print '        sshing to %s' % nodelist
+        #     outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True, universal_newlines=True)
+        #     print pad_lines(outstr, padwidth=12)
+        # except subprocess.CalledProcessError as err:
+        #     print '        failed to ssh:'
+        #     print err
+    rtn_strs.append(status_str)
+    if os.path.exists(outfname + '.progress'):  # glomerator.cc is the only one that uses this at the moment
+        rtn_strs.append('        progress file (%s):' % (outfname + '.progress'))
+        rtn_strs.append(pad_lines(subprocess.check_output(['cat', outfname + '.progress'], universal_newlines=True), padwidth=12))
     if n_tried < n_max_tries:
-        print(getlogstrs(['err']))
-        print('      restarting proc %d' % iproc)
-        return 'restart'
+        rtn_strs.append(getlogstrs(['err']))
+        rtn_strs.append('      restarting proc %d' % iproc)
+        return 'restart', '\n'.join(rtn_strs)
     else:
         failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
         failstr += getlogstrs()  # used to try to only print err/out as needed, but it was too easy to miss useful info
         if allow_failure:
-            print('      %s\n      not raising exception for failed process' % failstr)
+            rtn_strs.append('      %s\n      not raising exception for failed process' % failstr)
             procs[iproc] = None  # let it keep running any other processes
         else:
             raise Exception(failstr)
 
-    return 'failed'
+    return 'failed', '\n'.join(rtn_strs)
 
 # ----------------------------------------------------------------------------------------
 def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, ignore_stderr=False):
@@ -5263,6 +5270,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
                         raise Exception('found multiple instances of variable \'%s\' in line \'%s\'' % (var, theselines[0]))
                     dbgfo[header][var] = float(words[words.index(var) + 1])
 
+    rtn_strs = []
     if debug is None:
         if not ignore_stderr and len(err_str) > 0:
             print(err_str)
@@ -5270,8 +5278,8 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
         if debug == 'print':
             if extra_str != '':
                 tmpcolor = 'red_bkg' if len(err_str + logstrs['out']) != len_excluding_colors(err_str + logstrs['out']) else None  # if there's color in the out/err strs, make the 'proc 0' str colored as well
-                print('      --> %s' % color(tmpcolor, 'proc %s' % extra_str))
-            print(err_str + logstrs['out'])
+                rtn_strs.append('      --> %s' % color(tmpcolor, 'proc %s' % extra_str))
+            rtn_strs.append(err_str + logstrs['out'])
         elif 'write' in debug:
             if debug == 'write':
                 logfile = logdir + '/log'
@@ -5285,6 +5293,8 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
                 dbgfile.write(err_str + logstrs['out'])
         else:
             assert False
+
+        return '\n'.join(rtn_strs)
 
 # ----------------------------------------------------------------------------------------
 def summarize_bcrham_dbgstrs(dbgfos, action):
