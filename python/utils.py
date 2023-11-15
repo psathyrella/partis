@@ -27,6 +27,7 @@ import collections
 import operator
 import yaml
 import six
+import hashlib
 from io import open
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -1543,10 +1544,9 @@ def generate_dummy_v(d_gene):
     return get_locus(d_gene).upper() + 'VxDx' + pv + '-' + sv + '*' + al
 
 # ----------------------------------------------------------------------------------------
-def uidhashstr(instr, bwidth=19):  # e.g. '3869180544638498223'
-    rstr = str(abs(hash(instr)))  # the minus signs are annoying because they change the length
-    rstr = '0' * (bwidth - len(rstr)) + rstr  # also pad everyone to the same length
-    return rstr
+def uidhashstr(instr, max_len=10):
+    hstr = hashlib.md5(instr.encode()).hexdigest()  # , usedforsecurity=False (can't use this arg til python 3.9)
+    return hstr[:max_len]
 
 # ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
