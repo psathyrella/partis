@@ -1,34 +1,34 @@
 !!python/object:python.hmmwriter.HMM
 extras:
-  !!python/unicode gene_prob: 1.0
-  !!python/unicode overall_mute_freq: 0.007774294670846397
-  !!python/unicode per_gene_mute_freq: 0.1
-name: !!python/unicode IGKDx-x_star_x
+  gene_prob: 1.0
+  overall_mute_freq: 0.009058219178082192
+  per_gene_mute_freq: 0.1
+name: IGKDx-x_star_x
 states:
 - !!python/object:python.hmmwriter.State
   emissions: null
   extras: {}
-  name: !!python/unicode init
+  name: init
   transitions:
-    !!python/unicode IGKDx-x_star_x_0: 1.0
+    IGKDx-x_star_x_0: 1.0
 - !!python/object:python.hmmwriter.State
   emissions:
-    !!python/unicode probs:
-      !!python/unicode A: 0.9
-      !!python/unicode C: 0.03333333333333333
-      !!python/unicode G: 0.03333333333333333
-      !!python/unicode T: 0.03333333333333333
-    !!python/unicode track: !!python/unicode nukes
+    probs:
+      A: 0.9
+      C: 0.03333333333333333
+      G: 0.03333333333333333
+      T: 0.03333333333333333
+    track: nukes
   extras:
-    !!python/unicode ambiguous_char: !!python/unicode N
-    !!python/unicode ambiguous_emission_prob: 0.25
-    !!python/unicode germline: !!python/unicode A
-  name: !!python/unicode IGKDx-x_star_x_0
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKDx-x_star_x_0
   transitions:
-    !!python/unicode end: 1.0
+    end: 1.0
 tracks:
-  !!python/unicode nukes:
-  - !!python/unicode A
-  - !!python/unicode C
-  - !!python/unicode G
-  - !!python/unicode T
+  nukes:
+  - A
+  - C
+  - G
+  - T
