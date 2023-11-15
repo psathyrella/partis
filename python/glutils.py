@@ -1236,10 +1236,10 @@ def check_allele_prevalence_freqs(outfname, glfo, allele_prevalence_fname, only_
 # ----------------------------------------------------------------------------------------
 def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  # may modify <snpfo>, if it's passed
     new_name = template_gene
-    hashstr = str(abs(hash(new_seq)))
+    hashstr = utils.uidhashstr(new_seq, max_len=5)
 
     if indelfo is not None and len(indelfo['indels']) > 0:  # call it a new sub-family (er, sub-version, depending on nomenclature)
-        new_name = utils.rejoin_gene(utils.get_locus(template_gene), utils.get_region(template_gene), utils.gene_family(template_gene), hashstr[:5], '01')
+        new_name = utils.rejoin_gene(utils.get_locus(template_gene), utils.get_region(template_gene), utils.gene_family(template_gene), hashstr, '01')
     elif snpfo is not None:
         if '+' in utils.allele(template_gene) and len(template_gene.split('+')) == 2:  # if template was snpd we need to fix up <snpfo>
             simplified_snpfo = simplify_snpfo(template_gene, snpfo)  # returns None if it failed to parse mutation info in template name
@@ -1250,11 +1250,11 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
             if len(snpfo) > 0 and len(snpfo) <= 5:
                 new_name += '+' + stringify_mutfo(snpfo)
             else:
-                new_name += '+' + hashstr[:5]
+                new_name += '+' + hashstr
         else:  # just give up and use a new hash str
-            new_name = new_name.split('+')[0] + '+' + hashstr[:5]
+            new_name = new_name.split('+')[0] + '+' + hashstr
     else:
-        new_name = template_gene + '+' + hashstr[:5]
+        new_name = template_gene + '+' + hashstr
 
     if new_name.count('+') > 1:
         raise Exception('somehow ended up with too many \'+\'s in %s' % new_name)

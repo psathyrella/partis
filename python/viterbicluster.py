@@ -36,7 +36,7 @@ def cluster(viterbi_info):
         hashlist += [ str(len(line[b + '_insertion'])) for b in utils.boundaries ]
         print(':'.join(hashlist))
         # then hash it
-        clusterhash = hash(':'.join(hashlist))
+        clusterhash = utils.uidhashstr(':'.join(hashlist))
         if clusterhash in clusters:
             clusters[clusterhash].append(line['unique_id'])
         else:

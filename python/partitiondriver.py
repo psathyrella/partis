@@ -111,7 +111,7 @@ class PartitionDriver(object):
                     raise Exception('couldn\'t find any sw cache files in %s, despite setting <find_any>' % self.args.parameter_dir)
                 return utils.getprefix(fnames[0])
             else:
-                return self.args.parameter_dir + '/sw-cache-' + repr(abs(hash(''.join(list(self.input_info.keys())))))  # remain suffix-agnostic
+                return self.args.parameter_dir + '/sw-cache-' + utils.uidhashstr(''.join(self.input_info.keys()))  # remain suffix-agnostic
         else:
             return None
 
@@ -1282,7 +1282,7 @@ class PartitionDriver(object):
             return ustr.split(':')
         # ----------------------------------------------------------------------------------------
         def hashstr(c):
-            return 'subc_%+d' % hash(skey(c))
+            return 'subc_%s' % utils.uidhashstr(skey(c))
         # ----------------------------------------------------------------------------------------
         def getsubclusters(superclust, shuffle=False, sdbg=False):  # NOTE similar to code in bin/partis simulation fcn
             superclust = copy.deepcopy(superclust)  # should only need this if we shuffle, but you *really* don't want to modify it since if you change the clusters in <init_partition> you'll screw up the actual partition, and if you change the ones in <clusters_still_to_do> you'll end up losing them cause the uidstrs won't be right

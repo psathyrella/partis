@@ -1544,9 +1544,16 @@ def generate_dummy_v(d_gene):
     return get_locus(d_gene).upper() + 'VxDx' + pv + '-' + sv + '*' + al
 
 # ----------------------------------------------------------------------------------------
+def get_hash(instr):
+    return hashlib.md5(instr.encode()).hexdigest()  # , usedforsecurity=False (can't use this arg til python 3.9)
+
+# ----------------------------------------------------------------------------------------
 def uidhashstr(instr, max_len=10):
-    hstr = hashlib.md5(instr.encode()).hexdigest()  # , usedforsecurity=False (can't use this arg til python 3.9)
-    return hstr[:max_len]
+    return get_hash(instr)[:max_len]
+
+# ----------------------------------------------------------------------------------------
+def hashint(instr, max_int=2**31):  # max random seed val is 32, so reduce by 1 to get some leeway
+    return int(get_hash(instr), base=16) % max_int
 
 # ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
@@ -5418,7 +5425,7 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
     naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
     naive_seq_hashes = {}  # X[cdr3][hash(naive_seq)] : [uid1, uid2, uid3...]  # NOTE didn't used to be also subset by [cdr3], but it seems that they can have different cdr3 but same naive seq, which screws up untranslation
     for uid, naive_seq in naive_seq_list:
-        hashstr = str(hash(naive_seq))
+        hashstr = uidhashstr(naive_seq)
         c3len = sw_info[uid]['cdr3_length']
         if c3len not in naive_seq_map:
             naive_seq_map[c3len], naive_seq_hashes[c3len] = {}, {}
@@ -5518,7 +5525,7 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
 # ----------------------------------------------------------------------------------------
 def build_dummy_reco_info(true_partition):
     def tkey(c): return ':'.join(c)
-    chashes = {tkey(tc) : hash(tkey(tc)) for tc in true_partition}
+    chashes = {tkey(tc) : uidhashstr(tkey(tc)) for tc in true_partition}
     return {u : {'reco_id' : chashes[tkey(tc)]} for tc in true_partition for u in tc}
 
 # ----------------------------------------------------------------------------------------
@@ -5973,7 +5980,7 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
                         raise Exception('specified <name_column> \'%s\' not in line (keys in line: %s)' % (name_column, ' '.join(list(line.keys()))))
                     uid = line[name_column]
                 else:
-                    uid = str(abs(hash(line[seq_column])))
+                    uid = uidhashstr(line[seq_column])
                 if remove_duplicates:
                     if uid in uid_set:
                         n_duplicate_ids += 1
@@ -6726,7 +6733,7 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
 def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwargs):
     # NOTE this is weird but necessary basically because in the normal partis workflows input always goes through seqfileopener, which renames duplicates, but now i want to be able to run this vsearch stuff without that (for bin/split-loci.py), which has .fa input files that i want to allow to have duplicates
     def get_trid(uid, seq):
-        return '%s-DUP-%d' % (uid, abs(hash(seq)))
+        return '%s-DUP-%s' % (uid, uidhashstr(seq))
     returnfo = run_vsearch(action, {get_trid(s['name'], s['seq']) : s['seq'] for s in seqlist}, workdir, threshold, **kwargs)
     if set(returnfo) != set(['gene-counts', 'annotations', 'failures']):
         raise Exception('needs to be updated')

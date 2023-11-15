@@ -3243,7 +3243,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                     ofo.update([(ok, gsval(mfo, 'p', lk, no_fail=True))])
             else:
                 def gid(mfo, c):
-                    hstr = utils.uidhashstr(getseq(mfo, c, aa=True))[:hash_len]
+                    hstr = utils.uidhashstr(getseq(mfo, c, aa=True), max_len=hash_len)
                     return '%s-%s-%d-%s' % (hstr, mfo['seqtype'], mfo['iclust'], mfo[c]['loci'][0])  # NOTE would be nice to use subj here, but i don't have it added to input meta info (yet)
                 ofo.update([(c+'_id', gid(mfo, c)) for c in 'hl'])
             ofo.update([(c+'_family_size', len(mfo[c]['unique_ids'])) for c in 'hl'])

@@ -25,9 +25,6 @@ args = parser.parse_args()
 args.names = utils.get_arg_list(args.names)
 
 # ----------------------------------------------------------------------------------------
-def gkey(name, seq):
-    return hash(name + seq)
-# ----------------------------------------------------------------------------------------
 def clrname(name):
     return utils.color('blue', name)
 
