@@ -119,6 +119,9 @@ class Tester(object):
     def sclust_sizes(self):  # NOTE depends on self.n_simu_leaves
         return (15, 20) if args.slow else (5, 10)
     # ----------------------------------------------------------------------------------------
+    def min_smetric_cluster_size(self):
+        return 10 if args.slow else 3
+    # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
@@ -171,7 +174,7 @@ class Tester(object):
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
                 self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
-            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired', '--min-selection-metric-cluster-size', '3']}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
+            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired', '--min-selection-metric-cluster-size', str(self.min_smetric_cluster_size()), '--min-paired-cluster-size-to-read', str(self.min_smetric_cluster_size())]}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
         if args.quick:
             self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.nqr('quick'))]}
