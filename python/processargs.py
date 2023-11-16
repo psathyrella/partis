@@ -441,6 +441,8 @@ def process(args):
             print('  note: setting --no-per-base-mutation since --mutate-from-scratch was set')
             args.no_per_base_mutation = True
 
+        if args.dry_run and any(a is not None for a in [args.bulk_data_fraction, args.mean_cells_per_droplet, args.fraction_of_reads_to_remove]):
+            raise Exception('can\'t use --dry-run to rerun locus combination parts of paired simulation when any of --bulk-data-fraction, --mean-cells-per-droplet, or --fraction-of-reads-to-remove are set (since the single chain files that we\'d read with --dry-run get rewritten after modification from any of these args)')
         # end result of this block: shm/reco parameter dirs are set (unless we're doing their bit from scratch), --parameter-dir is set to None (and if --parameter-dir was set but shm/reco were _not_ set, we've just used --parameter-dir for either/both as needed)
         if args.parameter_dir is not None:
             if args.rearrange_from_scratch or args.mutate_from_scratch:

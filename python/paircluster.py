@@ -586,7 +586,7 @@ def remove_pair_info_from_bulk_data(outfos, metafos, bulk_data_fraction):
     print('  removed pair info for %d / %d = %.2f sequence pairs' % (n_to_remove, len(outfos) / 2., n_to_remove / float(len(outfos)/2.)))
 
 # ----------------------------------------------------------------------------------------
-def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constant_n_cells=False):
+def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constant_n_cells=False, debug=False):
     n_droplets = max(1, int(0.5 * float(len(outfos)) / mean_cells_per_droplet))  # (randomly) apportion cells among this many droplets (0.5 is because <outfos> includes both heavy and light sequences)
     droplet_ids = [[] for _ in range(n_droplets)]  # list of sequence ids for each droplet
     sfo_dict = {s['name'] : s for s in outfos}  # temp, to keep track of who still needs apportioning (but we do modify its sfos, which are shared with <outfos>)
@@ -606,11 +606,15 @@ def apportion_cells_to_droplets(outfos, metafos, mean_cells_per_droplet, constan
             sfo_dict[uid]['droplet-ids'] = droplet_ids[idrop]
             del sfo_dict[uid]
     for sfo in outfos:
-        metafos[sfo['name']]['paired-uids'] = [u for u in sfo['droplet-ids'] if u != sfo['name']]
+        metafos[sfo['name']]['paired-uids'] = sorted([u for u in sfo['droplet-ids'] if u != sfo['name']])
+    if debug:
+        print('    droplets:')
+        for idrop, uids in enumerate(droplet_ids):
+            print('    %5d  %s' % (idrop, ' '.join(sorted(uids))))
     print('  apportioned %d seqs among %d droplets (mean/2 %.1f): %s' % (len(outfos), n_droplets, numpy.mean([len(d) for d in droplet_ids]) / 2., ' '.join(str(len(d)) for d in droplet_ids)))
 
 # ----------------------------------------------------------------------------------------
-def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
+def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove, debug=False):
     n_to_remove = int(fraction_of_reads_to_remove * len(outfos))
     ifos_to_remove = numpy.random.choice(range(len(outfos)), size=n_to_remove, replace=False)
     uids_to_remove = set(outfos[ifo]['name'] for ifo in ifos_to_remove)
@@ -620,12 +624,13 @@ def remove_reads_from_droplets(outfos, metafos, fraction_of_reads_to_remove):
         del metafos[rid]
     pids_of_removed_ifos -= uids_to_remove
     for pid in pids_of_removed_ifos:
-        metafos[pid]['paired-uids'] = list(set(metafos[pid]['paired-uids']) - uids_to_remove)
+        metafos[pid]['paired-uids'] = sorted(set(metafos[pid]['paired-uids']) - uids_to_remove)
     outfos = [outfos[ifo] for ifo in range(len(outfos)) if ifo not in ifos_to_remove]
     print('  removed %d / %d = %.2f seqs from outfos (leaving %d / %d unpaired)' % (n_to_remove, len(outfos) + n_to_remove, n_to_remove / float(len(outfos) + n_to_remove), len([ofo for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0]), len(outfos)))
-    # print '     removed ids: %s' % ' '.join(uids_to_remove)
-    # print '     left unpaired: %s' % ' '.join([ofo['name'] for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0])
-    return outfos, uids_to_remove
+    if debug:
+        print('     removed ids: %s' % ' '.join(sorted(uids_to_remove)))
+        print('     left unpaired: %s' % ' '.join([ofo['name'] for ofo in outfos if len(metafos[ofo['name']]['paired-uids'])==0]))
+    return outfos, sorted(uids_to_remove)  # need to sort in order to get the same order on different runs
 
 # ----------------------------------------------------------------------------------------
 # merge together info from all loci into <outfos> and <metafos>
@@ -661,7 +666,7 @@ def modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos):
             lpfos['cpaths'][ltmp] = ClusterPath(partition=partition, seed_unique_id=lpfos['cpaths'][ltmp].seed_unique_id)
             i_atns_to_remove = []
             for iatn, atn in enumerate(lpfos['antn_lists'][ltmp]):
-                atn_ids_to_remove = set(atn['unique_ids']) & uids_to_remove
+                atn_ids_to_remove = sorted(set(atn['unique_ids']) & set(uids_to_remove))
                 if len(atn_ids_to_remove) == len(atn['unique_ids']):
                     i_atns_to_remove.append(iatn)
                 elif len(atn_ids_to_remove) > 0:
@@ -680,6 +685,8 @@ def modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos):
         outfos, uids_to_remove = remove_reads_from_droplets(outfos, metafos, args.fraction_of_reads_to_remove)
     if any(a is not None for a in [args.bulk_data_fraction, args.mean_cells_per_droplet, args.fraction_of_reads_to_remove]):
         for lpair, lpfos in lp_infos.items():
+            if lpfos['glfos'] is None:  # no simulation events for this locus pair
+                continue
             for ltmp in lpair:
                 update_lpf(lpfos, ltmp, uids_to_remove)
         for ltmp in concat_lpfos['glfos']:
