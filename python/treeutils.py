@@ -2188,11 +2188,11 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
 # ----------------------------------------------------------------------------------------
 def check_lb_values(line, lbvals):
     for metric in [m for m in lbvals if m in lb_metrics]:
-        missing = set(line['unique_ids']) - set(lbvals[metric])
+        missing = sorted(set(line['unique_ids']) - set(lbvals[metric]))
         if len(missing) > 0:  # we expect to get extra ones in the tree, for inferred ancestral nodes for which we don't have sequences, but missing ones probabliy indicate something's up
             # raise Exception('uids in annotation not the same as lb info keys\n    missing: %s\n    extra: %s' % (' '.join(set(line['unique_ids']) - set(lbvals[metric])), ' '.join(set(lbvals[metric]) - set(line['unique_ids']))))
-            extra = set(lbvals[metric]) - set(line['unique_ids'])
-            common = set(line['unique_ids']) & set(lbvals[metric])
+            extra = sorted(set(lbvals[metric]) - set(line['unique_ids']))
+            common = sorted(set(line['unique_ids']) & set(lbvals[metric]))
             print('    %s %s uids in annotation not the same as lb info keys for \'%s\':  %d missing from lb info  %d extra in lb info  (%d in common)'  % (utils.color('red', 'error'), utils.color('blue', metric), metric, len(missing), len(extra), len(common)))
             if len(missing) + len(extra) < 35:
                 print('      missing from lb info: %s\n      missing from annotation: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common)))
@@ -3343,7 +3343,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                     raise Exception('need to handle %s to avoid None value' % xky)
                 return mv
             elif xky in smheads:
-                return utils.wfmt(gsvstr(gsval(mpfo, 'p', xky), xky), lenfcn())
+                return utils.wfmt(gsvstr(gsval(mpfo, 'p', xky, no_fail=True), xky), lenfcn())
             else:
                 print(xky, cfgfo['meta-info-print-keys'])
                 assert False

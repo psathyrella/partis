@@ -286,8 +286,8 @@ class Tester(object):
                 rm_file(cfn)
         # and any old tree inference files
         if name == 'partition-' + info['input_stype'] + '-simu':
-            ft_fnames = glob.glob('%s/fasttree/iclust-*/fasttree.out' % self.opath('partition-new-simu', st='new'))
-            iq_fnames = glob.glob('%s/iqtree/iclust-*/out.treefile' % self.opath('partition-new-simu', st='new'))
+            ft_fnames = glob.glob('%s/fasttree/iclust-*/{fasttree.out,log*,input-seqs.fa}' % self.opath('partition-new-simu', st='new'))
+            iq_fnames = glob.glob('%s/iqtree/iclust-*/{out.treefile,log*,input-seqs.fa}' % self.opath('partition-new-simu', st='new'))
             for ffn in [f for f in ft_fnames + iq_fnames if os.path.exists(f)]:
                 rm_file(ffn)
 

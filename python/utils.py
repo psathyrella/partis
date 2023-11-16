@@ -7189,7 +7189,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
                     removed_queries.add(fq)
             cpath.partitions[ip] = [c for c in partition if len(c) > 0]  # remove any empty ones (typically we'll be removing single-sequence clusters, since they failed)
         if len(removed_queries) > 0:
-            print('      removed %d failed queries when reading partition: %s' % (len(removed_queries), ' '.join(removed_queries)))
+            print('      removed %d failed queries when reading partition: %s' % (len(removed_queries), ' '.join(sorted(removed_queries))))
 
     if annotation_list is not None:
         for antn in annotation_list:

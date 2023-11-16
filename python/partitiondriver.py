@@ -2132,9 +2132,9 @@ class PartitionDriver(object):
             if d_qr_base != gl_v_base and d_qr_base != gl_j_base:
                 votes['dj_insertion'] += 1
 
-        sorted_votes = sorted(list(votes.items()), key=operator.itemgetter(1), reverse=True)
+        sorted_votes = sorted(sorted(votes.items()), key=operator.itemgetter(1), reverse=True)  # first do default sort (will alphabetize keys), then reverse sort by votes (first step ensures repeatable order of ties)
         winner = sorted_votes[0][0]
-        sorted_qr_base_votes = sorted(list(qr_base_votes.items()), key=operator.itemgetter(1), reverse=True)
+        sorted_qr_base_votes = sorted(sorted(qr_base_votes.items()), key=operator.itemgetter(1), reverse=True)  # same comment ^ as previous sort
         qr_base_winner = sorted_qr_base_votes[0][0]
         if debug:
             print('   ', sorted_votes)
@@ -2348,7 +2348,7 @@ class PartitionDriver(object):
             print('            %s skipped %d invalid events' % (utils.color('red', 'warning'), counts['n_invalid_events']))
         for ecode in errorfo:
             if ecode == 'no_path':
-                print('          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(errorfo[ecode])))
+                print('          %s no valid paths: %s' % (utils.color('red', 'warning'), ' '.join(sorted(errorfo[ecode]))))
             elif ecode == 'boundary':
                 print('          %d boundary warnings' % len(errorfo[ecode]))
                 if self.args.debug:
