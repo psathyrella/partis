@@ -1,6 +1,6 @@
 [92mcache-parameters-data[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --paired-loci --infname test/paired-data/all-seqs.fa --parameter-dir test/paired/new-results-slow/test/parameters/data --n-max-queries -1 --random-seed 1 --n-procs 10
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
-[91mrun[0m /home/dralph/work/partis/bin/extract-pairing-info.py test/paired-data/all-seqs.fa /tmp/dralph/hmms/900957/meta.yaml
+[91mrun[0m /home/dralph/work/partis/bin/extract-pairing-info.py test/paired-data/all-seqs.fa /tmp/dralph/hmms/766525/meta.yaml
   extract_pairing_info(): read 100 sequences with 48 droplet ids
     droplet id separators (set automatically): _  indices: [0]
        e.g. uid 'AAACCTGAGAGACGAA-1_contig_2' --> droplet id 'AAACCTGAGAGACGAA-1' contig id '2'
@@ -10,8 +10,8 @@
         2           42     0.875
         3            2     0.042
         4            2     0.042
-[91mrun[0m /home/dralph/work/partis/bin/split-loci.py test/paired-data/all-seqs.fa --outdir /tmp/dralph/hmms/900957 --input-metafname /tmp/dralph/hmms/900957/meta.yaml
-  --input-metafnames: added meta info for 100 sequences from /tmp/dralph/hmms/900957/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/split-loci.py test/paired-data/all-seqs.fa --outdir /tmp/dralph/hmms/766525 --input-metafname /tmp/dralph/hmms/766525/meta.yaml
+  --input-metafnames: added meta info for 100 sequences from /tmp/dralph/hmms/766525/meta.yaml: paired-uids
     read pairing info for 100 seqs from input meta file
   running vsearch on 100 sequences:
     igh:   49 / 100 v annotations (51 failed) with 28 v genes in 0.1 sec
@@ -35,10 +35,10 @@ totals: igh 48 igk 37 igl 15
                2   0.13   [94mh[0m [92ml[0m
                1   0.07   [94mh[0m [94mh[0m [95mk[0m
                1   0.07   [94mh[0m [95mk[0m
-writing to /tmp/dralph/hmms/900957/
-  igh: 48 to 900957/igh.fa
-  igk: 37 to 900957/igk.fa
-  igl: 15 to 900957/igl.fa
+writing to /tmp/dralph/hmms/766525/
+  igh: 48 to 766525/igh.fa
+  igk: 37 to 766525/igk.fa
+  igl: 15 to 766525/igl.fa
 writing to paired subdirs
     36/48 igh seqs pair with igk
       igh: 36 to igh+igk/igh.fa
@@ -47,26 +47,25 @@ writing to paired subdirs
       igh: 15 to igh+igl/igh.fa
       igl: 15 to igh+igl/igl.fa
 [44mcache-parameters[0m [94migh[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igh --dont-write-git-info --infname /tmp/dralph/hmms/900957/igh.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igh/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/900957/meta.yaml
-  --input-metafnames: added meta info for 48 sequences from /tmp/dralph/hmms/900957/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igh --dont-write-git-info --infname /tmp/dralph/hmms/766525/igh.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igh/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/766525/meta.yaml
+  --input-metafnames: added meta info for 48 sequences from /tmp/dralph/hmms/766525/meta.yaml: paired-uids
 caching parameters
   vsearch: 48 / 48 v annotations (0 failed) with 27 v genes in 0.1 sec
     keeping 23 / 198 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 48 / 48 v annotations (0 failed) with 23 v genes in 0.1 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/data/igh/sw-cache.yaml
     running 10 procs for 48 seqs
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
-    water time: 0.1  (ig-sw 0.0  processing 0.1)
+    water time: 0.2  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 48 / 48 v annotations (0 failed) with 23 v genes in 0.1 sec
     running 10 procs for 48 seqs
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/data/igh/sw-cache.yaml
-    writing parameters to test/paired/new-results-slow/test/parameters/data/igh/sw (2.5 sec)
-    water time: 2.7  (ig-sw 2.6  processing 0.1)
+    writing parameters to test/paired/new-results-slow/test/parameters/data/igh/sw (2.6 sec)
+    water time: 2.8  (ig-sw 2.7  processing 0.1)
   writing hmms     removed 13 genes from glfo (leaving v 23  d 19  j 6)
 (0.2 sec)
 hmm
@@ -77,22 +76,21 @@ hmm
       hmm step time: 2.8
   writing hmms     removed 1  genes from glfo (leaving v 23  d 18  j 6)
 (0.2 sec)
-      total time: 6.4
+      total time: 6.6
 [44mcache-parameters[0m [94migk[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --infname /tmp/dralph/hmms/900957/igk.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igk --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/900957/meta.yaml
-  --input-metafnames: added meta info for 37 sequences from /tmp/dralph/hmms/900957/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --infname /tmp/dralph/hmms/766525/igk.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igk --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/766525/meta.yaml
+  --input-metafnames: added meta info for 37 sequences from /tmp/dralph/hmms/766525/meta.yaml: paired-uids
 caching parameters
   vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
     keeping 16 / 64 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/data/igk/sw-cache.yaml
     running 10 procs for 37 seqs
       info for 37 / 37 = 1.000   (removed: 0 failed)
       kept 1 (0.027) unproductive
     water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.0 sec
+  vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
     running 10 procs for 37 seqs
       info for 37 / 37 = 1.000   (removed: 0 failed)
       kept 1 (0.027) unproductive
@@ -111,23 +109,22 @@ hmm
 (0.1 sec)
       total time: 4.6
 [44mcache-parameters[0m [94migl[0m:
-[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --infname /tmp/dralph/hmms/900957/igl.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igl --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/900957/meta.yaml
-  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/hmms/900957/meta.yaml: paired-uids
+[91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igl --dont-write-git-info --infname /tmp/dralph/hmms/766525/igl.fa --parameter-dir test/paired/new-results-slow/test/parameters/data/igl --random-seed 1 --n-procs 10 --sw-cachefname test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/766525/meta.yaml
+  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/hmms/766525/meta.yaml: paired-uids
 caching parameters
   vsearch: 15 / 15 v annotations (0 failed) with 12 v genes in 0.1 sec
     keeping 10 / 80 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.1 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml
     running 10 procs for 15 seqs
       info for 15 / 15 = 1.000   (removed: 0 failed)
     water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.0 sec
+  vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.1 sec
     running 10 procs for 15 seqs
       info for 15 / 15 = 1.000   (removed: 0 failed)
         writing sw results to test/paired/new-results-slow/test/parameters/data/igl/sw-cache.yaml
-    writing parameters to test/paired/new-results-slow/test/parameters/data/igl/sw (1.3 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/data/igl/sw (1.2 sec)
     water time: 1.4  (ig-sw 1.3  processing 0.1)
   writing hmms     removed 6  genes from glfo (leaving v 10  d 1  j 3)
 (0.1 sec)
@@ -135,15 +132,14 @@ hmm
     reading output
         read 15 hmm output lines with 15 sequences in 15 events  (0 failures)
     writing parameters to test/paired/new-results-slow/test/parameters/data/igl/hmm (1.0 sec)
-         infra time: 1.1
+         infra time: 1.0
       hmm step time: 1.2
   writing hmms     removed 0  genes from glfo (leaving v 10  d 1  j 3)
 (0.1 sec)
-      total time: 3.1
-      [93mwarning[0m expected to remove 1/11 files+dirs that weren't in /tmp/dralph/hmms/900957/: failed.fa
+      total time: 3.0
+      [93mwarning[0m expected to remove 1/11 files+dirs that weren't in /tmp/dralph/hmms/766525/: failed.fa
       total time: 16.1
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --paired-loci --parameter-dir test/paired/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/test/simu --indel-frequency 0.2
-    cleaning paired files in test/paired/new-results-slow/test/simu/
 [94migh+igk[0m: simulating 134 events
 [44mgenerate-trees[0m [94migh+igk[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --n-trees 134 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 2003260051 --indel-frequency 0.2 --generate-trees --outfname test/paired/new-results-slow/test/simu/igh+igk/trees.nwk
@@ -157,62 +153,62 @@ hmm
 simulating
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-0.nwk
-    made 13 events with 63 seqs in 2.7s (2.3s of which was running bppseqgen)
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-0.nwk
+    made 13 events with 63 seqs in 2.7s (2.4s of which was running bppseqgen)
       total time: 3.2
 
       --> proc 1
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-1.nwk
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-1.nwk
     made 13 events with 54 seqs in 2.4s (2.0s of which was running bppseqgen)
       total time: 2.8
 
       --> proc 2
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-2.nwk
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-2.nwk
     made 13 events with 67 seqs in 2.9s (2.6s of which was running bppseqgen)
       total time: 3.4
 
       --> proc 3
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-3.nwk
-    made 13 events with 51 seqs in 2.8s (2.5s of which was running bppseqgen)
-      total time: 3.3
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-3.nwk
+    made 13 events with 51 seqs in 2.6s (2.3s of which was running bppseqgen)
+      total time: 3.0
 
       --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-4.nwk
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-4.nwk
     made 13 events with 74 seqs in 2.8s (2.4s of which was running bppseqgen)
-      total time: 3.3
+      total time: 3.2
 
       --> proc 5
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-5.nwk
-    made 13 events with 41 seqs in 2.5s (1.9s of which was running bppseqgen)
-      total time: 2.9
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-5.nwk
+    made 13 events with 41 seqs in 2.2s (1.7s of which was running bppseqgen)
+      total time: 2.6
 
       --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-6.nwk
-    made 13 events with 94 seqs in 2.9s (2.5s of which was running bppseqgen)
-      total time: 3.3
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-6.nwk
+    made 13 events with 94 seqs in 3.1s (2.7s of which was running bppseqgen)
+      total time: 3.5
 
       --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-7.nwk
-    made 13 events with 56 seqs in 2.8s (2.2s of which was running bppseqgen)
-      total time: 3.1
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-7.nwk
+    made 13 events with 56 seqs in 2.8s (2.3s of which was running bppseqgen)
+      total time: 3.2
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/788715/trees-sub-8.nwk
-    made 13 events with 79 seqs in 2.7s (2.2s of which was running bppseqgen)
-      total time: 3.0
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/346548/trees-sub-8.nwk
+    made 13 events with 79 seqs in 3.1s (2.6s of which was running bppseqgen)
+      total time: 3.3
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/788715/trees-sub-9.nwk
-    made 17 events with 112 seqs in 3.6s (3.1s of which was running bppseqgen)
+    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/346548/trees-sub-9.nwk
+    made 17 events with 112 seqs in 3.6s (3.0s of which was running bppseqgen)
       total time: 3.9
 
    read 134 events with 691 seqs from 10 .yaml files
@@ -222,66 +218,66 @@ simulating
 simulating
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-0.nwk
-    made 13 events with 63 seqs in 2.5s (2.2s of which was running bppseqgen)
-      total time: 3.0
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-0.nwk
+    made 13 events with 63 seqs in 2.2s (1.8s of which was running bppseqgen)
+      total time: 2.6
 
       --> proc 1
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-1.nwk
-    made 13 events with 54 seqs in 1.9s (1.6s of which was running bppseqgen)
-      total time: 2.3
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-1.nwk
+    made 13 events with 54 seqs in 2.1s (1.8s of which was running bppseqgen)
+      total time: 2.5
 
       --> proc 2
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-2.nwk
-    made 13 events with 67 seqs in 1.9s (1.7s of which was running bppseqgen)
-      total time: 2.4
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-2.nwk
+    made 13 events with 67 seqs in 2.2s (1.9s of which was running bppseqgen)
+      total time: 2.6
 
       --> proc 3
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-3.nwk
-    made 13 events with 51 seqs in 2.2s (1.9s of which was running bppseqgen)
-      total time: 2.7
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-3.nwk
+    made 13 events with 51 seqs in 2.5s (2.1s of which was running bppseqgen)
+      total time: 2.9
 
       --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-4.nwk
-    made 13 events with 74 seqs in 2.3s (2.0s of which was running bppseqgen)
-      total time: 2.7
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-4.nwk
+    made 13 events with 74 seqs in 2.2s (1.9s of which was running bppseqgen)
+      total time: 2.6
 
       --> proc 5
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-5.nwk
-    made 13 events with 41 seqs in 2.3s (2.1s of which was running bppseqgen)
-      total time: 2.7
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-5.nwk
+    made 13 events with 41 seqs in 2.2s (1.9s of which was running bppseqgen)
+      total time: 2.6
 
       --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-6.nwk
-    made 13 events with 94 seqs in 2.3s (2.0s of which was running bppseqgen)
-      total time: 2.7
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-6.nwk
+    made 13 events with 94 seqs in 2.5s (2.3s of which was running bppseqgen)
+      total time: 2.9
 
       --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-7.nwk
-    made 13 events with 56 seqs in 2.1s (1.8s of which was running bppseqgen)
-      total time: 2.5
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-7.nwk
+    made 13 events with 56 seqs in 2.0s (1.7s of which was running bppseqgen)
+      total time: 2.4
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/337140/trees-sub-8.nwk
-    made 13 events with 79 seqs in 2.6s (2.4s of which was running bppseqgen)
-      total time: 3.0
+    resetting --n-trees from 200 to 13 to match trees read from /tmp/dralph/hmms/353788/trees-sub-8.nwk
+    made 13 events with 79 seqs in 2.5s (2.1s of which was running bppseqgen)
+      total time: 2.8
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igk/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igk/hmm
-    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/337140/trees-sub-9.nwk
-    made 17 events with 112 seqs in 2.8s (2.5s of which was running bppseqgen)
-      total time: 3.1
+    resetting --n-trees from 200 to 17 to match trees read from /tmp/dralph/hmms/353788/trees-sub-9.nwk
+    made 17 events with 112 seqs in 3.2s (2.9s of which was running bppseqgen)
+      total time: 3.5
 
    read 134 events with 691 seqs from 10 .yaml files
-      total time: 4.2
+      total time: 4.5
 [94migh+igl[0m: simulating 66 events
 [44mgenerate-trees[0m [94migh+igl[0m:[94m igh[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igh --n-trees 66 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 982264879 --indel-frequency 0.2 --generate-trees --outfname test/paired/new-results-slow/test/simu/igh+igl/trees.nwk
@@ -295,131 +291,131 @@ simulating
 simulating
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-0.nwk
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-0.nwk
     made 6 events with 35 seqs in 1.3s (1.1s of which was running bppseqgen)
       total time: 1.7
 
       --> proc 1
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-1.nwk
-    made 6 events with 31 seqs in 1.3s (1.1s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-1.nwk
+    made 6 events with 31 seqs in 1.1s (1.0s of which was running bppseqgen)
       total time: 1.6
 
       --> proc 2
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-2.nwk
-    made 6 events with 39 seqs in 1.4s (1.3s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-2.nwk
+    made 6 events with 39 seqs in 1.3s (1.1s of which was running bppseqgen)
       total time: 1.8
 
       --> proc 3
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-3.nwk
-    made 6 events with 16 seqs in 1.2s (1.1s of which was running bppseqgen)
-      total time: 1.6
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-3.nwk
+    made 6 events with 16 seqs in 1.1s (0.9s of which was running bppseqgen)
+      total time: 1.5
 
       --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-4.nwk
-    made 6 events with 28 seqs in 1.2s (1.0s of which was running bppseqgen)
-      total time: 1.5
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-4.nwk
+    made 6 events with 28 seqs in 1.4s (1.2s of which was running bppseqgen)
+      total time: 1.8
 
       --> proc 5
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-5.nwk
-    made 6 events with 28 seqs in 1.2s (1.0s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-5.nwk
+    made 6 events with 28 seqs in 1.0s (0.9s of which was running bppseqgen)
       total time: 1.5
 
       --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-6.nwk
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-6.nwk
     made 6 events with 25 seqs in 1.1s (1.0s of which was running bppseqgen)
       total time: 1.5
 
       --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-7.nwk
-    made 6 events with 26 seqs in 1.3s (1.1s of which was running bppseqgen)
-      total time: 1.7
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-7.nwk
+    made 6 events with 26 seqs in 1.1s (0.9s of which was running bppseqgen)
+      total time: 1.4
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/650511/trees-sub-8.nwk
-    made 6 events with 52 seqs in 1.5s (1.3s of which was running bppseqgen)
-      total time: 1.9
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/734708/trees-sub-8.nwk
+    made 6 events with 52 seqs in 1.5s (1.2s of which was running bppseqgen)
+      total time: 1.8
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igh/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igh/hmm
-    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/650511/trees-sub-9.nwk
-    made 12 events with 40 seqs in 2.3s (2.0s of which was running bppseqgen)
-      total time: 2.6
+    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/734708/trees-sub-9.nwk
+    made 12 events with 40 seqs in 2.0s (1.7s of which was running bppseqgen)
+      total time: 2.4
 
    read 66 events with 320 seqs from 10 .yaml files
-      total time: 3.6
+      total time: 3.3
 [44msimulate[0m [94migh+igl[0m:[94m igl[0m
 [91mrun[0m /home/dralph/work/partis/bin/partis simulate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/data/igl --n-sim-events 66 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1083609742 --n-procs 10 --indel-frequency 0.2 --choose-trees-in-order --outfname test/paired/new-results-slow/test/simu/igh+igl/igl.yaml --input-simulation-treefname test/paired/new-results-slow/test/simu/igh+igl/trees.nwk
 simulating
       --> proc 0
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-0.nwk
-    made 6 events with 35 seqs in 1.0s (0.9s of which was running bppseqgen)
-      total time: 1.4
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-0.nwk
+    made 6 events with 35 seqs in 1.1s (0.9s of which was running bppseqgen)
+      total time: 1.5
 
       --> proc 1
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-1.nwk
-    made 6 events with 31 seqs in 1.1s (0.9s of which was running bppseqgen)
-      total time: 1.4
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-1.nwk
+    made 6 events with 31 seqs in 1.3s (1.1s of which was running bppseqgen)
+      total time: 1.7
 
       --> proc 2
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-2.nwk
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-2.nwk
     made 6 events with 39 seqs in 1.1s (1.0s of which was running bppseqgen)
       total time: 1.5
 
       --> proc 3
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-3.nwk
-    made 6 events with 16 seqs in 0.9s (0.7s of which was running bppseqgen)
-      total time: 1.3
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-3.nwk
+    made 6 events with 16 seqs in 1.0s (0.9s of which was running bppseqgen)
+      total time: 1.5
 
       --> proc 4
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-4.nwk
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-4.nwk
     made 6 events with 28 seqs in 1.0s (0.9s of which was running bppseqgen)
-      total time: 1.4
+      total time: 1.5
 
       --> proc 5
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-5.nwk
-    made 6 events with 28 seqs in 1.0s (0.9s of which was running bppseqgen)
-      total time: 1.4
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-5.nwk
+    made 6 events with 28 seqs in 1.1s (1.0s of which was running bppseqgen)
+      total time: 1.5
 
       --> proc 6
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-6.nwk
-    made 6 events with 25 seqs in 1.0s (0.8s of which was running bppseqgen)
-      total time: 1.4
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-6.nwk
+    made 6 events with 25 seqs in 0.9s (0.8s of which was running bppseqgen)
+      total time: 1.2
 
       --> proc 7
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-7.nwk
-    made 6 events with 26 seqs in 1.0s (0.8s of which was running bppseqgen)
-      total time: 1.3
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-7.nwk
+    made 6 events with 26 seqs in 1.1s (0.9s of which was running bppseqgen)
+      total time: 1.5
 
       --> proc 8
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/456436/trees-sub-8.nwk
-    made 6 events with 52 seqs in 1.2s (1.1s of which was running bppseqgen)
+    resetting --n-trees from 200 to 6 to match trees read from /tmp/dralph/hmms/27958/trees-sub-8.nwk
+    made 6 events with 52 seqs in 1.3s (1.1s of which was running bppseqgen)
       total time: 1.5
 
       --> proc 9
     reco params: test/paired/new-results-slow/test/parameters/data/igl/hmm     shm params: test/paired/new-results-slow/test/parameters/data/igl/hmm
-    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/456436/trees-sub-9.nwk
-    made 12 events with 40 seqs in 1.8s (1.6s of which was running bppseqgen)
-      total time: 2.1
+    resetting --n-trees from 200 to 12 to match trees read from /tmp/dralph/hmms/27958/trees-sub-9.nwk
+    made 12 events with 40 seqs in 1.6s (1.3s of which was running bppseqgen)
+      total time: 1.9
 
    read 66 events with 320 seqs from 10 .yaml files
-      total time: 3.1
+      total time: 3.0
 [94migh+igk[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results-slow/test/simu/igh+igk/
 [94migh+igl[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results-slow/test/simu/igh+igl/
   apportioned 2022 seqs among 808 droplets (mean/2 1.3): 2 4 2 4 2 2 4 2 4 2 2 4 4 4 2 2 4 4 4 2 2 2 2 2 4 4 4 2 2 2 2 4 2 2 4 4 2 4 4 2 4 2 2 2 2 2 4 2 2 2 2 2 2 2 4 4 2 2 2 4 4 2 2 2 2 4 4 4 2 4 4 2 2 2 2 2 4 2 4 2 2 4 2 2 2 2 2 4 4 2 2 4 2 2 2 2 2 4 2 4 2 2 2 4 2 2 4 2 2 2 2 2 4 2 2 4 2 2 2 2 2 2 2 2 2 4 4 4 2 2 2 2 2 2 2 4 2 2 4 2 4 2 2 2 2 4 4 4 2 2 2 4 2 2 4 2 2 2 4 2 4 2 4 2 4 2 2 4 2 2 2 2 2 2 4 2 2 2 2 4 4 4 2 2 2 4 2 4 2 2 2 2 2 2 4 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 4 4 2 2 2 2 2 2 2 2 4 2 4 4 2 2 2 2 4 2 4 2 2 2 2 4 2 2 4 2 4 2 2 2 4 2 2 2 2 2 2 4 2 2 4 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 4 4 2 2 2 2 4 4 4 4 4 2 2 4 2 2 4 2 2 2 4 2 2 2 2 2 2 4 2 2 4 2 2 2 2 2 4 2 2 2 2 2 2 2 2 2 4 2 4 2 4 4 2 2 4 2 2 2 2 2 2 4 2 2 2 4 2 2 2 2 2 2 2 4 2 4 2 2 2 4 2 2 2 4 2 2 4 2 4 2 4 2 2 2 2 2 2 4 2 2 4 4 2 4 2 2 2 2 2 2 4 2 2 2 4 2 2 2 2 2 4 4 2 2 4 4 2 4 2 2 2 2 4 2 2 4 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 4 2 4 4 2 2 4 2 2 2 2 2 2 4 2 2 2 2 2 2 2 2 2 2 2 4 2 2 2 2 2 4 2 2 2 2 2 4 4 2 2 2 4 2 2 2 2 2 2 2 2 2 4 2 2 2 2 4 2 4 4 2 2 4 2 2 2 2 4 4 2 2 4 2 2 2 2 2 2 4 4 2 2 2 2 2 4 4 4 2 4 2 2 4 2 2 2 4 2 2 2 4 2 2 2 4 4 2 4 2 2 2 2 2 2 2 2 4 4 2 2 2 2 2 2 2 2 4 2 2 2 2 2 2 2 2 2 2 2 2 4 4 2 2 2 2 2 4 2 2 2 2 2 2 2 4 2 4 4 4 2 2 4 2 2 4 2 2 2 4 4 2 2 2 2 2 2 2 2 2 4 2 4 2 4 2 2 2 2 4 2 2 4 2 2 2 2 2 4 2 2 4 2 4 4 2 2 2 2 2 2 2 2 4 2 2 4 2 2 2 2 2 2 2 2 2 2 4 2 2 2 2 2 2 4 2 2 2 2 2 2 2 2 2 4 4 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 4 2 4 2 4 2 4 2 2 2 2 2 2 2 4 2 2 2 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 4 4 2 2 2 2 4 2 2 2 2 4 2 2 2 2 2 2 4 2 4 4 2 2 2 4 2 2 2 2 2 2 2 2 2 2 2 2 4 2 2 2 4 2 2 2 2 2 2 2 4 2 4 4 2 2 4 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 4 4 2 2 4 2 2 2
@@ -437,7 +433,6 @@ caching parameters
     keeping 24 / 198 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 864 / 864 v annotations (0 failed) with 24 v genes in 0.2 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
     running 10 procs for 864 seqs
     running 11 procs for 20 seqs
       info for 864 / 864 = 1.000   (removed: 0 failed)
@@ -450,20 +445,20 @@ smith-waterman  (writing parameters)
       info for 864 / 864 = 1.000   (removed: 0 failed)
       kept 255 (0.295) unproductive
         writing sw results to test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/sw (2.5 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/sw (2.4 sec)
     water time: 4.1  (ig-sw 2.9  processing 0.2)
   writing hmms     removed 3  genes from glfo (leaving v 23  d 30  j 6)
 (0.2 sec)
 hmm
     reading output
         read 864 hmm output lines with 864 sequences in 864 events  (0 failures)
-    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/hmm (2.2 sec)
+    writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/hmm (2.1 sec)
     writing parameters to test/paired/new-results-slow/test/parameters/simu/igh/true (2.1 sec)
-         infra time: 5.3
-      hmm step time: 7.0
+         infra time: 5.2
+      hmm step time: 6.9
   writing hmms     removed 2  genes from glfo (leaving v 23  d 28  j 6)
 (0.2 sec)
-      total time: 13.8
+      total time: 13.7
 [44mcache-parameters[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igk --is-simu --random-seed 1 --n-procs 10 --infname test/paired/new-results-slow/test/simu/igk.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -472,15 +467,14 @@ caching parameters
   vsearch: 586 / 586 v annotations (0 failed) with 18 v genes in 0.1 sec
     keeping 16 / 64 v genes
 smith-waterman  (new-allele fitting)
-  vsearch: 586 / 586 v annotations (0 failed) with 16 v genes in 0.1 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml
+  vsearch: 586 / 586 v annotations (0 failed) with 16 v genes in 0.2 sec
     running 10 procs for 586 seqs
     running 12 procs for 18 seqs
       info for 586 / 586 = 1.000   (removed: 0 failed)
       kept 113 (0.193) unproductive
-    water time: 0.7  (ig-sw 0.0  processing 0.1)
+    water time: 0.7  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 586 / 586 v annotations (0 failed) with 16 v genes in 0.2 sec
+  vsearch: 586 / 586 v annotations (0 failed) with 16 v genes in 0.1 sec
     running 10 procs for 586 seqs
     running 12 procs for 18 seqs
       info for 586 / 586 = 1.000   (removed: 0 failed)
@@ -510,7 +504,6 @@ caching parameters
     keeping 10 / 80 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 269 / 269 v annotations (0 failed) with 10 v genes in 0.1 sec
-  removing old sw cache test/paired/new-results-slow/test/parameters/simu/igl/sw-cache.yaml
     running 10 procs for 269 seqs
     running 11 procs for 6 seqs
       info for 269 / 269 = 1.000   (removed: 0 failed)
@@ -532,12 +525,12 @@ hmm
         read 269 hmm output lines with 269 sequences in 269 events  (0 failures)
     writing parameters to test/paired/new-results-slow/test/parameters/simu/igl/hmm (0.9 sec)
     writing parameters to test/paired/new-results-slow/test/parameters/simu/igl/true (0.9 sec)
-         infra time: 2.2
-      hmm step time: 2.7
+         infra time: 2.3
+      hmm step time: 2.8
   writing hmms     removed 0  genes from glfo (leaving v 10  d 1  j 3)
 (0.1 sec)
-      total time: 5.4
-      total time: 29.7
+      total time: 5.5
+      total time: 29.6
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --parameter-dir test/paired/new-results-slow/test/parameters/simu --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/partition-new-simu
   [93mwarning[0m ignoring --plot-annotation-performance for paired clustering since it's going to be a bit fiddly to implement
 [44mpartition[0m [94migh[0m:
@@ -558,11 +551,11 @@ hmm
   caching all 864 naive sequences (1.8s)
     collapsed 864 queries into 359 clusters with identical naive seqs (0.0 sec)
   359 clusters with 10 procs (1.6s)
-   320 clusters with 7 procs (1.6s)
+   320 clusters with 7 procs (1.5s)
    285 clusters with 5 procs (1.7s)
    245 clusters with 3 procs (2.6s)
-   210 clusters with 2 procs (2.7s)
-   190 clusters with 2 procs (1.5s)
+   210 clusters with 2 procs (2.8s)
+   190 clusters with 2 procs (1.6s)
    184 clusters with 1 proc (4.6s)
    [93mnote[0m not merging entire cpath history
       partition loop time: 16.3
@@ -572,7 +565,7 @@ getting annotations for final partition
 (0.0 sec)
 
     subcluster annotation time 3.7
-      total time: 23.2
+      total time: 23.1
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igk --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results-slow/partition-new-simu-annotation-performance/single-chain/plots/igk --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results-slow/test/simu/igk.yaml --outfname test/paired/new-results-slow/partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -602,15 +595,15 @@ hmm
       partition loop time: 2.6
 getting annotations for final partition
   subcluster annotating 42 clusters with steps:            [91mwarning[0m no valid paths: 3a1b73dc89-igk 7307ea6392-igk
-(1.2s)     missing 2 annotations
+(1.1s)     missing 2 annotations
       removing failed cluster for 3a1b73dc89-igk:
       removing failed cluster for 7307ea6392-igk:
 (0.5s) (0.3s) (0.1s)   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 15 queries with different true and inferred net shm indel lengths: 2464510a36-igk 6576e7b730-igk e82c2853d6-igk 41548f26c9-igk c772a368e2-igk 4db7ef7858-igk 44b03dcfc3-igk 2fd8b5c8f5-igk 3d19bd28fd-igk 65a28e40fb-igk 85430008df-igk 9c5f4ab5e1-igk a536c77952-igk c47eea84c4-igk da0b397897-igk
 (0.0 sec)
 
-    subcluster annotation time 2.6
-      total time: 7.3
+    subcluster annotation time 2.5
+      total time: 7.2
 [44mpartition[0m [94migl[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igl --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igl --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results-slow/partition-new-simu-annotation-performance/single-chain/plots/igl --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results-slow/test/simu/igl.yaml --outfname test/paired/new-results-slow/partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -633,7 +626,7 @@ hmm
    28 clusters with 5 procs (0.3s)
    26 clusters with 3 procs (0.2s)
    22 clusters with 2 procs (0.2s)
-   19 clusters with 1 proc (0.6s)
+   19 clusters with 1 proc (0.5s)
    [93mnote[0m not merging entire cpath history
       partition loop time: 1.9
 getting annotations for final partition
@@ -680,7 +673,7 @@ getting annotations for final partition
   --input-partition-fname: read best partition with 631 sequences in 196 clusters from test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
-  vsearch: 631 / 631 v annotations (0 failed) with 23 v genes in 0.2 sec
+  vsearch: 631 / 631 v annotations (0 failed) with 23 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
       info for 631 / 631 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 181 (0.287) unproductive
@@ -702,7 +695,7 @@ smith-waterman
         water time: 0.2
 hmm
   subcluster annotating 196 clusters with steps:  (1.4s) (0.6s) (0.2s) 
-    subcluster annotation time 2.3
+    subcluster annotation time 2.4
       total time: 2.7
   need to get annotations for 152/162 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
@@ -712,7 +705,7 @@ hmm
   --input-partition-fname: read best partition with 584 sequences in 162 clusters from test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk-only-partition.yaml
 annotating    (with test/paired/new-results-slow/test/parameters/simu/igk/hmm)
 smith-waterman
-  vsearch: 584 / 584 v annotations (0 failed) with 16 v genes in 0.1 sec
+  vsearch: 584 / 584 v annotations (0 failed) with 16 v genes in 0.2 sec
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml
       info for 584 / 584 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 111 (0.190) unproductive
@@ -783,7 +776,7 @@ smith-waterman
                     loci        0      372        0      372        0        0
         water time: 0.1
 hmm
-  subcluster annotating 135 clusters with steps:  (0.9s) (0.4s) (0.2s) 
+  subcluster annotating 135 clusters with steps:  (1.0s) (0.4s) (0.2s) 
     subcluster annotation time 1.6
       total time: 1.9
   need to get annotations for 74/80 joint igl clusters
@@ -826,7 +819,7 @@ hmm
         [94mh[0m  177 --> 275  [91m+98[0m
         [95mk[0m   40 --> 162  [91m+122[0m
         [92ml[0m   19 --> 80   [91m+61[0m
-      total time: 49.6
+      total time: 49.4
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --parameter-dir test/paired/new-results-slow/test/parameters/simu --max-ccf-fail-frac 0.10 --is-simu --seed-unique-id b1db196920-igh:b1db196920-igk --seed-loci igh:igk --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/seed-partition-new-simu
    removing seqs very different from seed seq
                            wrong/no     removed      singly         kept   missing
@@ -849,7 +842,7 @@ smith-waterman
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
       info for 52 / 52 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 22 (0.423) unproductive
-        water time: 0.1
+        water time: 0.0
 hmm
   caching all 52 naive sequences (0.4s)
     collapsed 52 queries into 30 clusters with identical naive seqs (0.0 sec)
@@ -859,11 +852,11 @@ hmm
    26 clusters with 3 procs (0.8s)
    22 clusters with 2 procs (0.3s)
    22 clusters with 1 proc (1.0s)
-       partition loop time: 3.1
+       partition loop time: 3.0
 getting annotations for final partition
   subcluster annotating 22 clusters with steps:  (0.4s) (0.2s) (0.1s) 
     subcluster annotation time 0.7
-      total time: 4.3
+      total time: 4.2
 [44mpartition[0m [94migk[0m:
   note: adding input metafname from default location (test/paired/new-results-slow/test/simu/meta.yaml)
 [91mrun[0m /home/dralph/work/partis/bin/partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results-slow/test/parameters/simu/igk --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --refuse-to-cache-parameters --infname test/paired/new-results-slow/seed-partition-new-simu/seeds/b1db196920-igh+b1db196920-igk/single-chain/input-seqs-igk.fa --outfname test/paired/new-results-slow/seed-partition-new-simu/seeds/b1db196920-igh+b1db196920-igk/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results-slow/test/simu/meta.yaml
@@ -881,7 +874,7 @@ hmm
   reducing n procs to number of clusters: 10 --> 9
   9 clusters with 9 procs (0.1s)
    9 clusters with 6 procs (0.1s)
-   9 clusters with 4 procs (0.2s)
+   9 clusters with 4 procs (0.1s)
    8 clusters with 3 procs (0.1s)
    8 clusters with 2 procs (0.1s)
    8 clusters with 1 proc (0.3s)
@@ -951,7 +944,7 @@ getting annotations for final partition
   --input-partition-fname: read best partition with 14 sequences in 1 clusters from test/paired/new-results-slow/seed-partition-new-simu/seeds/b1db196920-igh+b1db196920-igk/igh+igk/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
-  vsearch: 14 / 14 v annotations (0 failed) with 1 v gene in 0.1 sec
+  vsearch: 14 / 14 v annotations (0 failed) with 1 v gene in 0.0 sec
         reading sw results from test/paired/new-results-slow/test/parameters/simu/igh/sw-cache.yaml
       info for 14 / 14 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 2 (0.143) unproductive
@@ -968,8 +961,8 @@ smith-waterman
         water time: 0.0
 hmm
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
-    subcluster annotation time 0.3
-      total time: 0.4
+    subcluster annotation time 0.4
+      total time: 0.5
      removed 11 unseeded clusters (of 12 total, leaving 1) from igk joint partition
   need to get annotations for 1/1 joint igk clusters
   seed cluster size in best joint partition: 14, excluding seed seq: 13
@@ -1014,16 +1007,16 @@ hmm
    N clusters with all seqs:
         [94mh[0m   22 --> 1    [91m-21[0m
         [95mk[0m    8 --> 1    [91m-7[0m
-      total time: 10.3
-[92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --paired-loci --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/partition-new-simu --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml
+      total time: 10.2
+[92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --paired-loci --existing-output-run-cfg paired --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/partition-new-simu --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml
 [44mget-selection-metrics[0m [94migh+igk[0m:[94m igh[0m
-[91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 3 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igh.yaml
+[91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igh.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: by default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set). If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters
-    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 77 clusters with sizes 19 18 13 12 12 11 11 10 10 10 9 9 9 9 8 8 8 8 8 8 8 8 8 8 8 8 8 7 7 7 7 6 6 6 6 6 6 6 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3
-      skipped 119 smaller than 3
-    getting trees for 57 clusters with sizes: 19 18 13 12 12 11 11 10 10 10 9 9 9 9 8 8 8 8 8 8 8 8 8 8 8 8 8 7 7 7 7 6 6 6 6 6 6 6 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 4 4
-      starting 57 jobs
+    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 10 clusters with sizes 19 18 13 12 12 11 11 10 10 10
+      skipped 186 smaller than 10
+    getting trees for 10 clusters with sizes: 19 18 13 12 12 11 11 10 10 10
+      starting 10 jobs
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/140891/fasttree.out /tmp/dralph/tree-inference/140891/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/596853/fasttree.out /tmp/dralph/tree-inference/596853/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/888598/fasttree.out /tmp/dralph/tree-inference/888598/input-seqs.fa
@@ -1034,62 +1027,14 @@ hmm
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/123646/fasttree.out /tmp/dralph/tree-inference/123646/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/519501/fasttree.out /tmp/dralph/tree-inference/519501/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/797926/fasttree.out /tmp/dralph/tree-inference/797926/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/471325/fasttree.out /tmp/dralph/tree-inference/471325/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/495185/fasttree.out /tmp/dralph/tree-inference/495185/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/683244/fasttree.out /tmp/dralph/tree-inference/683244/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/398055/fasttree.out /tmp/dralph/tree-inference/398055/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/827036/fasttree.out /tmp/dralph/tree-inference/827036/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/991188/fasttree.out /tmp/dralph/tree-inference/991188/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/107192/fasttree.out /tmp/dralph/tree-inference/107192/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/945215/fasttree.out /tmp/dralph/tree-inference/945215/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/332849/fasttree.out /tmp/dralph/tree-inference/332849/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/32075/fasttree.out /tmp/dralph/tree-inference/32075/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/23406/fasttree.out /tmp/dralph/tree-inference/23406/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/26681/fasttree.out /tmp/dralph/tree-inference/26681/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/681098/fasttree.out /tmp/dralph/tree-inference/681098/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/567712/fasttree.out /tmp/dralph/tree-inference/567712/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/9652/fasttree.out /tmp/dralph/tree-inference/9652/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/984769/fasttree.out /tmp/dralph/tree-inference/984769/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/924040/fasttree.out /tmp/dralph/tree-inference/924040/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/399721/fasttree.out /tmp/dralph/tree-inference/399721/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/719830/fasttree.out /tmp/dralph/tree-inference/719830/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/227120/fasttree.out /tmp/dralph/tree-inference/227120/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/442621/fasttree.out /tmp/dralph/tree-inference/442621/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/761111/fasttree.out /tmp/dralph/tree-inference/761111/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/30451/fasttree.out /tmp/dralph/tree-inference/30451/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/553259/fasttree.out /tmp/dralph/tree-inference/553259/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/232460/fasttree.out /tmp/dralph/tree-inference/232460/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/800798/fasttree.out /tmp/dralph/tree-inference/800798/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/459158/fasttree.out /tmp/dralph/tree-inference/459158/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/984787/fasttree.out /tmp/dralph/tree-inference/984787/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/519896/fasttree.out /tmp/dralph/tree-inference/519896/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/579715/fasttree.out /tmp/dralph/tree-inference/579715/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/244406/fasttree.out /tmp/dralph/tree-inference/244406/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/362493/fasttree.out /tmp/dralph/tree-inference/362493/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/242081/fasttree.out /tmp/dralph/tree-inference/242081/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/709727/fasttree.out /tmp/dralph/tree-inference/709727/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/229408/fasttree.out /tmp/dralph/tree-inference/229408/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/797911/fasttree.out /tmp/dralph/tree-inference/797911/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/481929/fasttree.out /tmp/dralph/tree-inference/481929/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/998500/fasttree.out /tmp/dralph/tree-inference/998500/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/303858/fasttree.out /tmp/dralph/tree-inference/303858/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/971512/fasttree.out /tmp/dralph/tree-inference/971512/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/22533/fasttree.out /tmp/dralph/tree-inference/22533/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/436396/fasttree.out /tmp/dralph/tree-inference/436396/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/878264/fasttree.out /tmp/dralph/tree-inference/878264/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/960778/fasttree.out /tmp/dralph/tree-inference/960778/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/583484/fasttree.out /tmp/dralph/tree-inference/583484/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/966984/fasttree.out /tmp/dralph/tree-inference/966984/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/673494/fasttree.out /tmp/dralph/tree-inference/673494/input-seqs.fa
-      made 57 fasttree trees (2.5s)
-    tree origins: 57 ran fasttree
-    skipped 20/77 clusters smaller than 4
+      made 10 fasttree trees (0.5s)
+    tree origins: 10 ran fasttree
       setting default tau to 1 / 382 = 0.0026
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0026
       setting default tau to 1 / 382 = 0.0026
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0026
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 7/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bhp cdy cgp
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 2/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: nox
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 7/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cik ivy mpy
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 2/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: den
                 [94miclust 8: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/10 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
                     mean values:  tree depth 0.013  mfreq 0.012  diff 0.002  abs(frac diff) 17%  ratio 1.2
           10 with highest abs(diff):
@@ -1101,116 +1046,18 @@ hmm
               0.0074    0.0056       1.3     0.0018     ed6f8d17b2-igh
               0.0074    0.0056       1.3     0.0018     cec2fa39f4-igh
               0.0074    0.0056       1.3     0.0018     ed6f8d17b2-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 11/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cpz dgz dhj egr eot
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 2/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: gvz
-                [94miclust 10: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/9 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.029  mfreq 0.026  diff 0.003  abs(frac diff) 12%  ratio 1.1
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0346    0.0270       1.3     0.0076     46ad8395a8-igh
-          10 with highest+lowest ratios:
-              0.0346    0.0270       1.3     0.0076     46ad8395a8-igh
-              0.0346    0.0270       1.3     0.0076     46ad8395a8-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 17/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: akx bdm dft fij gko irw pru qtz
-                [94miclust 12: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/9 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.001  mfreq 0.001  diff 0.000  abs(frac diff) 43%  ratio 1.4
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0042    0.0027       1.5     0.0014     cddca2c293-igh
-              0.0037    0.0027       1.4     0.0010     7ee704fce2-igh
-          10 with highest+lowest ratios:
-              0.0042    0.0027       1.5     0.0014     cddca2c293-igh
-              0.0037    0.0027       1.4     0.0010     7ee704fce2-igh
-              0.0042    0.0027       1.5     0.0014     cddca2c293-igh
-              0.0037    0.0027       1.4     0.0010     7ee704fce2-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 3/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: deh
-                [94miclust 15: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/8 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.067  mfreq 0.059  diff 0.009  abs(frac diff) 15%  ratio 1.1
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0718    0.0572       1.3     0.0146     551ef28a1e-igh
-          10 with highest+lowest ratios:
-              0.0718    0.0572       1.3     0.0146     551ef28a1e-igh
-              0.0718    0.0572       1.3     0.0146     551ef28a1e-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 15/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ady akv etv fhu ghx gos iow
-                [94miclust 16: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 4/8 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.131  mfreq 0.104  diff 0.027  abs(frac diff) 26%  ratio 1.3
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.1473    0.1090       1.4     0.0382     3513b4943c-igh
-              0.1431    0.1064       1.3     0.0367     751d878657-igh
-              0.1295    0.0957       1.4     0.0337     993970a94b-igh
-              0.1343    0.1037       1.3     0.0306     e71076e8f8-igh
-          10 with highest+lowest ratios:
-              0.1295    0.0957       1.4     0.0337     993970a94b-igh
-              0.1473    0.1090       1.4     0.0382     3513b4943c-igh
-              0.1431    0.1064       1.3     0.0367     751d878657-igh
-              0.1343    0.1037       1.3     0.0306     e71076e8f8-igh
-              0.1343    0.1037       1.3     0.0306     e71076e8f8-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 15/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ahq ceu ejw fuz gkn vwy vwz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 15/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bey biz cly dfl dkx gnr qrt
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 5/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: gkn qvx
-                [94miclust 19: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 3/8 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.070  mfreq 0.059  diff 0.011  abs(frac diff) 20%  ratio 1.2
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0753    0.0582       1.3     0.0171     1ea1d0781f-igh
-              0.0635    0.0499       1.3     0.0137     e772dc42ec-igh
-              0.0536    0.0416       1.3     0.0121     25b0ffac3b-igh
-          10 with highest+lowest ratios:
-              0.0753    0.0582       1.3     0.0171     1ea1d0781f-igh
-              0.0536    0.0416       1.3     0.0121     25b0ffac3b-igh
-              0.0635    0.0499       1.3     0.0137     e772dc42ec-igh
-              0.0536    0.0416       1.3     0.0121     25b0ffac3b-igh
-              0.0635    0.0499       1.3     0.0137     e772dc42ec-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 15/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agz cew cor dtw fku gpx joq
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 20): skipped 13/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agx bcp dkv eik gip imx
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 13/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agi aqz cho crs fmu vwx
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 26): skipped 13/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: alw elr els fpt gho joq
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 29): skipped 5/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cdj pqz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 32): skipped 11/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: blo csz ehz ejw fkz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 33): skipped 11/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bow cgu epw gnq iku
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 34): skipped 2/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: hvz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 37): skipped 11/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adl cek ghm hxz kmv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 39): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adp eqw fmv hjr
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 40): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cku ehi eiv jmq
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 41): skipped 6/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bux ikt
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 43): skipped 2/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fmz
-                [94miclust 45: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/5 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.063  mfreq 0.054  diff 0.009  abs(frac diff) 19%  ratio 1.2
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0614    0.0452       1.4     0.0162     d404184f8a-igh
-              0.0576    0.0426       1.4     0.0151     0712ca3f99-igh
-          10 with highest+lowest ratios:
-              0.0614    0.0452       1.4     0.0162     d404184f8a-igh
-              0.0576    0.0426       1.4     0.0151     0712ca3f99-igh
-              0.0614    0.0452       1.4     0.0162     d404184f8a-igh
-              0.0576    0.0426       1.4     0.0151     0712ca3f99-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 45): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ciz dty fqs psw
-                [94miclust 48: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/4 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.055  mfreq 0.047  diff 0.007  abs(frac diff) 17%  ratio 1.2
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0347    0.0277       1.3     0.0070     972e8e09de-igh
-          10 with highest+lowest ratios:
-              0.0347    0.0277       1.3     0.0070     972e8e09de-igh
-              0.0347    0.0277       1.3     0.0070     972e8e09de-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 48): skipped 7/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cio dhk ijp
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 49): skipped 7/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: awz ehm mnt
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 51): skipped 5/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: itu qxy
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 52): skipped 3/6 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: lnr
-    skipped 20/77 clusters that had no uids in common with tree
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 11/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aop atv gpx hks lor
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 2/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dqs
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igh-selection-metrics.yaml
-      total time: 3.1
+      total time: 0.8
 [44mget-selection-metrics[0m [94migh+igk[0m:[94m igk[0m
-[91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igk --dont-write-git-info --min-selection-metric-cluster-size 3 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk.yaml
+[91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igk --dont-write-git-info --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: by default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set). If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters
-    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 68 clusters with sizes 19 17 17 15 15 13 11 11 11 10 10 10 9 9 9 9 9 8 8 8 7 7 7 7 7 7 7 7 7 7 6 6 6 6 6 6 6 6 5 5 5 5 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3 3 3
-      skipped 94 smaller than 3
-    getting trees for 58 clusters with sizes: 19 17 17 15 15 13 11 11 11 10 10 10 9 9 9 9 9 8 8 8 7 7 7 7 7 7 7 7 7 7 6 6 6 6 6 6 6 6 5 5 5 5 5 5 5 5 5 5 5 5 4 4 4 4 4 4 4 4
-      starting 58 jobs
+    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 12 clusters with sizes 19 17 17 15 15 13 11 11 11 10 10 10
+      skipped 150 smaller than 10
+    getting trees for 12 clusters with sizes: 19 17 17 15 15 13 11 11 11 10 10 10
+      starting 12 jobs
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/140891/fasttree.out /tmp/dralph/tree-inference/140891/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/596853/fasttree.out /tmp/dralph/tree-inference/596853/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/888598/fasttree.out /tmp/dralph/tree-inference/888598/input-seqs.fa
@@ -1223,58 +1070,11 @@ hmm
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/797926/fasttree.out /tmp/dralph/tree-inference/797926/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/471325/fasttree.out /tmp/dralph/tree-inference/471325/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/495185/fasttree.out /tmp/dralph/tree-inference/495185/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/683244/fasttree.out /tmp/dralph/tree-inference/683244/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/398055/fasttree.out /tmp/dralph/tree-inference/398055/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/827036/fasttree.out /tmp/dralph/tree-inference/827036/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/991188/fasttree.out /tmp/dralph/tree-inference/991188/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/107192/fasttree.out /tmp/dralph/tree-inference/107192/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/945215/fasttree.out /tmp/dralph/tree-inference/945215/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/332849/fasttree.out /tmp/dralph/tree-inference/332849/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/32075/fasttree.out /tmp/dralph/tree-inference/32075/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/23406/fasttree.out /tmp/dralph/tree-inference/23406/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/26681/fasttree.out /tmp/dralph/tree-inference/26681/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/681098/fasttree.out /tmp/dralph/tree-inference/681098/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/567712/fasttree.out /tmp/dralph/tree-inference/567712/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/9652/fasttree.out /tmp/dralph/tree-inference/9652/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/984769/fasttree.out /tmp/dralph/tree-inference/984769/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/924040/fasttree.out /tmp/dralph/tree-inference/924040/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/399721/fasttree.out /tmp/dralph/tree-inference/399721/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/719830/fasttree.out /tmp/dralph/tree-inference/719830/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/227120/fasttree.out /tmp/dralph/tree-inference/227120/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/442621/fasttree.out /tmp/dralph/tree-inference/442621/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/761111/fasttree.out /tmp/dralph/tree-inference/761111/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/30451/fasttree.out /tmp/dralph/tree-inference/30451/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/553259/fasttree.out /tmp/dralph/tree-inference/553259/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/232460/fasttree.out /tmp/dralph/tree-inference/232460/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/800798/fasttree.out /tmp/dralph/tree-inference/800798/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/459158/fasttree.out /tmp/dralph/tree-inference/459158/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/984787/fasttree.out /tmp/dralph/tree-inference/984787/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/519896/fasttree.out /tmp/dralph/tree-inference/519896/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/579715/fasttree.out /tmp/dralph/tree-inference/579715/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/244406/fasttree.out /tmp/dralph/tree-inference/244406/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/362493/fasttree.out /tmp/dralph/tree-inference/362493/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/242081/fasttree.out /tmp/dralph/tree-inference/242081/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/709727/fasttree.out /tmp/dralph/tree-inference/709727/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/229408/fasttree.out /tmp/dralph/tree-inference/229408/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/797911/fasttree.out /tmp/dralph/tree-inference/797911/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/481929/fasttree.out /tmp/dralph/tree-inference/481929/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/998500/fasttree.out /tmp/dralph/tree-inference/998500/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/303858/fasttree.out /tmp/dralph/tree-inference/303858/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/971512/fasttree.out /tmp/dralph/tree-inference/971512/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/22533/fasttree.out /tmp/dralph/tree-inference/22533/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/436396/fasttree.out /tmp/dralph/tree-inference/436396/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/878264/fasttree.out /tmp/dralph/tree-inference/878264/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/960778/fasttree.out /tmp/dralph/tree-inference/960778/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/583484/fasttree.out /tmp/dralph/tree-inference/583484/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/966984/fasttree.out /tmp/dralph/tree-inference/966984/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/673494/fasttree.out /tmp/dralph/tree-inference/673494/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/104857/fasttree.out /tmp/dralph/tree-inference/104857/input-seqs.fa
-      made 58 fasttree trees (2.8s)
-    tree origins: 58 ran fasttree
-    skipped 10/68 clusters smaller than 4
+      made 12 fasttree trees (0.6s)
+    tree origins: 12 ran fasttree
       setting default tau to 1 / 337 = 0.0030
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0030
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 2/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cpr
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 2/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cgh
       setting default tau to 1 / 337 = 0.0030
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0030
                 [94miclust 5: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 9/13 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
@@ -1301,133 +1101,32 @@ hmm
               0.0042    0.0031       1.4     0.0011     6aaf9f116a-igk
               0.0042    0.0031       1.4     0.0011     b7acf21689-igk
               0.0042    0.0031       1.4     0.0011     df22339d53-igk
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 9/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aev aew biw dhv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 3/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: kru
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 17/19 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: akx bdm fij gko gxz irw pru qtz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 2/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dfl
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 2/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: qvx
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 2/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cew
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 20): skipped 5/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agx eik
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 21): skipped 2/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bot
-                [94miclust 22: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/7 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.002  mfreq 0.001  diff 0.000  abs(frac diff) 32%  ratio 1.3
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0041    0.0030       1.4     0.0011     be97eab533-igk
-              0.0041    0.0030       1.4     0.0011     f6046473c2-igk
-          10 with highest+lowest ratios:
-              0.0041    0.0030       1.4     0.0011     be97eab533-igk
-              0.0041    0.0030       1.4     0.0011     f6046473c2-igk
-              0.0041    0.0030       1.4     0.0011     be97eab533-igk
-              0.0041    0.0030       1.4     0.0011     f6046473c2-igk
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 5/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cho vwx
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 24): skipped 2/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: des
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 25): skipped 2/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: jls
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 30): skipped 2/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: gst
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 33): skipped 7/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bow cgu iku
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 36): skipped 3/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fgk
-                [94miclust 37: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 5/6 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.117  mfreq 0.077  diff 0.040  abs(frac diff) 30%  ratio 1.3
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.6773    0.4441       1.5     0.2332     7ee704fce2-igk
-              0.0040    0.0031       1.3     0.0009     107f51d66f-igk
-              0.0040    0.0031       1.3     0.0009     4dc151e7d7-igk
-              0.0040    0.0031       1.3     0.0009     4f8cebdf53-igk
-              0.0040    0.0031       1.3     0.0009     dc4e22f882-igk
-          10 with highest+lowest ratios:
-              0.6773    0.4441       1.5     0.2332     7ee704fce2-igk
-              0.0040    0.0031       1.3     0.0009     107f51d66f-igk
-              0.0040    0.0031       1.3     0.0009     4dc151e7d7-igk
-              0.0040    0.0031       1.3     0.0009     4f8cebdf53-igk
-              0.0040    0.0031       1.3     0.0009     dc4e22f882-igk
-              0.6773    0.4441       1.5     0.2332     7ee704fce2-igk
-              0.0040    0.0031       1.3     0.0009     107f51d66f-igk
-              0.0040    0.0031       1.3     0.0009     4dc151e7d7-igk
-              0.0040    0.0031       1.3     0.0009     4f8cebdf53-igk
-              0.0040    0.0031       1.3     0.0009     dc4e22f882-igk
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 37): skipped 5/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adl ghm
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 39): skipped 7/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: eqw fmv hjr
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 44): skipped 3/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: nxy
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 45): skipped 2/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dty
-                [94miclust 46: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/5 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.010  mfreq 0.009  diff 0.001  abs(frac diff) 11%  ratio 1.1
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0095    0.0063       1.5     0.0032     0040b2d553-igk
-          10 with highest+lowest ratios:
-              0.0095    0.0063       1.5     0.0032     0040b2d553-igk
-              0.0095    0.0063       1.5     0.0032     0040b2d553-igk
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 47): skipped 2/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ajz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 48): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cio dhk hpz ijp
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 49): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: awz ehm mnt svz
-                [94miclust 52: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/4 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.003  mfreq 0.002  diff 0.001  abs(frac diff) 32%  ratio 1.3
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0043    0.0031       1.4     0.0012     bfd58d384e-igk
-              0.0043    0.0031       1.4     0.0012     c409d16e5f-igk
-          10 with highest+lowest ratios:
-              0.0043    0.0031       1.4     0.0012     bfd58d384e-igk
-              0.0043    0.0031       1.4     0.0012     c409d16e5f-igk
-              0.0043    0.0031       1.4     0.0012     bfd58d384e-igk
-              0.0043    0.0031       1.4     0.0012     c409d16e5f-igk
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 52): skipped 5/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dkm lnr
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 55): skipped 2/6 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: goy
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 57): skipped 5/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: auz hkm
-    skipped 10/68 clusters that had no uids in common with tree
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 9/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ckv mrt nor rvx
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 3/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: hix
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 17/19 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agh aly bhr bsx gjr kvw prw tux
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk-selection-metrics.yaml
-      total time: 3.4
+      total time: 0.8
 [44mget-selection-metrics[0m [94migh+igl[0m:[94m igh[0m
-[91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 3 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igh.yaml
+[91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igh.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: by default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set). If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters
-    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 50 clusters with sizes 13 12 12 11 11 9 9 8 8 8 8 7 7 7 6 6 6 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 4 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3
-      skipped 85 smaller than 3
-    getting trees for 33 clusters with sizes: 13 12 12 11 11 9 9 8 8 8 8 7 7 7 6 6 6 5 5 5 5 5 5 4 4 4 4 4 4 4 4 4 4
-      starting 33 jobs
+    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 5 clusters with sizes 13 12 12 11 11
+      skipped 130 smaller than 10
+    getting trees for 5 clusters with sizes: 13 12 12 11 11
+      starting 5 jobs
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/140891/fasttree.out /tmp/dralph/tree-inference/140891/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/596853/fasttree.out /tmp/dralph/tree-inference/596853/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/888598/fasttree.out /tmp/dralph/tree-inference/888598/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/841235/fasttree.out /tmp/dralph/tree-inference/841235/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/800875/fasttree.out /tmp/dralph/tree-inference/800875/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/66172/fasttree.out /tmp/dralph/tree-inference/66172/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/267459/fasttree.out /tmp/dralph/tree-inference/267459/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/123646/fasttree.out /tmp/dralph/tree-inference/123646/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/519501/fasttree.out /tmp/dralph/tree-inference/519501/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/797926/fasttree.out /tmp/dralph/tree-inference/797926/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/471325/fasttree.out /tmp/dralph/tree-inference/471325/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/495185/fasttree.out /tmp/dralph/tree-inference/495185/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/683244/fasttree.out /tmp/dralph/tree-inference/683244/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/398055/fasttree.out /tmp/dralph/tree-inference/398055/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/827036/fasttree.out /tmp/dralph/tree-inference/827036/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/991188/fasttree.out /tmp/dralph/tree-inference/991188/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/107192/fasttree.out /tmp/dralph/tree-inference/107192/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/945215/fasttree.out /tmp/dralph/tree-inference/945215/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/332849/fasttree.out /tmp/dralph/tree-inference/332849/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/32075/fasttree.out /tmp/dralph/tree-inference/32075/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/23406/fasttree.out /tmp/dralph/tree-inference/23406/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/26681/fasttree.out /tmp/dralph/tree-inference/26681/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/681098/fasttree.out /tmp/dralph/tree-inference/681098/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/567712/fasttree.out /tmp/dralph/tree-inference/567712/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/9652/fasttree.out /tmp/dralph/tree-inference/9652/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/984769/fasttree.out /tmp/dralph/tree-inference/984769/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/924040/fasttree.out /tmp/dralph/tree-inference/924040/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/399721/fasttree.out /tmp/dralph/tree-inference/399721/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/719830/fasttree.out /tmp/dralph/tree-inference/719830/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/227120/fasttree.out /tmp/dralph/tree-inference/227120/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/442621/fasttree.out /tmp/dralph/tree-inference/442621/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/761111/fasttree.out /tmp/dralph/tree-inference/761111/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/30451/fasttree.out /tmp/dralph/tree-inference/30451/input-seqs.fa
-      made 33 fasttree trees (1.5s)
-    tree origins: 33 ran fasttree
-    skipped 17/50 clusters smaller than 4
+      made 5 fasttree trees (0.3s)
+    tree origins: 5 ran fasttree
       setting default tau to 1 / 370 = 0.0027
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0027
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 2/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: jly
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 2/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw
       setting default tau to 1 / 370 = 0.0027
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0027
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 2/14 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bhn
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 2/14 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fnv
                 [94miclust 3: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 6/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
                     mean values:  tree depth 0.123  mfreq 0.097  diff 0.026  abs(frac diff) 27%  ratio 1.3
           10 with highest abs(diff):
@@ -1449,143 +1148,33 @@ hmm
               0.1268    0.0957       1.3     0.0311     08ffa9f078-igh
               0.1257    0.0957       1.3     0.0299     9ed10b6475-igh
               0.1114    0.0878       1.3     0.0236     f0a62c811f-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: acd beg btw hqr ilu kow mpv puz qry qvy
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 2/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: mtw
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 2/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: csv
-                [94miclust 7: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/8 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.004  mfreq 0.003  diff 0.001  abs(frac diff) 35%  ratio 1.4
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0166    0.0116       1.4     0.0051     e1005a8a25-igh
-              0.0146    0.0116       1.3     0.0030     ebce8659c9-igh
-          10 with highest+lowest ratios:
-              0.0166    0.0116       1.4     0.0051     e1005a8a25-igh
-              0.0146    0.0116       1.3     0.0030     ebce8659c9-igh
-              0.0166    0.0116       1.4     0.0051     e1005a8a25-igh
-              0.0146    0.0116       1.3     0.0030     ebce8659c9-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 3/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: nox
-                [94miclust 10: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 4/8 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.002  mfreq 0.001  diff 0.001  abs(frac diff) 45%  ratio 1.5
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0041    0.0028       1.5     0.0013     14ce7f9ce4-igh
-              0.0041    0.0028       1.5     0.0013     2af140f66a-igh
-              0.0041    0.0028       1.5     0.0013     cd06c437d5-igh
-              0.0040    0.0028       1.4     0.0013     1508039a71-igh
-          10 with highest+lowest ratios:
-              0.0041    0.0028       1.5     0.0013     14ce7f9ce4-igh
-              0.0041    0.0028       1.5     0.0013     2af140f66a-igh
-              0.0041    0.0028       1.5     0.0013     cd06c437d5-igh
-              0.0040    0.0028       1.4     0.0013     1508039a71-igh
-              0.0040    0.0028       1.4     0.0013     1508039a71-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 7/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bdm pru qtz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 13/14 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aou cjr efy fjs fmz hkv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 2/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: deh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 9/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aiz cmt egh isv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 2/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fhu
-                [94miclust 16: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 4/6 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.008  mfreq 0.006  diff 0.002  abs(frac diff) 32%  ratio 1.3
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0130    0.0104       1.3     0.0026     d1c113996f-igh
-              0.0103    0.0078       1.3     0.0025     584288dc7f-igh
-              0.0098    0.0078       1.3     0.0020     2d5852d09b-igh
-              0.0044    0.0026       1.7     0.0019     0681430892-igh
-          10 with highest+lowest ratios:
-              0.0044    0.0026       1.7     0.0019     0681430892-igh
-              0.0103    0.0078       1.3     0.0025     584288dc7f-igh
-              0.0098    0.0078       1.3     0.0020     2d5852d09b-igh
-              0.0130    0.0104       1.3     0.0026     d1c113996f-igh
-              0.0130    0.0104       1.3     0.0026     d1c113996f-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 8/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ceu fuz vwz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 7/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: biz dfl dkx
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 2/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: qvx
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 2/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cew
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 2/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cho
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 26): skipped 3/6 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: els
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 29): skipped 3/6 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dsx
-                [94miclust 31: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/4 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.011  mfreq 0.009  diff 0.002  abs(frac diff) 30%  ratio 1.3
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0086    0.0055       1.5     0.0030     a8efa7f387-igh
-              0.0086    0.0055       1.5     0.0030     5cfe402b65-igh
-          10 with highest+lowest ratios:
-              0.0086    0.0055       1.5     0.0030     a8efa7f387-igh
-              0.0086    0.0055       1.5     0.0030     5cfe402b65-igh
-              0.0086    0.0055       1.5     0.0030     a8efa7f387-igh
-              0.0086    0.0055       1.5     0.0030     5cfe402b65-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 31): skipped 5/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: hnr nuv
-    skipped 17/50 clusters that had no uids in common with tree
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bez blu bvw cik fpy gno hiq ivy jks mpy
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igh-selection-metrics.yaml
-      total time: 1.8
+      total time: 0.4
 [44mget-selection-metrics[0m [94migh+igl[0m:[94m igl[0m
-[91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igl --dont-write-git-info --min-selection-metric-cluster-size 3 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igl.yaml
+[91mrun[0m /home/dralph/work/partis/bin/partis get-selection-metrics --locus igl --dont-write-git-info --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --chosen-ab-fname test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml --refuse-to-cache-parameters --outfname test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igl.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: by default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set). If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters
-    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 35 clusters with sizes 14 13 13 11 10 9 8 7 7 7 7 7 6 6 6 6 5 5 5 5 5 4 4 4 4 4 3 3 3 3 3 3 3 3 3
-      skipped 49 smaller than 3
-    getting trees for 26 clusters with sizes: 14 13 13 11 10 9 8 7 7 7 7 7 6 6 6 6 5 5 5 5 5 4 4 4 4 4
-      starting 26 jobs
+    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 5 clusters with sizes 14 13 13 11 10
+      skipped 79 smaller than 10
+    getting trees for 5 clusters with sizes: 14 13 13 11 10
+      starting 5 jobs
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/140891/fasttree.out /tmp/dralph/tree-inference/140891/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/596853/fasttree.out /tmp/dralph/tree-inference/596853/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/888598/fasttree.out /tmp/dralph/tree-inference/888598/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/841235/fasttree.out /tmp/dralph/tree-inference/841235/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/800875/fasttree.out /tmp/dralph/tree-inference/800875/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/66172/fasttree.out /tmp/dralph/tree-inference/66172/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/267459/fasttree.out /tmp/dralph/tree-inference/267459/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/123646/fasttree.out /tmp/dralph/tree-inference/123646/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/519501/fasttree.out /tmp/dralph/tree-inference/519501/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/797926/fasttree.out /tmp/dralph/tree-inference/797926/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/471325/fasttree.out /tmp/dralph/tree-inference/471325/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/495185/fasttree.out /tmp/dralph/tree-inference/495185/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/683244/fasttree.out /tmp/dralph/tree-inference/683244/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/398055/fasttree.out /tmp/dralph/tree-inference/398055/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/827036/fasttree.out /tmp/dralph/tree-inference/827036/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/991188/fasttree.out /tmp/dralph/tree-inference/991188/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/107192/fasttree.out /tmp/dralph/tree-inference/107192/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/945215/fasttree.out /tmp/dralph/tree-inference/945215/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/332849/fasttree.out /tmp/dralph/tree-inference/332849/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/32075/fasttree.out /tmp/dralph/tree-inference/32075/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/23406/fasttree.out /tmp/dralph/tree-inference/23406/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/26681/fasttree.out /tmp/dralph/tree-inference/26681/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/681098/fasttree.out /tmp/dralph/tree-inference/681098/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/567712/fasttree.out /tmp/dralph/tree-inference/567712/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/9652/fasttree.out /tmp/dralph/tree-inference/9652/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/984769/fasttree.out /tmp/dralph/tree-inference/984769/input-seqs.fa
-      made 26 fasttree trees (1.1s)
-    tree origins: 26 ran fasttree
-    skipped 9/35 clusters smaller than 4
+      made 5 fasttree trees (0.2s)
+    tree origins: 5 ran fasttree
       setting default tau to 1 / 340 = 0.0029
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0029
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 2/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cin
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 2/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw
       setting default tau to 1 / 340 = 0.0029
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0029
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 20/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: akv bnp cgh egi ekw fix gor luw ops
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 20/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ael cim deg dhi ejw euv jqu puv vxy
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 3/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cpz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 11/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aou cjr efy fmz hkv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 2/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: deh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 13): skipped 11/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: abq chq hvy klu lmv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 9/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aiz cmt egh isv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 3/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fhu
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 2/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ahq
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 3/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dfl
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 7/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dgn gkn qvx
-                [94miclust 20: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/5 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.026  mfreq 0.024  diff 0.002  abs(frac diff) 10%  ratio 1.1
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0360    0.0282       1.3     0.0077     eb47515f79-igl
-          10 with highest+lowest ratios:
-              0.0360    0.0282       1.3     0.0077     eb47515f79-igl
-              0.0360    0.0282       1.3     0.0077     eb47515f79-igl
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 20): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agx bcp eik gip
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 21): skipped 7/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bot ctx frw
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 23): skipped 2/6 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: nwy
-    skipped 9/35 clusters that had no uids in common with tree
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 20/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: awy doq dst eov eqs flx ily jpw npq
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 20/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ajy apr bft dhq dij esv eyz twx uvx
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/igh+igl/partition-igl-selection-metrics.yaml
-      total time: 1.4
+      total time: 0.4
 [44mgetting combined h/l selection metrics[0m
     igh+igk: 153 unpaired light clusters after finding h/l cluster pairs
     igh+igk: skipped 34 annotations with zero length paired uids
@@ -1635,172 +1224,112 @@ hmm
           [93mwarning[0m chose 3 abs with shm indels): the consensus sequence may or may not reflect the indels (see previous lines -- whether 'input' or 'indel-reversed' seqs were used to calculate consensus depends on the fraction of seqs in the family with indels). uids: 39e0ae6e64-igh 3f337e6349-igl c2272283dc-igh
            using observed cons seq
           [93mwarning[0m chose 2 abs with shm indels): the consensus sequence may or may not reflect the indels (see previous lines -- whether 'input' or 'indel-reversed' seqs were used to calculate consensus depends on the fraction of seqs in the family with indels). uids: c1ead9832e-igk cfe3b29587-igh cfe3b29587-igk
-    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 14 clusters with sizes 15 12 12 12 11 11 11 10 10 10 9 9 9 8
-      skipped 0 smaller than 3
-    getting trees for 14 clusters with sizes: 15 12 12 12 11 11 11 10 10 10 9 9 9 8
-      starting 1 jobs
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-13/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-13/input-seqs.fa
-      made 1 fasttree trees (0.1s)
-    [93mwarning[0m didn't find 12 / 14 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 12 / 14 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 11 / 13 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 11 / 13 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 11 / 13 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 10 / 12 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 10 / 12 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 10 / 12 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 9 / 11 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 9 / 11 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    [93mwarning[0m didn't find 9 / 11 sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?)
-    tree origins: 14 ran fasttree
+    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 10 clusters with sizes 15 12 12 12 11 11 11 10 10 10
+      skipped 4 smaller than 10
+    getting trees for 10 clusters with sizes: 15 12 12 12 11 11 11 10 10 10
+      starting 10 jobs
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-0/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-1/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-1/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-3/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-3/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-4/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-4/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-5/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-5/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-7/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-7/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-8/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-8/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-9/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-9/input-seqs.fa
+      made 10 fasttree trees (0.5s)
+    tree origins: 10 ran fasttree
       setting default tau to 1 / 714 = 0.0014
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0014
       setting default tau to 1 / 714 = 0.0014
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0014
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  10 extra in lb info  (0 in common)
-      missing from lb info: 0d7575234a_contig_igh+igk 1de385032c_contig_igh+igk 41548f26c9_contig_igh+igk 657c6a602d_contig_igh+igk 67694388de_contig_igh+igk 6aaf9f116a_contig_igh+igk 84daff550c_contig_igh+igk b7acf21689_contig_igh+igk d27efa759c_contig_igh+igk dbd07bdfc5_contig_igh+igk df22339d53_contig_igh+igk fb5177cbe1_contig_igh+igk
-      missing from annotation: 276733008f_contig_igh+igk 337126e87c_contig_igh+igk 3c5f4c778a_contig_igh+igk 67aed8fbb0-igh+dcc6a48450-igk XnaiveX dhq eyz f7eddbba3a_contig_igh+igk fnv uvx
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  10 extra in lb info  (0 in common)
-      missing from lb info: 0d7575234a_contig_igh+igk 1de385032c_contig_igh+igk 41548f26c9_contig_igh+igk 657c6a602d_contig_igh+igk 67694388de_contig_igh+igk 6aaf9f116a_contig_igh+igk 84daff550c_contig_igh+igk b7acf21689_contig_igh+igk d27efa759c_contig_igh+igk dbd07bdfc5_contig_igh+igk df22339d53_contig_igh+igk fb5177cbe1_contig_igh+igk
-      missing from annotation: 276733008f_contig_igh+igk 337126e87c_contig_igh+igk 3c5f4c778a_contig_igh+igk 67aed8fbb0-igh+dcc6a48450-igk XnaiveX dhq eyz f7eddbba3a_contig_igh+igk fnv uvx
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  10 extra in lb info  (0 in common)
-      missing from lb info: 0d7575234a_contig_igh+igk 1de385032c_contig_igh+igk 41548f26c9_contig_igh+igk 657c6a602d_contig_igh+igk 67694388de_contig_igh+igk 6aaf9f116a_contig_igh+igk 84daff550c_contig_igh+igk b7acf21689_contig_igh+igk d27efa759c_contig_igh+igk dbd07bdfc5_contig_igh+igk df22339d53_contig_igh+igk fb5177cbe1_contig_igh+igk
-      missing from annotation: 276733008f_contig_igh+igk 337126e87c_contig_igh+igk 3c5f4c778a_contig_igh+igk 67aed8fbb0-igh+dcc6a48450-igk XnaiveX dhq eyz f7eddbba3a_contig_igh+igk fnv uvx
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 276733008f_contig_igh+igk 337126e87c_contig_igh+igk 3c5f4c778a_contig_igh+igk 67aed8fbb0-igh+dcc6a48450-igk dhq eyz f7eddbba3a_contig_igh+igk fnv uvx
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  12 extra in lb info  (0 in common)
-      missing from lb info: 08bceb192b_contig_igh+igl 09e451e585_contig_igh+igl 09f74ae679_contig_igh+igl 20db9afdb1_contig_igh+igl 21d47f73e7_contig_igh+igl 24168c43d1_contig_igh+igl 2a4f74ab54_contig_igh+igl 2b6e9e61b3_contig_igh+igl 32e156266f-igh+9266285779-igl 3921af524b_contig_igh+igl 75f8ff3130_contig_igh+igl 83ffd3eb49_contig_igh+igl
-      missing from annotation: 0d7575234a_contig_igh+igk 41548f26c9_contig_igh+igk 657c6a602d_contig_igh+igk 84daff550c_contig_igh+igk XnaiveX dbd07bdfc5_contig_igh+igk df22339d53_contig_igh+igk fb5177cbe1_contig_igh+igk fpy hiq ivy mpy
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  12 extra in lb info  (0 in common)
-      missing from lb info: 08bceb192b_contig_igh+igl 09e451e585_contig_igh+igl 09f74ae679_contig_igh+igl 20db9afdb1_contig_igh+igl 21d47f73e7_contig_igh+igl 24168c43d1_contig_igh+igl 2a4f74ab54_contig_igh+igl 2b6e9e61b3_contig_igh+igl 32e156266f-igh+9266285779-igl 3921af524b_contig_igh+igl 75f8ff3130_contig_igh+igl 83ffd3eb49_contig_igh+igl
-      missing from annotation: 0d7575234a_contig_igh+igk 41548f26c9_contig_igh+igk 657c6a602d_contig_igh+igk 84daff550c_contig_igh+igk XnaiveX dbd07bdfc5_contig_igh+igk df22339d53_contig_igh+igk fb5177cbe1_contig_igh+igk fpy hiq ivy mpy
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  12 extra in lb info  (0 in common)
-      missing from lb info: 08bceb192b_contig_igh+igl 09e451e585_contig_igh+igl 09f74ae679_contig_igh+igl 20db9afdb1_contig_igh+igl 21d47f73e7_contig_igh+igl 24168c43d1_contig_igh+igl 2a4f74ab54_contig_igh+igl 2b6e9e61b3_contig_igh+igl 32e156266f-igh+9266285779-igl 3921af524b_contig_igh+igl 75f8ff3130_contig_igh+igl 83ffd3eb49_contig_igh+igl
-      missing from annotation: 0d7575234a_contig_igh+igk 41548f26c9_contig_igh+igk 657c6a602d_contig_igh+igk 84daff550c_contig_igh+igk XnaiveX dbd07bdfc5_contig_igh+igk df22339d53_contig_igh+igk fb5177cbe1_contig_igh+igk fpy hiq ivy mpy
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 11/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0d7575234a_contig_igh+igk 41548f26c9_contig_igh+igk 657c6a602d_contig_igh+igk 84daff550c_contig_igh+igk dbd07bdfc5_contig_igh+igk df22339d53_contig_igh+igk fb5177cbe1_contig_igh+igk fpy hiq ivy mpy
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  21 extra in lb info  (0 in common)
-      missing from lb info: 07f84b018e_contig_igh+igk 25cd272aba_contig_igh+igk 6385edc10e_contig_igh+igk 7be03be402_contig_igh+igk 85b221334a_contig_igh+igk 8e075d8103_contig_igh+igk 92e91857d4_contig_igh+igk a4cc85ce95_contig_igh+igk c8f2fb3a38_contig_igh+igk e737b9377e_contig_igh+igk fbc87f0c82_contig_igh+igk
-      missing from annotation: 08bceb192b_contig_igh+igl 09e451e585_contig_igh+igl 09f74ae679_contig_igh+igl 20db9afdb1_contig_igh+igl 21d47f73e7_contig_igh+igl 24168c43d1_contig_igh+igl 2a4f74ab54_contig_igh+igl 2b6e9e61b3_contig_igh+igl 32e156266f-igh+9266285779-igl 3921af524b_contig_igh+igl 75f8ff3130_contig_igh+igl 83ffd3eb49_contig_igh+igl XnaiveX ahj cpv djk ijy iot nsu qru vwx
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  21 extra in lb info  (0 in common)
-      missing from lb info: 07f84b018e_contig_igh+igk 25cd272aba_contig_igh+igk 6385edc10e_contig_igh+igk 7be03be402_contig_igh+igk 85b221334a_contig_igh+igk 8e075d8103_contig_igh+igk 92e91857d4_contig_igh+igk a4cc85ce95_contig_igh+igk c8f2fb3a38_contig_igh+igk e737b9377e_contig_igh+igk fbc87f0c82_contig_igh+igk
-      missing from annotation: 08bceb192b_contig_igh+igl 09e451e585_contig_igh+igl 09f74ae679_contig_igh+igl 20db9afdb1_contig_igh+igl 21d47f73e7_contig_igh+igl 24168c43d1_contig_igh+igl 2a4f74ab54_contig_igh+igl 2b6e9e61b3_contig_igh+igl 32e156266f-igh+9266285779-igl 3921af524b_contig_igh+igl 75f8ff3130_contig_igh+igl 83ffd3eb49_contig_igh+igl XnaiveX ahj cpv djk ijy iot nsu qru vwx
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  21 extra in lb info  (0 in common)
-      missing from lb info: 07f84b018e_contig_igh+igk 25cd272aba_contig_igh+igk 6385edc10e_contig_igh+igk 7be03be402_contig_igh+igk 85b221334a_contig_igh+igk 8e075d8103_contig_igh+igk 92e91857d4_contig_igh+igk a4cc85ce95_contig_igh+igk c8f2fb3a38_contig_igh+igk e737b9377e_contig_igh+igk fbc87f0c82_contig_igh+igk
-      missing from annotation: 08bceb192b_contig_igh+igl 09e451e585_contig_igh+igl 09f74ae679_contig_igh+igl 20db9afdb1_contig_igh+igl 21d47f73e7_contig_igh+igl 24168c43d1_contig_igh+igl 2a4f74ab54_contig_igh+igl 2b6e9e61b3_contig_igh+igl 32e156266f-igh+9266285779-igl 3921af524b_contig_igh+igl 75f8ff3130_contig_igh+igl 83ffd3eb49_contig_igh+igl XnaiveX ahj cpv djk ijy iot nsu qru vwx
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 20/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 08bceb192b_contig_igh+igl 09e451e585_contig_igh+igl 09f74ae679_contig_igh+igl 20db9afdb1_contig_igh+igl 21d47f73e7_contig_igh+igl 24168c43d1_contig_igh+igl 2a4f74ab54_contig_igh+igl 2b6e9e61b3_contig_igh+igl 32e156266f-igh+9266285779-igl 3921af524b_contig_igh+igl 75f8ff3130_contig_igh+igl 83ffd3eb49_contig_igh+igl ahj cpv djk ijy iot nsu qru vwx
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 276733008f_contig_igh+igk 3c5f4c778a_contig_igh+igk 4ef071ea7c-igh+dcc6a48450-igk 577773b57d_contig_igh+igk 7230f7a64a_contig_igh+igk 7d4166ae48_contig_igh+igk b374f7dd77_contig_igh+igk c1ead9832e_contig_igh+igk cfe3b29587_contig_igh+igk dc78cbb7af_contig_igh+igk f7eddbba3a_contig_igh+igk
-      missing from annotation: XnaiveX fbc87f0c82_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 276733008f_contig_igh+igk 3c5f4c778a_contig_igh+igk 4ef071ea7c-igh+dcc6a48450-igk 577773b57d_contig_igh+igk 7230f7a64a_contig_igh+igk 7d4166ae48_contig_igh+igk b374f7dd77_contig_igh+igk c1ead9832e_contig_igh+igk cfe3b29587_contig_igh+igk dc78cbb7af_contig_igh+igk f7eddbba3a_contig_igh+igk
-      missing from annotation: XnaiveX fbc87f0c82_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 276733008f_contig_igh+igk 3c5f4c778a_contig_igh+igk 4ef071ea7c-igh+dcc6a48450-igk 577773b57d_contig_igh+igk 7230f7a64a_contig_igh+igk 7d4166ae48_contig_igh+igk b374f7dd77_contig_igh+igk c1ead9832e_contig_igh+igk cfe3b29587_contig_igh+igk dc78cbb7af_contig_igh+igk f7eddbba3a_contig_igh+igk
-      missing from annotation: XnaiveX fbc87f0c82_contig_igh+igk
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fbc87f0c82_contig_igh+igk
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 1d5adf689a_contig_igh+igl 2824d8e60f_contig_igh+igl 2b02c51077_contig_igh+igl 321f8288ff_contig_igh+igl 6e2215dcca_contig_igh+igl 79f4a19628_contig_igh+igl 94d62b1100_contig_igh+igl a4f229a17c_contig_igh+igl ccfaafad93_contig_igh+igl f19e8af1b7_contig_igh+igl fad57bd99e_contig_igh+igl
-      missing from annotation: XnaiveX dea571aeb8_contig_igh+igl
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 1d5adf689a_contig_igh+igl 2824d8e60f_contig_igh+igl 2b02c51077_contig_igh+igl 321f8288ff_contig_igh+igl 6e2215dcca_contig_igh+igl 79f4a19628_contig_igh+igl 94d62b1100_contig_igh+igl a4f229a17c_contig_igh+igl ccfaafad93_contig_igh+igl f19e8af1b7_contig_igh+igl fad57bd99e_contig_igh+igl
-      missing from annotation: XnaiveX dea571aeb8_contig_igh+igl
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 1d5adf689a_contig_igh+igl 2824d8e60f_contig_igh+igl 2b02c51077_contig_igh+igl 321f8288ff_contig_igh+igl 6e2215dcca_contig_igh+igl 79f4a19628_contig_igh+igl 94d62b1100_contig_igh+igl a4f229a17c_contig_igh+igl ccfaafad93_contig_igh+igl f19e8af1b7_contig_igh+igl fad57bd99e_contig_igh+igl
-      missing from annotation: XnaiveX dea571aeb8_contig_igh+igl
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dea571aeb8_contig_igh+igl
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0672664c50_contig_igh+igk 35fc655801_contig_igh+igk 6c897f6d54_contig_igh+igk 89cf6fd1da_contig_igh+igk 8bf1825cb1_contig_igh+igk 9633a1cff7_contig_igh+igk a4197ef4d6_contig_igh+igk b985e6e94e_contig_igh+igk c1fec1c7ee_contig_igh+igk d6e6421601_contig_igh+igk
-      missing from annotation: 08ffa9f078_contig_igh+igl 39e0ae6e64_contig_igh+igl 3f337e6349_contig_igh+igl 4d37fe487e_contig_igh+igl 73b7148c7e_contig_igh+igl 7588f09c07_contig_igh+igl 9ed10b6475_contig_igh+igl XnaiveX aa25e6c0ce_contig_igh+igl abs akr bqs c2272283dc_contig_igh+igl cef crt den ent f0a62c811f_contig_igh+igl imy mqv
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0672664c50_contig_igh+igk 35fc655801_contig_igh+igk 6c897f6d54_contig_igh+igk 89cf6fd1da_contig_igh+igk 8bf1825cb1_contig_igh+igk 9633a1cff7_contig_igh+igk a4197ef4d6_contig_igh+igk b985e6e94e_contig_igh+igk c1fec1c7ee_contig_igh+igk d6e6421601_contig_igh+igk
-      missing from annotation: 08ffa9f078_contig_igh+igl 39e0ae6e64_contig_igh+igl 3f337e6349_contig_igh+igl 4d37fe487e_contig_igh+igl 73b7148c7e_contig_igh+igl 7588f09c07_contig_igh+igl 9ed10b6475_contig_igh+igl XnaiveX aa25e6c0ce_contig_igh+igl abs akr bqs c2272283dc_contig_igh+igl cef crt den ent f0a62c811f_contig_igh+igl imy mqv
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0672664c50_contig_igh+igk 35fc655801_contig_igh+igk 6c897f6d54_contig_igh+igk 89cf6fd1da_contig_igh+igk 8bf1825cb1_contig_igh+igk 9633a1cff7_contig_igh+igk a4197ef4d6_contig_igh+igk b985e6e94e_contig_igh+igk c1fec1c7ee_contig_igh+igk d6e6421601_contig_igh+igk
-      missing from annotation: 08ffa9f078_contig_igh+igl 39e0ae6e64_contig_igh+igl 3f337e6349_contig_igh+igl 4d37fe487e_contig_igh+igl 73b7148c7e_contig_igh+igl 7588f09c07_contig_igh+igl 9ed10b6475_contig_igh+igl XnaiveX aa25e6c0ce_contig_igh+igl abs akr bqs c2272283dc_contig_igh+igl cef crt den ent f0a62c811f_contig_igh+igl imy mqv
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 08ffa9f078_contig_igh+igl 39e0ae6e64_contig_igh+igl 3f337e6349_contig_igh+igl 4d37fe487e_contig_igh+igl 73b7148c7e_contig_igh+igl 7588f09c07_contig_igh+igl 9ed10b6475_contig_igh+igl aa25e6c0ce_contig_igh+igl abs akr bqs c2272283dc_contig_igh+igl cef crt den ent f0a62c811f_contig_igh+igl imy mqv
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 08ffa9f078_contig_igh+igl 39e0ae6e64_contig_igh+igl 3f337e6349_contig_igh+igl 4d37fe487e_contig_igh+igl 73b7148c7e_contig_igh+igl 7588f09c07_contig_igh+igl 9ed10b6475_contig_igh+igl aa25e6c0ce_contig_igh+igl c2272283dc_contig_igh+igl f0a62c811f_contig_igh+igl
-      missing from annotation: XnaiveX f4d5c298d2_contig_igh+igl
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 08ffa9f078_contig_igh+igl 39e0ae6e64_contig_igh+igl 3f337e6349_contig_igh+igl 4d37fe487e_contig_igh+igl 73b7148c7e_contig_igh+igl 7588f09c07_contig_igh+igl 9ed10b6475_contig_igh+igl aa25e6c0ce_contig_igh+igl c2272283dc_contig_igh+igl f0a62c811f_contig_igh+igl
-      missing from annotation: XnaiveX f4d5c298d2_contig_igh+igl
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 08ffa9f078_contig_igh+igl 39e0ae6e64_contig_igh+igl 3f337e6349_contig_igh+igl 4d37fe487e_contig_igh+igl 73b7148c7e_contig_igh+igl 7588f09c07_contig_igh+igl 9ed10b6475_contig_igh+igl aa25e6c0ce_contig_igh+igl c2272283dc_contig_igh+igl f0a62c811f_contig_igh+igl
-      missing from annotation: XnaiveX f4d5c298d2_contig_igh+igl
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: f4d5c298d2_contig_igh+igl
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 21b731a2d0_contig_igh+igl 234cd4f13e_contig_igh+igl 66a3e1ee24_contig_igh+igl 84c4e8ff1b_contig_igh+igl b00d52a391_contig_igh+igl b9915cda20_contig_igh+igl c1f13fac89_contig_igh+igl ca712612fd_contig_igh+igl e17400a0e0_contig_igh+igl f4d5c298d2_contig_igh+igl
-      missing from annotation: XnaiveX f64be725ca_contig_igh+igl
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 21b731a2d0_contig_igh+igl 234cd4f13e_contig_igh+igl 66a3e1ee24_contig_igh+igl 84c4e8ff1b_contig_igh+igl b00d52a391_contig_igh+igl b9915cda20_contig_igh+igl c1f13fac89_contig_igh+igl ca712612fd_contig_igh+igl e17400a0e0_contig_igh+igl f4d5c298d2_contig_igh+igl
-      missing from annotation: XnaiveX f64be725ca_contig_igh+igl
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 21b731a2d0_contig_igh+igl 234cd4f13e_contig_igh+igl 66a3e1ee24_contig_igh+igl 84c4e8ff1b_contig_igh+igl b00d52a391_contig_igh+igl b9915cda20_contig_igh+igl c1f13fac89_contig_igh+igl ca712612fd_contig_igh+igl e17400a0e0_contig_igh+igl f4d5c298d2_contig_igh+igl
-      missing from annotation: XnaiveX f64be725ca_contig_igh+igl
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: f64be725ca_contig_igh+igl
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  9 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 0a61cb02ec_contig_igh+igl 3a631fffca_contig_igh+igl 5797e3f4d2_contig_igh+igl 771472b9c9_contig_igh+igl 7f77ae062e_contig_igh+igl 94660987cf_contig_igh+igl b05ffd59f0_contig_igh+igl dc16f8d9b1_contig_igh+igl f64be725ca_contig_igh+igl
-      missing from annotation: XnaiveX fc19f1dc35_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  9 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 0a61cb02ec_contig_igh+igl 3a631fffca_contig_igh+igl 5797e3f4d2_contig_igh+igl 771472b9c9_contig_igh+igl 7f77ae062e_contig_igh+igl 94660987cf_contig_igh+igl b05ffd59f0_contig_igh+igl dc16f8d9b1_contig_igh+igl f64be725ca_contig_igh+igl
-      missing from annotation: XnaiveX fc19f1dc35_contig_igh+igk
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  9 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 0a61cb02ec_contig_igh+igl 3a631fffca_contig_igh+igl 5797e3f4d2_contig_igh+igl 771472b9c9_contig_igh+igl 7f77ae062e_contig_igh+igl 94660987cf_contig_igh+igl b05ffd59f0_contig_igh+igl dc16f8d9b1_contig_igh+igl f64be725ca_contig_igh+igl
-      missing from annotation: XnaiveX fc19f1dc35_contig_igh+igk
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fc19f1dc35_contig_igh+igk
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  9 missing from lb info  15 extra in lb info  (0 in common)
-      missing from lb info: 44a2d137f4_contig_igh+igk 450a2844e5_contig_igh+igk 6b514fff99_contig_igh+igk 6c21ff3dab_contig_igh+igk bbb44c134e_contig_igh+igk c33b5cf313_contig_igh+igk e4d95be552_contig_igh+igk f5646dcb99_contig_igh+igk fc19f1dc35_contig_igh+igk
-      missing from annotation: 152c08bf7c_contig_igh+igk 26c97f4004_contig_igh+igk 28ecc28d80_contig_igh+igk 39735e53de_contig_igh+igk 5ca050f96b_contig_igh+igk 8712a04c86_contig_igh+igk XnaiveX bgz ca71010784_contig_igh+igk cec2fa39f4_contig_igh+igk dee7437025_contig_igh+igk dov duz enu hop
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  9 missing from lb info  15 extra in lb info  (0 in common)
-      missing from lb info: 44a2d137f4_contig_igh+igk 450a2844e5_contig_igh+igk 6b514fff99_contig_igh+igk 6c21ff3dab_contig_igh+igk bbb44c134e_contig_igh+igk c33b5cf313_contig_igh+igk e4d95be552_contig_igh+igk f5646dcb99_contig_igh+igk fc19f1dc35_contig_igh+igk
-      missing from annotation: 152c08bf7c_contig_igh+igk 26c97f4004_contig_igh+igk 28ecc28d80_contig_igh+igk 39735e53de_contig_igh+igk 5ca050f96b_contig_igh+igk 8712a04c86_contig_igh+igk XnaiveX bgz ca71010784_contig_igh+igk cec2fa39f4_contig_igh+igk dee7437025_contig_igh+igk dov duz enu hop
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  9 missing from lb info  15 extra in lb info  (0 in common)
-      missing from lb info: 44a2d137f4_contig_igh+igk 450a2844e5_contig_igh+igk 6b514fff99_contig_igh+igk 6c21ff3dab_contig_igh+igk bbb44c134e_contig_igh+igk c33b5cf313_contig_igh+igk e4d95be552_contig_igh+igk f5646dcb99_contig_igh+igk fc19f1dc35_contig_igh+igk
-      missing from annotation: 152c08bf7c_contig_igh+igk 26c97f4004_contig_igh+igk 28ecc28d80_contig_igh+igk 39735e53de_contig_igh+igk 5ca050f96b_contig_igh+igk 8712a04c86_contig_igh+igk XnaiveX bgz ca71010784_contig_igh+igk cec2fa39f4_contig_igh+igk dee7437025_contig_igh+igk dov duz enu hop
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 14/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 152c08bf7c_contig_igh+igk 26c97f4004_contig_igh+igk 28ecc28d80_contig_igh+igk 39735e53de_contig_igh+igk 5ca050f96b_contig_igh+igk 8712a04c86_contig_igh+igk bgz ca71010784_contig_igh+igk cec2fa39f4_contig_igh+igk dee7437025_contig_igh+igk dov duz enu hop
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  9 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 152c08bf7c_contig_igh+igk 26c97f4004_contig_igh+igk 28ecc28d80_contig_igh+igk 39735e53de_contig_igh+igk 5ca050f96b_contig_igh+igk 8712a04c86_contig_igh+igk ca71010784_contig_igh+igk cec2fa39f4_contig_igh+igk dee7437025_contig_igh+igk
-      missing from annotation: XnaiveX e0a0ffec99_contig_igh+igk ec4e415d18-igh+25b6cfbefe-igk kmr
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  9 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 152c08bf7c_contig_igh+igk 26c97f4004_contig_igh+igk 28ecc28d80_contig_igh+igk 39735e53de_contig_igh+igk 5ca050f96b_contig_igh+igk 8712a04c86_contig_igh+igk ca71010784_contig_igh+igk cec2fa39f4_contig_igh+igk dee7437025_contig_igh+igk
-      missing from annotation: XnaiveX e0a0ffec99_contig_igh+igk ec4e415d18-igh+25b6cfbefe-igk kmr
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  9 missing from lb info  4 extra in lb info  (0 in common)
-      missing from lb info: 152c08bf7c_contig_igh+igk 26c97f4004_contig_igh+igk 28ecc28d80_contig_igh+igk 39735e53de_contig_igh+igk 5ca050f96b_contig_igh+igk 8712a04c86_contig_igh+igk ca71010784_contig_igh+igk cec2fa39f4_contig_igh+igk dee7437025_contig_igh+igk
-      missing from annotation: XnaiveX e0a0ffec99_contig_igh+igk ec4e415d18-igh+25b6cfbefe-igk kmr
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 3/4 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: e0a0ffec99_contig_igh+igk ec4e415d18-igh+25b6cfbefe-igk kmr
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 13): skipped 2/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: hnx
+                [94miclust 2: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 9/12 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.003  mfreq 0.002  diff 0.001  abs(frac diff) 89%  ratio 1.9
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0031    0.0014       2.2     0.0017     84daff550c_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     6aaf9f116a_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     b7acf21689_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     df22339d53_contig_igh+igk
+              0.0040    0.0028       1.4     0.0012     657c6a602d_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     0d7575234a_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     1de385032c_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     67694388de_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     fb5177cbe1_contig_igh+igk
+          10 with highest+lowest ratios:
+              0.0031    0.0014       2.2     0.0017     84daff550c_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     6aaf9f116a_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     b7acf21689_contig_igh+igk
+              0.0031    0.0014       2.2     0.0017     df22339d53_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     0d7575234a_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     0d7575234a_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     1de385032c_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     67694388de_contig_igh+igk
+              0.0026    0.0014       1.8     0.0012     fb5177cbe1_contig_igh+igk
+              0.0040    0.0028       1.4     0.0012     657c6a602d_contig_igh+igk
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 9/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: apr fnv nox uvx
+                [94miclust 3: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 4/12 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.009  mfreq 0.007  diff 0.001  abs(frac diff) 22%  ratio 1.2
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0110    0.0084       1.3     0.0026     21d47f73e7_contig_igh+igl
+              0.0071    0.0056       1.3     0.0015     09e451e585_contig_igh+igl
+              0.0056    0.0042       1.3     0.0014     3921af524b_contig_igh+igl
+              0.0035    0.0028       1.3     0.0007     09f74ae679_contig_igh+igl
+          10 with highest+lowest ratios:
+              0.0056    0.0042       1.3     0.0014     3921af524b_contig_igh+igl
+              0.0110    0.0084       1.3     0.0026     21d47f73e7_contig_igh+igl
+              0.0071    0.0056       1.3     0.0015     09e451e585_contig_igh+igl
+              0.0035    0.0028       1.3     0.0007     09f74ae679_contig_igh+igl
+              0.0035    0.0028       1.3     0.0007     09f74ae679_contig_igh+igl
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 18/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bez bko blu bvw cik fpy gno hiq
+                [94miclust 5: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 9/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.011  mfreq 0.009  diff 0.001  abs(frac diff) 34%  ratio 1.3
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0053    0.0043       1.3     0.0011     4ef071ea7c-igh+dcc6a48450-igk
+              0.0020    0.0014       1.4     0.0006     577773b57d_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     7230f7a64a_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     7d4166ae48_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     b374f7dd77_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     c1ead9832e_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     cfe3b29587_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     dc78cbb7af_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     f7eddbba3a_contig_igh+igk
+          10 with highest+lowest ratios:
+              0.0020    0.0014       1.4     0.0006     577773b57d_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     7230f7a64a_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     7d4166ae48_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     b374f7dd77_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     c1ead9832e_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     c1ead9832e_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     cfe3b29587_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     dc78cbb7af_contig_igh+igk
+              0.0020    0.0014       1.4     0.0006     f7eddbba3a_contig_igh+igk
+              0.0053    0.0043       1.3     0.0011     4ef071ea7c-igh+dcc6a48450-igk
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 7/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ckv hmy rvx
+                [94miclust 8: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 5/10 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.077  mfreq 0.062  diff 0.015  abs(frac diff) 24%  ratio 1.2
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0867    0.0664       1.3     0.0203     c2272283dc_contig_igh+igl
+              0.0754    0.0567       1.3     0.0187     aa25e6c0ce_contig_igh+igl
+              0.0791    0.0609       1.3     0.0183     08ffa9f078_contig_igh+igl
+              0.0783    0.0609       1.3     0.0174     73b7148c7e_contig_igh+igl
+              0.0756    0.0595       1.3     0.0161     9ed10b6475_contig_igh+igl
+          10 with highest+lowest ratios:
+              0.0754    0.0567       1.3     0.0187     aa25e6c0ce_contig_igh+igl
+              0.0867    0.0664       1.3     0.0203     c2272283dc_contig_igh+igl
+              0.0791    0.0609       1.3     0.0183     08ffa9f078_contig_igh+igl
+              0.0783    0.0609       1.3     0.0174     73b7148c7e_contig_igh+igl
+              0.0756    0.0595       1.3     0.0161     9ed10b6475_contig_igh+igl
+              0.0754    0.0567       1.3     0.0187     aa25e6c0ce_contig_igh+igl
+              0.0867    0.0664       1.3     0.0203     c2272283dc_contig_igh+igl
+              0.0791    0.0609       1.3     0.0183     08ffa9f078_contig_igh+igl
+              0.0783    0.0609       1.3     0.0174     73b7148c7e_contig_igh+igl
+              0.0756    0.0595       1.3     0.0161     9ed10b6475_contig_igh+igl
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aft aop atv gpx hks kxz lor ouz pwz
   writing selection metrics to test/paired/new-results-slow/partition-new-simu/selection-metrics.yaml
       writing 51 chosen abs to test/paired/new-results-slow/get-selection-metrics-new-simu-chosen-abs.csv
-      total time: 11.9
+      total time: 5.0
