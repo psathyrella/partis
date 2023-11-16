@@ -1209,14 +1209,14 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
         return xbins[:n_max_bins], ybins[:n_max_bins]
     # ----------------------------------------------------------------------------------------
     def get_smatrix_from_xy_dicts(xvals, yvals, kfcn=None, n_max_bins=None):  # NOTE lots of duplication with next fcn (but I think it's cleaner to have them separate)
-        xbins, ybins = [[-1] + sorted(set(td.values()), key=kfcn) for td in (xvals, yvals)]
+        xbins, ybins = [[-1] + sorted(sorted(set(td.values())), key=kfcn) for td in (xvals, yvals)]  # sort first with default order (e.g. alphabetical) then with the supplied kfcn (e.g. len) so that e.g. length ties have a defined order
         if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
             xbins, ybins = truncate_bins(xbins, ybins, n_max_bins)
         smatrix = [[0 for _ in xbins] for _ in ybins]
         if tdbg > 1:
             uid_matrix = [[[] for _ in xbins] for _ in ybins]
         n_skipped = 0
-        for uid in set(yvals) | set(xvals):
+        for uid in sorted(set(yvals) | set(xvals)):
             yv, xv = yvals.get(uid, -1), xvals.get(uid, -1)
             if yv not in ybins or xv not in xbins:
                 n_skipped += 1

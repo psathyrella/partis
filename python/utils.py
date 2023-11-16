@@ -5504,7 +5504,7 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
         previously_encountered_uids = set()
         n_removed = 0
         for cluster in partitions[ipart]:
-            new_uids = set(cluster) - previously_encountered_uids  # remove any uids that were in previous clusters
+            new_uids = sorted(set(cluster) - previously_encountered_uids)  # remove any uids that were in previous clusters
             new_cluster = [u for u in cluster if u in new_uids]  # then make sure the order stays the same
             previously_encountered_uids |= set(new_cluster)
             if len(new_cluster) > 0:
@@ -5517,7 +5517,7 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
                     duplicated_uids |= set(cluster) - set(new_cluster)
                     n_removed += len(cluster) - len(new_cluster)
         if debug:
-            print('      %d uids appeared more than once (and %d total were removed)%s' % (len(duplicated_uids), n_removed, (':  ' + ' '.join(duplicated_uids)) if len(duplicated_uids) < 10 else ''))
+            print('      %d uids appeared more than once (and %d total were removed)%s' % (len(duplicated_uids), n_removed, (':  ' + ' '.join(sorted(duplicated_uids))) if len(duplicated_uids) < 10 else ''))
             n_singletons = dbg_strs.count('1/1')  # NOTE similarity to utils.cluster_size_str()
             print('           removed uids/from clusters with size: %s (+%d singletons)' % ('  '.join(s for s in dbg_strs if s!='1/1'), n_singletons))
     return new_partitions

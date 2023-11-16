@@ -70,7 +70,7 @@ def read_single_input_metafo(input_metafname, annotation_list, required_keys=Non
         print('%s replaced input metafo for %d instances of key%s %s%s' % (utils.color('yellow', 'warning'), n_modified, utils.plural(modified_keys), ', '.join(modified_keys), (' (see above, only printed the first %d)'%n_warn_print) if n_modified > n_warn_print else ''))
     added_keys = set(k for k, us in usets['added'].items() if len(us) > 0)
     added_uids = set(u for us in usets['added'].values() for u in us)
-    print('  --input-metafnames: %s %s%s' % ('no meta info added from' if len(added_uids)==0 else 'added meta info for %d sequences from'%len(added_uids), input_metafname, '' if len(added_keys)==0 else ': '+' '.join(added_keys)))
+    print('  --input-metafnames: %s %s%s' % ('no meta info added from' if len(added_uids)==0 else 'added meta info for %d sequences from'%len(added_uids), input_metafname, '' if len(added_keys)==0 else ': '+' '.join(sorted(added_keys))))
     if debug:
         print('  read_input_metafo(): add input metafo from meta file to annotations')
         print('                       uids      uids     lines  lines')
@@ -97,7 +97,7 @@ def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_
     n_warn_printed = 0
     for line in annotation_list:
         uids = line['unique_ids']
-        for line_key in utils.input_metafile_keys.values():
+        for line_key in sorted(utils.input_metafile_keys.values()):
             n_with_info = len([u for u in uids if line_key in inpfo(u)])  # NOTE there can be info in <line> but *not* in <input_info>, e.g. if we added multiplicity information in waterer.
             if n_with_info == 0:
                 incr('no-info', line_key, uids)  # it's a little weird to use a set, but the same uid is sometimes in different <line>s, and i guess maybe it'd be better to treat them separately, this way is probably simpler

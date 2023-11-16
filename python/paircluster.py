@@ -1347,8 +1347,9 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
                 all_antns[uid] = cline
     if n_missing > 0:
         print('   %d/%d (%.2f) missing uids when cleaning pair info' % (n_missing, len(all_uids), n_missing / float(len(all_uids))))  # NOTE at least for now we're skipping invalid queries when reading output
-    # for ipg, pg in enumerate(pid_groups):
-    #     print '  %3d %s' % (ipg, ' '.join(pg))
+    for ipg, pg in enumerate(pid_groups):
+        #     print '  %3d %s' % (ipg, ' '.join(pg))
+        pid_groups[ipg] = sorted(pg)  # need to sort for replicability
 
     # idg_ok = check_droplet_id_groups(pid_groups, all_uids)  # NOTE not using the return value here, but I may need to in the future UPDATE turning it off, it's too hard to figure out when we want it on vs not
     fnames = None
@@ -1573,7 +1574,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             dbgheader = ['    adding %d resolved cluster%s to %d clusters in final partition' % (len(resolved_clusters), utils.plural(len(resolved_clusters)), len(final_partition)), '      ifclust  fset   rset   common  after: fset  rset',]
             # ----------------------------------------------------------------------------------------
             def appdbg(new_fset, rset, common_uids, xdbg=None):
-                def cstr(tclust): return '(empty)' if len(tclust)==0 else ':'.join(utils.color('light_blue_bkg' if u in common_uids else None, u) for u in tclust)
+                def cstr(tclust): return '(empty)' if len(tclust)==0 else ':'.join(utils.color('light_blue_bkg' if u in common_uids else None, u) for u in sorted(tclust))
                 dbgstr.append(' %3d %s%3d %s  %3d    %s   %s' % (len(new_fset | common_uids), ('%-s'%utils.color('red', str(len(new_fset)), width=3, padside='right')) if len(common_uids&new_fset)==0 else '   ',
                                                                  len(rset | common_uids), ('%-s'%utils.color('red', str(len(rset)), width=3, padside='right')) if len(common_uids&rset)==0 else '   ',
                                                                  len(common_uids), cstr(new_fset), cstr(rset)))
@@ -1612,13 +1613,13 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 else:  # if this is the second or greater rclust, we need to apply the splits between rclusts (otherwise we can end up merging uids from different rclusts)
                     new_fset -= common_uids
                     rset -= common_uids
-                    resolved_clusters.append(list(common_uids))  # this adds a cluster at the end, which of course gets ignored in this loop over irclusts, but will get considered in the next fclust
+                    resolved_clusters.append(sorted(common_uids))  # this adds a cluster at the end, which of course gets ignored in this loop over irclusts, but will get considered in the next fclust
                     rc_sets.append(common_uids)
                     if debug: xdbg = '                  %s  %s' % (utils.color('red', '+%-3d'%len(resolved_clusters[-1])), ':'.join(resolved_clusters[-1]))
-                resolved_clusters[irclust] = list(rset)  # replace this resolved cluster with a copy of itself that may have had any common uids removed (if it was bigger than fclust)
+                resolved_clusters[irclust] = sorted(rset)  # replace this resolved cluster with a copy of itself that may have had any common uids removed (if it was bigger than fclust)
                 rc_sets[irclust] = rset
                 if debug: appdbg(new_fset, rset, common_uids, xdbg)
-            final_partition[ifclust] = list(new_fset)  # replace <fclust> (even if nothing was removed, which shuffles the order of unchanged clusters, but oh well)
+            final_partition[ifclust] = sorted(new_fset)  # replace <fclust> (even if nothing was removed, which shuffles the order of unchanged clusters, but oh well)
             fclust_sets[ifclust] = set(final_partition[ifclust])
             for fid in final_partition[ifclust]:
                 fclust_indices[fid] = ifclust

@@ -1237,7 +1237,7 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=No
     aa_dtree.update_bipartitions(suppress_unifurcations=False)
 
     if not quiet and len(skipped_edges) > 0:
-        print('      %s get_aa_tree()%s: skipped %d/%d edges for which we didn\'t have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: %s' % (utils.color('yellow', 'warning'), '' if extra_str is None else ' %s'%extra_str, len(skipped_edges), len(list(aa_dtree.preorder_edge_iter())), ' '.join(missing_nodes)))
+        print('      %s get_aa_tree()%s: skipped %d/%d edges for which we didn\'t have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: %s' % (utils.color('yellow', 'warning'), '' if extra_str is None else ' %s'%extra_str, len(skipped_edges), len(list(aa_dtree.preorder_edge_iter())), ' '.join(sorted(missing_nodes))))
     if debug:
         assert len(changes) + len(skipped_edges) + 1 == len(list(aa_dtree.preorder_edge_iter()))  # +1 is for root edge
         print('    rescaled %d/%d edges' % (len(changes), len(list(aa_dtree.preorder_edge_iter()))))
