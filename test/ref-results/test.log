@@ -5,7 +5,7 @@ caching parameters
   vsearch: 44 / 50 v annotations (6 failed) with 54 v genes in 0.1 sec
     keeping 24 / 198 v genes
 smith-waterman  (new-allele fitting)
-  vsearch: 45 / 50 v annotations (5 failed) with 23 v genes in 0.1 sec
+  vsearch: 45 / 50 v annotations (5 failed) with 23 v genes in 0.0 sec
   removing old sw cache test/new-results/test/parameters/data/sw-cache.yaml
     running 10 procs for 50 seqs
     running 12 procs for 5 seqs
@@ -13,7 +13,7 @@ smith-waterman  (new-allele fitting)
       kept 16 (0.320) unproductive
     water time: 0.2  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 45 / 50 v annotations (5 failed) with 23 v genes in 0.1 sec
+  vsearch: 45 / 50 v annotations (5 failed) with 23 v genes in 0.0 sec
     running 10 procs for 46 seqs
     running 11 procs for 1 seq
       info for 46 / 50 = 0.920   (removed: 4 failed)
@@ -37,36 +37,36 @@ simulating
       --> proc 0
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 2.2
+      total time: 2.0
 
       --> proc 1
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 9 seqs in 0.3s (0.3s of which was running bppseqgen)
-      total time: 2.2
+    made 1 event with 9 seqs in 0.2s (0.2s of which was running bppseqgen)
+      total time: 2.1
 
       --> proc 2
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 2.1
+      total time: 2.0
 
       --> proc 3
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
     made 1 event with 7 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 2.2
+      total time: 2.1
 
       --> proc 4
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
+    made 1 event with 2 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 2.0
 
       --> proc 5
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 8 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 2.0
+    made 1 event with 8 seqs in 0.3s (0.2s of which was running bppseqgen)
+      total time: 2.1
 
       --> proc 6
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
+    made 1 event with 2 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 2.0
 
       --> proc 7
@@ -81,8 +81,8 @@ simulating
 
       --> proc 9
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 1.9
+    made 1 event with 1 seqs in 0.2s (0.2s of which was running bppseqgen)
+      total time: 2.0
 
    read 10 events with 36 seqs from 10 .yaml files
       total time: 3.0
@@ -93,7 +93,6 @@ caching parameters
     [91mmissing[0m 8 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-2[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-5[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-69-1[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m09[0m 0
 smith-waterman  (new-allele fitting)
   vsearch: 36 / 36 v annotations (0 failed) with 7 v genes in 0.1 sec
-  removing old sw cache test/new-results/test/parameters/simu/sw-cache.yaml
     running 10 procs for 36 seqs
     running 11 procs for 1 seq
       info for 36 / 36 = 1.000   (removed: 0 failed)
@@ -115,7 +114,7 @@ hmm
         read 36 hmm output lines with 36 sequences in 36 events  (0 failures)
     writing parameters to test/new-results/test/parameters/simu/hmm (0.7 sec)
     writing parameters to test/new-results/test/parameters/simu/true (0.7 sec)
-         infra time: 1.6
+         infra time: 1.5
       hmm step time: 1.8
   writing hmms     removed 0  genes from glfo (leaving v 7  d 5  j 3)
 (0.1 sec)
@@ -183,12 +182,12 @@ hmm
    10 clusters with 1 proc (0.4s)
        partition loop time: 1.2
 getting annotations for final partition
-  subcluster annotating 10 clusters with steps:  (0.2s) (0.1s) (0.1s)   plotting performance 
+  subcluster annotating 10 clusters with steps:  (0.3s) (0.2s) (0.1s)   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: d8761c689a
 (0.0 sec)
 
-    subcluster annotation time 0.5
-      total time: 2.5
+    subcluster annotation time 0.6
+      total time: 2.7
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed-unique-id 8024ed1a22 --random-seed 1 --n-procs 10 --outfname test/new-results/seed-partition-new-simu.yaml
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
@@ -210,7 +209,7 @@ getting annotations for final partition
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
   seed cluster size in best partition: 11, excluding seed seq: 10
-      total time: 0.7
+      total time: 0.8
 [92mvsearch-partition-new-simu[0m       /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --random-seed 1 --n-procs 10 --outfname test/new-results/vsearch-partition-new-simu.yaml
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
@@ -237,12 +236,12 @@ getting annotations for final partition
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/140891/fasttree.out /tmp/dralph/tree-inference/140891/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/596853/fasttree.out /tmp/dralph/tree-inference/596853/input-seqs.fa
         [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/888598/fasttree.out /tmp/dralph/tree-inference/888598/input-seqs.fa
-      made 3 fasttree trees (0.1s)
+      made 3 fasttree trees (0.2s)
     tree origins: 3 ran fasttree
     skipped 1/4 clusters smaller than 4
       setting default tau to 1 / 352 = 0.0028
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0028
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 13/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw ikm bev dko amz ikn
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 13/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amz bev bnw dko ikm ikn
       setting default tau to 1 / 352 = 0.0028
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0028
                 [94miclust 1: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/7 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
@@ -257,7 +256,7 @@ getting annotations for final partition
               0.0034    0.0027       1.3     0.0007     20a0129b57
               0.0034    0.0027       1.3     0.0007     97366cf0d8
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 3/9 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: eov
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 11/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: apr nox dhq fnv uvx
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 11/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: apr dhq fnv nox uvx
     skipped 1/4 clusters that had no uids in common with tree
   writing selection metrics to test/new-results/get-selection-metrics-new-simu.yaml
-      total time: 0.2
+      total time: 0.3
