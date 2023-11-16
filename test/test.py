@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import argparse
+import random
 import numpy
 import os
 import csv
@@ -836,6 +837,9 @@ parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 assert not (args.quick and args.slow)  # it just doesn't make sense
+
+random.seed(0)
+numpy.random.seed(0)
 
 if args.print_width == 0:
     args.print_width = 99999
