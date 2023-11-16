@@ -13,7 +13,7 @@ smith-waterman  (new-allele fitting)
       kept 16 (0.320) unproductive
     water time: 0.2  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 45 / 50 v annotations (5 failed) with 23 v genes in 0.0 sec
+  vsearch: 45 / 50 v annotations (5 failed) with 23 v genes in 0.1 sec
     running 10 procs for 46 seqs
     running 11 procs for 1 seq
       info for 46 / 50 = 0.920   (removed: 4 failed)
@@ -41,13 +41,13 @@ simulating
 
       --> proc 1
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 9 seqs in 0.2s (0.2s of which was running bppseqgen)
+    made 1 event with 9 seqs in 0.3s (0.2s of which was running bppseqgen)
       total time: 2.1
 
       --> proc 2
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 2.0
+      total time: 1.9
 
       --> proc 3
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
@@ -61,28 +61,28 @@ simulating
 
       --> proc 5
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 8 seqs in 0.3s (0.2s of which was running bppseqgen)
-      total time: 2.1
+    made 1 event with 8 seqs in 0.2s (0.2s of which was running bppseqgen)
+      total time: 2.0
 
       --> proc 6
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 2 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 2.0
+    made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 1.9
 
       --> proc 7
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 2 seqs in 0.2s (0.2s of which was running bppseqgen)
+    made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 2.0
 
       --> proc 8
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
+    made 1 event with 1 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 1.9
 
       --> proc 9
     reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 1 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 2.0
+    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 1.9
 
    read 10 events with 36 seqs from 10 .yaml files
       total time: 3.0
@@ -93,6 +93,7 @@ caching parameters
     [91mmissing[0m 8 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-2[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-5[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-69-1[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m09[0m 0
 smith-waterman  (new-allele fitting)
   vsearch: 36 / 36 v annotations (0 failed) with 7 v genes in 0.1 sec
+  removing old sw cache test/new-results/test/parameters/simu/sw-cache.yaml
     running 10 procs for 36 seqs
     running 11 procs for 1 seq
       info for 36 / 36 = 1.000   (removed: 0 failed)
@@ -149,7 +150,7 @@ smith-waterman
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: d8761c689a
 (0.0 sec)
-        water time: 0.4
+        water time: 0.5
 hmm
   --simultaneous-true-clonal-seqs: grouping seqs according to true partition
   [93mwarning[0m split apart 1 cluster that contained multiple cdr3 lengths (total clusters: 10 --> 11)
@@ -182,12 +183,12 @@ hmm
    10 clusters with 1 proc (0.4s)
        partition loop time: 1.2
 getting annotations for final partition
-  subcluster annotating 10 clusters with steps:  (0.3s) (0.2s) (0.1s)   plotting performance 
+  subcluster annotating 10 clusters with steps:  (0.2s) (0.1s) (0.1s)   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: d8761c689a
 (0.0 sec)
 
-    subcluster annotation time 0.6
-      total time: 2.7
+    subcluster annotation time 0.5
+      total time: 2.6
 [92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed-unique-id 8024ed1a22 --random-seed 1 --n-procs 10 --outfname test/new-results/seed-partition-new-simu.yaml
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
@@ -204,7 +205,7 @@ hmm
        removed 0 sequences in unseeded clusters, split 2 seeded clusters into 11 singletons, and merged these into 2 clusters with identical naive seqs (0.0 sec)
         new n_procs 1 (initial seqs/proc: 5.50   new seqs/proc: 2.00
   2 clusters with 1 proc (0.1s)
-       partition loop time: 0.3
+       partition loop time: 0.2
 getting annotations for final partition
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
@@ -222,7 +223,7 @@ hmm
         collapsed 36 sequences into 12 unique naive sequences over 9 cdr3 lengths (0.0 sec)
     using hfrac bound for vsearch 0.013
     running vsearch 9 times (once for each cdr3 length class): . . . . . . . . . 
-      vsearch time: 0.4
+      vsearch time: 0.5
 getting annotations for final partition
     using sw annotations (to make a multi-seq annotation for each cluster) instead of running hmm since either --use-sw-annotations or --naive-vsearch/--fast were set
       total time: 0.6
