@@ -328,7 +328,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
 
         tmp_event = RecombinationEvent(glfo)  # I don't want to move the function out of event.py right now
         tmp_event.set_reco_id(final_line, irandom=ievent)  # not sure that setting <irandom> here actually does anything
-        final_line['target_seqs'] = [tfo['seq'] for tfo in target_sfos]
+        final_line['target_seqs'] = [[tfo['seq'] for tfo in target_sfos] for _ in final_line['unique_ids']]  # NOTE it would be nice to put this in a per-family key, but it ends up we want it to behave like an input meta info key, and input meta keys need to be per-seq since they're inherently a property of each sequence. So instead we duplicate this info across all seqs to which it applies
         return final_line
     # ----------------------------------------------------------------------------------------
     def translate_duplicate_pids(mpair, dup_translations):
