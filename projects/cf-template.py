@@ -11,7 +11,8 @@ import collections
 import multiprocessing
 import yaml
 
-sys.path.insert(1, './python')
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
+sys.path.insert(1, partis_dir) # + '/python')
 import python.utils as utils
 import python.paircluster as paircluster
 import python.scanplot as scanplot

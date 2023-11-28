@@ -169,8 +169,8 @@ def plot_bcr_phylo_selection_hists(histfname, plotdir, plotname, plot_all=False,
         return False
     # ----------------------------------------------------------------------------------------
     def get_hists(hfname):
-        with open(hfname) as runstatfile:
-            numpyhists = pickle.load(runstatfile)
+        with open(hfname, 'rb') as runstatfile:
+            numpyhists = pickle.load(runstatfile, encoding='latin1')
         xmin, xmax = None, None
         hists, ylabels, xtralabels = [], [], []
         for ihist in range(len(numpyhists)):

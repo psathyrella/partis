@@ -1214,6 +1214,8 @@ def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=Fa
         if key in linekeys['per_family']:
             return antn[key]
         else:
+            if iseq > len(antn[key]) - 1:
+                raise Exception('per-seq list too long for %s (uid len %d): %d > %d-1: %s' % (key, len(antn['unique_ids']), iseq, len(antn[key]), antn[key]))
             return antn[key][iseq]
     # ----------------------------------------------------------------------------------------
     # NOTE this is starting to duplicate code in add_extra_column()
@@ -4886,6 +4888,13 @@ def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion
 
 # ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', logfname=None, debug=True):
+    # ----------------------------------------------------------------------------------------
+    def run_subp(cmd_str, shell, fout=None, ferr=None):
+        try:
+            subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)  # maybe should add executable='/bin/bash'?
+        except subprocess.CalledProcessError as err:
+            raise Exception() #err)
+    # ----------------------------------------------------------------------------------------
     if cmdfname is not None:
         mkdir(cmdfname, isfile=True)
         with open(cmdfname, 'w') as cmdfile:
@@ -4907,7 +4916,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
 
     if return_out_err:
         with tempfile.TemporaryFile() as fout, tempfile.TemporaryFile() as ferr:
-            subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)  # maybe should add executable='/bin/bash'?
+            run_subp(cmd_str, shell, fout=fout, ferr=ferr)  # maybe should add executable='/bin/bash'?
             fout.seek(0)
             ferr.seek(0)
             outstr = ''.join(l.decode() for l in fout.readlines())
@@ -4918,7 +4927,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
             subprocess.check_call('echo %s >%s'%(cmd_str, logfname), shell=True)
             cmd_str = '%s >>%s' % (cmd_str, logfname)
             shell = True
-        subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)  # maybe should add executable='/bin/bash'?
+        run_subp(cmd_str, shell)
 
     if cmdfname is not None:
         os.remove(cmdfname)

@@ -562,6 +562,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--existing-output-run-cfg', has_arg=True)
+            if args.prepend_coverage_command:
+                clist = ['coverage3', 'run', '--append'] + clist
+            utils.remove_from_arglist(clist, '--prepend-coverage-command')
             if 'single' not in args.existing_output_run_cfg:
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
                 utils.remove_from_arglist(clist, '--plot-partitions')
@@ -1428,6 +1431,8 @@ parent_args.append({'name' : '--pair-unpaired-seqs-with-paired-family', 'kwargs'
 parent_args.append({'name' : '--add-unpaired-seqs-to-fake-paired-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'when making the fake h+l "paired" annotation (i.e. smashing h+l seqs together) for use in selection metrics and/or partition plotting, by default we ignore unpaired seqs. This option includes them, with Ns for the missing opposite-chain sequence.'}})
 
 parent_args.append({'name' : '--max-ccf-fail-frac', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'when calculating clustering performance metrics (correct cluster fractions, purity/completeness), crash if more than this fraction of sequences are missing from the inferred partition'}})
+
+parent_args.append({'name' : '--prepend-coverage-command', 'kwargs' : {'action' : 'store_true', 'help' : 'when running subprocesses, prepend the python coverage append command to their command lines'}})
 
 # ----------------------------------------------------------------------------------------
 subconfig = collections.OrderedDict((

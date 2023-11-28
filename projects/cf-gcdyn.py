@@ -12,7 +12,8 @@ import multiprocessing
 import glob
 import copy
 
-sys.path.insert(1, './python')
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
+sys.path.insert(1, partis_dir) # + '/python')
 import python.utils as utils
 import python.paircluster as paircluster
 import python.scanplot as scanplot
@@ -51,7 +52,7 @@ parser.add_argument('--epochs-list')
 parser.add_argument('--dropout-rate-list')
 parser.add_argument('--learning-rate-list')
 parser.add_argument('--ema-momentum-list')
-parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --bundle-size-list)')
+parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --dl-bundle-size-list)')
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
 parser.add_argument('--dl-extra-args')

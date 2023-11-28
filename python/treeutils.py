@@ -2313,6 +2313,9 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         start = time.time()
         cfos_to_run = [c for c in cmdfos if c is not None and not os.path.exists(c['outfname'])]  # NOTE indices will no longer correspond to inf_lines_to_use
         if len(cfos_to_run) > 0:
+            existing_cfos = [c for c in cmdfos if c is not None and os.path.exists(c['outfname'])]
+            if len(existing_cfos) > 0:
+                print('      %d tree output file%s already there, not rerunning (e.g. %s)' % (len(existing_cfos), utils.plural(len(existing_cfos)), existing_cfos[0]['outfname']))
             print('      starting %d jobs' % len(cfos_to_run))
             for cfo in cfos_to_run:
                 print('        %s %s' % (utils.color('red', 'run'), cfo['cmd_str']))

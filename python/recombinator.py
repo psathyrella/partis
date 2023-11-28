@@ -26,6 +26,10 @@ from io import open
 
 dummy_name_so_bppseqgen_doesnt_break = 'xxx'  # bppseqgen ignores branch length before mrca, so we add a spurious leaf with this name and the same total depth as the rest of the tree, then remove it after getting bppseqgen's output
 
+# ----------------------------------------------------------------------------------------
+class SimuGiveUpError(Exception):
+    pass
+
 #----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
@@ -83,6 +87,8 @@ class Recombinator(object):
         self.validation_values['bpp-times'] = []
 
         self.heavy_chain_events = heavy_chain_events
+
+        self.n_max_tries = 1000  # applies in two different (recursive) places, which is a little weird, but whatever
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
@@ -166,7 +172,7 @@ class Recombinator(object):
                 print('    unproductive event -- rerunning (try %d)  ' % itry)  # probably a weirdly long v_3p or j_5p deletion
             line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event)
             itry += 1
-            if itry > 9999:
+            if itry > self.n_max_tries:
                 raise Exception('too many tries %d in recombinator' % itry)
         return line
 
@@ -183,7 +189,12 @@ class Recombinator(object):
         random.seed(irandom)
 
         reco_event = RecombinationEvent(self.glfo)
-        self.choose_vdj_combo(reco_event, i_heavy_event=i_heavy_event)
+        try:
+            self.choose_vdj_combo(reco_event, i_heavy_event=i_heavy_event)  # it's kind of ugly to raise an exception here, rather than having the fcn[s] return None as below, but the control flow gets complicated that way. Maybe would be better to switch all of them to exceptions
+        except SimuGiveUpError as err:
+            print(err)
+            return None
+
         self.erode_and_insert(reco_event)
 
         # set the original conserved codon words, so we can revert them if they get mutated NOTE we do it here, *after* setting the full recombined sequence, so the germline Vs that don't extend through the cysteine don't screw us over (update: we should no longer ever encounter Vs that're screwed up like this)
@@ -377,6 +388,17 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def get_scratchline(self, i_heavy_event=None):
+        # ----------------------------------------------------------------------------------------
+        def keep_trying(tmpline):
+            if not tmpline['in_frames'][0]:
+                return True
+            if tmpline['stops'][0]:
+                return True
+            if self.args.allowed_cdr3_lengths is not None and tmpline['cdr3_length'] not in self.args.allowed_cdr3_lengths:
+                return True
+            return False
+
+        # ----------------------------------------------------------------------------------------
         tmpline = {}
 
         assert self.args.correlation_values is None or self.args.paired_correlation_values is None  # this is already checked elsewhere, but having it here makes it clearer how things work
@@ -413,16 +435,6 @@ class Recombinator(object):
         for effbound in utils.effective_boundaries:
             tmpline[effbound + '_insertion'] = ''
 
-        # ----------------------------------------------------------------------------------------
-        def keep_trying(tmpline):
-            if not tmpline['in_frames'][0]:
-                return True
-            if tmpline['stops'][0]:
-                return True
-            if self.args.allowed_cdr3_lengths is not None and tmpline['cdr3_length'] not in self.args.allowed_cdr3_lengths:
-                return True
-            return False
-
         # then choose the things that we may need to try a few times (physical deletions/insertions)
         itry = 0
         while itry == 0 or keep_trying(tmpline):  # keep trying until it's both in frame and has no stop codons
@@ -431,7 +443,9 @@ class Recombinator(object):
             self.try_scratch_erode_insert(tmpline, corr_vals=corr_vals, allowed_vals=allowed_vals, parent_line=parent_line)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
             itry += 1
             if itry % 50 == 0:
-                print('%s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % (utils.color('yellow', 'warning'), '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry))
+                print('      %s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % ('note:', '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry))
+            if itry > self.n_max_tries:
+                raise SimuGiveUpError('    %s too many tries (%d > %d) when trying to get scratch line so giving up (well, probably retrying from further up, i.e. with new/iterated seed)' % (utils.wrnstr(), itry, self.n_max_tries))
 
         # convert insertions back to lengths (hoo boy this shouldn't need to be done)
         for bound in utils.all_boundaries:

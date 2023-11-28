@@ -24,7 +24,7 @@ parser.add_argument('--dtr-path')
 parser.add_argument('--metric-method', default='aa-lbi')
 parser.add_argument('--dtr-cfg')
 parser.add_argument('--only-csv-plots', action='store_true')
-parser.add_argument('--n-max-queries', type=int)
+parser.add_argument('--n-max-queries', type=int, default=-1)
 parser.add_argument('--max-family-size', type=int, help='subset each family down to this size before passing to treeutils')
 parser.add_argument('--cluster-indices')
 parser.add_argument('--min-selection-metric-cluster-size', type=int, default=treeutils.default_min_selection_metric_cluster_size)
@@ -43,7 +43,7 @@ if args.make_tree_plots or 'tree' in args.selection_metric_plot_cfg:
     ete_path = '/home/%s/anaconda_ete/bin' % os.getenv('USER')
     workdir = utils.choose_random_subdir('/tmp/%s/tree-metrics' % os.getenv('USER'))
 
-if args.n_max_queries is not None:
+if args.n_max_queries != -1:
     print('    --n-max-queries set to %d' % args.n_max_queries)
 glfo, true_lines, _ = utils.read_output(args.infname, n_max_queries=args.n_max_queries)
 

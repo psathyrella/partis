@@ -32,9 +32,9 @@ import python.paircluster as paircluster
 # ----------------------------------------------------------------------------------------
 class Tester(object):
     # ----------------------------------------------------------------------------------------
-    def dirs(self, tstr):
+    def dirs(self, tstr, force_paired=False):
         assert tstr in ['ref', 'new']
-        return 'test%s/%s-results%s' % ('/paired' if args.paired else '', tstr, '-slow' if args.slow else '')
+        return 'test%s/%s-results%s' % ('/paired' if (args.paired or force_paired) else '', tstr, '-slow' if args.slow else '')
     # ----------------------------------------------------------------------------------------
     def nqr(self, act):
         if act == 'quick':  # bears no relation to the others, so makes sense to handle it differently
@@ -69,7 +69,7 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def paramdir(self, st, dt):
         pd = self.label + '/parameters/' + dt
-        if st is None:
+        if st is None:  # if <st> isn't set, we want the subpath (without parent dir), e.g. when --dont-run/evaluating results
             return pd
         return self.dirs(st) + '/' + pd
     # ----------------------------------------------------------------------------------------
@@ -79,18 +79,18 @@ class Tester(object):
         return 'paired-%sdir' % inout
     # ----------------------------------------------------------------------------------------
     # i'm adding this late (especially for the non-production tests) so there's probably some more places it could be used
-    def opath(self, ptest, st=None):  # don't set <st> if you just want the basename-type stuff (no base/parent dirs)
+    def opath(self, ptest, st=None, force_paired=False):  # don't set <st> if you just want the basename-type stuff (no base/parent dirs)
         if 'cache-parameters' in ptest:
             return self.paramdir(None, ptest.split('-')[2])
         elif ptest == 'simulate':
             return self.inpath(None, 'simu')
         else:
-            op = '%s%s' % (ptest, '' if args.paired else '.yaml')
-            if args.paired and 'get-selection-metrics' in ptest:
+            op = '%s%s' % (ptest, '' if (args.paired or force_paired) else '.yaml')
+            if (args.paired or force_paired) and 'get-selection-metrics' in ptest:
                 op += '-chosen-abs.csv'
             if st is None:
                 return op
-            return '%s/%s' % (self.dirs(st), op)
+            return '%s/%s' % (self.dirs(st, force_paired=force_paired), op)
     # ----------------------------------------------------------------------------------------
     def ptn_cachefn(self, st, for_cmd=False, lpair=None, locus=None):  # see note above for opath()
         assert st == 'new'  # i think?
@@ -122,8 +122,14 @@ class Tester(object):
     def min_smetric_cluster_size(self):
         return 10 if args.slow else 3
     # ----------------------------------------------------------------------------------------
+    def cluster_size_args(self):
+        return ['--min-selection-metric-cluster-size', str(self.min_smetric_cluster_size()),
+                '--min-paired-cluster-size-to-read', str(self.min_smetric_cluster_size())]
+    # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
+        if args.prepend_coverage:
+            self.partis = 'coverage3 run --append %s' % self.partis
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         # generate paired data dir with: UPDATE i cat'd the ig?.fa files into all-seqs.fa (in the same dir) so extract-pair-info and split-loci get run
         #  - ./bin/split-loci.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta --outdir test/paired-data --input-metafname /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml --n-max-queries 100 >test/paired-data/split-loci.log
@@ -174,7 +180,7 @@ class Tester(object):
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
                 self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
-            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired', '--min-selection-metric-cluster-size', str(self.min_smetric_cluster_size()), '--min-paired-cluster-size-to-read', str(self.min_smetric_cluster_size())]}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
+            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired'] + self.cluster_size_args()}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
         if args.quick:
             self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.nqr('quick'))]}
@@ -212,6 +218,66 @@ class Tester(object):
         self.compare_stuff(input_stype='new')
         self.compare_production_results(['cache-parameters-data', 'simulate'])
         self.compare_run_times()
+
+    # ----------------------------------------------------------------------------------------
+    def run_coverage(self, args):
+        # ----------------------------------------------------------------------------------------
+        def run_cmd(cmd, shell=False, logfname=None):
+            if logfname is not None:
+                print('        writing log to %s' % logfname)
+            cov_str = 'coverage3 run --append'  # --data-file=%s/coverage/%d.cov (this doesn't seem to be supported in my version
+            utils.simplerun('%s %s' % (cov_str, cmd), shell=shell, logfname=logfname)
+        # ----------------------------------------------------------------------------------------
+        ivsn = 0
+        while True:
+            odir = '%s/vsn-%d' % (args.coverage_outdir, ivsn)
+            if os.path.exists(odir):
+                print('  coverage outdir %s exists, you may want to rm -r it by hand' % odir)
+            else:
+                break
+            ivsn += 1
+        cfn = '%s/.coverage' % os.getcwd()
+        if os.path.exists(cfn):
+            print('  removing existing coverage file %s' % cfn)
+            os.remove(cfn)
+
+        run_cmd('./test/test.py --prepend-coverage')  # NOTE tests will fail
+        run_cmd('./test/test.py --prepend-coverage --paired')
+
+        # cp output files so that working files (e.g. tree inference output files) don't get scattered around the normal test output dir
+        if not os.path.exists(odir):
+            os.makedirs(odir)
+        utils.simplerun('cp %s %s/' % (self.opath('partition-new-simu', st='ref'), odir))
+        ptnfn = '%s/%s' % (odir, os.path.basename(self.opath('partition-new-simu', st='ref')))
+        utils.simplerun('cp -r %s %s/' % (self.opath('partition-new-simu', st='ref', force_paired=True), odir))
+        pair_ptndir = '%s/%s' % (odir, os.path.basename(self.opath('partition-new-simu', st='ref', force_paired=True)))
+
+        for ft in ['csv', 'fa', 'yaml']:
+            run_cmd('./bin/parse-output.py %s %s/parse-output.%s' % (ptnfn, odir, ft))
+        run_cmd('./bin/parse-output.py %s %s/parse-output-paired --paired' % (pair_ptndir, odir))
+        run_cmd('./bin/cf-alleles.py --bases all', logfname='%s/cf-alleles.log'%odir)
+        run_cmd('./bin/cf-alleles.py --bases 8-51-1', logfname='%s/cf-alleles-8-51.log' % odir)
+
+        run_cmd('./bin/cf-germlines.py %s/hmm/germline-sets %s/hmm/germline-sets' % (self.paramdir('ref', 'simu'), self.paramdir('ref', 'data')), logfname='%s/cf-germlines.log'%odir)
+        run_cmd('./bin/compare-plotdirs.py --outdir %s/compare-plotdirs --plotdirs %s/hmm/mutation:%s/sw/mutation --names hmm:sw' % (odir, self.opath('annotate-new-simu-annotation-performance', st='ref').replace('.yaml', ''), self.opath('annotate-new-simu-annotation-performance', st='ref').replace('.yaml', '')))
+
+        ptn_plot_cmd = './bin/partis plot-partitions --partition-plot-cfg mds:trees --tree-inference-method iqtree --cluster-indices 0:2 %s' % ' '.join(self.cluster_size_args())
+        run_cmd('%s --outfname %s --plotdir %s/plot-partitions' % (ptn_plot_cmd, ptnfn, odir))
+        run_cmd('%s --paired-loci --paired-outdir %s --plotdir %s/plot-partitions-paired' % (ptn_plot_cmd, pair_ptndir, odir))
+
+        run_cmd('./bin/plot-hmms.py --outdir %s/plot-hmms --infiles %s' % (odir, ':'.join(glob.glob('%s/hmm/hmms/IGHD1*.yaml'%self.paramdir('ref', 'data')))))
+
+        gct_sm_cmd = './bin/partis get-selection-metrics --tree-inference-method gctree %s --cluster-indices 0:2' % ' '.join(self.cluster_size_args())
+        run_cmd('%s --outfname %s --plotdir %s/gctree-smetric-plots' % (gct_sm_cmd, ptnfn, odir))
+        run_cmd('./bin/read-gctree-output.py --locus igh --species human --gctreedir %s/gctree/iclust-0 --outdir %s/read-gctree-output' % (utils.getprefix(ptnfn), odir))  # NOTE this uses output from the previous line
+        # can't run this since gctree doesn't allow Ns: # run_cmd('%s --paired-loci --paired-outdir %s --plotdir %s/paired-gctree-smetric-plots' % (gct_sm_cmd, pair_ptndir, odir))
+
+        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run' % odir)
+        run_cmd('./bin/smetric-run.py --infname %s/bcr-phylo-run/selection/simu/mutated-simu.yaml --base-plotdir %s/smetric-run --metric-method lbi' % (odir, odir))  # NOTE uses results from previous line
+        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run-paired --paired' % odir)
+        run_cmd('./test/cf-paired-loci.py --label coverage --version v0 --n-replicates 2 --obs-times-list 15 --n-sim-seqs-per-generation-list 15 --n-sim-events-list 3 --bcr-phylo --perf-metrics naive-hdist --calc-antns --inference-extra-args=--no-indels --plot-metrics iqtree-coar --n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir %s/cf-paired-loci --actions simu:cache-parameters:partition:write-fake-paired-annotations:iqtree:iqtree-coar' % odir)
+
+        print('now run: coverage3 report --omit=python/__init__.py')  # could automate this, but whatever
 
     # ----------------------------------------------------------------------------------------
     def fiddle_with_arguments(self, ptest, argfo):
@@ -321,6 +387,8 @@ class Tester(object):
             ist, idt = self.get_stypes(name)
             action = info['action']
             cmd_str = info['bin'] + ' ' + action + ' --dont-write-git-info'
+            if args.prepend_coverage:
+                cmd_str += ' --prepend-coverage-command'
             if args.paired:
                 cmd_str += ' --paired-loci'
             for tkey in ['inpath', 'parameter-dir', 'sw-cachefname']:
@@ -829,6 +897,9 @@ parser.add_argument('--dont-run', action='store_true', help='don\'t actually run
 parser.add_argument('--dry-run', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
 parser.add_argument('--quick', action='store_true', help='only run one command: cache-parameters on a small numbrer of simulation events')
 parser.add_argument('--slow', action='store_true', help='by default, we run tests on a fairly small number of sequences, which is sufficient for checking that *nothing* has changed. But --slow is for cases where you\'ve made changes that you know will affect results, and you want to look at the details of how they\'re affected, for which you need to run on more sequences. Note that whether --slow is set or not (runs all tests with more or less sequences) is separate from --quick (which only runs one test).')
+parser.add_argument('--run-coverage', action='store_true', help='instead of running the normal suite of tests (which compare results to make sure they haven\'t changed), instead run a series of commands that\'s designed to execute as many of the lines as possible (without comparing results).')
+parser.add_argument('--prepend-coverage', action='store_true', help='run normal tests, but prepending coverage append commands')
+parser.add_argument('--coverage-outdir', default='%s/partis/tmp/coverage' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--bust-cache', action='store_true', help='overwrite current ref info, i.e. run this when things have changed, but you\'ve decided they\'re fine')
 parser.add_argument('--only-bust-current', action='store_true', help='only bust cache for current command line args (as opposed to the default of busting caches for both slow and non-slow, paired and non-paired)')
 parser.add_argument('--paired', action='store_true', help='run paired tests, i.e. with --paired-loci. Note that this doesn\'t test all the things (e.g. seed partitioning) that non-paired does.')
@@ -867,12 +938,16 @@ if args.run_all or (args.bust_cache and not args.only_bust_current):  # run all 
     sys.exit(0)
 
 tester = Tester()
+if args.run_coverage:
+    tester.run_coverage(args)
+    sys.exit(0)
 tester.test(args)
 if args.bust_cache:
     tester.bust_cache()
 
 # ----------------------------------------------------------------------------------------
 def get_typical_variances():
+    # NOTE don't delete this, since it was used (and might be needed again) to get the expected variances hardcoded above
     raise Exception('needs updating to work as a function')
     # cp = ClusterPath(fname='tmp.csv')
     # cp.print_partitions()

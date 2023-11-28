@@ -11,6 +11,7 @@ import collections
 import operator
 import copy
 import glob
+import re
 
 from .hist import Hist
 from . import hutils
@@ -42,6 +43,7 @@ class PartitionPlotter(object):
         self.min_tree_cluster_size = 5  # we also use min_selection_metric_cluster_size
         self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
+        self.min_mds_cluster_size = 3
         self.laplacian_spectra_min_clusters_size = 4
         self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
 
@@ -467,6 +469,9 @@ class PartitionPlotter(object):
             plotted_cluster_lengths.append(len(self.sclusts[iclust]))
 
             seqfos, color_scale_vals, tqtis, title, leg_title = get_cluster_info(self.sclusts[iclust], iclust)
+            if len(seqfos) < self.min_mds_cluster_size:
+                print('    %s cluster index %d too small (%d < %d) after e.g. removing duplicates, skipping' % (utils.wrnstr(), iclust, len(seqfos), self.min_mds_cluster_size))
+                continue
 
             labels = None
             if color_rule is not None:
@@ -508,6 +513,25 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def set_treefos(self, set_alternatives=False):
+        # ----------------------------------------------------------------------------------------
+        def find_atn(clust):
+            # ----------------------------------------------------------------------------------------
+            def obs_nodes(tclst):  # try to hackily ignore iqtree inferred ancestral nodes, since they have the same name in all clusters
+                return [u for u in tclst if len(re.findall('Node[0-9][0-9]*', u)) == 0]
+            # ----------------------------------------------------------------------------------------
+            def dupstr():
+                dcluststrs = [' '.join(utils.color('red' if u in clust else None, u) for u in c) for c in ovlp_clusts]
+                return 'more than one cluster overlaps with %s:\n        %s' % (' '.join(clust), '\n        '.join(dcluststrs))
+            # ----------------------------------------------------------------------------------------
+            ovlp_clusts = [l['unique_ids'] for l in antn_list if len(set(l['unique_ids']) & set(clust)) > 0]
+            if len(ovlp_clusts) > 1:
+                print('    %s %s' % (utils.wrnstr(), dupstr()))
+                print('       (trying to remove inferred internal nodes named e.g. NodeXX, if this works it\'s probably fine)')
+                ovlp_clusts = [c for c in ovlp_clusts if len(set(obs_nodes(c)) & set(clust)) > 0]
+                if len(ovlp_clusts) > 1:
+                    raise Exception(dupstr())
+            return utils.get_single_entry(ovlp_clusts)
+        # ----------------------------------------------------------------------------------------
         if self.treefos is not None:
             return
         antn_list = [self.antn_dict.get(':'.join(c)) for c in self.sclusts]  # NOTE we *need* cluster indices here to match those in all the for loops in this file
@@ -518,7 +542,7 @@ class PartitionPlotter(object):
         if self.args.tree_inference_method is not None:  # if the inference method infers ancestors, those sequences get added to the annotation during inference (e.g gctree, iqtree, linearham), but here we have to update the antn_dict keys and sclusts for these new seqs
             self.antn_dict = utils.get_annotation_dict(antn_list)
             for iclust, clust in enumerate(self.sclusts):  # NOTE can't just sort the 'unique_ids', since we need the indices to match up with the other plots here
-                self.sclusts[iclust] = utils.get_single_entry([l['unique_ids'] for l in antn_list if len(set(l['unique_ids']) & set(clust)) > 0])
+                self.sclusts[iclust] = find_atn(clust)
         if set_alternatives:
             for iclust, clust in enumerate(self.sclusts):
                 if self.treefos[iclust] is None:
