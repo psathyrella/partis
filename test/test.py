@@ -222,11 +222,11 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def run_coverage(self, args):
         # ----------------------------------------------------------------------------------------
-        def run_cmd(cmd, shell=False, logfname=None):
+        def run_cmd(cmd, shell=False, logfname=None, dont_prepend=False):
             if logfname is not None:
                 print('        writing log to %s' % logfname)
             cov_str = 'coverage3 run --append'  # --data-file=%s/coverage/%d.cov (this doesn't seem to be supported in my version
-            utils.simplerun('%s %s' % (cov_str, cmd), shell=shell, logfname=logfname)
+            utils.simplerun('%s%s' % ('' if dont_prepend else cov_str+' ', cmd), shell=shell, logfname=logfname)
         # ----------------------------------------------------------------------------------------
         ivsn = 0
         while True:
@@ -241,16 +241,16 @@ class Tester(object):
             print('  removing existing coverage file %s' % cfn)
             os.remove(cfn)
 
-        run_cmd('./test/test.py --prepend-coverage')  # NOTE tests will fail
-        run_cmd('./test/test.py --prepend-coverage --paired')
+        run_cmd('./test/test.py --prepend-coverage', dont_prepend=True)  # NOTE tests may fail because of the coverage stuff, which is fine (at the least they'll be way too slow)
+        run_cmd('./test/test.py --prepend-coverage --paired', dont_prepend=True)  # also note that we have to put dont_prepend since recursive subprocs having coverage commands breaks things (at least before coverage 6.3)
 
         # cp output files so that working files (e.g. tree inference output files) don't get scattered around the normal test output dir
         if not os.path.exists(odir):
             os.makedirs(odir)
-        utils.simplerun('cp %s %s/' % (self.opath('partition-new-simu', st='ref'), odir))
-        ptnfn = '%s/%s' % (odir, os.path.basename(self.opath('partition-new-simu', st='ref')))
-        utils.simplerun('cp -r %s %s/' % (self.opath('partition-new-simu', st='ref', force_paired=True), odir))
-        pair_ptndir = '%s/%s' % (odir, os.path.basename(self.opath('partition-new-simu', st='ref', force_paired=True)))
+        ptnfn = '%s/%s' % (odir, utils.insert_before_suffix('-single', os.path.basename(self.opath('partition-new-simu', st='ref'))))
+        utils.simplerun('cp %s %s' % (self.opath('partition-new-simu', st='ref'), ptnfn))
+        pair_ptndir = '%s/%s-paired' % (odir, os.path.basename(self.opath('partition-new-simu', st='ref', force_paired=True)))
+        utils.simplerun('cp -r %s %s' % (self.opath('partition-new-simu', st='ref', force_paired=True), pair_ptndir))
 
         for ft in ['csv', 'fa', 'yaml']:
             run_cmd('./bin/parse-output.py %s %s/parse-output.%s' % (ptnfn, odir, ft))
@@ -272,9 +272,9 @@ class Tester(object):
         run_cmd('./bin/read-gctree-output.py --locus igh --species human --gctreedir %s/gctree/iclust-0 --outdir %s/read-gctree-output' % (utils.getprefix(ptnfn), odir))  # NOTE this uses output from the previous line
         # can't run this since gctree doesn't allow Ns: # run_cmd('%s --paired-loci --paired-outdir %s --plotdir %s/paired-gctree-smetric-plots' % (gct_sm_cmd, pair_ptndir, odir))
 
-        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run' % odir)
+        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run --n-gc-rounds 3' % odir)
         run_cmd('./bin/smetric-run.py --infname %s/bcr-phylo-run/selection/simu/mutated-simu.yaml --base-plotdir %s/smetric-run --metric-method lbi' % (odir, odir))  # NOTE uses results from previous line
-        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run-paired --paired' % odir)
+        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run-paired --paired --n-gc-rounds 3' % odir)
         run_cmd('./test/cf-paired-loci.py --label coverage --version v0 --n-replicates 2 --obs-times-list 15 --n-sim-seqs-per-generation-list 15 --n-sim-events-list 3 --bcr-phylo --perf-metrics naive-hdist --calc-antns --inference-extra-args=--no-indels --plot-metrics iqtree-coar --n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir %s/cf-paired-loci --actions simu:cache-parameters:partition:write-fake-paired-annotations:iqtree:iqtree-coar' % odir)
 
         print('now run: coverage3 report --omit=python/__init__.py')  # could automate this, but whatever

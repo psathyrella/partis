@@ -424,7 +424,7 @@ def combine_gc_rounds(glfos, mevt_lists):
     assert len(set(len(l) for l in mevt_lists)) == 1  # all rounds should have the same number of events
     sum_time = 0
     assert len(args.obs_times) == args.n_gc_rounds  # also checked elsewhere
-    all_gtimes = set()
+    all_gtimes, stlist = set(), []
     for igcr in range(args.n_gc_rounds):
         if args.paired_loci:
             for epair in mevt_lists[igcr]:
@@ -434,7 +434,8 @@ def combine_gc_rounds(glfos, mevt_lists):
             for evt in mevt_lists[igcr]:
                 fix_evt(igcr, sum_time, evt, all_gtimes)
         sum_time += args.obs_times[igcr][-1]
-    print('    merging %d events over %d gc rounds with final generation times: %s' % (len(mevt_lists[0]), args.n_gc_rounds, ' '.join(str(t) for t in sorted(all_gtimes))))
+        stlist.append(sum_time)
+    print('    merging %d events over %d gc rounds with final generation times%s: %s' % (len(mevt_lists[0]), args.n_gc_rounds, '' if args.dont_observe_common_ancestors else ' (including observed common ancestors)', ' '.join(utils.color('blue' if t in stlist else None, str(t)) for t in sorted(all_gtimes))))
     merged_events = []
     for ievt in range(len(mevt_lists[0])):
         if args.paired_loci:
@@ -677,10 +678,10 @@ parser.add_argument('--extrastr', default='simu', help='doesn\'t really do anyth
 parser.add_argument('--n-sim-seqs-per-generation', default='100', help='Number of sequences to sample at each time in --obs-times.')
 parser.add_argument('--n-sim-events', type=int, default=1, help='number of simulated rearrangement events')
 parser.add_argument('--n-max-queries', type=int, help='during parameter caching and partitioning, stop after reading this many queries from simulation file (useful for dtr training samples where we need massive samples to actually train the dtr, but for testing various metrics need far smaller samples).')
-parser.add_argument('--obs-times', default='100:120', help='Times (generations) at which to select sequences for observation. Note that this is the time that the sequences existed in/exited the gc, not necessarily the time at which we "sequenced" them.')
+parser.add_argument('--obs-times', default='100:120', help='Times (generations) at which to select sequences for observation. Note that this is the time that the sequences existed in/exited the gc, not necessarily the time at which we "sequenced" them. If --n-gc-rounds is set, this must be a colon-separated list of comma-separated lists (see help under that arg).')
 parser.add_argument('--sequence-sample-time-fname', help='Times at which we "sample" for sequencing, i.e. at which we draw blood (as opposed to --obs-times, which is the generation time at which a cell leaves the gc). Specified in a yaml file as a list of key : val pairs, with key the timepoint label and values a dict with keys \'n\' (total number of sequences) and \'times\' (dict keyed by gc round time (if --n-gc-rounds is set, otherwise just a list) of generation times from which to sample those \'n\' sequences uniformly at random). If set, a new output file/dir is created by inserting \'timepoint-sampled\' at end of regular output file. See example in data/sample-seqs.yaml.')
 parser.add_argument('--n-naive-seq-copies', type=int, help='see bcr-phylo docs')
-parser.add_argument('--n-gc-rounds', type=int, help='number of rounds of gc entry, i.e. if set, upon gc completion  we choose --n-reentry-seqs sampled seqs with which to seed a new (otherwise identical) gc reaction. So note that, for instance, cells are sampled at --obs-times within every gc cycle. Results for each gc round N are written to subdirs round-N/ for each event, then all sampled sequences from all reactions are collected into the normal output file locations, with input meta info key \'gc-rounds\' specifying their gc round.')
+parser.add_argument('--n-gc-rounds', type=int, help='number of rounds of gc entry, i.e. if set, upon gc completion we choose --n-reentry-seqs sampled seqs with which to seed a new (otherwise identical) gc reaction. Results for each gc round N are written to subdirs round-N/ for each event, then all sampled sequences from all reactions are collected into the normal output file locations, with input meta info key \'gc-rounds\' specifying their gc round. If this arg is set, then --obs-times must be a colon-separated list (of length --n-gc-rounds) of comma-separated lists, where each sample time is relative to the *start* of that round.')
 parser.add_argument('--n-reentry-seqs', type=int, help='number of sampled seqs from previous round (chosen randomly) to inject into the next gc round (if not set, we take all of them).')
 parser.add_argument('--carry-cap', type=int, default=1000, help='carrying capacity of germinal center')
 parser.add_argument('--target-distance', type=int, default=15, help='Desired distance (number of non-synonymous mutations) between the naive sequence and the target sequences.')
@@ -745,7 +746,12 @@ if args.affinity_measurement_error is not None:
 if args.n_gc_rounds is not None:
     assert len(args.obs_times) == args.n_gc_rounds
     for otlist in args.obs_times:
-        assert otlist == sorted(otlist)  # various things assume it's sorted
+        if otlist != sorted(otlist):  # various things assume it's sorted
+            raise Exception('obs times within each gc round must be sorted')
+    otstrs = ['%s' % ' '.join(str(t) for t in otlist) for otlist in args.obs_times]
+    def fgt(i, t): return t + sum(args.obs_times[j][-1] for j in range(i))
+    fgstrs = ['%s' % ' '.join(str(fgt(i, t)) for t in otlist) for i, otlist in enumerate(args.obs_times)]
+    print('    --obs-times at each of %d gc rounds: %s  (final generation times: %s)' % (args.n_gc_rounds, ', '.join(otstrs), ', '.join(fgstrs)))
     if len(args.n_sim_seqs_per_generation) != args.n_gc_rounds and len(args.n_sim_seqs_per_generation) == 1:
         args.n_sim_seqs_per_generation = [args.n_sim_seqs_per_generation[0] for _ in range(args.n_gc_rounds)]
     assert len(args.n_sim_seqs_per_generation) == args.n_gc_rounds

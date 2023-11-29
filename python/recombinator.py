@@ -88,7 +88,7 @@ class Recombinator(object):
 
         self.heavy_chain_events = heavy_chain_events
 
-        self.n_max_tries = 1000  # applies in two different (recursive) places, which is a little weird, but whatever
+        self.n_max_tries = 10000  # applies in two different (recursive) places, which is a little weird, but whatever
 
     # ----------------------------------------------------------------------------------------
     def __del__(self):
@@ -442,7 +442,7 @@ class Recombinator(object):
                 print('    %s: retrying scratch rearrangement' % utils.color('blue', 'itry %d'%itry))
             self.try_scratch_erode_insert(tmpline, corr_vals=corr_vals, allowed_vals=allowed_vals, parent_line=parent_line)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
             itry += 1
-            if itry % 50 == 0:
+            if itry % 500 == 0:
                 print('      %s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % ('note:', '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry))
             if itry > self.n_max_tries:
                 raise SimuGiveUpError('    %s too many tries (%d > %d) when trying to get scratch line so giving up (well, probably retrying from further up, i.e. with new/iterated seed)' % (utils.wrnstr(), itry, self.n_max_tries))
