@@ -272,9 +272,9 @@ class Tester(object):
         run_cmd('./bin/read-gctree-output.py --locus igh --species human --gctreedir %s/gctree/iclust-0 --outdir %s/read-gctree-output' % (utils.getprefix(ptnfn), odir))  # NOTE this uses output from the previous line
         # can't run this since gctree doesn't allow Ns: # run_cmd('%s --paired-loci --paired-outdir %s --plotdir %s/paired-gctree-smetric-plots' % (gct_sm_cmd, pair_ptndir, odir))
 
-        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run --n-gc-rounds 3' % odir)
+        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run' % odir)  # don't use multiple gc rounds here, since we need the tree in the next line (and the tree isn't written for multiple gc rounds)
         run_cmd('./bin/smetric-run.py --infname %s/bcr-phylo-run/selection/simu/mutated-simu.yaml --base-plotdir %s/smetric-run --metric-method lbi' % (odir, odir))  # NOTE uses results from previous line
-        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run-paired --paired --n-gc-rounds 3' % odir)
+        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run-paired --paired --n-gc-rounds 3 --obs-times 30:5,10:5' % odir)
         run_cmd('./test/cf-paired-loci.py --label coverage --version v0 --n-replicates 2 --obs-times-list 15 --n-sim-seqs-per-generation-list 15 --n-sim-events-list 3 --bcr-phylo --perf-metrics naive-hdist --calc-antns --inference-extra-args=--no-indels --plot-metrics iqtree-coar --n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir %s/cf-paired-loci --actions simu:cache-parameters:partition:write-fake-paired-annotations:iqtree:iqtree-coar' % odir)
 
         print('now run: coverage3 report --omit=python/__init__.py')  # could automate this, but whatever
