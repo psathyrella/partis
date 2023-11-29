@@ -448,6 +448,9 @@ def run_all_loci(args, ig_or_tr='ig'):
     def spairs():
         return utils.locus_pairs[ig_or_tr]  # if args.seed_unique_id is None else [args.seed_loci]
     # ----------------------------------------------------------------------------------------
+    def cov_cmd():
+        return 'coverage3 run --append'
+    # ----------------------------------------------------------------------------------------
     def prep_inputs():
         has_input_meta_pair_info = False
         if args.input_metafnames is not None:  # need to see if we were passed any pair info
@@ -456,7 +459,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print('  note: found \'paired-uids\' in --input-metafnames, so not extracting pairing info')
         mfname = getofn(None, joint=True, input_meta=True)
         if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
-            cmd = '%s/bin/extract-pairing-info.py %s %s' % (args.partis_dir, args.infname, mfname)
+            cmd = '%s%s/bin/extract-pairing-info.py %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
             if args.n_random_queries is not None:
@@ -471,7 +474,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 elines = traceback.format_exception(*sys.exc_info())
                 print(utils.pad_lines(''.join(elines)))
                 print('  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info')
-        cmd = '%s/bin/split-loci.py %s --outdir %s' % (args.partis_dir, args.infname, getodir())
+        cmd = '%s%s/bin/split-loci.py %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
         if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
@@ -563,7 +566,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--existing-output-run-cfg', has_arg=True)
             if args.prepend_coverage_command:
-                clist = ['coverage3', 'run', '--append'] + clist
+                clist = cov_cmd().split() + clist
             utils.remove_from_arglist(clist, '--prepend-coverage-command')
             if 'single' not in args.existing_output_run_cfg:
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
