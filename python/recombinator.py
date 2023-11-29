@@ -14,6 +14,7 @@ import re
 import math
 import subprocess
 import scipy.stats
+from collections import defaultdict
 
 from . import paramutils
 from . import utils
@@ -211,7 +212,7 @@ class Recombinator(object):
                 raise Exception('mutated invariant codons, but since --rearrange-from-scratch and --generate-germline-set are set, we can\'t retry, since it would screw up the prevalence ratios')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             return None
         in_frame = utils.in_frame(reco_event.recombined_seq, reco_event.post_erosion_codon_positions, '', reco_event.effective_erosions['v_5p'])  # NOTE empty string is the fv insertion, which is hard coded to zero in event.py. I no longer recall the details of that decision, but I have a large amount of confidence that it's more sensible than it looks
-        if self.args.rearrange_from_scratch and not in_frame:
+        if not self.args.allow_nonfunctional_scratch_seqs and self.args.rearrange_from_scratch and not in_frame:
             raise Exception('out of frame rearrangement, but since --rearrange-from-scratch is set we can\'t retry (it would screw up the prevalence ratios)')  # if you let it try more than once, it screws up the desired allele prevalence ratios
             # return None
 
@@ -390,13 +391,19 @@ class Recombinator(object):
     def get_scratchline(self, i_heavy_event=None):
         # ----------------------------------------------------------------------------------------
         def keep_trying(tmpline):
-            if not tmpline['in_frames'][0]:
+            if not self.args.allow_nonfunctional_scratch_seqs and not tmpline['in_frames'][0]:
+                failcounters['out-of-frame'] += 1
                 return True
-            if tmpline['stops'][0]:
+            if not self.args.allow_nonfunctional_scratch_seqs and tmpline['stops'][0]:
+                failcounters['stop'] += 1
                 return True
             if self.args.allowed_cdr3_lengths is not None and tmpline['cdr3_length'] not in self.args.allowed_cdr3_lengths:
+                failcounters['allowed-cdr3'] += 1
                 return True
             return False
+        # ----------------------------------------------------------------------------------------
+        def fcstrs():
+            return ['%s %d'%(f, c) for f, c in sorted(failcounters.items(), key=operator.itemgetter(1), reverse=True)]
 
         # ----------------------------------------------------------------------------------------
         tmpline = {}
@@ -436,14 +443,14 @@ class Recombinator(object):
             tmpline[effbound + '_insertion'] = ''
 
         # then choose the things that we may need to try a few times (physical deletions/insertions)
-        itry = 0
+        itry, failcounters = 0, defaultdict(int)
         while itry == 0 or keep_trying(tmpline):  # keep trying until it's both in frame and has no stop codons
             if self.args.debug and itry > 0:
-                print('    %s: retrying scratch rearrangement' % utils.color('blue', 'itry %d'%itry))
+                print('    %s: retrying scratch rearrangement (fail counters: %s)' % (utils.color('blue', 'itry %d'%itry), '  '.join(fcstrs())))
             self.try_scratch_erode_insert(tmpline, corr_vals=corr_vals, allowed_vals=allowed_vals, parent_line=parent_line)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
             itry += 1
             if itry % 500 == 0:
-                print('      %s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far)' % ('note:', '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry))
+                print('      %s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far with failcounters: %s)' % ('note:', '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry, '  '.join(fcstrs())))
             if itry > self.n_max_tries:
                 raise SimuGiveUpError('    %s too many tries (%d > %d) when trying to get scratch line so giving up (well, probably retrying from further up, i.e. with new/iterated seed)' % (utils.wrnstr(), itry, self.n_max_tries))
 
