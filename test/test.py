@@ -277,6 +277,9 @@ class Tester(object):
         run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run-paired --paired --n-gc-rounds 3 --obs-times 30:5,10:5' % odir)
         run_cmd('./test/cf-paired-loci.py --label coverage --version v0 --n-replicates 2 --obs-times-list 15 --n-sim-seqs-per-generation-list 15 --n-sim-events-list 3 --bcr-phylo --perf-metrics naive-hdist --calc-antns --inference-extra-args=--no-indels --plot-metrics iqtree-coar --n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir %s/cf-paired-loci --actions simu:cache-parameters:partition:write-fake-paired-annotations:iqtree:iqtree-coar' % odir)
 
+        # it'd be nice to add germline inference to the normal (non-coverage) tests, but doing more than a trivial test like this requires lots of sequences, which is slower than I really want to add to testing
+        run_cmd('./bin/test-germline-inference.py --prepend-coverage-command --n-sim-events 1000 --outdir %s/test-germline-inference --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88 --mutation-multiplier 0.00001 --seed 1' % odir, dont_prepend=True)
+
         print('now run: coverage3 report --omit=python/__init__.py')  # could automate this, but whatever
 
     # ----------------------------------------------------------------------------------------

@@ -20,6 +20,10 @@ import python.glutils as glutils
 import python.processargs as processargs
 
 # ----------------------------------------------------------------------------------------
+def cov_cmd():
+    return 'coverage3 run --append'
+
+# ----------------------------------------------------------------------------------------
 def get_outfname(args, method, annotation_performance_plots=False, return_parent_gl_dir=False):
     outdir = args.outdir + '/' + method
     if not annotation_performance_plots:  # default: output is igh/ighv.fasta
@@ -37,6 +41,7 @@ def simulate(args):
     if utils.output_exists(args, args.simfname):
         return
     cmd_str = args.partis_path + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --outfname ' + args.simfname + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --force-dont-generate-germline-set --shm-parameter-dir ' + partis_dir + '/data/recombinator/scratch-parameters'
+    cmd_str += ' --allow-nonfunctional-scratch-seqs'
     if args.n_leaf_distribution is None:
         cmd_str += ' --constant-number-of-leaves'
     else:
@@ -46,7 +51,8 @@ def simulate(args):
     if args.root_mrca_weibull_parameter is not None:
         cmd_str += ' --root-mrca-weibull-parameter ' + str(args.root_mrca_weibull_parameter)
 
-    cmd_str += ' --n-procs ' + str(args.n_procs)
+    if args.n_procs is not None:
+        cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.slurm:
         cmd_str += ' --batch-system slurm'
 
@@ -107,7 +113,8 @@ def run_other_method(args, method):
     cmd += ' --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
     if method != 'igdiscover':  # for now we're saving all the igdiscover output/intermediate files, so we write them to an output dir
         cmd += ' --workdir ' + args.workdir + '/' + method
-    cmd += ' --n-procs ' + str(args.n_procs)
+    if args.n_procs is not None:
+        cmd += ' --n-procs ' + str(args.n_procs)
     if args.slurm:
         cmd += ' --slurm'
 
@@ -125,7 +132,8 @@ def run_performance_plot(args, method):
     cmd_str += ' --parameter-dir ' + perf_outdir + '/dummy-parameter-dir'
     cmd_str += ' --plotdir ' + perf_outdir
     cmd_str += ' --only-smith-waterman --leave-default-germline --dont-write-parameters'  # i.e. we really want to annotate, not cache parameters, but then it'd look for a parameter dir
-    cmd_str += ' --n-procs ' + str(args.n_procs)
+    if args.n_procs is not None:
+        cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.n_max_queries is not None:
         cmd_str += ' --n-max-queries ' + str(args.n_max_queries)  # NOTE do *not* use --n-random-queries, since it'll change the cluster size distribution
     if args.slurm:
@@ -170,7 +178,8 @@ def run_partis_parameter_cache(args, method):
     if args.species != 'human':
         cmd_str += ' --species %s' % args.species
 
-    cmd_str += ' --n-procs ' + str(args.n_procs)
+    if args.n_procs is not None:
+        cmd_str += ' --n-procs ' + str(args.n_procs)
     if args.n_max_queries is not None:
         cmd_str += ' --n-max-queries ' + str(args.n_max_queries)  # NOTE do *not* use --n-random-queries, since it'll change the cluster size distribution
     if args.slurm:
@@ -334,7 +343,7 @@ parser.add_argument('--n-max-queries', type=int, help='number of queries to use 
 parser.add_argument('--n-leaves', type=float, default=1., help='see bin/partis --help')
 parser.add_argument('--n-leaf-distribution', help='see bin/partis --help')
 parser.add_argument('--root-mrca-weibull-parameter', type=float, help='see bin/partis --help')
-parser.add_argument('--n-procs', type=int, default=2)
+parser.add_argument('--n-procs', type=int)
 parser.add_argument('--seed', type=int, default=int(time.time()), help='random seed')
 parser.add_argument('--gls-gen', action='store_true', help='generate a random germline set from scratch (parameters specified above), and infer a germline set from scratch, instead of using --sim-v-genes, --dj-genes, --inf-v-genes.')
 parser.add_argument('--sim-v-genes', default='IGHV4-39*01:IGHV4-39*08', help='V genes to use for simulation')
@@ -344,8 +353,8 @@ parser.add_argument('--snp-positions', help='colon-separated list (length must e
 parser.add_argument('--nsnp-list', help='colon-separated list (length must equal length of <--sim-v-genes> unless --gls-gen) of the number of snps to generate for each gene (each snp at a random position). If --gls-gen, then this still gives the number of snpd genes, but it isn\'t assumed to be the same length as anything [i.e. we don\'t yet know how many v genes there\'ll be]')
 parser.add_argument('--indel-positions', help='see --snp-positions (a.t.m. the indel length distributions are hardcoded)')
 parser.add_argument('--nindel-list', help='see --nsnp-list')
-parser.add_argument('--n-genes-per-region', help='see bin/partis --help')
-parser.add_argument('--n-sim-alleles-per-gene', help='see bin/partis --help')
+parser.add_argument('--n-genes-per-region', default='::', help='see bin/partis --help')
+parser.add_argument('--n-sim-alleles-per-gene', default='::', help='see bin/partis --help')
 parser.add_argument('--min-sim-allele-prevalence-freq', default=glutils.default_min_allele_prevalence_freq, type=float, help='see bin/partis --help')
 parser.add_argument('--allele-prevalence-freqs', help='colon-separated list of allele prevalence frequencies, including newly-generated snpd genes (ordered alphabetically)')
 parser.add_argument('--dont-remove-template-genes', action='store_true', help='when generating snps, *don\'t* remove the original gene before simulation')  # NOTE template gene removal is the default for glutils.generate_germline_set
@@ -366,6 +375,7 @@ parser.add_argument('--n-tests', type=int, help='instead of just running once, r
 parser.add_argument('--iteststart', type=int, default=0, help='for use with --n-tests, if you want to add more tests on')
 parser.add_argument('--plot-and-fit-absolutely-everything', type=int, help='fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)')
 parser.add_argument('--partis-path', default='./bin/partis')
+parser.add_argument('--prepend-coverage-command', action='store_true', help='see bin/partis --help')
 parser.add_argument('--species', default='human', choices=('human', 'macaque'))
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--allele-prevalence-fname', help='for internal use only (set above)')
@@ -400,6 +410,9 @@ if args.inf_glfo_dir is None:
     args.inf_glfo_dir = args.outdir + '/germlines/inference'
 if args.simfname is None:
     args.simfname = args.outdir + '/simu.yaml'
+
+if args.prepend_coverage_command:
+    args.partis_path = '%s %s' % (cov_cmd(), args.partis_path)
 
 if args.seed is not None:
     random.seed(args.seed)
