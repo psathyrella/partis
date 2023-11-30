@@ -256,7 +256,10 @@ class Tester(object):
             run_cmd('./bin/parse-output.py %s %s/parse-output.%s' % (ptnfn, odir, ft))
         run_cmd('./bin/parse-output.py %s %s/parse-output-paired --paired' % (pair_ptndir, odir))
         run_cmd('./bin/cf-alleles.py --bases all', logfname='%s/cf-alleles.log'%odir)
-        run_cmd('./bin/cf-alleles.py --bases 8-51-1', logfname='%s/cf-alleles-8-51.log' % odir)
+        run_cmd('./bin/cf-alleles.py --bases 8-51-1', logfname='%s/cf-alleles-8-51.log'%odir)
+
+        run_cmd('./bin/partis view-output --outfname %s' % ptnfn, logfname='%s/view-output.log'%odir)
+        run_cmd('./bin/partis view-output --paired-loci --paired-outdir %s' % pair_ptndir, logfname='%s/view-output-paired.log'%odir)
 
         run_cmd('./bin/cf-germlines.py %s/hmm/germline-sets %s/hmm/germline-sets' % (self.paramdir('ref', 'simu'), self.paramdir('ref', 'data')), logfname='%s/cf-germlines.log'%odir)
         run_cmd('./bin/compare-plotdirs.py --outdir %s/compare-plotdirs --plotdirs %s/hmm/mutation:%s/sw/mutation --names hmm:sw' % (odir, self.opath('annotate-new-simu-annotation-performance', st='ref').replace('.yaml', ''), self.opath('annotate-new-simu-annotation-performance', st='ref').replace('.yaml', '')))
@@ -275,7 +278,7 @@ class Tester(object):
         run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run' % odir)  # don't use multiple gc rounds here, since we need the tree in the next line (and the tree isn't written for multiple gc rounds)
         run_cmd('./bin/smetric-run.py --infname %s/bcr-phylo-run/selection/simu/mutated-simu.yaml --base-plotdir %s/smetric-run --metric-method lbi' % (odir, odir))  # NOTE uses results from previous line
         run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run-paired --paired --n-gc-rounds 3 --obs-times 30:5,10:5' % odir)
-        run_cmd('./test/cf-paired-loci.py --label coverage --version v0 --n-replicates 2 --obs-times-list 15 --n-sim-seqs-per-generation-list 15 --n-sim-events-list 3 --bcr-phylo --perf-metrics naive-hdist --calc-antns --inference-extra-args=--no-indels --plot-metrics iqtree-coar --n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir %s/cf-paired-loci --actions simu:cache-parameters:partition:write-fake-paired-annotations:iqtree:iqtree-coar' % odir)
+        run_cmd('./test/cf-paired-loci.py --label coverage --version v0 --n-replicates 2 --n-sub-procs 10 --scratch-mute-freq-list 0.01:0.1 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --mutate-stop-codons\" --final-plot-xvar scratch-mute-freq --n-leaves-list 3 --n-sim-events-list 100 --single-light-locus igk --base-outdir %s/cf-paired-loci --perf-metrics precision:sensitivity --actions simu:cache-parameters:partition:plot:combine-plots' % odir, shell=True)
 
         # it'd be nice to add germline inference to the normal (non-coverage) tests, but doing more than a trivial test like this requires lots of sequences, which is slower than I really want to add to testing
         run_cmd('./bin/test-germline-inference.py --prepend-coverage-command --n-sim-events 1000 --outdir %s/test-germline-inference --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88 --mutation-multiplier 0.00001 --seed 1' % odir, dont_prepend=True)
