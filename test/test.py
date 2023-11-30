@@ -360,10 +360,13 @@ class Tester(object):
             for cfn in [f for f in cachefnames if os.path.exists(f)]:
                 rm_file(cfn)
         # and any old tree inference files
-        if name == 'partition-' + info['input_stype'] + '-simu':
-            ft_fnames = glob.glob('%s/fasttree/iclust-*/{fasttree.out,log*,input-seqs.fa}' % self.opath('partition-new-simu', st='new'))
-            iq_fnames = glob.glob('%s/iqtree/iclust-*/{out.treefile,log*,input-seqs.fa}' % self.opath('partition-new-simu', st='new'))
-            for ffn in [f for f in ft_fnames + iq_fnames if os.path.exists(f)]:
+        if name == 'get-selection-metrics-' + info['input_stype'] + '-simu':
+            tfns = []
+            for subd in ['', '/*+*/partition-*']:
+                for tmeth in ['fasttree', 'iqtree']:
+                    for ftp in ['fasttree.out', 'log*', 'input-seqs.fa']:
+                        tfns += glob.glob('%s%s/%s/iclust-*/%s' % (self.opath('partition-new-simu', st='new'), subd, tmeth, ftp))
+            for ffn in [f for f in tfns if os.path.exists(f)]:
                 rm_file(ffn)
 
         # choose a seed uid
