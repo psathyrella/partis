@@ -4890,10 +4890,10 @@ def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', logfname=None, debug=True):
     # ----------------------------------------------------------------------------------------
     def run_subp(cmd_str, shell, fout=None, ferr=None):
-        try:
-            subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)  # maybe should add executable='/bin/bash'?
-        except subprocess.CalledProcessError as err:
-            raise Exception() #err)
+        # try:  # this doesn't seeem to do anything as is, but there were some cases where it might help so i'm leaving it here, but commented
+        subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)  # maybe should add executable='/bin/bash'?
+        # except subprocess.CalledProcessError as err:
+        #     raise Exception() #err)
     # ----------------------------------------------------------------------------------------
     if cmdfname is not None:
         mkdir(cmdfname, isfile=True)
