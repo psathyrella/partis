@@ -42,6 +42,12 @@ def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig', actstr=None,
     if lpair is not None:
         if locus is None:
             return bdir
+    if actstr == 'auto':  # return the first one that exists
+        for astr in [None, 'partition']:  # i think these are the only ones i use atm
+            fn = paired_fn(bdir, locus, lpair=lpair, suffix=suffix, ig_or_tr=ig_or_tr, actstr=astr, seed_unique_id=seed_unique_id, single_chain=single_chain)
+            if os.path.exists(fn):
+                return fn
+        raise Exception('couldn\'t find paired fn with auto actstr in %s' % bdir)
     return '%s/%s%s%s' % (bdir, '' if actstr is None else actstr+'-', locus, suffix)
 
 # ----------------------------------------------------------------------------------------

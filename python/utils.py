@@ -6202,11 +6202,13 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
     # ----------------------------------------------------------------------------------------
     if paired:
         from . import paircluster  # it barfs if i import at the top, and i know that means i'm doing something dumb, but whatever
-        infname = paircluster.paired_fn(infname, heavy_locus(ig_or_tr), suffix='.yaml')  # heavy chains seqs paired with either light chain
+        infname = paircluster.paired_fn(infname, heavy_locus(ig_or_tr), suffix='.yaml', actstr='auto')  # heavy chains seqs paired with either light chain
     _, annotation_list, cpath = read_output(infname, n_max_queries=n_max_queries, dont_add_implicit_info=True)
     if choose_random:
         assert iseed is None  # <iseed> if you want to specify a specific cluster, <choose_random> is if you want us to choose one at random from the whole file
         iseed = random.randint(0, len(cpath.best()) - 1)  # inclusive
+        if debug:
+            print('  chose random iseed: %d (of %d clusters)' % (iseed, len(cpath.best())))
 
     nth_seed = 0  # numbrer of clusters we've passed that meet the other criteria
     sid, pid, scluster = None, None, None
@@ -6229,15 +6231,19 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
         if plocus not in loci:
             raise Exception('couldn\'t get allowed locus (got \'%s\') from uid \'%s\'' % (plocus, pid))
         if debug:
-            print('    chose seed uids %s %s with loci %s %s from cluster with size %d%s%s%s' % (sid, pid, heavy_locus(ig_or_tr), plocus, len(cluster), ' (chosen at random)' if choose_random else '',
-                                                                                                 '' if nth_seed==0 else ', after skipping %d/%d other cluster%s'%(nth_seed, len(cpath.best()), plural(nth_seed)),
-                                                                                                 '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size)))
+            print('    chose seed uids %s %s with loci %s %s from heavy cluster with size %d%s%s%s (%s)' % (sid, pid, heavy_locus(ig_or_tr), plocus, len(cluster), ' (chosen at random)' if choose_random else '',
+                                                                                                            '' if nth_seed==0 else ', after skipping %d/%d other cluster%s'%(nth_seed, len(cpath.best()), plural(nth_seed)),
+                                                                                                            '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size),
+                                                                                                            'chose from among %d heavy clusters with sizes %s' % (len(cpath.best()), cluster_size_str(cpath.best())),
+                                                                                                            ))
         return ([sid, pid], [heavy_locus(ig_or_tr), plocus]), len(cluster)
     else:
         if debug:
-            print('    chose seed uid %s from cluster with size %d%s%s%s' % (sid, len(cluster), ' (chosen at random)' if choose_random else '',
+            print('    chose seed uid %s from cluster with size %d%s%s%s (%s)' % (sid, len(cluster), ' (chosen at random)' if choose_random else '',
                                                                              '' if nth_seed==0 else ', after skipping %d/%d other cluster%s'%(nth_seed, len(cpath.best()), plural(nth_seed)),
-                                                                             '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size)))
+                                                                                  '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size),
+                                                                                  'chose from among %d clusters with sizes %s' % (len(cpath.best()), cluster_size_str(cpath.best())),
+                                                                                  ))
         return sid, len(cluster)
 
 # ----------------------------------------------------------------------------------------
