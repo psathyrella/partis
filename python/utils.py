@@ -3359,7 +3359,8 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
     line['naive_seq'] = len(line['fv_insertion']) * ambig_base + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + len(line['jf_insertion']) * ambig_base
     for iseq in range(len(line['seqs'])):
         if len(line['naive_seq']) != len(line['seqs'][iseq]):
-            raise Exception('naive and mature sequences different lengths %d %d for %d-seq annotation %s:\n    %s\n    %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), len(line['unique_ids']), ':'.join(line['unique_ids']), line['naive_seq'], line['seqs'][iseq]))
+            color_mutants(line['naive_seq'], line['seqs'][iseq], ref_label='naive ', seq_label=line['unique_ids'][iseq] + ' ', align_if_necessary=True, print_result=True, extra_str='        ')
+            raise Exception('naive and mature sequences different lengths %d %d for %d-seq annotation %s (see also previous stdout lines):\n    %s\n    %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), len(line['unique_ids']), ':'.join(line['unique_ids']), line['naive_seq'], line['seqs'][iseq]))
 
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
