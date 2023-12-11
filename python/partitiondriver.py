@@ -831,7 +831,7 @@ class PartitionDriver(object):
 
         n_before, n_after = self.args.n_partitions_to_write, self.args.n_partitions_to_write  # this takes more than we need, since --n-partitions-to-write is the *full* width, not half-width, but oh, well
         if self.args.debug or (self.args.calculate_alternative_annotations and self.args.subcluster_annotation_size is None) or self.args.get_selection_metrics:  # take all of 'em
-            n_before, n_after = sys.maxint, sys.maxint
+            n_before, n_after = sys.maxsize, sys.maxsize
         elif self.args.write_additional_cluster_annotations is not None:
             n_before, n_after = [max(waca, n_) for waca, n_ in zip(self.args.write_additional_cluster_annotations, (n_before, n_after))]
         # NOTE we don't actually do anything with <n_after>, since we can't add any extra partitions here (well, we don't want to)

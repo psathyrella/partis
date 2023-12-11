@@ -44,7 +44,7 @@ parser.add_argument('--xshift-range-list')
 parser.add_argument('--yscale-range-list')
 parser.add_argument('--initial-birth-rate-range-list')
 parser.add_argument('--carry-cap-list')
-parser.add_argument('--time-to-sampling-values-list')
+parser.add_argument('--time-to-sampling-range-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
 parser.add_argument('--dl-bundle-size-list', help='size of bundles during dl inference (must be equal to or less than simulation bundle size)')
@@ -62,11 +62,11 @@ parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/g
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap', 'time-to-sampling-values', 'n-trials', 'n-seqs', 'simu-bundle-size'],
+    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap', 'time-to-sampling-range', 'n-trials', 'n-seqs', 'simu-bundle-size'],
     'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
     'group-expts' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
 }
-args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
@@ -144,7 +144,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     if action in ['simu', 'merge-simu']:
         cmd = 'gcd-simulate' if action=='simu' else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
         if action == 'simu':
-            cmd += ' --debug 1 --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
+            cmd += ' --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))  #  --debug 1
             if args.test:
                 cmd += ' --test'
             cmd = add_scan_args(cmd)

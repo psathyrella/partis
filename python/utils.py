@@ -3480,7 +3480,7 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
     def vstr(val):
         if isinstance(val, float): return ('%.3f'%val)
         elif isinstance(val, list): return ':'.join(str(w) for w in val)
-        else: return str(v)
+        else: return str(val)
     if uid_extra_strs is None:
         uid_extra_strs = ['' for _ in line['unique_ids']]
     if uid_extra_str_label is None:
