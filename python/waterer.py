@@ -1545,7 +1545,8 @@ class Waterer(object):
 
             if 'v' in qinfo['new_indels']:  # if sw kicks up an additional v indel that vsearch didn't find, we rerun sw with <self.args.no_indel_gap_open_penalty>
                 if debug:
-                    print('      sw called a v indel, but there\'s already a vsearch v indel, so give up (rerun sw forbidding indels)')
+                    print('      sw called a v indel, but there\'s already a vsearch v indel, so give up (delete vsearch indel, ignore new sw indel, and rerun sw forbidding indels)')
+                del self.info['indels'][qinfo['name']]
                 return None
 
             vs_indelfo = self.info['indels'][qinfo['name']]
