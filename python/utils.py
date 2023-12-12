@@ -5404,7 +5404,7 @@ def split_partition_with_criterion(partition, criterion_fcn):  # this would prob
 
 # ----------------------------------------------------------------------------------------
 def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
-    vals, groups = zip(*[(val, list(group)) for val, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)])
+    vals, groups = zip(*[(val, sorted(list(group))) for val, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)])  # NOTE sorted() around list(group) is so [in python 3] we'll get the same list order in reruns
     if return_values:
         return list(zip(*(vals, groups)))
     else:

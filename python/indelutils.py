@@ -218,7 +218,7 @@ def split_cigarstrs(cstrs):
     return [split_sub_cigarstr(s) for s in re.findall('[0-9]*[A-Z]', cstrs)]  # split cigar string into its parts, then split each part into the code and the length
 
 # ----------------------------------------------------------------------------------------
-def get_dbg_str(indelfo):
+def get_dbg_str(indelfo, uid='query'):
     if len(indelfo['qr_gap_seq']) != len(indelfo['gl_gap_seq']):
         print(indelfo['qr_gap_seq'])
         print(indelfo['gl_gap_seq'])
@@ -242,13 +242,13 @@ def get_dbg_str(indelfo):
     glprintstr = ''.join(glprintstr)
 
     gene_str = ''
-    gwidth = str(len('query'))
+    gwidth = str(len(uid))
     if 'v' in indelfo['genes']:
         gene_str = utils.color_gene(indelfo['genes']['v'], width=int(gwidth), leftpad=True)
         gwidth = str(utils.len_excluding_colors(gene_str))
     dj_gene_str = ' '.join([utils.color_gene(indelfo['genes'][r]) for r in 'dj' if r in indelfo['genes']])
     dbg_str_list = [('  %' + gwidth + 's  %s  %s') % (gene_str, glprintstr, dj_gene_str),
-                    ('  %' + gwidth + 's  %s') % ('query', qrprintstr)]
+                    ('  %' + gwidth + 's  %s') % (uid, qrprintstr)]
     for idl in indelfo['indels']:
         dbg_str_list.append('%10s: %d base%s at %d (%s)' % (idl['type'], idl['len'], utils.plural(idl['len']), idl['pos'], idl['seqstr']))
     return '\n'.join(dbg_str_list)

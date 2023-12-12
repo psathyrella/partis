@@ -2259,7 +2259,7 @@ class PartitionDriver(object):
                 counts['n_invalid_events'] += 1
                 if self.args.debug:
                     print('      %s line invalid' % uidstr)
-                    utils.print_reco_event(line, extra_str='    ', label='invalid:')
+                    # utils.print_reco_event(line, extra_str='    ', label='invalid:')  # can't normally print invalid lines, so commenting this (although sometimes maybe you can?)
                 hmm_failures |= set(line['unique_ids'])  # NOTE adds the ids individually (will have to be updated if we start accepting multi-seq input file)
                 return True
             return False

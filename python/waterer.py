@@ -223,10 +223,10 @@ class Waterer(object):
                 if len(self.info['indels']) > 0:
                     print('      indels: %s' % ':'.join(list(self.info['indels'].keys())))
                 if len(self.info['failed-queries']) > 0:
-                    print('            missing annotations: ' + ' '.join(self.info['failed-queries']))
+                    print('            missing annotations: ' + ' '.join(sorted(self.info['failed-queries'])))
                     if not self.args.is_data:
                         print('true annotations for remaining events:')
-                        for qry in self.info['failed-queries']:
+                        for qry in sorted(self.info['failed-queries']):
                             utils.print_reco_event(self.reco_info[qry], extra_str='      ', label='true:')
 
             assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.skipped_in_frame_queries) + len(self.info['failed-queries']) == len(self.input_info)
@@ -285,11 +285,12 @@ class Waterer(object):
     # ----------------------------------------------------------------------------------------
     def add_vs_indels(self):
         vsfo = utils.non_none([self.msa_vs_info, self.vs_info])['annotations']  # use msa info if we have it (note that we still need the regular vs_info for the v genes)
-        queries_with_indels = [q for q in self.remaining_queries if q in vsfo and indelutils.has_indels(vsfo[q]['indelfo'])]
+        queries_with_indels = [q for q in sorted(self.remaining_queries) if q in vsfo and indelutils.has_indels(vsfo[q]['indelfo'])]
         for query in queries_with_indels:
             self.vs_indels.add(query)  # this line is to tell us that this query has an indel stemming from vsearch, while the next line tells us that there's an indel (combine_indels() gets confused if we don't differentiate between the two)
             self.info['indels'][query] = copy.deepcopy(vsfo[query]['indelfo'])
-            # print indelutils.get_dbg_str(vsfo[query]['indelfo'])
+            if self.debug:
+                print(indelutils.get_dbg_str(vsfo[query]['indelfo'], uid=query))
 
         if self.debug and len(queries_with_indels) > 0:
             print('    added %d %s indel%s%s' % (len(queries_with_indels), 'vsearch' if self.msa_vs_info is None else 'mafft msa', utils.plural(len(queries_with_indels)), (' (%s)' % ' '.join(queries_with_indels)) if len(queries_with_indels) < 100 else ''))
@@ -388,7 +389,7 @@ class Waterer(object):
 
     # ----------------------------------------------------------------------------------------
     def split_queries(self, n_procs):
-        input_queries = list(self.remaining_queries)
+        input_queries = sorted(self.remaining_queries)
         if self.vs_info is None:
             mismatches, queries_for_each_proc = self.split_queries_evenly_among_procs(input_queries, n_procs)
         else:
