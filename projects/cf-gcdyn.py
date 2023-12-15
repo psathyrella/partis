@@ -52,6 +52,7 @@ parser.add_argument('--epochs-list')
 parser.add_argument('--dropout-rate-list')
 parser.add_argument('--learning-rate-list')
 parser.add_argument('--ema-momentum-list')
+parser.add_argument('--prebundle-layer-cfg-list')
 parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --dl-bundle-size-list)')
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
@@ -63,8 +64,8 @@ parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap', 'time-to-sampling-range', 'n-trials', 'n-seqs', 'simu-bundle-size'],
-    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
-    'group-expts' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
+    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg'],
+    'group-expts' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg'],
 }
 args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
