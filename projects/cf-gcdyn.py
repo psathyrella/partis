@@ -35,7 +35,7 @@ merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all sca
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:merge-simu:process:plot')  # dl-infer (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
+parser.add_argument('--actions', default='don\'t use')  # old defaults: simu:merge-simu:process:plot (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
 parser.add_argument('--birth-response-list')
 parser.add_argument('--xscale-values-list')
 parser.add_argument('--xshift-values-list')
@@ -43,7 +43,7 @@ parser.add_argument('--xscale-range-list')
 parser.add_argument('--xshift-range-list')
 parser.add_argument('--yscale-range-list')
 parser.add_argument('--initial-birth-rate-range-list')
-parser.add_argument('--carry-cap-list')
+parser.add_argument('--carry-cap-range-list')
 parser.add_argument('--time-to-sampling-range-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--n-seqs-list')
@@ -53,23 +53,31 @@ parser.add_argument('--dropout-rate-list')
 parser.add_argument('--learning-rate-list')
 parser.add_argument('--ema-momentum-list')
 parser.add_argument('--prebundle-layer-cfg-list')
+parser.add_argument('--dont-scale-params-list')
 parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --dl-bundle-size-list)')
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
+parser.add_argument('--data-samples-list', help='List of data samples to run on. Don\'t set this, it uses glob on --data-dir')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
 parser.add_argument('--dl-extra-args')
 parser.add_argument('--params-to-predict', default='xscale:xshift:yscale')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
+parser.add_argument('--dl-model-dir')
+parser.add_argument('--data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v0')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap', 'time-to-sampling-range', 'n-trials', 'n-seqs', 'simu-bundle-size'],
-    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg'],
-    'group-expts' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg'],
+    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-range', 'time-to-sampling-range', 'n-trials', 'n-seqs', 'simu-bundle-size'],
+    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params'],
+    'data' : ['data-samples'],
 }
-args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
+args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-range']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
-args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
+args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
+if 'data' in args.actions:
+    args.data_samples_list = ':'.join(os.path.basename(d) for d in glob.glob('%s/*' % args.data_dir))
+    print('  running on %d data samples from %s' % (len(args.data_samples_list), args.data_dir))
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 args.params_to_predict = utils.get_arg_list(args.params_to_predict, choices=['xscale', 'xshift', 'yscale'])
 if args.inference_extra_args is not None:
@@ -112,6 +120,8 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
         sfx = 'test.csv'
     elif action == 'partis':
         sfx = 'partition.yaml'
+    elif action == 'data':
+        sfx = 'infer.csv'
     else:
         assert False
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
@@ -159,10 +169,12 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     elif action == 'process':
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
-        if 'dl-infer' in action:
-            cmd = 'gcd-dl-infer --indir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+        if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
+            cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
+            if args.dl_model_dir is not None:
+                cmd += ' --model-dir %s' % args.dl_model_dir
         else:
             cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), os.path.dirname(ofname(args, varnames, vstrs, action)))
             cmd = add_ete_cmds(cmd)
@@ -189,6 +201,14 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odir
         # if args.inference_extra_args is not None:
         #     cmd += ' %s' % args.inference_extra_args
+    elif action == 'data':
+        odir = os.path.dirname(ofname(args, varnames, vstrs, action))
+        assert len(vstrs) == 1  # should just one data sample in a list
+        smpl = vstrs[0]
+        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s' % (args.dl_model_dir, args.data_dir, smpl, odir)
+        if args.dl_bundle_size_list is not None:  # kind of weird to use it for this as well as a scan var, but whatever
+            assert len(args.dl_bundle_size_list) == 1
+            cmd += ' --dl-bundle-size %d' % int(args.dl_bundle_size_list[0])
     else:
         assert False
     return cmd
@@ -254,7 +274,7 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 for action in args.actions:
-    if action in ['simu', ] + after_actions + plot_actions:
+    if action in ['simu', 'data', ] + after_actions + plot_actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots']:
         plt_scn_vars = args.scan_vars['group-expts']

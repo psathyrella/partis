@@ -116,7 +116,7 @@ The following keys are available in the dictionary in memory, but not written to
 | d_qr_seqs				  |  see v_qr_seqs `[per-seq]`
 | j_qr_seqs				  |  see v_qr_seqs `[per-seq]`
 | lengths				  |  lengths aligned to each of the v, d, and j regions, e.g. `{'j': 48, 'd': 26, 'v': 296}` (equal to lengths of `[vdj]_qr_seqs` and `[vdj]_gl_seq`)
-| regional_bounds		  |  indices corresponding to the boundaries of the v, d, and j regions (python slice conventions), e.g. `{'j': (322, 370), 'd': (296, 322), 'v': (0, 296)}`
+| regional_bounds		  |  indices in the observed sequences corresponding to the boundaries of the v, d, and j regions (python slice conventions), e.g. `{'j': (322, 370), 'd': (296, 322), 'v': (0, 296)}`
 | aligned_v_seqs		  |  list of indel-reversed sequences aligned to germline sequences given by `--aligned-germline-fname`. Only used for presto output `[per-seq]`
 | aligned_d_seqs          |  see aligned_v_seqs `[per-seq]`
 | aligned_j_seqs		  |  see aligned_v_seqs `[per-seq]`

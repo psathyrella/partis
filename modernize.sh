@@ -26,8 +26,8 @@ fissix.fixes.fix_exec \
 fissix.fixes.fix_paren \
 fissix.fixes.fix_funcattrs
 "
-fixers=libmodernize.fixes.fix_dict_six
-paths="python/*.py test bin/*.py datascripts/*.py projects/*.py"
+# fixers=libmodernize.fixes.fix_dict_six
+paths="datascripts/meta/*/*.py" #"python/*.py test bin/*.py datascripts/*.py projects/*.py"
 for fixer in $fixers; do
     modernize -wnf $fixer $paths
 done

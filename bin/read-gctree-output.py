@@ -33,6 +33,11 @@ Example usage:
     ./bin/read-gctree-output.py --locus igh --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
   paired:
     ./bin/read-gctree-output.py --paired-loci --seqfname <fasta-input-file> --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
+  other args, with examples (see datascripts/meta/taraki-gctree-2021-10/partis-run.py):
+    --kdfname /fh/fast/matsen_e/data/taraki-gctree-2021-10/processed-data/determistic/gc1/kdvals.csv
+    --tree-basename tree.nwk --kd-columns delta_bind_CGG_FVS_additive --dont-invert-kd --multiplicity-column multiplicity --species mouse --no-insertions-or-deletions
+    --initial-germline-dir /home/dralph/work/partis/datascripts/meta/taraki-gctree-2021-10/germlines --parameter-plots
+    --slice-bin-fname /home/dralph/work/partis/datascripts/meta/taraki-gctree-2021-10/slice-bins.yaml
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass

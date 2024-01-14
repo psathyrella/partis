@@ -449,7 +449,7 @@ def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics):
             args.scan_vars[act] = []
         args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
 
-    args.actions = get_arg_list(args.actions, choices=['simu', 'plot', 'combine-plots'] + after_actions + plot_actions)
+    args.actions = get_arg_list(args.actions, choices=['simu', 'plot', 'combine-plots', 'data'] + after_actions + plot_actions)
     args.plot_metrics = get_arg_list(args.plot_metrics)
     args.zip_vars = get_arg_list(args.zip_vars)
     args.plot_metric_extra_strs = get_arg_list(args.plot_metric_extra_strs)
