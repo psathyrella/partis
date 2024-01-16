@@ -45,8 +45,8 @@ parser.add_argument('--yscale-range-list')
 parser.add_argument('--initial-birth-rate-range-list')
 parser.add_argument('--carry-cap-range-list')
 parser.add_argument('--time-to-sampling-range-list')
+parser.add_argument('--n-seqs-range-list')
 parser.add_argument('--n-trials-list')
-parser.add_argument('--n-seqs-list')
 parser.add_argument('--dl-bundle-size-list', help='size of bundles during dl inference (must be equal to or less than simulation bundle size)')
 parser.add_argument('--epochs-list')
 parser.add_argument('--dropout-rate-list')
@@ -54,12 +54,12 @@ parser.add_argument('--learning-rate-list')
 parser.add_argument('--ema-momentum-list')
 parser.add_argument('--prebundle-layer-cfg-list')
 parser.add_argument('--dont-scale-params-list')
+parser.add_argument('--params-to-predict-list')
 parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --dl-bundle-size-list)')
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 parser.add_argument('--data-samples-list', help='List of data samples to run on. Don\'t set this, it uses glob on --data-dir')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
 parser.add_argument('--dl-extra-args')
-parser.add_argument('--params-to-predict', default='xscale:xshift:yscale')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
@@ -67,19 +67,18 @@ parser.add_argument('--dl-model-dir')
 parser.add_argument('--data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v0')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-range', 'time-to-sampling-range', 'n-trials', 'n-seqs', 'simu-bundle-size'],
-    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params'],
+    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-range', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
+    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
     'data' : ['data-samples'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
-args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-range']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-range', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 if 'data' in args.actions:
     args.data_samples_list = ':'.join(os.path.basename(d) for d in glob.glob('%s/*' % args.data_dir))
     print('  running on %d data samples from %s' % (len(args.data_samples_list), args.data_dir))
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
-args.params_to_predict = utils.get_arg_list(args.params_to_predict, choices=['xscale', 'xshift', 'yscale'])
 if args.inference_extra_args is not None:
     raise Exception('not used atm')
 if 'all-dl' in args.perf_metrics:
@@ -92,9 +91,9 @@ if 'group-expts' in args.plot_metrics and any('train' in m for m in args.perf_me
     acts_to_remove = [m for m in args.perf_metrics if 'train' in m]
     print('    can\'t plot any training metrics for \'group-expts\' so removing: %s' % ' '.join(acts_to_remove))
     args.perf_metrics = [m for m in args.perf_metrics if 'train' not in m]
-if args.params_to_predict is not None:
+if args.params_to_predict_list is not None:
     before_metrics = copy.copy(args.perf_metrics)
-    args.perf_metrics = [m for m in args.perf_metrics if any(p in m for p in args.params_to_predict)]
+    args.perf_metrics = [m for m in args.perf_metrics if any(p in m for plist in args.params_to_predict_list for p in plist)]
     print('    restricting perf metrics to correspond to --params-to-predict (removed %s)' % (' '.join(m for m in before_metrics if m not in args.perf_metrics)))
 
 # ----------------------------------------------------------------------------------------
@@ -178,8 +177,6 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         else:
             cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), os.path.dirname(ofname(args, varnames, vstrs, action)))
             cmd = add_ete_cmds(cmd)
-        if args.params_to_predict is not None:
-            cmd += ' --params-to-predict %s' % ' '.join(args.params_to_predict)
         cmd = add_scan_args(cmd, skip_fcn=lambda vname: vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer'])  # ick
     elif action == 'partis':
         # make a partition-only file
