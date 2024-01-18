@@ -24,14 +24,6 @@ def get_inf_int_name(gname):  # <gname> is just an integer, which won't be uniqu
     return '%s-%s' % (args.inf_int_label, gname)
 
 # ----------------------------------------------------------------------------------------
-def getpathcmd():
-    cmds = ['#!/bin/bash']
-    cmds += ['. %s/etc/profile.d/conda.sh' % args.condapath]  # NOTE have to update conda (using the old version in the next two lines) in order to get this to work
-    cmds += ['export PATH=%s/bin:$PATH' % args.condapath]
-    # cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
-    return cmds
-
-# ----------------------------------------------------------------------------------------
 def gctofn(ft):
     assert ft in ['tree', 'seqs']
     return '%s/gctree.out.inference.1%s' % (args.outdir, '.nk' if ft=='tree' else '.fasta')
@@ -47,15 +39,12 @@ def idfn():
 
 # ----------------------------------------------------------------------------------------
 def install():
-    cmds = getpathcmd()
-
-    args.env_label = 'gctree'
-    install_dir = partis_dir + '/packages'
-    # cmds += ['conda update -n base -c defaults conda']  # this updates conda
-    cmds += ['conda create -n %s python=3.9' % args.env_label]
-    cmds += ['conda activate %s' % args.env_label]
-    cmds += ['conda install -c conda-forge gctree']
-    cmds += ['conda install -c bioconda phylip']
+    cmds = ['#!/bin/bash']
+    cmds += ['micromamba create -n %s python=3.9' % args.env_label]  # 3.10 currently has problems with ete
+    cmds += ['micromamba activate %s' % args.env_label]
+    cmds += ['micromamba install -c bioconda phylip']
+    cmds += ['micromamba install -c conda-forge gctree click']
+    # micromamba remove -n gctree --all  # to nuke it and start over
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
@@ -63,8 +52,8 @@ def run_gctree(infname):
     if not args.run_help and utils.output_exists(args, gctofn('tree')):
         return
 
-    cmds = getpathcmd()
-    cmds += ['conda activate %s' % args.env_label]
+    cmds = ['#!/bin/bash']
+    cmds += utils.mamba_cmds(args.env_label)
     if args.run_help:
         cmds += ['gctree infer -h']
     else:
@@ -76,7 +65,10 @@ def run_gctree(infname):
         cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
         cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
         cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
-        cmds += ['%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --frame 1 --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)]  # --idlabel writes the output fasta file
+        tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --frame 1 --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
+        tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
+        cmds.append(tcmd)
+
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=args.outdir + '/run.sh', print_time='gctree', debug=True, dryrun=args.dry_run)
     if args.run_help:
         sys.exit()
@@ -149,14 +141,13 @@ parser.add_argument('--actions', default='run:parse')
 parser.add_argument('--infname')
 parser.add_argument('--outdir')
 parser.add_argument('--overwrite', action='store_true')
-parser.add_argument('--condapath', default=os.getenv('HOME') + '/miniconda3')
 parser.add_argument('--env-label', default='gctree')
 parser.add_argument('--root-label', default='naive')
+parser.add_argument('--data-dir', default='%s/data/s5f'%utils.get_partis_dir())
 parser.add_argument('--inf-int-label', default='inf', help='base name for inferred intermediate seqs (numerical name is appended with -')
 parser.add_argument('--run-help', action='store_true', help='run gctree help')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
-# parser.add_argument('--ete-path', default='/home/%s/anaconda_ete/bin' % os.getenv('USER') if os.getenv('USER') is not None else None)
 
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions, choices=['install', 'run', 'parse', 'convert-pickle-tree'])

@@ -128,7 +128,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
 # ----------------------------------------------------------------------------------------
 def add_ete_cmds(cmd):
     # cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
-    cmd = ['eval "$(micromamba shell hook --shell bash)"', 'micromamba activate gcdyn', cmd]
+    cmd = utils.mamba_cmds('gcdyn') + [cmd]
     cmd = ' && '.join(cmd)
     return cmd
 

@@ -4866,6 +4866,10 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfna
         return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
+def mamba_cmds(env):
+    return ['eval "$(micromamba shell hook --shell bash)"', 'micromamba activate %s'%env]
+
+# ----------------------------------------------------------------------------------------
 def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion='', return_for_cmdfos=False, tmpdir=None, dryrun=False, extra_str='', debug=True):  # ete3 requires its own python version, so we run as a subprocess
     prof_cmds = '' #' -m cProfile -s tottime -o prof.out'
     # xvfb_err_str = '' # '-e %s' % XXX outdir + '/xvfb-err'  # tell xvfb-run to write its error to this file (rather than its default of /dev/null). This is only errors actually from xvfb-run, e.g. xauth stuff is broken
