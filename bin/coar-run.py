@@ -77,7 +77,7 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
             assert force  # for seqs that are in inferred but not true, we already know we need to fix them (and how)
         else:
             if seq_t != seq_i and not dont_fix:
-                print('%s tried to fix %s but seqs still differenet:' % (utils.wrnstr(), uid))
+                print('%s tried to fix %s but seqs still different:' % (utils.wrnstr(), uid))
                 utils.color_mutants(seq_t, seq_i, print_result=True, align_if_necessary=True, ref_label='true ', seq_label='inf ')
                 assert False
             seqs_t[uid] = seq_t
@@ -88,11 +88,13 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
     # ----------------------------------------------------------------------------------------
     leaf_ids_t = [l.taxon.label for l in tr_t.leaf_node_iter() if l.taxon.label in atn_t['unique_ids']]
     leaf_ids_i = [u for u in leaf_ids_t if u in atn_i['unique_ids']]  # inferred tree may swap internal/leaf nodes
-    assert set(leaf_ids_t) == set(leaf_ids_i)  # maybe missing ones would be ok? but don't want to mess with it, and for now we assume below that they're the same
+    if set(leaf_ids_i) != set(leaf_ids_t):
+        print('    %s inferred leaf ids not the same as true leaf ids when trying to fix seqs (this is probably ok, since the coar calculation should anyway skip them): extra true %s  extra inf %s' % (utils.wrnstr(), set(leaf_ids_t) - set(leaf_ids_i), set(leaf_ids_i) - set(leaf_ids_t)))
+    common_leaf_ids = set(leaf_ids_t) & set(leaf_ids_i)  # maybe missing ones would be ok? but don't want to mess with it, and for now we assume below that they're the same
     seqs_t, seqs_i = [{u : utils.per_seq_val(atn, seq_key, u).strip('N') for u in atn['unique_ids']} for atn in (atn_t, atn_i)]
     seqs_t[naive_name], seqs_i[naive_name] = [a['naive_seq'].strip('N') for a in (atn_t, atn_i)]
     fixed, cs_lens = None, {}
-    for uid in leaf_ids_i:
+    for uid in common_leaf_ids:
         tfx = check_seqs(uid, seqs_i[uid], seqs_t[uid])
         if fixed is None:
             fixed = tfx
@@ -111,18 +113,20 @@ for atn_t in tru_atn_list:
     print('  starting true annotation with size %d' % len(atn_t['unique_ids']))
     atn_i = None
     for tatn in inf_atn_list:
-        if len(set(atn_t['unique_ids']) & set(tatn['unique_ids'])) > 0:
-            print('    found inferred annotation with %d / %d uids in common' % (len(set(atn_t['unique_ids']) & set(tatn['unique_ids'])), len(atn_t['unique_ids'])))
+        common_ids = set(atn_t['unique_ids']) & set(tatn['unique_ids'])
+        if len(common_ids) > 0:
+            estr = '' if not args.debug else ' (missing %d: %s)' % (len(atn_t['unique_ids']) - len(common_ids), ' '.join(sorted(set(atn_t['unique_ids']) - common_ids)))
+            print('    found inferred annotation with %d / %d uids in common%s' % (len(common_ids), len(atn_t['unique_ids']), estr))
             atn_i = tatn
             break
     if atn_i is None:
         raise Exception('couldn\'t find inferred annotation (looked in %d inferred annotations)' % len(inf_atn_list))
     dtree_t, dtree_i = [treeutils.get_dendro_tree(treestr=lbplotting.get_tree_in_line(l, is_true)) for is_true, l in [[True, atn_t], [False, atn_i]]]
-    seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i) #, debug=args.debug)
     if args.debug:
         for tstr, ttr in zip(['true', 'inf'], [dtree_t, dtree_i]):
             print('    %4s:' % tstr)
             print(utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ttr, width=250)))
+    seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i) #, debug=args.debug)
     for ttr, seqdict, tfn in zip([dtree_t, dtree_i], [seqs_t, seqs_i], [args.true_tree_file, args.inferred_tree_file]):
         add_seqs_to_nodes(ttr, seqdict, tfn)
     cval = coar.COAR(dtree_t, dtree_i, debug=args.debug)

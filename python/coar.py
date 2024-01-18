@@ -215,7 +215,7 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
             print('%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq))
         if node_t.taxon.label not in inf_leaf_nodes:
             is_internal = any(n.taxon.label == node_t.taxon.label for n in inferred_tree.preorder_node_iter())
-            print('  %s true node %s not in inferred leaf nodes%s' % (utils.wrnstr(), node_t.taxon.label, ' (it\'s an inferred internal node)' if is_internal else '(not present in inferred tree)'))
+            print('  %s skipping true node %s that isn\'t in inferred leaf nodes%s' % (utils.wrnstr(), node_t.taxon.label, ' (it\'s an inferred internal node)' if is_internal else ' (not present in inferred tree)'))
             continue
         aln_res = align_lineages(node_t, true_tree, inferred_tree, known_root=known_root, allow_double_gap=allow_double_gap, debug=debug)
         if aln_res is False:  # Skip lineages less than three members long

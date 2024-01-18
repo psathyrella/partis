@@ -3,10 +3,11 @@
 bin=./test/cf-paired-loci.py
 
 # methods=synth-distance-0.03:synth-singletons-0.20:vjcdr3-0.8:enclone:mobille:scoper:vsearch-partition:partition  # this is for vs-shm; for time-reqd: enclone:mobille:scoper:vsearch-partition:partition NOTE enclone needs fixing tho (for missing uids)
-methods=synth-distance-0.00:synth-distance-0.005:synth-distance-0.02:partition  # this is for vs-shm; for time-reqd: enclone:mobille:scoper:vsearch-partition:partition NOTE enclone needs fixing tho (for missing uids)
+# methods=synth-distance-0.00:synth-distance-0.005:synth-distance-0.02:partition  # this is for vs-shm; for time-reqd: enclone:mobille:scoper:vsearch-partition:partition NOTE enclone needs fixing tho (for missing uids)
 # methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
 # methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
 # methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"  # NOTE this is only for vs-shm (comparing single vs joint); for time-reqd you only need scoper
+methods=simu:cache-parameters:partition:write-fake-paired-annotations:iqtree:iqtree-coar:gctree:gctree-coar  # coar stuff cache-parameters:partition
 astr="--actions $methods" #partition --merge-paired-partitions" #$methods"
 # astr="--actions combine-plots --plot-metrics $methods --perf-metrics precision:n-clusters"
 # astr="--actions combine-plots --plot-metrics $methods $xstr"
