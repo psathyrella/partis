@@ -1470,6 +1470,7 @@ class Waterer(object):
         """
         Pad all sequences in <seqinfo> to the same length to the left and right of their conserved cysteine positions.
         Next, pads all sequences further out (if necessary) such as to eliminate all v_5p and j_3p deletions.
+        NOTE that this gets run *after* reading or writing cache file, i.e. the cache file has *un*padded seqs, while the padded sw annotations/seqs only show up in-memory en route to hmm input
         """
 
         cluster_different_cdr3_lengths = False  # if you want glomerator.cc to try to cluster different cdr3 lengths, you need to pass it *everybody* with the same N padding... but then you're padding way more than you need to on almost every sequence, which is really wasteful and sometimes confuses bcrham

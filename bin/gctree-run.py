@@ -11,6 +11,7 @@ import subprocess
 import sys
 import os
 import dendropy
+import json
 from io import open
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
@@ -48,7 +49,19 @@ def install():
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
-def run_gctree(infname):
+def add_mfo(tcmd, mfn):
+    with open(args.metafname) as mfile:
+        metafo = json.load(mfile)
+    if 'h_frame' in metafo:
+        tcmd += ' --frame %d' % metafo['h_frame']
+    if 'l_frame' in metafo:
+        tcmd += ' --frame2 %d' % metafo['l_frame']
+    if 'l_offset' in metafo:
+        tcmd += ' --chain_split %d' % metafo['l_offset']
+    return tcmd
+
+# ----------------------------------------------------------------------------------------
+def run_gctree():
     if not args.run_help and utils.output_exists(args, gctofn('tree')):
         return
 
@@ -67,6 +80,8 @@ def run_gctree(infname):
         cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
         tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --frame 1 --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
         tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
+        if os.path.exists(args.metafname):
+            tcmd = add_mfo(tcmd, args.metafname)
         cmds.append(tcmd)
 
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=args.outdir + '/run.sh', print_time='gctree', debug=True, dryrun=args.dry_run)
@@ -120,7 +135,7 @@ def parse_output():
             new_node = dendropy.Node(taxon=new_taxon)
             node.add_child(new_node)
             new_node.edge_length = 0
-    treeutils.translate_labels(dtree, inf_int_trns, debug=args.debug)
+    treeutils.translate_labels(dtree, inf_int_trns, expect_missing=True, debug=args.debug)
 
     if args.debug:
         print('    final tree:')
@@ -139,6 +154,7 @@ def convert_pickle_tree():
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='run:parse')
 parser.add_argument('--infname')
+parser.add_argument('--metafname', help='if you need --frame (v region doesn\'t start at first position) or --chain_split and --frame2 (heavy/light chain smooshed together), pass the info in json format with this arg (see code above for format).')
 parser.add_argument('--outdir')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--env-label', default='gctree')
@@ -157,7 +173,7 @@ args.outdir = utils.fpath(args.outdir)
 if 'install' in args.actions:
     install()
 if 'run' in args.actions:
-    run_gctree(args.infname)
+    run_gctree()
 if 'parse' in args.actions:
     parse_output()
 if 'convert-pickle-tree' in args.actions:

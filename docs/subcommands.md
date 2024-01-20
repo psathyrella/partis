@@ -540,7 +540,7 @@ It also prints a comparison of partis's alternative gene calls and associated "p
 ### tree inference
 
 Tree inference is often required on at least some families in the BCR repertoire, and while partis does not infer trees by default, it includes support for a variety of tree inference methods, specified with `--tree-inference-method fasttree|iqtree|gctree|linearham`.
-Fasttree and iqtree are included in the partis repository/image, while gctree and linearham are supported, but require separate installation.
+Fasttree and iqtree are included in the partis repository/image, while gctree and linearham are supported, but require installation.
 An alternative heuristic method (`cpath`) starts from the clustering history from hierarchical agglomeration, then refines multifurcations with fasttree.
 Fasttree (and `cpath`) are very heuristic, but also very fast.
 Iqtree is substantially slower, but also much more accurate, and also infers ancestral intermediate sequences.

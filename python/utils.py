@@ -2870,6 +2870,8 @@ def disambiguate_effective_insertions(bound, line, iseq, debug=False):
 # modify <line> so it has no 'fwk' insertions to left of v or right of j
 def trim_fwk_insertions(glfo, line, modify_alternative_annotations=False, debug=False):  # NOTE this is *different* to reset_effective_erosions_and_effective_insertions() (i think kind of, but not entirely, the opposite?)
     from . import indelutils
+    if line.get('is_fake_paired', False):
+        raise Exception('doesn\'t work for fake paired annotations')
     # NOTE duplicates code in waterer.remove_framework_insertions(), and should really be combined with that fcn
     fv_len = len(line['fv_insertion'])
     jf_len = len(line['jf_insertion'])
@@ -3872,7 +3874,8 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
             print('  %s unequal length sequences %d %d (so aligning):\n  %s\n  %s' % (color('yellow', 'warning'), len(seq1), len(seq2), seq1, seq2))
         seq1, seq2 = align_seqs(seq1, seq2)
     if len(seq1) != len(seq2):
-        raise Exception('unequal length sequences %d %d:\n  %s\n  %s' % (len(seq1), len(seq2), seq1, seq2))
+        s2str, s1str = color_mutants(seq1, seq2, align_if_necessary=True, return_ref=True)
+        raise Exception('unequal length sequences (%d vs %d) in hamming distance:\n  %s\n  %s' % (len(seq1), len(seq2), s1str, s2str))
     if len(seq1) == 0:
         if return_len_excluding_ambig:
             return 0, 0

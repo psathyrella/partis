@@ -825,7 +825,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 cmd += ' -redo'
         elif method == 'gctree':
             assert iclust is not None
-            cmd = '%s/bin/gctree-run.py --infname %s --outdir %s --root-label %s --inf-int-label i-%d-inf' % (utils.get_partis_dir(), ifn(workdir), workdir, naive_seq_name, iclust)
+            cmd = '%s/bin/gctree-run.py --infname %s --metafname %s --outdir %s --root-label %s --inf-int-label i-%d-inf' % (utils.get_partis_dir(), ifn(workdir), mfn(workdir), workdir, naive_seq_name, iclust)
         elif method == 'linearham':
             if parameter_dir is None or utils.dummy_str in parameter_dir:
                 raise Exception('need to pass --parameter-dir (--paired-outdir if --paired-loci) if running linearham')  # well, we could ask linearham to run partis to cache parameters, but we really don't want to do that
@@ -846,6 +846,9 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     def ifn(workdir):
         return '%s/input-seqs.fa' % workdir
     # ----------------------------------------------------------------------------------------
+    def mfn(workdir):
+        return '%s/meta.yaml' % workdir
+    # ----------------------------------------------------------------------------------------
     def ofn(workdir, antns=False, best=False):
         if method == 'iqtree':
             return '%s/%s.treefile' % (workdir, outfix)
@@ -862,12 +865,16 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     assert method in ['fasttree', 'iqtree', 'gctree', 'linearham']
     assert actions in ['prep:run:read', 'prep', 'read']  # other combinations could make sense, but don't need them atm
     if method == 'linearham' and glfo is None:
-        raise Exception('need to pass in glfo in order to run linearham (e.g. for instance linearham can\'t work on the fake h/l annotations')
+        raise Exception('need to pass in glfo in order to run linearham (e.g. linearham can\'t work on the fake h/l annotations')
 
-    if method in ['gctree', 'linearham']:  # NOTE linearham seems to fail badly if there's framework insertions (well it doesn't crash, even worse it just discards them, so the output annotations are nonsense)
-        if glfo is not None:  # if you don't pass in glfo, your sequences better not have fwk insertions since gctree barfs on ambiguous bases
-            annotation = utils.get_full_copy(annotation, glfo)  # we do rewrite the annotations after adding inferred ancestors, so need to modify a copy here
-            utils.trim_fwk_insertions(glfo, annotation)  # NOTE maybe will need to reverse this or something?
+    if method in ['gctree', 'linearham'] and not annotation.get('is_fake_paired', False):  # fake paired stuff happens below
+        # NOTE linearham seems to fail badly if there's framework insertions (well it doesn't crash, even worse it just discards them, so the output annotations are nonsense)
+        if glfo is None:  # if you don't pass in glfo, your sequences better not have fwk insertions since gctree barfs on ambiguous bases
+            if atn['fv_insertion'] != '' or atn['jf_insertion'] != '':
+                raise Exception('need to trim fwk insertions to pass to gctree + linearham, but don\'t have the necessary glfo')
+        else:
+            atn = utils.get_full_copy(atn, glfo)  # we do rewrite the annotations after adding inferred ancestors, so need to modify a copy here
+            utils.trim_fwk_insertions(glfo, atn, debug=True)  # NOTE maybe will need to reverse this or something?
     if seqfos is None:
         assert naive_seq is None  # can't specify it two ways
         seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, add_sfos_for_multiplicity=method=='gctree')
@@ -884,6 +891,12 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 old_name = sfo['name']
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
+    if method in ['gctree', 'linearham'] and annotation.get('is_fake_paired', False):  # non-fake-paired happens above
+        original_seq_lists = []  # each entry is either a char from the sequence or an N (the latter indicates that an N should be inserted in the final/returned seqs)
+        assert seqfos[0]['name'] == naive_seq_name  # would just need to be updated if it changes
+        for sfo in seqfos:
+            original_seq_lists.append('' if c == utils.ambig_base else c for c in sfo['seq'])
+            sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)  # pass sequence with Ns removed to gctree
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
 
@@ -899,6 +912,9 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 utils.makelink(os.path.dirname(lnk_name), os.path.abspath(parameter_dir), lnk_name)
             else:
                 utils.write_fasta(ifn(workdir), seqfos)
+                if method == 'gctree':
+                    with open(mfn(workdir), 'w') as mfile:
+                        json.dump({'%s_%s'%(c, k) : annotation['%s_%s'%(c, k)] for c in 'hl' for k in ['frame', 'offset']}, mfile)
         # # eh, turning this off for now:
         # if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
         #     print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
@@ -975,6 +991,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         if method == 'iqtree':
             wfns += ['%s/%s%s' % (workdir, outfix, s) for s in ['.log', '.state', '.mldist', '.iqtree', '.bionj', '.treefile', '.model.gz', '.ckp.gz']]  # ick
             wfns.append('%s/log'%workdir)
+        if method == 'gctree':
+            wfns.append(mfn(workdir))
         if method == 'fasttree':
             wfns.append(ofn(workdir))
             if 'run' not in actions:
