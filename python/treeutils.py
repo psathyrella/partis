@@ -892,11 +892,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
     if method in ['gctree', 'linearham'] and annotation.get('is_fake_paired', False):  # non-fake-paired happens above
-        original_seq_lists = []  # each entry is either a char from the sequence or an N (the latter indicates that an N should be inserted in the final/returned seqs)
-        assert seqfos[0]['name'] == naive_seq_name  # would just need to be updated if it changes
-        for sfo in seqfos:
-            original_seq_lists.append('' if c == utils.ambig_base else c for c in sfo['seq'])
-            sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)  # pass sequence with Ns removed to gctree
+        # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
+        padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
 
@@ -972,6 +969,17 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
         elif method == 'gctree':
             gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
+            if annotation.get('is_fake_paired', False):
+                for sfo in gct_seqfos:
+                    nseq, ig = [], 0
+                    for pchar in padded_seq_info_list:
+                        if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
+                            nseq.append(utils.ambig_base)
+                        else:
+                            nseq.append(sfo['seq'][ig])
+                            ig += 1
+                    sfo['seq'] = ''.join(nseq)
+                    assert len(sfo['seq']) == len(padded_seq_info_list)
             inf_seqfos += gct_seqfos
         if debug:
             print('      read %d inferred ancestral seqs' % len(inf_seqfos))
