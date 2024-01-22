@@ -367,6 +367,9 @@ def process(args):
     if args.existing_output_run_cfg is None:
         args.existing_output_run_cfg = []
 
+    if args.action == 'infer-trees':
+        args.action = 'get-selection-metrics'
+        args.selection_metrics_to_calculate = 'lbi'
     if args.action == 'get-selection-metrics' or args.get_selection_metrics:
         if args.paired_loci:
             if args.paired_outdir is None and args.selection_metric_fname is None:

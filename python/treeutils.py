@@ -892,8 +892,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
     if method in ['gctree', 'linearham'] and annotation.get('is_fake_paired', False):  # non-fake-paired happens above
-        # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
-        padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]
+        # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
+        padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
 

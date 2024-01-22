@@ -537,7 +537,7 @@ If you've also run linearham, you will then have collections of naive sequences 
 You can compare them with the script `bin/cf-linearham.py`, which prints (view with `less -RS`) first a comparison of the amino acid naive sequences from each program, then a comparison of the nucleotide naive sequences contributing to each of the amino acid ones.
 It also prints a comparison of partis's alternative gene calls and associated "probabilities" (linearham will have only used the one, best, set of gene calls with which it was called).
 
-### tree inference
+### tree inference (actions: `infer-trees`, `get-selection-metrics`, `plot-partitions`)
 
 Tree inference is often required on at least some families in the BCR repertoire, and while partis does not infer trees by default, it includes support for a variety of tree inference methods, specified with `--tree-inference-method fasttree|iqtree|gctree|linearham`.
 Fasttree and iqtree are included in the partis repository/image, while gctree and linearham are supported, but require installation.
@@ -552,7 +552,8 @@ Use iqtree if you need inferred ancestors and good accuracy but don't need the s
 Use gctree if you have substantial abundance information, and linearham if you have a lot of naive sequence uncertainty (i.e. some combination of few sequences, unrepresentative sequences, and/or lots of mutations) or want its probabilistic breakdown of different potential mutation paths, naive rearrangements, and trees.
 The best thing, of course, is to try several options and compare.
 
-Tree inference is run in two situations: when plotting partitions (either 'plot-partitions' action, or if --plotdir is set for the 'partition' action), and when getting selection metrics (either 'get-selection-metrics' action, or if --get-selection-metrics is set during 'partition').
+Tree inference is run in three situations: with 'infer-trees' action, when plotting partitions (either 'plot-partitions' action, or if --plotdir is set for the 'partition' action), when getting selection metrics (either 'get-selection-metrics' action, or if --get-selection-metrics is set during 'partition').
+The resulting trees are saved to file in all cases (see std out for location), and note that 'infer-trees' is really just running 'get-selection-metrics'.
 Making trees for every family in the final partition is usually much too slow (although it is parallelized), so there's several ways to specify which families you're interested in.
 First, you can set either --min-selection-metric-cluster-size (families smaller than this will be ignored for selection metrics and tree inference) or --min-paired-cluster-size-to-read (which ignores clusters smaller than this when reading from files).
 You can also set --cluster-indices, for instance '0:1:2' would infer on only the first three families, however this requires some care to ensure that you're getting the ones you want since there's several different ways to sort families within partitions.
