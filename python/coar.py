@@ -4,6 +4,7 @@ import numpy as np
 # from GCutils import hamming_distance
 from random import randint
 import sys
+import collections
 
 from . import utils
 from . import treeutils
@@ -93,30 +94,32 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
     # ----------------------------------------------------------------------------------------
     gap_seq = '-'
     if test:  # example from supp info in paper
-        lt = ['AAA', 'AAT', 'ATT', 'TTT']
-        li = ['AAA', 'TAT', 'TTT']
+        lin_t = ['AAA', 'AAT', 'ATT', 'TTT']
+        lin_i = ['AAA', 'TAT', 'TTT']
         uids_t = ['naive', 'a1', 'a2', 'leaf']
         uids_i = ['naive', 'a1', 'leaf']
     else:
         node_i = find_node(tree_i, node_t.seq, node_t.taxon.label)  # looks first by seq, then disambuguates with uid (if you only look by uid, if the inference swaps two nearby internal/leaf nodes with the same seq it'll crash)
-        (lt, uids_t), (li, uids_i) = [reconstruct_lineage(t, n) for t, n in [(tree_t, node_t), (tree_i, node_i)]]
+        (lin_t, uids_t), (lin_i, uids_i) = [reconstruct_lineage(t, n) for t, n in [(tree_t, node_t), (tree_i, node_i)]]
     # One lineages must be longer than just the root and the terminal node
-    if len(lt) <= 2 and len(li) <= 2:
+    if len(lin_t) <= 2 and len(lin_i) <= 2:
         return False
     if debug:
         print('      aligning lineage for true node %s: found inf node %s' % (uids_t[0], uids_i[0]))
-        print('        true: %s' % ' '.join(uids_t))
-        print('         inf: %s' % ' '.join(uids_i))
+        max_len = max(len(u) for u in uids_i + uids_t)
+        print('              %s' % '  '.join(utils.wfmt(i, max_len, fmt='d', jfmt='-') for i in range(max(len(uids_t), len(uids_i)))))
+        print('        true: %s' % '  '.join(utils.wfmt(u, max_len, jfmt='-') for u in uids_t))
+        print('         inf: %s' % '  '.join(utils.wfmt(u, max_len, jfmt='-') for u in uids_i))
 
-    len_t, len_i = [len(l) for l in [lt, li]]
+    len_t, len_i = [len(l) for l in [lin_t, lin_i]]
     gap_penalty, gp_i, gp_j = get_gap_penalties(len_t, len_i)
 
     sc_mat = np.zeros((len_t, len_i), dtype=np.float64)
     for i in range(len_t):
         for j in range(len_i):
             # Notice the score is defined by number of mismatches:
-            #sc_mat[i, j] = len(lt[i]) - hamming_distance(lt[i], li[j])
-            sc_mat[i, j] = -1 * utils.hamming_distance(lt[i], li[j])
+            #sc_mat[i, j] = len(lin_t[i]) - hamming_distance(lin_t[i], lin_i[j])
+            sc_mat[i, j] = -1 * utils.hamming_distance(lin_t[i], lin_i[j])
 
     # Calculate the alignment scores:
     aln_sc = np.zeros((len_t+1, len_i+1), dtype=np.float64)
@@ -148,29 +151,29 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
         sc_left = aln_sc[i-1][j]
 
         if sc_current == (sc_diagonal + sc_mat[i-1, j-1]):
-            align_t.append(lt[i-1])
-            align_i.append(li[j-1])
+            align_t.append(lin_t[i-1])
+            align_i.append(lin_i[j-1])
             i -= 1
             j -= 1
         elif sc_current == (sc_left + gp_i):
-            align_t.append(lt[i-1])
+            align_t.append(lin_t[i-1])
             align_i.append(gap_seq)
             i -= 1
         elif sc_current == (sc_up + gp_j):
             align_t.append(gap_seq)
-            align_i.append(li[j-1])
+            align_i.append(lin_i[j-1])
             j -= 1
 
     # If space left fill it with gaps:
     while i > 0:
         asr_align.append(gp_i)
-        align_t.append(lt[i-1])
+        align_t.append(lin_t[i-1])
         align_i.append(gap_seq)
         i -= 1
     while j > 0:
         asr_align.append(gp_j)
         align_t.append(gap_seq)
-        align_i.append(li[j-1])
+        align_i.append(lin_i[j-1])
         j -= 1
 
     max_penalty = 0
@@ -182,22 +185,22 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
     # Notice that the root and the terminal node is excluded from this comparison.
     # by adding their length to the max_penalty:
     if known_root is True:
-        max_penalty += 2 * len(lt[0])
+        max_penalty += 2 * len(lin_t[0])
     else:  # Or in the case of an unknown root, just add the terminal node
-        max_penalty += len(lt[0])
+        max_penalty += len(lin_t[0])
 
     if debug:
         max_len = max(len(s) for slist in [align_t, align_i] for s in slist)
         print('      aligned lineages:')
-        print(('          hdist  %'+str(max_len)+'s  %'+str(max_len)+'s')  % ('true', 'inferred'))
-        for seq_t, seq_i in zip(align_t, align_i):
+        print(('          index  hdist  %'+str(max_len)+'s  %'+str(max_len)+'s')  % ('true', 'inferred'))
+        for iseq, (seq_t, seq_i) in enumerate(zip(align_t, align_i)):
             def cfn(s): return utils.color('blue', s, width=max_len, padside='right') if s == gap_seq else s
             str_t, str_i = cfn(seq_t), cfn(seq_i)
             hdstr = utils.color('blue', '-', width=3)
             if all(s != gap_seq for s in (seq_t, seq_i)):
                 str_i, isnps = utils.color_mutants(seq_t, seq_i, return_isnps=True)
                 hdstr = utils.color('red' if len(isnps) > 0 else None, '%3d' % len(isnps))
-            print('           %s  %s   %s' % (hdstr, str_t, str_i))
+            print('           %3d %s  %s   %s' % (iseq, hdstr, str_t, str_i))
         if alignment_score % 1 != 0 or max_penalty % 1 != 0:
             raise Exception('alignment_score score %s or max_penalty %s not integers, so need to fix dbg print in next line' % (alignment_score, max_penalty))
         print('      alignment score: %.0f   max penalty: %.0f' % (alignment_score, max_penalty))
@@ -208,17 +211,18 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
 
 # ----------------------------------------------------------------------------------------
 def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debug=False):
-    lineage_dists = list()
+    lineage_dists, n_skipped = list(), collections.OrderedDict([('inferred-internal', 0), ('missing-leaf', 0), ('aln-fail', 0)])
     inf_leaf_nodes = [n.taxon.label for n in inferred_tree.leaf_node_iter()]  # just so we can skip true leaf nodes that were inferred to be internal
     for node_t in true_tree.leaf_node_iter():
         if debug:
             print('%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq))
         if node_t.taxon.label not in inf_leaf_nodes:
             is_internal = any(n.taxon.label == node_t.taxon.label for n in inferred_tree.preorder_node_iter())
-            print('  %s skipping true node %s that isn\'t in inferred leaf nodes%s' % (utils.wrnstr(), node_t.taxon.label, ' (it\'s an inferred internal node)' if is_internal else ' (not present in inferred tree)'))
+            n_skipped['inferred-internal' if is_internal else 'missing-leaf'] += 1
             continue
         aln_res = align_lineages(node_t, true_tree, inferred_tree, known_root=known_root, allow_double_gap=allow_double_gap, debug=debug)
         if aln_res is False:  # Skip lineages less than three members long
+            n_skipped['aln-fail'] += 1
             continue
         align_t, align_i, final_score, max_penalty = aln_res
         if max_penalty < 0:
@@ -228,6 +232,10 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
         else:
             if debug:
                 print('    max penalty not less than zero: %.3f' % max_penalty)
+
+    if any(c > 0 for c in n_skipped.values()):
+        dstrs = {'missing-leaf' : '%d missing from inferred tree', 'inferred-internal' : '%d were internal in inferred tree', 'aln-fail' : '%d failed lineage alignment'}
+        print('    %s skipped %d true leaf nodes in coar calculation (%s)' % (utils.wrnstr(), sum(n_skipped.values()), ', '.join((dstrs[k]%n_skipped[k]) for k in n_skipped if n_skipped[k]>0)))
 
     if len(lineage_dists) == 0:  # max_penalty is 0 when all lineages have less than three members
         if debug:

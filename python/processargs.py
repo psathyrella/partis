@@ -367,7 +367,7 @@ def process(args):
     if args.existing_output_run_cfg is None:
         args.existing_output_run_cfg = []
 
-    if args.action == 'infer-trees':
+    if args.action == 'infer-trees':  # don't need to make a new action, but calculate only the simplest smetric so it's faster
         args.action = 'get-selection-metrics'
         args.selection_metrics_to_calculate = 'lbi'
     if args.action == 'get-selection-metrics' or args.get_selection_metrics:
