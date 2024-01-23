@@ -309,9 +309,9 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     mtpy = utils.get_multiplicity(line, None, iseq)
     mtpystr = ' ' if (mtpy == 1 or mtpy is None) else utils.color('blue', str(mtpy))
     uidstr = get_uid_str(line, iseq, queries_to_emphasize, duplicated_uids=duplicated_uids)
-    # if uid_extra_str is not None:
-    #     uidstr += ' %s' % uid_extra_str
     vjlabelstr = '%s %s' % (utils.color_gene(line['v_gene']), utils.color_gene(line['j_gene']))
+    if uid_extra_str != '':  # pad the uid str out to same length as vj str so the uid extra strs (e.g. extra_print_keys) are lined up with their labels
+        uidstr += ' ' * (utils.len_excluding_colors(vjlabelstr) - utils.len_excluding_colors(uidstr))
     tmppad = utils.len_excluding_colors(uidstr) - utils.len_excluding_colors(vjlabelstr)
     suffixes = ['insert%s\n'       % ('s' if utils.has_d_gene(utils.get_locus(line['v_gene'])) else ''),
                 '%s%s\n'             % (utils.color_gene(line['d_gene']), vj_delstr),
