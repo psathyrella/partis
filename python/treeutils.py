@@ -867,14 +867,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     if method == 'linearham' and glfo is None:
         raise Exception('need to pass in glfo in order to run linearham (e.g. linearham can\'t work on the fake h/l annotations')
 
-    if method in ['gctree', 'linearham'] and not annotation.get('is_fake_paired', False):  # fake paired stuff happens below
-        # NOTE linearham seems to fail badly if there's framework insertions (well it doesn't crash, even worse it just discards them, so the output annotations are nonsense)
-        if glfo is None:  # if you don't pass in glfo, your sequences better not have fwk insertions since gctree barfs on ambiguous bases
-            if atn['fv_insertion'] != '' or atn['jf_insertion'] != '':
-                raise Exception('need to trim fwk insertions to pass to gctree + linearham, but don\'t have the necessary glfo')
-        else:
-            atn = utils.get_full_copy(atn, glfo)  # we do rewrite the annotations after adding inferred ancestors, so need to modify a copy here
-            utils.trim_fwk_insertions(glfo, atn, debug=True)  # NOTE maybe will need to reverse this or something?
+    is_fake_paired = annotation is not None and annotation.get('is_fake_paired', False)
     if seqfos is None:
         assert naive_seq is None  # can't specify it two ways
         seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, add_sfos_for_multiplicity=method=='gctree')
@@ -891,10 +884,10 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 old_name = sfo['name']
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
-    if method in ['gctree', 'linearham'] and annotation.get('is_fake_paired', False):  # non-fake-paired happens above
+    if method in ['gctree', 'linearham']:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
         padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
         for sfo in seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
-            sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)  # pass sequence with Ns removed to gctree
+            sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
 
@@ -912,7 +905,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 utils.write_fasta(ifn(workdir), seqfos)
                 if method == 'gctree':
                     with open(mfn(workdir), 'w') as mfile:
-                        json.dump({'%s_%s'%(c, k) : annotation['%s_%s'%(c, k)] for c in 'hl' for k in ['frame', 'offset']}, mfile)
+                        mfo = {'%s_%s'%(c, k) : annotation[c+'_'+k] for c in 'hl' for k in ['frame', 'offset']} if is_fake_paired else {'frame' : utils.get_frame(annotation)}  # don't need the frames unless v_5p_del - fv_insertion > 0 which shouldn't be possible on padded sequences ofrm the hmm, but it's maybe better to always pass it in, it's too much trouble to only pass in if needed
+                        json.dump(mfo, mfile)
         # # eh, turning this off for now:
         # if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
         #     print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
@@ -968,19 +962,18 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 inf_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
             if len(skipped_rm_nodes) > 0:
                 print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
-        elif method == 'gctree':
+        elif method in ['gctree', 'linearham']:  # haven't tested this with linearham, but it's probably ok
             gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
-            if annotation.get('is_fake_paired', False):
-                for sfo in gct_seqfos:
-                    nseq, ig = [], 0
-                    for pchar in padded_seq_info_list:
-                        if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
-                            nseq.append(utils.ambig_base)
-                        else:
-                            nseq.append(sfo['seq'][ig])
-                            ig += 1
-                    sfo['seq'] = ''.join(nseq)
-                    assert len(sfo['seq']) == len(padded_seq_info_list)
+            for sfo in gct_seqfos:
+                nseq, ig = [], 0
+                for pchar in padded_seq_info_list:
+                    if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
+                        nseq.append(utils.ambig_base)
+                    else:
+                        nseq.append(sfo['seq'][ig])
+                        ig += 1
+                sfo['seq'] = ''.join(nseq)
+                assert len(sfo['seq']) == len(padded_seq_info_list)
             inf_seqfos += gct_seqfos
         if debug:
             print('      read %d inferred ancestral seqs' % len(inf_seqfos))
@@ -3469,8 +3462,6 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
     # ----------------------------------------------------------------------------------------
     from . import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     debug = args.debug or args.debug_paired_clustering or args.print_chosen_abs
-    if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
-        print('  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning'))
     cfgfo = read_cfgfo()
     if debug:
         print('    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs)))

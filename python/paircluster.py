@@ -507,7 +507,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
                 offset = npads[0] + total_hlen
                 p_atn['%s_offset'%tch] = offset  # index of first position in <tch>
                 p_atn['%s_cdr3_bounds'%tch] = [b + offset for b in cbounds]
-                p_atn['%s_frame'%tch] = (gsval(mfo, tch, 'v_5p_del') - len(gsval(mfo, tch, 'fv_insertion'))) % 3 + 1
+                p_atn['%s_frame'%tch] = utils.get_frame(mfo[tch])
                 assert utils.get_cdr3_seq(mfo[tch], mfo[tch+'_iseq']) == pseq[cbounds[0] + offset : cbounds[1] + offset + 3]  # make sure the cdr3 in the padded seq (with the offset) gives the same bit as from the h/l annotation
                 if tch == 'h':
                     total_hlen += npads[0] + len(gsval(mfo, tch, 'seqs')) + npads[1]

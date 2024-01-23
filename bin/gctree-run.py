@@ -57,14 +57,12 @@ def update():
 
 # ----------------------------------------------------------------------------------------
 def add_mfo(tcmd, mfn):
+    kdict = {'frame' : 'frame', 'h_frame' : 'frame', 'l_frame' : 'frame2', 'l_offset' : 'chain_split'}  # translates from metafo dict to gctree command line args
     with open(args.metafname) as mfile:
         metafo = json.load(mfile)
-    if 'h_frame' in metafo:
-        tcmd += ' --frame %d' % metafo['h_frame']
-    if 'l_frame' in metafo:
-        tcmd += ' --frame2 %d' % metafo['l_frame']
-    if 'l_offset' in metafo:
-        tcmd += ' --chain_split %d' % metafo['l_offset']
+    for tk, tc in kdict.items():
+        if tk in metafo:
+            tcmd += ' --%s %d' % (tc, metafo[tk])
     return tcmd
 
 # ----------------------------------------------------------------------------------------
@@ -85,7 +83,7 @@ def run_gctree():
         cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
         cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
         cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
-        tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --frame 1 --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
+        tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
         tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
         if os.path.exists(args.metafname):
             tcmd = add_mfo(tcmd, args.metafname)

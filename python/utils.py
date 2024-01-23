@@ -1244,6 +1244,8 @@ def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=Fa
         return ltranslate(get_cdr3_seq(antn, iseq))
     elif key == 'imgt_cdr3_length_aa':  # ick
         return antn['cdr3_length'] // 3 - 2
+    elif key == 'frame':
+        return get_frame(antn)
     else:
         if add_xtr_col:
             rval = add_extra_column(key, antn, None)  # try to add it NOTE this fcn even existing is pretty hackey, it was originally for transferring from info to outfo 
@@ -4405,6 +4407,10 @@ def trim_nuc_seq(nseq):  # if length not multiple of three, trim extras from the
     if len(nseq) % 3 != 0:
         nseq = nseq[ : len(nseq) - (len(nseq) % 3)]
     return nseq
+
+# ----------------------------------------------------------------------------------------
+def get_frame(line):  # return frame of (start of) V gene, e.g. for input to gctree
+    return (line['v_5p_del'] - len(line['fv_insertion'])) % 3 + 1
 
 # ----------------------------------------------------------------------------------------
 def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for_csv=False):
