@@ -331,7 +331,7 @@ def print_seq_in_reco_event(original_line, iseq, extra_str='', label='', one_lin
     elif not utils.has_d_gene(utils.get_locus(line['v_gene'])) and len(vj_delstr) == 0:
         outstrs.pop(1)  # remove the d germline line
 
-    print(''.join(outstrs), end=' ')
+    print(''.join(outstrs), end='')
 
     if check_line_integrity:
         if set(line.keys()) != set(original_line.keys()):
