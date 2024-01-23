@@ -1151,7 +1151,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         else:
             lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=smetrics and len(args.existing_output_run_cfg) > 0, dbgstr='partition', debug=args.debug or args.debug_paired_clustering)
             _ = read_qti_file(args)  # sets <args.queries_to_include>
-            antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=args.min_paired_cluster_size_to_read if smetrics else None)  # , required_keys=['tree-info']
+            antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=args.min_paired_cluster_size_to_read if smetrics else None, min_cluster_arg_str=' (controlled by --min-paired-cluster-size-to-read)' if smetrics else '')  # , required_keys=['tree-info']
         antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
         fake_pntns, mpfo_lists, mtpys = paircluster.make_fake_hl_pair_antns(args, antn_pairs)
         return antn_pairs, fake_pntns, mpfo_lists, mtpys

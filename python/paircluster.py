@@ -268,16 +268,16 @@ def get_antn_pairs(lpair, lpfos):  # return list of (hline, lline) pairs
     return list(zip(*[lpfos['antn_lists'][l] for l in lpair]))
 
 # ----------------------------------------------------------------------------------------
-def find_all_cluster_pairs(lp_infos, required_keys=None, quiet=False, min_cluster_size=None, ig_or_tr='ig', debug=False):
+def find_all_cluster_pairs(lp_infos, required_keys=None, quiet=False, min_cluster_size=None, min_cluster_arg_str='', ig_or_tr='ig', debug=False):
     antn_pairs = []
     for lpair in [lpk for lpk in utils.locus_pairs[ig_or_tr] if tuple(lpk) in lp_infos]:
-        antn_pairs += find_cluster_pairs(lp_infos, lpair, required_keys=required_keys, quiet=quiet, min_cluster_size=min_cluster_size, debug=debug)
+        antn_pairs += find_cluster_pairs(lp_infos, lpair, required_keys=required_keys, quiet=quiet, min_cluster_size=min_cluster_size, min_cluster_arg_str=min_cluster_arg_str, debug=debug)
     return antn_pairs
 
 # ----------------------------------------------------------------------------------------
 # at least most of the time i shouldn't really need this fcn since the h/l annotation lists are in the same order (and can use the previous fcns), but I dunno sometimes maybe they're not so better to be safe
 # if you're sure they're ordered correctly, you can use the previuos two fcns (atm I think i'm only doing that for simulation, where i'm confident the order is correct)
-def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, quiet=False, min_cluster_size=None, debug=False):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
+def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, quiet=False, min_cluster_size=None, min_cluster_arg_str='', debug=False):  # the annotation lists should just be in the same order, but after adding back in all the unpaired sequences to each chain they could be a bit wonky
     # ----------------------------------------------------------------------------------------
     def getpids(line):  # return uids of all seqs paired with any seq in <line>
         all_ids = []
@@ -358,12 +358,13 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
         #     hpclusts = [c for c in h_part if len(set(lpids) & set(c)) > 0]0
         #     if len(hpclusts) > 0:  # i think this would mean that the pairing info was non-reciprocal, which probably isn't really possible?
         #         print '       %s unpaired light cluster with size %d overlaps with heavy cluster(s): %s' % (utils.color('yellow', 'warning'), len(lc), ' '.join(str(len(c)) for c in hpclusts))
+    keptstr = ' (keeping %d annotation pairs)' % len(lp_antn_pairs)
     if any(n > 0 for k, n in n_skipped.items() if k not in ['too-small', 'zero-len-paired-uids']):
-        print('    %s: skipped %d annotations missing required keys (%s)' % ('+'.join(lpair), sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids')))
+        print('    %s: skipped %d annotations missing required keys (%s)%s' % ('+'.join(lpair), sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids'), keptstr))
     if n_skipped['zero-len-paired-uids'] > 0:
-            print('    %s: skipped %d annotations with zero length paired uids' % ('+'.join(lpair), n_skipped['zero-len-paired-uids']))
+            print('    %s: skipped %d annotations with zero length paired uids%s' % ('+'.join(lpair), n_skipped['zero-len-paired-uids'], keptstr))
     if n_skipped['too-small'] > 0:
-            print('    %s: skipped %d annotations with N h or l ids < %d' % ('+'.join(lpair), n_skipped['too-small'], min_cluster_size))
+            print('    %s: skipped %d annotations with N h or l ids < %d%s%s' % ('+'.join(lpair), n_skipped['too-small'], min_cluster_size, min_cluster_arg_str, keptstr))
     if debug:
         print('  ')
     return lp_antn_pairs

@@ -2412,7 +2412,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_after = len(inf_lines_to_use)  # after removing the small ones
         print('  %s with inferred lines: %d cluster%s with size%s %s' % (smdbgstr, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use)))
-        print('      skipped %d smaller than %d' % (n_before - n_after, min_cluster_size))
+        print('      skipped %d smaller than %d (controlled by --min-selection-metric-cluster-size)' % (n_before - n_after, min_cluster_size))
         if n_after == 0:
             print('      %s no inferred annotations for selection metrics, returning without doing anything' % utils.wrnstr())
             return
