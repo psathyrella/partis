@@ -112,7 +112,10 @@ def parse_output():
     if len(nfos) != 1:
         print('  %s expected 1 naive seq with label \'%s\' but found %d: %s  (in %s)' % (utils.wrnstr(), args.root_label, len(nfos), ' '.join(n['name'] for n in nfos), gctofn('seqs')))
     seqfos = [s for s in seqfos if s['name'] != args.root_label]  # don't want naive seq in final fasta
+    seq_len = numpy.mean([len(s['seq']) for s in seqfos])
     seqfos = [s for s in seqfos if s['name'] not in idm_trns]  # also remove input seqs
+    if len(seqfos) == 0:
+        print('  %s no inferred sequences (all seqs read from gctree output were input seqs' % utils.wrnstr())
     inf_int_trns = []
     for sfo in seqfos:
         inf_int_trns.append((sfo['name'], get_inf_int_name(sfo['name'])))
@@ -120,7 +123,7 @@ def parse_output():
 
     # read tree
     dtree = treeutils.get_dendro_tree(treefname=gctofn('tree'), debug=args.debug)
-    dtree.scale_edges(1. / numpy.mean([len(s['seq']) for s in seqfos]))
+    dtree.scale_edges(1. / seq_len)
     dtree.seed_node.taxon.label = args.root_label
     for gname, onames in idm_trns.items():
         node = dtree.find_node_with_taxon_label(gname)

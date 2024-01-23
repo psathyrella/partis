@@ -141,7 +141,7 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
             gap_in_true = aln_sc[i][j-1] + gp_j
             aln_sc[i][j] = max(match, gap_in_inferred, gap_in_true)
     # Traceback to compute the alignment:
-    align_t, align_i, asr_align = list(), list(), list()
+    align_t, align_i, asr_align, aln_ids = list(), list(), list(), {'true' : [], 'inf' : []}
     i, j = len_t, len_i
     alignment_score = aln_sc[i][j]
     while i > 0 and j > 0:
@@ -153,15 +153,21 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
         if sc_current == (sc_diagonal + sc_mat[i-1, j-1]):
             align_t.append(lin_t[i-1])
             align_i.append(lin_i[j-1])
+            aln_ids['true'].append(uids_t[i-1])
+            aln_ids['inf'].append(uids_i[j-1])
             i -= 1
             j -= 1
         elif sc_current == (sc_left + gp_i):
             align_t.append(lin_t[i-1])
             align_i.append(gap_seq)
+            aln_ids['true'].append(uids_t[i-1])
+            aln_ids['inf'].append('gap')
             i -= 1
         elif sc_current == (sc_up + gp_j):
             align_t.append(gap_seq)
             align_i.append(lin_i[j-1])
+            aln_ids['true'].append('gap')
+            aln_ids['inf'].append(uids_i[j-1])
             j -= 1
 
     # If space left fill it with gaps:
@@ -190,17 +196,19 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
         max_penalty += len(lin_t[0])
 
     if debug:
-        max_len = max(len(s) for slist in [align_t, align_i] for s in slist)
+        max_seq_len = max(len(s) for slist in [align_t, align_i] for s in slist)
+        max_uid_len = max(len(u) for u in uids_i + uids_t)
         print('      aligned lineages:')
-        print(('          index  hdist  %'+str(max_len)+'s  %'+str(max_len)+'s')  % ('true', 'inferred'))
-        for iseq, (seq_t, seq_i) in enumerate(zip(align_t, align_i)):
-            def cfn(s): return utils.color('blue', s, width=max_len, padside='right') if s == gap_seq else s
+        print(('          index  hdist  %'+str(max_seq_len)+'s  %'+str(max_seq_len)+'s')  % ('true', 'inferred'))
+        for uid_t, uid_i, seq_t, seq_i in zip(aln_ids['true'], aln_ids['inf'], align_t, align_i):
+            def cfn(s): return utils.color('blue', s, width=max_seq_len, padside='right') if s == gap_seq else s
             str_t, str_i = cfn(seq_t), cfn(seq_i)
             hdstr = utils.color('blue', '-', width=3)
             if all(s != gap_seq for s in (seq_t, seq_i)):
                 str_i, isnps = utils.color_mutants(seq_t, seq_i, return_isnps=True)
                 hdstr = utils.color('red' if len(isnps) > 0 else None, '%3d' % len(isnps))
-            print('           %3d %s  %s   %s' % (iseq, hdstr, str_t, str_i))
+            def ustr(u): return utils.color('blue' if u=='gap' else None, utils.wfmt(u, max_uid_len))
+            print('           %s  %s %s  %s   %s' % (hdstr, ustr(uid_t), ustr(uid_i), str_t, str_i))
         if alignment_score % 1 != 0 or max_penalty % 1 != 0:
             raise Exception('alignment_score score %s or max_penalty %s not integers, so need to fix dbg print in next line' % (alignment_score, max_penalty))
         print('      alignment score: %.0f   max penalty: %.0f' % (alignment_score, max_penalty))

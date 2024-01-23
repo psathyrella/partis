@@ -69,8 +69,10 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
     # ----------------------------------------------------------------------------------------
     def check_seqs(uid, seq_i, seq_t, force=False, dont_fix=False):
         if debug:
-            print(uid)
+            print('      fixing %s:' % uid, end='')
         if seq_t == seq_i:
+            if debug:
+                print('   nothing to fix (seqs already the same)')
             return False  # return whether we fixed it or not
         seq_i = combine_chain_seqs(uid, seq_i)
         if seq_t is None:
@@ -83,13 +85,13 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
             seqs_t[uid] = seq_t
         seqs_i[uid] = seq_i
         if debug:
-            print('    fixed seq for %s' % uid)
+            print('    successfully fixed')
         return True
     # ----------------------------------------------------------------------------------------
     leaf_ids_t = [l.taxon.label for l in tr_t.leaf_node_iter() if l.taxon.label in atn_t['unique_ids']]
     leaf_ids_i = [u for u in leaf_ids_t if u in atn_i['unique_ids']]  # inferred tree may swap internal/leaf nodes
     if set(leaf_ids_i) != set(leaf_ids_t):
-        print('    %s inferred leaf ids not the same as true leaf ids when trying to fix seqs (this is probably ok, since the coar calculation should anyway skip them): extra true %s  extra inf %s' % (utils.wrnstr(), set(leaf_ids_t) - set(leaf_ids_i), set(leaf_ids_i) - set(leaf_ids_t)))
+        print('    %s inferred leaf ids not the same as true leaf ids when trying to fix seqs (this is probably ok, since the coar calculation should anyway skip them).  extra true: %s  extra inf: %s' % (utils.wrnstr(), ' '.join(set(leaf_ids_t) - set(leaf_ids_i)), ' '.join(set(leaf_ids_i) - set(leaf_ids_t))))
     common_leaf_ids = set(leaf_ids_t) & set(leaf_ids_i)  # maybe missing ones would be ok? but don't want to mess with it, and for now we assume below that they're the same
     seqs_t, seqs_i = [{u : utils.per_seq_val(atn, seq_key, u).strip('N') for u in atn['unique_ids']} for atn in (atn_t, atn_i)]
     seqs_t[naive_name], seqs_i[naive_name] = [a['naive_seq'].strip('N') for a in (atn_t, atn_i)]
@@ -126,7 +128,7 @@ for atn_t in tru_atn_list:
         for tstr, ttr in zip(['true', 'inf'], [dtree_t, dtree_i]):
             print('    %4s:' % tstr)
             print(utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=ttr, width=250)))
-    seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i) #, debug=args.debug)
+    seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i, debug=args.debug)
     for ttr, seqdict, tfn in zip([dtree_t, dtree_i], [seqs_t, seqs_i], [args.true_tree_file, args.inferred_tree_file]):
         add_seqs_to_nodes(ttr, seqdict, tfn)
     cval = coar.COAR(dtree_t, dtree_i, debug=args.debug)
