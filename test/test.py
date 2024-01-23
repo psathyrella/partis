@@ -273,7 +273,7 @@ class Tester(object):
         gct_sm_cmd = './bin/partis get-selection-metrics --tree-inference-method gctree %s --cluster-indices 0:2' % ' '.join(self.cluster_size_args())
         run_cmd('%s --outfname %s --plotdir %s/gctree-smetric-plots' % (gct_sm_cmd, ptnfn, odir))
         run_cmd('./bin/read-gctree-output.py --locus igh --species human --gctreedir %s/gctree/iclust-0 --outdir %s/read-gctree-output' % (utils.getprefix(ptnfn), odir))  # NOTE this uses output from the previous line
-        # can't run this since gctree doesn't allow Ns: # run_cmd('%s --paired-loci --paired-outdir %s --plotdir %s/paired-gctree-smetric-plots' % (gct_sm_cmd, pair_ptndir, odir))
+        run_cmd('%s --paired-loci --paired-outdir %s --plotdir %s/paired-gctree-smetric-plots' % (gct_sm_cmd, pair_ptndir, odir))
 
         run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run' % odir)  # don't use multiple gc rounds here, since we need the tree in the next line (and the tree isn't written for multiple gc rounds)
         run_cmd('./bin/smetric-run.py --infname %s/bcr-phylo-run/selection/simu/mutated-simu.yaml --base-plotdir %s/smetric-run --metric-method lbi' % (odir, odir))  # NOTE uses results from previous line
