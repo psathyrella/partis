@@ -49,6 +49,13 @@ def install():
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
+def update():
+    cmds = ['#!/bin/bash']
+    cmds += utils.mamba_cmds(args.env_label)
+    cmds += ['micromamba update phylip gctree click']
+    utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
+
+# ----------------------------------------------------------------------------------------
 def add_mfo(tcmd, mfn):
     with open(args.metafname) as mfile:
         metafo = json.load(mfile)
@@ -169,12 +176,14 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
 
 args = parser.parse_args()
-args.actions = utils.get_arg_list(args.actions, choices=['install', 'run', 'parse', 'convert-pickle-tree'])
+args.actions = utils.get_arg_list(args.actions, choices=['install', 'update', 'run', 'parse', 'convert-pickle-tree'])
 args.infname = utils.fpath(args.infname)
 args.outdir = utils.fpath(args.outdir)
 
 if 'install' in args.actions:
     install()
+if 'update' in args.actions:
+    update()
 if 'run' in args.actions:
     run_gctree()
 if 'parse' in args.actions:
