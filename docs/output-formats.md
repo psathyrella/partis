@@ -5,6 +5,7 @@
   * [output file overview](#output-file-overview)
   * [paired loci](paired-loci.md#output-directory)
   * [extracting simplified fasta or csv/tsv files](#extracting-simplified-files)
+  * [N-padding, read length, etc](#N-padding)
   * [description of keys](#description-of-keys)
   * [output file example](#output-file-example)
 
@@ -58,6 +59,15 @@ cpath.print_partitions()
 best_ptn = cpath.best()  # return best partition
 ```
 
+#### N-padding, read length, and "non-biological" insertions and deletions
+
+As detailed elsewhere, partis first annotates all sequences with a Smith-Waterman (SW) algorithm, then uses these annotations to build and run an HMM to get final HMM annotations.
+During SW annotation, anything in the observed sequences that is 5' of V or 3' of J is trimmed off, with the removed bits saved in `leader_seqs` and `c_gene_seqs` (see table below).
+Observed sequences that, on the other hand, do not extend to the 5' end of V or 3' end of J are recorded as having "non-biological" deletions (`v_5p_del` and `j_3p_del`).
+Before beginning the HMM, the SW annotations are N-padded such that all sequences with the same CDR3 length have the same number of bases both to 5' and 3' of the CDR3.
+This is necessary since the HMM can only operate on same-length sequences (and only considers sequences as potentially clonal that have the same CDR3 length).
+These N pads are recorded as "non-biological" insertions (`fv_insertion` and `jf_insertion`), and they mean that the final HMM annotations won't have V 5' or J 3' deletions (they're instead filled with Ns).
+
 #### description of keys
 
 Keys in the annotation dictionary are either per-family keys (that have one value for the entire rearrangement event) or per-sequence keys (that consist of a list of values, one for each sequence).
@@ -76,20 +86,20 @@ The following keys are written to output by default:
 | mut_freqs      |  list of sequence mutation frequencies `[per-seq]`
 | input_seqs     |  list of input sequences (with constant regions (fv/jf insertions) removed, unless `--dont-remove-framework-insertions` was set) `[per-seq]`
 | naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation
-| v_3p_del       |  length of V 3' deletion in most likely annotation
-| d_5p_del       |  see v_3p_del
-| d_3p_del       |  see v_3p_del
-| j_5p_del       |  see v_3p_del
-| v_5p_del       |  length of an "effective" V 5' deletion in the most likely annotation, corresponding to a read which does not extend through the entire V segment
-| j_3p_del       |  see v_5p_del
+| v_3p_del       |  length of V 3' deletion
+| d_5p_del       |  length of D 5' deletion
+| d_3p_del       |  length of D 3' deletion
+| j_5p_del       |  length of J 5' deletion
+| v_5p_del       |  length of a non-biological "effective" V 5' deletion, corresponding to a read that doesn't extend to the 5' end of V (only present in smith-waterman annotations; it's replaced with Ns in the hmm annotations)
+| j_3p_del       |  non-biological "effective" deletion on 3' end of J (see v_5p_del)
 | vd_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the V and D segments
 | dj_insertion       |  sequence of nucleotides corresponding to the non-templated insertion between the D and J segments
-| leader_seqs        |  sequence to 5' of V `[per-seq]`
-| c_gene_seqs        |  sequence to 3' of J `[per-seq]`
+| leader_seqs        |  sequence to 5' of V `[per-seq]` (this is trimmed off of `seqs` during smith-waterman alignment)
+| c_gene_seqs        |  sequence to 3' of J `[per-seq]` (this is trimmed off of `seqs` during smith-waterman alignment)
 | leaders            |  leader gene that was the best alignment to each seq in leader_seqs (only filled if --align-constant-regions is set) `[per-seq]`
 | c_genes            |  constant gene that was the best alignment to each seq in c_gene_seqs (only filled if --align-constant-regions is set) `[per-seq]`
-| fv_insertion       |  DEPRECATED use leader_seqs OLD: constant region on the 5' side of the V (accounts for reads which extend beyond the 5' end of V)
-| jf_insertion       |  DEPRECATED use c_gene_seqs OLD: constant region on the 3' side of the J (accounts for reads which extend beyond the 3' end of J)
+| fv_insertion       |  N-padded sequence added to 5' of V (if necessary, see above)
+| jf_insertion       |  N-padded sequence added to 3' of J (if necessary, see above)
 | codon_positions	 |  zero-indexed indel-reversed-sequence positions of the conserved cyst and tryp/phen codons, e.g. `{'v': 285, 'j': 336}`
 | mutated_invariants |  true if either of the conserved codons corresponding to the start and end of the CDR3 code for a different amino acid than their original germline (cyst and tryp/phen, in IMGT numbering) `[per-seq]`
 | in_frames          |  true if the net effect of VDJ rearrangement and SHM indels leaves both the start and end of the CDR3 (IMGT cyst and tryp/phen) in frame with respect to the start of the germline V sequence `[per-seq]`
