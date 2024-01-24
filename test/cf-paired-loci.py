@@ -192,7 +192,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
     if args.merge_paired_partitions:
         actstr = 'merge-paired-partitions'
     if action in phylo_actions:
-        actstr = 'get-selection-metrics'
+        actstr = 'infer-trees'
     binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.bcr_phylo and action=='simu' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
     cmd = './bin/%s %s --paired-loci --%s-outdir %s' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action))
     cmd += ' --n-procs %d' % args.n_sub_procs
@@ -259,7 +259,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
         if action in phylo_actions:  # should maybe remove plotdir and annotation performance?
-            cmd += ' --tree-inference-method %s --selection-metrics-to-calculate lbi --selection-metric-plot-cfg lb-scatter' % action  # selection metric options are just to make it faster since we don't actually need any selection metrics calculated
+            cmd += ' --tree-inference-method %s --infer-trees-with-only-leaves' % action
 
     return cmd
 

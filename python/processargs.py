@@ -370,6 +370,7 @@ def process(args):
     if args.action == 'infer-trees':  # don't need to make a new action, but calculate only the simplest smetric so it's faster
         args.action = 'get-selection-metrics'
         args.selection_metrics_to_calculate = 'lbi'
+        args.selection_metric_plot_cfg = 'lb-scatter'
     if args.action == 'get-selection-metrics' or args.get_selection_metrics:
         if args.paired_loci:
             if args.paired_outdir is None and args.selection_metric_fname is None:
