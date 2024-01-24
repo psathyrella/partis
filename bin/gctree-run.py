@@ -84,7 +84,8 @@ def run_gctree():
         cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
         cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
         tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
-        tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
+        if not args.base_model:
+            tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
         if os.path.exists(args.metafname):
             tcmd = add_mfo(tcmd, args.metafname)
         cmds.append(tcmd)
@@ -165,6 +166,7 @@ parser.add_argument('--infname')
 parser.add_argument('--metafname', help='if you need --frame (v region doesn\'t start at first position) or --chain_split and --frame2 (heavy/light chain smooshed together), pass the info in json format with this arg (see code above for format).')
 parser.add_argument('--outdir')
 parser.add_argument('--overwrite', action='store_true')
+parser.add_argument('--base-model', action='store_true', help='By default, we pass gctree info for the s5f mutation model; if this is set, we don\'t, and it instead use the base model.')
 parser.add_argument('--env-label', default='gctree')
 parser.add_argument('--root-label', default='naive')
 parser.add_argument('--data-dir', default='%s/data/s5f'%utils.get_partis_dir())
