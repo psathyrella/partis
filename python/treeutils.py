@@ -810,8 +810,9 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
 
 # ----------------------------------------------------------------------------------------
 # specify <seqfos> or <annotation> (in latter case we add the naive seq)
-def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
-                       redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, only_pass_leaves=False, debug=False):
+def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read',
+                       taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None, redo=False, outfix='out', cmdfo=None,
+                       glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, only_pass_leaves=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def lhindir(workdir):
         return '%s/input' % workdir
@@ -874,7 +875,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             else:
                 raise Exception('was told to restrict to leaves, but found a node with unexpected name \'%s\' (expected \'leaf-\', \'mrca-\', or %s' % (sfo['name'], naive_seq_name))
         if 'prep' in actions:  # this still gets run for run/read, but i don't think there's a reason to print it twice
-            print('    only_pass_leaves: kept %d leaf (+naive) nodes (removed %d internal)' % (n_kept, n_internal))
+              print('        removed %d internal nodes (kept %d leaf+naive)' % (n_internal, n_kept))
         return newfos
     # ----------------------------------------------------------------------------------------
     assert method in ['fasttree', 'iqtree', 'gctree', 'linearham']
@@ -890,6 +891,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         seqfos = [{'name' : naive_seq_name, 'seq' : naive_seq}] + seqfos
     elif not no_naive:  # force calling fcn to affirmatively indicate it doesn't want the naive sequence in the tree (since at one point we forget to add it, with bad consequences)
         raise Exception('not adding naive seq to seqfos (need to set no_naive)')
+    if only_pass_leaves:
+        seqfos = restrict_to_leaf_sfos(seqfos)
     uid_list = [sfo['name'] for sfo in seqfos]
     if method == 'iqtree':  # iqtree silently replaces + with _, so we have to do some translation
         translations = {}
@@ -903,8 +906,6 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
         for sfo in seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
             sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
-    if only_pass_leaves:
-        seqfos = restrict_to_leaf_sfos(seqfos)
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
 
@@ -2365,7 +2366,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         for iclust, (line, cfo) in enumerate(zip(inf_lines_to_use, cmdfos)):
             if cfo is None:
                 continue
-            dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, debug=debug)
+            dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)
             if tree_inference_method in ['iqtree', 'gctree']:
                 utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, debug=debug)
             elif tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
@@ -2467,7 +2468,8 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
                     continue
                 if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf']):
                     lbfo = calculate_lb_values(trfo['tree'], lb_tau, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
-                    check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+                    if not args.infer_trees_with_only_leaves:
+                        check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep running into instances where dendropy is silently removing nodes
                     line['tree-info']['lb'].update(lbfo)
                 if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr', 'aa-lbf']):
                     get_aa_lb_metrics(line, trfo['tree'], lb_tau, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
@@ -2503,7 +2505,8 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
             if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf']):
                 true_lb_info = calculate_lb_values(true_dtree, lb_tau, annotation=true_line, dont_normalize=args.dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
                 true_line['tree-info']['lb'] = true_lb_info  # NOTE replaces value for 'lb' key set above (ick)
-                check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+                if not args.infer_trees_with_only_leaves:
+                    check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
             if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr', 'aa-lbf']):
                 get_aa_lb_metrics(true_line, true_dtree, lb_tau, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
             if 'cons-dist-aa' in metrics_to_calc:
