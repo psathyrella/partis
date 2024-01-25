@@ -219,18 +219,19 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
 
 # ----------------------------------------------------------------------------------------
 def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debug=False):
-    lineage_dists, n_skipped = list(), collections.OrderedDict([('inferred-internal', 0), ('missing-leaf', 0), ('aln-fail', 0)])
+    lineage_dists, n_skipped = list(), collections.OrderedDict([('inferred-internal', []), ('missing-leaf', []), ('aln-fail', [])])
     inf_leaf_nodes = [n.taxon.label for n in inferred_tree.leaf_node_iter()]  # just so we can skip true leaf nodes that were inferred to be internal
     for node_t in true_tree.leaf_node_iter():
+        nlabel = node_t.taxon.label
         if debug:
-            print('%s             %3d %s' % (node_t.taxon.label, len(node_t.seq), node_t.seq))
-        if node_t.taxon.label not in inf_leaf_nodes:
-            is_internal = any(n.taxon.label == node_t.taxon.label for n in inferred_tree.preorder_node_iter())
-            n_skipped['inferred-internal' if is_internal else 'missing-leaf'] += 1
+            print('%s             %3d %s' % (nlabel, len(node_t.seq), node_t.seq))
+        if nlabel not in inf_leaf_nodes:
+            is_internal = any(n.taxon.label == nlabel for n in inferred_tree.preorder_node_iter())
+            n_skipped['inferred-internal' if is_internal else 'missing-leaf'].append(nlabel)
             continue
         aln_res = align_lineages(node_t, true_tree, inferred_tree, known_root=known_root, allow_double_gap=allow_double_gap, debug=debug)
         if aln_res is False:  # Skip lineages less than three members long
-            n_skipped['aln-fail'] += 1
+            n_skipped['aln-fail'].append(nlabel)
             continue
         align_t, align_i, final_score, max_penalty = aln_res
         if max_penalty < 0:
@@ -241,9 +242,9 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
             if debug:
                 print('    max penalty not less than zero: %.3f' % max_penalty)
 
-    if any(c > 0 for c in n_skipped.values()):
-        dstrs = {'missing-leaf' : '%d missing from inferred tree', 'inferred-internal' : '%d were internal in inferred tree', 'aln-fail' : '%d failed lineage alignment'}
-        print('    %s skipped %d true leaf nodes in coar calculation (%s)' % (utils.wrnstr(), sum(n_skipped.values()), ', '.join((dstrs[k]%n_skipped[k]) for k in n_skipped if n_skipped[k]>0)))
+    if any(len(v) > 0 for v in n_skipped.values()):
+        dstrs = {'missing-leaf' : '%d missing from inferred tree: %s', 'inferred-internal' : '%d were internal in inferred tree: %s', 'aln-fail' : '%d failed lineage alignment: %s'}
+        print('    %s skipped %d true leaf nodes in coar calculation (%s)' % (utils.wrnstr(), sum(len(v) for v in n_skipped.values()), ', '.join((dstrs[k]%(len(n_skipped[k]), ' '.join(sorted(n_skipped[k])))) for k in n_skipped if len(n_skipped[k])>0)))
 
     if len(lineage_dists) == 0:  # max_penalty is 0 when all lineages have less than three members
         if debug:

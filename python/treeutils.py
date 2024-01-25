@@ -493,32 +493,32 @@ def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_na
 
 # ----------------------------------------------------------------------------------------
 # return copies of the two trees with a common taxon namespace, so they can be compared with dendropy tree distance metrics
-def sync_taxon_namespaces(dtree_1, dtree_2, only_leaves=False, debug=True):
+def sync_taxon_namespaces(dtree_a, dtree_b, only_leaves=False, debug=True):
     # ----------------------------------------------------------------------------------------
     def new_tree(told, new_tns):
         return dendropy.Tree(seed_node=told.seed_node, taxon_namespace=new_tns)
     # ----------------------------------------------------------------------------------------
     def get_common_labels(tns1, tns2):
-        labels_1, labels_2 = [[t.label for t in tns] for tns in (tns1, tns2)]
-        common_labels = set(labels_1) & set(labels_2)
-        only_1, only_2 = set(labels_1) - set(labels_2), set(labels_2) - set(labels_1)
-        if len(only_1) > 0 or len(only_2) > 0:
-            print('  %s syncing taxon namespaces with different node sets:' % utils.wrnstr())
-        if debug or len(only_1) > 0 or len(only_2) > 0:
-            print('       %d common labels: %s' % (len(common_labels), ' '.join(sorted(common_labels))))
-            print('       %d only in tree 1: %s' % (len(only_1), ' '.join(sorted(only_1))))
-            print('       %d only in tree 2: %s' % (len(only_2), ' '.join(sorted(only_2))))
+        labels_a, labels_b = [[t.label for t in tns] for tns in (tns1, tns2)]
+        common_labels = set(labels_a) & set(labels_b)
+        only_a, only_b = set(labels_a) - set(labels_b), set(labels_b) - set(labels_a)
+        if len(only_a) > 0 or len(only_b) > 0:
+            print('    %s syncing taxon namespaces with different node sets:' % utils.wrnstr())
+        if debug or len(only_a) > 0 or len(only_b) > 0:
+            print('      %d common labels: %s' % (len(common_labels), ' '.join(sorted(common_labels))))
+            print('      %d only in first tree:  %s' % (len(only_a), ' '.join(sorted(only_a))))
+            print('      %d only in second tree: %s' % (len(only_b), ' '.join(sorted(only_b))))
         return common_labels
     # ----------------------------------------------------------------------------------------
     def leaf_taxa(ttr):
         return [l.taxon for l in ttr.leaf_node_iter()]
     # ----------------------------------------------------------------------------------------
     if only_leaves:
-        common_labels = get_common_labels(leaf_taxa(dtree_1), leaf_taxa(dtree_2))
+        common_labels = get_common_labels(leaf_taxa(dtree_a), leaf_taxa(dtree_b))
     else:
-        common_labels = get_common_labels(dtree_1.taxon_namespace, dtree_2.taxon_namespace)
+        common_labels = get_common_labels(dtree_a.taxon_namespace, dtree_b.taxon_namespace)
     new_tns = dendropy.TaxonNamespace(common_labels)
-    return [new_tree(t, new_tns) for t in [dtree_1, dtree_2]]
+    return [new_tree(t, new_tns) for t in [dtree_a, dtree_b]]
 
 # ----------------------------------------------------------------------------------------
 def check_node_labels(dtree, debug=False):
