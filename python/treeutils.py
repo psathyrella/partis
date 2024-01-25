@@ -900,13 +900,13 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         n_kept, n_internal = 0, 0
         newfos = []
         for sfo in seqfos:
-            if 'leaf-' in sfo['name'] or sfo['name'] == naive_seq_name:
+            if 'leaf-' in sfo['name'] or 'int-' in sfo['name'] or sfo['name'] == naive_seq_name:  # 'int-' are leaf sequences that were sampled at imtermediate times
                 n_kept += 1
                 newfos.append(sfo)
             elif 'mrca-' in sfo['name']:
                 n_internal += 1
             else:
-                raise Exception('was told to restrict to leaves, but found a node with unexpected name \'%s\' (expected \'leaf-\', \'mrca-\', or %s' % (sfo['name'], naive_seq_name))
+                raise Exception('was told to restrict to leaves, but found a node with unexpected name \'%s\' (expected \'leaf-\', \'int-\', \'mrca-\', or %s' % (sfo['name'], naive_seq_name))
         if 'prep' in actions:  # this still gets run for run/read, but i don't think there's a reason to print it twice
               print('        removed %d internal nodes (kept %d leaf+naive)' % (n_internal, n_kept))
         return newfos
@@ -1886,7 +1886,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
     def get_node_type_from_name(name, debug=False):  # internal nodes in simulated trees should be labeled like 'mrca-<stuff>' (has to correspond to what bcr-phylo-benchmark did)
         if 'mrca' in name:
             return 'internal'
-        elif 'leaf' in name:
+        elif 'leaf' in name or 'int' in name:
             return 'leaf'
         else:
             if debug:
