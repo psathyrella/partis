@@ -23,6 +23,7 @@ from . import utils
 from . import glutils
 from . import indelutils
 from . import treeutils
+from . import lbplotting
 from .glomerator import Glomerator
 from .clusterpath import ClusterPath, ptnprint
 from .waterer import Waterer
@@ -507,6 +508,14 @@ class PartitionDriver(object):
                     continue
                 if self.args.only_print_queries_to_include_clusters and len(set(self.args.queries_to_include) & set(line['unique_ids'])) == 0:  # will barf if you don't tell us what queries to include, but then that's your fault isn't it
                     continue
+                if self.args.print_trees:
+                    treestr = line.get('tree', lbplotting.get_tree_in_line(line, self.args.is_simu))  # ok this weird, but i want to be able to print the tree on simulation files even without setting --is-simu, sincei if --is-simu is set i may not be able to print the annotations (since for that, reco_info has to be set, but that depends how the simulation file was read. Anyway...
+                    if treestr is None:
+                        print('  --print-trees: no tree found in line')
+                    else:
+                        dtree = treeutils.get_dendro_tree(treestr=treestr)
+                        print(utils.pad_lines(treeutils.get_ascii_tree(dendro_tree=dtree)))
+                    continue  # eh, maybe just continue so it doesn't crash if it sees the multi-seq true annotation
                 label, post_label = [], []
                 if self.args.infname is not None and self.reco_info is not None:
                     utils.print_true_events(self.simglfo, self.reco_info, line, full_true_partition=true_partition, extra_str=extra_str+'  ')
