@@ -9,6 +9,7 @@ import os
 import argparse
 import colored_traceback.always
 import json
+import dendropy
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
@@ -110,7 +111,7 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
 # ----------------------------------------------------------------------------------------
 def trnfn(u): return u + '_contig_igh+igk'
 utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
-jvals = {'coar' : []}
+jvals = {'coar' : [], 'rf' : []}
 for atn_t in tru_atn_list:
     print('  starting true annotation with size %d' % len(atn_t['unique_ids']))
     atn_i = None
@@ -133,13 +134,15 @@ for atn_t in tru_atn_list:
         add_seqs_to_nodes(ttr, seqdict, tfn)
     cval = coar.COAR(dtree_t, dtree_i, debug=args.debug)
     jvals['coar'].append(cval)
+    dtree_t, dtree_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
+    jvals['rf'].append(dendropy.calculate.treecompare.robinson_foulds_distance(dtree_t, dtree_i))
 
 if args.outdir is None:
     print('  %s no --outdir specified, so not writing anything' % utils.wrnstr())
     sys.exit(0)
 
-ofn = '%s/coar-vals.yaml' % args.outdir
-print('  writing coar values to %s' % ofn)
+ofn = '%s/tree-perf-vals.yaml' % args.outdir
+print('  writing tree perf values to %s' % ofn)
 if not os.path.exists(args.outdir):
     os.makedirs(args.outdir)
 utils.jsdump(ofn, jvals)

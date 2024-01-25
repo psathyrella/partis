@@ -918,7 +918,7 @@ class Recombinator(object):
             if any(indelutils.has_indels(reco_event.line['indelfos'][i]) for i in range(len(reco_event.line['unique_ids']))):
                 print('    skipping tree difference metrics since there\'s shm indels (would have to align before passing to fasttree)')
             else:
-                treeutils.get_tree_difference_metrics('all', reco_event.line['tree'], reco_event.final_seqs, ltmp['naive_seq'])  # NOTE we want to pass in the treestr rather than the dendro tree because a) the stupid dendropy functions modify the dendro tree you give them b) they also need the two trees to have the same taxon namespace so we'd have to make a new one anyway
+                treeutils.compare_input_tree_to_leaf_seqs('all', reco_event.line['tree'], reco_event.final_seqs, ltmp['naive_seq'])  # NOTE we want to pass in the treestr rather than the dendro tree because a) the stupid dendropy functions modify the dendro tree you give them b) they also need the two trees to have the same taxon namespace so we'd have to make a new one anyway
 
     # ----------------------------------------------------------------------------------------
     def print_validation_values(self):  # the point of having this separate from the previous function is that it's run after you've simulated lots of different events (unlike everything else in this class, the validation values aggregate over different events)

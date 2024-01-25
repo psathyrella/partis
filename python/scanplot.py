@@ -403,7 +403,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 fval = ytmpfo[ptilestr]
                 fhist = ytmpfo.get('hist')
                 if debug:
-                    print(' %.2f' % fval, end=' ')
+                    print((' %.2f' if fval>0.01 else ' %.2e') % fval, end=' ')
             elif distr_hists:
                 n_zero, n_other, lo_edge = get_dhist_vals(ytmpfo, iclust=iclust)
                 if n_zero + n_other == 0:
@@ -490,7 +490,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                     elif ptilestr == 'coar':
                         with open(yfname) as yfile:  # should maybe use try/except as in smetric fcn above?
                             yjfo = json.load(yfile)  # too slow with yaml
-                        ytmpfo = {ptilestr : yjfo[ptilestr]}
+                        ytmpfo = {ptilestr : numpy.mean(yjfo[ptilestr])}
                     else:
                         _, _, cpath = utils.read_output(yfname, skip_annotations=True)
                         ytmpfo = {ptilestr : cp_val(cpath, ptilestr, yfname)}
