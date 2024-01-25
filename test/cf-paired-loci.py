@@ -84,9 +84,10 @@ if 'all-pcfrac' in args.perf_metrics:
     args.perf_metrics = args.perf_metrics.replace('all-pcfrac', ':'.join(pcfrac_metrics))
 args.paired_loci = True
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
-if 'tree-perf' in args.actions:
-    tpi = args.actions.index('tree-perf')
-    args.actions = args.actions[: tpi] + tree_perf_actions + args.actions[tpi + 1 :]
+for targ in ['actions', 'plot_metrics']:
+    if 'tree-perf' in getattr(args, targ):
+        tpi = getattr(args, targ).index('tree-perf')
+        setattr(args, targ, args.actions[: tpi] + tree_perf_actions + args.actions[tpi + 1 :])
 if args.antn_perf:
     if any(a in phylo_actions for a in args.actions):
         raise Exception('can\'t set --antn-perf for phylo actions, since --antn-perf requires --is-simu and thus reads true annotations, but phylo actions infer trees on inferred annotations')
@@ -370,6 +371,8 @@ def skip_this(pmetr, ptntype, method, ltmp):
     if ptntype != 'joint' and is_joint_method(method):
         return True
     if args.bcrham_time and ptntype == 'joint':
+        return True
+    if method in tree_perf_actions and ptntype == 'single':
         return True
     return False
 

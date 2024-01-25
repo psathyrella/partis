@@ -493,7 +493,7 @@ def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_na
 
 # ----------------------------------------------------------------------------------------
 # return copies of the two trees with a common taxon namespace, so they can be compared with dendropy tree distance metrics
-def sync_taxon_namespaces(dtree_a, dtree_b, only_leaves=False, debug=True):
+def sync_taxon_namespaces(dtree_a, dtree_b, only_leaves=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def new_tree(told, new_tns):
         return dendropy.Tree(seed_node=told.seed_node, taxon_namespace=new_tns)
