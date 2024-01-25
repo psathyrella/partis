@@ -270,8 +270,11 @@ def read_inputs(args, actions):
             simglfo = None  # cause we'll read it from the input file
         elif args.simulation_germline_dir is not None:  # if an explicit dir was set on the command line
             simglfo = glutils.read_glfo(args.simulation_germline_dir, locus=args.locus)  # probably don't apply <args.only_genes> (?)
+        elif args.outfname is not None:
+            print('  note: setting --infname to value from --outfname since --is-simu was set and we need input simulation info')
+            args.infname = args.outfname
         else:
-            raise Exception('couldn\'t find simulation germline info: either set with --simulation-germline-dir, or use .yaml simulation files and set --infname')
+            raise Exception('couldn\'t find simulation germline info: either set --infname to a .yaml simulation file, or set --simulation-germline-dir')
 
     more_input_info = read_qti_file(args)  # also set args.queries_to_include
 
@@ -1440,6 +1443,7 @@ parent_args.append({'name' : '--prepend-coverage-command', 'kwargs' : {'action' 
 
 # ----------------------------------------------------------------------------------------
 subconfig = collections.OrderedDict((
+    # NOTE when adding a new action, also update utils.existing_output_action below
     ('version'          , {'func' : int, 'help' : 'print version information and exit'}),  # int doesn't do anything, it's just because I have to put something here
     ('cache-parameters' , {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'}),
     ('annotate'         , {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'}),
@@ -1461,9 +1465,26 @@ subconfig = collections.OrderedDict((
     ('run-viterbi'      , {'func' : run_partitiondriver, 'help' : 'DEPRECATED use \'annotate\''}),
 ))
 
-def runs_on_existing_output(actionstr):
-    return actionstr.split('-')[0] in ['view', 'plot', 'get', 'merge', 'update', 'write']
+utils.existing_output_actions = [
+    'view-output',
+    'merge-paired-partitions',
+    'view-alternative-annotations',
+    'plot-partitions',
+    'get-selection-metrics',
+    'infer-trees',
+    'get-linearham-info',
+    'update-meta-info',
+    'write-fake-paired-annotations',
+    'view-annotations',
+    'view-partitions',
+    'view-alternative-naive-seqs',
+]
 
+# ----------------------------------------------------------------------------------------
+def runs_on_existing_output(actionstr):
+    return actionstr in utils.existing_output_actions
+
+# ----------------------------------------------------------------------------------------
 subargs = {subname : [] for subname in subconfig}
 
 # ----------------------------------------------------------------------------------------
@@ -1596,9 +1617,6 @@ args = parser.parse_args()
 # add OR of all arguments to all subparsers to <args>, as None (to avoid having to rewrite a *##!(%ton of other code)
 for missing_arg in get_arg_names('all') - set(args.__dict__):  # NOTE see also remove_action_specific_args() above, which kind of does similar things, at least if i rewrote this all from scratch only one (or neither...) would exist
     args.__dict__[missing_arg] = None
-
-if args.outfname is None and args.paired_outdir is None and runs_on_existing_output(args.action):  # would be better to have this in processargs.py like everything else, but then I'd have to import the function somehow
-    raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
 
 processargs.process(args)
 random.seed(args.random_seed)

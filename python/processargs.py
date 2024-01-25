@@ -81,6 +81,9 @@ def get_workdir(batch_system):  # split this out so we can use it in datascripts
 
 # ----------------------------------------------------------------------------------------
 def process(args):
+    if args.outfname is None and args.paired_outdir is None and args.action in utils.existing_output_actions:
+        raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
+
     if args.action == 'run-viterbi':
         print('  note: replacing deprecated action name \'run-viterbi\' with current name \'annotate\' (you don\'t need to change anything unless you want this warning message to go away)')
         args.action = 'annotate'
@@ -371,6 +374,7 @@ def process(args):
         args.action = 'get-selection-metrics'
         args.selection_metrics_to_calculate = 'lbi'
         args.selection_metric_plot_cfg = 'lb-scatter'
+        sys.argv[sys.argv.index('infer-trees')] = 'get-selection-metrics'  # sys.argv gets used for arg manipulation in paired stuff
     if args.action == 'get-selection-metrics' or args.get_selection_metrics:
         if args.paired_loci:
             if args.paired_outdir is None and args.selection_metric_fname is None:

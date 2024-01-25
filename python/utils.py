@@ -34,6 +34,8 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
+existing_output_actions = []  # set in bin/partis (so it's next to the action dict)
+
 all_ptn_plot_cfg = ['shm-vs-size', 'cluster-bubble', 'mut-bubble', 'diversity', 'sizes', 'trees', 'subtree-purity', 'mds', 'laplacian-spectra', 'sfs']
 default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'cluster-bubble', 'sizes', 'trees']
 
