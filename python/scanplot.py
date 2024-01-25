@@ -275,6 +275,8 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         #     lstr += ' %s' % ltexts[ptntype]
         if title:
             lstr = lstr.replace(' fraction (nuc)', '')
+        if lstr == label and label in args.plot_metrics and script_base == 'paired-loci':  # not sure if this is proper way to fix it, but the phylo plot metrics (i.e. methods) are falling through to here without modification
+            lstr = titlestr(label)
         return lstr
     # ----------------------------------------------------------------------------------------
     def nsimevts():
@@ -754,6 +756,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
     elif action == 'combine-plots':
         pvks_from_args = set([pvkeystr(vlists, varnames) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
         plotfos = collections.OrderedDict()
+        assert len(args.plot_metrics) == len(args.plot_metric_extra_strs)
         for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):  # <mtmp>: metric for trees, method for paired
             if per_x is not None and ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
                 continue

@@ -83,11 +83,12 @@ args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svar
 if 'all-pcfrac' in args.perf_metrics:
     args.perf_metrics = args.perf_metrics.replace('all-pcfrac', ':'.join(pcfrac_metrics))
 args.paired_loci = True
-utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 for targ in ['actions', 'plot_metrics']:
-    if 'tree-perf' in getattr(args, targ):
-        tpi = getattr(args, targ).index('tree-perf')
-        setattr(args, targ, args.actions[: tpi] + tree_perf_actions + args.actions[tpi + 1 :])
+    tlist = getattr(args, targ).split(':')
+    if 'tree-perf' in tlist:
+        tpi = tlist.index('tree-perf')
+        setattr(args, targ, ':'.join(tlist[: tpi] + tree_perf_actions + tlist[tpi + 1 :]))
+utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 if args.antn_perf:
     if any(a in phylo_actions for a in args.actions):
         raise Exception('can\'t set --antn-perf for phylo actions, since --antn-perf requires --is-simu and thus reads true annotations, but phylo actions infer trees on inferred annotations')
