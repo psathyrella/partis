@@ -534,7 +534,7 @@ def simulate(igcr=None):
     start = time.time()
     cmdfos = []
     if args.n_procs > 1:
-        print('    starting %d events' % len(naive_events))
+        print('    starting %d events%s' % (len(naive_events), '' if args.n_procs==1 else ' with N max simultaneous procs %d'%args.n_procs))
     uid_str_len = args.min_ustr_len  # UPDATE don't need to increase this any more since I'm handling duplicates when above + int(math.log(len(naive_events), 7))  # if the final sample's going to contain many trees, it's worth making the uids longer so there's fewer collisions/duplicates (note that this starts getting pretty slow if it's bigger than 7 or so)
     for ievent, outdir in enumerate(outdirs):
         if args.n_sim_events > 1 and args.n_procs == 1:

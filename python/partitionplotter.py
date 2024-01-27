@@ -797,9 +797,10 @@ class PartitionPlotter(object):
     def make_mut_bubble_plots(self, min_n_muts=3, debug=False):
         # ----------------------------------------------------------------------------------------
         def process_single_tree(tkey, mcounts, dtree, antn, tdbg=False):
+            dtree.resolve_node_ages()
             meta_vals = {u : utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats) for u, v in zip(antn['unique_ids'], antn[self.args.meta_info_key_to_color])}
             mutfos, ncounts = {}, {}
-            for mstr, mct in sorted(list(mcounts[tkey].items()), key=operator.itemgetter(1), reverse=True):  # loop over observed mutations/positions
+            for mstr, mct in sorted(list(mcounts[tkey].items()), key=lambda x: x[1]['count'], reverse=True):  # loop over observed mutations/positions
                 # if len(mct['nodes']) < min_n_muts:  # ignore mutations that we saw fewer than <min_n_muts> times (can't do this here if we're averaging over multiple trees since we'd ignore mutations in some trees but not others
                 #     continue
                 if tdbg:

@@ -991,7 +991,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
 
     removed_nodes = None
-    if not suppress_internal_node_taxa:  # fasttree and iqtree put all observed seqs as leaves, so we want to collapse zero-length leaves onto their internal node parent (if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards) UPDATE i no longer understand this comment, sigh)
+    # fasttree, iqtree, and gctree put all observed seqs as leaves, so we sometimes want to collapse [near-]zero-length leaves onto their internal node parent
+    if not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
         removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name])
 
     inf_seqfos, inf_antn = [], None
@@ -1523,6 +1524,7 @@ def get_clade_purity(meta_vals, sub_root_node, mval, return_bool=False, mval_cou
 # ----------------------------------------------------------------------------------------
 def find_pure_subtrees(dtree, antn, meta_key, debug=False):
     # ----------------------------------------------------------------------------------------
+    dtree.resolve_node_ages()
     if meta_key not in antn:
         print('      %s meta key %s not in annotation' % (utils.wrnstr(), meta_key))
         return None, None
