@@ -805,14 +805,14 @@ def run_all_loci(args, ig_or_tr='ig'):
         hloc = utils.heavy_locus(ig_or_tr)
         if len(lpfos['glfos']) == 0:
             return lpfos
-        tmp_ptn = utils.get_deduplicated_partitions([lpfos['cpaths'][hloc].best()], antn_list=lpfos['antn_lists'][hloc] if not args.dont_calculate_annotations else None, glfo=lpfos['glfos'][hloc], debug=args.debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
+        tmp_ptn = utils.get_deduplicated_partitions([lpfos['cpaths'][hloc].best()], antn_list=lpfos['antn_lists'][hloc] if not args.dont_calculate_annotations else None, glfo=lpfos['glfos'][hloc], debug=args.debug_paired_clustering)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
         lpfos['cpaths'][hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))
         return lpfos
     # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
         lp_infos = {}
         for lpair in spairs():
-            lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug)
+            lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug_paired_clustering)
             lp_infos[tuple(lpair)] = lpfos
             if None in list(lpfos.values()):
                 continue
