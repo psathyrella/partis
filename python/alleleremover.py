@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import glob
 import time
@@ -6,9 +8,9 @@ from subprocess import check_call
 import copy
 import os
 
-import utils
-import glutils
-from hist import Hist
+from . import utils
+from . import glutils
+from .hist import Hist
 
 # ----------------------------------------------------------------------------------------
 class AlleleRemover(object):
@@ -52,10 +54,10 @@ class AlleleRemover(object):
 
         if debug:
             total_counts = sum([sum(gene_counts[r].values()) for r in gene_counts]) / float(len(gene_counts))  # ok it's weird to take the average, but they should all be the same, and it's cleaner than choosing one of 'em
-            print '  removing least likely genes with total counts %.1f%s' % (total_counts, '' if self.simglfo is None else (' (%d in simulation)' % sum(self.simcounts[regions[0]].values())))  # should really take the average for the sim one as well
+            print('  removing least likely genes with total counts %.1f%s' % (total_counts, '' if self.simglfo is None else (' (%d in simulation)' % sum(self.simcounts[regions[0]].values()))))  # should really take the average for the sim one as well
 
         for region in regions:
-            self.finalize_region(region, sorted(gene_counts[region].items(), key=operator.itemgetter(1), reverse=True), annotations=annotations, debug=debug)
+            self.finalize_region(region, sorted(list(gene_counts[region].items()), key=operator.itemgetter(1), reverse=True), annotations=annotations, debug=debug)
 
     # ----------------------------------------------------------------------------------------
     def separate_into_classes(self, region, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps>
@@ -74,13 +76,13 @@ class AlleleRemover(object):
         genes_to_keep = set()
 
         if debug:
-            print '   %s groups separated by %d snps  (-: same group as previous kept gene)' % (utils.color('blue', region), self.n_max_snps[region])
-            print '     %-20s       %5s %s        removed genes (snps counts%s)%s%s' % ('genes to keep', 'counts',
+            print('   %s groups separated by %d snps  (-: same group as previous kept gene)' % (utils.color('blue', region), self.n_max_snps[region]))
+            print('     %-20s       %5s %s        removed genes (snps counts%s)%s%s' % ('genes to keep', 'counts',
                                                                                         '' if self.simglfo is None else utils.color('blue', 'sim'),
                                                                                         '' if self.simglfo is None else utils.color('blue', ' sim counts'),
                                                                                         '' if self.simglfo is None else ('  ' + utils.color('red', 'x:') + ' not in simulation'),
                                                                                         '' if (annotations is None or self.reco_info is None) else ('               %s sim counts/genes for the queries assigned to this kept gene %s' % (utils.color('blue', '['), utils.color('blue', ']'))),
-            ),
+            ), end=' ')
             def count_str(cnt):
                 if cnt < 10.:
                     return '%.1f' % cnt
@@ -104,7 +106,7 @@ class AlleleRemover(object):
                     if sgene not in sim_genes:
                         sim_genes[sgene] = 0
                     sim_genes[sgene] += 1
-                sorted_sim_gene_counts = sorted(sim_genes.items(), key=operator.itemgetter(1), reverse=True)
+                sorted_sim_gene_counts = sorted(list(sim_genes.items()), key=operator.itemgetter(1), reverse=True)
                 count_str = ' '.join([utils.color('blue' if sg == kgene else 'red', str(c)) for sg, c in sorted_sim_gene_counts])
                 sgene_str = ' '.join([utils.color_gene(sg) for sg, _ in sorted_sim_gene_counts])
                 return '%s   %s' % (count_str, sgene_str)
@@ -130,10 +132,10 @@ class AlleleRemover(object):
 
                 if debug and gfo['gene'] in genes_to_keep:
                     snpstr = ' ' if ig == 0 else '(%d)' % utils.hamming_distance(gclass[0]['seq'], gfo['seq'])  # only happens if we keep more than one from this class
-                    print '\n      %s%-s  %7s%s  %-3s' % ('- ' if ig > 0 else '  ', utils.color_gene(gfo['gene'], width=20), count_str(gfo['counts']), simcountstr(gfo['gene'], '4'), snpstr),
+                    print('\n      %s%-s  %7s%s  %-3s' % ('- ' if ig > 0 else '  ', utils.color_gene(gfo['gene'], width=20), count_str(gfo['counts']), simcountstr(gfo['gene'], '4'), snpstr), end=' ')
             if debug:
                 if len(kept_this_class) == 0:
-                    print '\n      %s%-s  %7s%4s  %-3s' % ('  ', utils.color('blue', 'none', width=20, padside='right'), '-', '', ''),
+                    print('\n      %s%-s  %7s%4s  %-3s' % ('  ', utils.color('blue', 'none', width=20, padside='right'), '-', '', ''), end=' ')
                 removedfo = [gfo for gfo in gclass if gfo['gene'] not in genes_to_keep]
                 removed_str = ''
                 if len(removedfo) > 0:
@@ -143,25 +145,25 @@ class AlleleRemover(object):
                 annotation_str = ''
                 if (annotations is not None and self.reco_info is not None) and len(kept_this_class) > 0:
                     annotation_str = '%s %s %s' % (utils.color('blue', '['), sim_gene_count_str(kept_this_class[-1]), utils.color('blue', ']'))
-                print '     %s  %s  %s' % (removed_str, (70 - utils.len_excluding_colors(removed_str)) * ' ', annotation_str),
+                print('     %s  %s  %s' % (removed_str, (70 - utils.len_excluding_colors(removed_str)) * ' ', annotation_str), end=' ')
         if debug:
-            print ''
+            print('')
 
         genes_to_remove = set(self.glfo['seqs'][region]) - genes_to_keep
 
-        print '    keeping %d / %d %s gene%s' % (len(genes_to_keep), len(self.glfo['seqs'][region]), region, utils.plural(len(genes_to_keep)))
+        print('    keeping %d / %d %s gene%s' % (len(genes_to_keep), len(self.glfo['seqs'][region]), region, utils.plural(len(genes_to_keep))))
         if len(genes_to_keep) == 0:
-            print '   would\'ve kept zero genes, instead keeping all of them'
+            print('   would\'ve kept zero genes, instead keeping all of them')
             genes_to_keep = copy.deepcopy(genes_to_remove)
             genes_to_remove.clear()
 
         if self.simglfo is not None:
             missing_genes = set(self.simglfo['seqs'][region]) - genes_to_keep
             if len(missing_genes) > 0:
-                print '    %s %d simulation genes (counts): %s' % (utils.color('red', 'missing'), len(missing_genes), '  '.join([('%s %d' % (utils.color_gene(g), self.simcounts[region][g])) for g in sorted(missing_genes)]))
+                print('    %s %d simulation genes (counts): %s' % (utils.color('red', 'missing'), len(missing_genes), '  '.join([('%s %d' % (utils.color_gene(g), self.simcounts[region][g])) for g in sorted(missing_genes)])))
             completely_absent_genes = missing_genes - genes_to_remove
             if len(completely_absent_genes) > 0:
-                print '%s %d simulation genes completely absent: %s' % (utils.color('red', 'warning'), len(completely_absent_genes),  '  '.join([('%s %d' % (utils.color_gene(g), self.simcounts[region][g])) for g in sorted(completely_absent_genes)]))
+                print('%s %d simulation genes completely absent: %s' % (utils.color('red', 'warning'), len(completely_absent_genes),  '  '.join([('%s %d' % (utils.color_gene(g), self.simcounts[region][g])) for g in sorted(completely_absent_genes)])))
 
         self.genes_to_keep |= genes_to_keep  # add the ones from _this_ region (rhs) to the ones from all regions (lhs)
         self.genes_to_remove |= genes_to_remove

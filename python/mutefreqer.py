@@ -1,13 +1,16 @@
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import multiprocessing
 import csv
 import os
 
-from hist import Hist
-import utils
-import glutils
-import hutils
-import plotconfig
+from .hist import Hist
+from . import utils
+from . import glutils
+from . import hutils
+from . import plotconfig
+from io import open
 # import paramutils
 
 # ----------------------------------------------------------------------------------------
@@ -91,7 +94,7 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def get_uncertainty(self, obs, total):
-        import fraction_uncertainty
+        from . import fraction_uncertainty
         if self.calculate_uncertainty:  # it's kinda slow
             errs = fraction_uncertainty.err(obs, total)
             # if errs[2]:
@@ -141,7 +144,7 @@ class MuteFreqer(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, only_overall=False, make_per_base_plots=False):
-        import plotting
+        from . import plotting
         if not self.finalized:
             self.finalize()
 
@@ -152,8 +155,8 @@ class MuteFreqer(object):
                 continue
             freqs = self.freqs[gene]
             if len(freqs) == 0:
-                if gene not in glutils.dummy_d_genes.values():
-                    print '    %s no mutefreqer obs for %s' % (utils.color('red', 'warning'), utils.color_gene(gene))
+                if gene not in list(glutils.dummy_d_genes.values()):
+                    print('    %s no mutefreqer obs for %s' % (utils.color('red', 'warning'), utils.color_gene(gene)))
                 continue
             sorted_positions = sorted(freqs.keys())
             genehist = Hist(sorted_positions[-1] - sorted_positions[0] + 1, sorted_positions[0] - 0.5, sorted_positions[-1] + 0.5, xtitle='position', ytitle='mut freq', title=gene)
@@ -176,7 +179,7 @@ class MuteFreqer(object):
 
             if make_per_base_plots:
                 # per-position, per-base plots: (super slow, so commented by default)
-                import paramutils
+                from . import paramutils
                 plotting_info = []
                 for pos in sorted_positions:
                     plotting_info.append({
@@ -206,7 +209,7 @@ class MuteFreqer(object):
     # ----------------------------------------------------------------------------------------
     def write_single_gene(self, gene, outfname):
         gcounts, freqs = self.counts[gene], self.freqs[gene]
-        with open(outfname, 'w') as outfile:
+        with open(outfname, utils.csv_wmode()) as outfile:
             nuke_header = [n + xtra for n in utils.nukes for xtra in ('', '_obs', '_lo_err', '_hi_err')]
             writer = csv.DictWriter(outfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
             writer.writeheader()

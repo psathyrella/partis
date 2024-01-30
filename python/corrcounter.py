@@ -1,12 +1,13 @@
+from __future__ import absolute_import, division, unicode_literals
 import sys
 import itertools
 import csv
 import os
 
-from hist import Hist
-import utils
-import glutils
-import paircluster
+from .hist import Hist
+from . import utils
+from . import glutils
+from . import paircluster
 
 min_mi_to_plot = 0.1
 
@@ -63,8 +64,8 @@ class CorrCounter(object):
             return norm_mi
         # ----------------------------------------------------------------------------------------
         if not only_csv:
-            import plotting
-            import plotconfig
+            from . import plotting
+            from . import plotconfig
         utils.prep_dir(plotdir, wildlings=('*.svg', '*.csv'))
 
         corr_vals = [[float('nan') for _ in self.all_headers] for _ in self.all_headers]
@@ -72,7 +73,7 @@ class CorrCounter(object):
         for hk in self.cvecs:
             if self.paired and hk[1] in self.non_light_chain_headers:
                 continue
-            xvals, yvals = zip(*self.cvecs[hk])
+            xvals, yvals = list(zip(*self.cvecs[hk]))
             if len(set(xvals)) == 1 or len(set(yvals)) == 1:
                 continue
 

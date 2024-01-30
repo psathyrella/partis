@@ -1,16 +1,18 @@
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import time
 import sys
-import utils
+from . import utils
 import numpy
 import re
 from subprocess import check_call
 import copy
 import math
 
-import plotconfig
-from hist import Hist
-import hutils
-import indelutils
+from . import plotconfig
+from .hist import Hist
+from . import hutils
+from . import indelutils
 
 class PerformancePlotter(object):
     # ----------------------------------------------------------------------------------------
@@ -46,17 +48,17 @@ class PerformancePlotter(object):
             return len(tmpline['naive_seq']) - tmpline['codon_positions']['j']  # not quite sure it's best to use the naive seq, but I think it is
 
         if debug:
-            print '  harmonizing naive seq lengths for %s' % ':'.join(line['unique_ids'])
+            print('  harmonizing naive seq lengths for %s' % ':'.join(line['unique_ids']))
         true_naive_seq = true_line['naive_seq']
         inferred_naive_seq = line['naive_seq']
         if len(line['fv_insertion']) > 0:
             inferred_naive_seq = inferred_naive_seq[len(line['fv_insertion']) :]
             if debug:
-                print '    removed inf fv insertion of len %d: %s' % (len(line['fv_insertion']), line['fv_insertion'])
+                print('    removed inf fv insertion of len %d: %s' % (len(line['fv_insertion']), line['fv_insertion']))
         if len(inferred_naive_seq) > len(true_naive_seq)  and len(line['jf_insertion']) > 0:  # some j genes are very similar, except differ by one base in length, so shit is complicated
             inferred_naive_seq = inferred_naive_seq[: len(inferred_naive_seq) - len(line['jf_insertion'])]
             if debug:
-                print '    removed %d inferred jf insertion bases' % len(line['jf_insertion'])
+                print('    removed %d inferred jf insertion bases' % len(line['jf_insertion']))
         if len(true_naive_seq) != len(inferred_naive_seq) and tpos_to_j_end(true_line) != tpos_to_j_end(line):
             extra_true_bases = tpos_to_j_end(true_line) - tpos_to_j_end(line)
             max_diff = abs(len(true_naive_seq) - len(inferred_naive_seq))
@@ -65,7 +67,7 @@ class PerformancePlotter(object):
             else:  # otherwise add 'em to the true line
                 true_naive_seq += min(-extra_true_bases, max_diff) * 'N'
             if debug:
-                print '    tpos to j end %d inf vs %d true, so added %d / %d extra bases to %s naive seq' % (tpos_to_j_end(line), tpos_to_j_end(true_line), min(abs(extra_true_bases), max_diff), abs(extra_true_bases), 'true' if extra_true_bases < 0 else 'inferred')
+                print('    tpos to j end %d inf vs %d true, so added %d / %d extra bases to %s naive seq' % (tpos_to_j_end(line), tpos_to_j_end(true_line), min(abs(extra_true_bases), max_diff), abs(extra_true_bases), 'true' if extra_true_bases < 0 else 'inferred'))
         if len(true_naive_seq) != len(inferred_naive_seq):
             # utils.print_reco_event(true_line, label='true')
             # utils.print_reco_event(line, label='inf')
@@ -85,24 +87,24 @@ class PerformancePlotter(object):
             hdists = []
             for side in ['left', 'right']:
                 if len(true_naive_seq) > len(inferred_naive_seq):  # if the naive seq is longer, pad the inferred seq so the regional restrictions below are correct
-                    if debug: print '    pad %s' % side
+                    if debug: print('    pad %s' % side)
                     s1, s2, = pad_fcn(true_naive_seq, inferred_naive_seq, side)
                 else:  # otherwise truncate the inferred seq
-                    if debug: print '    trunc %s' % side
+                    if debug: print('    trunc %s' % side)
                     s1, s2, = trunc_fcn(true_naive_seq, inferred_naive_seq, side)
                 hdists.append({'hdist' : utils.hamming_distance(s1, s2), 'naive' : s1, 'inf' : s2})
                 if debug:
-                    print '        %s' % s1
-                    print '        %s' % s2
+                    print('        %s' % s1)
+                    print('        %s' % s2)
             sorted_hdists = sorted(hdists, key=lambda x: x['hdist'])
             if debug:
-                print '    sorted hdists: %s' % ' '.join(str(x['hdist']) for x in sorted_hdists)
+                print('    sorted hdists: %s' % ' '.join(str(x['hdist']) for x in sorted_hdists))
             true_naive_seq, inferred_naive_seq = [sorted_hdists[0][tstr] for tstr in ['naive', 'inf']]
 
             # if they need padding on *both* sides we'll have to actually align
             if sorted_hdists[0]['hdist'] > 25:
                 # if you want to go back to aligning them, which you probably don't cause it's really slow:
-                print '%s different length true and inferred naive seqs for %s, proceeding to align, which is very slow (see above):\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq)
+                print('%s different length true and inferred naive seqs for %s, proceeding to align, which is very slow (see above):\n  %s\n  %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), true_naive_seq, inferred_naive_seq))
                 # I'd rather just give up and skip it at this point, but that involves passing knowledge of the failure through too many functions so it's hard, so... align 'em, which isn't right, but oh well
                 aligned_true, aligned_inferred = utils.align_seqs(true_naive_seq, inferred_naive_seq)
                 true_list, inf_list = [], []
@@ -130,7 +132,7 @@ class PerformancePlotter(object):
             elif restrict_to_region == 'cdr3':
                 bounds = (true_line['codon_positions']['v'], true_line['codon_positions']['j'] + 3)
             else:
-                print 'invalid regional restriction %s' % restrict_to_region
+                print('invalid regional restriction %s' % restrict_to_region)
             if restrict_to_region == 'v':  # NOTE this is kind of hackey, especially treating v differently to d and j, but it kind of makes sense -- v is fundamentally different in that germline v is a real source of diversity, so it makes sense to isolate the v germline accuracy from the boundary-call accuracy like this
                 bounds = (bounds[0], max(bounds[0], bounds[1] - self.v_3p_exclusion))  # most of the boundary uncertainty is in the last three bases
             true_naive_seq = true_naive_seq[bounds[0] : bounds[1]]
@@ -155,7 +157,7 @@ class PerformancePlotter(object):
     def set_per_gene_support(self, true_line, inf_line, region):
         # if inf_line[region + '_per_gene_support'].keys()[0] != inf_line[region + '_gene']:
         #     print '   WARNING best-supported gene %s not same as viterbi gene %s' % (utils.color_gene(inf_line[region + '_per_gene_support'].keys()[0]), utils.color_gene(inf_line[region + '_gene']))
-        support_list = sorted(inf_line[region + '_per_gene_support'].values(), reverse=True)  # sorted, ordered dict with gene : logprob key-val pairs (well, it _should_ always be sorted, but the ordering gets lost when writing with json.dump() [but then it's resorted when adding implicit info], so I'm resorting in case something gets screwed up somewhere) EDIT which isn't actually possible, since we can't do performance plotting a.t.m. if we're reading from an existing file, but oh, well
+        support_list = sorted(list(inf_line[region + '_per_gene_support'].values()), reverse=True)  # sorted, ordered dict with gene : logprob key-val pairs (well, it _should_ always be sorted, but the ordering gets lost when writing with json dump() [but then it's resorted when adding implicit info], so I'm resorting in case something gets screwed up somewhere) EDIT which isn't actually possible, since we can't do performance plotting a.t.m. if we're reading from an existing file, but oh, well
         best_support = support_list[0]  # this doesn't necessarily correspond to inf_line[region + '_gene'] (see old warning above), but it _almost_ always does
         if true_line[region + '_gene'] == inf_line[region + '_gene']:  # NOTE this requires allele to be correct, but set_bool_column() does not
             self.hists[region + '_allele_right_vs_per_gene_support'].fill(best_support)
@@ -226,17 +228,17 @@ class PerformancePlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False):
-        print '  plotting performance',
-        import fraction_uncertainty
-        import plotting
+        print('  plotting performance', end=' ')
+        from . import fraction_uncertainty
+        from . import plotting
         start = time.time()
         for substr in self.subplotdirs:
             utils.prep_dir(plotdir + '/' + substr, wildlings=('*.csv', '*.svg'))
 
         if len(self.indel_len_skipped_queries) > 0:
-            print '\n    %s skipped annotation performance evaluation on %d queries with different true and inferred net shm indel lengths: %s' % (utils.color('yellow', 'warning'), len(self.indel_len_skipped_queries), ' '.join(self.indel_len_skipped_queries))
+            print('\n    %s skipped annotation performance evaluation on %d queries with different true and inferred net shm indel lengths: %s' % (utils.color('yellow', 'warning'), len(self.indel_len_skipped_queries), ' '.join(self.indel_len_skipped_queries)))
         if len(self.naive_seq_len_truncated_queries) > 0:
-            print '\n    %s true and inferred naive seqs had different lengths in annotation performance for %d queries, so padded/truncated the the inferred one: %s' % (utils.color('yellow', 'warning'), len(self.naive_seq_len_truncated_queries), ' '.join(self.naive_seq_len_truncated_queries))
+            print('\n    %s true and inferred naive seqs had different lengths in annotation performance for %d queries, so padded/truncated the the inferred one: %s' % (utils.color('yellow', 'warning'), len(self.naive_seq_len_truncated_queries), ' '.join(self.naive_seq_len_truncated_queries)))
 
         for column in self.values:
             if column in plotconfig.gene_usage_columns:
@@ -283,4 +285,4 @@ class PerformancePlotter(object):
             for substr in self.subplotdirs:
                 plotting.make_html(plotdir + '/' + substr, n_columns=4)
 
-        print '(%.1f sec)' % (time.time()-start)
+        print('(%.1f sec)' % (time.time()-start))

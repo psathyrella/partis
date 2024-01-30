@@ -1,9 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ 
 Replacement for diff -qr  -x\'*.svg\' -x params -x plots.html <arg1> <arg2>, but with more intelligent
 control of yamls (e.g. floating point precision) and csvs (e.g. line order)
 """
 
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import os
 import sys
@@ -11,11 +13,12 @@ import csv
 import re
 import yaml
 from subprocess import check_output
+from io import open
 
-current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
-if not os.path.exists(current_script_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
-sys.path.insert(1, current_script_dir)
+# current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '') #'/python')
+# if not os.path.exists(current_script_dir):
+#     print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
+# sys.path.insert(1, current_script_dir)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('arg1')
@@ -76,12 +79,12 @@ def check_textfile(fname):
     difflines1 = check_lines(lines1, lines2)
     difflines2 = check_lines(lines2, lines1)
     if len(difflines1 + difflines2) > 0:
-        print 'differing lines from', args.dir1 + fname
+        print('differing lines from', args.dir1 + fname)
         for line in difflines1:
-            print ' ', line.strip()
-        print 'differing lines from', args.dir2 + fname
+            print(' ', line.strip())
+        print('differing lines from', args.dir2 + fname)
         for line in difflines2:
-            print ' ', line.strip()
+            print(' ', line.strip())
         if not args.keep_going:
             sys.exit(1)
 
@@ -106,7 +109,7 @@ def get_file_list(extension=''):
         cmd += ['-type', 'f']
     else:
         cmd += ['-name', '*.' + extension]
-    output = check_output(cmd)
+    output = check_output(cmd, universal_newlines=True)
     return output.replace(args.dir1, '').split()
 
 # ----------------------------------------------------------------------------------------

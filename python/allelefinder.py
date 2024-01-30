@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import random
 import itertools
 import time
@@ -10,9 +12,9 @@ import scipy
 import glob
 import numpy
 
-from hist import Hist
-import utils
-import glutils
+from .hist import Hist
+from . import utils
+from . import glutils
 
 # ----------------------------------------------------------------------------------------
 def fstr(fval):
@@ -147,18 +149,18 @@ class AlleleFinder(object):
             self.n_clonal_representatives[swfo[cluster[0]][self.region + '_gene']] += 1
             self.n_clones[swfo[cluster[0]][self.region + '_gene']] += 1
             if debug:
-                print '  singleton %s' % cluster[0]
+                print('  singleton %s' % cluster[0])
             return cluster
 
         n_muted = {q : {'n' : self.seq_info[q]['n_mutes'], 'positions' : self.seq_info[q]['positions']} for q in cluster}
         sorted_cluster = sorted(cluster, key=lambda q: n_muted[q]['n'])
         genes = [swfo[q][self.region + '_gene'] for q in sorted_cluster]
         if genes.count(genes[0]) != len(genes):  # should only happen if the part that differentiates the genes was deleted or the read didn't extend that far, in which case I think it's fine
-            print '  %s genes in cluster %s not all the same: %s' % (utils.color('yellow', 'warning'), ' '.join(sorted_cluster), ' '.join([utils.color_gene(g) for g in genes]))
+            print('  %s genes in cluster %s not all the same: %s' % (utils.color('yellow', 'warning'), ' '.join(sorted_cluster), ' '.join([utils.color_gene(g) for g in genes])))
         if debug:
-            print '%s' % utils.color_gene(genes[0])
+            print('%s' % utils.color_gene(genes[0]))
             for q in sorted_cluster:
-                print '    %20s  %3d  %s' % (q, n_muted[q]['n'], ' '.join([str(p) for p in sorted(n_muted[q]['positions'])]))
+                print('    %20s  %3d  %s' % (q, n_muted[q]['n'], ' '.join([str(p) for p in sorted(n_muted[q]['positions'])])))
 
         # ----------------------------------------------------------------------------------------
         def no_shared_mutations(q1, q2):  # true if q1 and q2 don't have mutations at any of the same positions
@@ -182,12 +184,12 @@ class AlleleFinder(object):
             n_chosen_str = str(len(chosen_queries))
             if len(chosen_queries) > 1:
                 n_chosen_str = utils.color('blue', n_chosen_str)
-            print '  %s  %s' % (n_chosen_str, ' '.join(chosen_queries))
+            print('  %s  %s' % (n_chosen_str, ' '.join(chosen_queries)))
 
-            print '      %s      naive' % swfo[cluster[0]]['naive_seq']
+            print('      %s      naive' % swfo[cluster[0]]['naive_seq'])
             for query in sorted(cluster, key=lambda q: n_muted[q]['n']):  # can't use <sorted_cluster> since it's empty now
-                print '    %s %s  %2d  %s' % (utils.color('blue', 'x') if query in chosen_queries else ' ', utils.color_mutants(swfo[query]['naive_seq'], swfo[query]['seqs'][0]), self.seq_info[query]['n_mutes'], utils.color('blue', query) if query in chosen_queries else query)
-            print ''
+                print('    %s %s  %2d  %s' % (utils.color('blue', 'x') if query in chosen_queries else ' ', utils.color_mutants(swfo[query]['naive_seq'], swfo[query]['seqs'][0]), self.seq_info[query]['n_mutes'], utils.color('blue', query) if query in chosen_queries else query))
+            print('')
 
         return chosen_queries
 
@@ -214,34 +216,34 @@ class AlleleFinder(object):
                 total_obs = sum(dcounts[gene].values())
                 running_sum = 0
                 if debug > 1:
-                    print gene
-                    print '  observed %s deletions: %s (counts %s)' % (side, ' '.join([str(d) for d in observed_deletions]), ' '.join([str(c) for c in dcounts[gene].values()]))
-                    print '     len   fraction'
+                    print(gene)
+                    print('  observed %s deletions: %s (counts %s)' % (side, ' '.join([str(d) for d in observed_deletions]), ' '.join([str(c) for c in dcounts[gene].values()])))
+                    print('     len   fraction')
                 for dlen in observed_deletions:
                     self.n_bases_to_exclude[side][gene] = dlen  # setting this before the "if" means that if we fall through (e.g. if there aren't enough sequences to get above the threshold) we'll still have a reasonable default
                     running_sum += dcounts[gene][dlen]
                     if debug > 1:
-                        print '    %4d    %5.3f' % (dlen, float(running_sum) / total_obs)
+                        print('    %4d    %5.3f' % (dlen, float(running_sum) / total_obs))
                     if float(running_sum) / total_obs > 1. - self.fraction_of_seqs_to_exclude:  # if we've already added deletion lengths accounting for most of the sequences, ignore the rest of 'em
                         break
                 if debug > 1:
-                    print '     choose', self.n_bases_to_exclude[side][gene]
+                    print('     choose', self.n_bases_to_exclude[side][gene])
 
         # print choices and check consistency
         if debug > 1:
-            print '    exclusions:  5p   3p'
+            print('    exclusions:  5p   3p')
         for gene in sorted(dcounts.keys()):
             total_exclusion_length = self.n_bases_to_exclude['5p'][gene] + self.n_bases_to_exclude['3p'][gene]
             if len(self.glfo['seqs'][self.region][gene]) - total_exclusion_length < self.args.min_allele_finding_gene_length:  # if the non-excluded part of the gene is too short, don't even bother looking for new alleles with/on it
                 self.genes_to_exclude.add(gene)
             if debug > 1:
-                print '                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15)),
+                print('                %3d  %3d  %s' % (self.n_bases_to_exclude['5p'][gene], self.n_bases_to_exclude['3p'][gene], utils.color_gene(gene, width=15)), end=' ')
                 if gene in self.genes_to_exclude:
-                    print '%s excluding from analysis' % utils.color('red', 'too long:'),
-                print ''
+                    print('%s excluding from analysis' % utils.color('red', 'too long:'), end=' ')
+                print('')
 
         if debug and len(self.genes_to_exclude) > 0:
-            print '    excluding %d / %d genes whose reads are too short (adjust with --min-allele-finding-gene-length) %s' % (len(self.genes_to_exclude), len(dcounts), '' if len(self.genes_to_exclude) > 10 else ' '.join([utils.color_gene(g) for g in self.genes_to_exclude]))
+            print('    excluding %d / %d genes whose reads are too short (adjust with --min-allele-finding-gene-length) %s' % (len(self.genes_to_exclude), len(dcounts), '' if len(self.genes_to_exclude) > 10 else ' '.join([utils.color_gene(g) for g in self.genes_to_exclude])))
 
     # ----------------------------------------------------------------------------------------
     def get_seqs_for_query(self, info, gene):
@@ -331,7 +333,7 @@ class AlleleFinder(object):
             return slope * x + intercept
         residuals = [(y - expected(x))**2 / err**2 for x, y, err in zip(xvals, yvals, errs)]
         if debug:
-            print 'resid: ' + ' '.join(['%5.3f' % r for r in residuals])
+            print('resid: ' + ' '.join(['%5.3f' % r for r in residuals]))
         return sum(residuals)
 
     # ----------------------------------------------------------------------------------------
@@ -375,7 +377,7 @@ class AlleleFinder(object):
     def cov_err_ok(self, cov_err, errs):
         non_null_errs = [e for e in errs if e > utils.eps]
         if len(non_null_errs) == 0:
-            print '%s all errs very small for:\n%s\n%s\n%s' % (utils.color('red', 'error'), n_mutelist, freqs, errs)
+            print('%s all errs very small for:\n%s\n%s\n%s' % (utils.color('red', 'error'), n_mutelist, freqs, errs))
         min_point_err = min(non_null_errs)
         if cov_err / min_point_err < 1e-5:  # if the covariance from scipy is much smaller than the uncertainty on all the points, it was probably a "perfect" fit (i.e. cov_err is basically or exactly zero 'cause the line goes exactly through every point)
             return False
@@ -430,7 +432,7 @@ class AlleleFinder(object):
             fitfo['residuals_over_ndof'] = 0.
 
         if debug:
-            print self.dbgstr(fitfo, extra_str='fit', pvals={'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs': errs})  # not necessarily the same as <pvals>
+            print(self.dbgstr(fitfo, extra_str='fit', pvals={'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs': errs}))  # not necessarily the same as <pvals>
 
         return fitfo
 
@@ -451,10 +453,10 @@ class AlleleFinder(object):
                 per_bin_nuke_totals[n_muted][nuke] += gcts[n_muted][nuke]
         freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for d in gcts.values()]
         if debug:
-            print ' ', ' '.join(['%5d' % n for n in gcts])
+            print(' ', ' '.join(['%5d' % n for n in gcts]))
             for nuke in utils.nukes:
-                print nuke, ' '.join(['%5d' % gcts[n][nuke] for n in gcts]), overall_nuke_totals[nuke]
-            print ' ', ' '.join(['%5.3f' % f for f in freqs])
+                print(nuke, ' '.join(['%5d' % gcts[n][nuke] for n in gcts]), overall_nuke_totals[nuke])
+            print(' ', ' '.join(['%5.3f' % f for f in freqs]))
 
         reweighted_freqs = []
         for n_muted in gcts:
@@ -468,12 +470,12 @@ class AlleleFinder(object):
                     freq += reweight * gcts[n_muted][nuke]
             reweighted_freqs.append(freq / total if total > 0. else 0.)
         if debug:
-            print ' ', ' '.join(['%5.3f' % f for f in reweighted_freqs])
+            print(' ', ' '.join(['%5.3f' % f for f in reweighted_freqs]))
         return reweighted_freqs
 
     # ----------------------------------------------------------------------------------------
     def get_allele_finding_xyvals(self, gene, position):
-        import fraction_uncertainty
+        from . import fraction_uncertainty
         gcts = self.counts[gene][position]  # shorthand name
 
         obs = [d['muted'] for d in gcts.values()]
@@ -485,7 +487,7 @@ class AlleleFinder(object):
         freqs = [float(d['muted']) / d['total'] if d['total'] > 0 else 0. for d in gcts.values()]
         total = [d['total'] for d in gcts.values()]
 
-        n_mutelist = gcts.keys()
+        n_mutelist = list(gcts.keys())
 
         return {'obs' : obs, 'total' : total, 'n_mutelist' : n_mutelist, 'freqs' : freqs, 'errs' : errs, 'weights' : weights}
 
@@ -503,11 +505,11 @@ class AlleleFinder(object):
     def is_a_candidate(self, candidfo, debug=False):
         if candidfo['min_snp_ratio'] < self.min_min_candidate_ratio:  # worst snp candidate has to be pretty good on its own
             if debug:
-                print '    min snp ratio %s too small (less than %s)' % (fstr(candidfo['min_snp_ratio']), fstr(self.min_min_candidate_ratio)),
+                print('    min snp ratio %s too small (less than %s)' % (fstr(candidfo['min_snp_ratio']), fstr(self.min_min_candidate_ratio)), end=' ')
             return False
         if candidfo['mean_snp_ratio'] < self.min_mean_candidate_ratio:  # mean of snp candidate ratios has to be even better
             if debug:
-                print '    mean snp ratio %s too small (less than %s)' % (fstr(candidfo['mean_snp_ratio']), fstr(self.min_mean_candidate_ratio)),
+                print('    mean snp ratio %s too small (less than %s)' % (fstr(candidfo['mean_snp_ratio']), fstr(self.min_mean_candidate_ratio)), end=' ')
             return False
 
         # make sure all the snp positions have similar fits (the bin totals for all snp positions should be highly correlated, since they should ~all be present in ~all sequences [that stem from the new allele])
@@ -516,7 +518,7 @@ class AlleleFinder(object):
             fitfo_1, fitfo_2 = candidfo['fitfos'][pos_1], candidfo['fitfos'][pos_2]
             if not self.consistent_discontinuities(fitfo_1['onefo'], fitfo_2['onefo'], candidfo['istart'], debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
                 if debug:
-                    print '    positions %d and %d have inconsistent discontinuities' % (pos_1, pos_2)
+                    print('    positions %d and %d have inconsistent discontinuities' % (pos_1, pos_2))
                 return False
 
             # if not self.consistent_fits(fitfo_1['postfo'], fitfo_2['postfo'], factor=self.max_consistent_candidate_fit_sigma, debug=self.dbgfcn(pos_1, candidfo['istart'], pos_2=pos_2)):
@@ -533,7 +535,7 @@ class AlleleFinder(object):
             #     return False
 
         if debug:
-            print '    candidate',
+            print('    candidate', end=' ')
         return True
 
     # ----------------------------------------------------------------------------------------
@@ -594,7 +596,7 @@ class AlleleFinder(object):
                 fitfo['y_icpt_err'] = self.hack_err('y_icpt', ev, xv)
 
         if debug:
-            print self.dbgstr(fitfo, extra_str='apr', pvals=pvals)
+            print(self.dbgstr(fitfo, extra_str='apr', pvals=pvals))
 
         return fitfo
 
@@ -607,13 +609,13 @@ class AlleleFinder(object):
         joint_err = max(float(v1err), float(v2err))
         if joint_err == float('inf'):
             if debug:
-                print '      %6s  (inf err)' % dbgstr
+                print('      %6s  (inf err)' % dbgstr)
             return True
         else:
             if debug:
                 # print '      %6s  %6.3f +/- %7.4f   %6.3f +/- %7.4f   -->   %6.3f + %3.1f * %7.4f = %7.4f >? %6.3f   %s' % (dbgstr, v1, v1err, v2, v2err, lo, factor, joint_err, lo + factor * joint_err, hi, 'consistent' if (lo + factor * joint_err > hi) else 'nope')
-                print '      %6s  %6.3f +/- %7.4f   %6.3f +/- %7.4f   -->  ' % (dbgstr, v1, v1err, v2, v2err),
-                print '(%-6.3f - %6.3f) / %7.4f = %4.2f <? %3.1f    %s' % (hi, lo, joint_err, (hi - lo) / joint_err, factor, 'consistent' if (lo + factor * joint_err > hi) else 'nope')
+                print('      %6s  %6.3f +/- %7.4f   %6.3f +/- %7.4f   -->  ' % (dbgstr, v1, v1err, v2, v2err), end=' ')
+                print('(%-6.3f - %6.3f) / %7.4f = %4.2f <? %3.1f    %s' % (hi, lo, joint_err, (hi - lo) / joint_err, factor, 'consistent' if (lo + factor * joint_err > hi) else 'nope'))
             return lo + factor * joint_err > hi
 
     # ----------------------------------------------------------------------------------------
@@ -650,10 +652,10 @@ class AlleleFinder(object):
             joint_err = max(vals1['errs'][ipos], vals2['errs'][ipos])  # at some point i should do something slightly more sensible for my joint errors (maybe geometric mean?, quadrature [but they're not independent]?)
             net_sigma += ydiff / joint_err
             if debug:
-                print '    (%6.3f - %6.3f) / %7.4f = %5.2f' % (vals2['yvals'][ipos], vals1['yvals'][ipos], joint_err, ydiff / joint_err)
+                print('    (%6.3f - %6.3f) / %7.4f = %5.2f' % (vals2['yvals'][ipos], vals1['yvals'][ipos], joint_err, ydiff / joint_err))
 
         if debug:
-            print '    net sigma from %d bins: %4.2f ?> %4.2f  %s' % (len(vals1['xvals']), net_sigma, factor, 'consistent' if  factor > net_sigma else 'nope')
+            print('    net sigma from %d bins: %4.2f ?> %4.2f  %s' % (len(vals1['xvals']), net_sigma, factor, 'consistent' if  factor > net_sigma else 'nope'))
         return factor > net_sigma
 
     # ----------------------------------------------------------------------------------------
@@ -681,7 +683,7 @@ class AlleleFinder(object):
         istart_total = pvals['total'][istart]
         joint_total_err = max(math.sqrt(last_total), math.sqrt(istart_total))
         if debug:
-            print '    different bin totals:  diff / err = (%.0f - %.0f) / %5.1f = %.1f ?> %.1f'  % (istart_total, last_total, joint_total_err, (istart_total - last_total) / joint_total_err, self.big_discontinuity_factor(istart))
+            print('    different bin totals:  diff / err = (%.0f - %.0f) / %5.1f = %.1f ?> %.1f'  % (istart_total, last_total, joint_total_err, (istart_total - last_total) / joint_total_err, self.big_discontinuity_factor(istart)))
         return istart_total - last_total > self.big_discontinuity_factor(istart) * joint_total_err  # it the total (denominator) is very different between the two bins
 
     # ----------------------------------------------------------------------------------------
@@ -699,20 +701,20 @@ class AlleleFinder(object):
         last_freq = pvals['freqs'][istart - 1]
         istart_freq = pvals['freqs'][istart]
         if debug:
-            print '    discontinuity:  diff / err = (%5.3f - %5.3f) / %5.3f = %.1f ?> %.1f'  % (istart_freq, last_freq, joint_freq_err, (istart_freq - last_freq) / joint_freq_err, self.big_discontinuity_factor(istart))
+            print('    discontinuity:  diff / err = (%5.3f - %5.3f) / %5.3f = %.1f ?> %.1f'  % (istart_freq, last_freq, joint_freq_err, (istart_freq - last_freq) / joint_freq_err, self.big_discontinuity_factor(istart)))
         return istart_freq - last_freq > self.big_discontinuity_factor(istart) * joint_freq_err
 
     # ----------------------------------------------------------------------------------------
     def fit_position(self, gene, istart, pos, prevals, postvals, bothvals, candidate_ratios, residfo, debug=False):
         dbg = self.dbgfcn(pos, istart)
         if dbg:
-            print 'pos %d' % pos
+            print('pos %d' % pos)
         big_y_icpt, big_y_icpt_err = self.get_big_y(postvals)
         big_y_icpt_bounds = self.get_big_y_icpt_bounds(big_y_icpt, big_y_icpt_err)  # (big_y_icpt - 1.5*big_y_icpt_err, big_y_icpt + 1.5*big_y_icpt_err)  # we want the bounds to be lenient enough to accomodate non-zero slopes (in the future, we could do something cleverer like extrapolating with the slope of the line to x=0)
 
         def returnfcn(label):
             if dbg:
-                print label
+                print(label)
                 return False  # keep going (don't skip it) if it's a dbg pos/istart
             else:
                 return True
@@ -777,7 +779,7 @@ class AlleleFinder(object):
 
         ratio = onefit['residuals_over_ndof'] / twofit_residuals_over_ndof if twofit_residuals_over_ndof > 0. else float('inf')
         if dbg:
-            print '  %5.3f / %5.3f = %5.3f' % (onefit['residuals_over_ndof'], twofit_residuals_over_ndof, ratio)
+            print('  %5.3f / %5.3f = %5.3f' % (onefit['residuals_over_ndof'], twofit_residuals_over_ndof, ratio))
 
         # make sure two-piece fit is at least ok (unless the residual ratio is incredibly convincing)
         if ratio < self.large_residual_ratio and twofit_residuals_over_ndof > self.max_good_fit_residual:
@@ -809,10 +811,10 @@ class AlleleFinder(object):
             return
 
         if not self.already_printed_dbg_header:
-            print '             position   ratio       (one piece / two pieces)  ',
-            print '%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)]))  # NOTE *has* to correspond to line at bottom of fcn below
+            print('             position   ratio       (one piece / two pieces)  ', end=' ')
+            print('%0s %s' % ('', ''.join(['%11d' % nm for nm in range(self.args.n_max_mutations_per_segment + 1)])))  # NOTE *has* to correspond to line at bottom of fcn below
             self.already_printed_dbg_header = True
-        print '    %d %s' % (istart, utils.plural_str('snp', istart))
+        print('    %d %s' % (istart, utils.plural_str('snp', istart)))
 
         for pos in candidates:
             pos_str = '%3s' % str(pos)
@@ -826,7 +828,7 @@ class AlleleFinder(object):
                     print_str.append('%4d / %-4d' % (bothxyvals[pos]['obs'][inm], bothxyvals[pos]['total'][inm]))
                 else:
                     print_str.append('           ')
-            print ''.join(print_str)
+            print(''.join(print_str))
 
     # ----------------------------------------------------------------------------------------
     def fit_istart(self, gene, istart, positions_to_try_to_fit, debug=False):
@@ -864,7 +866,7 @@ class AlleleFinder(object):
         mutfo = {}
         for pos in sorted(candidfo['positions']):
             obs_counts = {nuke : self.counts[template_gene][pos][n_candidate_snps][nuke] for nuke in utils.nukes}  # NOTE it's super important to only use the counts from sequences with <n_candidate_snps> total mutations
-            sorted_obs_counts = sorted(obs_counts.items(), key=operator.itemgetter(1), reverse=True)
+            sorted_obs_counts = sorted(list(obs_counts.items()), key=operator.itemgetter(1), reverse=True)
             original_nuke = self.glfo['seqs'][self.region][template_gene][pos]
             new_nuke = None
             for nuke, _ in sorted_obs_counts:  # take the most common one that isn't the existing gl nuke
@@ -892,7 +894,7 @@ class AlleleFinder(object):
 
         if final_name in self.glfo['seqs'][self.region]:
             if debug:
-                print '    new gene %s already in glfo (probably 3p end length issues), so skipping it' % utils.color_gene(final_name)
+                print('    new gene %s already in glfo (probably 3p end length issues), so skipping it' % utils.color_gene(final_name))
             return
 
         # we actually expect the slope to be somewhat negative (since as the mutation rate increases a higher fraction of them revert to germline)
@@ -905,10 +907,10 @@ class AlleleFinder(object):
                 remove_template = False
 
         if debug:
-            print '  %s %s separated from %s by %d snp%s at:  ' % (utils.color('red', 'new'), utils.color_gene(final_name), utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)),
-            print '  '.join([('%d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new'])) for pos in sorted(mutfo)])
+            print('  %s %s separated from %s by %d snp%s at:  ' % (utils.color('red', 'new'), utils.color_gene(final_name), utils.color_gene(template_gene), n_candidate_snps, utils.plural(n_candidate_snps)), end=' ')
+            print('  '.join([('%d (%s --> %s)' % (pos, mutfo[pos]['original'], mutfo[pos]['new'])) for pos in sorted(mutfo)]))
             if mutfo != final_mutfo:
-                print '      note: final snp positions (%s) differ from inferred snp positions (%s)' % (' '.join([str(p) for p in sorted(final_mutfo)]), ' '.join([str(p) for p in sorted(mutfo)]))
+                print('      note: final snp positions (%s) differ from inferred snp positions (%s)' % (' '.join([str(p) for p in sorted(final_mutfo)]), ' '.join([str(p) for p in sorted(mutfo)])))
             # old_len_str, new_len_str = '', ''
             # old_seq_for_cf, new_seq_for_cf = old_seq, new_seq
             # if len(new_seq) > len(old_seq):  # i.e if <old_seq> (the template gene) is shorter than the sequence corresponding to the original name for the new allele that we found from it
@@ -928,7 +930,7 @@ class AlleleFinder(object):
             'gene' : final_name,  # reminder: <final_name> doesn't necessarily correspond to 'snp-positions'
             'seq' : new_seq,
             'cpos' : utils.cdn_pos(self.glfo, self.region, template_gene),
-            'snp-positions' : mutfo.keys(),  # reminder: *not* necessarily the same as <final_mutfo>
+            'snp-positions' : list(mutfo.keys()),  # reminder: *not* necessarily the same as <final_mutfo>
             'aligned-seq' : None,
             'plot-paths' : []  # not filled until we plot, since there may not be a plotdir defined
         })
@@ -950,58 +952,58 @@ class AlleleFinder(object):
             return skip_str
 
         glseq = self.glfo['seqs'][self.region][gene]
-        too_close_to_ends = range(self.n_bases_to_exclude['5p'][gene]) + range(len(glseq) - self.n_bases_to_exclude['3p'][gene], len(glseq))
+        too_close_to_ends = list(range(self.n_bases_to_exclude['5p'][gene])) + list(range(len(glseq) - self.n_bases_to_exclude['3p'][gene], len(glseq)))
         not_enough_counts = set(positions) - set(positions_to_try_to_fit) - set(too_close_to_ends)  # well, not enough counts, *and* not too close to the ends
 
-        print '          skipping',
-        print '%d / %d positions:' % (len(positions) - len(positions_to_try_to_fit), len(positions)),
-        print '%d were too close to the ends%s' % (len(too_close_to_ends), get_skip_str(too_close_to_ends)),
-        print 'and %d had fewer than %d mutations and fewer than %d observations%s' % (len(not_enough_counts), self.n_muted_min, self.n_total_min, get_skip_str(not_enough_counts))
+        print('          skipping', end=' ')
+        print('%d / %d positions:' % (len(positions) - len(positions_to_try_to_fit), len(positions)), end=' ')
+        print('%d were too close to the ends%s' % (len(too_close_to_ends), get_skip_str(too_close_to_ends)), end=' ')
+        print('and %d had fewer than %d mutations and fewer than %d observations%s' % (len(not_enough_counts), self.n_muted_min, self.n_total_min, get_skip_str(not_enough_counts)))
 
     # ----------------------------------------------------------------------------------------
     def print_summary(self, genes_to_use):
         if len(genes_to_use) == 0:
-            print '  no genes with enough counts'
+            print('  no genes with enough counts')
             return
 
         binline, contents_line = self.overall_mute_counts.horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
-        print '   %s mutations:' % self.region
-        print '              %s' % binline
+        print('   %s mutations:' % self.region)
+        print('              %s' % binline)
         # print '                    %s  overall' % contents_line
         for gene in genes_to_use:
             _, contents_line = self.per_gene_mute_counts[gene].horizontal_print(bin_centers=True, bin_decimals=0, contents_decimals=0)
-            print '              %s     %s' % (contents_line, utils.color_gene(gene))
+            print('              %s     %s' % (contents_line, utils.color_gene(gene)))
 
-        print '   sequence counts:'
-        print '                 excluded             excluded                 excluded             included                       actually'
-        print '              >%2d mutations       5p del (>N bases)        3p del (>N bases)       total seqs        clones          used' % self.args.n_max_mutations_per_segment
+        print('   sequence counts:')
+        print('                 excluded             excluded                 excluded             included                       actually')
+        print('              >%2d mutations       5p del (>N bases)        3p del (>N bases)       total seqs        clones          used' % self.args.n_max_mutations_per_segment)
         for gene in genes_to_use:
-            print '                 %5d            %5d  %5s             %5d  %4s            %7d          %7d        %7d      %s' % (self.n_seqs_too_highly_mutated[gene],
+            print('                 %5d            %5d  %5s             %5d  %4s            %7d          %7d        %7d      %s' % (self.n_seqs_too_highly_mutated[gene],
                                                                                                                                     self.n_big_del_skipped['5p'][gene], '(%d)' % self.n_bases_to_exclude['5p'][gene],
                                                                                                                                     self.n_big_del_skipped['3p'][gene], '(%d)' % self.n_bases_to_exclude['3p'][gene],
                                                                                                                                     self.n_clonal_representatives[gene] + self.n_excluded_clonal_queries[gene],
                                                                                                                                     self.n_clones[gene], self.n_clonal_representatives[gene],
-                                                                                                                                    utils.color_gene(gene))
-        print '%s: looking for new alleles among %d gene%s (%d genes didn\'t have enough counts)' % (utils.color('blue', 'try ' + str(self.itry)), len(genes_to_use), utils.plural(len(genes_to_use)), len(self.counts) - len(genes_to_use))
+                                                                                                                                    utils.color_gene(gene)))
+        print('%s: looking for new alleles among %d gene%s (%d genes didn\'t have enough counts)' % (utils.color('blue', 'try ' + str(self.itry)), len(genes_to_use), utils.plural(len(genes_to_use)), len(self.counts) - len(genes_to_use)))
 
     # ----------------------------------------------------------------------------------------
     def increment_and_finalize(self, swfo, debug=False):
         assert not self.finalized
         start = time.time()
         if debug:
-            print 'allele finding'
+            print('allele finding')
 
         # first prepare some things, and increment for each chosen query
         self.set_excluded_bases(swfo, debug=debug)
         queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
         if len(queries_to_use) > self.n_max_queries:
-            print '  note: subsampling %d queries down to %d before finding alleles (yes this is a hack, it would be better to fix the issues with false positives on super large samples, but this is also fine for now)' % (len(queries_to_use), self.n_max_queries)
+            print('  note: subsampling %d queries down to %d before finding alleles (yes this is a hack, it would be better to fix the issues with false positives on super large samples, but this is also fine for now)' % (len(queries_to_use), self.n_max_queries))
             queries_to_use = numpy.random.choice(queries_to_use, size=self.n_max_queries)
         if len(queries_to_use) == 0:
-            print '  no queries for allele finding'  # NOTE don't return here -- there's some stuff below that should happen
+            print('  no queries for allele finding')  # NOTE don't return here -- there's some stuff below that should happen
 
         if debug:
-            print '                        total   clones    representatives'
+            print('                        total   clones    representatives')
         n_total_clusters = 0
         def keyfunc(q):
             return swfo[q][self.region + '_gene']
@@ -1016,9 +1018,9 @@ class AlleleFinder(object):
                 n_representatives += len(cluster_representatives)
             n_total_clusters += len(clusters)
             if debug:
-                print '      %s %6d  %6d    %6d' % (utils.color_gene(gene, width=15), len(gene_queries), len(clusters), n_representatives)
+                print('      %s %6d  %6d    %6d' % (utils.color_gene(gene, width=15), len(gene_queries), len(clusters), n_representatives))
         if debug:
-            print '    %d seqs chosen to represent %d clones with %d total seqs' % (sum(self.n_clonal_representatives.values()), n_total_clusters, len(queries_to_use))
+            print('    %d seqs chosen to represent %d clones with %d total seqs' % (sum(self.n_clonal_representatives.values()), n_total_clusters, len(queries_to_use)))
 
         # then finalize
         genes_to_use = [g for g in sorted(self.counts) if self.gene_obs_counts[g] >= self.n_total_min]
@@ -1037,7 +1039,7 @@ class AlleleFinder(object):
         self.positions_to_plot = {gene : set() for gene in self.counts}
         for gene in genes_to_use:
             if debug:
-                print ' %s %3d count%s' % (utils.color_gene(gene, width=21), self.gene_obs_counts[gene], utils.plural(self.gene_obs_counts[gene]))
+                print(' %s %3d count%s' % (utils.color_gene(gene, width=21), self.gene_obs_counts[gene], utils.plural(self.gene_obs_counts[gene])))
             positions = sorted(self.counts[gene])
             self.xyvals[gene] = {pos : self.get_allele_finding_xyvals(gene, pos) for pos in positions}
             positions_to_try_to_fit = [pos for pos in positions if sum(self.xyvals[gene][pos]['obs']) > self.n_muted_min or sum(self.xyvals[gene][pos]['total']) > self.n_total_min]  # ignore positions with neither enough mutations nor total observations
@@ -1047,7 +1049,7 @@ class AlleleFinder(object):
 
             if len(positions_to_try_to_fit) < self.args.n_max_snps:
                 if debug:
-                    print '          not enough positions with enough observations to fit %s' % utils.color_gene(gene)
+                    print('          not enough positions with enough observations to fit %s' % utils.color_gene(gene))
                 continue
 
             # if self.per_gene_mute_counts[gene].bin_contents[0] > self.n_total_min:  # UPDATE this will have to change to accomodate repertoires with very few unmutated sequences
@@ -1064,12 +1066,12 @@ class AlleleFinder(object):
                 candidfo = self.fitfos[gene][icand]
                 if debug:
                     if icand == 0:
-                        print '   snps       min ratio'
-                    print '   %2d     %9s' % (candidfo['istart'], fstr(candidfo['min_snp_ratio'])),
+                        print('   snps       min ratio')
+                    print('   %2d     %9s' % (candidfo['istart'], fstr(candidfo['min_snp_ratio'])), end=' ')
                 if self.is_a_candidate(candidfo, debug=debug):
                     candidates.append(candidfo)
                 if debug:
-                    print ''
+                    print('')
 
             # first take the biggest one, then if there's any others that have entirely non-overlapping positions, we don't need to re-run
             already_used_positions = set()
@@ -1077,22 +1079,22 @@ class AlleleFinder(object):
                 these_positions = set(candidfo['positions'])
                 if len(these_positions & already_used_positions) > 0:
                     continue
-                alleles_this_gene = [g for g in (self.counts.keys() + [gfo['gene'] for gfo in self.new_allele_info]) if utils.are_alleles(g, gene)]  # <gene> is the template gene
+                alleles_this_gene = [g for g in (list(self.counts.keys()) + [gfo['gene'] for gfo in self.new_allele_info]) if utils.are_alleles(g, gene)]  # <gene> is the template gene
                 if len(alleles_this_gene) >= self.n_warn_alleles_per_gene:
-                    print '  %s inferred %d alleles for gene %s' % (utils.color('yellow', 'note:'), len(alleles_this_gene), gene)
+                    print('  %s inferred %d alleles for gene %s' % (utils.color('yellow', 'note:'), len(alleles_this_gene), gene))
                 if self.args.n_max_alleles_per_gene is not None:  # NOTE we're not really looping over the most likely new alleles first here (and there isn't really a good way to do that), so it's pretty arbitrary which ones get skipped
                     if len(alleles_this_gene) >= self.args.n_max_alleles_per_gene:
-                        print '    --n-max-alleles-per-gene: already have %d allele%s for %s (%s), so skipping new inferred allele' % (len(alleles_this_gene), utils.plural(len(alleles_this_gene)), utils.color_gene(gene), ' '.join(utils.color_gene(g) for g in alleles_this_gene))
+                        print('    --n-max-alleles-per-gene: already have %d allele%s for %s (%s), so skipping new inferred allele' % (len(alleles_this_gene), utils.plural(len(alleles_this_gene)), utils.color_gene(gene), ' '.join(utils.color_gene(g) for g in alleles_this_gene)))
                         continue
                 already_used_positions |= these_positions
                 self.add_allele_to_new_allele_info(gene, candidfo, debug=debug)
 
         if debug:
             if len(self.inferred_allele_info) > 0:
-                print '  found %d new %s: %s' % (len(self.inferred_allele_info), utils.plural_str('allele', len(self.inferred_allele_info)), ' '.join([utils.color_gene(nfo['gene']) for nfo in self.inferred_allele_info]))
+                print('  found %d new %s: %s' % (len(self.inferred_allele_info), utils.plural_str('allele', len(self.inferred_allele_info)), ' '.join([utils.color_gene(nfo['gene']) for nfo in self.inferred_allele_info])))
             else:
-                print '    no new alleles'
-            print '  allele finding: %d fits in %.1f sec' % (self.n_fits, time.time()-start)
+                print('    no new alleles')
+            print('  allele finding: %d fits in %.1f sec' % (self.n_fits, time.time()-start))
 
         self.finalized = True
         return self.new_allele_info
@@ -1108,23 +1110,23 @@ class AlleleFinder(object):
             newfo['plot-paths'].append(utils.sanitize_name(gene) + '/' + str(pos) + '.svg')
             cfos = [candidfo for candidfo in self.fitfos[gene] if candidfo['istart'] == len(newfo['snp-positions']) and pos in candidfo['positions']]
             if len(cfos) == 0:
-                print '  shouldn\'t be able to get here if there\'s no candidfos with the right <istart>'
+                print('  shouldn\'t be able to get here if there\'s no candidfos with the right <istart>')
                 continue
             return newfo['gene'], cfos[0]['fitfos'][pos]  # just arbitrarily take the first one (I don't think you can really get two -- that would mean a position was shared by more than one new allele)
         return None, None
 
     # ----------------------------------------------------------------------------------------
     def plot(self, base_plotdir, only_csv=False):
-        import plotting
+        from . import plotting
         if not self.finalized:
             self.finalize(debug=debug)
 
         if only_csv:  # not implemented
-            print '    <only_csv> not yet implemented in allelefinder'
+            print('    <only_csv> not yet implemented in allelefinder')
             return
 
         start = time.time()
-        print '    plotting allele finding',
+        print('    plotting allele finding', end=' ')
         sys.stdout.flush()
 
         plotdir = base_plotdir + '/allele-finding/try-' + str(self.itry)
@@ -1157,4 +1159,4 @@ class AlleleFinder(object):
 
         plotting.make_html(plotdir, fnames=[newfo['plot-paths'] for newfo in self.inferred_allele_info], title=('inferred alleles'))
 
-        print '(%.1f sec)' % (time.time()-start)
+        print('(%.1f sec)' % (time.time()-start))

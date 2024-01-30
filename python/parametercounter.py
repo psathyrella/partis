@@ -1,17 +1,20 @@
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import os
 import csv
 import time
 import sys
 import itertools
 
-import utils
-import glutils
-from hist import Hist
-import hutils
-import plotconfig
-from mutefreqer import MuteFreqer
-from corrcounter import CorrCounter
-import indelutils
+from . import utils
+from . import glutils
+from .hist import Hist
+from . import hutils
+from . import plotconfig
+from .mutefreqer import MuteFreqer
+from .corrcounter import CorrCounter
+from . import indelutils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 class ParameterCounter(object):
@@ -115,7 +118,7 @@ class ParameterCounter(object):
             self.sub_increment(column, index)
 
         # have to be done separately, since they're not index columns (and we don't want them to be, since they're better viewed as derivative -- see note in self.write())
-        self.sub_increment('aa_cdr3_length', (info['cdr3_length'] / 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
+        self.sub_increment('aa_cdr3_length', (info['cdr3_length'] // 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
         self.sub_increment('non_vj_length', (utils.get_non_vj_len(info), ))
         self.sub_increment('cluster_size', (len(info['unique_ids']), ))
 
@@ -141,8 +144,8 @@ class ParameterCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, only_csv=False, only_overall=False, make_per_base_plots=False):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it write() wasn't called first, that is)
-        import plotting
-        print '  plotting parameters in %s' % plotdir,
+        from . import plotting
+        print('  plotting parameters in %s' % plotdir, end=' ')
         sys.stdout.flush()
         start = time.time()
 
@@ -158,7 +161,7 @@ class ParameterCounter(object):
             if column == 'all':
                 continue
             values, gene_values = {}, {}
-            for index, count in self.counts[column].iteritems():
+            for index, count in self.counts[column].items():
                 column_val = index[0]
 
                 if column_val not in values:
@@ -192,11 +195,11 @@ class ParameterCounter(object):
         if not only_csv:
             plotting.make_html(overall_plotdir)
 
-        print '(%.1f sec)' % (time.time()-start)
+        print('(%.1f sec)' % (time.time()-start))
 
     # ----------------------------------------------------------------------------------------
     def write(self, base_outdir):  # NOTE most of the time in here is taken up by mutefrequer.finalize() (if it plot() wasn't called first, that is)
-        print '    writing parameters to %s' % base_outdir,
+        print('    writing parameters to %s' % base_outdir, end=' ')
         sys.stdout.flush()
         start = time.time()
 
@@ -230,17 +233,17 @@ class ParameterCounter(object):
                 os.remove(outfname)
             elif not os.path.exists(base_outdir):
                 os.makedirs(base_outdir)
-            with open(outfname, 'w') as outfile:
+            with open(outfname, utils.csv_wmode()) as outfile:
                 out_fieldnames = list(index)
                 out_fieldnames.append('count')
                 out_data = csv.DictWriter(outfile, out_fieldnames)
                 out_data.writeheader()
                 # NOTE this will in general not be sorted
-                for key, count in self.counts[column].iteritems():
+                for key, count in self.counts[column].items():
                     line = {}
                     for ic in range(len(key)):
                         line[index[ic]] = key[ic]
                     line['count'] = count
                     out_data.writerow(line)
 
-        print '(%.1f sec)' % (time.time()-start)
+        print('(%.1f sec)' % (time.time()-start))

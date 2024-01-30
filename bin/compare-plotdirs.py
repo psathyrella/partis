@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 from collections import OrderedDict
 import os
@@ -6,17 +8,15 @@ import glob
 import sys
 import colored_traceback.always
 import copy
-current_script_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '/python')
-if not os.path.exists(current_script_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % current_script_dir
-sys.path.insert(1, current_script_dir)
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import plotconfig
-import plotting
-import utils
-import glutils
-from hist import Hist
-import treeutils
+import python.plotconfig as plotconfig
+import python.plotting as plotting
+import python.utils as utils
+import python.glutils as glutils
+from python.hist import Hist
+import python.treeutils as treeutils
 
 xtitledict = copy.deepcopy(plotting.legends)
 xtitledict.update(plotconfig.xtitles)
@@ -37,7 +37,7 @@ def get_hists_from_dir(dirname, histname, string_to_ignore=None):
             varname = varname.replace(string_to_ignore, '')
         hists[varname] = Hist(fname=fname, title=histname)
     if len(hists) == 0:
-        print '    no csvs found%s in %s' % ('' if args.file_glob_str is None else ' with --file-glob-str \'%s\''%args.file_glob_str, dirname)
+        print('    no csvs found%s in %s' % ('' if args.file_glob_str is None else ' with --file-glob-str \'%s\''%args.file_glob_str, dirname))
     return hists
 
 
@@ -180,7 +180,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     linewidths = [line_width_override, ] if line_width_override is not None else args.linewidths
     if args.alphas is None or len(args.alphas) != len(hlist):
         if args.alphas is not None and len(args.alphas) != len(hlist):
-            print '  %s --alphas wrong length, using first entry for all' % utils.wrnstr()
+            print('  %s --alphas wrong length, using first entry for all' % utils.wrnstr())
         args.alphas = [0.6 if args.alphas is None else args.alphas[0] for _ in range(len(hlist))]
     shift_overflows = os.path.basename(outdir) != 'gene-call' and 'func-per-drop' not in varname
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds, ybounds=args.ybounds,
@@ -250,7 +250,7 @@ if args.add_to_title is not None:
     args.add_to_title = args.add_to_title.replace('@', ' ')
 
 if len(args.plotdirs) == 1 and not args.single_plotdir:
-    print '  --plotdirs is length 1 (and --single-plotdir wasn\'t set), so assuming --names has the desired subdirs'
+    print('  --plotdirs is length 1 (and --single-plotdir wasn\'t set), so assuming --names has the desired subdirs')
     parentdir = args.plotdirs[0]
     args.plotdirs = [parentdir + '/' + n for n in args.names]
 
@@ -268,7 +268,7 @@ if args.gldirs is not None:
             args.glfo = glutils.get_merged_glfo(args.glfo, tmpglfo)
 
 if any(not os.path.isdir(d) for d in args.plotdirs):
-    print '   at least one of --plotdirs doesn\'t exist: %s' % ' '.join(d for d in args.plotdirs if not os.path.isdir(d))
+    print('   at least one of --plotdirs doesn\'t exist: %s' % ' '.join(d for d in args.plotdirs if not os.path.isdir(d)))
     sys.exit(0)
 
 listof_plotdirlists, listof_outdirs = [], []
@@ -278,7 +278,7 @@ if len(glob.glob(firstdir + '/*.csv')) > 0:
     listof_plotdirlists.append(args.plotdirs)
     listof_outdirs.append(args.outdir)
 else:
-    print '    no csvs in main/parent dir %s' % firstdir
+    print('    no csvs in main/parent dir %s' % firstdir)
 # then figure out if there's subdirs we need to deal with
 added_subds = []
 
@@ -287,7 +287,7 @@ for subdir in [d for d in os.listdir(firstdir) if os.path.isdir(firstdir + '/' +
     listof_outdirs.append(args.outdir + '/' + subdir)
     added_subds.append(subdir)
 if len(added_subds) > 0:
-    print '  added %d subdirs: %s' % (len(added_subds), ' '.join(added_subds))
+    print('  added %d subdirs: %s' % (len(added_subds), ' '.join(added_subds)))
 
 for dlist, outdir in zip(listof_plotdirlists, listof_outdirs):
     compare_directories(args, dlist, outdir)

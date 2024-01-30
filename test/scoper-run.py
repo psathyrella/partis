@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import numpy
 import random
 import glob
@@ -122,7 +124,7 @@ def convert_output(joint=False):
         try:
             timeline, _ = utils.simplerun('grep maxresident %s/joint-scoper.log' % wkdir('joint'), return_out_err=True)
         except subprocess.CalledProcessError:
-            print '    %s grep failed' % utils.color('red', 'error')
+            print('    %s grep failed' % utils.color('red', 'error'))
             return -1
         user, system, elapsed, cpu, _, _ = timeline.strip().split()
         etstr = elapsed.replace('elapsed', '')
@@ -132,7 +134,7 @@ def convert_output(joint=False):
         return etime
     # ----------------------------------------------------------------------------------------
     if joint:
-        print '    joint scoper time: %.1f' % get_joint_time()
+        print('    joint scoper time: %.1f' % get_joint_time())
     ofn, cmdfos, n_already_there, n_total = None, [], 0, len(gloci())
     for locus in gloci():
         pfn = getofn(locus, joint=joint)

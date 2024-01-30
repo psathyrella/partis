@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import json
 import colored_traceback.always
@@ -8,6 +10,7 @@ import argparse
 import numpy
 import operator
 import math
+from io import open
 
 sys.path.insert(1, './python')
 import utils
@@ -102,7 +105,7 @@ for n_estimators in [30, 100]:
             logdir = '%s/%s/seed-%d/dtr/%s%s-plots/dtr-scan-logs' % (args.base_outdir, args.label, log_seed, xtrastrs['test'], trainstr)
         elif args.action == 'plot':
             def pdfcn(tmpseed): return '%s/%s/seed-%d/dtr/%s%s-plots' % (args.base_outdir, args.label, tmpseed, xtrastrs['test'], trainstr)
-            seed_iter = [args.plot_seed] if args.plot_seed is not None else range(int(utils.get_val_from_arglist(cmd.split(), '--n-replicates')))
+            seed_iter = [args.plot_seed] if args.plot_seed is not None else list(range(int(utils.get_val_from_arglist(cmd.split(), '--n-replicates'))))
             plotfo.append({'cfg' : cfgfo, 'plotdirs' : [(s, pdfcn(s)) for s in seed_iter if os.path.exists(pdfcn(s))]})
             continue
         else:
@@ -111,8 +114,8 @@ for n_estimators in [30, 100]:
         if args.n_max_queries is not None:
             cmd += ' --n-max-queries %d' % args.n_max_queries
 
-        print '    %s' % logdir
-        print cmd
+        print('    %s' % logdir)
+        print(cmd)
         if not os.path.exists(logdir):
             os.makedirs(logdir)
 
@@ -142,10 +145,10 @@ if args.action == 'plot':
     # ----------------------------------------------------------------------------------------
     for cg in cglist:
         for tv in tvlist(cg):
-            print '  %s %s   train: %s   test: %s' % (cg, tv, args.training_label if args.training_label is not None else args.label, args.label)
-            print '    %s    diff to perfect   seeds' % ' '.join(tuple('%20s'%k for k in sorted(plotfo[0]['cfg'])))
+            print('  %s %s   train: %s   test: %s' % (cg, tv, args.training_label if args.training_label is not None else args.label, args.label))
+            print('    %s    diff to perfect   seeds' % ' '.join(tuple('%20s'%k for k in sorted(plotfo[0]['cfg']))))
             for pfo in plotfo:
-                paramstr = '    '.join(tuple('%15d'%v for k, v in sorted(pfo['cfg'].items(), key=operator.itemgetter(0))))
+                paramstr = '    '.join(tuple('%15d'%v for k, v in sorted(list(pfo['cfg'].items()), key=operator.itemgetter(0))))
                 fstr = '1' if tv == 'affinity' else '2'
                 estr = str(int(fstr)+1)
                 diff_val_list, seed_list = [], []  # for each seed
@@ -153,7 +156,7 @@ if args.action == 'plot':
                     is_train_seed = args.training_label is None and pseed == args.training_seed  # even if it was set on command line, we set it to None if it's the same as --label
                     yfn = treeutils.tmfname(pdir, 'dtr', lbplotting.getptvar(tv), cg=cg, tv=tv)
                     if not os.path.exists(yfn):
-                        print '  %s missing %s' % (utils.color('yellow', 'warning'), yfn)
+                        print('  %s missing %s' % (utils.color('yellow', 'warning'), yfn))
                         continue
                     diff_vals = getptvals(yfn, cg, tv)  # for each percentile
                     diff_to_perfect = numpy.mean(diff_vals)
@@ -161,9 +164,9 @@ if args.action == 'plot':
                         diff_val_list.append(diff_to_perfect)
                         seed_list.append(pseed)
                     if print_all_seeds:
-                        print ('     %s        %3d   %6.'+fstr+'f  %s') % (paramstr if ipd == 0 else len(paramstr)*' ', pseed, diff_to_perfect, utils.color('red', 'training') if is_train_seed else '')
+                        print(('     %s        %3d   %6.'+fstr+'f  %s') % (paramstr if ipd == 0 else len(paramstr)*' ', pseed, diff_to_perfect, utils.color('red', 'training') if is_train_seed else ''))
                 if not print_all_seeds:
-                    print ('     %s        %6.'+fstr+'f +/-%-6.'+estr+'f     %s') % (paramstr, numpy.mean(diff_val_list), 0. if len(diff_val_list) < 2 else numpy.std(diff_val_list, ddof=1) / math.sqrt(len(diff_val_list)), ' '.join(str(s) for s in seed_list))
+                    print(('     %s        %6.'+fstr+'f +/-%-6.'+estr+'f     %s') % (paramstr, numpy.mean(diff_val_list), 0. if len(diff_val_list) < 2 else numpy.std(diff_val_list, ddof=1) / math.sqrt(len(diff_val_list)), ' '.join(str(s) for s in seed_list)))
 else:
-    print '  starting %d jobs' % len(cmdfos)
+    print('  starting %d jobs' % len(cmdfos))
     utils.run_cmds(cmdfos, n_max_procs=args.n_max_procs, debug='write:cf-tree-metrics.log')

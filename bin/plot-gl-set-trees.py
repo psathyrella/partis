@@ -1,5 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import time
 import yaml
 import itertools
@@ -13,6 +15,7 @@ import subprocess
 import sys
 import colored_traceback.always
 from collections import OrderedDict
+from io import open
 try:
     import ete3
 except ImportError:
@@ -97,21 +100,21 @@ def make_tree(all_genes, workdir, use_cache=False):
 
     # write and align an .fa with all alleles from any gl set
     start = time.time()
-    with tempfile.NamedTemporaryFile() as tmpfile:
+    with tempfile.NamedTemporaryFile(mode='w') as tmpfile:
         for name, seq in all_genes.items():
             tmpfile.write('>%s\n%s\n' % (name, seq))
         tmpfile.flush()  # BEWARE if you forget this you are fucked
         cmdstr = '%s -in %s -out %s' % (args.muscle_path, tmpfile.name, aligned_fname)
         if args.debug:
-            print '    %s %s' % (utils.color('red', 'run'), cmdstr)
+            print('    %s %s' % (utils.color('red', 'run'), cmdstr))
         utils.run_cmds(get_cmdfos(cmdstr, workdir, aligned_fname), ignore_stderr=True)
 
     # get a tree for the aligned .fa
     cmdstr = '%s -mGTRCAT -n%s -s%s -p1 -w%s' % (args.raxml_path, raxml_label, aligned_fname, workdir)
     if args.debug:
-        print '    %s %s' % (utils.color('red', 'run'), cmdstr)
+        print('    %s %s' % (utils.color('red', 'run'), cmdstr))
     utils.run_cmds(get_cmdfos(cmdstr, workdir, treefname), ignore_stderr=True)
-    print '    raxml time: %.1f' % (time.time() - start)
+    print('    raxml time: %.1f' % (time.time() - start))
 
     os.remove(aligned_fname)  # rm muscle output
     for fn in [f for f in raxml_output_fnames if f != treefname]:  # rm all the raxml outputs except what the one file we really want
@@ -131,7 +134,7 @@ def getstatus(gene_categories, node, ref_label=None, debug=False):
     elif len(cats) > 1:
         raise Exception('wtf?')
     if debug:
-        print '%-50s   %s' % (gene, cats[0])
+        print('%-50s   %s' % (gene, cats[0]))
     return cats[0]
 
 # ----------------------------------------------------------------------------------------
@@ -144,17 +147,17 @@ def print_results(gene_categories, gl_sets, ref_label=None):
             genestr = ''
         else:
             genestr = ' '.join([utils.color_gene(g) for g in genes])
-        print ('    %-' + pwidth + 's') % name,
+        print(('    %-' + pwidth + 's') % name, end=' ')
         # print '%20s' % scolors[name],
         if name in gl_sets:
-            print '  total %2d' % len(gl_sets[name]),
+            print('  total %2d' % len(gl_sets[name]), end=' ')
         else:
-            print '          ',
+            print('          ', end=' ')
         only_str = 'only' if ref_label is None else ''
         if len(genes) == 0:
-            print '  %s %s' % (only_str, utils.color('blue', 'none'))
+            print('  %s %s' % (only_str, utils.color('blue', 'none')))
         else:
-            print '  %s %2d    %s' % (only_str, len(genes), genestr)
+            print('  %s %2d    %s' % (only_str, len(genes), genestr))
 
 # ----------------------------------------------------------------------------------------
 def write_results(outdir, gene_categories, gl_sets):
@@ -175,7 +178,7 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
         glfos[label] = glutils.read_glfo(gldir, args.locus)
 
     if args.region != 'v':
-        print '  not synchronizing gl sets for %s' % args.region
+        print('  not synchronizing gl sets for %s' % args.region)
     if args.region == 'v':  # don't want to deal with d and j synchronization yet
         # synchronize to somebody -- either simulation (<ref_label>) or the first one
         if ref_label is not None:
@@ -186,7 +189,7 @@ def get_gene_sets(glsfnames, glslabels, ref_label=None, classification_fcn=None,
             sync_label = glslabels[0]
         for label in [l for l in glslabels if l != sync_label]:
             if debug:
-                print '  synchronizing %s names to match %s' % (label, sync_label)
+                print('  synchronizing %s names to match %s' % (label, sync_label))
             glutils.synchronize_glfos(ref_glfo=glfos[sync_label], new_glfo=glfos[label], region=args.region, ref_label=sync_label, debug=debug)
 
     gl_sets = {label : {g : seq for g, seq in glfos[label]['seqs'][args.region].items()} for label in glfos}
@@ -279,7 +282,7 @@ def set_distance_to_zero(node, debug=False):
     if node.is_leaf():
         if len(get_entirety_of_gene_family(node.get_tree_root(), utils.gene_family(node.name))) == 1:  # if this is the *only* one from this family
             if debug:
-                print '  family %s is of length 1 %s (set to zero)' % (utils.gene_family(node.name), node.name)
+                print('  family %s is of length 1 %s (set to zero)' % (utils.gene_family(node.name), node.name))
             return True
         else:
             return False
@@ -287,8 +290,8 @@ def set_distance_to_zero(node, debug=False):
     descendents = set([leaf.name for leaf in node])
     gene_families = set([utils.gene_family(d) for d in descendents])
     if debug:
-        print '  %s' % ' '.join([utils.shorten_gene_name(d) for d in descendents])
-        print '      %s' % ' '.join(gene_families)
+        print('  %s' % ' '.join([utils.shorten_gene_name(d) for d in descendents]))
+        print('      %s' % ' '.join(gene_families))
     if len(gene_families) == 0:
         raise Exception('zero length gene family set from %s' % ' '.join([leaf.name for leaf in node]))
     if len(gene_families) > 1:
@@ -298,11 +301,11 @@ def set_distance_to_zero(node, debug=False):
     entirety_of_gene_family = get_entirety_of_gene_family(node.get_tree_root(), gene_family)
     if debug:
         if len(entirety_of_gene_family - descendents) > 0:
-            print '    missing %d / %d of family' % (len(entirety_of_gene_family - descendents), len(entirety_of_gene_family))
+            print('    missing %d / %d of family' % (len(entirety_of_gene_family - descendents), len(entirety_of_gene_family)))
         elif len(descendents - entirety_of_gene_family) > 0:
             raise Exception('wtf should\'ve already returned')
         else:
-            print '    setting to zero'
+            print('    setting to zero')
     return descendents == entirety_of_gene_family
 
 # ----------------------------------------------------------------------------------------
@@ -439,7 +442,7 @@ def draw_tree(plotdir, plotname, treestr, gl_sets, all_genes, gene_categories, r
             tstyle.title.add_face(ete3.RectFace(width=rect_width*fsize, height=fsize, bgcolor=tcol, fgcolor=None), column=1)
     suffix = '.svg'
     imagefname = plotdir + '/' + plotname + suffix
-    print '      %s' % imagefname
+    print('      %s' % imagefname)
     etree.render(utils.insert_before_suffix('-leaf-names', imagefname), tree_style=tstyle)
     tstyle.show_leaf_name = False
     etree.render(imagefname, tree_style=tstyle)
@@ -492,13 +495,13 @@ parser.add_argument('--ref-label', help='label (in --glslabels) corresponding to
 
 args = parser.parse_args()
 
-sys.path.insert(1, args.partis_dir + '/python')
+sys.path.insert(1, args.partis_dir) # + '/python')
 try:
-    import utils
-    import glutils
-    import plotting
+    import python.utils as utils
+    import python.glutils as glutils
+    import python.plotting as plotting
 except ImportError as e:
-    print e
+    print(e)
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 
 args.glsfnames = utils.get_arg_list(args.glsfnames)

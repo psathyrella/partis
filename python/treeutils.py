@@ -1,4 +1,6 @@
-import __builtin__
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
+import six.moves.builtins
 import glob
 import operator
 import string
@@ -7,9 +9,8 @@ import copy
 import collections
 import random
 import csv
-from cStringIO import StringIO
+from io import StringIO
 import subprocess
-import tempfile
 import os
 import numpy
 import sys
@@ -21,6 +22,7 @@ import json
 import pickle
 import warnings
 import traceback
+from io import open
 if StrictVersion(dendropy.__version__) < StrictVersion('4.0.0'):  # not sure on the exact version I need, but 3.12.0 is missing lots of vital tree fcns
     raise RuntimeError("dendropy version 4.0.0 or later is required (found version %s)." % dendropy.__version__)
 import yaml
@@ -29,7 +31,7 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-import utils
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 fmetrics = ['lbf', 'aa-lbf']
@@ -231,13 +233,13 @@ def write_pmml(pmmlfname, dmodel, varlist, targetvar):
         sys.modules['sklearn2pmml'].sklearn2pmml(pmml_pipeline, pmmlfname)
     except:
         elines = traceback.format_exception(*sys.exc_info())
-        print utils.pad_lines(''.join(elines))
-        print '  %s pmml conversion failed (see above), but continuing' % utils.color('red', 'error')
+        print(utils.pad_lines(''.join(elines)))
+        print('  %s pmml conversion failed (see above), but continuing' % utils.color('red', 'error'))
 
 # ----------------------------------------------------------------------------------------
 def train_dtr_model(trainfo, outdir, cfgvals, cgroup, tvar):
     if os.path.exists(dtrfname(outdir, cgroup, tvar)):
-        print '  %s dtr model file exists, so skipping training: %s' % (utils.color('yellow', 'warning'), dtrfname(outdir, cgroup, tvar))
+        print('  %s dtr model file exists, so skipping training: %s' % (utils.color('yellow', 'warning'), dtrfname(outdir, cgroup, tvar)))
         return
     if 'sklearn.ensemble' not in sys.modules:
         with warnings.catch_warnings():  # NOTE not sure this is actually catching the warnings UPDATE oh, I think the warnings are getting thrown by function calls, not imports
@@ -272,9 +274,9 @@ def train_dtr_model(trainfo, outdir, cfgvals, cgroup, tvar):
     model.fit(trainfo['in'], trainfo['out'])  #, sample_weight=trainfo['weights'])
 
     tmpkeys = [k for k in cfgvals if k != 'vars' and (k in kwargs or k in base_kwargs)]  # don't want to print the inapplicable ones
-    print '    %s-families %s (%d observations in %.1fs):  %s' % (utils.color('green', cgroup.split('-')[0]), utils.color('blue', tvar), len(trainfo['in']), time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys)))
-    print '         feature importances:'
-    print '                                   mean   err'
+    print('    %s-families %s (%d observations in %.1fs):  %s' % (utils.color('green', cgroup.split('-')[0]), utils.color('blue', tvar), len(trainfo['in']), time.time() - start, '   '.join('%s %s'%(k, cfgvals[k]) for k in sorted(tmpkeys))))
+    print('         feature importances:')
+    print('                                   mean   err')
     for iv, vname in enumerate([v for pc in pchoices for v in cfgvals['vars'][cgroup][pc]]):
         if cfgvals['ensemble'] == 'grad-boost':
             filist = [model.feature_importances_[iv]]
@@ -284,7 +286,7 @@ def train_dtr_model(trainfo, outdir, cfgvals, cgroup, tvar):
         if cfgvals['ensemble'] == 'ada-boost':
             wlist = [w for w in model.estimator_weights_ if w > 0]
             assert len(wlist) == len(model.estimators_)  # it terminates early (i.e. before making all the allowed estimators) if it already has perfect performance, but doesn't leave the lists the same length
-        print '               %17s   %5.3f  %5.3f' % (vname, numpy.average(filist, weights=wlist), (numpy.std(filist, ddof=1) / math.sqrt(len(filist))) if len(filist) > 1 else 0.)  # NOTE not sure if std should also use the weights
+        print('               %17s   %5.3f  %5.3f' % (vname, numpy.average(filist, weights=wlist), (numpy.std(filist, ddof=1) / math.sqrt(len(filist))) if len(filist) > 1 else 0.))  # NOTE not sure if std should also use the weights
 
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -308,7 +310,7 @@ def get_lb_bounds(tau, seq_len):
     ]
     slvals = [l for l, _ in bvals]
     if seq_len < min(slvals) or seq_len > max(slvals):
-        print '  %s seq len %d outside known interpolation values [%d, %d], probably need to rerun test/cf-tree-metrics.py --actions get-lb-bounds to cover this seq len' % (utils.wrnstr(), seq_len, min(slvals), max(slvals))
+        print('  %s seq len %d outside known interpolation values [%d, %d], probably need to rerun test/cf-tree-metrics.py --actions get-lb-bounds to cover this seq len' % (utils.wrnstr(), seq_len, min(slvals), max(slvals)))
     (len1, max1), (len2, max2) = sorted(bvals, key=lambda x: abs(x[0] - seq_len))[:2]
     return tau, utils.intexterpolate(len1, max1, len2, max2, seq_len)
 
@@ -337,7 +339,7 @@ def get_lb_bounds(tau, seq_len):
 def normalize_lb_val(metric, lbval, tau, seq_len):
     assert metric == 'lbi'
     lbmin, lbmax = get_lb_bounds(tau, seq_len)
-    return (lbval - lbmin) / (lbmax - lbmin)
+    return (lbval - lbmin) / float(lbmax - lbmin)
 
 # ----------------------------------------------------------------------------------------
 def get_treestrs_from_file(treefname, n_expected_trees=None):
@@ -374,14 +376,14 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     if treestr is None:
         treestr = get_treestr_from_file(treefname)
     if debug:
-        print '   getting dendro tree from string:\n     %s' % treestr
+        print('   getting dendro tree from string:\n     %s' % treestr)
         if taxon_namespace is not None:
-            print '     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace])
+            print('     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace]))
     # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
     dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True, rooting='force-rooted')  # make sure the tree is rooted, to avoid nodes disappearing in remove_dummy_branches() (and proably other places as well)
-    if dtree.seed_node.edge_length > 0 and not no_warn:
+    if dtree.seed_node.edge_length is not None and dtree.seed_node.edge_length > 0 and not no_warn:
         # this would be easy to fix, but i think it only happens from simulation trees from treegenerator UPDATE ok also happens for trees from the linearham paper
-        print '  %s seed/root node has non-zero edge length (i.e. there\'s a branch above it)' % utils.color('red', 'warning')
+        print('  %s seed/root node has non-zero edge length (i.e. there\'s a branch above it)' % utils.color('red', 'warning'))
     label_nodes(dtree, ignore_existing_internal_node_labels=ignore_existing_internal_node_labels, suppress_internal_node_taxa=suppress_internal_node_taxa, debug=False)  # set internal node labels to any found in <treestr> (unless <ignore_existing_internal_node_labels> is set), otherwise make some up (e.g. aa, ab, ac)
 
     # # uncomment for more verbosity: NOTE node label check will likely fail if suppress_internal_node_taxa is set
@@ -411,7 +413,7 @@ def get_bio_tree(treestr=None, treefname=None, schema='newick'):  # NOTE don't u
 # ----------------------------------------------------------------------------------------
 def get_imbalance(dtree, treetype='dendropy'):  # tree imbalance as std dev in root-to-tip branch lengths (see here https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008030#pcbi-1008030-g001)
     depths = get_leaf_depths(dtree, treetype=treetype)
-    imbal = numpy.std(depths.values(), ddof=1)
+    imbal = numpy.std(list(depths.values()), ddof=1)
     # print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
     # print ' '.join(['%.3f'%v for v in sorted(depths.values())])
     # print 'imbal', imbal
@@ -441,8 +443,8 @@ def get_n_nodes(tree):
 def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_name_node=None, debug=False):  # collapse edge between <keep_name> and <remove_name>, leaving remaining node with name <keep_name>
     # NOTE I wrote this to try to fix the phylip trees from lonr.r, but it ends up they're kind of unfixable... but this fcn may be useful in the future, I guess, and it works UPDATE yep using it now for something else
     if debug:
-        print '    collapsing %s and %s (the former will be the label for the surviving node)' % (keep_name, remove_name)
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+        print('    collapsing %s and %s (the former will be the label for the surviving node)' % (keep_name, remove_name))
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
     if keep_name_node is None:
         keep_name_node = dtree.find_node_with_taxon_label(keep_name)
     if remove_name_node is None:
@@ -462,15 +464,15 @@ def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_na
         parent_node = keep_name_node
         child_node = remove_name_node
     else:
-        print '    node names %s and %s don\'t share an edge:' % (keep_name, remove_name)
-        print '        keep node children: %s' % ' '.join([n.taxon.label for n in keep_name_node.child_nodes()])
-        print '      remove node children: %s' % ' '.join([n.taxon.label for n in remove_name_node.child_nodes()])
+        print('    node names %s and %s don\'t share an edge:' % (keep_name, remove_name))
+        print('        keep node children: %s' % ' '.join([n.taxon.label for n in keep_name_node.child_nodes()]))
+        print('      remove node children: %s' % ' '.join([n.taxon.label for n in remove_name_node.child_nodes()]))
         raise Exception('see above')
 
     if child_node.is_leaf():
         dtree.prune_taxa([child_node.taxon], suppress_unifurcations=False)
         if debug:
-            print '       pruned leaf node %s' % (('%s (renamed parent to %s)' % (remove_name, keep_name)) if swapped else remove_name)
+            print('       pruned leaf node %s' % (('%s (renamed parent to %s)' % (remove_name, keep_name)) if swapped else remove_name))
     else:
         found = False
         for edge in parent_node.child_edge_iter():
@@ -480,25 +482,54 @@ def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_na
                 break
         assert found
         if debug:
-            print '     collapsed edge between %s and %s' % (keep_name, remove_name)
+            print('     collapsed edge between %s and %s' % (keep_name, remove_name))
 
     if debug:
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
     assert dtree.find_node_with_taxon_label(remove_name) is None
 
     # NOTE do i need to add this?
     # dtree.purge_taxon_namespace()
 
 # ----------------------------------------------------------------------------------------
+# return copies of the two trees with a common taxon namespace, so they can be compared with dendropy tree distance metrics
+def sync_taxon_namespaces(dtree_a, dtree_b, only_leaves=False, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def new_tree(told, new_tns):
+        return dendropy.Tree(seed_node=told.seed_node, taxon_namespace=new_tns)
+    # ----------------------------------------------------------------------------------------
+    def get_common_labels(tns1, tns2):
+        labels_a, labels_b = [[t.label for t in tns] for tns in (tns1, tns2)]
+        common_labels = set(labels_a) & set(labels_b)
+        only_a, only_b = set(labels_a) - set(labels_b), set(labels_b) - set(labels_a)
+        if len(only_a) > 0 or len(only_b) > 0:
+            print('    %s syncing taxon namespaces with different node sets:' % utils.wrnstr())
+        if debug or len(only_a) > 0 or len(only_b) > 0:
+            print('      %d common labels: %s' % (len(common_labels), ' '.join(sorted(common_labels))))
+            print('      %d only in first tree:  %s' % (len(only_a), ' '.join(sorted(only_a))))
+            print('      %d only in second tree: %s' % (len(only_b), ' '.join(sorted(only_b))))
+        return common_labels
+    # ----------------------------------------------------------------------------------------
+    def leaf_taxa(ttr):
+        return [l.taxon for l in ttr.leaf_node_iter()]
+    # ----------------------------------------------------------------------------------------
+    if only_leaves:
+        common_labels = get_common_labels(leaf_taxa(dtree_a), leaf_taxa(dtree_b))
+    else:
+        common_labels = get_common_labels(dtree_a.taxon_namespace, dtree_b.taxon_namespace)
+    new_tns = dendropy.TaxonNamespace(common_labels)
+    return [new_tree(t, new_tns) for t in [dtree_a, dtree_b]]
+
+# ----------------------------------------------------------------------------------------
 def check_node_labels(dtree, debug=False):
     if debug:
-        print 'checking node labels for:'
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
+        print('checking node labels for:')
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250)))
     for node in dtree.preorder_node_iter():
         if node.taxon is None:
             raise Exception('taxon is None for node with depth %f' % node.distance_from_root())
         if debug:
-            print '    ok: %s' % node.taxon.label
+            print('    ok: %s' % node.taxon.label)
         if node.label is not None:
             raise Exception('node.label not set to None')
 
@@ -512,16 +543,16 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
     if ignore_existing_internal_node_labels and suppress_internal_node_taxa:
         raise Exception('doesn\'t make sense to specify both')
     if debug:
-        print '   labeling nodes'
+        print('   labeling nodes')
         # print '    before:'
         # print utils.pad_lines(get_ascii_tree(dendro_tree))
     tns = dendro_tree.taxon_namespace
     initial_names = set([t.label for t in tns])  # should all be leaf nodes, except the naive sequence (at least for now)
     if debug:
-        print '           initial taxon labels: %s' % ' '.join(sorted(initial_names))
+        print('           initial taxon labels: %s' % ' '.join(sorted(initial_names)))
         no_taxon_nodes = [n for n in dendro_tree.preorder_node_iter() if n.taxon is None]
         if len(no_taxon_nodes) > 0:
-            print '               %d node%s with no taxa and depths: %s' % (len(no_taxon_nodes), utils.plural(len(no_taxon_nodes)), ' '.join('%.4f'%n.distance_from_root() for n in no_taxon_nodes))
+            print('               %d node%s with no taxa and depths: %s' % (len(no_taxon_nodes), utils.plural(len(no_taxon_nodes)), ' '.join('%.4f'%n.distance_from_root() for n in no_taxon_nodes)))
     potential_names, used_names = None, None
     new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=initial_length, shuffle=True)
     skipped_dbg, relabeled_dbg = [], []
@@ -553,33 +584,33 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
         relabeled_dbg += ['%s' % new_label]
 
     if debug:
-        print '      skipped (already labeled): %s' % ' '.join(sorted(skipped_dbg))
-        print '                   (re-)labeled: %s' % ' '.join(sorted(relabeled_dbg))
+        print('      skipped (already labeled): %s' % ' '.join(sorted(skipped_dbg)))
+        print('                   (re-)labeled: %s' % ' '.join(sorted(relabeled_dbg)))
         # print '   after:'
         # print utils.pad_lines(get_ascii_tree(dendro_tree))
 
 # ----------------------------------------------------------------------------------------
 def translate_labels(dendro_tree, translation_pairs, dbgstr='', dont_fail=False, expect_missing=False, debug=False):
     if debug:
-        print '    translating %stree:' % ('' if dbgstr=='' else dbgstr+' ')
-        print get_ascii_tree(dendro_tree=dendro_tree, extra_str='      ')
+        print('    translating %stree:' % ('' if dbgstr=='' else dbgstr+' '))
+        print(get_ascii_tree(dendro_tree=dendro_tree, extra_str='      '))
     missing_trns = set(n.taxon.label for n in dendro_tree.preorder_node_iter() if n.taxon is not None) - set(u for u, _ in translation_pairs)
     if len(missing_trns) > 0 and not expect_missing:
-        print '  %s missing %d / %d translations when translating tree labels: %s' % (utils.wrnstr(), len(missing_trns), len(list(dendro_tree.preorder_node_iter())), ' '.join(missing_trns))
+        print('  %s missing %d / %d translations when translating tree labels: %s' % (utils.wrnstr(), len(missing_trns), len(list(dendro_tree.preorder_node_iter())), ' '.join(missing_trns)))
     for old_label, new_label in translation_pairs:
         taxon = dendro_tree.taxon_namespace.get_taxon(old_label)
         if taxon is None:
             prstr = 'requested taxon with old name \'%s\' not present in tree (present: %s)' % (old_label, ' '.join(t.label for t in dendro_tree.taxon_namespace))
             if dont_fail:
-                print prstr
+                print(prstr)
                 continue
             else:
                 raise Exception(prstr)
         taxon.label = new_label
         if debug:
-            print '    %20s --> %s' % (old_label, new_label)
+            print('    %20s --> %s' % (old_label, new_label))
     if debug:
-        print get_ascii_tree(dendro_tree=dendro_tree, extra_str='      ')
+        print(get_ascii_tree(dendro_tree=dendro_tree, extra_str='      '))
 
 # ----------------------------------------------------------------------------------------
 def write_translated_trees(outfname, translation_pairs=None, translation_fcn=None, infname=None, intrees=None):  # specify one of <infname> (nwk file) or <intrees> (list of dendro trees), and one of <translation_pairs>, <translation_fcn>
@@ -611,8 +642,8 @@ def get_mean_leaf_height(tree=None, treestr=None):
     assert tree is None or treestr is None
     if tree is None:
         tree = get_dendro_tree(treestr=treestr, schema='newick')
-    heights = get_leaf_depths(tree).values()
-    return sum(heights) / len(heights)
+    heights = list(get_leaf_depths(tree).values())
+    return sum(heights) / float(len(heights))
 
 # ----------------------------------------------------------------------------------------
 def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='', width=200, schema='newick', label_fcn=None):
@@ -660,7 +691,7 @@ def get_ascii_tree(dendro_tree=None, treestr=None, treefname=None, extra_str='',
         dendro_str = dendro_tree.as_ascii_plot(width=width, plot_metric='length', show_internal_node_labels=True, node_label_compose_fn=compose_fcn)  # call again after modiying compose fcn (kind of wasteful to call it twice, but it shouldn't make a difference)
         dendro_str = dendro_str.replace(start_char, utils.Colors['blue']).replace(end_char, utils.Colors['end'] + '  ')
     else:
-        print '  %s can\'t color tree, no available special characters in get_ascii_tree()' % utils.color('red', 'note:')
+        print('  %s can\'t color tree, no available special characters in get_ascii_tree()' % utils.color('red', 'note:'))
     if get_n_nodes(dendro_tree) == 1:
         extra_str += ' (one node)'
     return_lines = [('%s%s' % (extra_str, line)) for line in dendro_str.split('\n')]
@@ -675,23 +706,24 @@ def rescale_tree(new_mean_height, dtree=None, treestr=None, debug=False):
         dtree = get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
     mean_height = get_mean_leaf_height(tree=dtree)
     if debug:
-        print '  current mean: %.4f   target height: %.4f' % (mean_height, new_mean_height)
+        print('  current mean: %.4f   target height: %.4f' % (mean_height, new_mean_height))
     for edge in dtree.postorder_edge_iter():
         if edge.head_node is dtree.seed_node:  # why tf does the root node have an edge where it's the child?
             continue
         if debug:
-            print '     %5s  %7e  -->  %7e' % (edge.head_node.taxon.label if edge.head_node.taxon is not None else 'None', edge.length, edge.length * new_mean_height / mean_height)
+            print('     %5s  %7e  -->  %7e' % (edge.head_node.taxon.label if edge.head_node.taxon is not None else 'None', edge.length, edge.length * new_mean_height / mean_height))
         if mean_height != 0:  # ok should really probably just return without doing anything if every leaf height is zero, but oh well for now
             edge.length *= new_mean_height / mean_height  # rescale every branch length in the tree by the ratio of desired to existing height (everybody's heights should be the same... but they never quite were when I was using Bio.Phylo, so, uh. yeah, uh. not sure what to do, but this is fine. It's checked below, anyway)
     if not treestr:  # i'm really pretty sure there's no point in doing this if we're just going to immediately convert to string (and it just caused huge fucking problems because it was missing the suppress unifurcations arg. I'm so *!$@(($@ing tired of that shit this is like the fourth time I've wasted hours chasing down weirdness that stems from that)
         dtree.update_bipartitions(suppress_unifurcations=False)  # probably doesn't really need to be done
     if debug:
-        print '    final mean: %.4f' % get_mean_leaf_height(tree=dtree)
+        print('    final mean: %.4f' % get_mean_leaf_height(tree=dtree))
     if treestr:
         return dtree.as_string(schema='newick').strip()
 
 # ----------------------------------------------------------------------------------------
-def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq):
+# compare tree difference metrics on <in_treestr> (that was passed to bppseqgen) and a tree inferred with fasttree from the leaf seqs from bppseqgen
+def compare_input_tree_to_leaf_seqs(region, in_treestr, leafseqs, naive_seq):
     taxon_namespace = dendropy.TaxonNamespace()  # in order to compare two trees with the metrics below, the trees have to have the same taxon namespace
     in_dtree = get_dendro_tree(treestr=in_treestr, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True)
     seqfos = [{'name' : 't%d' % (iseq + 1), 'seq' : seq} for iseq, seq in enumerate(leafseqs)]
@@ -700,16 +732,21 @@ def get_tree_difference_metrics(region, in_treestr, leafseqs, naive_seq):
     out_height = get_mean_leaf_height(tree=out_dtree)
     base_width = 100
     in_ascii_str = get_ascii_tree(dendro_tree=in_dtree, extra_str='      ', width=base_width)  # make copies before the following functions mess the trees up
-    out_ascii_str = get_ascii_tree(dendro_tree=out_dtree, extra_str='        ', width=int(base_width*out_height/in_height))
-    print '  comparing input and bppseqgen output trees:'
-    print '                   heights: %.3f   %.3f' % (in_height, out_height)
-    print '      symmetric difference: %d' % dendropy.calculate.treecompare.symmetric_difference(in_dtree, out_dtree)  # WARNING these functions modify the tree (i think by removing unifurcations) becuase OF COURSE THEY DO, wtf
-    print '        euclidean distance: %f' % dendropy.calculate.treecompare.euclidean_distance(in_dtree, out_dtree)
-    print '              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree)
-    print '    %s' % utils.color('blue', 'input:')
-    print in_ascii_str
-    print '    %s' % utils.color('blue', 'output:')
-    print out_ascii_str
+    if in_height > 0:
+        out_width = int(base_width*out_height/in_height)
+    else:
+        out_width = base_width
+        print('  %s in_height is zero, so can\'t properly scale output ascii tree width' % utils.wrnstr())
+    out_ascii_str = get_ascii_tree(dendro_tree=out_dtree, extra_str='        ', width=out_width)
+    print('  comparing input and bppseqgen output trees:')
+    print('                   heights: %.3f   %.3f' % (in_height, out_height))
+    print('      symmetric difference: %d' % dendropy.calculate.treecompare.symmetric_difference(in_dtree, out_dtree))  # WARNING these functions modify the tree (i think by removing unifurcations) becuase OF COURSE THEY DO, wtf
+    print('        euclidean distance: %f' % dendropy.calculate.treecompare.euclidean_distance(in_dtree, out_dtree))
+    print('              r-f distance: %f' % dendropy.calculate.treecompare.robinson_foulds_distance(in_dtree, out_dtree))
+    print('    %s' % utils.color('blue', 'input:'))
+    print(in_ascii_str)
+    print('    %s' % utils.color('blue', 'output:'))
+    print(out_ascii_str)
 
 # ----------------------------------------------------------------------------------------
 # loops over uids in <hline> and <lline> (which, in order, must correspond to each other), chooses a new joint uid and applies it to both h and l trees, then checks to make sure the trees are identical
@@ -720,11 +757,11 @@ def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=
         assert '-' in uid and uid.split('-')[-1] == locus
         return uid.replace('-%s' % locus, '')
     if debug:
-        print '    before:'
-        print '      heavy:'
-        print utils.pad_lines(get_ascii_tree(treestr=hline['tree']))
-        print '      light:'
-        print utils.pad_lines(get_ascii_tree(treestr=lline['tree']))
+        print('    before:')
+        print('      heavy:')
+        print(utils.pad_lines(get_ascii_tree(treestr=hline['tree'])))
+        print('      light:')
+        print(utils.pad_lines(get_ascii_tree(treestr=lline['tree'])))
 
     if 'heavy-chain-correlation-info' in lline:  # if doing paired h/l correlations, we need to make sure we're pairing togethether the same events here that were used to determine the correlations (they got out of sync before because things got out of order when writing/reading events from subprocesses)
         assert hline['unique_ids'] == lline['heavy-chain-correlation-info']['heavy-chain-uids']
@@ -760,22 +797,22 @@ def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=
             raise Exception('trees differ (symmetric difference %d) for heavy and light chains' % sym_diff)
 
     if debug:
-        print '    after:'
-        print '      symmetric difference: %d' % sym_diff
-        print '      heavy:'
-        print utils.pad_lines(get_ascii_tree(treestr=hline['tree']))
-        print '      light:'
-        print utils.pad_lines(get_ascii_tree(treestr=lline['tree']))
+        print('    after:')
+        print('      symmetric difference: %d' % sym_diff)
+        print('      heavy:')
+        print(utils.pad_lines(get_ascii_tree(treestr=hline['tree'])))
+        print('      light:')
+        print(utils.pad_lines(get_ascii_tree(treestr=lline['tree'])))
 
 # ----------------------------------------------------------------------------------------
 def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence_uids> is uids for which we have actual sequences (i.e. not internal nodes inferred by the tree program without sequences)
     if debug:
         nlen = max(len(n.taxon.label) for n in dtree.preorder_node_iter())
-        print '  merging trivially-dangling leaves into parent internal nodes:'
-        print '           distance       %s                     parent' % utils.wfmt('leaf', nlen, jfmt='-')
+        print('  merging trivially-dangling leaves into parent internal nodes:')
+        print('           distance       %s                     parent' % utils.wfmt('leaf', nlen, jfmt='-'))
     missing_seq_ids = set(sequence_uids) - set([n.taxon.label for n in dtree.preorder_node_iter()])
     if len(missing_seq_ids) > 0:  # ok maybe i don't need this, but once i missed a translation step, so <sequence_uids> didn't correspond to the node labels, which meant i was collapsing a bunch of things i didn't want (i.e. removing from the tree) to with no other warning.
-        print '    %s didn\'t find %d / %d sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?)' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids))
+        print('    %s didn\'t find %d / %d sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?)' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids)))
     removed_nodes = []
     for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
         recursed = False
@@ -786,7 +823,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
             if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in sequence_uids:  # only want to do it if the parent node is a (spurious) internal node added by fasttree/iqtree (this parent's taxon will be None if suppress_internal_node_taxa was set)
                 break
             if debug:
-                print '            %8.5f      %s    %s' % (leaf.edge_length, utils.wfmt(' " ' if recursed else leaf.taxon.label, nlen, jfmt='-'), utils.wfmt('none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label, nlen, jfmt='-'))
+                print('            %8.5f      %s    %s' % (leaf.edge_length, utils.wfmt(' " ' if recursed else leaf.taxon.label, nlen, jfmt='-'), utils.wfmt('none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label, nlen, jfmt='-')))
 
             parent_node = leaf.parent_node
             removed_nodes.append(parent_node.taxon.label if parent_node.taxon is not None else None)
@@ -796,15 +833,17 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
     dtree.update_bipartitions(suppress_unifurcations=False)
     dtree.purge_taxon_namespace()
     if debug:
-        print '    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes))
+        print('    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes)))
     #     print get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
     #     print dtree.as_string(schema='newick').strip()
     return removed_nodes
 
 # ----------------------------------------------------------------------------------------
 # specify <seqfos> or <annotation> (in latter case we add the naive seq)
-def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read', taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None,
-                       redo=False, outfix='out', cmdfo=None, glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, debug=False):
+def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read',
+                       taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None, redo=False, outfix='out', cmdfo=None,
+                       glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, only_pass_leaves=False,
+                       debug=False):
     # ----------------------------------------------------------------------------------------
     def lhindir(workdir):
         return '%s/input' % workdir
@@ -816,9 +855,11 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             cmd = '%s/packages/iqtree-1.6.12-Linux/bin/iqtree -asr -s %s -pre %s/%s' % (utils.get_partis_dir(), ifn(workdir), os.path.dirname(ifn(workdir)), outfix)
             if redo:
                 cmd += ' -redo'
-        elif method == 'gctree':
+        elif 'gctree' in method:
             assert iclust is not None
-            cmd = '%s/bin/gctree-run.py --infname %s --outdir %s --root-label %s --inf-int-label i-%d-inf' % (utils.get_partis_dir(), ifn(workdir), workdir, naive_seq_name, iclust)
+            cmd = '%s/bin/gctree-run.py --infname %s --metafname %s --outdir %s --root-label %s --inf-int-label i-%d-inf' % (utils.get_partis_dir(), ifn(workdir), mfn(workdir), workdir, naive_seq_name, iclust)
+            if method == 'gctree-base':
+                cmd += ' --base-model'
         elif method == 'linearham':
             if parameter_dir is None or utils.dummy_str in parameter_dir:
                 raise Exception('need to pass --parameter-dir (--paired-outdir if --paired-loci) if running linearham')  # well, we could ask linearham to run partis to cache parameters, but we really don't want to do that
@@ -839,12 +880,15 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     def ifn(workdir):
         return '%s/input-seqs.fa' % workdir
     # ----------------------------------------------------------------------------------------
+    def mfn(workdir):
+        return '%s/meta.yaml' % workdir
+    # ----------------------------------------------------------------------------------------
     def ofn(workdir, antns=False, best=False):
         if method == 'iqtree':
             return '%s/%s.treefile' % (workdir, outfix)
         elif method == 'fasttree':
             return '%s/%s.out' % (workdir, method)  # just where utils.run_cmds() writes std out
-        elif method == 'gctree':
+        elif 'gctree' in method:
             return '%s/tree.nwk' % workdir
         elif method == 'linearham':
             subd = ('single-chain/' if best else 'alternative-annotations/iclust-0/') if antns else ''  # kind of dumb to have iclust-0 here, but 1) we can't write multiple clusters to these files since they have many annotations for each cluster and 2) we only ever tell linearham-run.py to run on one cluster here, so it's always in iclust-0/
@@ -852,22 +896,36 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         else:
             assert False
     # ----------------------------------------------------------------------------------------
-    assert method in ['fasttree', 'iqtree', 'gctree', 'linearham']
+    def restrict_to_leaf_sfos(seqfos):  # just use bcr-phylo-style names to determine leaf/internal (it'd be nice to use the true tree, but it'd be messy to get that info in here)
+        n_kept, n_internal = 0, 0
+        newfos = []
+        for sfo in seqfos:
+            if 'leaf-' in sfo['name'] or 'int-' in sfo['name'] or sfo['name'] == naive_seq_name:  # 'int-' are leaf sequences that were sampled at imtermediate times
+                n_kept += 1
+                newfos.append(sfo)
+            elif 'mrca-' in sfo['name']:
+                n_internal += 1
+            else:
+                raise Exception('was told to restrict to leaves, but found a node with unexpected name \'%s\' (expected \'leaf-\', \'int-\', \'mrca-\', or %s' % (sfo['name'], naive_seq_name))
+        if 'prep' in actions:  # this still gets run for run/read, but i don't think there's a reason to print it twice
+              print('        removed %d internal nodes (kept %d leaf+naive)' % (n_internal, n_kept))
+        return newfos
+    # ----------------------------------------------------------------------------------------
+    assert method in ['fasttree', 'iqtree', 'gctree', 'gctree-base', 'linearham']
     assert actions in ['prep:run:read', 'prep', 'read']  # other combinations could make sense, but don't need them atm
     if method == 'linearham' and glfo is None:
-        raise Exception('need to pass in glfo in order to run linearham (e.g. for instance linearham can\'t work on the fake h/l annotations')
+        raise Exception('need to pass in glfo in order to run linearham (e.g. linearham can\'t work on the fake h/l annotations')
 
-    if method in ['gctree', 'linearham']:  # NOTE linearham seems to fail badly if there's framework insertions (well it doesn't crash, even worse it just discards them, so the output annotations are nonsense)
-        if glfo is not None:  # if you don't pass in glfo, your sequences better not have fwk insertions since gctree barfs on ambiguous bases
-            annotation = utils.get_full_copy(annotation, glfo)  # we do rewrite the annotations after adding inferred ancestors, so need to modify a copy here
-            utils.trim_fwk_insertions(glfo, annotation)  # NOTE maybe will need to reverse this or something?
+    is_fake_paired = annotation is not None and annotation.get('is_fake_paired', False)
     if seqfos is None:
         assert naive_seq is None  # can't specify it two ways
-        seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, add_sfos_for_multiplicity=method=='gctree')
+        seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, add_sfos_for_multiplicity='gctree' in method)
     elif naive_seq is not None:
         seqfos = [{'name' : naive_seq_name, 'seq' : naive_seq}] + seqfos
     elif not no_naive:  # force calling fcn to affirmatively indicate it doesn't want the naive sequence in the tree (since at one point we forget to add it, with bad consequences)
         raise Exception('not adding naive seq to seqfos (need to set no_naive)')
+    if only_pass_leaves:
+        seqfos = restrict_to_leaf_sfos(seqfos)
     uid_list = [sfo['name'] for sfo in seqfos]
     if method == 'iqtree':  # iqtree silently replaces + with _, so we have to do some translation
         translations = {}
@@ -877,6 +935,10 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 old_name = sfo['name']
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
+    if method in ['gctree', 'gctree-base', 'linearham']:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
+        padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
+        for sfo in seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
+            sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
 
@@ -892,6 +954,10 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 utils.makelink(os.path.dirname(lnk_name), os.path.abspath(parameter_dir), lnk_name)
             else:
                 utils.write_fasta(ifn(workdir), seqfos)
+                if 'gctree' in method:
+                    with open(mfn(workdir), 'w') as mfile:
+                        mfo = {'%s_%s'%(c, k) : annotation[c+'_'+k] for c in 'hl' for k in ['frame', 'offset']} if is_fake_paired else {'frame' : utils.get_frame(annotation)}  # don't need the frames unless v_5p_del - fv_insertion > 0 which shouldn't be possible on padded sequences ofrm the hmm, but it's maybe better to always pass it in, it's too much trouble to only pass in if needed
+                        json.dump(mfo, mfile)
         # # eh, turning this off for now:
         # if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
         #     print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
@@ -905,35 +971,36 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
 
     if 'run' in actions:
         if os.path.exists(ofn(workdir)):
-            print '      %s output exists, not rerunning: %s' % (method, ofn(workdir))
+            print('      %s output exists, not rerunning: %s' % (method, ofn(workdir)))
         else:
             if debug:
-                print '    running %s on %d sequences plus a naive' % (method, len(seqfos))
+                print('    running %s on %d sequences plus a naive' % (method, len(seqfos)))
             out, err = utils.simplerun(getcmd(workdir), shell=True, return_out_err=True, extra_str='            ') #debug=debug)
 
     if 'read' not in actions:
         return
 
     if debug:
-        print '      converting %s newick string to dendro tree' % method
+        print('      converting %s newick string to dendro tree' % method)
     dtree = get_dendro_tree(treefname=ofn(workdir), taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree',
                             suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
     if method == 'iqtree':
-        translate_labels(dtree, translations.items(), expect_missing=True)  # we only need to replace ones with '+'s, so in general lots will be missing
+        translate_labels(dtree, list(translations.items()), expect_missing=True)  # we only need to replace ones with '+'s, so in general lots will be missing
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
     if naive_node is not None:
         dtree.reroot_at_node(naive_node, suppress_unifurcations=False, update_bipartitions=True)
 
     removed_nodes = None
-    if not suppress_internal_node_taxa:  # fasttree and iqtree put all observed seqs as leaves, so we want to collapse zero-length leaves onto their internal node parent (if we *are* suppressing internal node taxa, we're probably calling this from clusterpath, in which case we need to mess with the internal nodes in a way that assumes they can be ignored (so we collapse zero length leaves afterwards) UPDATE i no longer understand this comment, sigh)
+    # fasttree, iqtree, and gctree put all observed seqs as leaves, so we sometimes want to collapse [near-]zero-length leaves onto their internal node parent
+    if not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
         removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name])
 
     inf_seqfos, inf_antn = [], None
-    if method in ['iqtree', 'gctree']:  # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
+    if method in ['iqtree', 'gctree', 'gctree-base']:  # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
         if method == 'iqtree':
             inf_infos, skipped_rm_nodes = {}, set()
             with open('%s/%s.state'%(workdir, outfix)) as afile:
-                reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter='\t')
+                reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'))
                 for line in reader:
                     node = line['Node']
                     if removed_nodes is not None and node in removed_nodes:
@@ -946,28 +1013,40 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             for node, nfo in inf_infos.items():
                 inf_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
             if len(skipped_rm_nodes) > 0:
-                print '      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes))
-        elif method == 'gctree':
+                print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
+        elif method in ['gctree', 'gctree-base', 'linearham']:  # haven't tested this with linearham, but it's probably ok
             gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
+            for sfo in gct_seqfos:
+                nseq, ig = [], 0
+                for pchar in padded_seq_info_list:
+                    if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
+                        nseq.append(utils.ambig_base)
+                    else:
+                        nseq.append(sfo['seq'][ig])
+                        ig += 1
+                sfo['seq'] = ''.join(nseq)
+                assert len(sfo['seq']) == len(padded_seq_info_list)
             inf_seqfos += gct_seqfos
         if debug:
-            print '      read %d inferred ancestral seqs' % len(inf_seqfos)
+            print('      read %d inferred ancestral seqs' % len(inf_seqfos))
     elif method == 'linearham':
         _, tmpantns, _ = utils.read_output(ofn(workdir, antns=True, best=True))
         inf_antn = utils.get_single_entry(tmpantns)
         _, alt_antns, _ = utils.read_output(ofn(workdir, antns=True))
         inf_antn['alternative-annotations'] = alt_antns  # atm the other place we set this key (in partitiondriver) we put different stuff in it, but that seems fine, it's just different stuff goes here from different programs
         internal_ids = [n.taxon.label for n in dtree.preorder_internal_node_iter() if n.taxon.label in inf_antn['unique_ids']]
-        print '      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids']))
+        print('      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids'])))
 
     if debug:
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
 
     if persistent_workdir is None:
         wfns = [ifn(workdir), workdir]
         if method == 'iqtree':
             wfns += ['%s/%s%s' % (workdir, outfix, s) for s in ['.log', '.state', '.mldist', '.iqtree', '.bionj', '.treefile', '.model.gz', '.ckp.gz']]  # ick
             wfns.append('%s/log'%workdir)
+        if 'gctree' in method:
+            wfns.append(mfn(workdir))
         if method == 'fasttree':
             wfns.append(ofn(workdir))
             if 'run' not in actions:
@@ -995,7 +1074,7 @@ def set_lb_values(dtree, tau, seq_len, metrics_to_calc=None, dont_normalize=Fals
     getmulti = node_mtpy if use_old_multiplicity_method else lambda x, y: 1
 
     if debug:
-        print '    setting %s values with tau %.4f' % (' and '.join(metrics_to_calc), tau)
+        print('    setting %s values with tau %.4f' % (' and '.join(metrics_to_calc), tau))
 
     initial_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
     dtree, dummy_labels = get_tree_with_dummy_branches(dtree, tau, add_dummy_multiplicity_nubs=not use_old_multiplicity_method, multifo=multifo)  # this returns a new dtree, but the old tree is a subtree of the new one (or at least its collection of nodes are), and these nodes get modified by the process (hence the reversal fcn below)
@@ -1064,7 +1143,7 @@ def set_lb_values(dtree, tau, seq_len, metrics_to_calc=None, dont_normalize=Fals
             return lstr
         # ----------------------------------------------------------------------------------------
         max_width = str(max([len(n.taxon.label) for n in dtree.postorder_node_iter()]))
-        print ('   %s      %s      multi') % (utils.wfmt('node', max_width), ''.join('%s'%utils.wfmt(m, 24 if m in ['lbr', 'lbf'] else 9, jfmt='-') for m in metrics_to_calc)) #, 16*' ' if 'lbr' in metrics_to_calc else '')
+        print(('   %s      %s      multi') % (utils.wfmt('node', max_width), ''.join('%s'%utils.wfmt(m, 24 if m in ['lbr', 'lbf'] else 9, jfmt='-') for m in metrics_to_calc))) #, 16*' ' if 'lbr' in metrics_to_calc else '')
         for node in dtree.preorder_node_iter():
             if utils.dummy_str in node.taxon.label:
                 continue
@@ -1074,7 +1153,7 @@ def set_lb_values(dtree, tau, seq_len, metrics_to_calc=None, dont_normalize=Fals
                 if node_mtpy(multifo, node) > 1:
                     multi_str = utils.color('blue', multi_str, width=3)
             lbstrs = [lbs(node, m) for m in metrics_to_calc]
-            print ('    %' + max_width + 's  %s    %3s') % (node.taxon.label, ''.join(lbstrs), multi_str)
+            print(('    %' + max_width + 's  %s    %3s') % (node.taxon.label, ''.join(lbstrs), multi_str))
 
     # this is maybe time consuming, but I want to leave the tree that was passed in as unmodified as I can (especially since I have to run this fcn twice for lbi/lbr since they need different tau values)
     for node in dtree.postorder_node_iter():
@@ -1137,8 +1216,8 @@ def get_tree_with_dummy_branches(old_dtree, tau, n_tau_lengths=10, add_dummy_lea
     new_dtree.update_bipartitions(suppress_unifurcations=False)  # not sure if I need this? (suppress_unifurcations is because otherwise it removes the branch between the old and new root nodes)
 
     if debug:
-        print '    added dummy branches to tree:'
-        print get_ascii_tree(dendro_tree=new_dtree, extra_str='      ', width=350)
+        print('    added dummy branches to tree:')
+        print(get_ascii_tree(dendro_tree=new_dtree, extra_str='      ', width=350))
 
     return new_dtree, dummy_labels
 
@@ -1149,11 +1228,11 @@ def remove_dummy_branches(dtree, initial_labels, dummy_labels, add_dummy_leaves=
     #     raise Exception('not implemented (shouldn\'t be too hard, but a.t.m. I don\'t think I\'ll need it)')
 
     if len(dtree.seed_node.child_nodes()) != 1:
-        print '  %s root node has more than one child when removing dummy branches: %s' % (utils.color('yellow', 'warning'), ' '.join([n.taxon.label for n in dtree.seed_node.child_nodes()]))
+        print('  %s root node has more than one child when removing dummy branches: %s' % (utils.color('yellow', 'warning'), ' '.join([n.taxon.label for n in dtree.seed_node.child_nodes()])))
     new_root_node = dtree.seed_node.child_nodes()[0]
     if debug:
-        print '  rerooting at %s' % new_root_node.taxon.label
-        print '            current children: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
+        print('  rerooting at %s' % new_root_node.taxon.label)
+        print('            current children: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()]))
     # NOTE if the new root has a child separated by a zero-length edge, this reroot call for some reason deletes that child from the tree (both with and without suppress_unifurcations set). After messing around a bunch to try to fix it, the message I'm taking is just that zero length branches (and unifurcations) are a bad idea and I should just forbid them
     # UPDATE I think I was just missing the suppress_unifurcations=False in update_bipartitions(), but leaving these comments here in case there was another problem
     # UPDATE actually the reroot still seems to eat a node sometimes if the tree is unrooted (so adding the extra reroot above)
@@ -1161,29 +1240,29 @@ def remove_dummy_branches(dtree, initial_labels, dummy_labels, add_dummy_leaves=
     assert dtree.is_rooted  # make sure it's rooted, to avoid unifurcations getting suppressed (even with the arg set to false)
     dtree.reroot_at_node(new_root_node, suppress_unifurcations=False)  # reroot at old root node
     if debug:
-        print '       children after reroot: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
+        print('       children after reroot: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()]))
     dtree.prune_taxa_with_labels(dummy_labels, suppress_unifurcations=False)
     dtree.purge_taxon_namespace()  # I'm sure there's a good reason the previous line doesn't do this
     dtree.update_bipartitions(suppress_unifurcations=False)
     if debug:
-        print '        children after purge: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()])
+        print('        children after purge: %s' % ' '.join([n.taxon.label for n in new_root_node.child_node_iter()]))
 
     final_labels = set([n.taxon.label for n in dtree.preorder_node_iter()])
     if initial_labels != final_labels:  # this was only happening with a zero-length node hanging off root (see above), which probably won't happen any more since I'm now removing zero length (non-leaf) branches in bcr-phylo simulator.py
-        print '    %s nodes after dummy branch addition and removal not the same as before:' % utils.color('red', 'error')
-        print '       missing: %s' % ' '.join(initial_labels - final_labels)
-        print '       extra:   %s' % ' '.join(final_labels - initial_labels)
-        print '       tree:'
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
+        print('    %s nodes after dummy branch addition and removal not the same as before:' % utils.color('red', 'error'))
+        print('       missing: %s' % ' '.join(initial_labels - final_labels))
+        print('       extra:   %s' % ' '.join(final_labels - initial_labels))
+        print('       tree:')
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400)))
         assert False  # i think it's better to crash at this point, i think i have it working reliably
 
 # ----------------------------------------------------------------------------------------
 def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=None, aa_mutations=None, quiet=False, debug=False):
     very_different_frac = 0.5
     if debug:
-        print '    converting nuc tree (mean depth %.3f) to aa' % get_mean_leaf_height(dtree)
+        print('    converting nuc tree (mean depth %.3f) to aa' % get_mean_leaf_height(dtree))
         if debug > 1:
-            print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
+            print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400)))
         changes = {}
 
     aa_dtree = copy.deepcopy(dtree)
@@ -1200,8 +1279,8 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=No
 
     skipped_edges, missing_nodes = [], set()
     if debug > 1:
-        print '          N mutations        branch length'
-        print '           nuc    aa          nuc      aa       child node'
+        print('          N mutations        branch length')
+        print('           nuc    aa          nuc      aa       child node')
     for edge in aa_dtree.preorder_edge_iter():
         if edge.tail_node is None:  # edge above root (no, i don't know why root has an edge above it, but that's how it is)
             continue
@@ -1221,28 +1300,28 @@ def get_aa_tree(dtree, annotation, extra_str=None, iclust=None, nuc_mutations=No
         if debug or n_different > 0:
             nuc_mut_frac, nuc_n_muts = utils.hamming_fraction(nuc_seqs[plabel], nuc_seqs[clabel], also_return_distance=True)
             if not quiet and nuc_mut_frac > 0 and abs(nuc_branch_length - nuc_mut_frac) / nuc_mut_frac > very_different_frac:
-                print '          %s nuc branch length %.4f and hamming frac %.4f very different (ratio %.2f) for branch between %s --> %s' % (utils.color('yellow', 'warning'), nuc_branch_length, nuc_mut_frac, nuc_branch_length / nuc_mut_frac, clabel, plabel)
+                print('          %s nuc branch length %.4f and hamming frac %.4f very different (ratio %.2f) for branch between %s --> %s' % (utils.color('yellow', 'warning'), nuc_branch_length, nuc_mut_frac, nuc_branch_length / nuc_mut_frac, clabel, plabel))
             if debug:
                 changes[edge] = (nuc_n_muts, aa_n_muts)
                 if debug > 1:
-                    print '          %3d   %3d        %.3f     %.3f      %s' % (nuc_n_muts, aa_n_muts, nuc_branch_length, aa_mut_frac, clabel)
+                    print('          %3d   %3d        %.3f     %.3f      %s' % (nuc_n_muts, aa_n_muts, nuc_branch_length, aa_mut_frac, clabel))
 
     aa_dtree.update_bipartitions(suppress_unifurcations=False)
 
     if not quiet and len(skipped_edges) > 0:
-        print '      %s get_aa_tree()%s: skipped %d/%d edges for which we didn\'t have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: %s' % (utils.color('yellow', 'warning'), '' if extra_str is None else ' %s'%extra_str, len(skipped_edges), len(list(aa_dtree.preorder_edge_iter())), ' '.join(missing_nodes))
+        print('      %s get_aa_tree()%s: skipped %d/%d edges for which we didn\'t have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: %s' % (utils.color('yellow', 'warning'), '' if extra_str is None else ' %s'%extra_str, len(skipped_edges), len(list(aa_dtree.preorder_edge_iter())), ' '.join(sorted(missing_nodes))))
     if debug:
         assert len(changes) + len(skipped_edges) + 1 == len(list(aa_dtree.preorder_edge_iter()))  # +1 is for root edge
-        print '    rescaled %d/%d edges' % (len(changes), len(list(aa_dtree.preorder_edge_iter())))
-        print '      aa tree mean depth: %.3f' % get_mean_leaf_height(aa_dtree)
+        print('    rescaled %d/%d edges' % (len(changes), len(list(aa_dtree.preorder_edge_iter()))))
+        print('      aa tree mean depth: %.3f' % get_mean_leaf_height(aa_dtree))
         n_to_print = 10
-        print '       child nodes with %d largest differences between N nuc and N aa changes' % n_to_print
-        print '          nuc    aa   parent node    child node'
+        print('       child nodes with %d largest differences between N nuc and N aa changes' % n_to_print)
+        print('          nuc    aa   parent node    child node')
         for edge in sorted(changes, key=lambda k: changes[k][1] - changes[k][0])[:n_to_print]:
             nuc_n_muts, aa_n_muts = changes[edge]
-            print '         %3d    %3d     %-15s %s' % (nuc_n_muts, aa_n_muts, edge.tail_node.taxon.label, edge.head_node.taxon.label)
+            print('         %3d    %3d     %-15s %s' % (nuc_n_muts, aa_n_muts, edge.tail_node.taxon.label, edge.head_node.taxon.label))
         if debug > 1:
-            print utils.pad_lines(get_ascii_tree(dendro_tree=aa_dtree, width=400))
+            print(utils.pad_lines(get_ascii_tree(dendro_tree=aa_dtree, width=400)))
 
     return aa_dtree
 
@@ -1256,9 +1335,9 @@ def re_index_mut_info(indexing, annotation, aa_mutations, nuc_mutations, is_fake
         mcd['str'] = '%s%s%d%s' % (tch+':' if annotation.get('is_fake_paired', False) else '', mcd['initial'], mcd['pos'], mcd['final'])
     # ----------------------------------------------------------------------------------------
     def split_h_l(mcd):
-        tch = 'h' if mcd['pos'] < annotation['l_offset']/3 else 'l'
+        tch = 'h' if mcd['pos'] < annotation['l_offset']//3 else 'l'
         mcd['chain'] = tch
-        mcd['pos'] -= annotation['%s_offset'%tch] / 3
+        mcd['pos'] -= annotation['%s_offset'%tch] // 3
         update_str(mcd, tch=tch)
     # ----------------------------------------------------------------------------------------
     if indexing == 0:
@@ -1296,10 +1375,10 @@ def collect_common_mutations(aa_mutations, nuc_mutations, is_fake_paired=False, 
                 mcounts[tkey][mtk]['nodes'].append(node_label)
     if debug:
         for tkey in mcounts:
-            print '      count   %s' % (tkeys[tkey]) #, '   chain' if annotation.get('is_fake_paired', False) else '')
-            for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
+            print('      count   %s' % (tkeys[tkey])) #, '   chain' if annotation.get('is_fake_paired', False) else '')
+            for mstr, mct in sorted(list(mcounts[tkey].items()), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
                 tch = mstr[0] if is_fake_paired else ''
-                print '       %3d   %s  %s' % (mct['count'], utils.color('blue' if tch=='h' else 'purple', tch) if is_fake_paired else '', mstr[2:] if is_fake_paired else mstr)
+                print('       %3d   %s  %s' % (mct['count'], utils.color('blue' if tch=='h' else 'purple', tch) if is_fake_paired else '', mstr[2:] if is_fake_paired else mstr))
 
     return mcounts
 
@@ -1323,19 +1402,19 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
         warnstr = utils.color('yellow', 'warning ') if len(fracs) > 0 else ''  # len(fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
             idstr = '(note that this is expected if these are single chain sequences being compared to a paired h+l tree)'
-            print '                %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s %s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str, idstr)
-            print '                    mean values:  tree depth %.3f  mfreq %.3f  diff %.3f  abs(frac diff) %.0f%%  ratio %.1f' % (numpy.mean(tdepths.values()), numpy.mean(mfreqs.values()), numpy.mean([tdepths[k] - mfreqs[k] for k in tdepths]),
+            print('                %s%stree depth and mfreq differ by more than %.0f%% for %d/%d nodes%s %s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(fracs), len(common_nodes), '' if extra_str is None else ' for %s' % extra_str, idstr))
+            print('                    mean values:  tree depth %.3f  mfreq %.3f  diff %.3f  abs(frac diff) %.0f%%  ratio %.1f' % (numpy.mean(list(tdepths.values())), numpy.mean(list(mfreqs.values())), numpy.mean([tdepths[k] - mfreqs[k] for k in tdepths]),
                                                                                                                                    100*numpy.mean([(tdepths[k] - mfreqs[k])/mfreqs[k] for k in tdepths if mfreqs[k]>0]),
-                                                                                                                                   numpy.mean([tdepths[k]/mfreqs[k] for k in tdepths if mfreqs[k]>0]))
+                                                                                                                                   numpy.mean([tdepths[k]/mfreqs[k] for k in tdepths if mfreqs[k]>0])))
         if (debug and len(fracs) > 0) or len(fracs) > 0:
-            print '          %d with highest abs(diff):' % n_to_print
-            print '            tree depth   mfreq      ratio    diff'
-            for key, adiff in sorted(abs_diffs.items(), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
-                print '              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
-            print '          %d with highest+lowest ratios:' % n_to_print
-            srats = sorted(ratios.items(), key=operator.itemgetter(1), reverse=True)
-            for key, ratio in srats[:n_to_print/2] + srats[len(srats) - n_to_print/2:]:
-                print '              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key)
+            print('          %d with highest abs(diff):' % n_to_print)
+            print('            tree depth   mfreq      ratio    diff')
+            for key, adiff in sorted(list(abs_diffs.items()), key=operator.itemgetter(1), reverse=True)[:n_to_print]:
+                print('              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key))
+            print('          %d with highest+lowest ratios:' % n_to_print)
+            srats = sorted(list(ratios.items()), key=operator.itemgetter(1), reverse=True)
+            for key, ratio in srats[:n_to_print//2] + srats[len(srats) - n_to_print//2:]:
+                print('              %.4f    %.4f     %5.1f     %.4f     %s' % (tdepths[key], mfreqs[key], 0 if mfreqs[key]==0 else tdepths[key] / mfreqs[key], tdepths[key] - mfreqs[key], key))
 
     if only_check_leaf_depths:  # the pairwise bit is slow
         return len(fracs), None
@@ -1346,7 +1425,7 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
     for n1, n2 in itertools.combinations([n for n in common_nodes if n.taxon in dmx_taxa], 2):
         tdist = dmatrix.distance(n1.taxon, n2.taxon)
         mdist = utils.hamming_fraction(utils.per_seq_val(annotation, 'seqs', n1.taxon.label), utils.per_seq_val(annotation, 'seqs', n2.taxon.label))
-        frac_diff = abs(tdist - mdist) / tdist if tdist > 0 else 0
+        frac_diff = abs(tdist - mdist) / float(tdist) if tdist > 0 else 0
         if frac_diff > max_frac_diff:
             key = (n1.taxon.label, n2.taxon.label)
             pv_tdists[key] = tdist
@@ -1355,15 +1434,15 @@ def compare_tree_distance_to_shm(dtree, annotation, max_frac_diff=0.25, only_che
     if debug or len(pw_fracs) > 0:
         warnstr = utils.color('yellow', 'warning ') if len(pw_fracs) > 0 else ''  #  if len(pw_fracs) / float(len(common_nodes)) > min_warn_frac else ''
         if debug or warnstr != '':
-            print '                %s%spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(pw_fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str)
+            print('                %s%spairwise distance from tree and sequence differ by more than %.f%% for %d/%d node pairs%s' % ('' if iclust is None else utils.color('blue', 'iclust %d: '%iclust), warnstr if warnstr!='' else utils.color('green', 'ok: '), 100*max_frac_diff, len(pw_fracs), 0.5 * len(common_nodes) * (len(common_nodes)-1), '' if extra_str is None else ' for %s' % extra_str))
         if debug and len(pw_fracs) > 0:
-            print '                  pairwise'
-            print '             tree dist  seq dist    ratio   frac diff'
-            for key, frac_diff in sorted(pw_fracs.items(), key=operator.itemgetter(1), reverse=True):
-                print '              %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / pv_mdists[key], frac_diff, key[0], key[1])
+            print('                  pairwise')
+            print('             tree dist  seq dist    ratio   frac diff')
+            for key, frac_diff in sorted(list(pw_fracs.items()), key=operator.itemgetter(1), reverse=True):
+                print('              %.4f     %.4f    %.4f    %.4f    %s  %s' % (pv_tdists[key], pv_mdists[key], pv_tdists[key] / float(pv_mdists[key]), frac_diff, key[0], key[1]))
 
     if debug > 1:
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400)))
         if 'v_3p_del' in annotation:  # hackey way to avoid trying to print the fake h+l annotation
             utils.print_reco_event(annotation)
 
@@ -1375,7 +1454,7 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
     # <iclust> is just to give a little more granularity in dbg
 
     if metrics_to_calc is None:
-        metrics_to_calc = lb_metrics.keys()
+        metrics_to_calc = list(lb_metrics.keys())
     else:
         if any(m not in lb_metrics for m in metrics_to_calc):
             raise Exception('unsupported lb metrics in %s (allowed: %s)' % (metrics_to_calc, lb_metrics))
@@ -1389,22 +1468,22 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
             raise Exception('need annotation to get sequence lengths if tau is None')
         tau = 1. / seq_len  # note that this uses the nuc seq len even if we're calculating aa lb metrics (which is what we want)
         if iclust is None or iclust == 0:
-            print '      setting default tau to 1 / %d = %.4f' % (seq_len, tau)
+            print('      setting default tau to 1 / %d = %.4f' % (seq_len, tau))
 
     if annotation is not None:  # check that the observed shm rate and tree depth are similar (we're still worried that they're different if we don't have the annotation, but we have no way to check it)
         # compare_tree_distance_to_shm(dtree, annotation, extra_str=extra_str, only_check_leaf_depths=True, debug=True)  # this used to be slow (although now we only check depths, avoiding the slow pairwise check), and turning it off for amino acid trees would require some changes, so whatever, leaving it commented for now
         if not utils.is_normed(tau * len(annotation['seqs'][0]), this_eps=0.1):  # should be within 10% at least
-            print '  %s inverse of specified tau value %.1f (tau %.4f) not equal to seq len %.1f (inverse %.4f)' % (utils.wrnstr(), 1. / tau, tau, len(annotation['seqs'][0]), 1. / len(annotation['seqs'][0]))
+            print('  %s inverse of specified tau value %.1f (tau %.4f) not equal to seq len %.1f (inverse %.4f)' % (utils.wrnstr(), 1. / tau, tau, len(annotation['seqs'][0]), 1. / len(annotation['seqs'][0])))
 
     if max(get_leaf_depths(dtree).values()) > 1:
         if annotation is None:
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong): found leaf depth greater than 1 (even when less than 1 they can be wrong, but we can be fairly certain that your BCR sequences don\'t have real mutation frequencty greater than 1, so this case we can actually check). If you pass in annotations we can rescale to the observed mutation frequencty.')
-        print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
+        print('  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning'))
         dtree.scale_edges(1. / numpy.mean([len(s) for s in annotation['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
 
     if debug:
-        print '   calculating %s%s with tree:' % (' and '.join(utils.non_none([metrics_to_calc, '?'])), '' if extra_str is None else ' for %s' % extra_str)
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400))
+        print('   calculating %s%s with tree:' % (' and '.join(utils.non_none([metrics_to_calc, '?'])), '' if extra_str is None else ' for %s' % extra_str))
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=400)))
 
     multifo = None
     if annotation is not None:
@@ -1416,7 +1495,7 @@ def calculate_lb_values(dtree, tau, metrics_to_calc=None, dont_normalize=False, 
     normstr = 'unnormalized' if dont_normalize else 'normalized'
 
     if iclust is None or iclust == 0:
-        print '    calculating %s %s%s with tau %.4f' % (normstr, ' and '.join([lb_metrics.get(m, m) for m in utils.non_none([metrics_to_calc, '?'])]), dbgstr, tau)
+        print('    calculating %s %s%s with tau %.4f' % (normstr, ' and '.join([lb_metrics.get(m, m) for m in utils.non_none([metrics_to_calc, '?'])]), dbgstr, tau))
     lbvals = set_lb_values(dtree, tau, seq_len, metrics_to_calc=metrics_to_calc, dont_normalize=dont_normalize, multifo=multifo, debug=debug)
     lbvals['tree'] = treestr
 
@@ -1445,34 +1524,35 @@ def get_clade_purity(meta_vals, sub_root_node, mval, return_bool=False, mval_cou
 # ----------------------------------------------------------------------------------------
 def find_pure_subtrees(dtree, antn, meta_key, debug=False):
     # ----------------------------------------------------------------------------------------
+    dtree.resolve_node_ages()
     if meta_key not in antn:
-        print '      %s meta key %s not in annotation' % (utils.wrnstr(), meta_key)
+        print('      %s meta key %s not in annotation' % (utils.wrnstr(), meta_key))
         return None, None
     meta_vals = {u : v for u, v in zip(antn['unique_ids'], antn[meta_key])}
     missing = set(n.taxon.label for n in dtree.preorder_node_iter()) - set(meta_vals)
     if len(missing) > 0:
-        print '    note: missing %d / %d %s values (adding as None): %s' % (len(missing), len(list(dtree.preorder_node_iter())), meta_key, ' '.join(missing))
+        print('    note: missing %d / %d %s values (adding as None): %s' % (len(missing), len(list(dtree.preorder_node_iter())), meta_key, ' '.join(missing)))
         meta_vals.update({u : None for u in missing})
     if debug:
-        print '    finding pure subtrees with meta key: %s' % meta_key
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+        print('    finding pure subtrees with meta key: %s' % meta_key)
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
     if get_clade_purity(meta_vals, dtree.seed_node, meta_vals[list(dtree.leaf_node_iter())[0].taxon.label], return_bool=True):
-        print '      %s pure root node' % utils.wrnstr()
+        print('      %s pure root node' % utils.wrnstr())
         return None, None
     subtree_nodes, subtree_stats = [], {}  # list of all [nodes defining] subtrees in <dtree> whose nodes all have the same <meta_key> value (or None), and that include all of their descendent leaves (maybe this is redundant)
     assigned_leaves = []  # leaves that we've already assigned to a subtree
     if debug:
-        print '            leaf              meta val   N nodes    other leaves  (%s: already assigned)' % utils.color('blue', '-')
+        print('            leaf              meta val   N nodes    other leaves  (%s: already assigned)' % utils.color('blue', '-'))
     for tleaf in dtree.leaf_node_iter():
         mval = meta_vals[tleaf.taxon.label]
         if mval is None:
-            print '    %s None type leaf (wtf)' % utils.wrnstr()
+            print('    %s None type leaf (wtf)' % utils.wrnstr())
             continue
         if debug:
-            print '   %20s  %10s' % (tleaf.taxon.label, mval),
+            print('   %20s  %10s' % (tleaf.taxon.label, mval), end=' ')
         if tleaf in assigned_leaves:
             if debug:
-                print '        %s' % utils.color('blue', '-')
+                print('        %s' % utils.color('blue', '-'))
             continue
         is_pure, n_steps = True, 0
         srnode = tleaf
@@ -1494,20 +1574,20 @@ def find_pure_subtrees(dtree, antn, meta_key, debug=False):
         parent_depth = srnode.parent_node.distance_from_root()
         subtree_stats[mval].append({'size' : len(obs_nodes), 'mean-root-depth' : numpy.mean(ndepths), 'mean-ancestor-distance' : numpy.mean([d - parent_depth for d in ndepths])})
         if debug:
-            print '     %4d       %s' % (len(obs_nodes), ' '.join(l.taxon.label for l in other_leaves))
+            print('     %4d       %s' % (len(obs_nodes), ' '.join(l.taxon.label for l in other_leaves)))
     all_leaves = list(dtree.leaf_node_iter())
     unasgnd_leaves = set(all_leaves) - set(assigned_leaves)
     extra_asgnd_leaves = set(assigned_leaves) - set(all_leaves)
     if len(unasgnd_leaves) > 0:
-        print '  %s didn\'t assign %d leaves: %s' % (utils.wrnstr(), len(unasgnd_leaves), ' '.join(n.taxon.label for n in unasgnd_leaves))
+        print('  %s didn\'t assign %d leaves: %s' % (utils.wrnstr(), len(unasgnd_leaves), ' '.join(n.taxon.label for n in unasgnd_leaves)))
     if len(extra_asgnd_leaves) > 0:
-        print '  %s %d extra assigned leaves: %s' % (utils.wrnstr(), len(extra_asgnd_leaves), ' '.join(n.taxon.label for n in extra_asgnd_leaves))
+        print('  %s %d extra assigned leaves: %s' % (utils.wrnstr(), len(extra_asgnd_leaves), ' '.join(n.taxon.label for n in extra_asgnd_leaves)))
     assert len(st_nodes) == len(set(st_nodes))  # make sure there aren't any duplicates
     if debug:
-        print '      found %d subtrees:' % len(subtree_nodes)
-        print '              meta val    sizes'
+        print('      found %d subtrees:' % len(subtree_nodes))
+        print('              meta val    sizes')
         for mv, tstats in subtree_stats.items():
-            print '         %10s        %s' % (mv, ' '.join([str(s) for s in sorted([s['size'] for s in tstats], reverse=True)]))
+            print('         %10s        %s' % (mv, ' '.join([str(s) for s in sorted([s['size'] for s in tstats], reverse=True)])))
     return subtree_nodes, subtree_stats
 
 # ----------------------------------------------------------------------------------------
@@ -1516,7 +1596,7 @@ def set_n_generations(seq_len, tau, n_tau_lengths, n_generations, debug=False):
         assert n_tau_lengths is not None  # have to specify one or the other
         n_generations = max(1, int(seq_len * tau * n_tau_lengths))
         if debug:
-            print '       %d generations = seq_len * tau * n_tau_lengths = %d * %.4f * %d = max(1, int(%.2f))' % (n_generations, seq_len, tau, n_tau_lengths, seq_len * tau * n_tau_lengths)
+            print('       %d generations = seq_len * tau * n_tau_lengths = %d * %.4f * %d = max(1, int(%.2f))' % (n_generations, seq_len, tau, n_tau_lengths, seq_len * tau * n_tau_lengths))
     # else:
     #     if debug:
     #         print '       %d generations' % n_generations
@@ -1554,16 +1634,16 @@ def calculate_lb_bounds(seq_len, tau, n_tau_lengths=10, n_generations=None, n_of
                 info[metric][bound] = {metric : 0., 'vals' : None}
                 continue
             if debug:
-                print '    %s %s for seq len %d' % (utils.color('red', bound), utils.color('yellow', metric), seq_len)
+                print('    %s %s for seq len %d' % (utils.color('red', bound), utils.color('yellow', metric), seq_len))
             start = time.time()
             dtree = get_tree_for_lb_bounds(bound, metric, seq_len, tau, n_generations, n_offspring, debug=debug)
             label_nodes(dtree)
             lbvals = calculate_lb_values(dtree, tau, metrics_to_calc=[metric], dont_normalize=True, debug=debug)
             bfcn = __builtins__[bound]  # min() or max()
-            info[metric][bound] = {metric : bfcn(lbvals[metric].values()), 'vals' : lbvals}
+            info[metric][bound] = {metric : bfcn(list(lbvals[metric].values())), 'vals' : lbvals}
             if debug:
-                bname, bval = bfcn(lbvals[metric].items(), key=operator.itemgetter(1))
-                print '     %s of %d %s values (%.1fs): %s  %.4f' % (bound, len(lbvals[metric]), metric, time.time() - start, bname, bval)
+                bname, bval = bfcn(list(lbvals[metric].items()), key=operator.itemgetter(1))
+                print('     %s of %d %s values (%.1fs): %s  %.4f' % (bound, len(lbvals[metric]), metric, time.time() - start, bname, bval))
 
     return info
 
@@ -1604,14 +1684,14 @@ def get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, n
             chosen_edge = ancestor_edge
             break
         if debug:
-            print '     %12s %5s %12s %2d %8.4f %9.4f   %s' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.color('yellow', '?') if ancestor_node is dtree.seed_node else '')
+            print('     %12s %5s %12s %2d %8.4f %9.4f   %s' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.color('yellow', '?') if ancestor_node is dtree.seed_node else ''))
         n_steps += 1
         branch_len += ancestor_edge.length
 
     if chosen_edge is None:
         return (None, None) if also_return_branch_len else None
     if debug:
-        print '     %12s %5s %12s %2d %8.4f %9.4f%+9.4f' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.per_seq_val(line, 'affinities', chosen_edge.head_node.taxon.label, default_val=float('nan')) - ancestor_affinity)  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
+        print('     %12s %5s %12s %2d %8.4f %9.4f%+9.4f' % ('', '', ancestor_uid, n_steps, branch_len, ancestor_affinity, utils.per_seq_val(line, 'affinities', chosen_edge.head_node.taxon.label, default_val=float('nan')) - ancestor_affinity))  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
     if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
         return n_steps, branch_len
     else:
@@ -1647,7 +1727,7 @@ def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line,
                 branch_len = get_branch_length(cedge)
                 break
             if debug and not found:
-                print '     %12s %5s %12s %2d %8.4f %9.4f  %s' % ('', '', cnode.taxon.label, -n_steps, -get_branch_length(cedge), child_affinity, utils.color('yellow', ' ?') if all(c.is_leaf() for c in child_nodes) else '')
+                print('     %12s %5s %12s %2d %8.4f %9.4f  %s' % ('', '', cnode.taxon.label, -n_steps, -get_branch_length(cedge), child_affinity, utils.color('yellow', ' ?') if all(c.is_leaf() for c in child_nodes) else ''))
         if found:
             break
         n_steps += 1
@@ -1655,7 +1735,7 @@ def get_n_descendents_to_affy_increase(affy_increasing_edges, node, dtree, line,
     if chosen_edge is None:
         return (None, None) if also_return_branch_len else None
     if debug:
-        print '     %12s %5s %12s %+2d %8.4f %9.4f%+9.4f' % ('', '', cnode.taxon.label, -n_steps, -branch_len, child_affinity, child_affinity - utils.per_seq_val(line, 'affinities', chosen_edge.tail_node.taxon.label, default_val=float('nan')))  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
+        print('     %12s %5s %12s %+2d %8.4f %9.4f%+9.4f' % ('', '', cnode.taxon.label, -n_steps, -branch_len, child_affinity, child_affinity - utils.per_seq_val(line, 'affinities', chosen_edge.tail_node.taxon.label, default_val=float('nan'))))  # NOTE the latter can be negative now, since unlike the old fcn (below) we're just looking for an edge where affinity increased (rather than a node with lower affinity than the current one)
     if also_return_branch_len:  # kind of hackey, but we only want the branch length for plotting atm, and actually we aren't even making those plots by default any more
         return n_steps, branch_len
     else:
@@ -1667,7 +1747,7 @@ def get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, als
     assert also_return_branch_len
     if debug:
         aval = utils.per_seq_val(line, 'affinities', node.taxon.label)
-        print '     %12s  %5.3f%12s %2s %8s %s' % (node.taxon.label, lbval, '', '', '', '%9.4f'%aval if aval is not None else '?')
+        print('     %12s  %5.3f%12s %2s %8s %s' % (node.taxon.label, lbval, '', '', '', '%9.4f'%aval if aval is not None else '?'))
     n_ance, ance_branch_len = get_n_ancestors_to_affy_increase(affy_increasing_edges, node, dtree, line, also_return_branch_len=also_return_branch_len, debug=debug)
     n_desc, desc_branch_len = None, None
     if not only_look_upwards:
@@ -1686,7 +1766,7 @@ def get_min_steps_to_affy_increase(affy_increasing_edges, node, dtree, line, als
         else:
             nstr = utils.color(('red' if n_steps==0 else 'purple') if n_steps>=0 else 'blue', '%+2d'%n_steps)
             bstr = '%+7.4f' % blen
-        print '     %12s %5s %12s %3s  %s' % ('', '', '', nstr, bstr)
+        print('     %12s %5s %12s %3s  %s' % ('', '', '', nstr, bstr))
     return n_steps, blen
 
 # ----------------------------------------------------------------------------------------
@@ -1770,7 +1850,7 @@ def build_lonr_tree(edgefos, debug=False):
         raise Exception('too many effective root nodes: %s' % effective_root_nodes)
     root_label = list(effective_root_nodes)[0]  # should be '1' for dnapars
     if debug:
-        print '      chose \'%s\' as root node' % root_label
+        print('      chose \'%s\' as root node' % root_label)
     tns = dendropy.TaxonNamespace(all_nodes)
     root_node = dendropy.Node(taxon=tns.get_taxon(root_label))  # NOTE this sets node.label and node.taxon.label to the same thing, which may or may not be what we want  # label=root_label,    (if you start setting the node labels again, you also have to translate them below)
     dtree = dendropy.Tree(taxon_namespace=tns, seed_node=root_node, is_rooted=True)
@@ -1787,18 +1867,18 @@ def build_lonr_tree(edgefos, debug=False):
         for lnode in dtree.leaf_node_iter():
             children = [efo for efo in edgefos if efo['from'] == lnode.taxon.label]
             if debug > 1 and len(children) > 0:
-                print '    adding children to %s:' % lnode.taxon.label
+                print('    adding children to %s:' % lnode.taxon.label)
             for chfo in children:
                 lnode.new_child(taxon=tns.get_taxon(chfo['to']), edge_length=chfo[weight_or_distance_key])  # label=chfo['to'],   (if you start setting the node labels again, you also have to translate them below)
                 remaining_nodes.remove(chfo['to'])
                 n_removed += 1
                 if debug > 1:
-                    print '              %s' % chfo['to']
+                    print('              %s' % chfo['to'])
         if debug > 1:
-            print '  remaining: %d' % len(remaining_nodes)
+            print('  remaining: %d' % len(remaining_nodes))
         if len(remaining_nodes) > 0 and n_removed == 0:  # if there's zero remaining, we're just about to break anyway
             if debug > 1:
-                print '  didn\'t remove any, so breaking: %s' % remaining_nodes
+                print('  didn\'t remove any, so breaking: %s' % remaining_nodes)
             break
 
     return dtree
@@ -1808,17 +1888,17 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
     def get_node_type_from_name(name, debug=False):  # internal nodes in simulated trees should be labeled like 'mrca-<stuff>' (has to correspond to what bcr-phylo-benchmark did)
         if 'mrca' in name:
             return 'internal'
-        elif 'leaf' in name:
+        elif 'leaf' in name or 'int' in name:
             return 'leaf'
         else:
             if debug:
-                print '    not sure of node type for \'%s\'' % name
+                print('    not sure of node type for \'%s\'' % name)
             return None
 
     # get lonr names (lonr replaces them with shorter versions, I think because of phylip)
     lonr_names, input_names = {}, {}
     with open(outdir + '/' + lonr_files['names.fname']) as namefile:  # headers: "head	head2"
-        reader = csv.DictReader(namefile, delimiter='\t')
+        reader = csv.DictReader(namefile, delimiter=str('\t'))
         for line in reader:
             if line['head'][0] != 'L' and line['head'] != naive_seq_name:  # internal node
                 dummy_int = int(line['head'])  # check that it's just a (string of a) number
@@ -1833,7 +1913,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
     # read edge info (i.e., implicitly, the tree that lonr.r used)
     edgefos = []  # headers: "from    to      weight  distance"
     with open(outdir + '/' + lonr_files['edgefname']) as edgefile:
-        reader = csv.DictReader(edgefile, delimiter='\t')
+        reader = csv.DictReader(edgefile, delimiter=str('\t'))
         for line in reader:
             line['distance'] = int(line['distance'])
             line['weight'] = float(line['weight'])
@@ -1848,7 +1928,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
         # node.label = node.taxon.label  #   (if you start setting the node labels again, you also have to translate them here)
 
     if debug:
-        print utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250))
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree, width=250)))
 
     nodefos = {node.taxon.label : {} for node in dtree.postorder_node_iter()}  # info for each node (internal and leaf), destined for output
 
@@ -1863,15 +1943,15 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
             if label not in input_seqfo_dict:
                 raise Exception('leaf node \'%s\' not found in input seqs' % label)
             if seqfos[label] != input_seqfo_dict[label]:
-                print 'input: %s' % input_seqfo_dict[label]
-                print ' lonr: %s' % utils.color_mutants(input_seqfo_dict[label], seqfos[label], align=True)
+                print('input: %s' % input_seqfo_dict[label])
+                print(' lonr: %s' % utils.color_mutants(input_seqfo_dict[label], seqfos[label], align=True))
                 raise Exception('lonr leaf sequence doesn\'t match input sequence (see above)')
         nodefos[label]['seq'] = seqfos[label]
 
     # read actual lonr info
     lonrfos = []
     if debug:
-        print '     pos  mutation   lonr   syn./a.b.d.    parent   child'
+        print('     pos  mutation   lonr   syn./a.b.d.    parent   child')
     with open(outdir + '/' + lonr_files['lonrfname']) as lonrfile:  # heads: "mutation,LONR,mutation.type,position,father,son,flag"
         reader = csv.DictReader(lonrfile)
         for line in reader:
@@ -1885,8 +1965,8 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
             pos = int(line['position']) - 1  # switch from one- to zero-indexing
             child_seq = nodefos[child_name]['seq']
             if parent_seq[pos] != mutation[0] or child_seq[pos] != mutation[1]:
-                print 'parent: %s' % parent_seq
-                print ' child: %s' % utils.color_mutants(parent_seq, child_seq, align=True)
+                print('parent: %s' % parent_seq)
+                print(' child: %s' % utils.color_mutants(parent_seq, child_seq, align=True))
                 raise Exception('mutation info (%s at %d) doesn\'t match sequences (see above)' % (mutation, pos))
 
             lonrfos.append({
@@ -1900,18 +1980,18 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
             })
             if debug:
                 lfo = lonrfos[-1]
-                print '     %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child'])
+                print('     %3d     %2s     %5.2f     %s / %s        %4s      %-20s' % (lfo['position'], lfo['mutation'], lfo['lonr'], 'x' if lfo['synonymous'] else ' ', 'x' if lfo['affected_by_descendents'] else ' ', lfo['parent'], lfo['child']))
 
     # check for duplicate nodes (not sure why lonr.r kicks these, but I should probably collapse them at some point)
     # in simulation, we sample internal nodes, but then lonr.r's tree construction forces these to be leaves, but then frequently they're immediately adjacent to internal nodes in lonr.r's tree... so we try to collapse them
-    duplicate_groups = utils.group_seqs_by_value(nodefos.keys(), keyfunc=lambda q: nodefos[q]['seq'])
+    duplicate_groups = utils.group_seqs_by_value(list(nodefos.keys()), keyfunc=lambda q: nodefos[q]['seq'])
     duplicate_groups = [g for g in duplicate_groups if len(g) > 1]
     if len(duplicate_groups) > 0:
         n_max = 15
         dbg_str = ',  '.join([' '.join(g) for g in duplicate_groups[:n_max]])  # only print the first 15 of 'em, if there's more
         if len(duplicate_groups) > n_max:
             dbg_str += utils.color('blue', ' [...]')
-        print '    collapsing %d groups of nodes with duplicate sequences (probably just internal nodes that were renamed by lonr.r): %s' % (len(duplicate_groups), dbg_str)
+        print('    collapsing %d groups of nodes with duplicate sequences (probably just internal nodes that were renamed by lonr.r): %s' % (len(duplicate_groups), dbg_str))
     for dgroup in duplicate_groups:
         non_phylip_names = [n for n in dgroup if get_node_type_from_name(n) is not None]
         if len(non_phylip_names) == 0:  # and phylip internal node names are of form str(<integer>), so just choose the first alphabetically, because whatever
@@ -1965,12 +2045,12 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
                 edgefos.append({'from' : node.taxon.label, 'to' : edge.head_node.taxon.label, 'weight' : edge.length})
         existing_edgefname = workdir + '/edges.csv'
         existing_node_seqfname = workdir + '/infered-node-seqs.fa'
-        with open(existing_edgefname, 'w') as edgefile:
+        with open(existing_edgefname, utils.csv_wmode()) as edgefile:
             writer = csv.DictWriter(edgefile, ('from', 'to', 'weight'))
             writer.writeheader()
             for line in edgefos:
                 writer.writerow(line)
-        with open(existing_node_seqfname, 'w') as node_seqfile:
+        with open(existing_node_seqfname, utils.csv_wmode()) as node_seqfile:
             writer = csv.DictWriter(node_seqfile, ('head', 'seq'))
             writer.writeheader()
             for sfo in utils.read_fastx(phylip_seqfile):
@@ -1990,8 +2070,8 @@ def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=
     ]
     outstr, errstr = utils.run_r(rcmds, workdir, extra_str='      ', return_out_err=True, debug=debug)
     if debug:
-        print utils.pad_lines(outstr)
-        print utils.pad_lines(errstr)
+        print(utils.pad_lines(outstr))
+        print(utils.pad_lines(errstr))
 
     os.remove(input_seqfile)
     if phylip_treefile is not None:
@@ -2014,7 +2094,7 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     os.makedirs(workdir)
 
     if debug:
-        print '  %s' % utils.color('green', 'lonr:')
+        print('  %s' % utils.color('green', 'lonr:'))
     run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, phylip_treefile=phylip_treefile, phylip_seqfile=phylip_seqfile, seed=seed, debug=debug)
     lonr_info = parse_lonr(workdir, input_seqfos, naive_seq_name, reco_info=reco_info, debug=debug)
 
@@ -2031,12 +2111,12 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
         assert reco_info is not None
         true_partition = utils.get_partition_from_reco_info(reco_info)
-        print '    using %d true clusters to calculate inferred selection metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True)))
+        print('    using %d true clusters to calculate inferred selection metrics (sizes: %s)' % (len(true_partition), ' '.join(str(l) for l in sorted([len(c) for c in true_partition], reverse=True))))
         if len(annotations) != len(true_partition):
-            print '  %s different length true %d and inferred %d partitions when trying to match up clusters for use_true_clusters' % (utils.wrnstr(), len(true_partition), len(annotations))
+            print('  %s different length true %d and inferred %d partitions when trying to match up clusters for use_true_clusters' % (utils.wrnstr(), len(true_partition), len(annotations)))
         if debug:
-            print '      choosing    N        N       N         frac       (N chosen)'
-            print '       from     true  & chosen = in common  in common   (w/out duplicates)'
+            print('      choosing    N        N       N         frac       (N chosen)')
+            print('       from     true  & chosen = in common  in common   (w/out duplicates)')
         inf_lines_to_use, true_lines_to_use = [], []
         chosen_ustrs = set()  # now that we're using the fraction instead of the raw total, we mostly shouldn't get multiple true clusters corresponding to the same inferred cluster, but maybe it'll still happen occasionally
         for cluster in true_partition:
@@ -2054,15 +2134,15 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
             if max_frac_in_common < min_overlap_fraction:
                 raise Exception('overlap fraction %.3f too small: for true cluster (size %d), highest was for inferred cluster with size %d (%d including duplicates). Maybe need to set --simultaneous-true-clonal-seqs (if you did set --simultaneous-true-clonal-seqs, you probably need to set --no-indels, i.e. a true cluster got split apart because of incorrect indel calls).' % (max_frac_in_common, len(cluster), len(annotations[ustr_to_use]['unique_ids']), len(utils.uids_and_dups(annotations[ustr_to_use]))))
             if debug:
-                print '      %4d     %4d     %4d     %4d        %4.2f        (%d)' % (len(set(annotations) - chosen_ustrs), len(cluster), len(utils.uids_and_dups(annotations[ustr_to_use])), n_max_in_common, max_frac_in_common, len(annotations[ustr_to_use]['unique_ids']))
+                print('      %4d     %4d     %4d     %4d        %4.2f        (%d)' % (len(set(annotations) - chosen_ustrs), len(cluster), len(utils.uids_and_dups(annotations[ustr_to_use])), n_max_in_common, max_frac_in_common, len(annotations[ustr_to_use]['unique_ids'])))
             if max_frac_in_common < 1:
-                print '            note: couldn\'t find an inferred cluster that corresponded exactly to the true cluster (best was %d & %d = %d (frac %.2f), where the inferred includes %d duplicates)' % (len(utils.uids_and_dups(annotations[ustr_to_use])), len(cluster), n_max_in_common, max_frac_in_common, utils.n_dups(annotations[ustr_to_use]))
+                print('            note: couldn\'t find an inferred cluster that corresponded exactly to the true cluster (best was %d & %d = %d (frac %.2f), where the inferred includes %d duplicates)' % (len(utils.uids_and_dups(annotations[ustr_to_use])), len(cluster), n_max_in_common, max_frac_in_common, utils.n_dups(annotations[ustr_to_use])))
             if ustr_to_use in chosen_ustrs:
                 raise Exception('chose the same inferred cluster to correspond to two different true clusters')
             chosen_ustrs.add(ustr_to_use)
             inf_lines_to_use.append(annotations[ustr_to_use])
     else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
-        inf_lines_to_use = annotations.values()  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
+        inf_lines_to_use = list(annotations.values())  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
         if only_use_best_partition:
             assert cpath is not None and cpath.i_best is not None
             inf_lines_to_use = [l for l in inf_lines_to_use if l['unique_ids'] in cpath.partitions[cpath.i_best]]
@@ -2073,7 +2153,7 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
                 iseqs_to_keep = [i for i, a in enumerate(line['affinities']) if a is not None]
                 if len(iseqs_to_keep) == 0:
                     continue
-                print '  keeping %d/%d' % (len(iseqs_to_keep), len(line['unique_ids']))
+                print('  keeping %d/%d' % (len(iseqs_to_keep), len(line['unique_ids'])))
                 new_line = copy.deepcopy(line)  # *really* don't want to modify the annotations from partitiondriver
                 utils.restrict_to_iseqs(new_line, iseqs_to_keep, glfo)
                 tmplines.append(new_line)
@@ -2088,13 +2168,14 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
 # ----------------------------------------------------------------------------------------
 def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, queries_to_include=None,
                       paired=False, debug=False):
-    reqd_args = [('selection_metric_plot_cfg', None), ('slice_bin_fname', None), ('queries_to_include', None), ('label_tree_nodes', False), ('label_root_node', False), ('affinity_key', None)]
+    reqd_args = [('selection_metric_plot_cfg', None), ('slice_bin_fname', None), ('queries_to_include', None), ('label_tree_nodes', False), ('label_root_node', False),
+                 ('affinity_key', None), ('sub_plotdir', None), ('tree_inference_method', None), ('node_label_regex', None)]
     for marg, dval in [(a, v) for a, v in reqd_args if not hasattr(args, a)]:  # "required" args, just so when i add an arg to bin/partis i don't also have to add it to smetric-run.py
         setattr(args, marg, dval)
 
     assert not include_relative_affy_plots  # would need updating
-    import plotting
-    import lbplotting
+    from . import plotting
+    from . import lbplotting
     start = time.time()
     if inf_annotations is not None:
         assert is_simu
@@ -2107,9 +2188,9 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
         affy_label = args.affinity_key
         tmplines = [l for l in antn_list if args.affinity_key in l]
         if len(tmplines) == 0:
-            print '  %s --affinity-key \'%s\' doesn\'t occur in any of the %d annotations' % (utils.wrnstr(), args.affinity_key, len(antn_list))
+            print('  %s --affinity-key \'%s\' doesn\'t occur in any of the %d annotations' % (utils.wrnstr(), args.affinity_key, len(antn_list)))
         if any('affinities' in l for l in tmplines):
-            print '  %s overwriting existing \'affinities\' values with --affinity-key \'%s\'' % (utils.wrnstr(), args.affinity_key)
+            print('  %s overwriting existing \'affinities\' values with --affinity-key \'%s\'' % (utils.wrnstr(), args.affinity_key))
         for atn in tmplines:
             atn['affinities'] = atn[args.affinity_key]
         if args.invert_affinity:
@@ -2122,13 +2203,13 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
             atn['affinities'] = [None for _ in atn['unique_ids']]
     has_trees = is_simu or any(tk in l['tree-info']['lb'] for l in antn_list for tk in ['tree', 'aa-tree'])
     if is_simu and (not has_affinities or all(affy is None for affy in antn_list[0]['affinities'])):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
-        print '      %s no affinity information in this simulation, so can\'t plot lb/affinity' % utils.color('yellow', 'note')
+        print('      %s no affinity information in this simulation, so can\'t plot lb/affinity' % utils.color('yellow', 'note'))
         return
 
     if args.sub_plotdir is not None:
         plotdir = '%s/%s' % (plotdir, args.sub_plotdir)
-    print '    plotting selection metrics to %s' % plotdir
-    utils.prep_dir(plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=lb_metrics.keys())
+    print('    plotting selection metrics to %s' % plotdir)
+    utils.prep_dir(plotdir, wildlings=['*.svg', '*.html'], allow_other_files=True, subdirs=list(lb_metrics.keys()))
     fnames = lbplotting.add_fn(None, init=True)
 
     if has_affinities:
@@ -2175,19 +2256,19 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     if args.affinity_key is not None:
         for atn in tmplines:
             del atn['affinities']
-    print '    selection metric plotting time: %.1f sec' % (time.time() - start)
+    print('    selection metric plotting time: %.1f sec' % (time.time() - start))
 
 # ----------------------------------------------------------------------------------------
 def check_lb_values(line, lbvals):
     for metric in [m for m in lbvals if m in lb_metrics]:
-        missing = set(line['unique_ids']) - set(lbvals[metric])
+        missing = sorted(set(line['unique_ids']) - set(lbvals[metric]))
         if len(missing) > 0:  # we expect to get extra ones in the tree, for inferred ancestral nodes for which we don't have sequences, but missing ones probabliy indicate something's up
             # raise Exception('uids in annotation not the same as lb info keys\n    missing: %s\n    extra: %s' % (' '.join(set(line['unique_ids']) - set(lbvals[metric])), ' '.join(set(lbvals[metric]) - set(line['unique_ids']))))
-            extra = set(lbvals[metric]) - set(line['unique_ids'])
-            common = set(line['unique_ids']) & set(lbvals[metric])
-            print '    %s %s uids in annotation not the same as lb info keys for \'%s\':  %d missing from lb info  %d extra in lb info  (%d in common)'  % (utils.color('red', 'error'), utils.color('blue', metric), metric, len(missing), len(extra), len(common))
+            extra = sorted(set(lbvals[metric]) - set(line['unique_ids']))
+            common = sorted(set(line['unique_ids']) & set(lbvals[metric]))
+            print('    %s %s uids in annotation not the same as lb info keys for \'%s\':  %d missing from lb info  %d extra in lb info  (%d in common)'  % (utils.color('red', 'error'), utils.color('blue', metric), metric, len(missing), len(extra), len(common)))
             if len(missing) + len(extra) < 35:
-                print '      missing from lb info: %s\n      missing from annotation: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common))
+                print('      missing from lb info: %s\n      missing from annotation: %s\n      common: %s' % (' '.join(missing), ' '.join(extra), ' '.join(common)))
 
 # ----------------------------------------------------------------------------------------
 def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
@@ -2195,31 +2276,33 @@ def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
         return
     if min(cluster_indices) < 0 or max(cluster_indices) >= ntot:
         raise Exception('invalid cluster indices %s for partition with %d clusters' % (cluster_indices, ntot))
-    print '      restricting to cluster indices %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices))
+    print('      restricting to cluster indices %s (size%s %s)' % (' '.join(str(i) for i in cluster_indices), utils.plural(len(cluster_indices)), ' '.join(str(len(inf_lines_to_use[i]['unique_ids'])) for i in cluster_indices)))
 
 # ----------------------------------------------------------------------------------------
 # NOTE partially duplicates lbplotting.get_tree_in_line()
 def get_treefos(args, antn_list, cpath=None, glfo=None, debug=False):  # note that <antn_list> is expected to have None values (in order to ensure iclust values stay consistent)
     if not args.is_data and any('tree' not in l for l in antn_list if l is not None):
-        print '  %s true tree missing from at least one annotation, but --is-simu was set (probably bcr-phylo simulation with multiple gc rounds, where we remove the tree since it\'s no longer correct [need to implement tree merging for multiple rounds])' % utils.wrnstr()
+        print('  %s true tree missing from at least one annotation, but --is-simu was set (probably bcr-phylo simulation with multiple gc rounds, where we remove the tree since it\'s no longer correct [need to implement tree merging for multiple rounds])' % utils.wrnstr())
     if args.is_data and any('tree' in l for l in antn_list if l is not None):
-        print '  %s true tree in at least one annotation, but --is-simu was not set (so we\'re not using it)' % utils.wrnstr()
+        print('  %s true tree in at least one annotation, but --is-simu was not set (so we\'re not using it)' % utils.wrnstr())
 
     if any('tree' in l for l in antn_list if l is not None) and not args.is_data:
         treefos = [{'tree' : get_dendro_tree(treestr=l['tree'])} if l is not None else None for l in antn_list]  # needs to be same length as antn_list
-        print '    using true trees'
+        print('    using true trees')
     elif any('tree-info' in l and 'lb' in l['tree-info'] and 'tree' in l['tree-info']['lb'] for l in antn_list if l is not None):  # this block may need testing
         treefos = [{'tree' : get_dendro_tree(treestr=l['tree-info']['lb']['tree'])} if l is not None else None for l in antn_list]  # needs to be same length as antn_list
-        print '    using existing inferred trees in lb info'
+        print('    using existing inferred trees in lb info')
     else:
         treefos = get_trees_for_annotations(antn_list, treefname=args.treefname, cpath=cpath, workdir=args.workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
-                                            inf_outdir=args.tree_inference_outdir, glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, debug=debug)
+                                            inf_outdir=args.tree_inference_outdir, glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir,
+                                            linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, only_pass_leaves=args.infer_trees_with_only_leaves, debug=debug)
     return treefos
 
 # ----------------------------------------------------------------------------------------
 # gets new tree for each specified annotation, and adds a new 'tree-info' key for each (overwriting any that's already there)
 # NOTE <inf_lines_to_use> should be *all* your annotations (so the subclust workdirs are correct), *not* just one cluster at a time
-def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None, glfo=None, parameter_dir=None, linearham_dir=None, min_cluster_size=4, seed_id=None, debug=False):
+def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None,
+                              glfo=None, parameter_dir=None, linearham_dir=None, min_cluster_size=4, seed_id=None, only_pass_leaves=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def addtree(iclust, dtree, origin):
         treefos[iclust] = {'tree' : dtree, 'origin' : origin}
@@ -2230,14 +2313,14 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         return '%s/%s/iclust-%d' % (inf_outdir, tree_inference_method, iclust)
     # ----------------------------------------------------------------------------------------
     if tree_inference_method == 'linearham' and any(l.get('is_fake_paired', False) for l in inf_lines_to_use):
-        print '  %s can\'t run linearham on fake paired annotations, returning' % utils.wrnstr()
+        print('  %s can\'t run linearham on fake paired annotations, returning' % utils.wrnstr())
         return [None for _ in inf_lines_to_use]
     if cluster_indices is not None and len(cluster_indices) == 0:
-        print '  %s empty cluster indices list when getting trees' % utils.wrnstr()
+        print('  %s empty cluster indices list when getting trees' % utils.wrnstr())
         return [None for _ in inf_lines_to_use]
     ntot = len(inf_lines_to_use)
     large_lines = [l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size]  # this is just used for dbg atm, but should probably use it in the loop below as well
-    print '    getting trees for %d cluster%s with size%s: %s' % (len(large_lines), utils.plural(len(large_lines)), utils.plural(len(large_lines)), ' '.join(str(len(l['unique_ids'])) for l in large_lines))
+    print('    getting trees for %d cluster%s with size%s: %s' % (len(large_lines), utils.plural(len(large_lines)), utils.plural(len(large_lines)), ' '.join(str(len(l['unique_ids'])) for l in large_lines)))
     filetrees = None
     if treefname is not None:
         filetrees = []
@@ -2245,9 +2328,9 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             dtree = get_dendro_tree(treestr=treestr, debug=False)  # , ignore_existing_internal_node_labels=ignore_existing_internal_node_labels  # maybe i'll need this again in future?
             treeids = set([n.taxon.label for n in dtree.preorder_node_iter()])
             filetrees.append({'tree' : dtree, 'ids' : treeids})
-        print '      read %d trees from %s' % (len(filetrees), treefname)
+        print('      read %d trees from %s' % (len(filetrees), treefname))
     check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
-    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in [('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr')] + [(m, 'ran %s'%m) for m in ('fasttree', 'iqtree', 'gctree', 'linearham')]}
+    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in [('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr')] + [(m, 'ran %s'%m) for m in ('fasttree', 'iqtree', 'gctree', 'gctree-base', 'linearham')]}
     n_already_there, n_skipped_uid, n_skipped_line, n_skipped_size = 0, 0, 0, 0
     cmdfos, treefos = [None for _ in inf_lines_to_use], [None for _ in inf_lines_to_use]
     for iclust, line in enumerate(inf_lines_to_use):
@@ -2260,10 +2343,10 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             n_skipped_size += 1
             continue
         if debug:
-            print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
+            print('  %s sequence cluster' % utils.color('green', str(len(line['unique_ids']))))
         if 'tree-info' in line:  # overwrite any existing trees (although we could go back to skipping them) NOTE doesn't rerun gctree or iqtree though if the output files are already there
             if debug:
-                print '       %s overwriting tree that was already in <line>' % utils.color('yellow', 'warning')
+                print('       %s overwriting tree that was already in <line>' % utils.color('yellow', 'warning'))
             n_already_there += 1
         if treefname is not None:  # this assumes all trees are in the file, but i guess we could also just see if some are there and get the others ourselves
             uids_in_common = set()
@@ -2276,7 +2359,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             if len(uids_in_common) == 0:
                 dtree = None  # can't continue here since we want to increment tree_origin_counts
                 origin = 'no-uids'
-                print '  %s no uids in common between line and any trees from %s (line ids: %s)' % (utils.wrnstr(), treefname, ' '.join(line['unique_ids']))
+                print('  %s no uids in common between line and any trees from %s (line ids: %s)' % (utils.wrnstr(), treefname, ' '.join(line['unique_ids'])))
         elif False:  # use_liberman_lonr_tree:  # NOTE see issues/notes in bin/lonr.r
             lonr_info = calculate_liberman_lonr(line=line, reco_info=reco_info, debug=debug)
             dtree = get_dendro_tree(treestr=lonr_info['tree'])
@@ -2285,10 +2368,10 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         elif tree_inference_method == 'cpath': #tree_inference_method is None and cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
             dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
             origin = 'cpath'
-        elif tree_inference_method in ['fasttree', 'iqtree', 'gctree', 'linearham', None]:
+        elif tree_inference_method in ['fasttree', 'iqtree', 'gctree', 'gctree-base', 'linearham', None]:
             if tree_inference_method is None:
                 tree_inference_method = 'fasttree'  # ick
-            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
+            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
             dtree = None
             origin = tree_inference_method
         else:
@@ -2305,19 +2388,22 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         start = time.time()
         cfos_to_run = [c for c in cmdfos if c is not None and not os.path.exists(c['outfname'])]  # NOTE indices will no longer correspond to inf_lines_to_use
         if len(cfos_to_run) > 0:
-            print '      starting %d jobs' % len(cfos_to_run)
+            existing_cfos = [c for c in cmdfos if c is not None and os.path.exists(c['outfname'])]
+            if len(existing_cfos) > 0:
+                print('      %d tree output file%s already there, not rerunning (e.g. %s)' % (len(existing_cfos), utils.plural(len(existing_cfos)), existing_cfos[0]['outfname']))
+            print('      starting %d jobs' % len(cfos_to_run))
             for cfo in cfos_to_run:
-                print '        %s %s' % (utils.color('red', 'run'), cfo['cmd_str'])
+                print('        %s %s' % (utils.color('red', 'run'), cfo['cmd_str']))
             utils.run_cmds(cfos_to_run, n_max_procs=utils.auto_n_procs(), proc_limit_str=os.path.basename(cmdfos[0]['cmd_str'].split()[0]), debug='write')
-            print '      made %d %s trees (%.1fs)' % (len(cfos_to_run), tree_inference_method, time.time() - start)
+            print('      made %d %s trees (%.1fs)' % (len(cfos_to_run), tree_inference_method, time.time() - start))
         else:
-            print '      all %s outputs exist, not rerunning (e.g. %s)' % (tree_inference_method, [c['outfname'] for c in cmdfos if c is not None and os.path.exists(c['outfname'])][0])
+            print('      all %s outputs exist, not rerunning (e.g. %s)' % (tree_inference_method, [c['outfname'] for c in cmdfos if c is not None and os.path.exists(c['outfname'])][0]))
         assert len(inf_lines_to_use) == len(cmdfos)
         for iclust, (line, cfo) in enumerate(zip(inf_lines_to_use, cmdfos)):
             if cfo is None:
                 continue
-            dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, debug=debug)
-            if tree_inference_method in ['iqtree', 'gctree']:
+            dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)
+            if tree_inference_method in ['iqtree', 'gctree', 'gctree-base']:
                 utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, debug=debug)
             elif tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
                 for mkey in [k for k in utils.input_metafile_keys.values() if k in line]:  # have to copy over any input meta keys
@@ -2325,15 +2411,15 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
                 inf_lines_to_use[iclust] = inf_antn
             addtree(iclust, dtree, tree_inference_method)
 
-    print '    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0)
+    print('    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0))
     if n_skipped_uid > 0:
-        print '    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, len(inf_lines_to_use), treefname)
+        print('    skipped %d/%d clusters that had no uids in common with tree in %s' % (n_skipped_uid, len(inf_lines_to_use), treefname))
     if n_already_there > 0:
-        print '    %s overwriting %d / %d that already had trees' % (utils.color('yellow', 'warning'), n_already_there, ntot)
+        print('    %s overwriting %d / %d that already had trees' % (utils.color('yellow', 'warning'), n_already_there, ntot))
     if n_skipped_line > 0:
-        print '    skipped %d/%d clusters with None type annotations' % (n_skipped_line, len(inf_lines_to_use))
+        print('    skipped %d/%d clusters with None type annotations' % (n_skipped_line, len(inf_lines_to_use)))
     if n_skipped_size > 0:
-        print '    skipped %d/%d clusters smaller than %d' % (n_skipped_size, len(inf_lines_to_use), min_cluster_size)
+        print('    skipped %d/%d clusters smaller than %d' % (n_skipped_size, len(inf_lines_to_use), min_cluster_size))
 
     return treefos
 
@@ -2343,7 +2429,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, dont_normalize_lbi=False, extra_s
     if max(get_leaf_depths(nuc_dtree).values()) > 1:  # not really sure why i have to add this before converting to aa, but it seems necessary to avoid getting a huge branch below root (and for consistency -- if we're calculating also [nuc-]lbi the nuc tree is already rescaled when we get here
         if line is None:
             raise Exception('tree needs rescaling in lb calculation (metrics will be wrong): found leaf depth greater than 1 (even when less than 1 they can be wrong, but we can be fairly certain that your BCR sequences don\'t have real mutation frequencty greater than 1, so this case we can actually check). If you pass in annotations we can rescale to the observed mutation frequencty.')
-        print '  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning')
+        print('  %s leaf depths greater than 1, so rescaling by sequence length' % utils.color('yellow', 'warning'))
         nuc_dtree.scale_edges(1. / numpy.mean([len(s) for s in line['seqs']]))  # using treeutils.rescale_tree() breaks, it seems because the update_bipartitions() call removes nodes near root on unrooted trees
     aa_dtree = get_aa_tree(nuc_dtree, line, extra_str=extra_str, iclust=iclust, debug=debug)
     aa_lb_info = calculate_lb_values(aa_dtree, lb_tau, annotation=line, dont_normalize=dont_normalize_lbi, extra_str=extra_str, iclust=iclust, dbgstr=' on aa tree', debug=debug)
@@ -2360,7 +2446,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
     smdbgstr = '  getting selection metrics (%s)' % ' '.join(metrics_to_calc)
     if reco_info is not None:
         if not use_true_clusters:
-            print '    note: getting selection metrics on simulation without setting <use_true_clusters> (i.e. probably without setting --simultaneous-true-clonal-seqs)'
+            print('    note: getting selection metrics on simulation without setting <use_true_clusters> (i.e. probably without setting --simultaneous-true-clonal-seqs)')
         for tmpline in reco_info.values():
             assert len(tmpline['unique_ids']) == 1  # at least for the moment, we're splitting apart true multi-seq lines when reading in seqfileopener.py
 
@@ -2380,14 +2466,16 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         n_before = len(inf_lines_to_use)
         inf_lines_to_use = sorted([l for l in inf_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_after = len(inf_lines_to_use)  # after removing the small ones
+        print('  %s with inferred lines: %d cluster%s with size%s %s' % (smdbgstr, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use)))
+        print('      skipped %d smaller than %d (controlled by --min-selection-metric-cluster-size)' % (n_before - n_after, min_cluster_size))
         if n_after == 0:
-            print '  no inferred annotations for selection metrics'
+            print('      %s no inferred annotations for selection metrics, returning without doing anything' % utils.wrnstr())
             return
         treefos = None
         if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
-            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method, inf_outdir=tree_inference_outdir, glfo=glfo, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, debug=debug)
-        print '  %s with inferred lines: %d cluster%s with size%s %s' % (smdbgstr, n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in inf_lines_to_use))
-        print '      skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
+            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
+                                                inf_outdir=tree_inference_outdir, glfo=glfo, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir,
+                                                seed_id=args.seed_unique_id, only_pass_leaves=args.infer_trees_with_only_leaves, debug=debug)
         check_cluster_indices(args.cluster_indices, n_after, inf_lines_to_use)
         n_already_there, n_skipped_uid = 0, 0
         final_inf_lines = []
@@ -2395,11 +2483,11 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
             if args.cluster_indices is not None and iclust not in args.cluster_indices:
                 continue
             if debug:
-                print '  %s sequence cluster' % utils.color('green', str(len(line['unique_ids'])))
+                print('  %s sequence cluster' % utils.color('green', str(len(line['unique_ids']))))
 
             if 'tree-info' in line:  # NOTE we used to continue here, but now I've decided we really want to overwrite what's there (although I'm a little worried that there was a reason I'm forgetting not to overwrite them)
                 if debug:
-                    print '       %s overwriting selection metric info that was already in <line>' % utils.color('yellow', 'warning')
+                    print('       %s overwriting selection metric info that was already in <line>' % utils.color('yellow', 'warning'))
                 n_already_there += 1
             if 'tree-info' not in line:
                 line['tree-info'] = {'lb' : {}}
@@ -2416,7 +2504,8 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
                     continue
                 if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf']):
                     lbfo = calculate_lb_values(trfo['tree'], lb_tau, annotation=line, dont_normalize=args.dont_normalize_lbi, extra_str='inf tree', iclust=iclust, debug=debug)
-                    check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+                    if not args.infer_trees_with_only_leaves:
+                        check_lb_values(line, lbfo)  # would be nice to remove this eventually, but I keep running into instances where dendropy is silently removing nodes
                     line['tree-info']['lb'].update(lbfo)
                 if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr', 'aa-lbf']):
                     get_aa_lb_metrics(line, trfo['tree'], lb_tau, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA inf tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
@@ -2430,9 +2519,9 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
             final_inf_lines.append(line)
 
         if n_skipped_uid > 0:
-            print '    skipped %d/%d clusters that had no uids in common with tree' % (n_skipped_uid, n_after)
+            print('    skipped %d/%d clusters that had no uids in common with tree' % (n_skipped_uid, n_after))
         if n_already_there > 0:
-            print '    %s replaced tree info in %d / %d that already had it' % (utils.color('yellow', 'warning'), n_already_there, n_after)
+            print('    %s replaced tree info in %d / %d that already had it' % (utils.color('yellow', 'warning'), n_already_there, n_after))
 
         inf_lines_to_use = final_inf_lines  # replace it with a new list that only has the clusters we really want
 
@@ -2441,8 +2530,8 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         n_true_before = len(true_lines_to_use)
         true_lines_to_use = sorted([l for l in true_lines_to_use if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
         n_true_after = len(true_lines_to_use)
-        print '  %s with true lines: %d cluster%s with size%s %s' % (smdbgstr, n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use))
-        print '      skipping %d smaller than %d' % (n_true_before - n_true_after, min_cluster_size)
+        print('  %s with true lines: %d cluster%s with size%s %s' % (smdbgstr, n_true_after, utils.plural(n_true_after), utils.plural(n_true_after), ' '.join(str(len(l['unique_ids'])) for l in true_lines_to_use)))
+        print('      skipping %d smaller than %d' % (n_true_before - n_true_after, min_cluster_size))
         final_true_lines = []
         for iclust, true_line in enumerate(true_lines_to_use):
             if args.cluster_indices is not None and iclust not in args.cluster_indices:
@@ -2452,7 +2541,8 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
             if any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf']):
                 true_lb_info = calculate_lb_values(true_dtree, lb_tau, annotation=true_line, dont_normalize=args.dont_normalize_lbi, extra_str='true tree', iclust=iclust, debug=debug)
                 true_line['tree-info']['lb'] = true_lb_info  # NOTE replaces value for 'lb' key set above (ick)
-                check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
+                if not args.infer_trees_with_only_leaves:
+                    check_lb_values(true_line, true_line['tree-info']['lb'])  # would be nice to remove this eventually, but I keep runnining into instances where dendropy is silently removing nodes
             if any(m in metrics_to_calc for m in ['aa-lbi', 'aa-lbr', 'aa-lbf']):
                 get_aa_lb_metrics(true_line, true_dtree, lb_tau, dont_normalize_lbi=args.dont_normalize_lbi, extra_str='(AA true tree, iclust %d)'%iclust, iclust=iclust, debug=debug)
             if 'cons-dist-aa' in metrics_to_calc:
@@ -2504,17 +2594,16 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir, debug=debug)
 
     if outfname is not None:
-        print '  writing selection metrics to %s' % outfname
+        print('  writing selection metrics to %s' % outfname)
         utils.prep_dir(None, fname=outfname, allow_other_files=True)
         def dumpfo(tl):
-            dumpfo = {'unique_ids' : l['unique_ids']}
-            dumpfo.update(l['tree-info'])
+            dumpfo = {'unique_ids' : tl['unique_ids']}
+            dumpfo.update(tl['tree-info'])
             return dumpfo
-        with open(outfname, 'w') as tfile:
-            json.dump([dumpfo(l) for l in antn_list if 'tree-info' in l], tfile)
-    if args.tree_inference_method in ['gctree', 'iqtree'] and tree_inference_outdir is not None:
+        utils.jsdump(outfname, [dumpfo(l) for l in antn_list if 'tree-info' in l])
+    if args.tree_inference_method in ['gctree', 'gctree-base', 'iqtree'] and tree_inference_outdir is not None:
         anfname = '%s/%s-annotations.yaml' % (tree_inference_outdir, args.tree_inference_method)
-        print '    writing annotations with inferred ancestral sequences from %s to %s' % (args.tree_inference_method, anfname)
+        print('    writing annotations with inferred ancestral sequences from %s to %s' % (args.tree_inference_method, anfname))
         utils.write_annotations(anfname, glfo, antn_list, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns) + utils.fake_paired_columns)  # NOTE these probably have the fwk insertions removed, which is probably ok?
 
 # ----------------------------------------------------------------------------------------
@@ -2560,7 +2649,7 @@ def init_dtr(train_dtr, dtr_path, cfg_fname=None):
         else:
             if cg == 'among-families' and tvar == 'delta-affinity':  # this is the only one that should be missing, since we added it last
                 missing_models.append('-'.join([cg, tvar, metric_method]))  # this is fucking dumb, but I need it later when I have the full name, not cg and tvar
-                print ' %s %s doesn\'t exist, skipping (%s)' % (cg, tvar, dtrfname(dtr_path, cg, tvar))
+                print(' %s %s doesn\'t exist, skipping (%s)' % (cg, tvar, dtrfname(dtr_path, cg, tvar)))
                 return
             raise Exception('model file doesn\'t exist: %s' % picklefname)
 
@@ -2578,7 +2667,7 @@ def init_dtr(train_dtr, dtr_path, cfg_fname=None):
         for cg in cgroups:
             for tvar in dtr_targets[cg]:
                 read_model(cg, tvar)
-        print '  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart)
+        print('  read decision trees from %s (%.1fs)' % (dtr_path, time.time() - rstart))
 
     return dtr_cfgvals, trainfo, skmodels, pmml_models, missing_models
 
@@ -2591,7 +2680,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
             tmpvals = {s : [] for s in tfo}
             for iseq, uid in enumerate(line['unique_ids']):
                 if iseq==0:
-                    print '%s dtr training target should be updated to include get_n_descendents_to_affy_increase()' % utils.color('yellow', 'warning')
+                    print('%s dtr training target should be updated to include get_n_descendents_to_affy_increase()' % utils.color('yellow', 'warning'))
                 n_steps = get_n_ancestors_to_affy_change(None, dtree.find_node_with_taxon_label(uid), dtree, line)
                 if n_steps is None:  # can't train on None-type values
                     continue
@@ -2603,7 +2692,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
             if tvar == 'affinity':
                 tfo['in'] += dtr_invals[cg]
                 max_affy = max(line['affinities'])
-                tfo['out'] += [a / max_affy for a in line['affinities']]
+                tfo['out'] += [a / float(max_affy) for a in line['affinities']]
             elif tvar == 'delta-affinity':
                 tmpvals = get_delta_affinity_vals()
                 tfo['in'] += tmpvals['in']
@@ -2692,10 +2781,10 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
     def add_to_treefo(lbfo):
         if 'tree-info' in line:
             wstr = (' %s replacing existing info'%utils.wrnstr()) if metric_method in line['tree-info']['lb'] else ''
-            if debug: print '    add %s to existing lb keys:  %s%s' % (metric_method, ' '.join(k for k in line['tree-info']['lb']), wstr)
+            if debug: print('    add %s to existing lb keys:  %s%s' % (metric_method, ' '.join(k for k in line['tree-info']['lb']), wstr))
             line['tree-info']['lb'][metric_method] = lbfo
         else:
-            if debug: print '    add new metric %s' % metric_method
+            if debug: print('    add new metric %s' % metric_method)
             line['tree-info'] = {'lb' : {metric_method : lbfo}}
     # ----------------------------------------------------------------------------------------
     if min_cluster_size is None:
@@ -2703,9 +2792,9 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
     n_before = len(annotations)
     annotations = sorted([l for l in annotations if len(l['unique_ids']) >= min_cluster_size], key=lambda l: len(l['unique_ids']), reverse=True)
     n_after = len(annotations)
-    print '      %s getting individual metric for %d true cluster%s with size%s: %s' % (utils.color('blue', metric_method), n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations))
+    print('      %s getting individual metric for %d true cluster%s with size%s: %s' % (utils.color('blue', metric_method), n_after, utils.plural(n_after), utils.plural(n_after), ' '.join(str(len(l['unique_ids'])) for l in annotations)))
     if n_before - n_after > 0:
-        print '        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size)
+        print('        skipping %d smaller than %d' % (n_before - n_after, min_cluster_size))
 
     pstart = time.time()
     metric_antns = []  # just to keep track of the ones corresponding to <cluster_indices> (if set)
@@ -2714,7 +2803,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             continue
         metric_antns.append(line)
         if 'tree-info' in line and 'lb' in line['tree-info'] and metric_method in line['tree-info']['lb']:
-            print '    %s already in annotation, not doing anything' % metric_method
+            print('    %s already in annotation, not doing anything' % metric_method)
             continue
         if metric_method in ['shm', 'shm-aa']:
             metric_info = {u : utils.antnval(line, metric_method, i) for i, u in enumerate(line['unique_ids'])}
@@ -2746,7 +2835,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             _, lbfo = get_combo_lbfo(cmetrics, iclust, line, lb_tau, is_aa_lb=True)
             mbounds = {}
             for mtr in cmetrics:
-                mbounds[mtr] = [mfn(lbfo[mtr].values()) for mfn in (min, max)]
+                mbounds[mtr] = [mfn(list(lbfo[mtr].values())) for mfn in (min, max)]
             def zscore(mtr, uid):
                 return (lbfo[mtr][uid] - mbounds[mtr][0]) / float(mbounds[mtr][1] - mbounds[mtr][0])
             def mcombine(uid):
@@ -2759,7 +2848,7 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
             assert False
 
     if time.time() - pstart > 60:
-        print '       tree quantity calculation/prediction time: %.1fs' % (time.time() - pstart)
+        print('       tree quantity calculation/prediction time: %.1fs' % (time.time() - pstart))
 
     if base_plotdir is not None:
         assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
@@ -2785,8 +2874,8 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     #  - > JSDtree_cluster(res)  # plots heatmap and hierarchical cluster
 
     if debug:
-        print utils.pad_lines(get_ascii_tree(treestr=treestr))
-        print treestr
+        print(utils.pad_lines(get_ascii_tree(treestr=treestr)))
+        print(treestr)
 
     if workdir is None:
         workdir = utils.choose_random_subdir('/tmp/%s' % os.getenv('USER', default='partis-work'))
@@ -2809,7 +2898,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     for oestr in (outstr, errstr):
         if oestr.strip() == '':
             continue
-        print utils.pad_lines(outstr)
+        print(utils.pad_lines(outstr))
 
     eigenvalues = []
     with open(eigenfname) as efile:
@@ -2825,12 +2914,12 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     os.rmdir(workdir)
 
     if plotdir is not None:
-        import plotting
+        from . import plotting
         plotting.plot_laplacian_spectra(plotdir, plotname, eigenvalues, title)
 
 # ----------------------------------------------------------------------------------------
 def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir=None, ig_or_tr='ig', args=None, tree_inference_outdir=None):  # don't really like passing <args> like this, but it's the easiest cfg convention atm
-    from paircluster import gsval, get_did, both_dids, sumv
+    from .paircluster import gsval, get_did, both_dids, sumv
     # ----------------------------------------------------------------------------------------
     def gsvstr(val, vname):
         if val is None:
@@ -2860,15 +2949,15 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             if args.queries_to_include is not None and any(u in args.queries_to_include for u in (hid, lid)):
                 didstr = utils.color('red', didstr, width=20)
         else:
-            print '  %s paired seqs %s %s have different droplet ids (i.e. they were probably mis-paired) %s' % (utils.color('red', 'error'), hid, lid, dids)
+            print('  %s paired seqs %s %s have different droplet ids (i.e. they were probably mis-paired) %s' % (utils.color('red', 'error'), hid, lid, dids))
             didstr = 'see error'
         cids = ['-' if c in utils.loci else c for c in cids]  # previously chosen unobserved cons seqs just have e.g. igh as the contig id, which we don't want to look at in the output
         return didstr, cids
     # ----------------------------------------------------------------------------------------
     def read_cfgfo():
         def iconvert(tcfg, vname):
-            imax = max(tcfg.keys() + [cfgfo.get('n-families', 0) - 1])
-            def_val = False if tcfg.values()[0] is True else 0
+            imax = max(list(tcfg.keys()) + [cfgfo.get('n-families', 0) - 1])
+            def_val = False if list(tcfg.values())[0] is True else 0
             nvals = [tcfg.get(i, def_val) for i in range(imax+1)]
             # if 'n-families' in cfgfo and cfgfo['n-families'] != imax + 1:  # i tried setting n-families automatically, but in practice it just tends to break things if you make it guess
             #     print '  %s \'n-families\' not equal to imax + 1 for %s' % (utils.wrnstr(), vname)
@@ -2876,9 +2965,9 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             return nvals
         allowed_keys = set(['n-families', 'n-per-family', 'include-unobs-cons-seqs', 'include-unobs-naive-seqs', 'vars', 'cell-types', 'cell-type-key', 'max-ambig-positions', 'min-umis', 'min-median-nuc-shm-%', 'min-hdist-to-already-chosen', 'droplet-ids', 'similar-to-droplet-ids', 'meta-info-print-keys', 'include_previously_chosen'])
         if debug:
-            print '  ab choice cfg:'
+            print('  ab choice cfg:')
             outstr, _ = utils.simplerun('cat %s'%args.ab_choice_cfg, return_out_err=True)
-            print utils.pad_lines(outstr)
+            print(utils.pad_lines(outstr))
         with open(args.ab_choice_cfg) as cfile:
             cfgfo = yaml.load(cfile, Loader=Loader)
         if len(set(cfgfo) - allowed_keys) > 0:
@@ -2917,11 +3006,11 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             hsil = mtmp[tch]['has_shm_indels']
             tstr = '(%d / %d = %.2f)' % (hsil.count(True), len(hsil), hsil.count(True) / float(len(hsil)))
             if hsil.count(True) / float(len(hsil)) > threshold:
-                print '        %s more than %.2f %s of %s seqs have indels, so using *input* cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), threshold, tstr, tch)
+                print('           %s more than %.2f %s of %s seqs have indels, so using \'input\' (rather than \'indel-reversed\') seqs to calculate cons seq (note that if there\'s more than one indel, this may well be wrong, since you probably only want indels that are in a majority of the family [which is probably not all of them])' % (utils.color('yellow', 'warning'), threshold, tstr, tch))
                 return True
             else:
                 if any(hsil):  # if none of them have indels, don't print anything
-                    print '        less than %.2f %s of %s seqs have indels, so not using input seqs for cons seq' % (threshold, tstr, tch)
+                    print('           less than %.2f %s of %s seqs have indels, so using \'indel-reversed\' seqs (rather than \'input\' seqs) to calculate cons seq' % (threshold, tstr, utils.locstr(tch)))
                 return False
         # ----------------------------------------------------------------------------------------
         def getcseqs(tch, use_input_seqs, aa=False, aa_ref_seq=None):
@@ -2943,9 +3032,9 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
         consfo.update({tcsk(c, 'nuc') : getcseqs(c, uis[c], aa=False, aa_ref_seq=consfo[tcsk(c, 'aa')]) for c in 'hl'})
 
         if any(utils.ltranslate(consfo[tcsk(c, 'nuc')]) != consfo[tcsk(c, 'aa')] for c in 'hl'):
-            print '  %s nuc %s seq translation differs from aa %s seq:' % (utils.color('yellow', 'warning'), stype, stype)
-            print '              aa: %s %s' % tuple([consfo[tcsk(c, 'aa')] for c in 'hl'])
-            print '      nuc trans.: %s %s' % tuple([utils.color_mutants(consfo[tcsk(c, 'aa')], utils.ltranslate(consfo[tcsk(c, 'nuc')]), amino_acid=True) for c in 'hl'])
+            print('  %s nuc %s seq translation differs from aa %s seq:' % (utils.color('yellow', 'warning'), stype, stype))
+            print('              aa: %s %s' % tuple([consfo[tcsk(c, 'aa')] for c in 'hl']))
+            print('      nuc trans.: %s %s' % tuple([utils.color_mutants(consfo[tcsk(c, 'aa')], utils.ltranslate(consfo[tcsk(c, 'nuc')]), amino_acid=True) for c in 'hl']))
 
         return consfo
     # ----------------------------------------------------------------------------------------
@@ -2980,7 +3069,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             return False
         if ttdbg:
             h_min, l_min = [min(local_hdist_aa(acseqs[i], mseq) for acseqs in all_chosen_seqs) for i, mseq in enumerate(mfseqs(mfo))]
-            print '        %d %d %s' % (h_min, l_min, utils.color('red', 'x') if sum([h_min, l_min]) < hdist else '')
+            print('        %d %d %s' % (h_min, l_min, utils.color('red', 'x') if sum([h_min, l_min]) < hdist else ''))
         return any(sum(local_hdist_aa(cseq, mseq) for mseq, cseq in zip(mfseqs(mfo), acseqs)) < hdist for acseqs in all_chosen_seqs)
     # ----------------------------------------------------------------------------------------
     def add_unobs_seq(stype, metric_pairs, chosen_mfos, all_chosen_seqs, imtp, tdbg=False):
@@ -2990,22 +3079,23 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
         if 'max-ambig-positions' in cfgfo:
             obs_mfos = [m for m in obs_mfos if sum(nambig(m, c) for c in 'hl') <= cfgfo['max-ambig-positions']]
         if len(obs_mfos) > 0:  # if we observed the cons seq, use [one of] the observed ones
+            print('           using observed %s seq' % stype)
             obs_mfos = sorted(obs_mfos, key=lambda m: sumv(m, 'seq_mtps', imtp), reverse=True)  # sort by mtpys
             consfo = obs_mfos[0]  # choose the first one
         else:  # if we didn't observe it (with some criteria),  make consfo from scratch
-            print '            %s seq not observed' % stype
+            print('           %s seq not observed' % stype)
             consfo = get_unobs_mfo(stype, metric_pairs)
             n_ambig_bases = sum(nambig(consfo, c, antn=metric_pairs[0][c]) for c in 'hl')
             if 'max-ambig-positions' in cfgfo and n_ambig_bases > cfgfo['max-ambig-positions']:
-                print '          %s seq: too many ambiguous bases in h+l (%d > %d)' % (stype, n_ambig_bases, cfgfo['max-ambig-positions'])
+                print('          %s seq: too many ambiguous bases in h+l (%d > %d)' % (stype, n_ambig_bases, cfgfo['max-ambig-positions']))
                 return
 
         # apply some more criteria
         if in_chosen_seqs(all_chosen_seqs, consfo):
-            print '          %s seq: seq identical to previously-chosen seq' % stype
+            print('          %s seq: seq identical to previously-chosen seq' % stype)
             return
         if 'min-hdist-to-already-chosen' in cfgfo and too_close_to_chosen_seqs(all_chosen_seqs, consfo, cfgfo['min-hdist-to-already-chosen']):
-            print '          %s seq: too close to previously-chosen seq' % stype
+            print('          %s seq: too close to previously-chosen seq' % stype)
             return
 
         # add to chosen info
@@ -3018,7 +3108,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             zdstr = ''
             if len(obs_mfos) > 0:
                 zdstr = ' (using observed seqs with aa-cdist zero %s)' % ' '.join(gsval(consfo, c, 'unique_ids') for c in 'hl')
-            print '        %s: added %s seq%s%s' % (utils.color('green', 'x'), stype, indelstr, zdstr)
+            print('        %s: added %s seq%s%s' % (utils.color('green', 'x'), stype, indelstr, zdstr))
     # ----------------------------------------------------------------------------------------
     def local_hdist_aa(s1, s2, defval=None, frac=False):  # ick, this is ugly, but I think makes sense for now
         if len(s1) == len(s2):
@@ -3047,21 +3137,21 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                 # this takes the top <n> by <sortvar> (not including any unobs cons seq)
                 if get_n_choose(tcfg, 'n') is not None and n_newly_chosen >= get_n_choose(tcfg, 'n'):  # number to choose for this var in this family
                     if debug:
-                        print '        finished: %d newly chosen >= %d' % (n_newly_chosen, get_n_choose(tcfg, 'n'))
+                        print('        finished: %d newly chosen >= %d' % (n_newly_chosen, get_n_choose(tcfg, 'n')))
                     return True
             # whereas this makes sure we have N from the family over all sort vars (including any unobs cons seq), while still sorting by <sortvar>. It probably does *not* make sense to specify both versions
             is_finished = get_n_choose(cfgfo, 'n-per-family') is not None and len(chosen_mfos) >= get_n_choose(cfgfo, 'n-per-family')
             if debug and is_finished:
-                print '        finished: %s' % ('n-per-family not specified' if get_n_choose(cfgfo, 'n-per-family') is None else '%d per family >= %d' % (len(chosen_mfos), get_n_choose(cfgfo, 'n-per-family')))
+                print('        finished: %s' % ('n-per-family not specified' if get_n_choose(cfgfo, 'n-per-family') is None else '%d per family >= %d' % (len(chosen_mfos), get_n_choose(cfgfo, 'n-per-family'))))
             return is_finished
         # ----------------------------------------------------------------------------------------
         def handle_droplet_sim_choice(refid, n_take, rmfo):
             def sfcn(m): return sum(utils.hamming_distance(gsval(m, c, 'seqs_aa'), gsval(rmfo, c, 'seqs_aa'), amino_acid=True) for c in 'hl')  # note: *not* input seqs, since they aren't in general all the same length
             if tdbg:
                 altid = gsval(rmfo, 'h', 'alternate-uids', no_fail=True)
-                print '      nearest to %s%s:' % (refid, ' (%s)'%altid if altid is not None else '')
-                print '               hdist                          contig'
-                print '             sum  h  l         droplet         h  l'
+                print('      nearest to %s%s:' % (refid, ' (%s)'%altid if altid is not None else ''))
+                print('               hdist                          contig')
+                print('             sum  h  l         droplet         h  l')
             n_chsn = 0
             for simfo in sorted(metric_pairs, key=sfcn):
                 if n_chsn >= n_take:
@@ -3075,15 +3165,15 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                 if tdbg:
                     dids, cids = zip(*[get_did(args, gsval(simfo, c, 'unique_ids'), return_contigs=True) for c in 'hl'])
                     didstr, cidstrs = get_didstr(dids, cids, simfo)
-                    print '              %2d %2d %2d %s %20s  %s  %s  %s %s' % (sfcn(simfo),
+                    print('              %2d %2d %2d %s %20s  %s  %s  %s %s' % (sfcn(simfo),
                                                                                 utils.hamming_distance(gsval(rmfo, 'h', 'seqs_aa'), gsval(simfo, 'h', 'seqs_aa'), amino_acid=True),
                                                                                 utils.hamming_distance(gsval(rmfo, 'l', 'seqs_aa'), gsval(simfo, 'l', 'seqs_aa'), amino_acid=True),
                                                                                 chsnstr, didstr, cidstrs[0], cidstrs[1],
                                                                                 utils.color_mutants(gsval(rmfo, 'h', 'seqs_aa'), gsval(simfo, 'h', 'seqs_aa'), amino_acid=True),
                                                                                 utils.color_mutants(gsval(rmfo, 'l', 'seqs_aa'), gsval(simfo, 'l', 'seqs_aa'), amino_acid=True)
-                    )
+                    ))
             if tdbg:
-                print '        chose %d abs similar to droplet id %s' % (n_chsn, refid)
+                print('        chose %d abs similar to droplet id %s' % (n_chsn, refid))
         # ----------------------------------------------------------------------------------------
         # run through a bunch of options for skipping seqs/families
         if args.choose_all_abs:
@@ -3094,7 +3184,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
         if finished() and not cfgfo['include_previously_chosen']:  # return if we weren't supposed to get any from this family
             return chosen_mfos
         if tdbg:
-            print '    %s: choosing abs from joint cluster with size %d (marked with %s)' % (utils.color('green', 'iclust %d'%iclust), len(metric_pairs), utils.color('green', 'x'))
+            print('    %s: choosing abs from joint cluster with size %d (marked with %s)' % (utils.color('green', 'iclust %d'%iclust), len(metric_pairs), utils.color('green', 'x')))
 
         all_chosen_seqs = set()  # just for keeping track of the seqs we've already chosen (note that this includes previously-chosen ones)
 
@@ -3108,7 +3198,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                         chosen_mfos.append(mfo)
                     all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                     if tdbg:
-                        print '        adding previously-chosen ab: %s' % ' '.join(gsval(mfo, c, 'unique_ids') for c in 'hl')
+                        print('        adding previously-chosen ab: %s' % ' '.join(gsval(mfo, c, 'unique_ids') for c in 'hl'))
         if 'droplet-ids' in cfgfo:  # add some specific seqs
             for mfo in metric_pairs:
                 did = get_joint_did(mfo)
@@ -3116,16 +3206,16 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                     chosen_mfos.append(mfo)
                     all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                     if tdbg:
-                        print '        chose ab with droplet id %s' % did
+                        print('        chose ab with droplet id %s' % did)
         for ctk, ntk in [('cell-types', ctkey()), ('min-umis', 'umis')]:
             if len(metric_pairs) > 0 and ctk in cfgfo and ntk not in metric_pairs[0]['h']:
-                print '  %s \'%s\' in cfgfo but \'%s\' info not in annotation' % (utils.color('yellow', 'warning'), ctk, ntk)
+                print('  %s \'%s\' in cfgfo but \'%s\' info not in annotation' % (utils.color('yellow', 'warning'), ctk, ntk))
         if 'cell-types' in cfgfo and len(metric_pairs) > 0 and ctkey() in metric_pairs[0]['h']:
             def keepfcn(m): return all(gsval(m, c, ctkey()) in cfgfo['cell-types'] for c in 'hl')  # kind of dumb to check both, they should be the same, but whatever it'll crash in the debug printing below if they're different
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs) > 0:
-                print '          skipped %d with cell type not among %s' % (n_before - len(metric_pairs), cfgfo['cell-types'])
+                print('          skipped %d with cell type not among %s' % (n_before - len(metric_pairs), cfgfo['cell-types']))
         if 'min-umis' in cfgfo and len(metric_pairs) > 0 and 'umis' in metric_pairs[0]['h']:
             def keepfcn(m):
                 if args.queries_to_include is not None and any(gsval(m, c, 'unique_ids') in args.queries_to_include for c in 'hl'):
@@ -3134,12 +3224,12 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs) > 0:
-                print '          skipped %d with umis less than %d' % (n_before - len(metric_pairs), cfgfo['min-umis'])
+                print('          skipped %d with umis less than %d' % (n_before - len(metric_pairs), cfgfo['min-umis']))
         if 'min-median-nuc-shm-%' in cfgfo and len(metric_pairs) > 0:
             median_shm = numpy.median([sum_nuc_shm_pct(m, imtp) for m in metric_pairs])
             skip_family = median_shm < cfgfo['min-median-nuc-shm-%']
             if tdbg:
-                print '          %s family: median h+l nuc shm %.2f%% %s than %.2f%%' % (utils.color('yellow', 'skipping entire') if skip_family else 'keeping', median_shm, 'less' if skip_family else 'greater', cfgfo['min-median-nuc-shm-%'])
+                print('          %s family: median h+l nuc shm %.2f%% %s than %.2f%%' % (utils.color('yellow', 'skipping entire') if skip_family else 'keeping', median_shm, 'less' if skip_family else 'greater', cfgfo['min-median-nuc-shm-%']))
             if skip_family:
                 return chosen_mfos
         if 'max-ambig-positions' in cfgfo:  # max number of ambiguous amino acid positions summed over h+l
@@ -3148,7 +3238,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             n_before = len(metric_pairs)
             metric_pairs = [m for m in metric_pairs if keepfcn(m)]
             if tdbg and n_before - len(metric_pairs):
-                print '          skipped %d with too many ambiguous bases (>%d)' % (n_before - len(metric_pairs), cfgfo['max-ambig-positions'])
+                print('          skipped %d with too many ambiguous bases (>%d)' % (n_before - len(metric_pairs), cfgfo['max-ambig-positions']))
         if 'similar-to-droplet-ids' in cfgfo:  # add seqs similar to some specific seqs
             for refid, n_take in cfgfo['similar-to-droplet-ids']:
                 rmfos = [m for m in metric_pairs if get_joint_did(m)==refid]
@@ -3174,6 +3264,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             sorted_mfos = metric_pairs
             sorted_mfos = sorted(sorted_mfos, key=lambda m: sumv(m, 'seq_mtps', imtp), reverse=True)
             sorted_mfos = sorted(sorted_mfos, key=lambda m: sumv(m, sortvar, imtp), reverse=vcfg['sort']=='high')
+            shm_indel_ids = []
             for mfo in sorted_mfos:
                 if finished(tcfg=vcfg, n_newly_chosen=n_this_var_chosen):
                     break
@@ -3187,16 +3278,19 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                     n_too_close += 1
                     continue
                 if any(gsval(mfo, c, 'has_shm_indels') for c in 'hl'):
-                    print '          %s choosing ab with shm indel: the consensus sequence may or may not reflect the indels (see above). uids: %s %s' % (utils.color('yellow', 'warning'), gsval(mfo, 'h', 'unique_ids'), gsval(mfo, 'l', 'unique_ids'))
+                    shm_indel_ids.append([gsval(mfo, c, 'unique_ids') for c in 'hl' if gsval(mfo, c, 'has_shm_indels')])
                 chosen_mfos.append(mfo)
                 all_chosen_seqs.add(tuple(gsval(mfo, c, 'input_seqs_aa') for c in 'hl'))
                 n_this_var_chosen += 1  # number chosen from this sortvar
 
+            if len(shm_indel_ids) > 0:
+                print('          %s chose %d abs with shm indels): the consensus sequence may or may not reflect the indels (see previous lines -- whether \'input\' or \'indel-reversed\' seqs were used to calculate consensus depends on the fraction of seqs in the family with indels). uids: %s' %
+                      (utils.color('yellow', 'warning'), len(shm_indel_ids), ' '.join(sorted(u for ulist in shm_indel_ids for u in ulist))))
             if tdbg:
-                print '        %s: chose %d%s%s%s' % (sortvar, n_this_var_chosen,
+                print('        %s: chose %d%s%s%s' % (sortvar, n_this_var_chosen,
                                                     '' if n_prev_var_chosen==0 else ' (%d were in common with a previous var)'%n_prev_var_chosen,
                                                     '' if n_same_seqs==0 else ' (%d had seqs identical to previously-chosen ones)'%n_same_seqs,
-                                                    '' if n_too_close==0 else ' (%d had seqs too close to previously-chosen ones)'%n_too_close)
+                                                    '' if n_too_close==0 else ' (%d had seqs too close to previously-chosen ones)'%n_too_close))
 
         return chosen_mfos
     # # ----------------------------------------------------------------------------------------
@@ -3228,10 +3322,10 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                 ofo.update([(c+'_id', gsval(mfo, c, 'unique_ids')) for c in 'hl'])
                 for kn in [('aa-cfrac',), ('aa-cdist',), ('tot-shm-aa', 'shm-aa'), ('tot-shm-nuc-pct', 'mut_freqs')] + [(m,) for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']:
                     ok, lk = kn if len(kn)==2 else (kn[0], kn[0])
-                    ofo.update([(ok, gsval(mfo, 'p', lk))])
+                    ofo.update([(ok, gsval(mfo, 'p', lk, no_fail=True))])
             else:
                 def gid(mfo, c):
-                    hstr = utils.uidhashstr(getseq(mfo, c, aa=True))[:hash_len]
+                    hstr = utils.uidhashstr(getseq(mfo, c, aa=True), max_len=hash_len)
                     return '%s-%s-%d-%s' % (hstr, mfo['seqtype'], mfo['iclust'], mfo[c]['loci'][0])  # NOTE would be nice to use subj here, but i don't have it added to input meta info (yet)
                 ofo.update([(c+'_id', gid(mfo, c)) for c in 'hl'])
             ofo.update([(c+'_family_size', len(mfo[c]['unique_ids'])) for c in 'hl'])
@@ -3254,17 +3348,17 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             if mfo['seqtype'] == 'observed':  # check that the aa seqs are actually translations of the nuc seqs (for unobs cons seqs, we expect them to differ) NOTE i don't know if this is really worthwhile long term, but it makes me feel warm and fuzzy atm that it's here
                 for tch in 'hl':
                     if utils.ltranslate(ofo[tch+'_seq_nuc']) != ofo[tch+'_seq_aa']:
-                        print '  %s aa seq not translation of nuc seq for %s %s:' % (utils.color('yellow', 'warning'), tch, ofo[tch+'_id'])
+                        print('  %s aa seq not translation of nuc seq for %s %s:' % (utils.color('yellow', 'warning'), tch, ofo[tch+'_id']))
                         utils.color_mutants(utils.ltranslate(ofo[tch+'_seq_nuc']), ofo[tch+'_seq_aa'], amino_acid=True, print_result=True, extra_str='        ')
             return ofo
         # ----------------------------------------------------------------------------------------
-        print '      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname)
-        with open(args.chosen_ab_fname, 'w') as cfile:
+        print('      writing %d chosen abs to %s' % (len(all_chosen_mfos), args.chosen_ab_fname))
+        with open(args.chosen_ab_fname, utils.csv_wmode()) as cfile:
             outfos, fieldnames = [], None
             for mfo in all_chosen_mfos:
                 outfos.append(getofo(mfo))
-                if fieldnames is None or len(outfos[-1].keys()) > len(fieldnames):
-                    fieldnames = outfos[-1].keys()
+                if fieldnames is None or len(list(outfos[-1].keys())) > len(fieldnames):
+                    fieldnames = list(outfos[-1].keys())
             if len(all_chosen_mfos) > 0:
                 writer = csv.DictWriter(cfile, fieldnames)
                 writer.writeheader()
@@ -3331,9 +3425,9 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                     raise Exception('need to handle %s to avoid None value' % xky)
                 return mv
             elif xky in smheads:
-                return utils.wfmt(gsvstr(gsval(mpfo, 'p', xky), xky), lenfcn())
+                return utils.wfmt(gsvstr(gsval(mpfo, 'p', xky, no_fail=True), xky), lenfcn())
             else:
-                print xky, cfgfo['meta-info-print-keys']
+                print(xky, cfgfo['meta-info-print-keys'])
                 assert False
         # ----------------------------------------------------------------------------------------
         def get_xstrs(mpfo):
@@ -3371,9 +3465,9 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
         h_atn, l_atn = [metric_pairs[0][c] for c in 'hl']  # antns for all metric_pairs are obviously the same
         smheads = [m for m in args.selection_metrics_to_calculate if m != 'cons-dist-aa']
         xtrafo, xheads, xlens = init_xtras()
-        print '    %s: joint cluster with size %d' % (utils.color('green', 'iclust %d'%iclust), len(metric_pairs))
+        print('    %s: joint cluster with size %d' % (utils.color('green', 'iclust %d'%iclust), len(metric_pairs)))
         if len(icl_mfos) > 0:
-            print '      chose %d total' % len(icl_mfos)
+            print('      chose %d total' % len(icl_mfos))
 
         if len(antn_pairs) > 1:
             utils.non_clonal_clusters((h_atn, l_atn), antn_pairs, dtype='lev', aa=True, labelstr='h+l', extra_str='              ')
@@ -3389,8 +3483,8 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             cons_mfo = utils.get_single_entry([m for m in icl_mfos if m['seqtype']=='cons'])
         else:
             cons_mfo = get_unobs_mfo('cons', metric_pairs)  # if we didn't choose a cons seq, we need to get the cons seqs/info (since both aa and nuc "chosen" cons seqs can differ from the one in the annotation: both if there's lots of shm indels, and the nuc because of codon_len=3
-        print ('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s       N     %%shm   N aa mutations     sizes            %s %s %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), cstr('h', aa=True), cstr('l', aa=True), cstr('h'), cstr('l'))
-        print ('             sum   h    l       h   l                           h  l   h l  %s  sum  h   l   nuc   cons.     obs.   both   h   l      %s %s %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), nstr('h', aa=True), nstr('l', aa=True), nstr('h'), nstr('l'))
+        print(('             aa-cfrac (%%)      aa-cdist         droplet        contig indels%s       N     %%shm   N aa mutations     sizes            %s %s %s %s %s') % (' '.join(xheads[0]), utils.wfmt('genes    cons:', gstr_len), cstr('h', aa=True), cstr('l', aa=True), cstr('h'), cstr('l')))
+        print(('             sum   h    l       h   l                           h  l   h l  %s  sum  h   l   nuc   cons.     obs.   both   h   l      %s %s %s %s %s') % (' '.join(xheads[1]), utils.wfmt('naive:', gstr_len), nstr('h', aa=True), nstr('l', aa=True), nstr('h'), nstr('l')))
         sorted_mfos = sorted(metric_pairs, key=lambda m: sumv(m, 'seq_mtps', imtp), reverse=True)  # sort by sum of h and l sequence multiplicities
         last_cdist_str, last_mtpy_str, last_aa_shmstr = None, None, None
         for imp, mpfo in enumerate(sorted(sorted_mfos, key=lambda x: sum(getcdist(x, c, frac=True) for c in 'hl'))):  # would be nice to use sumv()
@@ -3408,30 +3502,28 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
             h_mtpy, l_mtpy = [imtp[c][gsval(mpfo, c, 'input_seqs_aa')] for c in 'hl']
             mtpstr = '%3d %3d %3d' % (sum((h_mtpy, l_mtpy)), h_mtpy, l_mtpy)
             aa_shmstr = '%2d %2d %2d' % (sumv(mpfo, 'shm-aa', imtp), gsval(mpfo, 'h', 'shm-aa'), gsval(mpfo, 'l', 'shm-aa'))
-            print '       %s  %s   %s %20s  %s  %s   %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
+            print('       %s  %s   %s %20s  %s  %s   %s' % (lstr if imp==0 else ' '*utils.len_excluding_colors(lstr),
                                                             aa_cdstr if aa_cdstr!=last_cdist_str else ' '*utils.len_excluding_colors(aa_cdstr),
                                                             utils.color('green', 'x') if mpfo in icl_mfos else ' ',
-                                                            didstr, cids[0], cids[1], indelstr),
-            print ' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstrs(mpfo)),
+                                                            didstr, cids[0], cids[1], indelstr), end=' ')
+            print(' %s %s %4.1f   %s  %s  %s    %s   %s %s %s %s' % (' '.join(get_xstrs(mpfo)),
                                                                      mtpstr if mtpstr != last_mtpy_str else ' '*utils.len_excluding_colors(mtpstr),
                                                                      sum_nuc_shm_pct(mpfo, imtp),
                                                                      cshm_str if imp==0 else ' '*len(cshm_str),
                                                                      aa_shmstr if aa_shmstr!=last_aa_shmstr else ' '*utils.len_excluding_colors(aa_shmstr),
                                                                      sstr if imp==0 else ' '*utils.len_excluding_colors(sstr), gstrs[imp] if imp<len(gstrs) else ' '*gstr_len,
-                                                                     h_seq, l_seq, h_nuc_seq, l_nuc_seq)
+                                                                     h_seq, l_seq, h_nuc_seq, l_nuc_seq))
             last_cdist_str, last_mtpy_str, last_aa_shmstr = aa_cdstr, mtpstr, aa_shmstr
 
         for gs in gstrs[imp+1:]:  # if the cluster was smaller than gstrs, need to print the extra gstrs (this shouldn't really ever happen unless i make gstrs much longer))
-            print '%81s%s' % ('', gs)  # this width will sometimes be wrong
-        print ''
+            print('%81s%s' % ('', gs))  # this width will sometimes be wrong
+        print('')
     # ----------------------------------------------------------------------------------------
-    import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
+    from . import paircluster  # if you import it up top it fails, and i don't feel like fixing the issue
     debug = args.debug or args.debug_paired_clustering or args.print_chosen_abs
-    if 'cons-dist-aa' not in args.selection_metrics_to_calculate:
-        print '  %s \'cons-dist-aa\' not in --selection-metrics-to-calculate, so things may not work' % utils.color('yellow', 'warning')
     cfgfo = read_cfgfo()
     if debug:
-        print '    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs))
+        print('    %d h/l pairs: %s' % (len(antn_pairs), ',  '.join(' '.join(str(len(l['unique_ids'])) for l in p) for p in antn_pairs)))
     assert len(mpfo_lists) == len(antn_pairs) and len(fake_pntns) == len(antn_pairs)
     all_chosen_mfos = [None for _ in antn_pairs]
     for iclust, (h_atn, l_atn) in enumerate(antn_pairs):
@@ -3445,9 +3537,9 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
                  tree_inference_outdir=tree_inference_outdir,
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
     if inf_lines is not None:  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)
-        inf_lines = utils.get_annotation_dict(inf_lines.values())  # don't need this any more (partition plotting used to be right here) but too chicken to remove it atm
+        inf_lines = utils.get_annotation_dict(list(inf_lines.values()))  # don't need this any more (partition plotting used to be right here) but too chicken to remove it atm
     if debug:
-        print '      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both')))
+        print('      key: %s %s %s (empty/blank numbers are same as previous line)' % (utils.color('red', 'queries-to-include'), utils.color('blue_bkg', 'previously chosen'), utils.color('red', utils.color('blue_bkg', 'both'))))
         for iclust, (metric_pairs, icl_mfos) in enumerate(zip(mpfo_lists, all_chosen_mfos)):
             print_dbg(iclust, metric_pairs, icl_mfos, mtpys[iclust])  # note: relies on mtpys being in scope
     if args.chosen_ab_fname is not None:

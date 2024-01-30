@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import numpy
 import csv
 import yaml
@@ -9,24 +11,18 @@ import subprocess
 import sys
 import os
 import dendropy
+import json
+from io import open
 
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
-sys.path.insert(1, './python')
-import utils
-import glutils
-import treeutils
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+sys.path.insert(1, partis_dir) #'./python')
+import python.utils as utils
+import python.glutils as glutils
+import python.treeutils as treeutils
 
 # ----------------------------------------------------------------------------------------
 def get_inf_int_name(gname):  # <gname> is just an integer, which won't be unique and will break things
     return '%s-%s' % (args.inf_int_label, gname)
-
-# ----------------------------------------------------------------------------------------
-def getpathcmd():
-    cmds = ['#!/bin/bash']
-    cmds += ['. %s/etc/profile.d/conda.sh' % args.condapath]  # NOTE have to update conda (using the old version in the next two lines) in order to get this to work
-    cmds += ['export PATH=%s/bin:$PATH' % args.condapath]
-    # cmds += ['export PYTHONNOUSERSITE=True']  # otherwise it finds the pip-installed packages in .local and breaks (see https://github.com/conda/conda/issues/448)
-    return cmds
 
 # ----------------------------------------------------------------------------------------
 def gctofn(ft):
@@ -44,24 +40,38 @@ def idfn():
 
 # ----------------------------------------------------------------------------------------
 def install():
-    cmds = getpathcmd()
-
-    args.env_label = 'gctree'
-    install_dir = partis_dir + '/packages'
-    # cmds += ['conda update -n base -c defaults conda']  # this updates conda
-    cmds += ['conda create -n %s python=3.9' % args.env_label]
-    cmds += ['conda activate %s' % args.env_label]
-    cmds += ['conda install -c conda-forge gctree']
-    cmds += ['conda install -c bioconda phylip']
+    cmds = ['#!/bin/bash']
+    cmds += ['micromamba create -n %s python=3.9' % args.env_label]  # 3.10 currently has problems with ete
+    cmds += ['micromamba activate %s' % args.env_label]
+    cmds += ['micromamba install -c bioconda phylip']
+    cmds += ['micromamba install -c conda-forge gctree click']
+    # micromamba remove -n gctree --all  # to nuke it and start over
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
-def run_gctree(infname):
+def update():
+    cmds = ['#!/bin/bash']
+    cmds += utils.mamba_cmds(args.env_label)
+    cmds += ['micromamba update phylip gctree click']
+    utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
+
+# ----------------------------------------------------------------------------------------
+def add_mfo(tcmd, mfn):
+    kdict = {'frame' : 'frame', 'h_frame' : 'frame', 'l_frame' : 'frame2', 'l_offset' : 'chain_split'}  # translates from metafo dict to gctree command line args
+    with open(args.metafname) as mfile:
+        metafo = json.load(mfile)
+    for tk, tc in kdict.items():
+        if tk in metafo:
+            tcmd += ' --%s %d' % (tc, metafo[tk])
+    return tcmd
+
+# ----------------------------------------------------------------------------------------
+def run_gctree():
     if not args.run_help and utils.output_exists(args, gctofn('tree')):
         return
 
-    cmds = getpathcmd()
-    cmds += ['conda activate %s' % args.env_label]
+    cmds = ['#!/bin/bash']
+    cmds += utils.mamba_cmds(args.env_label)
     if args.run_help:
         cmds += ['gctree infer -h']
     else:
@@ -73,7 +83,13 @@ def run_gctree(infname):
         cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
         cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
         cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
-        cmds += ['%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --frame 1 --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)]  # --idlabel writes the output fasta file
+        tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
+        if not args.base_model:
+            tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
+        if os.path.exists(args.metafname):
+            tcmd = add_mfo(tcmd, args.metafname)
+        cmds.append(tcmd)
+
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=args.outdir + '/run.sh', print_time='gctree', debug=True, dryrun=args.dry_run)
     if args.run_help:
         sys.exit()
@@ -94,11 +110,18 @@ def parse_output():
 
     # read fasta (mostly for inferred intermediate seqs)
     seqfos = utils.read_fastx(gctofn('seqs'), look_for_tuples=True)
+    if any(s['name']=='' for s in seqfos):
+        n_removed = len([s for s in seqfos if s['name']==''])
+        seqfos = [s for s in seqfos if s['name']!='']
+        print('  %s removed %d seqs with zero-length names \'\' (I\'m *not* sure this is the right thing to do, but it just kicked this error when I was doing the python 3 conversion)' % (utils.wrnstr(), n_removed))
     nfos = [s for s in seqfos if s['name']==args.root_label]
     if len(nfos) != 1:
-        print '  %s expected 1 naive seq with label \'%s\' but found %d: %s  (in %s)' % (utils.wrnstr(), args.root_label, len(nfos), ' '.join(n['name'] for n in nfos), gctofn('seqs'))
+        print('  %s expected 1 naive seq with label \'%s\' but found %d: %s  (in %s)' % (utils.wrnstr(), args.root_label, len(nfos), ' '.join(n['name'] for n in nfos), gctofn('seqs')))
     seqfos = [s for s in seqfos if s['name'] != args.root_label]  # don't want naive seq in final fasta
+    seq_len = numpy.mean([len(s['seq']) for s in seqfos])
     seqfos = [s for s in seqfos if s['name'] not in idm_trns]  # also remove input seqs
+    if len(seqfos) == 0:
+        print('  %s no inferred sequences (all seqs read from gctree output were input seqs' % utils.wrnstr())
     inf_int_trns = []
     for sfo in seqfos:
         inf_int_trns.append((sfo['name'], get_inf_int_name(sfo['name'])))
@@ -106,7 +129,7 @@ def parse_output():
 
     # read tree
     dtree = treeutils.get_dendro_tree(treefname=gctofn('tree'), debug=args.debug)
-    dtree.scale_edges(1. / numpy.mean([len(s['seq']) for s in seqfos]))
+    dtree.scale_edges(1. / seq_len)
     dtree.seed_node.taxon.label = args.root_label
     for gname, onames in idm_trns.items():
         node = dtree.find_node_with_taxon_label(gname)
@@ -121,11 +144,11 @@ def parse_output():
             new_node = dendropy.Node(taxon=new_taxon)
             node.add_child(new_node)
             new_node.edge_length = 0
-    treeutils.translate_labels(dtree, inf_int_trns, debug=args.debug)
+    treeutils.translate_labels(dtree, inf_int_trns, expect_missing=True, debug=args.debug)
 
     if args.debug:
-        print '    final tree:'
-        print treeutils.get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
+        print('    final tree:')
+        print(treeutils.get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350))
     with open(fofn('tree'), 'w') as ofile:
         ofile.write('%s\n' % treeutils.as_str(dtree))
     utils.write_fasta(fofn('seqs'), seqfos)
@@ -140,26 +163,29 @@ def convert_pickle_tree():
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='run:parse')
 parser.add_argument('--infname')
+parser.add_argument('--metafname', help='if you need --frame (v region doesn\'t start at first position) or --chain_split and --frame2 (heavy/light chain smooshed together), pass the info in json format with this arg (see code above for format).')
 parser.add_argument('--outdir')
 parser.add_argument('--overwrite', action='store_true')
-parser.add_argument('--condapath', default=os.getenv('HOME') + '/miniconda3')
+parser.add_argument('--base-model', action='store_true', help='By default, we pass gctree info for the s5f mutation model; if this is set, we don\'t, and it instead use the base model.')
 parser.add_argument('--env-label', default='gctree')
 parser.add_argument('--root-label', default='naive')
+parser.add_argument('--data-dir', default='%s/data/s5f'%utils.get_partis_dir())
 parser.add_argument('--inf-int-label', default='inf', help='base name for inferred intermediate seqs (numerical name is appended with -')
 parser.add_argument('--run-help', action='store_true', help='run gctree help')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
-# parser.add_argument('--ete-path', default='/home/%s/anaconda_ete/bin' % os.getenv('USER') if os.getenv('USER') is not None else None)
 
 args = parser.parse_args()
-args.actions = utils.get_arg_list(args.actions, choices=['install', 'run', 'parse', 'convert-pickle-tree'])
+args.actions = utils.get_arg_list(args.actions, choices=['install', 'update', 'run', 'parse', 'convert-pickle-tree'])
 args.infname = utils.fpath(args.infname)
 args.outdir = utils.fpath(args.outdir)
 
 if 'install' in args.actions:
     install()
+if 'update' in args.actions:
+    update()
 if 'run' in args.actions:
-    run_gctree(args.infname)
+    run_gctree()
 if 'parse' in args.actions:
     parse_output()
 if 'convert-pickle-tree' in args.actions:

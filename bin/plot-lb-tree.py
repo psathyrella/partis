@@ -1,5 +1,7 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # has to be its own script, since ete3 requires its own god damn python version, installed in a separated directory
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import time
 import yaml
 import itertools
@@ -8,7 +10,6 @@ import argparse
 import copy
 import random
 import os
-import tempfile
 import subprocess
 import sys
 import colored_traceback.always
@@ -16,6 +17,7 @@ from collections import OrderedDict
 import numpy
 import math
 import re
+from io import open
 try:
     # NOTE install with http://etetoolkit.org/new_download/ (i.e. in a *separate* ~/anaconda_ete conda install dir)
     import ete3
@@ -82,7 +84,7 @@ def set_delta_affinities(etree, affyfo):  # set change in affinity from parent f
 def get_size(vmin, vmax, val):
     if vmin == vmax:
         return 0
-    return min_size + (val - vmin) * (max_size - min_size) / (vmax - vmin)
+    return min_size + (val - vmin) * (max_size - min_size) / float(vmax - vmin)
 
 # ----------------------------------------------------------------------------------------
 def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):  # NOTE very similar to add_smap_legend() in plot_2d_scatter() in python/lbplotting.py
@@ -124,17 +126,17 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         tstyle.legend.add_face(ete3.TextFace(tfstr, fsize=fsize), column=start_column + 2)
 
 # ----------------------------------------------------------------------------------------
-def label_node(node):
+def label_node(node, root_node):
     # ----------------------------------------------------------------------------------------
     def use_name():
         if args.label_all_nodes:
             return True
         if args.queries_to_include is not None and node.name in args.queries_to_include:
             return True
-        if args.label_root_node and node is etree.get_tree_root():
+        if args.label_root_node and node is root_node:
             return True
         if args.meta_info_to_emphasize is not None:
-            key, val = args.meta_info_to_emphasize.items()[0]
+            key, val = list(args.meta_info_to_emphasize.items())[0]
             if utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
                 return True
         if args.uid_translations is not None and node.name in args.uid_translations:
@@ -145,7 +147,7 @@ def label_node(node):
         if lstr.count(',') < 3:
             return lstr
         blist = lstr.split(', ')
-        return '%s\n%s' % (', '.join(blist[:len(blist)/2]), ', '.join(blist[len(blist)/2:]))
+        return '%s\n%s' % (', '.join(blist[:len(blist)//2]), ', '.join(blist[len(blist)//2:]))
     # ----------------------------------------------------------------------------------------
     if use_name():
         nlabel = node.name
@@ -198,7 +200,7 @@ def set_lb_styles(args, etree, tstyle):
     lbfo = args.metafo[args.lb_metric]
     if 'lbr' in args.lb_metric or 'lbf' in args.lb_metric:  # remove zeros + maybe apply log()
         lbfo = {u : (math.log(v) if args.log_lbr else v) for u, v in lbfo.items() if v > 0}
-    lbvals = lbfo.values()
+    lbvals = list(lbfo.values())
     if len(lbvals) == 0:
         return
     lb_smap = plotting.get_normalized_scalar_map(lbvals, 'viridis', hard_min=get_scale_min(args.lb_metric, lbvals) if args.lb_metric=='cons-dist-aa' else None)
@@ -208,7 +210,7 @@ def set_lb_styles(args, etree, tstyle):
     if args.affy_key in args.metafo and set(args.metafo[args.affy_key].values()) != set([None]):
         affyfo = args.metafo[args.affy_key]
         if args.lb_metric in treeutils.affy_metrics:
-            affyvals = affyfo.values()
+            affyvals = list(affyfo.values())
             affy_smap = plotting.get_normalized_scalar_map([a for a in affyvals if a is not None], 'viridis')
         elif args.lb_metric in treeutils.daffy_metrics:
             delta_affyvals = set_delta_affinities(etree, affyfo)
@@ -226,7 +228,7 @@ def set_lb_styles(args, etree, tstyle):
         bgcolor = plotting.getgrey()
         if args.lb_metric in treeutils.affy_metrics:
             if node.name not in lbfo:  # really shouldn't happen
-                print '  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name)
+                print('  %s missing lb info for node \'%s\'' % (utils.color('red', 'warning'), node.name))
                 continue
             if affyfo is not None:
                 rfsize = get_size(lb_min, lb_max, lbfo[node.name])
@@ -251,7 +253,7 @@ def set_lb_styles(args, etree, tstyle):
                     node.img_style['hz_line_width'] = 1.2
                 else:
                     node.img_style['hz_line_color'] = plotting.getgrey()
-        label_node(node)
+        label_node(node, etree.get_tree_root())
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
@@ -290,7 +292,7 @@ def set_meta_styles(args, etree, tstyle):
         if args.meta_info_key_to_color is not None and node.name in mvals:
             bgcolor = mcolors.get(mvals[node.name], bgcolor)
 
-        label_node(node)
+        label_node(node, etree.get_tree_root())
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
@@ -318,7 +320,7 @@ def plot_trees(args):
         if args.meta_info_key_to_color is not None or args.meta_info_to_emphasize:
             set_meta_styles(args, etree, tstyle)
     else:
-        print '  %s --metafo is not set, so no node formats (e.g. labels) will be set)' % utils.wrnstr()
+        print('  %s --metafo is not set, so no node formats (e.g. labels) will be set)' % utils.wrnstr())
 
     # print '      %s' % args.outfname
     tstyle.show_leaf_name = False
@@ -347,23 +349,22 @@ parser.add_argument('--meta-emph-formats', help='see partis help')
 parser.add_argument('--node-size-key', help='see partis help')
 args = parser.parse_args()
 
-sys.path.insert(1, args.partis_dir + '/python')
+sys.path.insert(1, args.partis_dir) # + '/python')
 try:
-    import utils
-    import treeutils
-    import glutils
-    import plotting
-    import lbplotting
-    import gctlb
+    import python.utils as utils
+    import python.treeutils as treeutils
+    import python.glutils as glutils
+    import python.plotting as plotting
+    import python.lbplotting as lbplotting
 except ImportError as e:
-    print e
+    print(e)
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
 args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
 args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
 utils.meta_emph_arg_process(args)
 args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
 if args.node_label_regex is not None and not args.label_all_nodes:
-    print '  note: turning on --label-all-nodes'
+    print('  note: turning on --label-all-nodes')
     args.label_all_nodes = True
 
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)

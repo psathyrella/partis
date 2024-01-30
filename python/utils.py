@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import platform
 import resource
 import psutil
@@ -24,19 +26,26 @@ import types
 import collections
 import operator
 import yaml
+import six
+import hashlib
+from io import open
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
 
-import indelutils
-import clusterpath
-import treeutils
+existing_output_actions = []  # set in bin/partis (so it's next to the action dict)
 
 all_ptn_plot_cfg = ['shm-vs-size', 'cluster-bubble', 'mut-bubble', 'diversity', 'sizes', 'trees', 'subtree-purity', 'mds', 'laplacian-spectra', 'sfs']
 default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'cluster-bubble', 'sizes', 'trees']
 
 dummy_str = 'x-dummy-x'
+
+def csv_wmode(mode='w'):
+    if sys.version_info.major < 3:  # 2.7 csv module doesn't support unicode, this is the hackey fix
+        return mode + 'b'
+    else:
+        return mode
 
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
@@ -66,7 +75,7 @@ def timeprinter(fcn):
         start = time.time()
         # print fcn.__name__,
         fcn(*args, **kwargs)
-        print '    %s: (%.1f sec)' % (fcn.__name__, time.time()-start)
+        print('    %s: (%.1f sec)' % (fcn.__name__, time.time()-start))
     return wrapper
 
 # ----------------------------------------------------------------------------------------
@@ -151,10 +160,6 @@ def get_boundaries(locus):  # NOTE almost everything still uses the various stat
 
 def region_pairs(locus):
     return [{'left' : bound[0], 'right' : bound[1]} for bound in get_boundaries(locus)]
-
-import seqfileopener
-import glutils
-import prutils
 
 #----------------------------------------------------------------------------------------
 # NOTE I also have an eps defined in hmmwriter. Simplicity is the hobgoblin of... no, wait, that's just plain ol' stupid to have two <eps>s defined
@@ -310,7 +315,7 @@ def sargval(args, sv):  # ick this name sucks
     def dkey(sv):
         return sv.replace('-', '_') + '_list'
     if sv == 'seed':
-        riter = range(args.n_replicates) if args.iseeds is None else args.iseeds
+        riter = list(range(args.n_replicates)) if args.iseeds is None else args.iseeds
         return [args.random_seed + i for i in riter]
     else:
         return args.__dict__[dkey(sv)]
@@ -346,7 +351,7 @@ def get_var_info(args, scan_vars, debug=False):
             val_lists = [vlist + [sv] for vlist in val_lists for sv in sargv]
             valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in sargv]
             if debug:
-                print '    %30s  %4s    %s    %s' % (svar, 'y' if svar in args.str_list_vars else '-', val_lists, valstrs)
+                print('    %30s  %4s    %s    %s' % (svar, 'y' if svar in args.str_list_vars else '-', val_lists, valstrs))
         else:
             base_args.append('--%s %s' % (svar, convert_fcn(sargv[0])))
         return val_lists, valstrs
@@ -356,17 +361,17 @@ def get_var_info(args, scan_vars, debug=False):
     varnames = []  # names of variables that currently have more than one value that we want to scan over (e.g. ['n-sim-seqs-per-gen', 'seed'])
     val_lists, valstrs = [[]], [[]]  # these are both lists in which each entry is a combination of each of the vars in <varnames> that we want to run; in the former they're all lists, whereas in the latter they're strings, i.e. colon-separated lists (e.g. [[[10, 20], 0], [[10, 20], 1], [[10, 20], 2], [[50, 100], 0], [[50, 100], 1], [[50, 100], 2]] and [['10:20', '0'], ['10:20', '1'], ['10:20', '2'], ['50:100', '0'], ['50:100', '1'], ['50:100', '2']])
     if debug:
-        print '                             name    list   val_lists              valstrs'
+        print('                             name    list   val_lists              valstrs')
     for svar in scan_vars:
         val_lists, valstrs = handle_var(svar, val_lists, valstrs)  # val_lists and valstrs get updated each time through
 
     if args.zip_vars is not None:
         if any(v not in varnames for v in args.zip_vars):
-            print '  %s zip var \'%s\' not in varnames for this action, so not zipping anything'
+            print('  %s zip var \'%s\' not in varnames for this action, so not zipping anything')
         else:
             assert len(args.zip_vars) == 2  # nothing wrong with more, but I don't feel like testing it right now
             assert len(sargval(args, args.zip_vars[0])) == len(sargval(args, args.zip_vars[1]))  # doesn't make sense unless you provide a corresponding value for each
-            ok_zipvals = zip(sargval(args, args.zip_vars[0]), sargval(args, args.zip_vars[1]))
+            ok_zipvals = list(zip(sargval(args, args.zip_vars[0]), sargval(args, args.zip_vars[1])))
             zval_lists, zvalstrs = [], []  # new ones, only containing zipped values
             for vlist, vstrlist in zip(val_lists, valstrs):
                 zvals = tuple([vlval(args, vlist, varnames, zv) for zv in args.zip_vars])  # values for this combo of the vars we want to zip
@@ -376,36 +381,36 @@ def get_var_info(args, scan_vars, debug=False):
             val_lists = zval_lists
             valstrs = zvalstrs
             if debug:
-                print '    zipped values for %s: %s    %s' % (' '.join(args.zip_vars), val_lists, valstrs)
+                print('    zipped values for %s: %s    %s' % (' '.join(args.zip_vars), val_lists, valstrs))
 
     if any(valstrs.count(vstrs) > 1 for vstrs in valstrs):
         raise Exception('duplicate combinations for %s' % ' '.join(':'.join(vstr) for vstr in valstrs if valstrs.count(vstr) > 1))
 
     if debug:
-        print '    base args: %s' % ' '.join(base_args)
+        print('    base args: %s' % ' '.join(base_args))
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------
 def run_scan_cmds(args, cmdfos, logfname, n_total, n_already_there, single_ofn, example_existing_ofn=None, n_missing_input=0, single_ifn=None, shell=False, dbstr=None):
     if n_missing_input > 0:
-        print '      %2d / %d %s missing input%s' % (n_missing_input, n_total, '' if dbstr is None else dbstr+' ', '' if single_ifn is None else ', e.g. %s'%single_ifn)
+        print('      %2d / %d %s missing input%s' % (n_missing_input, n_total, '' if dbstr is None else dbstr+' ', '' if single_ifn is None else ', e.g. %s'%single_ifn))
     if n_already_there > 0:
-        print '      %2d / %d %sjobs skipped (outputs exist, e.g. %s)' % (n_already_there, n_total, '' if dbstr is None else dbstr+' ', single_ofn if single_ofn is not None else example_existing_ofn)
+        print('      %2d / %d %sjobs skipped (outputs exist, e.g. %s)' % (n_already_there, n_total, '' if dbstr is None else dbstr+' ', single_ofn if single_ofn is not None else example_existing_ofn))
     if len(cmdfos) > 0:
-        print '      %s %d %sjobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos), '' if dbstr is None else dbstr+' ')
+        print('      %s %d %sjobs' % ('--dry: would start' if args.dry else 'starting', len(cmdfos), '' if dbstr is None else dbstr+' '))
         if args.dry:
             if hasattr(args, 'print_all') and args.print_all:
-                print '  would run:'
+                print('  would run:')
                 for cfo in cmdfos:
-                    print '    %s' % cfo['cmd_str']
+                    print('    %s' % cfo['cmd_str'])
             else:
-                print '  first command: %s' % cmdfos[0]['cmd_str']
+                print('  first command: %s' % cmdfos[0]['cmd_str'])
         else:
             run_cmds(cmdfos, debug='write:%s'%logfname, n_max_procs=args.n_max_procs, allow_failure=True, shell=shell)
 
 # ----------------------------------------------------------------------------------------
 def add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='partition'):
-    parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs'), script_base))
+    parser.add_argument('--base-outdir', default='%s/partis/%s'%(os.getenv('fs', default=os.getenv('HOME')), script_base))
     parser.add_argument('--version', default='v0')
     parser.add_argument('--label', default='test')
     parser.add_argument('--dry', action='store_true')
@@ -446,7 +451,7 @@ def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics):
             args.scan_vars[act] = []
         args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]
 
-    args.actions = get_arg_list(args.actions, choices=['simu', 'plot', 'combine-plots'] + after_actions + plot_actions)
+    args.actions = get_arg_list(args.actions, choices=['simu', 'plot', 'combine-plots', 'data'] + after_actions + plot_actions)
     args.plot_metrics = get_arg_list(args.plot_metrics)
     args.zip_vars = get_arg_list(args.zip_vars)
     args.plot_metric_extra_strs = get_arg_list(args.plot_metric_extra_strs)
@@ -466,7 +471,7 @@ def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics):
         with open(args.data_in_cfg) as dfile:
             args.data_in_cfg = yaml.load(dfile, Loader=yaml.CLoader)
         if 'simu' in args.actions and not args.dry:
-            print '  %s turning on --dry, since the links still get made, and not sure what happens if it isn\'t set' % wrnstr()
+            print('  %s turning on --dry, since the links still get made, and not sure what happens if it isn\'t set' % wrnstr())
             args.dry = True
 
     get_scanvar_arg_lists(args)
@@ -483,7 +488,7 @@ def make_scanvar_data_links(args, varnames, vstrs, action, outfn, ofn_fcn, odir_
         raise Exception('at least for now, if --data-in-cfg/--dataset-in-list are set, \'dataset-in\' must be a scan var (and be the only one), but got %s' % (varnames))
     sample = vstrs[0]
     if sample not in args.data_in_cfg:
-        raise Exception('sample \'%s\' not found in meta info with choices: %s' % (sample, args.data_in_cfg.keys()))
+        raise Exception('sample \'%s\' not found in meta info with choices: %s' % (sample, list(args.data_in_cfg.keys())))
     inpath = args.data_in_cfg[sample]['infname']
     if inpath[0] != '/':
         inpath = os.path.realpath(inpath)
@@ -576,7 +581,7 @@ def check_alphabet(seq, aa=False, only_warn=False):
     if len(set(seq) - set(alph)) > 0:
         fstr = 'unexpected %s chars[s]: %s (expected %s)' % ('amino acid' if aa else 'nuc', ' '.join(set(seq) - set(alph)), ' '.join(alph))
         if only_warn:
-            print '  %s %s' % (color('yellow', 'warning'), fstr)
+            print('  %s %s' % (color('yellow', 'warning'), fstr))
         else:
             raise Exception(fstr)
 
@@ -600,7 +605,7 @@ def non_gap_len(seq):  # NOTE see two gap-counting fcns below (_pos_in_alignment
     return len(seq) - gap_len(seq)
 def ambig_frac(seq, aa=False):
     assert not aa  # just to remind you that this fcn doesn't handle aa
-    # ambig_seq = filter(all_ambiguous_bases.__contains__, seq)
+    # ambig_seq = ''.join(filter(all_ambiguous_bases.__contains__, seq))
     # return float(len(ambig_seq)) / len(seq)
     return float(seq.count(ambig_base)) / len(seq)
 
@@ -673,7 +678,7 @@ column_dependencies['jf_insertion'] = []
 # tuples with the column and its dependencies mashed together
 # (first entry is the column of interest, and it depends upon the following entries)
 column_dependency_tuples = []
-for column, deps in column_dependencies.iteritems():
+for column, deps in column_dependencies.items():
     tmp_list = [column]
     tmp_list.extend(deps)
     column_dependency_tuples.append(tuple(tmp_list))
@@ -704,10 +709,14 @@ adaptive_headers = {
 }
 
 # ----------------------------------------------------------------------------------------
+# make new-style (unicode) translation dict from two lists of strings (i.e. from input to old-style string.maketrans())
+def make_unicode_translation(str1, str2):
+    return {ord(a) : ord(b) for a, b in zip(str1, str2)}
+
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
-forbidden_character_translations = string.maketrans(':;,', 'csm')
+forbidden_character_translations = make_unicode_translation(':;,', 'csm')
 warn_chars = set('()')
-ambig_translations = string.maketrans(''.join(all_ambiguous_bases), ambig_base * len(all_ambiguous_bases))
+ambig_translations = make_unicode_translation(all_ambiguous_bases, ambig_base * len(all_ambiguous_bases))
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
 
@@ -795,7 +804,7 @@ def add_per_seq_keys(line):  # NOTE should really combine this with add_input_me
     pskeys = set(line) & set(linekeys['per_seq'])
     other_keys = [k for k in line if k not in pskeys and isinstance(line[k], list) and len(line[k])==len(line['unique_ids'])]  # custom meta info keys (yeah they should get added some other way, but it's hard to do it super reliably
     if len(other_keys) > 0:
-        print '    %s adding missing per-seq key%s: %s' % (wrnstr(), plural(len(other_keys)), ', '.join(other_keys))
+        print('    %s adding missing per-seq key%s: %s' % (wrnstr(), plural(len(other_keys)), ', '.join(other_keys)))
         add_input_meta_keys(other_keys, are_line_keys=True)
 
 # ----------------------------------------------------------------------------------------
@@ -818,7 +827,7 @@ input_metafile_keys = {  # map between the key we want the user to put in the me
     # 'chosen' : 'chosens',
     # 'paired' : 'paireds',
 }
-linekeys['per_seq'] += input_metafile_keys.values()
+linekeys['per_seq'] += list(input_metafile_keys.values())
 def input_metafile_defaults(mkey):  # default values to use if the info isn't there (have to use a fcn rather than dict so e.g. [] doesn't give the same object each time)
     if mkey == 'multiplicities':
         return 1
@@ -841,7 +850,7 @@ def add_input_meta_keys(meta_keys, are_line_keys=False):  # NOTE I'm adding this
     for ekey in extra_keys:
         if are_line_keys:
             if ekey[-1] != 's':
-                print '  %s last char of input meta key \'%s\' isn\'t \'s\'' % (color('yellow', 'warning'), ekey)
+                print('  %s last char of input meta key \'%s\' isn\'t \'s\'' % (color('yellow', 'warning'), ekey))
             ekey = ekey[:-1]  # if we could, we'd use reversed_input_metafile_keys
         input_metafile_keys[ekey] = ekey + 's'
         reversed_input_metafile_keys[ekey+'s'] = ekey
@@ -849,7 +858,7 @@ def add_input_meta_keys(meta_keys, are_line_keys=False):  # NOTE I'm adding this
         sw_cache_headers.append(ekey+'s')
         annotation_headers.append(ekey+'s')
         new_keys.append(ekey)
-    print '  note: added %d new input meta key%s to allowed keys (add \'s\'/plural to access it in the final annotations): %s (%s)' % (len(new_keys), plural(len(new_keys)), ' '.join(new_keys), ' '.join(k+'s' for k in new_keys))
+    print('  note: added %d new input meta key%s to allowed keys (add \'s\'/plural to access it in the final annotations): %s (%s)' % (len(new_keys), plural(len(new_keys)), ' '.join(new_keys), ' '.join(k+'s' for k in new_keys)))
 
 # ----------------------------------------------------------------------------------------
 def meta_emph_arg_process(args):
@@ -908,7 +917,7 @@ special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reverse
 annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates', 'leader_seqs', 'c_gene_seqs', 'leaders', 'c_genes'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
-                     + functional_columns + input_metafile_keys.values() \
+                     + functional_columns + list(input_metafile_keys.values()) \
                      + ['codon_positions', 'tree-info', 'alternative-annotations']
 simulation_headers = linekeys['simu'] + [h for h in annotation_headers if h not in linekeys['hmm']]
 sw_cache_headers = [h for h in annotation_headers if h not in linekeys['hmm']] + linekeys['sw']
@@ -965,6 +974,7 @@ conversion_fcns['duplicates'] = get_list_of_str_list
 
 # ----------------------------------------------------------------------------------------
 def nullval(key):  # adding this very late, so could probably stand to be used in lots of other places
+    from . import indelutils
     if key == 'indelfos':
         return indelutils.get_empty_indel()
     else:
@@ -1009,7 +1019,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         assert False
     sfdict = {s['name'] : s for s in seqfos}
     final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
-    print '  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgstrs[0], len(final_qlists), len(drop_query_lists), dbgstrs[1], len(final_sfos), sum(len(ql) for ql in drop_query_lists))
+    print('  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgstrs[0], len(final_qlists), len(drop_query_lists), dbgstrs[1], len(final_sfos), sum(len(ql) for ql in drop_query_lists)))
     return final_sfos
 
 # ----------------------------------------------------------------------------------------
@@ -1023,7 +1033,7 @@ def set_did_vals(uid):  # NOTE this is a pretty shitty way to do this, but i hav
         return '_', [0]
     elif uid.count('-') > 0 and uid.split('-')[-1] in loci:  # simulation, e.g. 7842229920653554932-igl
         if '_contig_' in uid:
-            print '  %s found string \'_contig_\' in uid \'%s\' that also has locus \'%s\' at the end (which likely means pair info guessing is not working' % (wrnstr(), uid, uid.split('-')[-1])
+            print('  %s found string \'_contig_\' in uid \'%s\' that also has locus \'%s\' at the end (which likely means pair info guessing is not working' % (wrnstr(), uid, uid.split('-')[-1]))
         return '-', list(range(uid.count('-')))  # make the last bit the contig id, and keep everything else as the droplet id (kind of arbitrary)
     else:  # default (same as 10x atm)
         return '_', [0]
@@ -1042,12 +1052,12 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, return_colo
     auto_set = False
     if did_seps is None or did_indices is None:
         if did_seps is not None or did_indices is not None:
-            print '  %s only one of did_seps/did_indices was set, so still need to guess both of them: %s %s' % (wrnstr(), did_seps, did_indices)
+            print('  %s only one of did_seps/did_indices was set, so still need to guess both of them: %s %s' % (wrnstr(), did_seps, did_indices))
         did_seps, did_indices = set_did_vals(uid)
         auto_set = True
     if not any(s in uid for s in did_seps):  # probably not paired data
         if debug:
-            print '  %s no separators %s in uid %s' % (wrnstr(), did_seps, uid)
+            print('  %s no separators %s in uid %s' % (wrnstr(), did_seps, uid))
         return '', '' if return_contigs else ''
     ulist = [uid]
     for sep in did_seps:  # recursively split by each sep character
@@ -1059,8 +1069,8 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, return_colo
     cid = ulist[-1] if max(did_indices) < len(ulist) - 1 else ''  # normally just set the contig id to the last element, which is correct for [current] 10x data, except when we need the last element as part of the droplet id
     # , and we don't care about it otherwise (NOTE if you change this, you'll have to update the return_colored stuff below)
     if debug:
-        print '    droplet id separators%s: %s  indices: %s' % (' (set automatically)' if auto_set else '', did_seps, did_indices)
-        print '       e.g. uid \'%s\' --> droplet id \'%s\' contig id \'%s\'' % (uid, did, cid)
+        print('    droplet id separators%s: %s  indices: %s' % (' (set automatically)' if auto_set else '', did_seps, did_indices))
+        print('       e.g. uid \'%s\' --> droplet id \'%s\' contig id \'%s\'' % (uid, did, cid))
     if return_colored:
         return did_seps[0].join(color('red' if i in did_indices else ('blue' if i==len(ulist)-1 else None), ulist[i]) for i, s in enumerate(ulist))
     elif return_contigs:
@@ -1093,7 +1103,7 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
             droplet_ids[did] = []
         droplet_ids[did].append(sfo['name'])
 
-    print '  extract_pairing_info(): read %d sequences with %d droplet ids' % (len(seqfos), len(droplet_ids))
+    print('  extract_pairing_info(): read %d sequences with %d droplet ids' % (len(seqfos), len(droplet_ids)))
     if debug:
         did_fcn(seqfos[0]['name'], debug=True)
     count_info = {}
@@ -1101,12 +1111,12 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
         if len(dlist) not in count_info:
             count_info[len(dlist)] = 0
         count_info[len(dlist)] += 1
-    print '    contigs per'
-    print '      droplet     count   fraction'
+    print('    contigs per')
+    print('      droplet     count   fraction')
     total = sum(count_info.values())
-    for size, count in sorted(count_info.items(), key=operator.itemgetter(0)):
+    for size, count in sorted(list(count_info.items()), key=operator.itemgetter(0)):
         frac = count / float(total)
-        print '       %2d        %5d     %s' % (size, count, ('%.3f'%frac) if frac > 0.001 else ('%.1e'%frac))
+        print('       %2d        %5d     %s' % (size, count, ('%.3f'%frac) if frac > 0.001 else ('%.1e'%frac)))
 
     input_metafos = {}
     if input_metafname is not None:
@@ -1124,11 +1134,11 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
             metafos[sfo['name']].update(input_metafos[sfo['name']])
 
     if debug > 1:
-        print '           did       N     uids'
+        print('           did       N     uids')
         max_len = max(len(u) for u in metafos)
-        dgpairs = [(did, list(dgroup)) for did, dgroup in get_droplet_groups(metafos.keys(), droplet_id_separators, droplet_id_indices)]
+        dgpairs = [(did, list(dgroup)) for did, dgroup in get_droplet_groups(list(metafos.keys()), droplet_id_separators, droplet_id_indices)]
         for did, dgroup in sorted(dgpairs, key=lambda x: len(x[1]), reverse=True):
-            print '      %10s   %3d   %s' % (did, len(dgroup), '   '.join([did_fcn(u, return_colored=True)+(max_len-len(u))*' ' for u in dgroup]))
+            print('      %10s   %3d   %s' % (did, len(dgroup), '   '.join([did_fcn(u, return_colored=True)+(max_len-len(u))*' ' for u in dgroup])))
 
     return metafos
 
@@ -1137,7 +1147,7 @@ def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotatio
     if len(cpath.partitions) == 0:
         return
     if len(annotation_list) == 0:
-        print '    %s zero length annotation list in check_concordance_of_cpath_and_annotations()' % color('yellow', 'warning')
+        print('    %s zero length annotation list in check_concordance_of_cpath_and_annotations()' % color('yellow', 'warning'))
         return
     pfcn = 'last' if use_last else 'best'
     partition = getattr(cpath, pfcn)()
@@ -1145,22 +1155,22 @@ def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotatio
     extra_antns = [l for l in annotation_list if l['unique_ids'] not in partition]
     if len(miss_clusts) == 0 and debug:
         estr = '' if len(extra_antns)==0 else ' (%d extra%s with size%s: %s)' % (len(extra_antns), plural(len(extra_antns)), plural(len(extra_antns)), ' '.join(str(len(l['unique_ids'])) for l in extra_antns))
-        print '    check_concordance_of_cpath_and_annotations(): annotations for all %d clusters in %s partition%s' % (len(partition), pfcn, estr)
+        print('    check_concordance_of_cpath_and_annotations(): annotations for all %d clusters in %s partition%s' % (len(partition), pfcn, estr))
     if len(miss_clusts) > 0:
         def pstr(ptn): return ', '.join(str(len(c)) for c in sorted(ptn, key=len, reverse=True))
         present_str = '' if len(partition)>30 else ' (present: %s)' % pstr([c for c in partition if c not in miss_clusts])
-        print '    %s check_concordance_of_cpath_and_annotations(): missing annotations for %d/%d clusters in %s partition with size%s: %s%s' % (color('yellow', 'warning'), len(miss_clusts), len(partition), pfcn, plural(len(miss_clusts)), pstr(miss_clusts), present_str)
+        print('    %s check_concordance_of_cpath_and_annotations(): missing annotations for %d/%d clusters in %s partition with size%s: %s%s' % (color('yellow', 'warning'), len(miss_clusts), len(partition), pfcn, plural(len(miss_clusts)), pstr(miss_clusts), present_str))
         if len(extra_antns) > 0:
-            print '        %d extra annotations (i.e. they\'re for clusters not in %s partition) with sizes: %s' % (len(extra_antns), pfcn, ' '.join(str(len(l['unique_ids'])) for l in extra_antns))
+            print('        %d extra annotations (i.e. they\'re for clusters not in %s partition) with sizes: %s' % (len(extra_antns), pfcn, ' '.join(str(len(l['unique_ids'])) for l in extra_antns)))
     for mclust in miss_clusts:
         overlap_antns = [l for l in annotation_list if len(set(mclust) & set(l['unique_ids'])) > 0]
         if len(overlap_antns) > 0:
-            print '          missing \'%s\' cluster with size %d overlaps with the following (overlap/size): %s' % (pfcn, len(mclust), '  '.join('%d/%d'%(len(set(mclust) & set(ol['unique_ids'])), len(ol['unique_ids'])) for ol in overlap_antns))
+            print('          missing \'%s\' cluster with size %d overlaps with the following (overlap/size): %s' % (pfcn, len(mclust), '  '.join('%d/%d'%(len(set(mclust) & set(ol['unique_ids'])), len(ol['unique_ids'])) for ol in overlap_antns)))
     if len(miss_clusts) > 0:  # don't really care about extra ones unless there's missing ones that we might want to account for
         for eline in extra_antns:
             overlap_clusts = [c for c in partition if len(set(eline['unique_ids']) & set(c)) > 0]
             if len(overlap_clusts) > 0:
-                print '          extra annotation with size %d overlaps with the following %s clusters (overlap/size): %s' % (len(eline['unique_ids']), pfcn, '  '.join('%d/%d'%(len(set(eline['unique_ids']) & set(c)), len(c)) for c in overlap_clusts))
+                print('          extra annotation with size %d overlaps with the following %s clusters (overlap/size): %s' % (len(eline['unique_ids']), pfcn, '  '.join('%d/%d'%(len(set(eline['unique_ids']) & set(c)), len(c)) for c in overlap_clusts)))
 
 # ----------------------------------------------------------------------------------------
 def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=None, use_last=False):
@@ -1169,7 +1179,7 @@ def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=No
         uidstr = ':'.join(line['unique_ids'])
         if uidstr in annotation_dict or duplicate_resolution_key is not None:  # if <duplicate_resolution_key> was specified, but it wasn't specified properly (e.g. if it's not sufficient to resolve duplicates), then <uidstr> won't be in <annotation_dict>
             if duplicate_resolution_key is None:
-                print '  %s multiple annotations for the same cluster, but no duplication resolution key was specified, so returning None for annotation dict (which is fine, as long as you\'re not then trying to use it)' % color('yellow', 'warning')
+                print('  %s multiple annotations for the same cluster, but no duplication resolution key was specified, so returning None for annotation dict (which is fine, as long as you\'re not then trying to use it)' % color('yellow', 'warning'))
                 return None
             else:
                 uidstr = '%s-%s' % (uidstr, line[duplicate_resolution_key])
@@ -1180,7 +1190,7 @@ def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=No
 
     if cpath is not None:  # check that all the clusters in <cpath>.best() are in the annotation dict
         if len(cpath.best()) > 10000:
-            print '     note: to save time, not checking concordance of cpath and annotations since partition has more than 10,000 clusters'
+            print('     note: to save time, not checking concordance of cpath and annotations since partition has more than 10,000 clusters')
         else:
             check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotation_dict, use_last=use_last)
     return annotation_dict
@@ -1199,12 +1209,15 @@ def per_seq_val(line, key, uid, use_default=False, default_val=None):  # get val
 
 # ----------------------------------------------------------------------------------------
 def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=False):  # generalizes per_seq_val(), and maybe they should be integrated? but adding this long afterwards so don't want to mess with that fcn
+    from . import treeutils
     # ----------------------------------------------------------------------------------------
     def rtnval():
         # assert key in linekeys['per_seq']  # input metafile keys (e.g. chosens) are no longer always added to per_seq keys
         if key in linekeys['per_family']:
             return antn[key]
         else:
+            if iseq > len(antn[key]) - 1:
+                raise Exception('per-seq list too long for %s (uid len %d): %d > %d-1: %s' % (key, len(antn['unique_ids']), iseq, len(antn[key]), antn[key]))
             return antn[key][iseq]
     # ----------------------------------------------------------------------------------------
     # NOTE this is starting to duplicate code in add_extra_column()
@@ -1232,7 +1245,9 @@ def antnval(antn, key, iseq, use_default=False, default_val=None, add_xtr_col=Fa
     elif key == 'cdr3_seq_aa':
         return ltranslate(get_cdr3_seq(antn, iseq))
     elif key == 'imgt_cdr3_length_aa':  # ick
-        return antn['cdr3_length'] / 3 - 2
+        return antn['cdr3_length'] // 3 - 2
+    elif key == 'frame':
+        return get_frame(antn)
     else:
         if add_xtr_col:
             rval = add_extra_column(key, antn, None)  # try to add it NOTE this fcn even existing is pretty hackey, it was originally for transferring from info to outfo 
@@ -1279,6 +1294,7 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
 # translate the uids in each line in <antn_list> using translation dict <trns>
 # specify *either* <trns> (a dict from old to new uid) or <trfcn> (a fcn from old to new uid)
 def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='translation', no_fail=False, translate_pids=False, expect_missing=False, debug=False):
+    from . import treeutils
     # ----------------------------------------------------------------------------------------
     def tr_tree(line, treestr, dbgstr):
         dtree = treeutils.get_dendro_tree(treestr=treestr)
@@ -1289,7 +1305,7 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
         if trfcn is not None:
             tid = trfcn(uid)
             if tid in revrns:
-                print '    %s translated uid %s (for %s) already in translations dict for %s' % (wrnstr(), tid, uid, revrns[tid])
+                print('    %s translated uid %s (for %s) already in translations dict for %s' % (wrnstr(), tid, uid, revrns[tid]))
             return tid
         elif uid in trns:
             return trns[uid]
@@ -1302,7 +1318,7 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
     def tr_lb_info(line):
         lbfo = line['tree-info']['lb']
         if debug:
-            print '  translating lb info:'
+            print('  translating lb info:')
         for mtmp, mtfo in lbfo.items():
             if mtmp in ['tree', 'aa-tree']:
                 lbfo[mtmp] = tr_tree(line, lbfo[mtmp], 'aa inf' if mtmp=='aa-tree' else 'nuc inf')
@@ -1310,12 +1326,12 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
                 lbfo[mtmp] = {trfn(u) : mtfo[u] for u in mtfo}
     # ----------------------------------------------------------------------------------------
     if 'paired-uids' in antn_list[0] and not translate_pids:
-        print '  %s paired uids in line, but <translate_pids> wasn\'t set, so they won\'t be translated' % wrnstr()
+        print('  %s paired uids in line, but <translate_pids> wasn\'t set, so they won\'t be translated' % wrnstr())
     missing_translations = set()
     revrns = {}  # reverse translations
     for line in antn_list:
         if debug:
-            print 'translating cluster len %d' % len(line['unique_ids'])
+            print('translating cluster len %d' % len(line['unique_ids']))
         if 'tree' in line:  # simulation
             line['tree'] = tr_tree(line, line['tree'], 'true')
         if 'tree-info' in line and 'lb' in line['tree-info']:
@@ -1332,7 +1348,7 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
         for iptn, partition in enumerate(cpath.partitions):
             cpath.partitions[iptn] = [[trfn(u) for u in c] for c in partition]
     if len(missing_translations) > 0 and not expect_missing:
-        print '    %s missing translations for %d: %s' % (color('yellow', 'warning'), len(missing_translations), ' '.join(missing_translations))
+        print('    %s missing translations for %d: %s' % (color('yellow', 'warning'), len(missing_translations), ' '.join(missing_translations)))
 
     return revrns
 
@@ -1348,7 +1364,7 @@ def choose_non_dup_id(uid, n_duplicate_uids, input_info):  # NOTE calling fcn ha
             new_uid = uid + '-' + str(iid)
         iid += 1
     if n_duplicate_uids == 0:
-        print '  %s duplicate uid(s) in input file, so renaming by appending integer string, e.g. \'%s\' --> \'%s\'' % (color('yellow', 'warning'), uid, new_uid)
+        print('  %s duplicate uid(s) in input file, so renaming by appending integer string, e.g. \'%s\' --> \'%s\'' % (color('yellow', 'warning'), uid, new_uid))
     n_duplicate_uids += 1
     return new_uid, n_duplicate_uids  # if you decide you want to change it also in <reco_info>, don't forget to also modify the tree (and maybe other stuff, hence why I don't want to do it)
 
@@ -1382,7 +1398,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, dont_deep_copy=Fal
     assert len(uids) > 0
     invalid = False
     if any(reco_info[u]['invalid'] for u in uids):
-        print '    %s invalid events in synthesize_multi_seq_line_from_reco_info()' % wrnstr()
+        print('    %s invalid events in synthesize_multi_seq_line_from_reco_info()' % wrnstr())
         invalid = True
     multifo = cfcn(reco_info[uids[0]])
     for col in [c for c in linekeys['per_seq'] if c in multifo]:
@@ -1396,6 +1412,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, dont_deep_copy=Fal
 # NOTE see also replace_seqs_in_line()
 # NOTE also that there's no way to add shm indels for seqs in <seqfos_to_add>
 def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, print_added_str='', debug=False):
+    from . import indelutils
     # ----------------------------------------------------------------------------------------
     def align_sfo_seqs(sfos_to_align):
         sfos_to_align['naive_seq'] = line['naive_seq']
@@ -1403,7 +1420,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
         aligned_naive_seq = get_single_entry([sfo['seq'] for sfo in msa_info if sfo['name'] == 'naive_seq'])
         msa_info = [sfo for sfo in msa_info if sfo['name'] != 'naive_seq']
         if debug:
-            print '  aligned %d seq%s with length different to naive sequence:' % (len(sfos_to_align) - 1, plural(len(sfos_to_align) - 1))
+            print('  aligned %d seq%s with length different to naive sequence:' % (len(sfos_to_align) - 1, plural(len(sfos_to_align) - 1)))
             for iseq, sfo in enumerate(msa_info):
                 color_mutants(aligned_naive_seq, sfo['seq'], print_result=True, ref_label='naive seq ', seq_label=sfo['name']+' ', extra_str='        ', only_print_seq=iseq>0)
         for sfo in msa_info:
@@ -1437,7 +1454,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             if len(trimmed_seq) == len(line['naive_seq']):  # presumably the naive seq matches any seqs that are already in <line> (and inserts and deletions and whatnot), so we can probably only really fix it if the new seqs are padded but the naive seq isn't
                 trimmed_seqfos[sfo['name']] = trimmed_seq
         if debug:
-            print '    trimmed %d seq%s to same length as naive seq' % (len(trimmed_seqfos), plural(len(trimmed_seqfos)))
+            print('    trimmed %d seq%s to same length as naive seq' % (len(trimmed_seqfos), plural(len(trimmed_seqfos))))
     if not refuse_to_align:
         sfos_to_align = {sfo['name'] : sfo['seq'] for sfo in seqfos_to_add if sfo['name'] not in trimmed_seqfos and len(sfo['seq']) != len(line['naive_seq'])}  # implicit info adding enforces that the naive seq is the same length as all the seqs
         if len(sfos_to_align) > 0:
@@ -1479,7 +1496,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
         add_implicit_info(glfo, line)
 
     if print_added_str:
-        print '      added %d %s seqs to line (originally with %d)%s' % (len(seqfos_to_add), print_added_str, original_len, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add))
+        print('      added %d %s seqs to line (originally with %d)%s' % (len(seqfos_to_add), print_added_str, original_len, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add)))
     if debug:
         print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 
@@ -1495,6 +1512,7 @@ def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, re
 # ----------------------------------------------------------------------------------------
 # NOTE doesn't handle indels UPDATE maybe it does now? needs testing
 def combine_events(glfo, evt_list, meta_keys=None, debug=False):  # combine events in <evt_list> into a single annotation (could also [used to] pass in meta info values, but don't need it atm)
+    from . import indelutils
     if any(indelutils.has_indels_line(l, i) for l in evt_list for i in range(len(l['unique_ids']))):
         raise Exception('can\'t handle indels (needs implementing')
     combo_evt = get_full_copy(evt_list[0], glfo)
@@ -1532,10 +1550,16 @@ def generate_dummy_v(d_gene):
     return get_locus(d_gene).upper() + 'VxDx' + pv + '-' + sv + '*' + al
 
 # ----------------------------------------------------------------------------------------
-def uidhashstr(instr, bwidth=19):  # e.g. '3869180544638498223'
-    rstr = str(abs(hash(instr)))  # the minus signs are annoying because they change the length
-    rstr = '0' * (bwidth - len(rstr)) + rstr  # also pad everyone to the same length
-    return rstr
+def get_hash(instr):
+    return hashlib.md5(instr.encode()).hexdigest()  # , usedforsecurity=False (can't use this arg til python 3.9)
+
+# ----------------------------------------------------------------------------------------
+def uidhashstr(instr, max_len=10):
+    return get_hash(instr)[:max_len]
+
+# ----------------------------------------------------------------------------------------
+def hashint(instr, max_int=2**31):  # max random seed val is 32, so reduce by 1 to get some leeway
+    return int(get_hash(instr), base=16) % max_int
 
 # ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
@@ -1572,6 +1596,8 @@ def choose_new_uid(potential_names, used_names, initial_length=1, n_initial_name
 
 # ----------------------------------------------------------------------------------------
 def convert_from_adaptive_headers(glfo, line, uid=None, only_dj_rearrangements=False):
+    from . import indelutils
+    from . import glutils
     newline = {}
     print_it = False
 
@@ -1781,10 +1807,10 @@ def get_line_with_presto_headers(line):  # NOTE doesn't deep copy
 
 # ----------------------------------------------------------------------------------------
 def write_presto_annotations(outfname, annotation_list, failed_queries):
-    print '   writing presto annotations to %s' % outfname
+    print('   writing presto annotations to %s' % outfname)
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
-    with open(outfname, 'w') as outfile:
-        writer = csv.DictWriter(outfile, presto_headers.keys(), delimiter='\t')
+    with open(outfname, csv_wmode()) as outfile:
+        writer = csv.DictWriter(outfile, list(presto_headers.keys()), delimiter=str('\t'))
         writer.writeheader()
 
         for line in annotation_list:
@@ -1802,10 +1828,11 @@ def write_presto_annotations(outfname, annotation_list, failed_queries):
 
 # ----------------------------------------------------------------------------------------
 def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
+    from . import indelutils
     if debug:
         if region == 'v':
-            print line['unique_ids'][iseq]
-        print '  ', region
+            print(line['unique_ids'][iseq])
+        print('  ', region)
     assert len(qr_gap_seq) == len(gl_gap_seq)  # this should be checked in a bunch of other places, but it's nice to see it here
     istart, istop = line['regional_bounds'][region]  # start/stop indices in indel-reversed seq
     if indelutils.has_indels(line['indelfos'][iseq]):  # convert to indices in gap seq
@@ -1815,13 +1842,14 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
     regional_qr_gap_seq = istart * gap_chars[0] + qr_gap_seq[istart : istop] + (len(qr_gap_seq) - istop) * gap_chars[0]
     regional_gl_gap_seq = istart * gap_chars[0] + gl_gap_seq[istart : istop] + (len(qr_gap_seq) - istop) * gap_chars[0]
     if debug:
-        print '      ', regional_qr_gap_seq
-        print '      ', regional_gl_gap_seq
+        print('      ', regional_qr_gap_seq)
+        print('      ', regional_gl_gap_seq)
     cigarstr = indelutils.get_cigarstr_from_gap_seqs(regional_qr_gap_seq, regional_gl_gap_seq, debug=debug)
     return cigarstr
 
 # ----------------------------------------------------------------------------------------
 def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_columns=None, args=None, debug=False):
+    from . import indelutils
     # ----------------------------------------------------------------------------------------
     def getrgn(tk):  # get region from key name
         rgn = tk.split('_')[0]
@@ -1904,6 +1932,8 @@ def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_co
 
 # ----------------------------------------------------------------------------------------
 def convert_airr_line(aline, glfo):
+    from . import indelutils
+    from . import glutils
     pline = {}
     for aky, pky in airr_headers.items():
         if pky is not None:  # if there's a direct correspondence to a partis key
@@ -1950,8 +1980,8 @@ def convert_airr_line(aline, glfo):
         add_implicit_info(glfo, pline)  # NOTE can't set check_line_keys=True since it crashes bc we add 'indelfos'
     except:
         elines = traceback.format_exception(*sys.exc_info())
-        print pad_lines(''.join(elines))
-        print '      convert_airr_line(): implicit info adding failed for %s (see above)' % pline['unique_ids']
+        print(pad_lines(''.join(elines)))
+        print('      convert_airr_line(): implicit info adding failed for %s (see above)' % pline['unique_ids'])
         pline['invalid'] = True
 
     return pline
@@ -1960,19 +1990,19 @@ def convert_airr_line(aline, glfo):
 def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, skip_columns=None, args=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
     if extra_columns is None:
         extra_columns = []
-    print '   writing airr annotations to %s' % outfname
+    print('   writing airr annotations to %s' % outfname)
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
     cluster_indices = None
     if cpath is not None:
         cluster_indices = {u : i for i, c in enumerate(cpath.best()) for u in c}
-    with open(outfname, 'w') as outfile:
-        oheads = airr_headers.keys() + extra_columns
+    with open(outfname, csv_wmode()) as outfile:
+        oheads = list(airr_headers.keys()) + extra_columns
         if skip_columns is not None:
             oheads = [h for h in oheads if h not in skip_columns]
-        writer = csv.DictWriter(outfile, oheads, delimiter='\t')
+        writer = csv.DictWriter(outfile, oheads, delimiter=str('\t'))
         writer.writeheader()
         if len(annotation_list) == 0 and cpath is not None:
-            print '    writing partition with no annotations'
+            print('    writing partition with no annotations')
             for cluster in cpath.best():
                 for uid in cluster:
                     writer.writerow({'sequence_id' : uid, 'clone_id' : cluster_indices.get(uid)})
@@ -1989,11 +2019,13 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
 
 # ----------------------------------------------------------------------------------------
 def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False, clone_id_field='clone_id', sequence_id_field='sequence_id', delimiter='\t', skip_annotations=False):
+    from . import clusterpath
+    from . import glutils
     if glfo is None and glfo_dir is not None:
         glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
     failed_queries, clone_ids, plines, other_locus_ids = [], {}, [], []
     with open(fname) as afile:
-        reader = csv.DictReader(afile, delimiter=delimiter)
+        reader = csv.DictReader(afile, delimiter=str(delimiter))
         for aline in reader:
             if clone_id_field in reader.fieldnames:
                 # print '  note: no clone ids in airr file %s' % fname
@@ -2010,7 +2042,7 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
                 continue
             plines.append(convert_airr_line(aline, glfo))
     if len(clone_ids) > 0:
-        partition = group_seqs_by_value(clone_ids.keys(), lambda q: clone_ids[q])
+        partition = group_seqs_by_value(list(clone_ids.keys()), lambda q: clone_ids[q])
     else:
         partition = [[l['unique_ids'][0]] for l in plines]
     if skip_other_locus:
@@ -2047,8 +2079,8 @@ def fix_linearham_insertion(lh_line, partis_line):
                 assert False
     if j_start > v_end:
         seq = partis_line['seqs'][0]
-        print '    %s read boolean for VJInsertion in linearham output file, so resetting light chain insertion by hand: \'%s\' --> \'%s\'' % (color('yellow', 'warning'), lh_line['dj_insertion'], seq[v_end : j_start])
-        print '      %s' % (seq[ : v_end] + color('red', seq[v_end : j_start]) + seq[j_start : ])
+        print('    %s read boolean for VJInsertion in linearham output file, so resetting light chain insertion by hand: \'%s\' --> \'%s\'' % (color('yellow', 'warning'), lh_line['dj_insertion'], seq[v_end : j_start]))
+        print('      %s' % (seq[ : v_end] + color('red', seq[v_end : j_start]) + seq[j_start : ]))
         # print_reco_event(partis_line)
         lh_line['dj_insertion'] = seq[v_end : j_start]
 
@@ -2144,7 +2176,7 @@ def len_excluding_colors(seq):  # NOTE this won't work if you inserted a color c
     return len(seq)
 
 def len_only_letters(seq):  # usually the same as len_excluding_colors(), except it doesn't count gap chars or spaces
-    return len(filter((alphabet).__contains__, seq))
+    return len(list(filter((alphabet).__contains__, seq)))
 
 def wrnstr():  # adding this very late, so could use it in a *lot* of places
     return color('yellow', 'warning')
@@ -2164,13 +2196,13 @@ def color_chars(chars, col, seq):
 def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_extra_ids=False, aa=False, no_gaps=False, extra_str='', debug=False):  # if <outfname> is specified, we just tell mafft to write to <outfname> and then return None
     def outfile_fcn():
         if outfname is None:
-            return tempfile.NamedTemporaryFile()
+            return tempfile.NamedTemporaryFile(mode='w')
         else:
             return open(outfname, 'w')
     if existing_aligned_seqfos is not None and len(existing_aligned_seqfos) == 0:
         existing_aligned_seqfos = None
 
-    with tempfile.NamedTemporaryFile() as fin, outfile_fcn() as fout:
+    with tempfile.NamedTemporaryFile(mode='w') as fin, outfile_fcn() as fout:
         for seqfo in seqfos:
             fin.write('>%s\n%s\n' % (seqfo['name'], seqfo['seq']))
         fin.flush()
@@ -2181,7 +2213,7 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
             # subprocess.check_call('mafft --quiet %s >%s' % (fin.name, fout.name), shell=True)
             outstr, errstr = simplerun('%s --quiet %s >%s' % (cmd, fin.name, fout.name), shell=True, return_out_err=True, debug=False)
         else:  # if <existing_aligned_seqfos> is set, we instead add the sequences in <seqfos> to the alignment in <existing_aligned_seqfos>
-            with tempfile.NamedTemporaryFile() as existing_alignment_file:  # NOTE duplicates code in glutils.get_new_alignments()
+            with tempfile.NamedTemporaryFile(mode='w') as existing_alignment_file:  # NOTE duplicates code in glutils.get_new_alignments()
                 biggest_length = max(len(sfo['seq']) for sfo in existing_aligned_seqfos)
                 for sfo in existing_aligned_seqfos:
                     dashstr = '-' * (biggest_length - len(sfo['seq']))
@@ -2192,7 +2224,7 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
 
         if outfname is not None:
             if debug:
-                print '  align_many_seqs(): wrote aligned seqs to %s' % outfname
+                print('  align_many_seqs(): wrote aligned seqs to %s' % outfname)
             return None
 
         msa_info = read_fastx(fout.name, ftype='fa')
@@ -2205,23 +2237,23 @@ def align_many_seqs(seqfos, outfname=None, existing_aligned_seqfos=None, ignore_
         missing_ids = input_ids - output_ids
         extra_ids = output_ids - input_ids
         if len(missing_ids) > 0 or (not ignore_extra_ids and len(extra_ids) > 0):
-            print '  %d input ids not in output: %s' % (len(missing_ids), ' '.join(missing_ids))
-            print '  %d extra ids in output: %s' % (len(extra_ids), ' '.join(extra_ids))
-            print '  mafft out/err:'
-            print pad_lines(outstr)
-            print pad_lines(errstr)
+            print('  %d input ids not in output: %s' % (len(missing_ids), ' '.join(missing_ids)))
+            print('  %d extra ids in output: %s' % (len(extra_ids), ' '.join(extra_ids)))
+            print('  mafft out/err:')
+            print(pad_lines(outstr))
+            print(pad_lines(errstr))
             raise Exception('error reading mafft output from %s (see previous lines)' % fin.name)
 
     if debug:
         w = max(len(s['name']) for s in msa_info)
         for sfo in msa_info:
-            print color_mutants(msa_info[0]['seq'], sfo['seq'], ref_label=wfmt(msa_info[0]['name'], w)+' ', seq_label=wfmt(sfo['name'], w)+' ', amino_acid=aa, extra_str=extra_str)
+            print(color_mutants(msa_info[0]['seq'], sfo['seq'], ref_label=wfmt(msa_info[0]['name'], w)+' ', seq_label=wfmt(sfo['name'], w)+' ', amino_acid=aa, extra_str=extra_str))
 
     return msa_info
 
 # ----------------------------------------------------------------------------------------
 def align_seqs(ref_seq, seq):  # should eventually change name to align_two_seqs() or something
-    with tempfile.NamedTemporaryFile() as fin, tempfile.NamedTemporaryFile() as fout:
+    with tempfile.NamedTemporaryFile(mode='w') as fin, tempfile.NamedTemporaryFile(mode='w') as fout:
         fin.write('>%s\n%s\n' % ('ref', ref_seq))
         fin.write('>%s\n%s\n' % ('new', seq))
         fin.flush()
@@ -2243,7 +2275,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
     write_fasta(qrfn, queryfos)
     qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [queryfos, targetfos]]  # should really check for duplicates
     if debug:
-        print '    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos))
+        print('    running blast on %s sequences with %d targets' % (len(queryfos), len(targetfos)))
     if diamond:
         assert False  # didn't end up implementing this since it turned out blastn does the same thing, and seemed fast enough for now (binary is still in bin/ though, and it should be easy) (note: could also use https://github.com/soedinglab/mmseqs2)
         dbcmd = './bin/diamond makedb --in reference.fasta -d reference'
@@ -2256,10 +2288,10 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
     if debug:
         max_qlen, max_tlen = [max(len(s['name']) for s in sfos) for sfos in [queryfos, targetfos]]
         max_tlen = max([max_tlen, len('(for first target)')])
-        print '             %% id  mism. len    n gaps    %s            %s   target match seq' % (wfmt('target', max_tlen, jfmt='-'), wfmt('query', max_qlen, jfmt='-'))
+        print('             %% id  mism. len    n gaps    %s            %s   target match seq' % (wfmt('target', max_tlen, jfmt='-'), wfmt('query', max_qlen, jfmt='-')))
     fieldnames = ['query', 'subject', '% identity', 'alignment length', 'mismatches', 'gap opens', 'q. start', 'q. end', 's. start', 's. end']
     with open(ofn) as ofile:
-        reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter='\t', fieldnames=fieldnames)
+        reader = csv.DictReader(filter(lambda row: row[0]!='#', ofile), delimiter=str('\t'), fieldnames=fieldnames)
         for line in reader:
             qry, tgt, pct_id, alen, n_gaps = line['query'], line['subject'], float(line['% identity']), int(line['alignment length']), int(line['gap opens'])
             qbounds, tbounds = [[int(line['%s. start'%s]) - 1, int(line['%s. end'%s])] for s in ['q', 's']]
@@ -2275,7 +2307,7 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
                 matchfos[qry] = {k : v if k=='query' else [v] for k, v in mfo.items()}
                 is_best = True
                 if debug and print_all_matches:
-                    print ''
+                    print('')
             else:
                 for key, val in mfo.items():
                     if key == 'query':
@@ -2287,18 +2319,18 @@ def run_blastn(queryfos, targetfos, baseworkdir, diamond=False, short=False, aa=
                 else:
                     tgstr = '  %s  ' % color('blue', 'GAPS')
                 if is_best:
-                    print '          %3s %3s  %3s   %3s    %s      %s      %s   %s' % (color('blue', '-->'), '', '', '', 3 * ' ', wfmt('(for first target)', max_tlen), wfmt(line['query'], max_qlen), qseq)
-                print '          %3s %3.0f  %3d   %3d    %s      %s      %-s   %s' % ('', pct_id, int(line['mismatches']), alen, color(None if n_gaps==0 else 'red', '%d'%n_gaps, width=3), wfmt(tgt, max_tlen), max_qlen * ' ', tgstr)
+                    print('          %3s %3s  %3s   %3s    %s      %s      %s   %s' % (color('blue', '-->'), '', '', '', 3 * ' ', wfmt('(for first target)', max_tlen), wfmt(line['query'], max_qlen), qseq))
+                print('          %3s %3.0f  %3d   %3d    %s      %s      %-s   %s' % ('', pct_id, int(line['mismatches']), alen, color(None if n_gaps==0 else 'red', '%d'%n_gaps, width=3), wfmt(tgt, max_tlen), max_qlen * ' ', tgstr))
 
     if len(matchfos) == 0:
-        print '      no blast matches'
+        print('      no blast matches')
     mstats = {}  # ends up as a sorted list of pairs <target name, list of matched seqfos>
     def kfn(q): return q['targets'][0]
-    for tgt, tgroup in itertools.groupby(sorted(matchfos.values(), key=kfn), key=kfn):
+    for tgt, tgroup in itertools.groupby(sorted(list(matchfos.values()), key=kfn), key=kfn):
         mstats[tgt] = list(tgroup)
-    mstats = sorted(mstats.items(), key=lambda x: len(x[1]), reverse=True)
+    mstats = sorted(list(mstats.items()), key=lambda x: len(x[1]), reverse=True)
 
-    dbfns = ['%s/%s.%s%s'%(wkdir, tgn, 'p' if aa else 'n', s) for s in 'hr', 'in', 'og', 'sd', 'si', 'sq']
+    dbfns = ['%s/%s.%s%s'%(wkdir, tgn, 'p' if aa else 'n', s) for s in ('hr', 'in', 'og', 'sd', 'si', 'sq')]
     for fn in [tgfn, qrfn, ofn] + dbfns:
         os.remove(fn)
     os.rmdir(wkdir)
@@ -2351,11 +2383,11 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
         if 3 * len(aa_ref_seq) != len(pad_nuc_seq(seqfos[0]['seq'])):
             # print '\n'.join(s['seq'] for s in seqfos)  # TODO this probably means we're using input seqs for a family with lots of *different* indels, which needs to be fixed/avoided
             # raise Exception('aa ref seq length doesn\'t correspond to padded nuc seq:\n    %s\n    %s' % ('  '.join(aa_ref_seq), pad_nuc_seq(seqfos[0]['seq'])))
-            print '%s aa ref seq length doesn\'t correspond to padded nuc seq, so turning off aa_ref_seq (this may mean that this family has lots of different indels, which isn\'t really properly handled):\n    %s\n    %s' % (color('red', 'error'), '  '.join(aa_ref_seq), pad_nuc_seq(seqfos[0]['seq']))
+            print('%s aa ref seq length doesn\'t correspond to padded nuc seq, so turning off aa_ref_seq (this may mean that this family has lots of different indels, which isn\'t really properly handled):\n    %s\n    %s' % (color('red', 'error'), '  '.join(aa_ref_seq), pad_nuc_seq(seqfos[0]['seq'])))
             aa_ref_seq = None
 
     if debug:
-        print '%staking consensus of %d seqs with len %d in chunks of len %d' % (extra_str, len(seqfos), seq_len, codon_len)
+        print('%staking consensus of %d seqs with len %d in chunks of len %d' % (extra_str, len(seqfos), seq_len, codon_len))
         dbgfo = []
         all_counts = {}  # keep track of usage of each codon/base/aa over full sequence for sorting of dbg info at end
     cseq = []
@@ -2376,9 +2408,9 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
         if len(pos_counts) == 0:  # every sequence has a gap char here
             cseq.append(gap_chars[0])
             continue
-        srt_chunks = sorted(pos_counts.items(), key=operator.itemgetter(1), reverse=True)
+        srt_chunks = sorted(list(pos_counts.items()), key=operator.itemgetter(1), reverse=True)
         if aa_ref_seq is not None:  # (try to) remove any that don't code for the residue in aa_ref_seq
-            aa_match_chunks = [c for c, _ in srt_chunks if ltranslate(c) == aa_ref_seq[ipos / 3]]
+            aa_match_chunks = [c for c, _ in srt_chunks if ltranslate(c) == aa_ref_seq[ipos // 3]]
             if debug > 1: removed_chunks = []  # arg
             if len(aa_match_chunks) > 0:  # if none match, we just have to keep all of them (this should be rare)
                 if debug > 1:
@@ -2393,16 +2425,16 @@ def cons_seq(aligned_seqfos=None, unaligned_seqfos=None, aa=False, codon_len=1, 
 
     if debug:
         prlen = max(4, codon_len) if debug > 1 else codon_len
-        print '%s       ties: %s  (%s)' % (extra_str, ''.join(wfmt(len(dfo['best']), prlen, fmt='d') if len(dfo['best'])>1 else ' '*prlen for dfo in dbgfo), ',  '.join('%d: %s'%(codon_len*i, ' '.join(sorted(dfo['best']))) for i, dfo in enumerate(dbgfo) if len(dfo['best'])>1))
+        print('%s       ties: %s  (%s)' % (extra_str, ''.join(wfmt(len(dfo['best']), prlen, fmt='d') if len(dfo['best'])>1 else ' '*prlen for dfo in dbgfo), ',  '.join('%d: %s'%(codon_len*i, ' '.join(sorted(dfo['best']))) for i, dfo in enumerate(dbgfo) if len(dfo['best'])>1)))
         if codon_len == 3:
-            print '%s             %s' % (extra_str, ''.join(wfmt(ltranslate(c), prlen) for c in cseq))
-        print '%s   cons seq: %s' % (extra_str, ''.join(color('blue_bkg' if len(dfo['best'])>1 else None, c, width=prlen if debug>1 else 1) for c, dfo in zip(cseq, dbgfo)))
+            print('%s             %s' % (extra_str, ''.join(wfmt(ltranslate(c), prlen) for c in cseq)))
+        print('%s   cons seq: %s' % (extra_str, ''.join(color('blue_bkg' if len(dfo['best'])>1 else None, c, width=prlen if debug>1 else 1) for c, dfo in zip(cseq, dbgfo))))
         if debug > 1:
             def tcol(cstr, dfo): return 'blue' if cstr in dfo['best'] else ('red' if cstr in dfo['rmd'] and dfo['cnts'][cstr]>=dfo['cnts'][dfo['best'][0]] else None)
-            print '        ipos %s' % ''.join(wfmt(codon_len*i, prlen, fmt='d') for i in range(len(dbgfo)))
-            for cstr, _ in sorted(all_counts.items(), key=operator.itemgetter(1), reverse=True):
-                print '        %s %s' % (wfmt(cstr, prlen), ''.join(color(tcol(cstr, dfo), str(dfo['cnts'][cstr]), width=prlen) if cstr in dfo['cnts'] else ' '*prlen for dfo in dbgfo))
-            print '      colors: %s %s %s' % (color('blue_bkg', 'ties'), color('blue', 'best'), color('red', 'removed (not aa_ref_seq)') if aa_ref_seq is not None else '')
+            print('        ipos %s' % ''.join(wfmt(codon_len*i, prlen, fmt='d') for i in range(len(dbgfo))))
+            for cstr, _ in sorted(list(all_counts.items()), key=operator.itemgetter(1), reverse=True):
+                print('        %s %s' % (wfmt(cstr, prlen), ''.join(color(tcol(cstr, dfo), str(dfo['cnts'][cstr]), width=prlen) if cstr in dfo['cnts'] else ' '*prlen for dfo in dbgfo)))
+            print('      colors: %s %s %s' % (color('blue_bkg', 'ties'), color('blue', 'best'), color('red', 'removed (not aa_ref_seq)') if aa_ref_seq is not None else ''))
 
     cseq = ''.join(cseq)
 
@@ -2416,7 +2448,7 @@ def old_bio_cons_seq(threshold, aligned_seqfos=None, unaligned_seqfos=None, aa=F
     """ return consensus sequence from either aligned or unaligned seqfos """
     # <threshold>: If the percentage*0.01 of the most common residue type is greater then the passed threshold, then we will add that residue type, otherwise an ambiguous character will be added. e.g. 0.1 means if fewer than 10% of sequences have the most common base, it gets an N.
     # <tie_resolver_seq>: in case of ties, use the corresponding base from this sequence (we used to use the naive sequence for this, but now I don't think that makes sense) NOTE if you *don't* set this argument, all tied bases will be Ns
-    from cStringIO import StringIO
+    from io import StringIO
     from Bio.Align import AlignInfo
     import Bio.AlignIO
 
@@ -2524,11 +2556,11 @@ def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=
     n_total = len(line['unique_ids'])
     if n_total < n_sample_min:
         if debug:
-            print '  small cluster %d' % n_total
+            print('  small cluster %d' % n_total)
         return
 
     if debug:
-        print '  getting cons seq accuracy for cluster with size %d' % n_total
+        print('  getting cons seq accuracy for cluster with size %d' % n_total)
     ctypes = ['nuc', 'aa']
     info = {ct : {'n_sampled' : [], 'cseqs' : [], 'hdists' : None} for ct in ctypes}
     for n_sampled in get_n_sample_list(n_total):
@@ -2543,9 +2575,9 @@ def get_cons_seq_accuracy_vs_n_sampled_seqs(line, n_sample_min=7, n_sample_step=
         best_cseq = info[ctype]['cseqs'][-1]
         info[ctype]['hdists'] = [hamming_distance(cs, best_cseq, amino_acid=ctype=='aa') for cs in info[ctype]['cseqs']]  # it might make more sense for this to use hamming fraction, since small families get perhaps too much credit for ties that end up as ambiguous characters, but whatever
         if debug:
-            print '  %s    N sampled   hdist   ' % color('green', ctype, width=6)
+            print('  %s    N sampled   hdist   ' % color('green', ctype, width=6))
             for n_sampled, cseq, hdist in zip(info[ctype]['n_sampled'], info[ctype]['cseqs'], info[ctype]['hdists']):
-                print '             %4d      %5.2f     %s' % (n_sampled, hdist, color_mutants(best_cseq, cseq, amino_acid=ctype=='aa'))
+                print('             %4d      %5.2f     %s' % (n_sampled, hdist, color_mutants(best_cseq, cseq, amino_acid=ctype=='aa')))
 
     return info
 
@@ -2607,8 +2639,8 @@ def color_mutants(ref_seq, seq, print_result=False, extra_str='', ref_label='', 
         lwidth = max(len_excluding_colors(ref_label), len_excluding_colors(seq_label))
         if not only_print_seq:
             ref_print_str = ''.join([color('blue' if c in tmp_ambigs + tmp_gaps else None, c) for c in ref_seq])
-            print '%s%s%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_print_str, '  hdist' if print_n_snps else '', post_ref_str)
-        print '%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + n_snp_str + post_str + isnp_str + hfrac_str)
+            print('%s%s%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % ref_label, ref_print_str, '  hdist' if print_n_snps else '', post_ref_str))
+        print('%s%s%s' % (extra_str, ('%' + str(lwidth) + 's') % seq_label, ''.join(return_str) + n_snp_str + post_str + isnp_str + hfrac_str))
 
     return_list = [extra_str + seq_label + ''.join(return_str) + post_str + isnp_str + hfrac_str]
     if return_ref:
@@ -2679,7 +2711,7 @@ def int_to_nucleotide(number):
     elif number == 3:
         return 'T'
     else:
-        print 'ERROR nucleotide number not in [0,3]'
+        print('ERROR nucleotide number not in [0,3]')
         sys.exit()
 
 # ----------------------------------------------------------------------------------------
@@ -2728,10 +2760,10 @@ def count_gap_chars(aligned_seq, aligned_pos=None, unaligned_pos=None):  # NOTE 
 def get_codon_pos_in_alignment(codon, aligned_seq, seq, pos, gene):  # NOTE see gap_len() and accompanying functions above
     """ given <pos> in <seq>, find the codon's position in <aligned_seq> """
     if not codon_unmutated(codon, seq, pos):  # this only gets called on the gene with the *known* position, so it shouldn't fail
-        print '  %s mutated %s before alignment in %s' % (color('yellow', 'warning'), codon, gene)
+        print('  %s mutated %s before alignment in %s' % (color('yellow', 'warning'), codon, gene))
     pos_in_alignment = pos + count_gap_chars(aligned_seq, unaligned_pos=pos)
     if not codon_unmutated(codon, aligned_seq, pos_in_alignment):
-        print '  %s mutated %s after alignment in %s' % (color('yellow', 'warning'), codon, gene)
+        print('  %s mutated %s after alignment in %s' % (color('yellow', 'warning'), codon, gene))
     return pos_in_alignment
 
 # ----------------------------------------------------------------------------------------
@@ -2750,11 +2782,11 @@ def both_codons_unmutated(locus, seq, positions, debug=False, extra_str=''):
 def codon_unmutated(codon, seq, position, debug=False, extra_str=''):
     if len(seq) < position + 3:
         if debug:
-            print '%ssequence length %d less than %s position %d + 3' % (extra_str, len(seq), codon, position)
+            print('%ssequence length %d less than %s position %d + 3' % (extra_str, len(seq), codon, position))
         return False
     if seq[position : position + 3] not in codon_table[codon]:  # NOTE this allows it to be mutated to one of the other codons that codes for the same amino acid
         if debug:
-            print '%s%s codon %s not among expected codons (%s)' % (extra_str, codon, seq[position : position + 3], ' '.join(codon_table[codon]))
+            print('%s%s codon %s not among expected codons (%s)' % (extra_str, codon, seq[position : position + 3], ' '.join(codon_table[codon])))
         return False
     return True
 
@@ -2770,7 +2802,7 @@ def in_frame(seq, codon_positions, fv_insertion, v_5p_del, debug=False):  # NOTE
     v_cpos = codon_positions['v'] - germline_v_start
     j_cpos = codon_positions['j'] - germline_v_start  # NOTE I'm actually not sure how necessary it is that the right side of the J is in frame. I mean, I think it's pretty framework-ey, but I'm not sure.
     if debug:
-        print '    in frame:   v codon %d   j codon %d  -->  %s' % (v_cpos % 3 == 0, j_cpos % 3 == 0, v_cpos % 3 == 0 and j_cpos % 3 == 0)
+        print('    in frame:   v codon %d   j codon %d  -->  %s' % (v_cpos % 3 == 0, j_cpos % 3 == 0, v_cpos % 3 == 0 and j_cpos % 3 == 0))
     return v_cpos % 3 == 0 and j_cpos % 3 == 0
 
 #----------------------------------------------------------------------------------------
@@ -2785,9 +2817,9 @@ def get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):  # N
     istop = germline_j_end - ((germline_j_end - istart) % 3)
     codons = [seq[i : i + 3] for i in range(istart, istop, 3)]
     if debug:
-        print '   getting codons: istart %d  istop %d' % (istart, istop)
-        print '     seq: %25s' % seq
-        print '  codons: %s' % ''.join([color('red' if cdn in codon_table['stop'] else None, cdn) for cdn in codons])
+        print('   getting codons: istart %d  istop %d' % (istart, istop))
+        print('     seq: %25s' % seq)
+        print('  codons: %s' % ''.join([color('red' if cdn in codon_table['stop'] else None, cdn) for cdn in codons]))
     return codons, [seq[:istart], seq[istop:]]
 
 #----------------------------------------------------------------------------------------
@@ -2795,7 +2827,7 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     """ true if there's a stop codon in frame with respect to the start of the V """
     codons, _ = get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=debug)
     if debug:
-        print '    %d stop codon%s'  % (len(set(codons) & set(codon_table['stop'])), plural(len(set(codons) & set(codon_table['stop']))))
+        print('    %d stop codon%s'  % (len(set(codons) & set(codon_table['stop'])), plural(len(set(codons) & set(codon_table['stop'])))))
     return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
 
 # ----------------------------------------------------------------------------------------
@@ -2833,19 +2865,22 @@ def disambiguate_effective_insertions(bound, line, iseq, debug=False):
             assert False
 
     if debug:
-        print '     %s      final: %s' % (color('red', bound), color('purple', final_insertion))
-        print '         to_remove: %s' % color('blue', insertion_to_remove)
+        print('     %s      final: %s' % (color('red', bound), color('purple', final_insertion)))
+        print('         to_remove: %s' % color('blue', insertion_to_remove))
 
     return final_insertion, insertion_to_remove
 
 # ----------------------------------------------------------------------------------------
 # modify <line> so it has no 'fwk' insertions to left of v or right of j
 def trim_fwk_insertions(glfo, line, modify_alternative_annotations=False, debug=False):  # NOTE this is *different* to reset_effective_erosions_and_effective_insertions() (i think kind of, but not entirely, the opposite?)
+    from . import indelutils
+    if line.get('is_fake_paired', False):
+        raise Exception('doesn\'t work for fake paired annotations')
     # NOTE duplicates code in waterer.remove_framework_insertions(), and should really be combined with that fcn
     fv_len = len(line['fv_insertion'])
     jf_len = len(line['jf_insertion'])
     if debug:
-        print 'trimming fwk insertions: fv %d  jv %d' % (fv_len, jf_len)
+        print('trimming fwk insertions: fv %d  jv %d' % (fv_len, jf_len))
         print_reco_event(line, label='before trimming:', extra_str='    ')
 
     if fv_len == 0 and jf_len == 0:
@@ -2872,6 +2907,7 @@ def trim_fwk_insertions(glfo, line, modify_alternative_annotations=False, debug=
 
 # ----------------------------------------------------------------------------------------
 def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned_gl_seqs=None, debug=False):  # , padfo=None
+    from . import indelutils
     """
     Ham does not allow (well, no longer allows) v_5p and j_3p deletions -- we instead pad sequences with Ns.
     This means that the info we get from ham always has these effective erosions set to zero, but for downstream
@@ -2881,7 +2917,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     """
 
     if debug:
-        print 'resetting effective erosions/insertions for %s' % ' '.join(padded_line['unique_ids'])
+        print('resetting effective erosions/insertions for %s' % ' '.join(padded_line['unique_ids']))
 
     line = {k : copy.deepcopy(padded_line[k]) for k in padded_line if k not in implicit_linekeys}
 
@@ -2891,7 +2927,7 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
 
     # first disambiguate/remove effective (fv and jf) insertions
     if debug:
-        print '   disambiguating effective insertions'
+        print('   disambiguating effective insertions')
     trimmed_seqs = [line['seqs'][iseq] for iseq in range(nseqs)]
     trimmed_input_seqs = [line['input_seqs'][iseq] for iseq in range(nseqs)]
     final_insertions = [{} for _ in range(nseqs)]  # the effective insertions that will remain in the final info
@@ -2906,10 +2942,10 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
         trimmed_seqs[iseq] = trimmed_seqs[iseq][len(rem['fv']) : len(trimmed_seqs[iseq]) - len(rem['jf'])]
         trimmed_input_seqs[iseq] = trimmed_input_seqs[iseq][len(rem['fv']) : len(trimmed_input_seqs[iseq]) - len(rem['jf'])]
         if debug:
-            print '       %s  %s%s%s%s%s' % (' '.join(line['unique_ids']),
+            print('       %s  %s%s%s%s%s' % (' '.join(line['unique_ids']),
                                              color('blue', rem['fv']), color('purple', fin['fv']),
                                              trimmed_seqs[iseq][len(fin['fv']) : len(trimmed_seqs[iseq]) - len(fin['jf'])],
-                                             color('purple', fin['jf']), color('blue', rem['jf']))
+                                             color('purple', fin['jf']), color('blue', rem['jf'])))
 
     # arbitrarily use the zeroth sequence (in principle v_5p and j_3p should be per-sequence, not per-rearrangement... but that'd be a mess to implement, since the other deletions are per-rearrangement)
     TMPiseq = 0  # NOTE this is pretty hackey: we just use the values from the first sequence. But it's actually not that bad -- we can either have some extra pad Ns showing, or chop off some bases.
@@ -2934,10 +2970,10 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     if debug:
         v_5p = line['v_5p_del']
         j_3p = line['j_3p_del']
-        print '     %s:  %d' % (color('red', 'v_5p'), v_5p)
-        print '     %s:  %d' % (color('red', 'j_3p'), j_3p)
+        print('     %s:  %d' % (color('red', 'v_5p'), v_5p))
+        print('     %s:  %d' % (color('red', 'j_3p'), j_3p))
         for iseq in range(nseqs):
-            print '       %s  %s%s%s' % (' '.join(line['unique_ids']), color('red', v_5p * '.'), trimmed_seqs[iseq][v_5p : len(trimmed_seqs[iseq]) - j_3p], color('red', j_3p * '.'))
+            print('       %s  %s%s%s' % (' '.join(line['unique_ids']), color('red', v_5p * '.'), trimmed_seqs[iseq][v_5p : len(trimmed_seqs[iseq]) - j_3p], color('red', j_3p * '.')))
 
     for iseq in range(nseqs):
         line['seqs'][iseq] = trimmed_seqs[iseq][line['v_5p_del'] : len(trimmed_seqs[iseq]) - line['j_3p_del']]
@@ -2959,8 +2995,8 @@ def reset_effective_erosions_and_effective_insertions(glfo, padded_line, aligned
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-        print pad_lines(''.join(lines))
-        print '  failed adding implicit info to \'%s\' (see above)' % ':'.join(line['unique_ids'])
+        print(pad_lines(''.join(lines)))
+        print('  failed adding implicit info to \'%s\' (see above)' % ':'.join(line['unique_ids']))
         line['invalid'] = True
 
     return line
@@ -3040,7 +3076,7 @@ def get_full_copy(line, glfo):  # NOTE this doesn't really make much sense (see 
 def process_per_gene_support(line, debug=False):
     for region in regions:
         if debug:
-            print region
+            print(region)
         support = OrderedDict()
         logtotal = float('-inf')
         for gene, logprob in line[region + '_per_gene_support'].items():
@@ -3049,11 +3085,11 @@ def process_per_gene_support(line, debug=False):
 
         for gene in support:
             if debug:
-                print '   %5.2f     %5.2f   %s' % (support[gene], math.exp(support[gene] - logtotal), color_gene(gene))
+                print('   %5.2f     %5.2f   %s' % (support[gene], math.exp(support[gene] - logtotal), color_gene(gene)))
             support[gene] = math.exp(support[gene] - logtotal)
 
-        if len(support.keys()) > 0 and support.keys()[0] != line[region + '_gene']:
-            print '   %s best-supported gene %s not same as viterbi gene %s' % (color('yellow', 'warning'), color_gene(support.keys()[0]), color_gene(line[region + '_gene']))
+        if len(list(support.keys())) > 0 and list(support.keys())[0] != line[region + '_gene']:
+            print('   %s best-supported gene %s not same as viterbi gene %s' % (color('yellow', 'warning'), color_gene(list(support.keys())[0]), color_gene(line[region + '_gene'])))
 
         line[region + '_per_gene_support'] = support
 
@@ -3062,8 +3098,8 @@ def re_sort_per_gene_support(line):
     for region in [r for r in regions if r + '_per_gene_support' in line]:
         if type(line[region + '_per_gene_support']) == type(collections.OrderedDict()):  # already ordered, don't need to do anything
             continue
-        elif type(line[region + '_per_gene_support']) == types.DictType:  # plain dict, i.e. we just read it from a json.dump()'d file
-            line[region + '_per_gene_support'] = collections.OrderedDict(sorted(line[region + '_per_gene_support'].items(), key=operator.itemgetter(1), reverse=True))
+        elif isinstance(line[region + '_per_gene_support'], dict):  # plain dict, i.e. we just read it from a json dump()'d file
+            line[region + '_per_gene_support'] = collections.OrderedDict(sorted(list(line[region + '_per_gene_support'].items()), key=operator.itemgetter(1), reverse=True))
 
 # ----------------------------------------------------------------------------------------
 def get_null_linearham_info():
@@ -3071,37 +3107,37 @@ def get_null_linearham_info():
 
 # ----------------------------------------------------------------------------------------
 def add_linearham_info(sw_info, annotation_list, min_cluster_size=None, debug=False):
-    print '  adding linearham info'
+    print('  adding linearham info')
     n_already_there, n_size_skipped, n_added = 0, 0, 0
     for line in annotation_list:
         if min_cluster_size is not None and len(line['unique_ids']) < min_cluster_size:
             if debug:
-                print '       %s adding null linearham info to line: %s, because cluster is less than the passed <min_cluster_size> value of %d' % (color('yellow', 'warning'), ':'.join(line['unique_ids']), min_cluster_size)
+                print('       %s adding null linearham info to line: %s, because cluster is less than the passed <min_cluster_size> value of %d' % (color('yellow', 'warning'), ':'.join(line['unique_ids']), min_cluster_size))
             line['linearham-info'] = get_null_linearham_info()
             n_size_skipped += 1
             continue
         if 'linearham-info' in line:
             if debug:
-                print '       %s overwriting linearham info that was already in line: %s' % (color('yellow', 'warning'), ':'.join(line['unique_ids']))
+                print('       %s overwriting linearham info that was already in line: %s' % (color('yellow', 'warning'), ':'.join(line['unique_ids'])))
             n_already_there += 1
         else:
             n_added += 1
         line['linearham-info'] = get_linearham_bounds(sw_info, line, debug=debug)  # note that we don't skip ones that fail, since we don't want to just silently ignore some of the input sequences -- skipping should happen elsewhere where it can be more explicit
     if n_already_there > 0:
-        print '    %s overwriting %d / %d that already had linearham info' % (color('yellow', 'warning'), n_already_there, len(annotation_list))
+        print('    %s overwriting %d / %d that already had linearham info' % (color('yellow', 'warning'), n_already_there, len(annotation_list)))
     if n_size_skipped > 0:
-        print '    skipped %d / %d with size less than %d' % (n_size_skipped, len(annotation_list), min_cluster_size)
+        print('    skipped %d / %d with size less than %d' % (n_size_skipped, len(annotation_list), min_cluster_size))
     if n_added > 0:
-        print '    added linearham info for %d clusters' % n_added
+        print('    added linearham info for %d clusters' % n_added)
     else:
-        print '    %s didn\'t add any linearham info' % wrnstr()
+        print('    %s didn\'t add any linearham info' % wrnstr())
 
 # ----------------------------------------------------------------------------------------
 def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     """ compute the flexbounds/relpos values and return in a dict """  # NOTE deep copies per_gene_support, and then modifies this copy
     def get_swfo(uid):
         def getmatches(matchfo):  # get list of gene matches sorted by decreasing score
-            genes, gfos = zip(*sorted(matchfo.items(), key=lambda x: x[1]['score'], reverse=True))
+            genes, gfos = zip(*sorted(list(matchfo.items()), key=lambda x: x[1]['score'], reverse=True))
             return genes
         swfo = {'flexbounds' : {}, 'relpos' : {}}
         for region in getregions(get_locus(line['v_gene'])):
@@ -3135,9 +3171,9 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
 
         for region in getregions(get_locus(line['v_gene'])):
             left_region, right_region = region + '_l', region + '_r'
-            fbounds[left_region] = dict(swfo['flexbounds'][left_region].items() + fbounds[left_region].items())
-            fbounds[right_region] = dict(swfo['flexbounds'][right_region].items() + fbounds[right_region].items())
-        rpos = dict(swfo['relpos'].items() + rpos.items())
+            fbounds[left_region] = dict(list(swfo['flexbounds'][left_region].items()) + list(fbounds[left_region].items()))
+            fbounds[right_region] = dict(list(swfo['flexbounds'][right_region].items()) + list(fbounds[right_region].items()))
+        rpos = dict(list(swfo['relpos'].items()) + list(rpos.items()))
 
         del dists_to_cons[query_name]
 
@@ -3149,8 +3185,8 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
 
     def are_fbounds_empty(fbounds, region, gene_removed, reason_removed):
         left_region, right_region = region + '_l', region + '_r'
-        if len(fbounds[left_region].values()) == 0 or len(fbounds[right_region].values()) == 0:
-            print '{}: removed all genes from flexbounds for region {}: {}. The last gene removed was {}. It was removed because {}. Returning null linearham info'.format(color('yellow', 'warning'), region, fbounds, gene_removed, reason_removed)
+        if len(list(fbounds[left_region].values())) == 0 or len(list(fbounds[right_region].values())) == 0:
+            print('{}: removed all genes from flexbounds for region {}: {}. The last gene removed was {}. It was removed because {}. Returning null linearham info'.format(color('yellow', 'warning'), region, fbounds, gene_removed, reason_removed))
             return True
         return False
 
@@ -3162,7 +3198,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
         left_region, right_region = region + '_l', region + '_r'
         per_gene_support = copy.deepcopy(line[region + '_per_gene_support'])
         # remove the gene matches with zero support
-        for k in fbounds[left_region].keys():
+        for k in list(fbounds[left_region].keys()):
             support_check1 = (k not in per_gene_support)
             support_check2 = (math.fabs(per_gene_support[k] - 0.0) < eps) if not support_check1 else False
             if support_check1 or support_check2:
@@ -3170,15 +3206,15 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
                 del fbounds[right_region][k]
                 del rpos[k]
                 if debug:
-                    print 'removing %s from fbounds (and per_gene_support if it was there to begin with) for region %s because it was not in per_gene_support or had too low support.' % (k, region)
+                    print('removing %s from fbounds (and per_gene_support if it was there to begin with) for region %s because it was not in per_gene_support or had too low support.' % (k, region))
                 if support_check2:
                     del per_gene_support[k]
             if are_fbounds_empty(fbounds, region, k, '{} was not in per_gene_support or had too low support'.format(k)):
                 return get_null_linearham_info()
 
         # compute the initial left/right flexbounds
-        left_flexbounds = span(fbounds[left_region].values())
-        right_flexbounds = span(fbounds[right_region].values())
+        left_flexbounds = span(list(fbounds[left_region].values()))
+        right_flexbounds = span(list(fbounds[right_region].values()))
         germ_len = right_flexbounds[0] - left_flexbounds[1]
         # make sure there is no overlap between the left/right flexbounds
         while germ_len < 1:
@@ -3188,12 +3224,12 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
             del rpos[k]
             del per_gene_support[k]
             if debug:
-                print 'removing %s from fbounds and perg_gene_support to resolve a supposed overlap berween left and right flexbounds for region %s' % (k, region)
+                print('removing %s from fbounds and perg_gene_support to resolve a supposed overlap berween left and right flexbounds for region %s' % (k, region))
             # check removing all items from fbounds 
             if are_fbounds_empty(fbounds, region, k, 'right flexbounds was less than left for {}'.format(region)):
                 return get_null_linearham_info()
-            left_flexbounds = span(fbounds[left_region].values())
-            right_flexbounds = span(fbounds[right_region].values())
+            left_flexbounds = span(list(fbounds[left_region].values()))
+            right_flexbounds = span(list(fbounds[right_region].values()))
             germ_len = right_flexbounds[0] - left_flexbounds[1]
         fbounds[left_region] = left_flexbounds
         fbounds[right_region] = right_flexbounds
@@ -3211,7 +3247,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
 
         if junction_len < 1:
             if debug:
-                print '''
+                print('''
                           Overlap resolution code running in partis utils.get_linearham_bounds.
                           Post Duncan's fix to ig-sw (see *), we really should not have a true overlap of neighboring matches.
                           So ideally this code would not ever get triggered. However, this code does get triggered if there
@@ -3221,7 +3257,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
                           this code gets executed despite this not being a true overlap.
                           However in such a case this code does nothing so we are not changing it for fear of messing up the logic here.
                           *: https://github.com/psathyrella/partis/commit/471e5eac6d2b0fbdbb2b6024c81af14cdc3d9399
-                      '''
+                      ''')
             fbounds[left_region][0] = fbounds[right_region][0]
             fbounds[right_region][1] = fbounds[left_region][1]
 
@@ -3231,31 +3267,31 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
 
             # are the neighboring flexbounds even fixable?
             if left_germ_len < 1 or right_germ_len < 1:
-                print '    failed adding linearham info for line %s due to overlapping neighboring fbounds between %s and %s' % (':'.join(line['unique_ids']), left_region, right_region)
+                print('    failed adding linearham info for line %s due to overlapping neighboring fbounds between %s and %s' % (':'.join(line['unique_ids']), left_region, right_region))
                 return get_null_linearham_info()
 
         # EH: This section corresponds to step #4 in the comment earlier in this fcn. Note that both the lower and upper bounds are shifted away from their neighboring gene in all cases here. This might seem odd, since performing such a shift on just one bound might help account for more uncertainty at the junction of each pair of genes, but shifting both bounds in the same direction wouldn't appear to have that effect. However, because linearham only cares about the bound furthest from the neighboring gene when considering a junction between two genes, the end result of shifting both bounds in this logic here is the same as if we had just shifted one bound in each gene (linearham's bound of interest for the gene) and the desired effect of the shift is achieved, i.e. that we just allow for some extra flexibility/uncertainty in these junction regions.
         if rpair['left'] == 'v' and left_germ_len > vj_flexbounds_shift:
             if debug:
-                print 'shifting lower and uppper fbounds for %s by %d' % (left_region, vj_flexbounds_shift)
+                print('shifting lower and uppper fbounds for %s by %d' % (left_region, vj_flexbounds_shift))
             fbounds[left_region][0] -= vj_flexbounds_shift
             fbounds[left_region][1] -= vj_flexbounds_shift
 
         # the D gene match region is constrained to have a length of 1
         if rpair['left'] == 'd':
             if debug:
-                print 'shifting lower and uppper fbounds for %s by %d' % (left_region, left_germ_len - 1)
+                print('shifting lower and uppper fbounds for %s by %d' % (left_region, left_germ_len - 1))
             fbounds[left_region][0] -= (left_germ_len - 1)
             fbounds[left_region][1] -= (left_germ_len - 1)
         if rpair['right'] == 'd':
             if debug:
-                print 'shifting lower and uppper fbounds for %s by %d' % (right_region, right_germ_len / 2)
-            fbounds[right_region][0] += (right_germ_len / 2)
-            fbounds[right_region][1] += (right_germ_len / 2)
+                print('shifting lower and uppper fbounds for %s by %d' % (right_region, right_germ_len // 2))
+            fbounds[right_region][0] += (right_germ_len // 2)
+            fbounds[right_region][1] += (right_germ_len // 2)
 
         if rpair['right'] == 'j' and right_germ_len > vj_flexbounds_shift:
             if debug:
-                print 'shifting lower and uppper fbounds for %s by %d' % (right_region, vj_flexbounds_shift)
+                print('shifting lower and uppper fbounds for %s by %d' % (right_region, vj_flexbounds_shift))
             fbounds[right_region][0] += vj_flexbounds_shift
             fbounds[right_region][1] += vj_flexbounds_shift
 
@@ -3267,7 +3303,7 @@ def get_linearham_bounds(sw_info, line, vj_flexbounds_shift=10, debug=False):
     for region in ['v_l', 'j_r']:
         bounds_len = fbounds[region][1] - fbounds[region][0]
         if bounds_len < 0:
-            print '    failed adding linearham info for line: %s . fbounds is negative length for region %s' % (':'.join(line['unique_ids']), region)
+            print('    failed adding linearham info for line: %s . fbounds is negative length for region %s' % (':'.join(line['unique_ids']), region))
             return get_null_linearham_info()
 
     return {'flexbounds' : fbounds, 'relpos' : rpos}
@@ -3281,6 +3317,8 @@ def check_per_seq_lengths(line, bkey='unique_ids'):  # maybe there's something l
 
 # ----------------------------------------------------------------------------------------
 def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, reset_indel_genes=False):  # should turn on <check_line_keys> for a bit if you change anything
+    from . import indelutils
+    from . import glutils
     """ Add to <line> a bunch of things that are initially only implicit. """
     if line['v_gene'] == '':
         raise Exception('can\'t add implicit info to line with failed annotation:\n%s' % (''.join(['  %+20s  %s\n' % (k, v) for k, v in line.items()])))
@@ -3327,7 +3365,8 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
     line['naive_seq'] = len(line['fv_insertion']) * ambig_base + line['v_gl_seq'] + line['vd_insertion'] + line['d_gl_seq'] + line['dj_insertion'] + line['j_gl_seq'] + len(line['jf_insertion']) * ambig_base
     for iseq in range(len(line['seqs'])):
         if len(line['naive_seq']) != len(line['seqs'][iseq]):
-            raise Exception('naive and mature sequences different lengths %d %d for %d-seq annotation %s:\n    %s\n    %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), len(line['unique_ids']), ':'.join(line['unique_ids']), line['naive_seq'], line['seqs'][iseq]))
+            color_mutants(line['naive_seq'], line['seqs'][iseq], ref_label='naive ', seq_label=line['unique_ids'][iseq] + ' ', align_if_necessary=True, print_result=True, extra_str='        ')
+            raise Exception('naive and mature sequences different lengths %d %d for %d-seq annotation %s (see also previous stdout lines):\n    %s\n    %s' % (len(line['naive_seq']), len(line['seqs'][iseq]), len(line['unique_ids']), ':'.join(line['unique_ids']), line['naive_seq'], line['seqs'][iseq]))
 
     start, end = {}, {}  # add naive seq bounds for each region (could stand to make this more concise)
     start['v'] = len(line['fv_insertion'])  # NOTE this duplicates code in add_qr_seqs()
@@ -3375,7 +3414,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
     else:
         add_alignments(glfo, aligned_gl_seqs, line)
 
-    re_sort_per_gene_support(line)  # in case it was read from json.dump()'d file
+    re_sort_per_gene_support(line)  # in case it was read from json dump()'d file
 
     # for pskey in set(linekeys['per_seq']) & set(line):  # make sure all the per-seq keys have the right length (it happened once, admittedly cause i was editing by hand, but the consequences were extremely bad)
     #     if len(line[pskey]) != len(line['unique_ids']):
@@ -3388,7 +3427,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
         for ikey in implicit_linekeys:  # make sure every key/value we added is either a) new or b) the same as it was before
             if ikey in initial_keys:
                 if pre_existing_implicit_info[ikey] != line[ikey]:
-                    print '%s pre-existing info for \'%s\' in %s\n    %s\n    doesn\'t match new info\n    %s' % (color('yellow', 'warning'), ikey, line['unique_ids'], pre_existing_implicit_info[ikey], line[ikey])
+                    print('%s pre-existing info for \'%s\' in %s\n    %s\n    doesn\'t match new info\n    %s' % (color('yellow', 'warning'), ikey, line['unique_ids'], pre_existing_implicit_info[ikey], line[ikey]))
             else:
                 assert ikey in new_keys  # only really checks the logic of the previous few lines
 
@@ -3409,7 +3448,7 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None, remove_tree=False
         if sw_info is not None:
             add_linearham_info(sw_info, [line])
         else:
-            print '% restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None) needs sw_info to re-add existing \'linearham-info\' key to an annotation' % color('yellow', 'warning')
+            print('% restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None) needs sw_info to re-add existing \'linearham-info\' key to an annotation' % color('yellow', 'warning'))
 
 # ----------------------------------------------------------------------------------------
 def print_true_events(glfo, reco_info, inf_line, print_naive_seqs=False, full_true_partition=None, extra_str='    '):
@@ -3418,7 +3457,7 @@ def print_true_events(glfo, reco_info, inf_line, print_naive_seqs=False, full_tr
         true_naive_seqs = []
     true_partition_of_line_uids = get_partition_from_reco_info(reco_info, ids=uids_and_dups(inf_line))  # *not* in general the same clusters as in the complete true partition, since <inf_line['unique_ids']> may not contain all uids from all clusters from which it contains representatives
     if len(true_partition_of_line_uids) > 1:
-        print '%s true clusters %d for this inferred cluster (size %d including duplicates)' % (color('red', 'multiple'), len(true_partition_of_line_uids), len(uids_and_dups(inf_line)))
+        print('%s true clusters %d for this inferred cluster (size %d including duplicates)' % (color('red', 'multiple'), len(true_partition_of_line_uids), len(uids_and_dups(inf_line))))
     if full_true_partition is None:
         full_true_partition = get_partition_from_reco_info(reco_info)
     for itc, tpl_ids in enumerate(true_partition_of_line_uids):  # <tpl_ids>: ids in inf_line, split according to true partition
@@ -3439,7 +3478,7 @@ def print_true_events(glfo, reco_info, inf_line, print_naive_seqs=False, full_tr
             true_naive_seqs.append(multiline['naive_seq'])
 
     if print_naive_seqs:
-        print '      naive sequences:'
+        print('      naive sequences:')
         for tseq in true_naive_seqs:
             color_mutants(tseq, inf_line['naive_seq'], print_result=True, print_hfrac=True, ref_label='true ', extra_str='          ')
 
@@ -3448,7 +3487,7 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
     def vstr(val):
         if isinstance(val, float): return ('%.3f'%val)
         elif isinstance(val, list): return ':'.join(str(w) for w in val)
-        else: return str(v)
+        else: return str(val)
     if uid_extra_strs is None:
         uid_extra_strs = ['' for _ in line['unique_ids']]
     if uid_extra_str_label is None:
@@ -3464,6 +3503,7 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, uid_extra_str_label=None, extra_print_keys=None, queries_to_emphasize=None):
+    from . import prutils
     if extra_print_keys is not None:
         uid_extra_strs, uid_extra_str_label = get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_label)
     if uid_extra_strs is not None and len(uid_extra_strs) != len(line['unique_ids']):
@@ -3541,7 +3581,7 @@ def construct_valid_gene_name(gene, locus=None, region=None, default_allele_str=
         gene = gene.replace('*', '.s.') + '*' + default_allele_str
 
     if debug:
-        print '  %-25s  -->  %-25s  --> %-25s' % (initial_name, middle_name if middle_name != initial_name else '-', gene if gene != middle_name else '-')
+        print('  %-25s  -->  %-25s  --> %-25s' % (initial_name, middle_name if middle_name != initial_name else '-', gene if gene != middle_name else '-'))
 
     return gene
 
@@ -3573,6 +3613,7 @@ def split_gene(gene, allow_constant=False):
 
 # ----------------------------------------------------------------------------------------
 def shorten_gene_name(name, use_one_based_indexing=False, n_max_mutstrs=3):
+    from . import glutils
     if name[:2] != 'IG':
         raise Exception('bad node name %s' % name)
 
@@ -3652,21 +3693,22 @@ def separate_into_allelic_groups(glfo, allele_prevalence_freqs=None, debug=False
             allelic_groups[region][primary_version][sub_version].add(gene)
     if debug:
         for r in regions:
-            print '%s%77s' % (color('reverse_video', color('green', r)), 'percent prevalence' if allele_prevalence_freqs is not None else '')
+            print('%s%77s' % (color('reverse_video', color('green', r)), 'percent prevalence' if allele_prevalence_freqs is not None else ''))
             for p in sorted(allelic_groups[r]):
-                print '    %15s' % p
+                print('    %15s' % p)
                 for s in sorted(allelic_groups[r][p]):
-                    print '        %15s      %s' % (s, ' '.join([color_gene(g, width=14) for g in allelic_groups[r][p][s]])),
+                    print('        %15s      %s' % (s, ' '.join([color_gene(g, width=14) for g in allelic_groups[r][p][s]])), end=' ')
                     if len(allelic_groups[r][p][s]) < 2:  # won't work if anybody has more than two alleles
-                        print '%14s' % '',
+                        print('%14s' % '', end=' ')
                     if allele_prevalence_freqs is not None:
-                        print '  %s' % ' '.join([('%4.1f' % (100 *allele_prevalence_freqs[r][g])) for g in allelic_groups[r][p][s]]),
-                    print ''
+                        print('  %s' % ' '.join([('%4.1f' % (100 *allele_prevalence_freqs[r][g])) for g in allelic_groups[r][p][s]]), end=' ')
+                    print('')
     return allelic_groups  # NOTE doesn't return the same thing as separate_into_snp_groups()
 
 # ----------------------------------------------------------------------------------------
 def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None, debug=False):  # NOTE <n_max_snps> corresponds to v, whereas d and j are rescaled according to their lengths
     """ where each class contains all alleles with the same length (up to cyst if v), and within some snp threshold (n_max_v_snps for v)"""
+    from . import glutils
     def getseq(gene):
         seq = glfo['seqs'][region][gene]
         if region == 'v':  # only go up through the end of the cysteine
@@ -3684,7 +3726,7 @@ def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None, debug=Fals
         return False  # if we fall through, nobody in this class was close to <seq>
 
     if genelist is None:
-        genelist = glfo['seqs'][region].keys()
+        genelist = list(glfo['seqs'][region].keys())
     snp_groups = []
     for gene in genelist:
         seq = getseq(gene)
@@ -3697,7 +3739,7 @@ def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None, debug=Fals
             snp_groups.append([{'gene' : gene, 'seq' : seq, 'hdist' : 0}, ])
 
     if debug:
-        print 'separated %s genes into %d groups separated by %d snps:' % (region, len(snp_groups), n_max_snps)
+        print('separated %s genes into %d groups separated by %d snps:' % (region, len(snp_groups), n_max_snps))
         glutils.print_glfo(glfo, gene_groups={region : [(str(igroup), {gfo['gene'] : gfo['seq'] for gfo in snp_groups[igroup]}) for igroup in range(len(snp_groups))]})
 
     return snp_groups  # NOTE this is a list of lists of dicts, whereas separate_into_allelic_groups() returns a dict of region-keyed dicts
@@ -3714,10 +3756,10 @@ def read_single_gene_count(indir, gene, expect_zero_counts=False, debug=False):
                 break
 
     if count == 0 and not expect_zero_counts:
-        print '          %s %s not found in %s_gene-probs.csv, returning zero' % (color('red', 'warning'), gene, region)
+        print('          %s %s not found in %s_gene-probs.csv, returning zero' % (color('red', 'warning'), gene, region))
 
     if debug:
-        print '    read %d observations of %s from %s' % (count, color_gene(gene), indir)
+        print('    read %d observations of %s from %s' % (count, color_gene(gene), indir))
 
     return count
 
@@ -3747,13 +3789,13 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
 
     if debug:
         for region in regions:
-            print '  %s' % color('green', region)
-            for gene, count in sorted(counts[region].items(), key=operator.itemgetter(1), reverse=True):
-                print '    %5d  %5.4f   %s' % (count, probs[region][gene], color_gene(gene, width='default'))
+            print('  %s' % color('green', region))
+            for gene, count in sorted(list(counts[region].items()), key=operator.itemgetter(1), reverse=True):
+                print('    %5d  %5.4f   %s' % (count, probs[region][gene], color_gene(gene, width='default')))
 
     if only_gene is not None and only_gene not in counts[get_region(only_gene)]:
         if not expect_zero_counts:
-            print '      WARNING %s not found in overall gene probs, returning zero' % only_gene
+            print('      WARNING %s not found in overall gene probs, returning zero' % only_gene)
         if normalize:
             return 0.0
         else:
@@ -3773,14 +3815,14 @@ def read_overall_gene_probs(indir, only_gene=None, normalize=True, expect_zero_c
 # ----------------------------------------------------------------------------------------
 def get_genes_with_enough_counts(parameter_dir, min_prevalence_fractions, debug=False):
     if debug:
-        print '  applying min gene prevalence fractions: %s' % '  '.join(('%s %.4f' % (r, min_prevalence_fractions[r])) for r in regions)
+        print('  applying min gene prevalence fractions: %s' % '  '.join(('%s %.4f' % (r, min_prevalence_fractions[r])) for r in regions))
     gene_freqs = read_overall_gene_probs(parameter_dir, normalize=True, debug=debug)
     genes_with_enough_counts = set([g for r in regions for g, f in gene_freqs[r].items() if f > min_prevalence_fractions[r]])  # this is kind of weird because <gene_freqs> of course normalizes within each region, but then we mash all the regions together in the list, but it's all ok
     if debug:
-        print '   removed genes:'
+        print('   removed genes:')
         for region in regions:
             genes_without_enough_counts = set(gene_freqs[region]) - genes_with_enough_counts
-            print '      %s   %s' % (color('green', region), color_genes(sorted(genes_without_enough_counts)))
+            print('      %s   %s' % (color('green', region), color_genes(sorted(genes_without_enough_counts))))
     return genes_with_enough_counts
 
 # ----------------------------------------------------------------------------------------
@@ -3816,11 +3858,11 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
         if total_counts >= min_counts:
             return_list = [vals['gene'] for vals in lists[list_type]]
             if debug:
-                print '      returning all %s for %s (%d gene%s, %d total counts)' % (list_type + 's', color_gene(gene_name), len(return_list), plural(len(return_list)), total_counts)
+                print('      returning all %s for %s (%d gene%s, %d total counts)' % (list_type + 's', color_gene(gene_name), len(return_list), plural(len(return_list)), total_counts))
             return return_list
         else:
             if debug:
-                print '      not enough counts in %s' % (list_type + 's')
+                print('      not enough counts in %s' % (list_type + 's'))
 
     raise Exception('couldn\'t find enough counts among genes for %s in %s (found %d, needed %d -- to decrease this minimum set --min-observations-per-gene, although note that you\'re probably getting this exception because you have too few events to have very informative distributions)' % (gene_name, param_dir, total_counts, min_counts))
 
@@ -3833,10 +3875,11 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         raise Exception('not sure what this was supposed to do (or did in the past), but it doesn\'t do anything now! (a.t.m. it seems to only be set in bin/plot-germlines.py, which I think doesn\'t do anything useful any more)')
     if align or (align_if_necessary and len(seq1) != len(seq2)):  # way the hell slower if you have to align, of course
         if align_if_necessary:
-            print '  %s unequal length sequences %d %d (so aligning):\n  %s\n  %s' % (color('yellow', 'warning'), len(seq1), len(seq2), seq1, seq2)
+            print('  %s unequal length sequences %d %d (so aligning):\n  %s\n  %s' % (color('yellow', 'warning'), len(seq1), len(seq2), seq1, seq2))
         seq1, seq2 = align_seqs(seq1, seq2)
     if len(seq1) != len(seq2):
-        raise Exception('unequal length sequences %d %d:\n  %s\n  %s' % (len(seq1), len(seq2), seq1, seq2))
+        s2str, s1str = color_mutants(seq1, seq2, align_if_necessary=True, return_ref=True)
+        raise Exception('unequal length sequences (%d vs %d) in hamming distance:\n  %s\n  %s' % (len(seq1), len(seq2), s1str, s2str))
     if len(seq1) == 0:
         if return_len_excluding_ambig:
             return 0, 0
@@ -3897,8 +3940,8 @@ def get_mut_codes(naive_seq, obs_seq, amino_acid=False, debug=False):  # return 
 
     if debug:
         color_mutants(naive_seq, obs_seq, print_result=True, amino_acid=amino_acid)
-        print ''.join(color('red', 'x') if i in mutated_positions else ' ' for i in range(len(naive_seq)))
-        print '  '.join('%s-->%s'%(c['initial'], c['final']) for c in mcodes)
+        print(''.join(color('red', 'x') if i in mutated_positions else ' ' for i in range(len(naive_seq))))
+        print('  '.join('%s-->%s'%(c['initial'], c['final']) for c in mcodes))
     return mcodes
 
 # ----------------------------------------------------------------------------------------
@@ -3972,18 +4015,18 @@ def non_clonal_clusters(refpair, antn_pairs, dtype='lev', aa=False, workdir=None
         near_dfos = [d for d in sdists if d['dist'] <= max_print_dist]
         if labelstr!='':
             labelstr = ' %s ' % labelstr
-        print '%s%snearest: %d edit%s (%d cluster%s less than %d)' % (extra_str, labelstr, nearest['dist'], plural(nearest['dist']), len(near_dfos), plural(len(near_dfos)), max_print_dist)
+        print('%s%snearest: %d edit%s (%d cluster%s less than %d)' % (extra_str, labelstr, nearest['dist'], plural(nearest['dist']), len(near_dfos), plural(len(near_dfos)), max_print_dist))
         if len(near_dfos) > 0:
-            print '    %s%s-dist  iclust   N uids (%s)' % (extra_str, dtype, ('%s only'%('h' if refpair[1] is None else 'l')) if None in refpair else 'h l')
+            print('    %s%s-dist  iclust   N uids (%s)' % (extra_str, dtype, ('%s only'%('h' if refpair[1] is None else 'l')) if None in refpair else 'h l'))
             for dfo in near_dfos[:max_n_print]:
                 # assert len(dfo['h_ids']) == len(dfo['l_ids'])
-                print '   %s   %3d     %3d     %3d %3d    %s' % (extra_str, dfo['dist'], dfo['i'], len(dfo['h_ids']), len(dfo['l_ids']), color_mutants(nseq(refpair), nseq(antn_pairs[dfo['i']]), amino_acid=aa, align_if_necessary=True))
+                print('   %s   %3d     %3d     %3d %3d    %s' % (extra_str, dfo['dist'], dfo['i'], len(dfo['h_ids']), len(dfo['l_ids']), color_mutants(nseq(refpair), nseq(antn_pairs[dfo['i']]), amino_acid=aa, align_if_necessary=True)))
             if len(near_dfos) > max_n_print:
-                print '                  (only printing nearest %d)' % max_n_print
-            print ''
+                print('                  (only printing nearest %d)' % max_n_print)
+            print('')
 
     if debug:
-        print '      non-clonal cluster time: %.1f' % (time.time() - start)
+        print('      non-clonal cluster time: %.1f' % (time.time() - start))
     return sdists
 
 # ----------------------------------------------------------------------------------------
@@ -4038,12 +4081,12 @@ def get_sfs_occurence_info(line, restrict_to_region=None, debug=False):
     else:
         naive_seq, muted_seqs = subset_sequences(line, restrict_to_region=restrict_to_region)
     if debug:
-        print '  %d %ssequences' % (len(muted_seqs), '%s region ' % restrict_to_region if restrict_to_region is not None else '')
+        print('  %d %ssequences' % (len(muted_seqs), '%s region ' % restrict_to_region if restrict_to_region is not None else ''))
     mutated_positions = [hamming_distance(naive_seq, mseq, return_mutated_positions=True)[1] for mseq in muted_seqs]
     all_positions = sorted(set([p for mp in mutated_positions for p in mp]))
     if debug:
-        print '    %.2f mean mutations  %s' % (numpy.mean([len(mpositions) for mpositions in mutated_positions]), ' '.join([str(len(mpositions)) for mpositions in mutated_positions]))
-        print '    %d positions are mutated in at least one sequence' % len(all_positions)
+        print('    %.2f mean mutations  %s' % (numpy.mean([len(mpositions) for mpositions in mutated_positions]), ' '.join([str(len(mpositions)) for mpositions in mutated_positions])))
+        print('    %d positions are mutated in at least one sequence' % len(all_positions))
     occurence_indices = [[i for i in range(len(line['unique_ids'])) if p in mutated_positions[i]] for p in all_positions]  # for each position in <all_positions>, a list of the sequence indices that have a mutation at that position
     occurence_fractions = [len(iocc) / float(len(line['unique_ids'])) for iocc in occurence_indices]  # fraction of all sequences that have a mutation at each position in <all_positions>
     return occurence_indices, occurence_fractions
@@ -4069,7 +4112,7 @@ def fay_wu_h(line, restrict_to_region=None, occurence_indices=None, n_seqs=None,
     theta_pi *= 2. / (n_seqs * (n_seqs - 1))
 
     if debug:
-        print '   h for %d seqs:  %6.2f - %6.2f = %6.2f' % (n_seqs, theta_pi, theta_h, theta_pi - theta_h)
+        print('   h for %d seqs:  %6.2f - %6.2f = %6.2f' % (n_seqs, theta_pi, theta_h, theta_pi - theta_h))
 
     return theta_pi - theta_h
 
@@ -4155,7 +4198,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
 
     if wildlings is None:
         wildlings = []
-    elif isinstance(wildlings, basestring):  # allow to pass in just a string, instead of a list of strings
+    elif isinstance(wildlings, six.string_types):  # allow to pass in just a string, instead of a list of strings
         wildlings = [wildlings, ]
 
     if subdirs is not None:  # clean out the subdirs first
@@ -4170,7 +4213,7 @@ def prep_dir(dirname, wildlings=None, subdirs=None, rm_subdirs=False, fname=None
                 if os.path.exists(ftmp):
                     os.remove(ftmp)
                 else:
-                    print '%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), ftmp)
+                    print('%s file %s exists but then it doesn\'t' % (color('red', 'wtf'), ftmp))
         remaining_files = [fn for fn in os.listdir(dirname) if subdirs is None or fn not in subdirs]  # allow subdirs to still be present
         if len(remaining_files) > 0 and not allow_other_files:  # make sure there's no other files in the dir
             raise Exception('files remain in %s despite wildlings %s:\n (%s)' % (dirname, wildlings, ' '.join(remaining_files)))
@@ -4198,7 +4241,7 @@ def clean_files(fnames, expect_missing=False):  # <fnames> can include dirs, we 
     if len(missing_files) > 0 and not expect_missing:
         basedirs = sorted(set(os.path.dirname(f) for f in fnames), key=lambda x: x.count('/'))  # sort by number of slashes, i.e. most-parent dir is first
         basedirs = [basedirs[0]] + [d for d in basedirs if basedirs[0] not in d]  # hackey way to remove any that are just subdirs (if all the files aren't under one parent dir, these shenanigans won't really work)
-        print '      %s expected to remove %d/%d files+dirs that weren\'t in %s/: %s' % (color('yellow', 'warning'), len(missing_files), len(fnames), ' '.join(basedirs), ' '.join(f.replace(basedirs[0] + '/', '') for f in missing_files))
+        print('      %s expected to remove %d/%d files+dirs that weren\'t in %s/: %s' % (color('yellow', 'warning'), len(missing_files), len(fnames), ' '.join(basedirs), ' '.join(f.replace(basedirs[0] + '/', '') for f in missing_files)))
 
 # ----------------------------------------------------------------------------------------
 def rmdir(dname, fnames=None):
@@ -4211,6 +4254,7 @@ def rmdir(dname, fnames=None):
 
 # ----------------------------------------------------------------------------------------
 def process_input_line(info, skip_literal_eval=False):
+    from . import indelutils
     """
     Attempt to convert all the keys and values in <info> according to the specifications in <io_column_configs> (e.g. splitting lists, casting to int/float, etc).
     """
@@ -4288,8 +4332,8 @@ def ltranslate(nuc_seq, trim=False, debug=False):  # local file translation func
     aa_seq = str(bseq.Seq(final_nseq).translate())  # the padding is annoying, but it's extremely common for bcr sequences to have lengths not a multiple of three (e.g. because out out of frame rearrangements), so easier to just always check for it
     if debug:
         assert len(final_nseq) == len(aa_seq*3)
-        print ' '.join([final_nseq[ic : ic + 3] for ic in range(0, len(final_nseq), 3)])
-        print '   '.join(aa_seq)
+        print(' '.join([final_nseq[ic : ic + 3] for ic in range(0, len(final_nseq), 3)]))
+        print('   '.join(aa_seq))
     return aa_seq
 
 # ----------------------------------------------------------------------------------------
@@ -4320,8 +4364,8 @@ def pad_seq_for_translation(line, tseq, return_n_padded=False, debug=False):  # 
         tseq += end_amb
     assert len(tseq) % 3 == 0
     if debug:
-        print '  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d  end amb: %d  (jf %d)' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra, len(end_amb), len(line.get('jf_insertion', [])))  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
-        print '    %s%s%s%s' % (color('blue', fv_xtra * ambig_base), color('blue', v_5p_xtra * ambig_base), color_mutants(old_tseq, old_tseq), color('blue', end_amb))
+        print('  fv: 3 - %d%%3: %d  v_5p: %d%%3: %d  end amb: %d  (jf %d)' % (len(line['fv_insertion']), fv_xtra, line['v_5p_del'], v_5p_xtra, len(end_amb), len(line.get('jf_insertion', []))))  # NOTE the first one is kind of wrong, since it's 0 if the %3 is 0
+        print('    %s%s%s%s' % (color('blue', fv_xtra * ambig_base), color('blue', v_5p_xtra * ambig_base), color_mutants(old_tseq, old_tseq), color('blue', end_amb)))
     if return_n_padded:
         return tseq, (fv_xtra + v_5p_xtra, len(end_amb))
     else:
@@ -4329,6 +4373,7 @@ def pad_seq_for_translation(line, tseq, return_n_padded=False, debug=False):  # 
 
 # ----------------------------------------------------------------------------------------
 def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_column()
+    from . import indelutils
     if 'seqs_aa' in line and line['seqs_aa'].count(None) == 0:  # if we've just added some seqs to the <line> some will have None aa seqs
         return
     line['seqs_aa'] = [ltranslate(pad_seq_for_translation(line, s)) for s in line['seqs']]
@@ -4336,9 +4381,9 @@ def add_seqs_aa(line, debug=False):  # NOTE similarity to block in add_extra_col
         line['input_seqs_aa'] = [ltranslate(pad_seq_for_translation(line, inseq)) if indelutils.has_indels_line(line, iseq) else irseq_aa for iseq, (inseq, irseq_aa) in enumerate(zip(line['input_seqs'], line['seqs_aa']))]
     add_naive_seq_aa(line)
     if debug:
-        print pad_lines('\n'.join(line['seqs_aa']))
+        print(pad_lines('\n'.join(line['seqs_aa'])))
         if any(indelutils.has_indels_line(line, i) for i in range(len(line['unique_ids']))):
-            print '%s in add_seqs_aa() one has an indel, input_seqs_aa debug needs to be implemented' % color('red', 'error')
+            print('%s in add_seqs_aa() one has an indel, input_seqs_aa debug needs to be implemented' % color('red', 'error'))
 
 # ----------------------------------------------------------------------------------------
 def shm_aa(line, iseq=None, uid=None):  # it's kind of weird to have this fcn separate, whereas the non-aa one we don't, but it only really exists so it can add the aa seqs UPDATE ok using it elsewhere now
@@ -4366,7 +4411,13 @@ def trim_nuc_seq(nseq):  # if length not multiple of three, trim extras from the
     return nseq
 
 # ----------------------------------------------------------------------------------------
+def get_frame(line):  # return frame of (start of) V gene, e.g. for input to gctree
+    return (line['v_5p_del'] - len(line['fv_insertion'])) % 3 + 1
+
+# ----------------------------------------------------------------------------------------
 def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for_csv=False):
+    from . import treeutils
+    from . import indelutils
     if outfo is None:  # hacking on this behavior that doesn't require you to pass in <outfo>
         outfo = {}
     # NOTE use <info> to calculate all quantities, *then* put them in <outfo>: <outfo> only has the stuff that'll get written to the file, so can be missing things that are needed for calculations
@@ -4414,7 +4465,7 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
                 outfo[key] = None
         else:
             return  # only here to remind you that nothing happens
-    elif key in input_metafile_keys.values():  # uh, not really sure what's the best thing to do, but this only gets called on deprecated csv files, so oh well
+    elif key in list(input_metafile_keys.values()):  # uh, not really sure what's the best thing to do, but this only gets called on deprecated csv files, so oh well
         outfo[key] = [None for _ in info['unique_ids']]
     elif key == 'has_shm_indels':
         outfo[key] = [indelutils.has_indels_line(info, i) for i in range(len(info['unique_ids']))]
@@ -4431,6 +4482,7 @@ def transfer_indel_reversed_seqs(line):
 
 # ----------------------------------------------------------------------------------------
 def transfer_indel_info(info, outfo):  # NOTE reverse of this happens in indelutils.deal_with_indel_stuff()
+    from . import indelutils
     """
     for keys in special_indel_columns_for_output: in memory, I need the indel info under the 'indelfos' key (for historical reasons that I don't want to change a.t.m.), but I want to mask that complexity for output
     """
@@ -4470,7 +4522,7 @@ def get_line_for_output(headers, info, glfo=None):
 
         if key in io_column_configs['lists-of-lists']:
             if '_per_gene_support' in key:
-                outfo[key] = outfo[key].items()
+                outfo[key] = list(outfo[key].items())
             for isl in range(len(outfo[key])):
                 outfo[key][isl] = ':'.join([str_fcn(s) for s in outfo[key][isl]])
             outfo[key] = ';'.join(outfo[key])
@@ -4493,7 +4545,7 @@ def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_e
     else:
         raise Exception('unhandled annotation file suffix %s' % args.outfname)
 
-    print '   read %d event%s with %d seqs from %d %s files' % (sum(n_event_list), plural(len(n_event_list)), sum(n_seq_list), len(file_list), getsuffix(outfname))
+    print('   read %d event%s with %d seqs from %d %s files' % (sum(n_event_list), plural(len(n_event_list)), sum(n_seq_list), len(file_list), getsuffix(outfname)))
     if n_total_expected is not None:
         if isinstance(n_per_proc_expected, list):  # different number for each proc
             if n_event_list != n_per_proc_expected:
@@ -4502,7 +4554,7 @@ def merge_simulation_files(outfname, file_list, headers, cleanup=True, n_total_e
             if n_event_list.count(n_per_proc_expected) != len(n_event_list):
                 raise Exception('expected %d events per proc, but read: %s' % (n_per_proc_expected, ' '.join([str(n) for n in n_event_list])))
         if n_total_expected != sum(n_event_list):
-            print '  %s expected %d total events but read %d (per-file couts: %s)' % (color('yellow', 'warning'), n_total_expected, sum(n_event_list), ' '.join([str(n) for n in n_event_list]))
+            print('  %s expected %d total events but read %d (per-file couts: %s)' % (color('yellow', 'warning'), n_total_expected, sum(n_event_list), ' '.join([str(n) for n in n_event_list])))
 
 # ----------------------------------------------------------------------------------------
 def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
@@ -4515,7 +4567,7 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
             raise Exception('unhandled suffix, expected .csv or .tsv: %s' % infname)
         delimiter = ',' if getsuffix(infname) == '.csv' else '\t'
         with open(infname) as sub_outfile:
-            reader = csv.DictReader(sub_outfile, delimiter=delimiter)
+            reader = csv.DictReader(sub_outfile, delimiter=str(delimiter))
             header = reader.fieldnames
             if old_simulation:
                 n_event_list.append(0)
@@ -4533,8 +4585,8 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
             os.rmdir(os.path.dirname(infname))
 
     mkdir(outfname, isfile=True)
-    with open(outfname, 'w') as outfile:
-        writer = csv.DictWriter(outfile, header, delimiter=delimiter)
+    with open(outfname, csv_wmode()) as outfile:
+        writer = csv.DictWriter(outfile, header, delimiter=str(delimiter))
         writer.writeheader()
         for line in outfo:
             writer.writerow(line)
@@ -4582,7 +4634,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
 # ----------------------------------------------------------------------------------------
 def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
     if debug:
-        print '    getting nodelist from \'%s\'' % nodestr
+        print('    getting nodelist from \'%s\'' % nodestr)
 
     if '[' not in nodestr and ']' not in nodestr:  # single node (don't really need this, but maybe it's a little faster)
         return [nodestr]
@@ -4600,13 +4652,13 @@ def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
             bracketfo.append({'comma' : ilastcomma, 'ibrackets' : [ich, None]})
             thisnodestr = ''
             if debug:
-                print '      start bracket    %s' % nodestr[ilastcomma + 1 : ich + 1]
+                print('      start bracket    %s' % nodestr[ilastcomma + 1 : ich + 1])
         elif ch == ']':
             assert bracketfo[-1]['ibrackets'][1] is None
             bracketfo[-1]['ibrackets'][1] = ich
             thisnodestr = ''
             if debug:
-                print '      end bracket      %s' % nodestr[bracketfo[-1]['ibrackets'][0] : bracketfo[-1]['ibrackets'][1] + 1]
+                print('      end bracket      %s' % nodestr[bracketfo[-1]['ibrackets'][0] : bracketfo[-1]['ibrackets'][1] + 1])
 
         # if we're not within a bracket info
         if len(bracketfo) == 0 or bracketfo[-1]['ibrackets'][1] is not None:
@@ -4616,13 +4668,13 @@ def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
                 nodes.append(thisnodestr)
                 thisnodestr = ''
                 if debug:
-                    print '      add no-bracket   %s' % nodes[-1]
+                    print('      add no-bracket   %s' % nodes[-1])
 
     if debug:
         if len(nodes) > 0:
-            print '    %d bracketless nodes: %s' % (len(nodes), ' '.join(nodes))
+            print('    %d bracketless nodes: %s' % (len(nodes), ' '.join(nodes)))
         if len(bracketfo) > 0:
-            print '      brackets:'
+            print('      brackets:')
 
     # the expand the ranges in the brackets
     for bfo in bracketfo:
@@ -4635,35 +4687,35 @@ def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
                 if len(startstoplist) != 2:
                     raise Exception('wtf %s' % subnodestr)
                 istart, istop = startstoplist
-                bracketnodes += range(istart, istop + 1)
+                bracketnodes += list(range(istart, istop + 1))
             else: # single node
                 bracketnodes.append(int(subnodestr))
         namestr = nodestr[bfo['comma'] + 1 : ibp[0]]  # the texty bit of the name (i.e. without the numbers)
         if debug:
-            print '        %s: \'%s\' --> %s' % (namestr, original_str, ' '.join([str(n) for n in bracketnodes]))
+            print('        %s: \'%s\' --> %s' % (namestr, original_str, ' '.join([str(n) for n in bracketnodes])))
         bracketnodes = [namestr + str(i) for i in bracketnodes]
         nodes += bracketnodes
 
     unknown_nodes = set(nodes) - set(known_nodes)
     if len(unknown_nodes) > 0:
-        print '    %s unknown nodes parsed from \'%s\': %s' % (color('yellow', 'warning'), nodestr, ' '.join(unknown_nodes))
+        print('    %s unknown nodes parsed from \'%s\': %s' % (color('yellow', 'warning'), nodestr, ' '.join(unknown_nodes)))
 
     if debug:
-        print '    %d final nodes: %s' % (len(nodes), ' '.join(nodes))
+        print('    %d final nodes: %s' % (len(nodes), ' '.join(nodes)))
 
     return nodes
 
 # ----------------------------------------------------------------------------------------
 def get_available_node_core_list(batch_config_fname, debug=False):  # for when you're running the whole thing within one slurm allocation, i.e. with  % salloc --nodes N ./bin/partis [...]
     if debug:
-        print ''
-        print '  figuring out slurm config'
+        print('')
+        print('  figuring out slurm config')
 
     our_nodes = []
 
     if os.getenv('SLURM_NODELIST') is None:  # not within a slurm allocation
         if debug:
-            print '  not inside a slurm allocation'
+            print('  not inside a slurm allocation')
         return None
 
     # first get info on all nodes from config file
@@ -4691,21 +4743,21 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
     # multiply sockets times cores/socket
     for node, info in nodefo.items():
         if 'Sockets' not in info or 'CoresPerSocket' not in info:
-            raise Exception('missing keys in: %s' % ' '.join(info.keys()))
+            raise Exception('missing keys in: %s' % ' '.join(list(info.keys())))
         info['nproc'] = int(info['Sockets']) * int(info['CoresPerSocket'])
     if debug:
-        print '    info for %d nodes in %s' % (len(nodefo), batch_config_fname)
+        print('    info for %d nodes in %s' % (len(nodefo), batch_config_fname))
 
-    our_nodes = get_nodelist_from_slurm_shorthand(os.getenv('SLURM_NODELIST'), known_nodes=nodefo.keys())
+    our_nodes = get_nodelist_from_slurm_shorthand(os.getenv('SLURM_NODELIST'), known_nodes=list(nodefo.keys()))
     if len(our_nodes) == 0:
         return []
 
     if debug:
-        print '    current allocation includes %d nodes' % len(our_nodes)
+        print('    current allocation includes %d nodes' % len(our_nodes))
 
     # then info on all current allocations
     quefo = {}  # node : (number of tasks allocated to that node, including ours)
-    squeue_str = subprocess.check_output(['squeue', '--format', '%.18i %.2t %.6D %R'])
+    squeue_str = subprocess.check_output(['squeue', '--format', '%.18i %.2t %.6D %R'], universal_newlines=True)
     headers = ['JOBID', 'ST',  'NODES', 'NODELIST(REASON)']
     for line in squeue_str.split('\n'):
         linefo = line.strip().split()
@@ -4715,19 +4767,19 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
             assert linefo == headers
         if linefo[headers.index('ST')] != 'R':  # skip jobs that aren't running
             continue
-        nodes = get_nodelist_from_slurm_shorthand(linefo[headers.index('NODELIST(REASON)')], known_nodes=nodefo.keys())
+        nodes = get_nodelist_from_slurm_shorthand(linefo[headers.index('NODELIST(REASON)')], known_nodes=list(nodefo.keys()))
         for node in nodes:
             if node not in our_nodes:
                 continue
             if node not in nodefo:
-                print '  %s node %s in squeue output but not in config file %s' % (color('yellow', 'warning'), node, batch_config_fname)
+                print('  %s node %s in squeue output but not in config file %s' % (color('yellow', 'warning'), node, batch_config_fname))
                 continue
             if node not in quefo:
                 quefo[node] = 0
             quefo[node] += 1  # NOTE ideally this would be the number of cores slurm gave this task, rather than 1, but I can't figure out how to that info (and the docs make it sound like it might not be possible to)
 
     if debug:
-        print '    %d "total tasks" allocated among nodes in our current allocation' % sum(quefo.values())
+        print('    %d "total tasks" allocated among nodes in our current allocation' % sum(quefo.values()))
 
     # and finally, decide how many procs we can send to each node
     corelist = []
@@ -4738,19 +4790,19 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
             raise Exception('node %s in our allocation not in squeue output' % node)
         n_cores_we_can_use = nodefo[node]['nproc'] - quefo[node] + 1  # add one to account for the fact that quefo[node] includes our allocation
         if n_cores_we_can_use == 0:
-            print '  %s huh, n_cores_we_can_use is zero' % color('yellow', 'warning')
+            print('  %s huh, n_cores_we_can_use is zero' % color('yellow', 'warning'))
             n_cores_we_can_use = 1
         elif n_cores_we_can_use < 0:
-            print '  %s more tasks allocated to %s than available cores: %d - %d = %d (setting n_cores_we_can_use to 1 because, uh, not sure what else to do)' % (color('yellow', 'warning'), node, nodefo[node]['nproc'], quefo[node], nodefo[node]['nproc'] - quefo[node])
+            print('  %s more tasks allocated to %s than available cores: %d - %d = %d (setting n_cores_we_can_use to 1 because, uh, not sure what else to do)' % (color('yellow', 'warning'), node, nodefo[node]['nproc'], quefo[node], nodefo[node]['nproc'] - quefo[node]))
             n_cores_we_can_use = 1
         corelist += [node for _ in range(n_cores_we_can_use)]
 
     corelist = sorted(corelist)  # easier to read if it's alphabetical
 
     if debug:
-        print '    %d available cores:' % len(corelist)
+        print('    %d available cores:' % len(corelist))
         for node in set(corelist):
-            print '        %d  %s' % (corelist.count(node), node)
+            print('        %d  %s' % (corelist.count(node), node))
 
     if len(corelist) == 0:
         return None
@@ -4763,13 +4815,13 @@ def set_slurm_nodelist(cmdfos, batch_config_fname=None, debug=False):
     corelist = None
     n_procs = len(cmdfos)
     if not os.path.exists(batch_config_fname):
-        print '  %s specified --batch-config-fname %s doesn\'t exist' % (color('yellow', 'warning'), batch_config_fname)
+        print('  %s specified --batch-config-fname %s doesn\'t exist' % (color('yellow', 'warning'), batch_config_fname))
     else:
         corelist = get_available_node_core_list(batch_config_fname)  # list of nodes within our current allocation (empty if there isn't one), with each node present once for each core that we've been allocated on that node
         if corelist is not None and len(corelist) < n_procs:
             if 1.5 * len(corelist) < n_procs:
-                print '  %s many fewer cores %d than processes %d' % (color('yellow', 'warning'), len(corelist), n_procs)
-                print '      corelist: %s' % ' '.join(corelist)
+                print('  %s many fewer cores %d than processes %d' % (color('yellow', 'warning'), len(corelist), n_procs))
+                print('      corelist: %s' % ' '.join(corelist))
             while len(corelist) < n_procs:
                 corelist += sorted(set(corelist))  # add each node once each time through
 
@@ -4777,10 +4829,10 @@ def set_slurm_nodelist(cmdfos, batch_config_fname=None, debug=False):
         return
 
     if debug:
-        print '    %d final cores for %d procs' % (len(corelist), n_procs)
-        print '        iproc     node'
+        print('    %d final cores for %d procs' % (len(corelist), n_procs))
+        print('        iproc     node')
         for iproc in range(n_procs):
-            print '          %-3d    %s' % (iproc, corelist[iproc])
+            print('          %-3d    %s' % (iproc, corelist[iproc]))
     assert len(corelist) >= n_procs
     for iproc in range(n_procs):  # it's kind of weird to keep batch_system and batch_options as keyword args while putting nodelist into the cmdfos, but they're just different enough that it makes sense (we're only using nodelist if we're inside an existing slurm allocation)
         cmdfos[iproc]['nodelist'] = [corelist[iproc]]  # the downside to setting each proc's node list here is that each proc is stuck on that node for each restart (well, unless we decide to change it when we restart it)
@@ -4811,8 +4863,8 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfna
     check_cmd('R', options=['--slave', '--version'])
     cmdfname = workdir + '/run.r'
     if debug:
-        print '      r cmd lines:'
-        print pad_lines('\n'.join(cmdlines))
+        print('      r cmd lines:')
+        print(pad_lines('\n'.join(cmdlines)))
     with open(cmdfname, 'w') as cmdfile:
         cmdfile.write('\n'.join(cmdlines) + '\n')
     retval = simplerun('R --slave -f %s' % cmdfname, return_out_err=return_out_err, logfname=logfname, print_time=print_time, extra_str=extra_str, dryrun=dryrun, debug=debug)
@@ -4823,6 +4875,10 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfna
     if return_out_err:
         outstr, errstr = retval
         return outstr, errstr
+
+# ----------------------------------------------------------------------------------------
+def mamba_cmds(env):
+    return ['eval "$(micromamba shell hook --shell bash)"', 'micromamba activate %s'%env]
 
 # ----------------------------------------------------------------------------------------
 def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion='', return_for_cmdfos=False, tmpdir=None, dryrun=False, extra_str='', debug=True):  # ete3 requires its own python version, so we run as a subprocess
@@ -4839,7 +4895,7 @@ def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion
     cmd += ' && %s/bin/xvfb-run -a python%s%s %s' % (get_partis_dir(), pyversion, prof_cmds, sub_cmd)
     if debug or dryrun:
         itmp = cmd.rfind('&&')
-        print '%s%s %s' % (extra_str, color('red', 'run'), '%s \\\n%s     %s' % (cmd[:itmp + 2], extra_str, cmd[itmp + 2:]))
+        print('%s%s %s' % (extra_str, color('red', 'run'), '%s \\\n%s     %s' % (cmd[:itmp + 2], extra_str, cmd[itmp + 2:])))
     if return_for_cmdfos:
         return cmd, tmpdir
     else:
@@ -4848,19 +4904,26 @@ def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion
 
 # ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', logfname=None, debug=True):
+    # ----------------------------------------------------------------------------------------
+    def run_subp(cmd_str, shell, fout=None, ferr=None):
+        # try:  # this doesn't seeem to do anything as is, but there were some cases where it might help so i'm leaving it here, but commented
+        subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)  # maybe should add executable='/bin/bash'?
+        # except subprocess.CalledProcessError as err:
+        #     raise Exception() #err)
+    # ----------------------------------------------------------------------------------------
     if cmdfname is not None:
         mkdir(cmdfname, isfile=True)
         with open(cmdfname, 'w') as cmdfile:
             cmdfile.write(cmd_str)
         subprocess.check_call(['chmod', '+x', cmdfname])
         if debug or dryrun:
-            print '      cmd lines in %s:' % cmdfname
-            print pad_lines('\n'.join(cmd_str.split('\n')))
+            print('      cmd lines in %s:' % cmdfname)
+            print(pad_lines('\n'.join(cmd_str.split('\n'))))
             sys.stdout.flush()
         cmd_str = cmdfname
 
     if debug:
-        print '%s%s %s' % (extra_str, color('red', 'run'), cmd_str)
+        print('%s%s %s' % (extra_str, color('red', 'run'), cmd_str))
         sys.stdout.flush()
     if dryrun:
         return '', '' if return_out_err else None
@@ -4869,23 +4932,23 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
 
     if return_out_err:
         with tempfile.TemporaryFile() as fout, tempfile.TemporaryFile() as ferr:
-            subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell, stdout=fout, stderr=ferr)  # maybe should add executable='/bin/bash'?
+            run_subp(cmd_str, shell, fout=fout, ferr=ferr)  # maybe should add executable='/bin/bash'?
             fout.seek(0)
             ferr.seek(0)
-            outstr = ''.join(fout.readlines())
-            errstr = ''.join(ferr.readlines())
+            outstr = ''.join(l.decode() for l in fout.readlines())
+            errstr = ''.join(l.decode() for l in ferr.readlines())
     else:
         if logfname is not None:  # write cmd_str to logfname, then redirect stdout to it as well
             mkdir(logfname, isfile=True)
             subprocess.check_call('echo %s >%s'%(cmd_str, logfname), shell=True)
             cmd_str = '%s >>%s' % (cmd_str, logfname)
             shell = True
-        subprocess.check_call(cmd_str if shell else cmd_str.split(), env=os.environ, shell=shell)  # maybe should add executable='/bin/bash'?
+        run_subp(cmd_str, shell)
 
     if cmdfname is not None:
         os.remove(cmdfname)
     if print_time is not None:
-        print '      %s time: %.1f' % (print_time, time.time() - start)
+        print('      %s time: %.1f' % (print_time, time.time() - start))
         sys.stdout.flush()
 
     if return_out_err:
@@ -4896,11 +4959,11 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
 # NOTE this is exactly the same number as the stuff in ham/src/bcrutils.cc, so *don't* copy that here and convert to python (again)
 def memory_usage_fraction(extra_str='', debug=False):
     if platform.system() != 'Linux':
-        print '\n  note: utils.memory_usage_fraction() needs testing on platform \'%s\' to make sure unit conversions don\'t need changing' % platform.system()
+        print('\n  note: utils.memory_usage_fraction() needs testing on platform \'%s\' to make sure unit conversions don\'t need changing' % platform.system())
     current_usage = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)  # kb
     total = float(psutil.virtual_memory().total) / 1000.  # returns bytes, then convert to kb
     if debug:
-        print '  %susing %.0f / %.0f MB = %.4f' % (extra_str, current_usage / 1000, total / 1000, current_usage / total)
+        print('  %susing %.0f / %.0f MB = %.4f' % (extra_str, current_usage / 1000, total / 1000, current_usage / total))
     return current_usage / total
 
 # ----------------------------------------------------------------------------------------
@@ -4921,13 +4984,13 @@ def limit_procs(cmdstr, n_max_procs=None, sleep_time=1, procs=None, debug=False)
                 return [p.poll() for p in procs].count(None)
     else:
         def n_running_jobs():
-            return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | grep -v defunct | wc -l' % cmdstr, shell=True))
+            return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | grep -v defunct | wc -l' % cmdstr, shell=True, universal_newlines=True))
     if n_max_procs is None:
         n_max_procs = auto_n_procs()
     n_jobs = n_running_jobs()
     while n_jobs >= n_max_procs:
         if debug:
-            print '%d (>=%d) running jobs' % (n_jobs, n_max_procs)
+            print('%d (>=%d) running jobs' % (n_jobs, n_max_procs))
         time.sleep(sleep_time)
         n_jobs = n_running_jobs()
 
@@ -4936,7 +4999,7 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
     if n_procs is None:
         n_procs = auto_n_procs()
     if debug:
-        print '    running %d proc fcns with %d procs' % (len(procs), n_procs)
+        print('    running %d proc fcns with %d procs' % (len(procs), n_procs))
         sys.stdout.flush()
     while True:
         while len(procs) > 0 and len(multiprocessing.active_children()) < n_procs:
@@ -4975,7 +5038,7 @@ def cycle_log_files(logfname, debug=False):  # move any existing log file to .0,
     while os.path.exists('%s.%d'%(logfname, itmp)):
         itmp += 1
     if debug:
-        print '  %s --> %s' % (logfname, '%s.%d'%(logfname, itmp))
+        print('  %s --> %s' % (logfname, '%s.%d'%(logfname, itmp)))
     os.rename(logfname, '%s.%d'%(logfname, itmp))
 
 # ----------------------------------------------------------------------------------------
@@ -4995,7 +5058,8 @@ def run_cmd(cmdfo, batch_system=None, batch_options=None, shell=False):
     proc = subprocess.Popen(cstr if shell else cstr.split(),
                             stdout=None if fout is None else open(fout, 'w'),
                             stderr=None if ferr is None else open(ferr, 'w'),
-                            env=cmdfo.get('env'), shell=shell, executable='/bin/bash' if shell else None)  # adding executable= very late, not sure if it'll break something somewhere
+                            env=cmdfo.get('env'), shell=shell, universal_newlines=True,
+                            executable='/bin/bash' if shell else None)  # adding executable= very late, not sure if it'll break something somewhere
     return proc
 
 # ----------------------------------------------------------------------------------------
@@ -5050,18 +5114,23 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
         if n_max_procs is not None:
             limit_procs(proc_limit_str, n_max_procs, procs=procs)  # NOTE now that I've added the <procs> arg, I should remove all the places where I'm using the old cmd str method (I mean, it works fine, but it's hackier/laggier, and in cases where several different parent procs are running a log of the same-named subprocs on the same machine, the old way will be wrong [i.e. limit_procs was originally intended as a global machine-wide limit, whereas in this fcn we usually call it wanting to set a specific number of subproces for this process])
 
+    dbgstrs = ['' for _ in procs]
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
-                status = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, allow_failure=allow_failure)
+                status, dbgstrs[iproc] = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, allow_failure=allow_failure)
                 if status == 'restart':
+                    print(dbgstrs[iproc])
                     procs[iproc] = run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)
                     n_tries_list[iproc] += 1
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
+    for dstr in dbgstrs:
+        if dstr != '':
+            print(dstr)
 
 # ----------------------------------------------------------------------------------------
 def pad_lines(linestr, padwidth=8):
@@ -5075,20 +5144,20 @@ def get_slurm_node(errfname):
 
     jobid = None
     try:
-        jobid = subprocess.check_output(['head', '-n1', errfname]).split()[2]
+        jobid = subprocess.check_output(['head', '-n1', errfname], universal_newlines=True).split()[2]
     except (subprocess.CalledProcessError, IndexError) as err:
-        print err
-        print '      couldn\'t get jobid from err file %s with contents:' % errfname
+        print(err)
+        print('      couldn\'t get jobid from err file %s with contents:' % errfname)
         subprocess.check_call(['cat', errfname])
         return None
 
     assert jobid is not None
     nodelist = None
     try:
-        nodelist = subprocess.check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N']).split()[1]
+        nodelist = subprocess.check_output(['squeue', '--job', jobid, '--states=all', '--format', '%N'], universal_newlines=True).split()[1]
     except (subprocess.CalledProcessError, IndexError) as err:
-        print err
-        print '      couldn\'t get node list from jobid \'%s\'' % jobid
+        print(err)
+        print('      couldn\'t get node list from jobid \'%s\'' % jobid)
         return None
 
     assert nodelist is not None
@@ -5100,53 +5169,9 @@ def get_slurm_node(errfname):
 # ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and tell the calling fcn to restart it if so)
 def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_system=None, debug=None, ignore_stderr=False, clean_on_success=False, allow_failure=False):
-    procs[iproc].communicate()
-    outfname = cmdfo['outfname']
-
-    # success
-    if procs[iproc].returncode == 0:
-        if not os.path.exists(outfname):
-            print '      proc %d succeeded but its output isn\'t there, so sleeping for a bit: %s' % (iproc, outfname)  # give a networked file system some time to catch up
-            time.sleep(0.5)
-        if os.path.exists(outfname):
-            process_out_err(cmdfo['logdir'], extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)
-            procs[iproc] = None  # job succeeded
-            if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
-                if cmdfo.get('workfnames') is not None:
-                    for fn in [f for f in cmdfo['workfnames'] if os.path.exists(f)]:
-                        os.remove(fn)
-                if os.path.isdir(cmdfo['workdir']):
-                    os.rmdir(cmdfo['workdir'])
-            return 'ok'
-
-    # handle failure
-    print '    proc %d try %d' % (iproc, n_tried),
-    if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
-        print 'succeeded but output is missing: %s' % outfname
-    else:
-        print 'failed with exit code %d, %s: %s' % (procs[iproc].returncode, 'but output exists' if os.path.exists(outfname) else 'and output is missing',  outfname)
-    if batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
-        if 'nodelist' in cmdfo:  # if we're doing everything from within an existing slurm allocation
-            nodelist = cmdfo['nodelist']
-        else:  # if, on the other hand, each process made its own allocation on the fly
-            nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
-        if nodelist is not None:
-            print '    failed on node %s' % nodelist
-        # try:
-        #     print '        sshing to %s' % nodelist
-        #     outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True)
-        #     print pad_lines(outstr, padwidth=12)
-        # except subprocess.CalledProcessError as err:
-        #     print '        failed to ssh:'
-        #     print err
-    if os.path.exists(outfname + '.progress'):  # glomerator.cc is the only one that uses this at the moment
-        print '        progress file (%s):' % (outfname + '.progress')
-        print pad_lines(subprocess.check_output(['cat', outfname + '.progress']), padwidth=12)
-
     # ----------------------------------------------------------------------------------------
     def logfname(ltype):
         return cmdfo['logdir'] + '/' + ltype
-
     # ----------------------------------------------------------------------------------------
     def getlogstrs(logtypes=None):  # not actually using stdout at all, but maybe I should?
         if logtypes is None:
@@ -5155,23 +5180,69 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         for ltype in logtypes:
             if os.path.exists(logfname(ltype)) and os.stat(logfname(ltype)).st_size > 0:
                 returnstr += ['        %s           %s' % (color('red', 'std%s:'%ltype), logfname(ltype))]
-                returnstr += [pad_lines(subprocess.check_output(['cat', logfname(ltype)]), padwidth=12)]
+                returnstr += [pad_lines(subprocess.check_output(['cat', logfname(ltype)], universal_newlines=True), padwidth=12)]
         return '\n'.join(returnstr)
+    # ----------------------------------------------------------------------------------------
+    procs[iproc].communicate()
+    outfname = cmdfo['outfname']
+    rtn_strs = []
 
+    # success
+    if procs[iproc].returncode == 0:
+        if not os.path.exists(outfname):
+            rtn_strs.append('      proc %d succeeded but its output isn\'t there, so sleeping for a bit: %s' % (iproc, outfname))  # give a networked file system some time to catch up
+            time.sleep(0.5)
+        if os.path.exists(outfname):
+            oestr = process_out_err(cmdfo['logdir'], extra_str='' if len(procs) == 1 else str(iproc), dbgfo=dbgfo, cmd_str=cmdfo['cmd_str'], debug=debug, ignore_stderr=ignore_stderr)
+            if debug == 'print':
+                rtn_strs.append(oestr)
+            procs[iproc] = None  # job succeeded
+            if clean_on_success:  # this is newer than the rest of the fcn, so it's only actually used in one place, but it'd be nice if other places started using it eventually
+                if cmdfo.get('workfnames') is not None:
+                    for fn in [f for f in cmdfo['workfnames'] if os.path.exists(f)]:
+                        os.remove(fn)
+                if os.path.isdir(cmdfo['workdir']):
+                    os.rmdir(cmdfo['workdir'])
+            return 'ok', '\n'.join(rtn_strs)
+
+    # handle failure
+    status_str = '    proc %d try %d' % (iproc, n_tried)
+    if procs[iproc].returncode == 0 and not os.path.exists(outfname):  # don't really need both the clauses
+        status_str += ' succeeded but output is missing: %s' % outfname
+    else:
+        status_str += ' failed with exit code %d, %s: %s' % (procs[iproc].returncode, 'but output exists' if os.path.exists(outfname) else 'and output is missing',  outfname)
+    if batch_system == 'slurm':  # cmdfo['cmd_str'].split()[0] == 'srun' and
+        if 'nodelist' in cmdfo:  # if we're doing everything from within an existing slurm allocation
+            nodelist = cmdfo['nodelist']
+        else:  # if, on the other hand, each process made its own allocation on the fly
+            nodelist = get_slurm_node(cmdfo['logdir'] + '/err')
+        if nodelist is not None:
+            status_str += '     failed on node %s' % nodelist
+        # try:
+        #     print '        sshing to %s' % nodelist
+        #     outstr = check_output('ssh -o StrictHostKeyChecking=no ' + nodelist + ' ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,args:100 --sort pmem | tail', shell=True, universal_newlines=True)
+        #     print pad_lines(outstr, padwidth=12)
+        # except subprocess.CalledProcessError as err:
+        #     print '        failed to ssh:'
+        #     print err
+    rtn_strs.append(status_str)
+    if os.path.exists(outfname + '.progress'):  # glomerator.cc is the only one that uses this at the moment
+        rtn_strs.append('        progress file (%s):' % (outfname + '.progress'))
+        rtn_strs.append(pad_lines(subprocess.check_output(['cat', outfname + '.progress'], universal_newlines=True), padwidth=12))
     if n_tried < n_max_tries:
-        print getlogstrs(['err'])
-        print '      restarting proc %d' % iproc
-        return 'restart'
+        rtn_strs.append(getlogstrs(['err']))
+        rtn_strs.append('      restarting proc %d' % iproc)
+        return 'restart', '\n'.join(rtn_strs)
     else:
         failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
         failstr += getlogstrs()  # used to try to only print err/out as needed, but it was too easy to miss useful info
         if allow_failure:
-            print '      %s\n      not raising exception for failed process' % failstr
+            rtn_strs.append('      %s\n      not raising exception for failed process' % failstr)
             procs[iproc] = None  # let it keep running any other processes
         else:
             raise Exception(failstr)
 
-    return 'failed'
+    return 'failed', '\n'.join(rtn_strs)
 
 # ----------------------------------------------------------------------------------------
 def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, ignore_stderr=False):
@@ -5189,7 +5260,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
     def read_and_delete_file(fname):
         fstr = ''
         if os.stat(fname).st_size > 0:  # NOTE if <fname> doesn't exist, it probably means you have more than one process writing to the same log file
-            ftmp = open(fname)
+            ftmp = open(fname, encoding='ISO-8859-1')  # this encoding seems necessary for bppseqgen output, and doesn't seem to break anything else, at least yet?
             fstr = ''.join(ftmp.readlines())
             ftmp.close()
         os.remove(fname)
@@ -5214,7 +5285,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
     if 'bcrham' in cmd_str:
         for line in logstrs['out'].split('\n'):  # print debug info related to --n-final-clusters/--min-largest-cluster-size force merging
             if 'force' in line:
-                print '    %s %s' % (color('yellow', 'force info:'), line)
+                print('    %s %s' % (color('yellow', 'force info:'), line))
 
     if dbgfo is not None:  # keep track of how many vtb and fwd calculations the process made
         for header, variables in bcrham_dbgstrs['partition'].items():  # 'partition' is all of them, 'annotate' is a subset
@@ -5231,15 +5302,16 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
                         raise Exception('found multiple instances of variable \'%s\' in line \'%s\'' % (var, theselines[0]))
                     dbgfo[header][var] = float(words[words.index(var) + 1])
 
+    rtn_strs = []
     if debug is None:
         if not ignore_stderr and len(err_str) > 0:
-            print err_str
+            print(err_str)
     elif len(err_str) + len(logstrs['out']) > 0:
         if debug == 'print':
             if extra_str != '':
                 tmpcolor = 'red_bkg' if len(err_str + logstrs['out']) != len_excluding_colors(err_str + logstrs['out']) else None  # if there's color in the out/err strs, make the 'proc 0' str colored as well
-                print '      --> %s' % color(tmpcolor, 'proc %s' % extra_str)
-            print err_str + logstrs['out']
+                rtn_strs.append('      --> %s' % color(tmpcolor, 'proc %s' % extra_str))
+            rtn_strs.append(err_str + logstrs['out'])
         elif 'write' in debug:
             if debug == 'write':
                 logfile = logdir + '/log'
@@ -5253,6 +5325,8 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
                 dbgfile.write(err_str + logstrs['out'])
         else:
             assert False
+
+        return '\n'.join(rtn_strs)
 
 # ----------------------------------------------------------------------------------------
 def summarize_bcrham_dbgstrs(dbgfos, action):
@@ -5275,11 +5349,11 @@ def summarize_bcrham_dbgstrs(dbgfos, action):
                     summaryfo[dbgcat][vtype] = procfo[dbgcat][vtype]
                 if procfo[dbgcat][vtype] != summaryfo[dbgcat][vtype]:  # make sure all subsequent ones are the same
                     cache_read_inconsistency = True
-                    print '        %s bcrham procs had different \'%s\' \'%s\' info: %d vs %d' % (color('red', 'warning'), vtype, dbgcat, procfo[dbgcat][vtype], summaryfo[dbgcat][vtype])
+                    print('        %s bcrham procs had different \'%s\' \'%s\' info: %d vs %d' % (color('red', 'warning'), vtype, dbgcat, procfo[dbgcat][vtype], summaryfo[dbgcat][vtype]))
         for dbgcat in bcrham_dbgstr_types[action]['sum']:  # lines for which we want to add up the values
             for vtype in bcrham_dbgstrs[action][dbgcat]:
                 if procfo[dbgcat][vtype] is None:  # can't seem to replicate this, but it happened once
-                    print '  %s none type dbg info read from subprocess (maybe the batch system made the subprocess print out something extra so it didn\'t parse correctly?)' % color('yellow', 'warning')
+                    print('  %s none type dbg info read from subprocess (maybe the batch system made the subprocess print out something extra so it didn\'t parse correctly?)' % color('yellow', 'warning'))
                 else:
                     summaryfo[dbgcat][vtype] += procfo[dbgcat][vtype]
         for dbgcat in bcrham_dbgstr_types[action]['min-max']:  # lines for which we want to keep track of the smallest and largest values (e.g. time required)
@@ -5332,8 +5406,8 @@ def split_clusters_by_cdr3(partition, sw_info, warn=False):  # NOTE maybe should
                 new_partition.append(sclust)
             all_cluster_splits.append((len(cluster), [len(c) for c in split_clusters]))
     if warn and len(all_cluster_splits) > 0:
-        print '  %s split apart %d cluster%s that contained multiple cdr3 lengths (total clusters: %d --> %d)' % (color('yellow', 'warning'), len(all_cluster_splits), plural(len(all_cluster_splits)), len(partition), len(new_partition))
-        print '      cluster splits: %s' % ', '.join(('%3d --> %s'%(cl, ' '.join(str(l) for l in spls))) for cl, spls in all_cluster_splits)
+        print('  %s split apart %d cluster%s that contained multiple cdr3 lengths (total clusters: %d --> %d)' % (color('yellow', 'warning'), len(all_cluster_splits), plural(len(all_cluster_splits)), len(partition), len(new_partition)))
+        print('      cluster splits: %s' % ', '.join(('%3d --> %s'%(cl, ' '.join(str(l) for l in spls))) for cl, spls in all_cluster_splits))
     return new_partition
 
 # ----------------------------------------------------------------------------------------
@@ -5345,9 +5419,9 @@ def split_partition_with_criterion(partition, criterion_fcn):  # this would prob
 
 # ----------------------------------------------------------------------------------------
 def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
-    vals, groups = zip(*[(val, list(group)) for val, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)])
+    vals, groups = zip(*[(val, sorted(list(group))) for val, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)])  # NOTE sorted() around list(group) is so [in python 3] we'll get the same list order in reruns
     if return_values:
-        return zip(*(vals, groups))
+        return list(zip(*(vals, groups)))
     else:
         return list(groups)
 
@@ -5366,7 +5440,7 @@ def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  #
     partition = group_seqs_by_value(queries, keyfunc)
 
     if debug:
-        print '   collapsed %d queries into %d cluster%s with identical naive seqs (%.1f sec)' % (len(queries), len(partition), plural(len(partition)), time.time() - start)
+        print('   collapsed %d queries into %d cluster%s with identical naive seqs (%.1f sec)' % (len(queries), len(partition), plural(len(partition)), time.time() - start))
 
     return partition
 
@@ -5376,7 +5450,7 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
     naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
     naive_seq_hashes = {}  # X[cdr3][hash(naive_seq)] : [uid1, uid2, uid3...]  # NOTE didn't used to be also subset by [cdr3], but it seems that they can have different cdr3 but same naive seq, which screws up untranslation
     for uid, naive_seq in naive_seq_list:
-        hashstr = str(hash(naive_seq))
+        hashstr = uidhashstr(naive_seq)
         c3len = sw_info[uid]['cdr3_length']
         if c3len not in naive_seq_map:
             naive_seq_map[c3len], naive_seq_hashes[c3len] = {}, {}
@@ -5384,7 +5458,7 @@ def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is
             naive_seq_map[c3len][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
             naive_seq_hashes[c3len][hashstr] = []  # first sequence that has this naive
         naive_seq_hashes[c3len][hashstr].append(uid)
-    print '        collapsed %d sequences into %d unique naive sequences over %d cdr3 lengths (%.1f sec)' % (len(naive_seq_list), sum(len(d) for d in naive_seq_hashes.values()), len(naive_seq_hashes), time.time() - start)
+    print('        collapsed %d sequences into %d unique naive sequences over %d cdr3 lengths (%.1f sec)' % (len(naive_seq_list), sum(len(d) for d in naive_seq_hashes.values()), len(naive_seq_hashes), time.time() - start))
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------
@@ -5397,7 +5471,7 @@ def get_partition_from_reco_info(reco_info, ids=None):
     #  - if <ids> is None, it returns the actual, complete, true partition.
     #  - if <ids> is set, it groups them into the clusters dictated by the true partition in/implied by <reco_info> NOTE these are not, in general, complete clusters
     if ids is None:
-        ids = reco_info.keys()
+        ids = list(reco_info.keys())
     def keyfunc(q):
         return reco_info[q]['reco_id']
     return [list(group) for _, group in itertools.groupby(sorted(ids, key=keyfunc), key=keyfunc)]  # sort 'em beforehand so all the ones with the same reco id are consecutive (if there are non-consecutive ones with the same reco id, it means there were independent events with the same rearrangment parameters)
@@ -5432,7 +5506,7 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
     def try_to_remove_annotation(cluster, new_cluster):
         ilines = [i for i, l in enumerate(antn_list) if l['unique_ids']==cluster]
         if len(ilines) == 0:
-            print '  %s antn_list was set in get_deduplicated_partitions(), but there wasn\'t an annotation for cluster %s' % (color('yellow', 'warning'), cluster)  # to check for overlapping (but not identical) ones: print [l for l in antn_list if len(set(l['unique_ids']) & cluster) > 0]
+            print('  %s antn_list was set in get_deduplicated_partitions(), but there wasn\'t an annotation for cluster %s' % (color('yellow', 'warning'), cluster))  # to check for overlapping (but not identical) ones: print [l for l in antn_list if len(set(l['unique_ids']) & cluster) > 0]
         else:
             if len(new_cluster) == 0:  # removed all the uids
                 antn_list.pop(ilines[0])
@@ -5441,21 +5515,21 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
                 iseqs_to_keep = [i for i, u in enumerate(tline['unique_ids']) if u in new_cluster]
                 restrict_to_iseqs(tline, iseqs_to_keep, glfo)
                 if debug:
-                    print '          successfully removed %d/%d seqs from corresponding annotation' % (len(cluster) - len(new_cluster), len(cluster))
+                    print('          successfully removed %d/%d seqs from corresponding annotation' % (len(cluster) - len(new_cluster), len(cluster)))
     # ----------------------------------------------------------------------------------------
     if debug:
-        print '    deduplicating %d partition%s' % (len(partitions), plural(len(partitions)))
+        print('    deduplicating %d partition%s' % (len(partitions), plural(len(partitions))))
     new_partitions = [[] for _ in partitions]
     for ipart in range(len(partitions)):
         if debug:
             unique_uids, total_uids = len(set(u for c in partitions[ipart] for u in c)), sum(len(c) for c in partitions[ipart])
-            print '      ipart %d with %d clusters: %d unique vs %d total uids (expect to remove %d)' % (ipart, len(partitions[ipart]), unique_uids, total_uids, total_uids - unique_uids)
+            print('      ipart %d with %d clusters: %d unique vs %d total uids (expect to remove %d)' % (ipart, len(partitions[ipart]), unique_uids, total_uids, total_uids - unique_uids))
             duplicated_uids = set()
             dbg_strs = []
         previously_encountered_uids = set()
         n_removed = 0
         for cluster in partitions[ipart]:
-            new_uids = set(cluster) - previously_encountered_uids  # remove any uids that were in previous clusters
+            new_uids = sorted(set(cluster) - previously_encountered_uids)  # remove any uids that were in previous clusters
             new_cluster = [u for u in cluster if u in new_uids]  # then make sure the order stays the same
             previously_encountered_uids |= set(new_cluster)
             if len(new_cluster) > 0:
@@ -5468,15 +5542,15 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
                     duplicated_uids |= set(cluster) - set(new_cluster)
                     n_removed += len(cluster) - len(new_cluster)
         if debug:
-            print '      %d uids appeared more than once (and %d total were removed)%s' % (len(duplicated_uids), n_removed, (':  ' + ' '.join(duplicated_uids)) if len(duplicated_uids) < 10 else '')
+            print('      %d uids appeared more than once (and %d total were removed)%s' % (len(duplicated_uids), n_removed, (':  ' + ' '.join(sorted(duplicated_uids))) if len(duplicated_uids) < 10 else ''))
             n_singletons = dbg_strs.count('1/1')  # NOTE similarity to utils.cluster_size_str()
-            print '           removed uids/from clusters with size: %s (+%d singletons)' % ('  '.join(s for s in dbg_strs if s!='1/1'), n_singletons)
+            print('           removed uids/from clusters with size: %s (+%d singletons)' % ('  '.join(s for s in dbg_strs if s!='1/1'), n_singletons))
     return new_partitions
 
 # ----------------------------------------------------------------------------------------
 def build_dummy_reco_info(true_partition):
     def tkey(c): return ':'.join(c)
-    chashes = {tkey(tc) : hash(tkey(tc)) for tc in true_partition}
+    chashes = {tkey(tc) : uidhashstr(tkey(tc)) for tc in true_partition}
     return {u : {'reco_id' : chashes[tkey(tc)]} for tc in true_partition for u in tc}
 
 # ----------------------------------------------------------------------------------------
@@ -5511,7 +5585,7 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
                 continue
             if len(clids[uid]) != 1:  # this seems to only happen for earlier partitions (more than one proc) when seed_unique_id is set, since we pass seed_unique_id to all the subprocs. I.e. it's expected in these cases, and the ccfs don't make sense when a uid is in more than one cluster, since it's no longer a partition, so just return None, None
                 if debug:
-                    print '  %s found %s in multiple clusters while calculating ccfs (returning None, None)' % (color('red', 'warning'), uid)
+                    print('  %s found %s in multiple clusters while calculating ccfs (returning None, None)' % (color('red', 'warning'), uid))
                 return None, None
             inferred_cluster = partition[clids[uid][0]]  # we only look at the first cluster in which it appears
             mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
@@ -5522,12 +5596,12 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
         raise Exception('you should start worrying about numerical precision if you\'re going to run on this many queries')
 
     if debug:
-        print '    %scorrect cluster fractions:' % dbg_str
-        print '       clusters uids'
-        print '         %3d    %3d  %s' % (len(true_partition), sum(len(c) for c in true_partition), true_label)
-        print '         %3d    %3d  %s' % (len(partition), sum(len(c) for c in partition), inf_label)
-        print '      purity:       %.1f / %d = %.3f' % (mean_clonal_fraction, n_uids, mean_clonal_fraction / n_uids)
-        print '      completeness: %.1f / %d = %.3f' % (mean_fraction_present, n_uids, mean_fraction_present / n_uids)
+        print('    %scorrect cluster fractions:' % dbg_str)
+        print('       clusters uids')
+        print('         %3d    %3d  %s' % (len(true_partition), sum(len(c) for c in true_partition), true_label))
+        print('         %3d    %3d  %s' % (len(partition), sum(len(c) for c in partition), inf_label))
+        print('      purity:       %.1f / %d = %.3f' % (mean_clonal_fraction, n_uids, mean_clonal_fraction / n_uids))
+        print('      completeness: %.1f / %d = %.3f' % (mean_fraction_present, n_uids, mean_fraction_present / n_uids))
     return mean_clonal_fraction / n_uids, mean_fraction_present / n_uids
 
 # ----------------------------------------------------------------------------------------
@@ -5551,17 +5625,17 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
     n_under_merged, n_over_merged = 0, 0
     for trueclust in true_partition:
         if debug:
-            print ''
-            print '   true %s' % (len(trueclust) if len(trueclust) > 15 else trueclust)
+            print('')
+            print('   true %s' % (len(trueclust) if len(trueclust) > 15 else trueclust))
         infclusters = find_clusters_with_ids(trueclust, partition)  # list of inferred clusters that contain any ids from the true cluster
         if debug and len(infclusters) > 1:
-            print '  infclusters %s' % infclusters
+            print('  infclusters %s' % infclusters)
         assert len(infclusters) > 0
         under_merged = len(infclusters) > 1  # ids in true cluster are not all in the same inferred cluster
         over_merged = False  # at least one inferred cluster with an id in true cluster also contains an id not in true cluster
         for iclust in infclusters:
             if debug:
-                print '   inferred %s' % (len(iclust) if len(iclust) > 15 else iclust)
+                print('   inferred %s' % (len(iclust) if len(iclust) > 15 else iclust))
             for uid in iclust:
                 if uid not in trueclust:
                     over_merged = True
@@ -5569,7 +5643,7 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
             if over_merged:
                 break
         if debug:
-            print '  under %s   over %s' % (under_merged, over_merged)
+            print('  under %s   over %s' % (under_merged, over_merged))
         if under_merged:
             n_under_merged += 1
         if over_merged:
@@ -5578,7 +5652,7 @@ def per_family_correct_cluster_fractions(partition, true_partition, debug=False)
     under_frac = float(n_under_merged) / len(true_partition)
     over_frac = float(n_over_merged) / len(true_partition)
     if debug:
-        print '  under %.2f   over %.2f' % (under_frac, over_frac)
+        print('  under %.2f   over %.2f' % (under_frac, over_frac))
     return (1. - under_frac, 1. - over_frac)
 
 # ----------------------------------------------------------------------------------------
@@ -5615,7 +5689,7 @@ def pairwise_cluster_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
     elif mtstr == 'closeness':
         tp, fp, fn, n_tot = set(), set(), set(), set()
         if debug:
-            print '    infcl   trucl      tp   fp     fn'
+            print('    infcl   trucl      tp   fp     fn')
         # for infcl, trucl in itertools.product(inf_ptn, tru_ptn):  # NOTE this is *not* what they mean, see next line
         for infcl in inf_ptn:  # NOTE this is apparently what they mean by "we first identified the best correspondence between inferred clonal lineages and correct clonal assignments" but note you'd get a *different* answer if you looped over tru_ptn
             trucl = sorted(tru_ptn, key=lambda c: len(set(c) & set(infcl)), reverse=True)[0]
@@ -5627,16 +5701,16 @@ def pairwise_cluster_metrics(mtstr, inf_ptn, tru_ptn, debug=False):
             fn |= truset - infset
             n_tot |= truset
             if debug:
-                print '  %20s   %20s   %20s   %20s   %20s' % (infcl, trucl, infset & truset, infset - truset, truset - infset)
+                print('  %20s   %20s   %20s   %20s   %20s' % (infcl, trucl, infset & truset, infset - truset, truset - infset))
         tp, fp, fn = [len(s) for s in [tp, fp, fn]]
     else:
         assert False
     precis = tp / float(tp + fp) if tp + fp > 0 else float('nan')
     recall = tp / float(tp + fn) if tp + fn > 0 else float('nan')  # same as sensitivity
     if debug:
-        print '    pairwise clustering metrics:'
-        print '        precision: tp / (tp + fp) = %d / (%d + %d) = %.2f' % (tp, tp, fp, precis)
-        print '      sens/recall: tp / (tp + fn) = %d / (%d + %d) = %.2f' % (tp, tp, fn, recall)
+        print('    pairwise clustering metrics:')
+        print('        precision: tp / (tp + fp) = %d / (%d + %d) = %.2f' % (tp, tp, fp, precis))
+        print('      sens/recall: tp / (tp + fn) = %d / (%d + %d) = %.2f' % (tp, tp, fn, recall))
     return {'precision' : precis, 'recall' : recall, 'f1' : 2 * precis * recall / float(precis + recall) if precis + recall > 0 else float('nan')}  # same as scipy.stats.hmean([precis, recall])
 
 # ----------------------------------------------------------------------------------------
@@ -5647,7 +5721,7 @@ def collision_fraction(partition):
 #   - "naive" collision fraction: fraction of naive rearrangement pairs that collide (measures density/inverse diversity of naive repertoire)
 #   - "mature" collision fraction: fraction of mature/mutated seq pairs from *different* families that collide (also adds in extra collisions from shm)
     def n_combos(n):
-        return n * (n - 1) / 2
+        return n * (n - 1) // 2
     n_collisions = sum(n_combos(len(c)) for c in partition)
     cfrac = float(n_collisions) / n_combos(sum(len(c) for c in partition))
     return cfrac
@@ -5715,25 +5789,25 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, is
                 sub_szs = sorted(sub_szs, reverse=True)
                 sub_ovlps = sorted(sub_ovlps, reverse=True)
             if n_found != len(clust_a):
-                print '  %s couldn\'t find %d / %d uids' % (wrnstr(), len(clust_a) - n_found, len(clust_a))
+                print('  %s couldn\'t find %d / %d uids' % (wrnstr(), len(clust_a) - n_found, len(clust_a)))
         if debug:
             dszs.append(sub_szs)
             dovlps.append(sub_ovlps)
             dfracs.append(sub_fracs)
     if debug:
         max_dsz, max_ovl = max(len(s) for s in dszs), max(len(o) for o in dovlps)
-        print '    cluster sizes (%s):' % color('blue', 'used')
+        print('    cluster sizes (%s):' % color('blue', 'used'))
         for tlab, aclusts, eclusts in zip([a_label, b_label], [partition_a, partition_b], [a_clusters, b_clusters]):
-            print '    %12s: %s' % (tlab, cluster_size_str(aclusts, clusters_to_emph=eclusts))
-        print '    %s  %s -->' % (a_label, b_label)
-        print '     size   %s    %s      overlap / %s size (*100)' % (wfmt('sizes', 2*max_dsz, jfmt='-'), wfmt('overlaps', 2*max_ovl, jfmt='-'), iscn_denominator.replace('min', 'smaller').replace('max', 'larger'))
+            print('    %12s: %s' % (tlab, cluster_size_str(aclusts, clusters_to_emph=eclusts)))
+        print('    %s  %s -->' % (a_label, b_label))
+        print('     size   %s    %s      overlap / %s size (*100)' % (wfmt('sizes', 2*max_dsz, jfmt='-'), wfmt('overlaps', 2*max_ovl, jfmt='-'), iscn_denominator.replace('min', 'smaller').replace('max', 'larger')))
         cl = len(str(max(len(a_clusters[0]), len(b_clusters[0]))))
         for ia, clust_a in enumerate(a_clusters):
             szstr, ovlstr = ' '.join('%d'%s for s in dszs[ia]), ' '.join('%d'%o for o in dovlps[ia])
-            print ('    %4d      %-s    %-s    %s') % (len(clust_a), wfmt(szstr, 2*max_dsz, jfmt='-'), wfmt(ovlstr, 2*max_ovl, jfmt='-'), ' '.join('%3.0f'%(100*f) for f in dfracs[ia]))
+            print(('    %4d      %-s    %-s    %s') % (len(clust_a), wfmt(szstr, 2*max_dsz, jfmt='-'), wfmt(ovlstr, 2*max_ovl, jfmt='-'), ' '.join('%3.0f'%(100*f) for f in dfracs[ia])))
         if len(missing_b_clusts) > 0:
-            print '  %s %d %s clusters only overlapped with small %s clusters, i.e. won\'t appear in debug output above (if there\'s large clusters here this means you should probably increase the number of clusters):' % (wrnstr(), len(missing_b_clusts), b_label, a_label)
-            print '     %s' % cluster_size_str([b_clusters[i] for i in missing_b_clusts])
+            print('  %s %d %s clusters only overlapped with small %s clusters, i.e. won\'t appear in debug output above (if there\'s large clusters here this means you should probably increase the number of clusters):' % (wrnstr(), len(missing_b_clusts), b_label, a_label))
+            print('     %s' % cluster_size_str([b_clusters[i] for i in missing_b_clusts]))
 
     a_cluster_lengths, b_cluster_lengths = [len(c) for c in a_clusters], [len(c) for c in b_clusters]  # nice to return these here so you don't have to re-sort in the calling fcn
     return a_cluster_lengths, b_cluster_lengths, smatrix
@@ -5764,15 +5838,15 @@ def check_intersection_and_complement(part_a, part_b, only_warn=False, a_label='
                                          '    only %s: %s' % (b_label, ' '.join(b_not_a)),
                                          '    common: %s' % ' '.join(a_and_b)])
         if only_warn:
-            print '  %s %s' % (color('yellow', 'warning'), failstr)
+            print('  %s %s' % (color('yellow', 'warning'), failstr))
             if debug:
                 for tl, tids in [(a_label, a_not_b), (b_label, b_not_a)]:
-                    print '     only %s: %s' % (tl, ' '.join(tids))
+                    print('     only %s: %s' % (tl, ' '.join(tids)))
         else:
             raise Exception(failstr)
     else:
         if debug:
-            print '  intersection and complement both ok'
+            print('  intersection and complement both ok')
     return a_and_b, a_not_b, b_not_a
 
 # ----------------------------------------------------------------------------------------
@@ -5814,7 +5888,7 @@ def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, al
     partition_with_uids_added = copy.deepcopy(partition_with_missing_uids) + [[u] for u in missing_ids]
     if len(missing_ids) > 0 and (debug or warn or fail_frac):
         if debug or warn:
-            print '    %sadded %d / %d missing ids as singletons to %s partition, to match ids in %s partition%s' % (wrnstr()+' ' if warn else '', len(missing_ids), sum(len(c) for c in ref_partition), miss_label, ref_label, dbgstr) #, ' '.join(missing_ids) if len(missing_ids) < 30 else '')
+            print('    %sadded %d / %d missing ids as singletons to %s partition, to match ids in %s partition%s' % (wrnstr()+' ' if warn else '', len(missing_ids), sum(len(c) for c in ref_partition), miss_label, ref_label, dbgstr)) #, ' '.join(missing_ids) if len(missing_ids) < 30 else '')
         miss_frac = len(missing_ids) / float(sum(len(c) for c in ref_partition))
         if fail_frac is not None and miss_frac > fail_frac:
             raise Exception('missing %.3f (more than %.3f)' % (miss_frac, fail_frac))
@@ -5833,7 +5907,7 @@ def remove_missing_uids_from_partition(ref_partition, partition_with_missing_uid
     if len(missing_ids) > 0:
         wstr = (color('yellow', 'warning')+' ') if (n_remaining==0 or warn) else ''
         miss_frac = len(missing_ids) / float(sum([len(c) for c in ref_partition]))
-        print '    %sremoved %d/%d uids (leaving %d) from %s partition that were not in %s partition%s' % (wstr, len(missing_ids), sum([len(c) for c in ref_partition]), n_remaining, ref_label, miss_label, dbgstr) #, ' '.join(missing_ids))
+        print('    %sremoved %d/%d uids (leaving %d) from %s partition that were not in %s partition%s' % (wstr, len(missing_ids), sum([len(c) for c in ref_partition]), n_remaining, ref_label, miss_label, dbgstr)) #, ' '.join(missing_ids))
         if fail_frac is not None and miss_frac > fail_frac:
             raise Exception('missing %.3f (more than %.3f)' % (miss_frac, fail_frac))
     return ref_partition_with_uids_removed
@@ -5852,8 +5926,8 @@ def generate_incorrect_partition(true_partition, misassign_fraction, error_type,
     nseqs = sum([len(c) for c in true_partition])
     n_misassigned = int(misassign_fraction * nseqs)
     if debug:
-        print '  misassigning %d / %d seqs (should be clsoe to %.3f)' % (n_misassigned, nseqs, misassign_fraction)
-        print '  before', new_partition
+        print('  misassigning %d / %d seqs (should be clsoe to %.3f)' % (n_misassigned, nseqs, misassign_fraction))
+        print('  before', new_partition)
 
     uids = [uid for cluster in true_partition for uid in cluster]
     for _ in range(n_misassigned):
@@ -5866,18 +5940,18 @@ def generate_incorrect_partition(true_partition, misassign_fraction, error_type,
         if error_type == 'singletons':  # put the sequence in a cluster by itself
             new_partition.append([uid, ])
             if debug:
-                print '    %s: %d --> singleton' % (uid, iclust)
+                print('    %s: %d --> singleton' % (uid, iclust))
         elif error_type == 'reassign':  # choose a different cluster to add it to
             inewclust = iclust
             while inewclust == iclust:  # hm, this won't work if there's only one cluster in the partition. Oh, well, that probably won't happen
                 inewclust = random.randint(0, len(new_partition) - 1)
             new_partition[inewclust].append(uid)
             if debug:
-                print '    %s: %d --> %d' % (uid, iclust, inewclust)
+                print('    %s: %d --> %d' % (uid, iclust, inewclust))
         else:
             raise Exception('%s not among %s' % (error_type, 'singletons, reassign'))
     if debug:
-        print '  after', new_partition
+        print('  after', new_partition)
     return new_partition
 
 # ----------------------------------------------------------------------------------------
@@ -5885,9 +5959,9 @@ def subset_files(uids, fnames, outdir, uid_header='Sequence ID', delimiter='\t',
     """ rewrite csv files <fnames> to <outdir>, removing lines with uid not in <uids> """
     for fname in fnames:
         with open(fname) as infile:
-            reader = csv.DictReader(infile, delimiter=delimiter)
-            with open(outdir + '/' + os.path.basename(fname), 'w') as outfile:
-                writer = csv.DictWriter(outfile, reader.fieldnames, delimiter=delimiter)
+            reader = csv.DictReader(infile, delimiter=str(delimiter))
+            with open(outdir + '/' + os.path.basename(fname), csv_wmode()) as outfile:
+                writer = csv.DictWriter(outfile, reader.fieldnames, delimiter=str(delimiter))
                 writer.writeheader()
                 for line in reader:
                     if line[uid_header] in uids:
@@ -5904,10 +5978,10 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
     if os.path.exists(outfname):
         if overwrite:
             if debug:
-                print '  csv --> fasta: overwriting %s' % outfname
+                print('  csv --> fasta: overwriting %s' % outfname)
         else:
             if debug:
-                print '  csv --> fasta: leaving existing outfile %s' % outfname
+                print('  csv --> fasta: leaving existing outfile %s' % outfname)
             return
 
     if '.csv' in infname:
@@ -5920,18 +5994,18 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
     uid_set = set()
     n_duplicate_ids = 0
     with open(infname) as infile:
-        reader = csv.DictReader(infile, delimiter=delimiter)
+        reader = csv.DictReader(infile, delimiter=str(delimiter))
         with open(outfname, 'w') as outfile:
             n_lines = 0
             for line in reader:
                 if seq_column not in line:
-                    raise Exception('specified <seq_column> \'%s\' not in line (keys in line: %s)' % (seq_column, ' '.join(line.keys())))
+                    raise Exception('specified <seq_column> \'%s\' not in line (keys in line: %s)' % (seq_column, ' '.join(list(line.keys()))))
                 if name_column is not None:
                     if name_column not in line:
-                        raise Exception('specified <name_column> \'%s\' not in line (keys in line: %s)' % (name_column, ' '.join(line.keys())))
+                        raise Exception('specified <name_column> \'%s\' not in line (keys in line: %s)' % (name_column, ' '.join(list(line.keys()))))
                     uid = line[name_column]
                 else:
-                    uid = str(abs(hash(line[seq_column])))
+                    uid = uidhashstr(line[seq_column])
                 if remove_duplicates:
                     if uid in uid_set:
                         n_duplicate_ids += 1
@@ -5943,7 +6017,7 @@ def csv_to_fasta(infname, outfname=None, name_column='unique_ids', seq_column='i
                 outfile.write('>%s\n' % uid)
                 outfile.write('%s\n' % line[seq_column])
     if debug and n_duplicate_ids > 0:
-        print '   skipped %d / %d duplicate uids' % (n_duplicate_ids, len(uid_set))
+        print('   skipped %d / %d duplicate uids' % (n_duplicate_ids, len(uid_set)))
 
 # ----------------------------------------------------------------------------------------
 def print_heapy(extrastr, heap):
@@ -5954,10 +6028,10 @@ def print_heapy(extrastr, heap):
         if 'Total size' in line:
             total = int(line.split()[10])
     if total is None:
-        print 'oops'
-        print heapstr
+        print('oops')
+        print(heapstr)
         sys.exit()
-    print 'mem total %.3f MB    %s' % (float(total) / 1e6, extrastr)
+    print('mem total %.3f MB    %s' % (float(total) / 1e6, extrastr))
 
 # ----------------------------------------------------------------------------------------
 def auto_slurm(n_procs):
@@ -5966,7 +6040,7 @@ def auto_slurm(n_procs):
     def slurm_exists():
         try:
             fnull = open(os.devnull, 'w')
-            subprocess.check_output(['which', 'srun'], stderr=fnull, close_fds=True)
+            subprocess.check_output(['which', 'srun'], stderr=fnull, close_fds=True, universal_newlines=True)
             return True
         except subprocess.CalledProcessError:
             return False
@@ -5979,7 +6053,7 @@ def auto_slurm(n_procs):
 # ----------------------------------------------------------------------------------------
 def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
     if debug:
-        print ' %s' % region
+        print(' %s' % region)
 
     aligned_seqs = [None for _ in range(len(line['unique_ids']))]
     for iseq in range(len(line['seqs'])):
@@ -5988,22 +6062,22 @@ def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
         aligned_gl_seq = aligned_gl_seqs[region][line[region + '_gene']]
         if len(qr_seq) != len(gl_seq):
             if debug:
-                print '    qr %d and gl %d seqs different lengths for %s, setting invalid' % (len(qr_seq), len(gl_seq), ' '.join(line['unique_ids']))
+                print('    qr %d and gl %d seqs different lengths for %s, setting invalid' % (len(qr_seq), len(gl_seq), ' '.join(line['unique_ids'])))
             line['invalid'] = True
             continue
 
         n_gaps = gap_len(aligned_gl_seq)
         if n_gaps == 0:
             if debug:
-                print '   no gaps'
+                print('   no gaps')
             aligned_seqs[iseq] = qr_seq
             continue
 
         if debug:
-            print '   before alignment'
-            print '      qr   ', qr_seq
-            print '      gl   ', gl_seq
-            print ' aligned gl', aligned_gl_seq
+            print('   before alignment')
+            print('      qr   ', qr_seq)
+            print('      gl   ', gl_seq)
+            print(' aligned gl', aligned_gl_seq)
 
         # add dots for 5p and 3p deletions
         qr_seq = gap_chars[0] * line[region + '_5p_del'] + qr_seq + gap_chars[0] * line[region + '_3p_del']
@@ -6011,7 +6085,7 @@ def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
 
         if len(aligned_gl_seq) - n_gaps != len(gl_seq):
             if debug:
-                print '    aligned germline seq without gaps (%d - %d = %d) not the same length as unaligned gl/qr seqs %d' % (len(aligned_gl_seq), n_gaps, len(aligned_gl_seq) - n_gaps, len(gl_seq))
+                print('    aligned germline seq without gaps (%d - %d = %d) not the same length as unaligned gl/qr seqs %d' % (len(aligned_gl_seq), n_gaps, len(aligned_gl_seq) - n_gaps, len(gl_seq)))
             line['invalid'] = True
             continue
 
@@ -6028,27 +6102,27 @@ def add_regional_alignments(glfo, aligned_gl_seqs, line, region, debug=False):
                 break
         if line['invalid']:
             if debug:
-                print '    unknown error during alignment process'
+                print('    unknown error during alignment process')
             continue
         qr_seq = ''.join(qr_seq)
         gl_seq = ''.join(gl_seq)
 
         if debug:
-            print '   after alignment'
-            print '      qr   ', qr_seq
-            print '      gl   ', gl_seq
-            print ' aligned gl', aligned_gl_seq
+            print('   after alignment')
+            print('      qr   ', qr_seq)
+            print('      gl   ', gl_seq)
+            print(' aligned gl', aligned_gl_seq)
 
         if len(qr_seq) != len(gl_seq) or len(qr_seq) != len(aligned_gl_seq):  # I don't think this is really possible as currently written
             if debug:
-                print '    lengths qr %d gl %d and aligned gl %d not all the same after alignment' % (len(qr_seq), len(gl_seq), len(aligned_gl_seq))
+                print('    lengths qr %d gl %d and aligned gl %d not all the same after alignment' % (len(qr_seq), len(gl_seq), len(aligned_gl_seq)))
             line['invalid'] = True
             continue
 
         aligned_seqs[iseq] = qr_seq
 
     if line['invalid']:
-        print '%s failed adding alignment info for %s' % (color('red', 'error'),' '.join(line['unique_ids']))  # will print more than once if it doesn't fail on the last region
+        print('%s failed adding alignment info for %s' % (color('red', 'error'),' '.join(line['unique_ids'])))  # will print more than once if it doesn't fail on the last region
         aligned_seqs = [None for _ in range(len(line['seqs']))]
 
     line['aligned_' + region + '_seqs'] = aligned_seqs
@@ -6062,9 +6136,9 @@ def add_alignments(glfo, aligned_gl_seqs, line, debug=False):
 def intexterpolate(x1, y1, x2, y2, x):
     """ interpolate/extrapolate linearly based on two points in 2-space, returning y-value corresponding to <x> """
     if x1 == x2:
-        print '  %s x1 equal to x2 in utils.intexterpolate()' % wrnstr()
+        print('  %s x1 equal to x2 in utils.intexterpolate()' % wrnstr())
         return 0  # arg, maybe this is right?
-    m = (y2 - y1) / (x2 - x1)
+    m = (y2 - y1) / float(x2 - x1)
     b = 0.5 * (y1 + y2 - m*(x1 + x2))
     # if debug:
     #     for x in [x1, x2]:
@@ -6073,7 +6147,7 @@ def intexterpolate(x1, y1, x2, y2, x):
 
 # ----------------------------------------------------------------------------------------
 def get_mean_mfreq(parameter_dir):
-    from hist import Hist
+    from .hist import Hist
     mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
     return mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
 
@@ -6125,17 +6199,36 @@ def find_genes_that_have_hmms(parameter_dir):
 #   - for paired, pass in the output dir
 # <iseed>: skip this many clusters that meet the other criteria (then choose the next one)
 def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=None, n_max_queries=-1, choose_random=False, paired=False, ig_or_tr='ig', debug=True):
+    # ----------------------------------------------------------------------------------------
+    def choose_sid(sclust):
+        iseq = 0
+        if not paired:
+            return sclust[iseq], None  # don't think it matters which one
+        antn_dict = get_annotation_dict(annotation_list)
+        antn = antn_dict[':'.join(sclust)]
+        for iseq, uid in enumerate(antn['unique_ids']):
+            pids = antn['paired-uids'][iseq]
+            if len(pids) == 0:
+                continue
+            correctly_paired_ids = [p for p in pids if is_correctly_paired(uid, p)]
+            if len(correctly_paired_ids) == 0:
+                continue
+            return uid, get_single_entry(correctly_paired_ids)
+        raise Exception('couldn\'t find a seed id in cluster with size %d (none had their correct paired id among their \'paired-uids\')')
+    # ----------------------------------------------------------------------------------------
     if paired:
-        import paircluster  # it barfs if i import at the top, and i know that means i'm doing something dumb, but whatever
-        infname = paircluster.paired_fn(infname, heavy_locus(ig_or_tr), suffix='.yaml')  # heavy chains seqs paired with either light chain
+        from . import paircluster  # it barfs if i import at the top, and i know that means i'm doing something dumb, but whatever
+        infname = paircluster.paired_fn(infname, heavy_locus(ig_or_tr), suffix='.yaml', actstr='auto')  # heavy chains seqs paired with either light chain
     _, annotation_list, cpath = read_output(infname, n_max_queries=n_max_queries, dont_add_implicit_info=True)
     if choose_random:
         assert iseed is None  # <iseed> if you want to specify a specific cluster, <choose_random> is if you want us to choose one at random from the whole file
         iseed = random.randint(0, len(cpath.best()) - 1)  # inclusive
+        if debug:
+            print('  chose random iseed: %d (of %d clusters)' % (iseed, len(cpath.best())))
 
     nth_seed = 0  # numbrer of clusters we've passed that meet the other criteria
-    sid, scluster = None, None
-    for cluster in cpath.best():
+    sid, pid, scluster = None, None, None
+    for cluster in sorted(cpath.best(), key=len, reverse=True):
         if min_cluster_size is not None and len(cluster) < min_cluster_size:
             continue
         if max_cluster_size is not None and len(cluster) > max_cluster_size:
@@ -6143,27 +6236,30 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
         if iseed is not None and int(iseed) > nth_seed:
             nth_seed += 1
             continue
-        sid, scluster = cluster[0], cluster
+        scluster = cluster
+        sid, pid = choose_sid(cluster)
         break
     if sid is None:
         raise Exception('couldn\'t find seed in cluster between size %d and %d' % (min_cluster_size, max_cluster_size))
 
     if paired:
-        antn_dict = get_annotation_dict(annotation_list)
-        pid = get_single_entry([p for p in per_seq_val(antn_dict[':'.join(scluster)], 'paired-uids', sid) if is_correctly_paired(sid, p)])
         plocus = pid.split('-')[-1]
         if plocus not in loci:
             raise Exception('couldn\'t get allowed locus (got \'%s\') from uid \'%s\'' % (plocus, pid))
         if debug:
-            print '    chose seed uids %s %s with loci %s %s from cluster with size %d%s%s%s' % (sid, pid, heavy_locus(ig_or_tr), plocus, len(cluster), ' (chosen at random)' if choose_random else '',
-                                                                                                 '' if nth_seed==0 else ', after skipping %d/%d other cluster%s'%(nth_seed, len(cpath.best()), plural(nth_seed)),
-                                                                                                 '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size))
+            print('    chose seed uids %s %s with loci %s %s from heavy cluster with size %d%s%s%s (%s)' % (sid, pid, heavy_locus(ig_or_tr), plocus, len(cluster), ' (chosen at random)' if choose_random else '',
+                                                                                                            '' if nth_seed==0 else ', after skipping %d/%d other cluster%s'%(nth_seed, len(cpath.best()), plural(nth_seed)),
+                                                                                                            '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size),
+                                                                                                            'chose from among %d heavy clusters with sizes %s' % (len(cpath.best()), cluster_size_str(cpath.best())),
+                                                                                                            ))
         return ([sid, pid], [heavy_locus(ig_or_tr), plocus]), len(cluster)
     else:
         if debug:
-            print '    chose seed uid %s from cluster with size %d%s%s%s' % (sid, len(cluster), ' (chosen at random)' if choose_random else '',
+            print('    chose seed uid %s from cluster with size %d%s%s%s (%s)' % (sid, len(cluster), ' (chosen at random)' if choose_random else '',
                                                                              '' if nth_seed==0 else ', after skipping %d/%d other cluster%s'%(nth_seed, len(cpath.best()), plural(nth_seed)),
-                                                                             '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size))
+                                                                                  '' if min_cluster_size is None and max_cluster_size is None else ' (was asked for size in [%s, %s])'%(min_cluster_size, max_cluster_size),
+                                                                                  'chose from among %d clusters with sizes %s' % (len(cpath.best()), cluster_size_str(cpath.best())),
+                                                                                  ))
         return sid, len(cluster)
 
 # ----------------------------------------------------------------------------------------
@@ -6270,8 +6366,8 @@ def insert_in_arglist(clist, new_arg_strs, argstr, has_arg=False, before=False):
 # return new arg list with args + values from both clist_1 and clist_2. Any args that are in both with different values will cause a crash
 def merge_arg_lists(clist_1, clist_2, debug=False):
     if debug:
-        print '    clist_1: %s' % ' '.join(clist_1)
-        print '    clist_2: %s' % ' '.join(clist_2)
+        print('    clist_1: %s' % ' '.join(clist_1))
+        print('    clist_2: %s' % ' '.join(clist_2))
     argnames = [v for v in clist_1 if v.find('--')==0] + [v for v in clist_2 if v.find('--')==0 and v not in clist_1]  # would use a set, but then the order gets messed up
     new_clist = []
     for astr in argnames:
@@ -6285,7 +6381,7 @@ def merge_arg_lists(clist_1, clist_2, debug=False):
             alist.append(get_val_from_arglist(tclist, astr))
         new_clist += alist
     if debug:
-        print '  new_clist: %s' % ' '.join(new_clist)
+        print('  new_clist: %s' % ' '.join(new_clist))
     return new_clist
 
 # ----------------------------------------------------------------------------------------
@@ -6300,10 +6396,17 @@ def kbound_str(kbounds):
     return ''.join(return_str).strip()
 
 # ----------------------------------------------------------------------------------------
+def jsdump(fname, jdata):
+    with open(fname, 'w') as jfile:
+        jfo = json.dumps(jdata)
+        if sys.version_info.major < 3:
+            jfo = jfo.decode()
+        jfile.write(jfo)
+
+# ----------------------------------------------------------------------------------------
 def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(), except this writes to .yaml, and includes any extra info (beyond name and seq)
     mkdir(fname, isfile=True)
-    with open(fname, 'w') as seqfile:
-        json.dump(seqfos, seqfile)
+    jsdump(fname, seqfos)
 
 # ----------------------------------------------------------------------------------------
 def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
@@ -6409,12 +6512,12 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 uid = infostrs[0]
             if sanitize_uids and any(fc in uid for fc in forbidden_characters):
                 if not already_printed_forbidden_character_warning:
-                    print '  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in forbidden_characters]), uid, uid.translate(forbidden_character_translations))
+                    print('  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in forbidden_characters]), uid, uid.translate(forbidden_character_translations)))
                     already_printed_forbidden_character_warning = True
                 uid = uid.translate(forbidden_character_translations)
             if sanitize_uids and any(wc in uid for wc in warn_chars):
                 if not already_printed_warn_char_warning:
-                    print '  %s: found a character that may cause problems if doing phylogenetic inference (one of %s) in sequence id \'%s\' (only printing this warning on first occurence).' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in warn_chars]), uid)
+                    print('  %s: found a character that may cause problems if doing phylogenetic inference (one of %s) in sequence id \'%s\' (only printing this warning on first occurence).' % (color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in warn_chars]), uid))
                     already_printed_warn_char_warning = True
 
             if queries is not None:
@@ -6440,7 +6543,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
 
     if n_random_queries is not None:
         if n_random_queries > len(finfo):
-            print '  %s asked for n_random_queries %d from file with only %d entries, so just taking all of them (%s)' % (color('yellow', 'warning'), n_random_queries, len(finfo), fname)
+            print('  %s asked for n_random_queries %d from file with only %d entries, so just taking all of them (%s)' % (color('yellow', 'warning'), n_random_queries, len(finfo), fname))
             n_random_queries = len(finfo)
         finfo = numpy.random.choice(finfo, n_random_queries, replace=False)
 
@@ -6457,16 +6560,16 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 if tuple_info is not None:
                     tuple_info.append(nids)
                 n_found += 1
-                print '         look_for_tuples: found %d uids in headline %s: %s' % (len(nids), headline, ' '.join(nids))
+                print('         look_for_tuples: found %d uids in headline %s: %s' % (len(nids), headline, ' '.join(nids)))
                 for uid in nids:
                     nsfo = copy.deepcopy(sfo)
                     nsfo['name'] = uid
                     new_sfos.append(nsfo)
             except:
-                print '    %s failed parsing tuple from fasta line \'%s\' from %s' % (wrnstr(), headline, fname)
+                print('    %s failed parsing tuple from fasta line \'%s\' from %s' % (wrnstr(), headline, fname))
                 new_sfos.append(sfo)
         if n_found > 0:
-            print '      found %d seqfos with tuple headers (added %d net total seqs) in %s' % (n_found, len(new_sfos) - len(finfo), fname)
+            print('      found %d seqfos with tuple headers (added %d net total seqs) in %s' % (n_found, len(new_sfos) - len(finfo), fname))
         finfo = new_sfos
 
     return finfo
@@ -6481,12 +6584,12 @@ def output_exists(args, outfname, outlabel=None, leave_zero_len=False, offset=No
 
     if not leave_zero_len and os.stat(outfname).st_size == 0:
         if debug:
-            print '%sdeleting zero length %s' % (offset * ' ', outfname)
+            print('%sdeleting zero length %s' % (offset * ' ', outfname))
         os.rmdir(outfname) if os.path.isdir(outfname) else os.remove(outfname)  # zero len dir means it's empty
         return False
     elif args.overwrite:
         if debug:
-            print '%soverwriting %s%s' % (offset * ' ', outlabel, outfname)
+            print('%soverwriting %s%s' % (offset * ' ', outlabel, outfname))
         if os.path.isdir(outfname):
             raise Exception('output %s is a directory, rm it by hand' % outfname)
         else:
@@ -6494,7 +6597,7 @@ def output_exists(args, outfname, outlabel=None, leave_zero_len=False, offset=No
         return False
     else:
         if debug:
-            print '%s%soutput exists, %s (%s)' % (offset * ' ', outlabel, 'skipping' if todostr is None else todostr, outfname)
+            print('%s%soutput exists, %s (%s)' % (offset * ' ', outlabel, 'skipping' if todostr is None else todostr, outfname))
         return True
 
 # ----------------------------------------------------------------------------------------
@@ -6503,7 +6606,7 @@ def all_outputs_exist(args, outfnames, outlabel=None, leave_zero_len=False, offs
     n_exist = o_exist_list.count(True)
     if debug:
         ostr = '' if outlabel is None else ('%s ' % outlabel)
-        print '    %s%d/%d outputs exist%s' % (ostr, n_exist, len(o_exist_list), '' if dbgpathstr is None else ' in %s'%dbgpathstr)
+        print('    %s%d/%d outputs exist%s' % (ostr, n_exist, len(o_exist_list), '' if dbgpathstr is None else ' in %s'%dbgpathstr))
     return n_exist == len(o_exist_list)
 
 # NOTE/reminder probably doesn't make sense to have this fcn, since output_exists() doesn't just test for existence, it also removes stuff, looks for zero length, etc.
@@ -6524,9 +6627,9 @@ def lpair_outputs_exist(args, outfcn, outlabel=None, leave_zero_len=False, offse
             missing_loci = [l for lp in locus_pairs[ig_or_tr] for l in lp if l not in existing_loci]
             mstr = ', %s %d %s: %s' % (color('yellow', 'missing'), len(missing_loci), 'locus' if len(missing_loci)==1 else 'loci', ' '.join(missing_loci))
         if debug:
-            print '    %d / 3 locus outputs exist (%s%s), %s (e.g. %s)' % (len(existing_loci), ' '.join(existing_loci), mstr, 'skipping' if todostr is None else todostr, outfcn(existing_loci[0]))
+            print('    %d / 3 locus outputs exist (%s%s), %s (e.g. %s)' % (len(existing_loci), ' '.join(existing_loci), mstr, 'skipping' if todostr is None else todostr, outfcn(existing_loci[0])))
         else:
-            print '    %s' % mstr
+            print('    %s' % mstr)
         return True
     return False
 
@@ -6556,7 +6659,7 @@ def insert_before_suffix(insert_str, fname):
 def read_vsearch_cluster_file(fname):
     id_clusters = {}
     with open(fname) as clusterfile:
-        reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter='\t')
+        reader = csv.DictReader(clusterfile, fieldnames=['type', 'cluster_id', '3', '4', '5', '6', '7', 'crap', 'query', 'morecrap'], delimiter=str('\t'))
         for line in reader:
             if line['type'] == 'C':  # some lines are a cluster, and some are a query sequence. Skip the cluster ones.
                 continue
@@ -6565,11 +6668,12 @@ def read_vsearch_cluster_file(fname):
                 id_clusters[cluster_id] = []
             uid = line['query']
             id_clusters[cluster_id].append(uid)
-    partition = id_clusters.values()
+    partition = list(id_clusters.values())
     return partition
 
 # ----------------------------------------------------------------------------------------
 def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annotations=False, debug=False):
+    from . import indelutils
     def get_mutation_info(query, matchfo, indelfo):
         tmpgl = glfo['seqs'][region][matchfo['gene']][matchfo['glbounds'][0] : matchfo['glbounds'][1]]
         if indelutils.has_indels(indelfo):
@@ -6582,7 +6686,7 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
     # first we add every match (i.e. gene) for each query
     query_info = {}
     with open(fname) as alnfile:
-        reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter='\t')  # NOTE start/end positions are 1-indexed
+        reader = csv.DictReader(alnfile, fieldnames=userfields, delimiter=str('\t'))  # NOTE start/end positions are 1-indexed
         for line in reader:  # NOTE similarity to waterer.read_query()
             if line['query'] not in query_info:  # note that a surprisingly large number of targets give the same score, and you seem to get a little closer to what sw does if you sort alphabetically, but in the end it doesn't/shouldn't matter
                 query_info[line['query']] = []
@@ -6596,9 +6700,9 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
 
     # then we throw out all the matches (genes) that have id/score lower than the best one
     failed_queries = list(set(seqdict) - set(query_info))
-    for query in query_info:
+    for query in list(query_info):
         if len(query_info[query]) == 0:
-            print '%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query)
+            print('%s zero vsearch matches for query %s' % (color('yellow', 'warning'), query))
             del query_info[query]  # uh... need to handle failures better than this
             failed_queries.append(query)
             continue
@@ -6660,7 +6764,7 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
 def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwargs):
     # NOTE this is weird but necessary basically because in the normal partis workflows input always goes through seqfileopener, which renames duplicates, but now i want to be able to run this vsearch stuff without that (for bin/split-loci.py), which has .fa input files that i want to allow to have duplicates
     def get_trid(uid, seq):
-        return '%s-DUP-%d' % (uid, abs(hash(seq)))
+        return '%s-DUP-%s' % (uid, uidhashstr(seq))
     returnfo = run_vsearch(action, {get_trid(s['name'], s['seq']) : s['seq'] for s in seqlist}, workdir, threshold, **kwargs)
     if set(returnfo) != set(['gene-counts', 'annotations', 'failures']):
         raise Exception('needs to be updated')
@@ -6675,6 +6779,8 @@ def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwarg
 # ----------------------------------------------------------------------------------------
 # NOTE use the previous fcn if you expect duplicate uids
 def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:'):
+    from . import clusterpath
+    from . import glutils
     # note: '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
     # single-pass, greedy, star-clustering algorithm with
     #  - add the target to the cluster if the pairwise identity with the centroid is higher than global threshold <--id>
@@ -6770,7 +6876,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
         glutils.remove_glfo_files(dbdir, glfo['locus'])
         succ_frac = sum(returnfo['gene-counts'].values()) / float(n_seqs)
         if succ_frac < expected_success_fraction and not expect_failure:
-            print '%s vsearch only managed to align %d / %d = %.3f of the input sequences (cmd below)   %s\n  %s' % (color('yellow', 'warning'), sum(returnfo['gene-counts'].values()), n_seqs, sum(returnfo['gene-counts'].values()) / float(n_seqs), reverse_complement_warning(), cmd)
+            print('%s vsearch only managed to align %d / %d = %.3f of the input sequences (cmd below)   %s\n  %s' % (color('yellow', 'warning'), sum(returnfo['gene-counts'].values()), n_seqs, sum(returnfo['gene-counts'].values()) / float(n_seqs), reverse_complement_warning(), cmd))
     else:
         assert False
     os.remove(infname)
@@ -6782,10 +6888,10 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
             # NOTE you don't want to remove these failures, since sw is much smarter about alignment than vsearch, i.e. some failures here are actually ok
             n_passed = int(round(sum(returnfo['gene-counts'].values())))
             tw = str(len(str(n_seqs)))  # width of format str from number of digits in N seqs
-            print ('%s %'+tw+'d / %-'+tw+'d %s annotations (%d failed) with %d %s gene%s in %.1f sec') % (extra_str, n_passed, n_seqs, region, n_seqs - n_passed, len(returnfo['gene-counts']),
-                                                                                                          region, plural(len(returnfo['gene-counts'])), time.time() - start)
+            print(('%s %'+tw+'d / %-'+tw+'d %s annotations (%d failed) with %d %s gene%s in %.1f sec') % (extra_str, n_passed, n_seqs, region, n_seqs - n_passed, len(returnfo['gene-counts']),
+                                                                                                          region, plural(len(returnfo['gene-counts'])), time.time() - start))
         else:
-            print 'can\'t yet print time for clustering'
+            print('can\'t yet print time for clustering')
 
     return returnfo
 
@@ -6830,6 +6936,7 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
 
 # ----------------------------------------------------------------------------------------
 def compare_vsearch_to_sw(sw_info, vs_info):
+    from . import indelutils
     # pad vsearch indel info so it'll match the sw indel info (if the sw indel info is just copied from the vsearch info, and you're not going to use the vsearch info for anything after, there's no reason to do this)
     for query in sw_info['indels']:
         if query not in sw_info['queries']:
@@ -6840,7 +6947,7 @@ def compare_vsearch_to_sw(sw_info, vs_info):
             continue
         indelutils.pad_indelfo(vs_info['annotations'][query]['indelfo'], ambig_base * sw_info[query]['padlefts'][0], ambig_base * sw_info[query]['padrights'][0])
 
-    from hist import Hist
+    from .hist import Hist
     hists = {
         # 'mfreq' : Hist(30, -0.1, 0.1),
         # 'n_muted' : Hist(20, -10, 10),
@@ -6873,10 +6980,10 @@ def compare_vsearch_to_sw(sw_info, vs_info):
         for name in [n for n in hists if n != 'n_indels']:
             hists[name].fill(vsindels[iindel][name] - swindels[iindel][name])
 
-    import plotting
+    from . import plotting
     for name, hist in hists.items():
         fig, ax = plotting.mpl_init()
-        hist.mpl_plot(ax, hist, label=name, color=plotting.default_colors[hists.keys().index(name)])
+        hist.mpl_plot(ax, hist, label=name, color=plotting.default_colors[list(hists.keys()).index(name)])
         # hist.write('_output/vsearch-test/%s/%s.csv' % (match_mismatch.replace(':', '-'), name))
         plotting.mpl_finish(ax, '.', name, xlabel='vs - sw')
 
@@ -6886,19 +6993,19 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 
     if ambig_frac(naive_seq) > max_ambig_frac or ambig_frac(mature_seq) > max_ambig_frac:
         if debug:
-            print '  too much ambig %.2f %.2f' % (ambig_frac(naive_seq), ambig_frac(mature_seq))
+            print('  too much ambig %.2f %.2f' % (ambig_frac(naive_seq), ambig_frac(mature_seq)))
         return None, 0.
 
     if debug:
         color_mutants(naive_seq, mature_seq, print_result=True)
-        print ' '.join(['%3d' % s for s in isnps])
+        print(' '.join(['%3d' % s for s in isnps]))
 
     _, isnps = hamming_distance(naive_seq, mature_seq, return_mutated_positions=True)
 
     max_abs_diff, imax = 0., None
     for ipos in range(chunk_len, len(mature_seq) - chunk_len):
         if debug:
-            print ipos
+            print(ipos)
 
         muts_before = [isn for isn in isnps if isn >= ipos - chunk_len and isn < ipos]
         muts_after = [isn for isn in isnps if isn >= ipos and isn < ipos + chunk_len]
@@ -6906,8 +7013,8 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
         mfreq_after = len(muts_after) / float(chunk_len)
 
         if debug:
-            print '    len(%s) / %d = %.3f' % (muts_before, chunk_len, mfreq_before)
-            print '    len(%s) / %d = %.3f' % (muts_after, chunk_len, mfreq_after)
+            print('    len(%s) / %d = %.3f' % (muts_before, chunk_len, mfreq_before))
+            print('    len(%s) / %d = %.3f' % (muts_after, chunk_len, mfreq_after))
 
         abs_diff = abs(mfreq_before - mfreq_after)
         if imax is None or abs_diff > max_abs_diff:
@@ -6920,9 +7027,9 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 def get_version_info(debug=False):
     git_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/.git')
     vinfo = {}
-    vinfo['commit'] = subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD']).strip()
+    vinfo['commit'] = subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD'], universal_newlines=True).strip()
     if debug:
-        print '  commit: %s' % vinfo['commit']
+        print('  commit: %s' % vinfo['commit'])
     cmd = 'git --git-dir %s describe --always --tags' % git_dir
     out, err = simplerun(cmd, return_out_err=True, debug=False)
     if '-' in out:
@@ -6932,27 +7039,30 @@ def get_version_info(debug=False):
                 ahead_str = ''
                 if int(vinfo['n_ahead_of_tag']) > 0:
                     ahead_str = '  (well, %d commits ahead of)' % int(vinfo['n_ahead_of_tag'])
-                print '     tag: %s%s' % (vinfo['tag'], ahead_str)
+                print('     tag: %s%s' % (vinfo['tag'], ahead_str))
         else:
             vinfo['tag'] = '?'
-            print '    %s utils.get_version_info() couldn\'t figure out tag from \'%s\' output: %s' % (color('red', 'error'), cmd, out)
+            print('    %s utils.get_version_info() couldn\'t figure out tag from \'%s\' output: %s' % (color('red', 'error'), cmd, out))
     else:
         vinfo['tag'] = out.strip()
-        print '     tag: %s' % vinfo['tag']
+        print('     tag: %s' % vinfo['tag'])
 
     return vinfo
 
 # ----------------------------------------------------------------------------------------
 def write_only_partition(fname, partition):
+    from . import clusterpath
     cpath = clusterpath.ClusterPath(partition=partition)
     write_annotations(fname, None, [], None, partition_lines=cpath.get_partition_lines())
 
 # ----------------------------------------------------------------------------------------
 def write_empty_annotations(fname, locus):
+    from . import glutils
     write_annotations(fname, glutils.get_empty_glfo(locus), [], annotation_headers)
 
 # ----------------------------------------------------------------------------------------
 def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):
+    from . import clusterpath
     if os.path.exists(fname):
         os.remove(fname)
     elif not os.path.exists(os.path.dirname(os.path.abspath(fname))):
@@ -6970,7 +7080,7 @@ def write_annotations(fname, glfo, annotation_list, headers, synth_single_seqs=F
 
 # ----------------------------------------------------------------------------------------
 def write_csv_annotations(fname, headers, annotation_list, synth_single_seqs=False, glfo=None, failed_queries=None):
-    with open(fname, 'w') as csvfile:
+    with open(fname, csv_wmode()) as csvfile:
         writer = csv.DictWriter(csvfile, headers)
         writer.writeheader()
         for line in annotation_list:
@@ -6994,7 +7104,7 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     for key in [k for k in headers if k not in yamlfo]:
         if key in line:
             yamlfo[key] = line[key]
-        elif key in input_metafile_keys.values():  # these are optional, so if they're missing, don't worry about it
+        elif key in list(input_metafile_keys.values()):  # these are optional, so if they're missing, don't worry about it
             continue
         else:
             if line['invalid']:
@@ -7009,7 +7119,7 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
         ptnids = set(u for p in partition_lines for c in p['partition'] for u in c)
         antnids = set(u for l in annotation_list for u in l['unique_ids'])  # note: doesn't include duplicates, but that's fine
         if len(ptnids) > 0 and len(antnids) > 0 and len(ptnids & antnids) == 0:
-            print '  %s writing partitions (%d uids) and annotations (%d uids) with zero overlap to %s' % (color('yellow', 'warning'), len(ptnids), len(antnids), fname)
+            print('  %s writing partitions (%d uids) and annotations (%d uids) with zero overlap to %s' % (color('yellow', 'warning'), len(ptnids), len(antnids), fname))
     # ----------------------------------------------------------------------------------------
     if annotation_list is None:
         annotation_list = []
@@ -7025,11 +7135,11 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
                 'germline-info' : glfo,
                 'partitions' : partition_lines,
                 'events' : yaml_annotations}
-    with open(fname, 'w') as yamlfile:
-        if use_pyyaml:  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
+    if use_pyyaml:  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
+        with open(fname, 'w') as yamlfile:
             yaml.dump(yamldata, yamlfile, width=400, Dumper=Dumper, default_flow_style=False, allow_unicode=False)  # set <allow_unicode> to false so the file isn't cluttered up with !!python.unicode stuff
-        else:  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
-            json.dump(yamldata, yamlfile) #, sort_keys=True, indent=4)
+    else:  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
+        jsdump(fname, yamldata) #, sort_keys=True, indent=4)
 
 # ----------------------------------------------------------------------------------------
 def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info):
@@ -7061,6 +7171,8 @@ def read_cpath(fname, n_max_queries=-1, seed_unique_id=None, skip_annotations=Fa
 
 # ----------------------------------------------------------------------------------------
 def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, skip_failed_queries=False, is_partition_file=False, debug=False):
+    from . import clusterpath
+    from . import glutils
     annotation_list = None
 
     if getsuffix(fname) == '.csv':
@@ -7108,7 +7220,7 @@ def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_impli
                     removed_queries.add(fq)
             cpath.partitions[ip] = [c for c in partition if len(c) > 0]  # remove any empty ones (typically we'll be removing single-sequence clusters, since they failed)
         if len(removed_queries) > 0:
-            print '      removed %d failed queries when reading partition: %s' % (len(removed_queries), ' '.join(removed_queries))
+            print('      removed %d failed queries when reading partition: %s' % (len(removed_queries), ' '.join(sorted(removed_queries))))
 
     if annotation_list is not None:
         for antn in annotation_list:
@@ -7149,11 +7261,12 @@ def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), o
 
 # ----------------------------------------------------------------------------------------
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):
+    from . import clusterpath
     yamlfo = read_json_yaml(fname)
     if isinstance(yamlfo, list):
         raise Exception('read list of seqfos from file, instead of the expected standard yaml output with germline-info, annotations, and partitions. Run read_seqfos() instead: %s' % fname)
     if debug:
-        print '  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname)
+        print('  read yaml version %s from %s' % (yamlfo['version-info']['partis-yaml'], fname))
 
     glfo = yamlfo['germline-info']  # it would probably be good to run the glfo through the checks that glutils.read_glfo() does, but on the other hand since we're reading from our own yaml file, those have almost certainly already been done
 
@@ -7186,6 +7299,7 @@ def get_gene_counts_from_annotations(annotations, only_regions=None):
 
 # ----------------------------------------------------------------------------------------
 def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=False, csv_outdir=None, debug=False):
+    from . import glutils
     # ----------------------------------------------------------------------------------------
     def algncreg(tkey, n_min_seqs=5):
         if tkey == 'leader':  # for leaders, group together seqs that align to each V gene
@@ -7193,32 +7307,32 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
             vg_antns = {}
             for vgene in all_v_genes:
                 vg_antns[vgene] = [l for l in annotation_list if l['v_gene']==vgene]
-            print '  found %d total V genes' % len(all_v_genes)
+            print('  found %d total V genes' % len(all_v_genes))
         else:  # For c_genes, do everyone at once
             vg_antns = {'IGHVx-x*x' : annotation_list}
         # leader_seq_infos = []  # final/new leader seqs
         writefos = []
-        print '      gene    families  seqs'
-        for ivg, (vgene, vgalist) in enumerate(sorted(vg_antns.items(), key=lambda q: sum(len(l['unique_ids']) for l in q[1]), reverse=True)):
-            print '    %s %3d     %3d' % (color_gene(vgene, width=10), len(vgalist), sum(len(l['unique_ids']) for l in vgalist))
+        print('      gene    families  seqs')
+        for ivg, (vgene, vgalist) in enumerate(sorted(list(vg_antns.items()), key=lambda q: sum(len(l['unique_ids']) for l in q[1]), reverse=True)):
+            print('    %s %3d     %3d' % (color_gene(vgene, width=10), len(vgalist), sum(len(l['unique_ids']) for l in vgalist)))
             if ivg > 2 and sum(len(l['unique_ids']) for l in vgalist) < n_min_seqs:  # always do the first 3 v gene groups, but past that skip any vgene groups that have too few sequences
-                print '            too few seqs'
+                print('            too few seqs')
                 continue
             n_zero_len = len([s for l in vgalist for s in l['%s_seqs'%tkey] if len(s) == 0])
             if n_zero_len > 0:
-                print '    ignoring %d seqs with zero length %ss' % (n_zero_len, tkey)
+                print('    ignoring %d seqs with zero length %ss' % (n_zero_len, tkey))
             qfos = [{'name' : u, 'seq' : s} for l in vgalist for u, s in zip(l['unique_ids'], l['%s_seqs'%tkey]) if len(s) > 0]  # it might be easier to do each annotation separately, but this way i can control parallelization better and there's less overhead
             if len(qfos) == 0:
-                print '    no query infos'
+                print('    no query infos')
                 return
             matchfos, mstats = run_blastn(qfos, tgtfos[tkey], workdir, debug=debug) #, print_all_matches=True)  # , short=True
             if len(matchfos) == 0:
-                print '    %s no %s matches from %d targets' % (wrnstr(), tkey, len(tgtfos[tkey]))
+                print('    %s no %s matches from %d targets' % (wrnstr(), tkey, len(tgtfos[tkey])))
             qdict, tdict = [{s['name'] : s['seq'] for s in sfos} for sfos in [qfos, tgtfos[tkey]]]  # should really check for duplicates
             for itg, (tgt, mfos) in enumerate(mstats):  # loop over each target seq and the sequences for whom it was a best match
-                print '      %s  %d' % (color('blue', tgt), len(mfos))
+                print('      %s  %d' % (color('blue', tgt), len(mfos)))
                 if itg > 2 and tkey=='c_gene' and len(mfos) < n_min_seqs:  # always print the first three target matches, but past that skip any targets that have to few sequences matched to them
-                    print '          too small, skipping'
+                    print('          too small, skipping')
                     continue
                 tmsfos = [{'name' : tgt, 'seq' : tdict[tgt]}] + [{'name' : m['query'], 'seq' : qdict[m['query']]} for m in mfos]
                 msa_seqfos = align_many_seqs(tmsfos, no_gaps=True, extra_str='            ', debug=False)  # this really, really sucks to re-align, but it's only for debug and otherwise I'd have to write a parser for the stupid blast alignment output UPDATE well now i'm parsing the blast alignment a little more (although still not the gaps, whose locations may not be there?) so maybe coule remove this now
@@ -7226,24 +7340,24 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                 # leader_seq_infos.append({'seq' : cseq, 'match-name' : tgt})
                 writefos += [{'name' : s['name'], 'seq' : s['seq'], 'target' : tgt} for s in msa_seqfos + [{'name' : 'consensus-%s'%tgt, 'seq' : cseq, 'target' : tgt}]]
                 if debug:
-                    print color_mutants(cseq, get_single_entry([s for s in msa_seqfos if s['name']==tgt])['seq'], seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
+                    print(color_mutants(cseq, get_single_entry([s for s in msa_seqfos if s['name']==tgt])['seq'], seq_label='target: ', post_str=' %s'%tgt, extra_str='              '))  # can't put the target in the cons seq calculation, so have to print separately
                     if aa_dbg:
                         aasfos = [{'name' : s['name'], 'seq' : ltranslate(pad_nuc_seq(s['seq'].replace('-', ambig_base), side='left' if tkey=='leader' else 'right'))} for s in msa_seqfos]  # pad on left, since we assume the last three bases of 'leader_seqs' are in frame w/respect to V
                         aa_msa_seqfos = align_many_seqs(aasfos, no_gaps=True, extra_str='            ', aa=True, debug=False)
                         aa_cseq = cons_seq(aligned_seqfos=[s for s in aa_msa_seqfos if s['name']!=tgt], aa=True, extra_str='         ', debug=debug)
-                        print color_mutants(aa_cseq, get_single_entry([s for s in aa_msa_seqfos if s['name']==tgt])['seq'], amino_acid=True, seq_label='target: ', post_str=' %s'%tgt, extra_str='              ')  # can't put the target in the cons seq calculation, so have to print separately
+                        print(color_mutants(aa_cseq, get_single_entry([s for s in aa_msa_seqfos if s['name']==tgt])['seq'], amino_acid=True, seq_label='target: ', post_str=' %s'%tgt, extra_str='              '))  # can't put the target in the cons seq calculation, so have to print separately
         if csv_outdir is not None and len(writefos) > 0:
             cfn = '%s/%s-seq-alignments.csv'%(csv_outdir, tkey)
-            print '      writing to %s' % cfn
-            with open(cfn, 'w') as cfile:
-                writer = csv.DictWriter(cfile, fieldnames=writefos[0].keys())
+            print('      writing to %s' % cfn)
+            with open(cfn, csv_wmode()) as cfile:
+                writer = csv.DictWriter(cfile, fieldnames=list(writefos[0].keys()))
                 writer.writeheader()
                 for wfo in writefos:
                     writer.writerow(wfo)
     # ----------------------------------------------------------------------------------------
     def read_seqs(tkey, fname, tdbg=False):
         if tdbg:
-            print '    reading %s seqs from %s' % (tkey, fname)
+            print('    reading %s seqs from %s' % (tkey, fname))
         tfos = read_fastx(fname)
         for tfo in tfos:
             if len(tfo['infostrs']) > 1:
@@ -7252,9 +7366,9 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
             all_vals = [t[tk] for t in tfos]
             if any(all_vals.count(v) > 1 for v in set(all_vals)):
                 dupfo = sorted([(v, all_vals.count(v)) for v in sorted(set(all_vals)) if all_vals.count(v) > 1], key=operator.itemgetter(1), reverse=True)
-                print '    %s %d %s %ss appear more than once (%d total occurences) in %s' % (wrnstr(), len(dupfo), tkey, tk, sum(n for _, n in dupfo), fname)
+                print('    %s %d %s %ss appear more than once (%d total occurences) in %s' % (wrnstr(), len(dupfo), tkey, tk, sum(n for _, n in dupfo), fname))
                 if tdbg:
-                    print '      %s' % '\n      '.join('%3d  %s'%(n, v) for v, n in dupfo)
+                    print('      %s' % '\n      '.join('%3d  %s'%(n, v) for v, n in dupfo))
                 if tk == 'name':
                     tkvals, new_tfos = [], []
                     for tfo in tfos:
@@ -7262,7 +7376,7 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
                             continue
                         new_tfos.append(tfo)
                         tkvals.append(tfo[tk])
-                    print '      removed %d duplicate %ss' % (len(tfos) - len(new_tfos), tk)
+                    print('      removed %d duplicate %ss' % (len(tfos) - len(new_tfos), tk))
                     tfos = new_tfos
         return tfos
     # ----------------------------------------------------------------------------------------
@@ -7270,6 +7384,6 @@ def parse_constant_regions(species, locus, annotation_list, workdir, aa_dbg=Fals
     leaderfn, cgfn = 'data/germlines/leaders/%s/%s/%s/%sv.fa' % (lsrc, species, locus, locus), 'data/germlines/constant/%s/%sc.fa'%(species, locus)
     tgtfos = collections.OrderedDict()
     for tkey, fn in zip(['leader', 'c_gene'], [leaderfn, cgfn]):
-        print ' %s seqs' % color('blue', tkey)
+        print(' %s seqs' % color('blue', tkey))
         tgtfos[tkey] = read_seqs(tkey, fn)
         algncreg(tkey)

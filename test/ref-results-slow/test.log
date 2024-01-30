@@ -1,542 +1,600 @@
 [92mcache-parameters-data[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --infname test/mishmash.fa --parameter-dir test/new-results-slow/test/parameters/data --sw-cachefname test/new-results-slow/test/parameters/data/sw-cache.yaml --n-max-queries -1 --input-metafnames test/input-meta.yaml --random-seed 1 --n-procs 10
   --input-metafnames: added meta info for 4 sequences from test/input-meta.yaml: multiplicities
 caching parameters
-  vsearch: 1272 / 1412 v annotations (140 failed) with 168 v genes in 0.2 sec
-    keeping 59 / 198 v genes
+  vsearch: 1272 / 1412 v annotations (140 failed) with 168 v genes in 0.1 sec
+    keeping 58 / 198 v genes
 smith-waterman  (new-allele fitting)
-  vsearch: 1269 / 1412 v annotations (143 failed) with 59 v genes in 0.2 sec
+  vsearch: 1269 / 1412 v annotations (143 failed) with 58 v genes in 0.1 sec
     running 10 procs for 1412 seqs
     running 13 procs for 59 seqs
       info for 1370 / 1412 = 0.970   (removed: 42 failed)
       kept 436 (0.309) unproductive
-    water time: 1.8  (ig-sw 0.1  processing 0.1)
+    water time: 1.9  (ig-sw 0.1  processing 0.1)
   no queries for allele finding
 smith-waterman  (writing parameters)
-  vsearch: 1269 / 1412 v annotations (143 failed) with 59 v genes in 0.2 sec
+  vsearch: 1269 / 1412 v annotations (143 failed) with 58 v genes in 0.2 sec
     running 10 procs for 1370 seqs
     running 13 procs for 17 seqs
       info for 1370 / 1412 = 0.970   (removed: 42 failed)
       kept 436 (0.309) unproductive
         writing sw results to test/new-results-slow/test/parameters/data/sw-cache.yaml
-    writing parameters to test/new-results-slow/test/parameters/data/sw (2.0 sec)
-    water time: 4.6  (ig-sw 2.8  processing 0.1)
-  writing hmms     removed 1  genes from glfo (leaving v 58  d 31  j 7)
-(0.4 sec)
+    writing parameters to test/new-results-slow/test/parameters/data/sw (2.7 sec)
+    water time: 5.0  (ig-sw 3.3  processing 0.1)
+  writing hmms     removed 1  genes from glfo (leaving v 57  d 31  j 7)
+(0.6 sec)
 hmm
     reading output
         read 1370 hmm output lines with 1367 sequences in 1367 events  (3 failures)
           [91mwarning[0m no valid paths: -1651760806376077044 3678756558864403951 6182728664197942741
-    writing parameters to test/new-results-slow/test/parameters/data/hmm (1.6 sec)
-         infra time: 2.7
-      hmm step time: 8.0
-  writing hmms     removed 4  genes from glfo (leaving v 54  d 31  j 7)
-(0.7 sec)
-      total time: 16.3
+    writing parameters to test/new-results-slow/test/parameters/data/hmm (2.4 sec)
+         infra time: 3.4
+      hmm step time: 8.8
+  writing hmms     removed 3  genes from glfo (leaving v 54  d 31  j 7)
+(0.5 sec)
+      total time: 17.4
 [92msimulate[0m                         /home/dralph/work/partis/bin/partis simulate --dont-write-git-info --parameter-dir test/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/test/simu.yaml --indel-frequency 0.2
 simulating
-      --> proc 7
+      --> proc 0
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 92 seqs in 3.8s (3.4s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmp6PyRgS not empty
-      total time: 5.6
+    made 20 events with 129 seqs in 4.5s (4.1s of which was running bppseqgen)
+      total time: 6.9
 
       --> proc 1
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 107 seqs in 3.9s (3.5s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmpAN7Yz8 not empty
-      total time: 5.9
-
-      --> proc 0
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 68 seqs in 4.0s (3.6s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmpdSOO5O not empty
-      total time: 6.0
-
-      --> proc 5
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 116 seqs in 4.0s (3.6s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmprSiUfF not empty
-      total time: 5.9
-
-      --> proc 3
-    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 120 seqs in 4.0s (3.5s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmpWIQFgw not empty
-      total time: 6.0
+    made 20 events with 99 seqs in 4.1s (3.7s of which was running bppseqgen)
+      total time: 6.6
 
       --> proc 2
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 93 seqs in 4.1s (3.7s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmpxvgaYt not empty
-      total time: 6.2
+    made 20 events with 92 seqs in 4.0s (3.5s of which was running bppseqgen)
+      total time: 6.3
 
-      --> proc 9
+      --> proc 3
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 119 seqs in 4.1s (3.8s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmpMDtrIs not empty
-      total time: 6.1
+    made 20 events with 123 seqs in 4.1s (3.8s of which was running bppseqgen)
+      total time: 6.5
 
       --> proc 4
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 85 seqs in 4.2s (3.8s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmpu8oPPm not empty
-      total time: 6.1
+    made 20 events with 109 seqs in 4.6s (4.3s of which was running bppseqgen)
+      total time: 6.9
 
-      --> proc 8
+      --> proc 5
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 100 seqs in 4.3s (3.8s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmpHk93JR not empty
-      total time: 6.2
+    made 20 events with 127 seqs in 4.6s (4.0s of which was running bppseqgen)
+      total time: 6.8
 
       --> proc 6
     reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 126 seqs in 4.5s (4.0s of which was running bppseqgen)
-  couldn't exit cleanly, workdir /tmp/tmpRrCk7N not empty
+    made 20 events with 109 seqs in 3.9s (3.5s of which was running bppseqgen)
       total time: 6.3
 
-   read 200 events with 1026 seqs from 10 .yaml files
-      total time: 7.3
+      --> proc 7
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 77 seqs in 3.7s (3.3s of which was running bppseqgen)
+      total time: 6.2
+
+      --> proc 8
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 101 seqs in 4.0s (3.7s of which was running bppseqgen)
+      total time: 6.3
+
+      --> proc 9
+    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 109 seqs in 3.9s (3.6s of which was running bppseqgen)
+      total time: 6.0
+
+   read 200 events with 1075 seqs from 10 .yaml files
+      total time: 7.9
 [92mcache-parameters-simu[0m            /home/dralph/work/partis/bin/partis cache-parameters --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --is-simu --random-seed 1 --n-procs 10
 caching parameters
-  vsearch: 1021 / 1026 v annotations (5 failed) with 69 v genes in 0.1 sec
-    keeping 37 / 198 v genes
-    [91mmissing[0m 17 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-24[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69-2[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-26[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m20[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-15[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-19[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-35[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-47[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-64D[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-NL1[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m09[0m 0
+  vsearch: 1064 / 1075 v annotations (11 failed) with 63 v genes in 0.1 sec
+    keeping 38 / 198 v genes
+    [91mmissing[0m 19 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-24[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69-2[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-8[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-26[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-15[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-19[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-43[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-47[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-64D[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-72[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-NL1[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-31[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m02[0m 1
 smith-waterman  (new-allele fitting)
-  vsearch: 1021 / 1026 v annotations (5 failed) with 37 v genes in 0.3 sec
-    running 10 procs for 1026 seqs
-    running 13 procs for 41 seqs
-      info for 1026 / 1026 = 1.000   (removed: 0 failed)
-      kept 525 (0.512) unproductive
-    water time: 1.7  (ig-sw 0.1  processing 0.2)
+  vsearch: 1063 / 1075 v annotations (12 failed) with 37 v genes in 0.2 sec
+    running 10 procs for 1075 seqs
+    running 13 procs for 30 seqs
+      info for 1075 / 1075 = 1.000   (removed: 0 failed)
+      kept 542 (0.504) unproductive
+    water time: 1.4  (ig-sw 0.1  processing 0.2)
 smith-waterman  (writing parameters)
-  vsearch: 1021 / 1026 v annotations (5 failed) with 37 v genes in 0.2 sec
-    running 10 procs for 1026 seqs
-    running 13 procs for 41 seqs
-      info for 1026 / 1026 = 1.000   (removed: 0 failed)
-      kept 525 (0.512) unproductive
+  vsearch: 1063 / 1075 v annotations (12 failed) with 37 v genes in 0.2 sec
+    running 10 procs for 1075 seqs
+    running 13 procs for 30 seqs
+      info for 1075 / 1075 = 1.000   (removed: 0 failed)
+      kept 542 (0.504) unproductive
         writing sw results to test/new-results-slow/test/parameters/simu/sw-cache.yaml
-    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.1 sec)
-    water time: 4.8  (ig-sw 2.8  processing 0.3)
-  writing hmms     removed 0  genes from glfo (leaving v 37  d 31  j 7)
-(0.5 sec)
+    writing parameters to test/new-results-slow/test/parameters/simu/sw (3.1 sec)
+    water time: 5.1  (ig-sw 3.7  processing 0.2)
+  writing hmms     removed 1  genes from glfo (leaving v 37  d 31  j 7)
+(0.3 sec)
 hmm
+    skipping matches from 1 genes without enough counts: [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m
     reading output
-        read 1026 hmm output lines with 1026 sequences in 1026 events  (0 failures)
-    writing parameters to test/new-results-slow/test/parameters/simu/hmm (1.8 sec)
-    writing parameters to test/new-results-slow/test/parameters/simu/true (1.8 sec)
-         infra time: 5.2
-      hmm step time: 7.8
-  writing hmms     removed 1  genes from glfo (leaving v 37  d 30  j 7)
-(0.5 sec)
-      total time: 17.1
+        read 1075 hmm output lines with 1075 sequences in 1075 events  (0 failures)
+    writing parameters to test/new-results-slow/test/parameters/simu/hmm (2.7 sec)
+    writing parameters to test/new-results-slow/test/parameters/simu/true (2.7 sec)
+         infra time: 6.8
+      hmm step time: 9.2
+  writing hmms     removed 3  genes from glfo (leaving v 36  d 29  j 7)
+(0.3 sec)
+      total time: 17.7
 [92mannotate-new-simu[0m                /home/dralph/work/partis/bin/partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results-slow/annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1021 / 1026 v annotations (5 failed) with 37 v genes in 0.3 sec
+  vsearch: 1063 / 1075 v annotations (12 failed) with 36 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
-      info for 1026 / 1026 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 525 (0.512) unproductive
+      info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 542 (0.504) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 6667297352367119000 1747938099079229762 4962198946330631275 7065775260355351725 1147815528300394089 7119482798542553723 7531179906636297231 7015859844251107790 4910171656856940766 0589445984836925704 3214926875143978884 0879826884831855951 7540442785478712724 2820563185320561167 0343460831994808559 8369639871131836749 1321183764677830750 4942272941098788823 8368613138348934273 5663344297120763860 7342457987672242796 4174216820340972015 2465497433639746499 4020245711213148219 5864466848810980798 2985332160674732886 9106042635705369961 0102955793366095846 8286590200319354313 8673072650387515056 1806138586012714983 2822654335071405401 1029473229830947695 8028791877775349784 6408272240905461546 6969584445973349804 0414742660933446579 2966979848803812241 5733528013492909894 5788801298968561259 2633593137294811639 3753091261266147585 6317675924872147993 1498774377536344221 3736100502957958966 8498769230850953916 2469181058342070248 4407439709369550303
+    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 3f4a8ddeaf c91d0f0bdc 7012f1d864 aadbd59f55 2286505612 4178bc62ba c298f0bcc3 a1a638ac25 46e31fc6fa 4e946489c0 eba9b8f585 0a78625568 e558986286 d4ed668d82 58b16effeb c870859bdc 45cfa31947 002ca68b88 a361b7ce53 326d90f53a 37b24a0012 7b07755328 b496b6d19f d7f5af041a 9b7d30e773 b7f23ee69e 0ab7d8420e 816d54caea ab5ab75452 e79598e338 13799c715b 4d2305704c 67f9542ab6 5923191c6b 6ae83bcb8e 47ad9aef82 7a7648e5da d4acd44104 256f6d8dd0 2d9264d355 522f6bd6d2 67c0fbc945 02cb821314 34730ef948 1a95d29c5f fd58d7a262 b3ba03144c 4adfba9a4c
 (0.0 sec)
-        water time: 1.1
+        water time: 1.0
 hmm
     reading output
-        read 1026 hmm output lines with 1026 sequences in 1026 events  (0 failures)
+        read 1075 hmm output lines with 1075 sequences in 1075 events  (0 failures)
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 0879826884831855951 8369639871131836749 4020245711213148219 2822654335071405401 1747938099079229762 4910171656856940766 7540442785478712724 2820563185320561167 1321183764677830750 7342457987672242796 1806138586012714983 2966979848803812241 5733528013492909894 6667297352367119000 4962198946330631275 7531179906636297231 0589445984836925704 3214926875143978884 0343460831994808559 4942272941098788823 1029473229830947695 6317675924872147993 8498769230850953916 7065775260355351725 5663344297120763860 6969584445973349804 1498774377536344221 8028791877775349784 5788801298968561259 1147815528300394089 4174216820340972015 0414742660933446579 3753091261266147585 8368613138348934273 5864466848810980798 9106042635705369961 8286590200319354313 2985332160674732886 6408272240905461546 2633593137294811639 7119482798542553723 7015859844251107790 0102955793366095846 3736100502957958966 2469181058342070248 2465497433639746499 8673072650387515056 4407439709369550303
+    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 2286505612 b7f23ee69e 522f6bd6d2 fd58d7a262 c91d0f0bdc eba9b8f585 58b16effeb 0ab7d8420e b3ba03144c e558986286 002ca68b88 9b7d30e773 7a7648e5da 256f6d8dd0 02cb821314 34730ef948 4178bc62ba 0a78625568 45cfa31947 d7f5af041a e79598e338 4adfba9a4c 3f4a8ddeaf b496b6d19f 1a95d29c5f c298f0bcc3 d4ed668d82 a361b7ce53 13799c715b 5923191c6b 6ae83bcb8e d4acd44104 2d9264d355 816d54caea ab5ab75452 7012f1d864 aadbd59f55 7b07755328 4d2305704c a1a638ac25 46e31fc6fa 4e946489c0 c870859bdc 326d90f53a 37b24a0012 67f9542ab6 47ad9aef82 67c0fbc945
 (0.0 sec)
-         infra time: 1.1
-      hmm step time: 3.6
-      total time: 5.5
+         infra time: 0.8
+      hmm step time: 3.2
+      total time: 4.7
 [92mmulti-annotate-new-simu[0m          /home/dralph/work/partis/bin/partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir test/new-results-slow/multi-annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/multi-annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1021 / 1026 v annotations (5 failed) with 37 v genes in 0.3 sec
+  vsearch: 1063 / 1075 v annotations (12 failed) with 36 v genes in 0.2 sec
   note: not running msa indel stuff for --simultaneous-true-clonal-seqs, so any families with shm indels within cdr3 will be split up before running the hmm. To fix this you'll either need to run set_msa_info() (which is fine and easy, but slow, and requires deciding whether to make sure to run parameter caching with the arg, or else rerun smith waterman with the msa indels
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
-      info for 1026 / 1026 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 525 (0.512) unproductive
+      info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 542 (0.504) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 6667297352367119000 1747938099079229762 4962198946330631275 7065775260355351725 1147815528300394089 7119482798542553723 7531179906636297231 7015859844251107790 4910171656856940766 0589445984836925704 3214926875143978884 0879826884831855951 7540442785478712724 2820563185320561167 0343460831994808559 8369639871131836749 1321183764677830750 4942272941098788823 8368613138348934273 5663344297120763860 7342457987672242796 4174216820340972015 2465497433639746499 4020245711213148219 5864466848810980798 2985332160674732886 9106042635705369961 0102955793366095846 8286590200319354313 8673072650387515056 1806138586012714983 2822654335071405401 1029473229830947695 8028791877775349784 6408272240905461546 6969584445973349804 0414742660933446579 2966979848803812241 5733528013492909894 5788801298968561259 2633593137294811639 3753091261266147585 6317675924872147993 1498774377536344221 3736100502957958966 8498769230850953916 2469181058342070248 4407439709369550303
+    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 3f4a8ddeaf c91d0f0bdc 7012f1d864 aadbd59f55 2286505612 4178bc62ba c298f0bcc3 a1a638ac25 46e31fc6fa 4e946489c0 eba9b8f585 0a78625568 e558986286 d4ed668d82 58b16effeb c870859bdc 45cfa31947 002ca68b88 a361b7ce53 326d90f53a 37b24a0012 7b07755328 b496b6d19f d7f5af041a 9b7d30e773 b7f23ee69e 0ab7d8420e 816d54caea ab5ab75452 e79598e338 13799c715b 4d2305704c 67f9542ab6 5923191c6b 6ae83bcb8e 47ad9aef82 7a7648e5da d4acd44104 256f6d8dd0 2d9264d355 522f6bd6d2 67c0fbc945 02cb821314 34730ef948 1a95d29c5f fd58d7a262 b3ba03144c 4adfba9a4c
 (0.0 sec)
-        water time: 1.1
+        water time: 1.0
 hmm
   --simultaneous-true-clonal-seqs: grouping seqs according to true partition
-  [93mwarning[0m split apart 34 clusters that contained multiple cdr3 lengths (total clusters: 200 --> 238)
-      cluster splits:   4 --> 3 1,   5 --> 1 4,   3 --> 2 1,   7 --> 6 1,   5 --> 1 4,  16 --> 13 1 1 1,   4 --> 1 3,  10 --> 1 9,   7 --> 6 1,   9 --> 8 1,  13 --> 1 12,  11 --> 10 1,  24 --> 1 23,  10 --> 9 1,   2 --> 1 1,   4 --> 3 1,  14 --> 1 1 12,  12 --> 1 11,   2 --> 1 1,  10 --> 9 1,  12 --> 1 11,  11 --> 10 1,   4 --> 3 1,   4 --> 1 3,   9 --> 1 8,   4 --> 3 1,   5 --> 1 4,   3 --> 2 1,  17 --> 1 15 1,  12 --> 1 11,   7 --> 1 6,   7 --> 1 6,   3 --> 1 2,   7 --> 1 6
-  subcluster annotating 238 clusters with steps:  (2.4s) (1.3s) (0.5s)   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 4910171656856940766 2985332160674732886 5864466848810980798 8368613138348934273 2465497433639746499 4020245711213148219 7342457987672242796 2469181058342070248 8028791877775349784 1029473229830947695 2822654335071405401 6317675924872147993 0589445984836925704 3753091261266147585 7531179906636297231 8369639871131836749 9106042635705369961 3214926875143978884 1747938099079229762 4962198946330631275 5788801298968561259 2633593137294811639 8673072650387515056 1498774377536344221 7540442785478712724 0879826884831855951 6969584445973349804 3736100502957958966 1147815528300394089 4407439709369550303 4942272941098788823 7065775260355351725 7015859844251107790 1806138586012714983 0343460831994808559 2820563185320561167 5663344297120763860 5733528013492909894 6667297352367119000 2966979848803812241 0414742660933446579 4174216820340972015 8498769230850953916 6408272240905461546 1321183764677830750 7119482798542553723 0102955793366095846 8286590200319354313
+  [93mwarning[0m split apart 37 clusters that contained multiple cdr3 lengths (total clusters: 200 --> 239)
+      cluster splits:   5 --> 4 1,  13 --> 1 12,   3 --> 1 2,   6 --> 5 1,   7 --> 1 6,   7 --> 1 5 1,  19 --> 1 18,  13 --> 1 12,  14 --> 1 13,   3 --> 1 2,   2 --> 1 1,   5 --> 4 1,   5 --> 4 1,   8 --> 1 7,   6 --> 5 1,  19 --> 1 18,   9 --> 8 1,   3 --> 2 1,  20 --> 19 1,   5 --> 1 4,   5 --> 1 4,   2 --> 1 1,   8 --> 7 1,   4 --> 3 1,   7 --> 1 6,   6 --> 5 1,  11 --> 10 1,   8 --> 7 1,   2 --> 1 1,   4 --> 1 3,  27 --> 1 26,   8 --> 1 7,   7 --> 1 5 1,  15 --> 14 1,  11 --> 1 10,   4 --> 3 1,  21 --> 1 20
+  subcluster annotating 239 clusters with steps:  (2.1s) (1.1s) (0.5s)   plotting performance 
+    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 67c0fbc945 d4ed668d82 522f6bd6d2 37b24a0012 a1a638ac25 a361b7ce53 4e946489c0 ab5ab75452 67f9542ab6 5923191c6b 47ad9aef82 002ca68b88 45cfa31947 4d2305704c 3f4a8ddeaf e558986286 4178bc62ba 58b16effeb c91d0f0bdc 7a7648e5da 0a78625568 2d9264d355 816d54caea e79598e338 b7f23ee69e 9b7d30e773 7b07755328 d7f5af041a fd58d7a262 256f6d8dd0 d4acd44104 b3ba03144c 13799c715b 326d90f53a c298f0bcc3 c870859bdc b496b6d19f 34730ef948 4adfba9a4c 0ab7d8420e 6ae83bcb8e 2286505612 aadbd59f55 7012f1d864 1a95d29c5f 02cb821314 eba9b8f585 46e31fc6fa
 (0.0 sec)
 
-    subcluster annotation time 5.3
-      total time: 7.2
+    subcluster annotation time 4.5
+      total time: 6.0
 [92mpartition-new-simu[0m               /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --plotdir test/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1021 / 1026 v annotations (5 failed) with 37 v genes in 0.3 sec
+  vsearch: 1063 / 1075 v annotations (12 failed) with 36 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
-      info for 1026 / 1026 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 525 (0.512) unproductive
+      info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 542 (0.504) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 6667297352367119000 1747938099079229762 4962198946330631275 7065775260355351725 1147815528300394089 7119482798542553723 7531179906636297231 7015859844251107790 4910171656856940766 0589445984836925704 3214926875143978884 0879826884831855951 7540442785478712724 2820563185320561167 0343460831994808559 8369639871131836749 1321183764677830750 4942272941098788823 8368613138348934273 5663344297120763860 7342457987672242796 4174216820340972015 2465497433639746499 4020245711213148219 5864466848810980798 2985332160674732886 9106042635705369961 0102955793366095846 8286590200319354313 8673072650387515056 1806138586012714983 2822654335071405401 1029473229830947695 8028791877775349784 6408272240905461546 6969584445973349804 0414742660933446579 2966979848803812241 5733528013492909894 5788801298968561259 2633593137294811639 3753091261266147585 6317675924872147993 1498774377536344221 3736100502957958966 8498769230850953916 2469181058342070248 4407439709369550303
+    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 3f4a8ddeaf c91d0f0bdc 7012f1d864 aadbd59f55 2286505612 4178bc62ba c298f0bcc3 a1a638ac25 46e31fc6fa 4e946489c0 eba9b8f585 0a78625568 e558986286 d4ed668d82 58b16effeb c870859bdc 45cfa31947 002ca68b88 a361b7ce53 326d90f53a 37b24a0012 7b07755328 b496b6d19f d7f5af041a 9b7d30e773 b7f23ee69e 0ab7d8420e 816d54caea ab5ab75452 e79598e338 13799c715b 4d2305704c 67f9542ab6 5923191c6b 6ae83bcb8e 47ad9aef82 7a7648e5da d4acd44104 256f6d8dd0 2d9264d355 522f6bd6d2 67c0fbc945 02cb821314 34730ef948 1a95d29c5f fd58d7a262 b3ba03144c 4adfba9a4c
 (0.0 sec)
-        water time: 1.1
+        water time: 1.0
 hmm
-  caching all 1026 naive sequences (2.6s)
-   collapsed 1026 queries into 478 clusters with identical naive seqs (0.0 sec)
-  478 clusters with 10 procs (3.2s)
-  429 clusters with 7 procs (3.1s)
-  363 clusters with 5 procs (3.9s)
-  313 clusters with 3 procs (6.0s)
-  275 clusters with 2 procs (5.9s)
-  243 clusters with 2 procs (5.6s)
-  228 clusters with 2 procs (2.4s)
-  222 clusters with 2 procs (1.9s)
-  219 clusters with 1 proc (5.3s)
-  [93mnote[0m not merging entire cpath history
-      partition loop time: 37.4
+  caching all 1075 naive sequences (2.4s)
+    collapsed 1075 queries into 452 clusters with identical naive seqs (0.0 sec)
+  452 clusters with 10 procs (2.8s)
+   401 clusters with 7 procs (2.8s)
+   345 clusters with 5 procs (3.1s)
+   316 clusters with 3 procs (4.6s)
+   273 clusters with 2 procs (6.9s)
+   249 clusters with 2 procs (2.9s)
+   231 clusters with 2 procs (3.1s)
+   224 clusters with 2 procs (2.5s)
+   222 clusters with 1 proc (4.6s)
+   [93mnote[0m not merging entire cpath history
+      partition loop time: 33.5
 getting annotations for final partition
-  subcluster annotating 216 clusters with steps:  (2.3s) (1.2s) (0.5s) (0.2s)   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 0102955793366095846 8286590200319354313 0589445984836925704 2820563185320561167 2469181058342070248 2465497433639746499 4942272941098788823 2633593137294811639 5788801298968561259 5864466848810980798 0343460831994808559 0414742660933446579 0879826884831855951 1029473229830947695 1147815528300394089 1321183764677830750 1498774377536344221 1747938099079229762 1806138586012714983 2822654335071405401 2966979848803812241 2985332160674732886 3214926875143978884 3736100502957958966 3753091261266147585 4020245711213148219 4174216820340972015 4407439709369550303 4910171656856940766 4962198946330631275 5663344297120763860 5733528013492909894 6317675924872147993 6408272240905461546 6667297352367119000 6969584445973349804 7015859844251107790 7065775260355351725 7119482798542553723 7342457987672242796 7531179906636297231 7540442785478712724 8028791877775349784 8368613138348934273 8369639871131836749 8498769230850953916 8673072650387515056 9106042635705369961
+  subcluster annotating 221 clusters with steps:  (2.1s) (1.1s) (0.5s) (0.2s)   plotting performance 
+    [93mwarning[0m skipped annotation performance evaluation on 48 queries with different true and inferred net shm indel lengths: 522f6bd6d2 eba9b8f585 3f4a8ddeaf a361b7ce53 a1a638ac25 002ca68b88 02cb821314 0a78625568 0ab7d8420e 13799c715b 1a95d29c5f 2286505612 256f6d8dd0 2d9264d355 326d90f53a 34730ef948 37b24a0012 4178bc62ba 45cfa31947 46e31fc6fa 47ad9aef82 4adfba9a4c 4d2305704c 4e946489c0 58b16effeb 5923191c6b 67c0fbc945 67f9542ab6 6ae83bcb8e 7012f1d864 7a7648e5da 7b07755328 816d54caea 9b7d30e773 aadbd59f55 ab5ab75452 b3ba03144c b496b6d19f b7f23ee69e c298f0bcc3 c870859bdc c91d0f0bdc d4acd44104 d4ed668d82 d7f5af041a e558986286 e79598e338 fd58d7a262
 (0.0 sec)
 
-    subcluster annotation time 5.5
-      total time: 47.6
-[92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --seed-unique-id 7283652568751287031 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/seed-partition-new-simu.yaml
+    subcluster annotation time 4.7
+      total time: 42.3
+[92mseed-partition-new-simu[0m          /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --seed-unique-id ac525ca75f --random-seed 1 --n-procs 10 --outfname test/new-results-slow/seed-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1021 / 1026 v annotations (5 failed) with 37 v genes in 0.3 sec
+  vsearch: 1063 / 1075 v annotations (12 failed) with 36 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
-      info for 1026 / 1026 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 525 (0.512) unproductive
-      removed 834 / 1026 = 0.81 sequences with cdr3 length different from seed sequence (leaving 192)
-        water time: 0.4
+      info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 542 (0.504) unproductive
+      removed 822 / 1075 = 0.76 sequences with cdr3 length different from seed sequence (leaving 253)
+        water time: 0.3
 hmm
-   collapsed 192 queries into 49 clusters with identical naive seqs (0.0 sec)
-  49 clusters with 10 procs (1.1s)
-  55 clusters with 7 procs   [93mwarning[0m cluster occurs 8 times in the <nsets> we're sending to bcrham: 5465602195615969185:7283652568751287025:7283652568751287027:7283652568751287029:7283652568751287038:7283652568751287039:7283652568751287030:7283652568751287031:7283652568751287028:7283652568751287024:4031051149744164977:4031051149744164979:4031051149744164978:4031051149744164980:4031051149744164981
-(0.5s)
-  52 clusters with 5 procs   [93mwarning[0m cluster occurs 5 times in the <nsets> we're sending to bcrham: 5465602195615969185:7283652568751287025:7283652568751287027:7283652568751287029:7283652568751287038:7283652568751287039:7283652568751287030:7283652568751287031:7283652568751287028:7283652568751287024:4031051149744164977:4031051149744164979:4031051149744164978:4031051149744164980:4031051149744164981
-(0.3s)
-      removed 172 sequences in unseeded clusters, split 5 seeded clusters into 20 singletons, and merged these into 4 clusters with identical naive seqs (0.0 sec)
-        new n_procs 1 (initial seqs/proc: 19.20   new seqs/proc: 4.00
-  4 clusters with 1 proc (0.2s)
-      partition loop time: 2.2
+   collapsed 253 queries into 70 clusters with identical naive seqs (0.0 sec)
+  70 clusters with 10 procs (0.7s)
+   79 clusters with 7 procs   [93mwarning[0m cluster occurs 10 times in the <nsets> we're sending to bcrham: 032a8e958a:10d811e63f:29a044449c:4706e01e22:4c4d09a62c:5fa81adc8d:672100c205:73e2a687f7:7a1b2e6ed9:a138bc7f5f:ac525ca75f:bb757f1e51:bc880ba64f:cc9dfad306:d779a17a7f:e2957dd0cb:ee05e3db8a:f0e74f7d6c:fada6b4858
+(0.2s)
+   76 clusters with 5 procs   [93mwarning[0m cluster occurs 7 times in the <nsets> we're sending to bcrham: 032a8e958a:10d811e63f:29a044449c:4706e01e22:4c4d09a62c:5fa81adc8d:672100c205:73e2a687f7:7a1b2e6ed9:a138bc7f5f:ac525ca75f:bb757f1e51:bc880ba64f:cc9dfad306:d779a17a7f:e2957dd0cb:ee05e3db8a:f0e74f7d6c:fada6b4858
+(0.2s)
+       removed 234 sequences in unseeded clusters, split 5 seeded clusters into 19 singletons, and merged these into 1 clusters with identical naive seqs (0.0 sec)
+        new n_procs 1 (initial seqs/proc: 25.30   new seqs/proc: 1.00
+  1 clusters with 1 proc (0.2s)
+       partition loop time: 1.2
 getting annotations for final partition
-  subcluster annotating 4 clusters with steps:  (0.2s) (0.1s) (0.1s) 
+  subcluster annotating 1 cluster with steps:  (0.2s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
-  seed cluster size in best partition: 15, excluding seed seq: 14
-      total time: 3.9
+  seed cluster size in best partition: 19, excluding seed seq: 18
+      total time: 2.5
 [92mvsearch-partition-new-simu[0m       /home/dralph/work/partis/bin/partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --random-seed 1 --n-procs 10 --outfname test/new-results-slow/vsearch-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1021 / 1026 v annotations (5 failed) with 37 v genes in 0.3 sec
+  vsearch: 1063 / 1075 v annotations (12 failed) with 36 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
-      info for 1026 / 1026 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 525 (0.512) unproductive
-        water time: 0.5
+      info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 542 (0.504) unproductive
+        water time: 0.3
 hmm
-        collapsed 1026 sequences into 478 unique naive sequences over 42 cdr3 lengths (0.0 sec)
-    using hfrac bound for vsearch 0.023
-    running vsearch 42 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+        collapsed 1075 sequences into 452 unique naive sequences over 43 cdr3 lengths (0.0 sec)
+    using hfrac bound for vsearch 0.021
+    running vsearch 43 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
       vsearch time: 2.9
 getting annotations for final partition
     using sw annotations (to make a multi-seq annotation for each cluster) instead of running hmm since either --use-sw-annotations or --naive-vsearch/--fast were set
-      total time: 4.7
-[92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml --selection-metric-fname test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml
+      total time: 4.0
+[92mget-selection-metrics-new-simu[0m   /home/dralph/work/partis/bin/partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml --selection-metric-fname test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: by default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set). If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters
-    getting trees for 26 clusters with sizes: 50 23 21 16 16 16 15 15 15 14 13 12 12 12 12 12 12 11 11 11 11 10 10 10 10 10
-      starting 26 jobs
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/134364/fasttree.out /tmp/dralph/tree-inference/134364/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/847433/fasttree.out /tmp/dralph/tree-inference/847433/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/763774/fasttree.out /tmp/dralph/tree-inference/763774/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/255069/fasttree.out /tmp/dralph/tree-inference/255069/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/495435/fasttree.out /tmp/dralph/tree-inference/495435/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/449491/fasttree.out /tmp/dralph/tree-inference/449491/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/651592/fasttree.out /tmp/dralph/tree-inference/651592/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/788723/fasttree.out /tmp/dralph/tree-inference/788723/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/93859/fasttree.out /tmp/dralph/tree-inference/93859/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/28347/fasttree.out /tmp/dralph/tree-inference/28347/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/835765/fasttree.out /tmp/dralph/tree-inference/835765/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/432767/fasttree.out /tmp/dralph/tree-inference/432767/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/762280/fasttree.out /tmp/dralph/tree-inference/762280/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/2106/fasttree.out /tmp/dralph/tree-inference/2106/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/445387/fasttree.out /tmp/dralph/tree-inference/445387/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/721540/fasttree.out /tmp/dralph/tree-inference/721540/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/228762/fasttree.out /tmp/dralph/tree-inference/228762/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/945270/fasttree.out /tmp/dralph/tree-inference/945270/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/901427/fasttree.out /tmp/dralph/tree-inference/901427/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/30589/fasttree.out /tmp/dralph/tree-inference/30589/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/25445/fasttree.out /tmp/dralph/tree-inference/25445/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/541412/fasttree.out /tmp/dralph/tree-inference/541412/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/939149/fasttree.out /tmp/dralph/tree-inference/939149/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/381204/fasttree.out /tmp/dralph/tree-inference/381204/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/216599/fasttree.out /tmp/dralph/tree-inference/216599/input-seqs.fa
-        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/422116/fasttree.out /tmp/dralph/tree-inference/422116/input-seqs.fa
-      made 26 fasttree trees (1.2s)
-    tree origins: 26 ran fasttree
-    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 26 clusters with sizes 50 23 21 16 16 16 15 15 15 14 13 12 12 12 12 12 12 11 11 11 11 10 10 10 10 10
-      skipping 190 smaller than 10
+    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 31 clusters with sizes 61 26 23 20 19 19 18 18 17 16 16 14 14 13 13 12 12 12 12 12 12 11 11 11 11 11 11 10 10 10 10
+      skipped 190 smaller than 10
+    getting trees for 31 clusters with sizes: 61 26 23 20 19 19 18 18 17 16 16 14 14 13 13 12 12 12 12 12 12 11 11 11 11 11 11 10 10 10 10
+      starting 31 jobs
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/140891/fasttree.out /tmp/dralph/tree-inference/140891/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/596853/fasttree.out /tmp/dralph/tree-inference/596853/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/888598/fasttree.out /tmp/dralph/tree-inference/888598/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/841235/fasttree.out /tmp/dralph/tree-inference/841235/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/800875/fasttree.out /tmp/dralph/tree-inference/800875/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/66172/fasttree.out /tmp/dralph/tree-inference/66172/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/267459/fasttree.out /tmp/dralph/tree-inference/267459/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/123646/fasttree.out /tmp/dralph/tree-inference/123646/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/519501/fasttree.out /tmp/dralph/tree-inference/519501/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/797926/fasttree.out /tmp/dralph/tree-inference/797926/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/471325/fasttree.out /tmp/dralph/tree-inference/471325/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/495185/fasttree.out /tmp/dralph/tree-inference/495185/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/683244/fasttree.out /tmp/dralph/tree-inference/683244/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/398055/fasttree.out /tmp/dralph/tree-inference/398055/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/827036/fasttree.out /tmp/dralph/tree-inference/827036/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/991188/fasttree.out /tmp/dralph/tree-inference/991188/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/107192/fasttree.out /tmp/dralph/tree-inference/107192/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/945215/fasttree.out /tmp/dralph/tree-inference/945215/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/332849/fasttree.out /tmp/dralph/tree-inference/332849/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/32075/fasttree.out /tmp/dralph/tree-inference/32075/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/23406/fasttree.out /tmp/dralph/tree-inference/23406/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/26681/fasttree.out /tmp/dralph/tree-inference/26681/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/681098/fasttree.out /tmp/dralph/tree-inference/681098/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/567712/fasttree.out /tmp/dralph/tree-inference/567712/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/9652/fasttree.out /tmp/dralph/tree-inference/9652/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/984769/fasttree.out /tmp/dralph/tree-inference/984769/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/924040/fasttree.out /tmp/dralph/tree-inference/924040/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/399721/fasttree.out /tmp/dralph/tree-inference/399721/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/719830/fasttree.out /tmp/dralph/tree-inference/719830/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/227120/fasttree.out /tmp/dralph/tree-inference/227120/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out /tmp/dralph/tree-inference/442621/fasttree.out /tmp/dralph/tree-inference/442621/input-seqs.fa
+      made 31 fasttree trees (1.3s)
+    tree origins: 31 ran fasttree
       setting default tau to 1 / 385 = 0.0026
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0026
-                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 19/50 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.055  mfreq 0.046  diff 0.010  abs(frac diff) 24%  ratio 1.2
+                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 19/61 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.037  mfreq 0.031  diff 0.007  abs(frac diff) 23%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.2744    0.2154       1.3     0.0590     8106985838789627006
-              0.1792    0.1356       1.3     0.0436     4282749307364861551
-              0.1878    0.1463       1.3     0.0415     3759110007851463906
-              0.1791    0.1410       1.3     0.0382     0579404834154732153
-              0.0082    0.0053       1.5     0.0029     0618864033257539660
-              0.0134    0.0106       1.3     0.0028     1059509643916595717
-              0.0134    0.0106       1.3     0.0028     6413025179076882058
-              0.0077    0.0053       1.4     0.0024     6991874864454745294
-              0.0072    0.0053       1.3     0.0018     1088304646013337308
-              0.0072    0.0053       1.3     0.0018     1139361880223601068
+              0.2441    0.1835       1.3     0.0606     9b7260b879
+              0.2244    0.1782       1.3     0.0462     7b5c5e6def
+              0.2105    0.1676       1.3     0.0430     74539ff4d2
+              0.1876    0.1463       1.3     0.0413     50c5876e28
+              0.0265    0.0186       1.4     0.0079     816eec00dd
+              0.0236    0.0186       1.3     0.0050     bc43cce1e1
+              0.0137    0.0106       1.3     0.0030     c04ebcb8a6
+              0.0137    0.0106       1.3     0.0030     39f5410bf4
+              0.0136    0.0106       1.3     0.0029     9fe852e2d6
+              0.0104    0.0080       1.3     0.0024     43878cbbff
           10 with highest+lowest ratios:
-              0.0082    0.0053       1.5     0.0029     0618864033257539660
-              0.0077    0.0053       1.4     0.0024     6991874864454745294
-              0.0039    0.0027       1.4     0.0012     3403950009922800749
-              0.0039    0.0027       1.4     0.0012     7980000497808215218
-              0.0039    0.0027       1.4     0.0012     7980000497808215223
-              0.1878    0.1463       1.3     0.0415     3759110007851463906
-              0.2744    0.2154       1.3     0.0590     8106985838789627006
-              0.1791    0.1410       1.3     0.0382     0579404834154732153
-              0.0134    0.0106       1.3     0.0028     1059509643916595717
-              0.0134    0.0106       1.3     0.0028     6413025179076882058
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 75/86 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: hip ntx btw jmy vwz oqu hlp cev ahp afl jmo jwz fjk ctu dkt agk jls ace epy etz emo fxz epr cuz dfs iqr bfw afr eot agw hxz ekt ejp cpv ehi
+              0.0048    0.0027       1.8     0.0022     f1dccd64ac
+              0.0048    0.0027       1.8     0.0022     1e2bec023c
+              0.0048    0.0027       1.8     0.0022     90a60bee32
+              0.0048    0.0027       1.8     0.0022     b256b47ea8
+              0.0265    0.0186       1.4     0.0079     816eec00dd
+              0.1876    0.1463       1.3     0.0413     50c5876e28
+              0.0136    0.0106       1.3     0.0029     9fe852e2d6
+              0.0236    0.0186       1.3     0.0050     bc43cce1e1
+              0.2244    0.1782       1.3     0.0462     7b5c5e6def
+              0.2105    0.1676       1.3     0.0430     74539ff4d2
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 80/99 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: acf aer ahn ajs anq bcr bhr bku bvy cgh cir cjn csz deu dft dfz dgt djo dow dvx efz erw fgx flv glo gnx gsw hnv hny jly kwy mqu mrs nou nuv ost vxz
       setting default tau to 1 / 385 = 0.0026
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0026
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 45/46 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cdo awx bjm ano fgl jsv huw owx fyz hin fhl cor etv crw eiv bef eil bgp ewx ghn cpu gmt
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 9/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: mnq efr hij efm
-                [94miclust 3: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 10/16 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.208  mfreq 0.162  diff 0.045  abs(frac diff) 22%  ratio 1.2
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 2/28 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ajv
+                [94miclust 2: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 14/23 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.214  mfreq 0.164  diff 0.051  abs(frac diff) 24%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.3120    0.2270       1.4     0.0850     5264780488117337689
-              0.3389    0.2541       1.3     0.0848     4003347322751396191
-              0.3020    0.2297       1.3     0.0723     7412450969485539973
-              0.2956    0.2270       1.3     0.0686     4435648982142112949
-              0.2821    0.2189       1.3     0.0632     0485904663269028654
-              0.2819    0.2189       1.3     0.0630     1594393592013239384
-              0.2820    0.2216       1.3     0.0604     1602107955394399427
-              0.2846    0.2270       1.3     0.0576     1566560798894595586
-              0.2765    0.2189       1.3     0.0576     5223535992123490843
-              0.2658    0.2108       1.3     0.0550     0921440995801226929
+              0.3562    0.2514       1.4     0.1049     11515c2f92
+              0.3589    0.2595       1.4     0.0995     ad7c5b835c
+              0.3690    0.2703       1.4     0.0987     56ca88f406
+              0.3262    0.2405       1.4     0.0857     218b05e9f0
+              0.3390    0.2541       1.3     0.0849     cbe4a6680b
+              0.3411    0.2568       1.3     0.0843     081eeda56a
+              0.3241    0.2486       1.3     0.0755     f4799653fb
+              0.2547    0.1811       1.4     0.0736     16b78c5103
+              0.2464    0.1838       1.3     0.0626     41932a319b
+              0.2322    0.1784       1.3     0.0538     1bd3e1d594
           10 with highest+lowest ratios:
-              0.3120    0.2270       1.4     0.0850     5264780488117337689
-              0.3389    0.2541       1.3     0.0848     4003347322751396191
-              0.3020    0.2297       1.3     0.0723     7412450969485539973
-              0.2956    0.2270       1.3     0.0686     4435648982142112949
-              0.2821    0.2189       1.3     0.0632     0485904663269028654
-              0.2819    0.2189       1.3     0.0630     1594393592013239384
-              0.2820    0.2216       1.3     0.0604     1602107955394399427
-              0.2765    0.2189       1.3     0.0576     5223535992123490843
-              0.2658    0.2108       1.3     0.0550     0921440995801226929
-              0.2846    0.2270       1.3     0.0576     1566560798894595586
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 31/32 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ntx flz djt aoq hmu lor dfn ntz hsu bgz auz jpu jsy jsz fkm
-                [94miclust 4: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/16 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.024  mfreq 0.021  diff 0.003  abs(frac diff) 18%  ratio 1.2
+              0.3562    0.2514       1.4     0.1049     11515c2f92
+              0.2547    0.1811       1.4     0.0736     16b78c5103
+              0.3589    0.2595       1.4     0.0995     ad7c5b835c
+              0.3690    0.2703       1.4     0.0987     56ca88f406
+              0.3262    0.2405       1.4     0.0857     218b05e9f0
+              0.2322    0.1784       1.3     0.0538     1bd3e1d594
+              0.2365    0.1838       1.3     0.0527     7905f66dc5
+              0.2440    0.1919       1.3     0.0521     26ba67a646
+              0.2298    0.1811       1.3     0.0487     3b2de05b12
+              0.1898    0.1514       1.3     0.0385     7acc8abe4d
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 43/45 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ael bhn bpr cgv cim cqt ejz fqt gip gjs gvw hqy klm kny kry lsw mrw puy qsw rtx rvw
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 12/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aeq hiw hqr kow qvy
+                [94miclust 4: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 5/19 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.003  mfreq 0.002  diff 0.001  abs(frac diff) 41%  ratio 1.4
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.0146    0.0106       1.4     0.0040     4128714440675769733
-              0.0070    0.0053       1.3     0.0016     3858091259792914631
+              0.0072    0.0053       1.3     0.0018     672100c205
+              0.0044    0.0027       1.7     0.0017     4706e01e22
+              0.0044    0.0027       1.7     0.0017     d779a17a7f
+              0.0044    0.0027       1.6     0.0017     bc880ba64f
+              0.0038    0.0027       1.4     0.0012     5fa81adc8d
           10 with highest+lowest ratios:
-              0.0146    0.0106       1.4     0.0040     4128714440675769733
-              0.0070    0.0053       1.3     0.0016     3858091259792914631
-              0.0146    0.0106       1.4     0.0040     4128714440675769733
-              0.0070    0.0053       1.3     0.0016     3858091259792914631
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 29/31 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: uvx hjw gjz fkm aqs cnq eil pru fjy biy cqr ivx nrv gos
-                [94miclust 5: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 5/16 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.010  mfreq 0.008  diff 0.002  abs(frac diff) 28%  ratio 1.3
+              0.0044    0.0027       1.7     0.0017     4706e01e22
+              0.0044    0.0027       1.7     0.0017     d779a17a7f
+              0.0044    0.0027       1.6     0.0017     bc880ba64f
+              0.0038    0.0027       1.4     0.0012     5fa81adc8d
+              0.0072    0.0053       1.3     0.0018     672100c205
+              0.0044    0.0027       1.7     0.0017     4706e01e22
+              0.0044    0.0027       1.7     0.0017     d779a17a7f
+              0.0044    0.0027       1.6     0.0017     bc880ba64f
+              0.0038    0.0027       1.4     0.0012     5fa81adc8d
+              0.0072    0.0053       1.3     0.0018     672100c205
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 11/25 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aes bdw evw fjr ouw
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 19/29 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: akr biz fho grs hjt jmy mnt mtw mvw
+                [94miclust 6: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 7/18 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.257  mfreq 0.205  diff 0.051  abs(frac diff) 25%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.0077    0.0058       1.3     0.0019     7939823843400850979
-              0.0077    0.0058       1.3     0.0019     0957635050402716379
-              0.0077    0.0058       1.3     0.0019     4791101440824901818
-              0.0047    0.0029       1.6     0.0018     8321457011914360279
-              0.0047    0.0029       1.6     0.0018     2378502335662941725
+              0.2882    0.2168       1.3     0.0715     535d75329b
+              0.2570    0.1879       1.4     0.0692     623ec286e2
+              0.2812    0.2139       1.3     0.0673     112209d3c5
+              0.2890    0.2225       1.3     0.0664     f0653afba6
+              0.2689    0.2110       1.3     0.0580     a5a23a8d47
+              0.2629    0.2081       1.3     0.0548     1a8d7f5b06
+              0.2501    0.1994       1.3     0.0507     34fa93d78c
           10 with highest+lowest ratios:
-              0.0047    0.0029       1.6     0.0018     8321457011914360279
-              0.0047    0.0029       1.6     0.0018     2378502335662941725
-              0.0077    0.0058       1.3     0.0019     7939823843400850979
-              0.0077    0.0058       1.3     0.0019     0957635050402716379
-              0.0077    0.0058       1.3     0.0019     4791101440824901818
-              0.0047    0.0029       1.6     0.0018     8321457011914360279
-              0.0047    0.0029       1.6     0.0018     2378502335662941725
-              0.0077    0.0058       1.3     0.0019     7939823843400850979
-              0.0077    0.0058       1.3     0.0019     0957635050402716379
-              0.0077    0.0058       1.3     0.0019     4791101440824901818
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 11/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: jlm giq bdt imy dpz
-                [94miclust 6: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 5/15 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.012  mfreq 0.010  diff 0.002  abs(frac diff) 25%  ratio 1.3
+              0.2570    0.1879       1.4     0.0692     623ec286e2
+              0.2882    0.2168       1.3     0.0715     535d75329b
+              0.2812    0.2139       1.3     0.0673     112209d3c5
+              0.2890    0.2225       1.3     0.0664     f0653afba6
+              0.2689    0.2110       1.3     0.0580     a5a23a8d47
+              0.2812    0.2139       1.3     0.0673     112209d3c5
+              0.2890    0.2225       1.3     0.0664     f0653afba6
+              0.2689    0.2110       1.3     0.0580     a5a23a8d47
+              0.2629    0.2081       1.3     0.0548     1a8d7f5b06
+              0.2501    0.1994       1.3     0.0507     34fa93d78c
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 35/36 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ace bjx cgk csv dfg dnx hux inp ipt jou jqy jrt kov kow mpv opt opx
+                [94miclust 7: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 11/18 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.004  mfreq 0.003  diff 0.001  abs(frac diff) 57%  ratio 1.6
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.0106    0.0079       1.3     0.0026     4847265806191377124
-              0.0102    0.0079       1.3     0.0023     6290640959090872010
-              0.0102    0.0079       1.3     0.0022     5058495998920266229
-              0.0071    0.0053       1.3     0.0018     0751750743672032193
-              0.0044    0.0026       1.7     0.0017     0857605091614244175
+              0.0108    0.0083       1.3     0.0025     f8eda069d4
+              0.0079    0.0055       1.4     0.0024     9ed74179ae
+              0.0079    0.0055       1.4     0.0024     97ebc4ce31
+              0.0051    0.0028       1.8     0.0023     05c9bb056c
+              0.0051    0.0028       1.8     0.0023     1aa7fe8060
+              0.0051    0.0028       1.8     0.0023     9ef1c7ce1a
+              0.0051    0.0028       1.8     0.0023     3bfea53182
+              0.0045    0.0028       1.6     0.0017     9088407952
+              0.0045    0.0028       1.6     0.0017     57265f9808
+              0.0040    0.0028       1.4     0.0012     04f81ce2d1
           10 with highest+lowest ratios:
-              0.0044    0.0026       1.7     0.0017     0857605091614244175
-              0.0071    0.0053       1.3     0.0018     0751750743672032193
-              0.0106    0.0079       1.3     0.0026     4847265806191377124
-              0.0102    0.0079       1.3     0.0023     6290640959090872010
-              0.0102    0.0079       1.3     0.0022     5058495998920266229
-              0.0044    0.0026       1.7     0.0017     0857605091614244175
-              0.0071    0.0053       1.3     0.0018     0751750743672032193
-              0.0106    0.0079       1.3     0.0026     4847265806191377124
-              0.0102    0.0079       1.3     0.0023     6290640959090872010
-              0.0102    0.0079       1.3     0.0022     5058495998920266229
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 23/27 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: hmt aiw osw acl nuv dix bov bpx rwz gmp arz
-                [94miclust 7: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/15 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.026  mfreq 0.024  diff 0.002  abs(frac diff) 9%  ratio 1.1
+              0.0051    0.0028       1.8     0.0023     05c9bb056c
+              0.0051    0.0028       1.8     0.0023     1aa7fe8060
+              0.0051    0.0028       1.8     0.0023     9ef1c7ce1a
+              0.0051    0.0028       1.8     0.0023     3bfea53182
+              0.0045    0.0028       1.6     0.0017     9088407952
+              0.0040    0.0028       1.4     0.0012     04f81ce2d1
+              0.0079    0.0055       1.4     0.0024     9ed74179ae
+              0.0079    0.0055       1.4     0.0024     97ebc4ce31
+              0.0040    0.0028       1.4     0.0012     2fda96e899
+              0.0108    0.0083       1.3     0.0025     f8eda069d4
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 15/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adz aef flp hoz ioz mtu nox
+                [94miclust 8: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 13/17 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.008  mfreq 0.005  diff 0.002  abs(frac diff) 52%  ratio 1.5
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.0274    0.0211       1.3     0.0063     4824322092350472540
+              0.0089    0.0054       1.7     0.0035     757feb9b8c
+              0.0089    0.0054       1.7     0.0035     84d69fe139
+              0.0089    0.0054       1.7     0.0035     0f1058bacd
+              0.0083    0.0054       1.6     0.0030     14d3a095be
+              0.0083    0.0054       1.5     0.0029     e24023d4be
+              0.0083    0.0054       1.5     0.0029     994b2bbefd
+              0.0055    0.0027       2.1     0.0028     b5f9713f34
+              0.0055    0.0027       2.1     0.0028     490667d7a7
+              0.0135    0.0107       1.3     0.0027     0dd0f88f10
+              0.0077    0.0054       1.4     0.0023     b0419c70c4
           10 with highest+lowest ratios:
-              0.0274    0.0211       1.3     0.0063     4824322092350472540
-              0.0274    0.0211       1.3     0.0063     4824322092350472540
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 22/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: oqw jnt fiu ckr jpy pux gin syz bfy cdy
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 24/27 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: jox akr bhu bfh hqu jpx bgs itz kmp fht cpt
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 12/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dht nwx elw fhs lmu
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 25/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: itx kou iuw fgq hqv ioq anr gin gpv psv hjo fhs
-                [94miclust 11: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/12 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.012  mfreq 0.011  diff 0.002  abs(frac diff) 15%  ratio 1.2
+              0.0055    0.0027       2.1     0.0028     b5f9713f34
+              0.0055    0.0027       2.1     0.0028     490667d7a7
+              0.0089    0.0054       1.7     0.0035     757feb9b8c
+              0.0089    0.0054       1.7     0.0035     84d69fe139
+              0.0089    0.0054       1.7     0.0035     0f1058bacd
+              0.0039    0.0027       1.4     0.0012     034660a1e4
+              0.0039    0.0027       1.4     0.0012     5994017ecf
+              0.0077    0.0054       1.4     0.0023     b0419c70c4
+              0.0072    0.0054       1.3     0.0019     13d94ad1f8
+              0.0135    0.0107       1.3     0.0027     0dd0f88f10
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 21/28 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bhy bly cix cpz dgz efl fjw fmy gls ksy
+                [94miclust 9: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 10/16 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.017  mfreq 0.012  diff 0.005  abs(frac diff) 38%  ratio 1.4
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.0103    0.0079       1.3     0.0024     0352830434967388890
+              0.0231    0.0157       1.5     0.0074     0efab105fb
+              0.0231    0.0157       1.5     0.0074     82a21593e0
+              0.0231    0.0157       1.5     0.0074     c5cca85765
+              0.0225    0.0157       1.4     0.0068     d78a25ac01
+              0.0198    0.0131       1.5     0.0067     ac12dc7de1
+              0.0197    0.0131       1.5     0.0067     e711c36e96
+              0.0249    0.0183       1.4     0.0066     ccfbacbeb6
+              0.0169    0.0105       1.6     0.0064     31f91a2eb6
+              0.0141    0.0079       1.8     0.0062     e39e71fa86
+              0.0165    0.0105       1.6     0.0060     be6b943d40
           10 with highest+lowest ratios:
-              0.0103    0.0079       1.3     0.0024     0352830434967388890
-              0.0103    0.0079       1.3     0.0024     0352830434967388890
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 17/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adg dej jmy kty cor fnt ios fku
-                [94miclust 12: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 8/12 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.273  mfreq 0.214  diff 0.059  abs(frac diff) 28%  ratio 1.3
+              0.0141    0.0079       1.8     0.0062     e39e71fa86
+              0.0169    0.0105       1.6     0.0064     31f91a2eb6
+              0.0165    0.0105       1.6     0.0060     be6b943d40
+              0.0198    0.0131       1.5     0.0067     ac12dc7de1
+              0.0197    0.0131       1.5     0.0067     e711c36e96
+              0.0231    0.0157       1.5     0.0074     0efab105fb
+              0.0231    0.0157       1.5     0.0074     82a21593e0
+              0.0231    0.0157       1.5     0.0074     c5cca85765
+              0.0225    0.0157       1.4     0.0068     d78a25ac01
+              0.0249    0.0183       1.4     0.0066     ccfbacbeb6
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 24/28 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ber bgx bkw dku ewy fsy giw gvz iko lvx uvw
+                [94miclust 10: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/16 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.013  mfreq 0.012  diff 0.002  abs(frac diff) 17%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.3120    0.2262       1.4     0.0858     7414790222926098626
-              0.3079    0.2289       1.3     0.0790     0283891179960128259
-              0.2753    0.2044       1.3     0.0709     7452210755691945052
-              0.3047    0.2343       1.3     0.0704     0678918604282290309
-              0.3029    0.2371       1.3     0.0658     5309345631563171437
-              0.2566    0.1989       1.3     0.0577     2248151410802297471
-              0.2606    0.2071       1.3     0.0535     0492526430733317588
-              0.2575    0.2044       1.3     0.0532     8548000431304034469
+              0.0038    0.0027       1.4     0.0012     81370a7c6e
           10 with highest+lowest ratios:
-              0.3120    0.2262       1.4     0.0858     7414790222926098626
-              0.2753    0.2044       1.3     0.0709     7452210755691945052
-              0.3079    0.2289       1.3     0.0790     0283891179960128259
-              0.3047    0.2343       1.3     0.0704     0678918604282290309
-              0.2566    0.1989       1.3     0.0577     2248151410802297471
-              0.3047    0.2343       1.3     0.0704     0678918604282290309
-              0.2566    0.1989       1.3     0.0577     2248151410802297471
-              0.3029    0.2371       1.3     0.0658     5309345631563171437
-              0.2575    0.2044       1.3     0.0532     8548000431304034469
-              0.2606    0.2071       1.3     0.0535     0492526430733317588
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: giv efy akv cho kmv bln bqs prs ouw fqt ejs
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 13): skipped 21/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fxy fit arw hkq dsy dmp hjk asw bit pst
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 17/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: efj anw bgw cgq eho rsw mnv dgm
-                [94miclust 15: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/12 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.208  mfreq 0.173  diff 0.036  abs(frac diff) 20%  ratio 1.2
+              0.0038    0.0027       1.4     0.0012     81370a7c6e
+              0.0038    0.0027       1.4     0.0012     81370a7c6e
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 15/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bdm dgj fmr gxz pru qtz
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 23/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aou cjr clm efy fjs fmz gpq gux hkv klz quy
+                [94miclust 12: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 3/14 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.013  mfreq 0.012  diff 0.002  abs(frac diff) 19%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.3212    0.2459       1.3     0.0753     3566270393377693943
+              0.0106    0.0081       1.3     0.0025     43d010b3c5
+              0.0106    0.0081       1.3     0.0025     6231477fcd
+              0.0106    0.0081       1.3     0.0025     262154b290
           10 with highest+lowest ratios:
-              0.3212    0.2459       1.3     0.0753     3566270393377693943
-              0.3212    0.2459       1.3     0.0753     3566270393377693943
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: jlu agn fhn dhi hqy gjm ceh muv eou diu ahy
-                [94miclust 17: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 11/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.291  mfreq 0.223  diff 0.069  abs(frac diff) 31%  ratio 1.3
+              0.0106    0.0081       1.3     0.0025     43d010b3c5
+              0.0106    0.0081       1.3     0.0025     6231477fcd
+              0.0106    0.0081       1.3     0.0025     262154b290
+              0.0106    0.0081       1.3     0.0025     6231477fcd
+              0.0106    0.0081       1.3     0.0025     262154b290
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 16/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bmx deh euw fou fyz hpz klu
+                [94miclust 13: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/13 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.029  mfreq 0.027  diff 0.003  abs(frac diff) 11%  ratio 1.1
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.3218    0.2279       1.4     0.0939     3531811575527254533
-              0.3177    0.2306       1.4     0.0872     3931564189934108276
-              0.3062    0.2225       1.4     0.0837     4467254492319719419
-              0.3160    0.2413       1.3     0.0747     1876878925378400362
-              0.3151    0.2413       1.3     0.0738     6281801163360013970
-              0.2755    0.2145       1.3     0.0611     2841776112687444964
-              0.2767    0.2172       1.3     0.0595     2281072505690074109
-              0.2676    0.2091       1.3     0.0585     4972678504916334623
-              0.2851    0.2279       1.3     0.0572     0377966725061859563
-              0.2703    0.2145       1.3     0.0558     6676559725077004574
+              0.0258    0.0202       1.3     0.0057     01841202e6
           10 with highest+lowest ratios:
-              0.3218    0.2279       1.4     0.0939     3531811575527254533
-              0.3177    0.2306       1.4     0.0872     3931564189934108276
-              0.3062    0.2225       1.4     0.0837     4467254492319719419
-              0.3160    0.2413       1.3     0.0747     1876878925378400362
-              0.3151    0.2413       1.3     0.0738     6281801163360013970
-              0.2676    0.2091       1.3     0.0585     4972678504916334623
-              0.2767    0.2172       1.3     0.0595     2281072505690074109
-              0.2534    0.2011       1.3     0.0524     1942315291614800567
-              0.2703    0.2145       1.3     0.0558     6676559725077004574
-              0.2851    0.2279       1.3     0.0572     0377966725061859563
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: kry fmy gkp djz aim gly rxz cht cks fqv
-                [94miclust 18: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 10/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.333  mfreq 0.239  diff 0.094  abs(frac diff) 36%  ratio 1.4
+              0.0258    0.0202       1.3     0.0057     01841202e6
+              0.0258    0.0202       1.3     0.0057     01841202e6
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 13): skipped 21/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: abq arx auw brv chq fju how klu lmv mrv
+                [94miclust 14: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 6/13 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.005  mfreq 0.004  diff 0.001  abs(frac diff) 32%  ratio 1.3
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.4775    0.3183       1.5     0.1592     0589445984836925704
-              0.3572    0.2479       1.4     0.1093     8112373539238527726
-              0.3905    0.2817       1.4     0.1088     1416901641223692190
-              0.3447    0.2394       1.4     0.1053     8253417165564935046
-              0.3391    0.2366       1.4     0.1025     1218193577065560909
-              0.3908    0.2901       1.3     0.1007     5940370464135961634
-              0.3530    0.2592       1.4     0.0939     1330407053202523238
-              0.3376    0.2451       1.4     0.0925     6157958545600342082
-              0.3212    0.2394       1.3     0.0818     5444437470398175991
-              0.3289    0.2507       1.3     0.0782     8337657167093919002
+              0.0075    0.0056       1.3     0.0019     3ac0305318
+              0.0075    0.0056       1.3     0.0019     4220d3bd27
+              0.0040    0.0028       1.4     0.0012     916a72cc0f
+              0.0040    0.0028       1.4     0.0012     66b1d83170
+              0.0039    0.0028       1.4     0.0011     25c66d2c75
+              0.0039    0.0028       1.4     0.0011     241862c24f
           10 with highest+lowest ratios:
-              0.4775    0.3183       1.5     0.1592     0589445984836925704
-              0.3572    0.2479       1.4     0.1093     8112373539238527726
-              0.3447    0.2394       1.4     0.1053     8253417165564935046
-              0.3391    0.2366       1.4     0.1025     1218193577065560909
-              0.3905    0.2817       1.4     0.1088     1416901641223692190
-              0.3376    0.2451       1.4     0.0925     6157958545600342082
-              0.3530    0.2592       1.4     0.0939     1330407053202523238
-              0.3908    0.2901       1.3     0.1007     5940370464135961634
-              0.3212    0.2394       1.3     0.0818     5444437470398175991
-              0.3289    0.2507       1.3     0.0782     8337657167093919002
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 19/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: kpx jsw dmt dem dwz cjy apv fqw psu
-                [94miclust 19: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 6/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.005  mfreq 0.004  diff 0.001  abs(frac diff) 46%  ratio 1.5
+              0.0040    0.0028       1.4     0.0012     916a72cc0f
+              0.0040    0.0028       1.4     0.0012     66b1d83170
+              0.0039    0.0028       1.4     0.0011     25c66d2c75
+              0.0039    0.0028       1.4     0.0011     241862c24f
+              0.0075    0.0056       1.3     0.0019     3ac0305318
+              0.0040    0.0028       1.4     0.0012     66b1d83170
+              0.0039    0.0028       1.4     0.0011     25c66d2c75
+              0.0039    0.0028       1.4     0.0011     241862c24f
+              0.0075    0.0056       1.3     0.0019     3ac0305318
+              0.0075    0.0056       1.3     0.0019     4220d3bd27
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 10/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bcw cmt egh elx
+                [94miclust 15: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/12 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.076  mfreq 0.066  diff 0.009  abs(frac diff) 14%  ratio 1.1
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.0077    0.0054       1.4     0.0023     5653763949023753812
-              0.0044    0.0027       1.6     0.0017     4940951989600647206
-              0.0044    0.0027       1.6     0.0017     0961924628274571841
-              0.0044    0.0027       1.6     0.0017     8707607789060734346
-              0.0044    0.0027       1.6     0.0017     8178329710953711968
-              0.0037    0.0027       1.4     0.0010     9141579179564522515
+              0.0782    0.0617       1.3     0.0165     b2a296cf84
+              0.0753    0.0590       1.3     0.0163     b5dc374d8b
           10 with highest+lowest ratios:
-              0.0044    0.0027       1.6     0.0017     4940951989600647206
-              0.0044    0.0027       1.6     0.0017     0961924628274571841
-              0.0044    0.0027       1.6     0.0017     8707607789060734346
-              0.0044    0.0027       1.6     0.0017     8178329710953711968
-              0.0077    0.0054       1.4     0.0023     5653763949023753812
-              0.0044    0.0027       1.6     0.0017     0961924628274571841
-              0.0044    0.0027       1.6     0.0017     8707607789060734346
-              0.0044    0.0027       1.6     0.0017     8178329710953711968
-              0.0077    0.0054       1.4     0.0023     5653763949023753812
-              0.0037    0.0027       1.4     0.0010     9141579179564522515
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 13/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: cdw opw fnr elq elv clq
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 20): skipped 19/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ght aio muv kqw ijs ber clu arz ajr
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 21): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: gky aey dej djr jot hiw ptw bdl fqu
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dls oqw dhm anp emr npt mvy cjv dir
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 23): skipped 5/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: hkr wyz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 24): skipped 15/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: mny itz bix jlt hjo bjp isv
-                [94miclust 25: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/10 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.189  mfreq 0.156  diff 0.033  abs(frac diff) 21%  ratio 1.2
+              0.0753    0.0590       1.3     0.0163     b5dc374d8b
+              0.0782    0.0617       1.3     0.0165     b2a296cf84
+              0.0753    0.0590       1.3     0.0163     b5dc374d8b
+              0.0782    0.0617       1.3     0.0165     b2a296cf84
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ady akv aoq bnx etv fhu ghx gos ikl iow luy
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 21/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ahq ceu ejw fuz gkn gox lot lsy vwy vwz
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bey biz cly dfl dkx fgl fhs gnr ijz krz qrt
+                [94miclust 18: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 8/12 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.251  mfreq 0.193  diff 0.058  abs(frac diff) 25%  ratio 1.3
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.2004    0.1568       1.3     0.0436     1909662483337731536
-              0.2131    0.1703       1.3     0.0428     8737468298341969539
+              0.3660    0.2757       1.3     0.0903     b1550fecac
+              0.3704    0.2811       1.3     0.0893     fc8da315dc
+              0.3032    0.2189       1.4     0.0843     8ebd256ed2
+              0.3446    0.2622       1.3     0.0824     6a84b98b57
+              0.3059    0.2324       1.3     0.0735     54958c2e8a
+              0.2841    0.2108       1.3     0.0733     888824fec8
+              0.3242    0.2541       1.3     0.0702     2f9c66c4bc
+              0.2934    0.2297       1.3     0.0637     96ad4e26ec
           10 with highest+lowest ratios:
-              0.2004    0.1568       1.3     0.0436     1909662483337731536
-              0.2131    0.1703       1.3     0.0428     8737468298341969539
-              0.2004    0.1568       1.3     0.0436     1909662483337731536
-              0.2131    0.1703       1.3     0.0428     8737468298341969539
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 25): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fmn ajy dgq pqw acj cmp jtz jsz ein
+              0.3032    0.2189       1.4     0.0843     8ebd256ed2
+              0.2841    0.2108       1.3     0.0733     888824fec8
+              0.3660    0.2757       1.3     0.0903     b1550fecac
+              0.3704    0.2811       1.3     0.0893     fc8da315dc
+              0.3059    0.2324       1.3     0.0735     54958c2e8a
+              0.3704    0.2811       1.3     0.0893     fc8da315dc
+              0.3059    0.2324       1.3     0.0735     54958c2e8a
+              0.3446    0.2622       1.3     0.0824     6a84b98b57
+              0.2934    0.2297       1.3     0.0637     96ad4e26ec
+              0.3242    0.2541       1.3     0.0702     2f9c66c4bc
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adf alo cmq cnz dgn fmv gjl gkn hmn oqu qvx
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 19/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agz aov cew cor dtw fku gpx joq ntv
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 21): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: blu bmp bot crw ctx dtu frw gkv oru qrv
+                [94miclust 22: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 3/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.132  mfreq 0.101  diff 0.031  abs(frac diff) 16%  ratio 1.2
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.4867    0.3404       1.4     0.1463     633176e394
+              0.3079    0.2367       1.3     0.0712     207e43c582
+              0.3014    0.2314       1.3     0.0700     18cf848c69
+          10 with highest+lowest ratios:
+              0.4867    0.3404       1.4     0.1463     633176e394
+              0.3014    0.2314       1.3     0.0700     18cf848c69
+              0.3079    0.2367       1.3     0.0712     207e43c582
+              0.3014    0.2314       1.3     0.0700     18cf848c69
+              0.3079    0.2367       1.3     0.0712     207e43c582
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 14/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agi aqz crs pvx qux vwx
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 23): skipped 15/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: asw btu chl efi eow knq
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 25): skipped 19/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adx bqt clw cpv enp eqt hmw jls lty
+                [94miclust 26: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.016  mfreq 0.014  diff 0.002  abs(frac diff) 18%  ratio 1.2
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0076    0.0057       1.3     0.0019     749ce3eff2
+              0.0076    0.0057       1.3     0.0019     f5334216df
+          10 with highest+lowest ratios:
+              0.0076    0.0057       1.3     0.0019     749ce3eff2
+              0.0076    0.0057       1.3     0.0019     f5334216df
+              0.0076    0.0057       1.3     0.0019     749ce3eff2
+              0.0076    0.0057       1.3     0.0019     f5334216df
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 26): skipped 15/19 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ajl alw cpq elr els gho joq
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 27): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aqz bet cox dhz frz ilv inw ior nvw
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 28): skipped 8/14 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bkx hvz ivw
+                [94miclust 30: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 4/10 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.215  mfreq 0.176  diff 0.039  abs(frac diff) 22%  ratio 1.2
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.2144    0.1676       1.3     0.0468     5cbd4cd1e3
+              0.2042    0.1592       1.3     0.0449     ef49a0a85d
+              0.2077    0.1648       1.3     0.0428     3486043bb3
+              0.2131    0.1704       1.3     0.0427     6256133c9b
+          10 with highest+lowest ratios:
+              0.2042    0.1592       1.3     0.0449     ef49a0a85d
+              0.2144    0.1676       1.3     0.0468     5cbd4cd1e3
+              0.2077    0.1648       1.3     0.0428     3486043bb3
+              0.2131    0.1704       1.3     0.0427     6256133c9b
+              0.2131    0.1704       1.3     0.0427     6256133c9b
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 30): skipped 17/19 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dev dop fju fkr fou fov gst lvy
   writing selection metrics to test/new-results-slow/get-selection-metrics-new-simu.yaml
-      total time: 1.9
+      total time: 2.0

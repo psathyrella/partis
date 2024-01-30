@@ -1,4 +1,5 @@
-import utils
+from __future__ import absolute_import, division, unicode_literals
+from . import utils
 
 rstrings = ['', 'cdr3_'] + [r + '_' for r in utils.regions]
 gene_usage_columns = [r + '_gene' for r in utils.regions]
@@ -156,7 +157,7 @@ true_vs_inferred_hard_bounds = {
     'vd_insertion' : (-8.5, 12.5),
     'dj_insertion' : (-10.5, 12.5)
 }
-for name, bounds in true_vs_inferred_hard_bounds.items():
+for name, bounds in list(true_vs_inferred_hard_bounds.items()):
     if name.find('XXX_') == 0:
         for rstr in rstrings:  # adds some we don't need, but that's ok
             true_vs_inferred_hard_bounds[name.replace('XXX_', rstr)] = bounds

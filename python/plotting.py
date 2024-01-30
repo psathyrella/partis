@@ -1,7 +1,10 @@
 from __future__ import unicode_literals
 
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import copy
 import matplotlib as mpl
+from io import open
 mpl.use('Agg')
 mpl.rcParams['svg.fonttype'] = 'none'
 import matplotlib.pyplot as plt
@@ -15,13 +18,14 @@ import numpy
 import operator
 import itertools
 import collections
+import six
 
-import utils
-import plotconfig
-from hist import Hist
-import treeutils
-import hutils
-from clusterpath import ClusterPath
+from . import utils
+from . import plotconfig
+from .hist import Hist
+from . import treeutils
+from . import hutils
+from .clusterpath import ClusterPath
 
 #                   green    dark red  light blue  light red  sky blue  pink/purple   grey
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
@@ -64,7 +68,7 @@ def make_csize_hist(partition, n_bins=10, xbins=None):
     if xbins is None:
         xbins, n_bins = hutils.auto_volume_bins(cslist, n_bins, int_bins=True, debug=True)
     else:
-        print '   using user specified bins %s:' % xbins
+        print('   using user specified bins %s:' % xbins)
         hutils.binprint(xbins, cslist)
         if any(x==int(x) for x in xbins):
             raise Exception('bin boundaries should be non-integers (e.g. 3.5) to avoid integer values seeming to fall on the boundary')
@@ -141,7 +145,7 @@ def getgrey(gtype='medium'):
 # ----------------------------------------------------------------------------------------
 def rgb_to_hex(rgb_tuple):
     assert len(rgb_tuple) == 3
-    return '#%02x%02x%02x' %tuple(map(lambda x: int(x*255), rgb_tuple[:3]))
+    return '#%02x%02x%02x' %tuple([int(x*255) for x in rgb_tuple[:3]])
 
 # ----------------------------------------------------------------------------------------
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
@@ -153,7 +157,7 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
 # ----------------------------------------------------------------------------------------
 def get_color_norm(vals, remove_top_end=False, hard_min=None):
     if len(vals) == 0:
-        print '  %s zero values passed to get_color_norm' % utils.color('yellow', 'warning')
+        print('  %s zero values passed to get_color_norm' % utils.color('yellow', 'warning'))
         vals = [0.]
     sorted_vals = sorted(vals)
     vmin = sorted_vals[0] - 0.2 * (sorted_vals[-1] - sorted_vals[0]) if hard_min is None else hard_min  # don't want anybody to be white, so set <vmin> to a bit less than the actual min value (i.e. so white corresponds to a value that's a bit less than any of our values)
@@ -188,7 +192,7 @@ def get_leg_entries(n_entries=5, vals=None, min_val=None, max_val=None, colorfcn
     if max_val is None:
         max_val = max(vals)
     if min_val == max_val:
-        max_val = min_val + (1 if min_val is 0 else 0.1 * min_val)
+        max_val = min_val + (1 if min_val == 0 else 0.1 * min_val)
     max_diff = max(utils.eps, (max_val - min_val) / float(n_entries - 1))
     leg_vals = list(numpy.arange(min_val, max_val + utils.eps, max_diff))  # first value is exactly <min_val>, last value is exactly <max_val> (eps is to keep it from missing the last one)
     if colorfcn is None:  # just return the values, let the calling fcn work out the colors
@@ -214,14 +218,14 @@ def add_jitter(xvals, delta=None, frac=0.02):
 # ----------------------------------------------------------------------------------------
 def make_bool_hist(n_true, n_false, hist_label):
     """ fill a two-bin histogram with the fraction false in the first bin and the fraction true in the second """
-    if 'fraction_uncertainty' not in sys.modules:
-        import fraction_uncertainty
+    if 'python.fraction_uncertainty' not in sys.modules:
+        from . import fraction_uncertainty
 
     hist = Hist(2, -0.5, 1.5, ytitle='freq')
 
     def set_bin(numer, denom, ibin, label):
         frac = float(numer) / denom
-        bounds = sys.modules['fraction_uncertainty'].err(numer, denom)
+        bounds = sys.modules['python.fraction_uncertainty'].err(numer, denom)
         err = max(abs(frac - bounds[0]), abs(frac - bounds[1]))
         hist.set_ibin(ibin, frac, error=err, label=label)
 
@@ -315,12 +319,12 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
     if hist is None:  # gets used below for some label stuff, and yes this sucks and is ugly
         hist = hists[0]
     if sum(h.integral(True) for h in hists) == 0:
-        print '  %s total integral of %d hists is zero, so not plotting anything' % (utils.wrnstr(), len(hists))
+        print('  %s total integral of %d hists is zero, so not plotting anything' % (utils.wrnstr(), len(hists)))
         return 'not-plotted.svg'
 
     multiply_by_bin_width = False
     if normalize and len(set((h.n_bins, h.xmin, h.xmax) for h in hists)) > 1:
-        print '    %s normalizing hists with different bins, which will *not* work/look right if there\'s empty bins (turn on square_bins to see)' % utils.wrnstr()
+        print('    %s normalizing hists with different bins, which will *not* work/look right if there\'s empty bins (turn on square_bins to see)' % utils.wrnstr())
         multiply_by_bin_width = True
 
     xmin, xmax, ymin, ymax = None, None, None, None
@@ -351,7 +355,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
 
     if shift_overflows:
         if '_vs_per_gene_support' in plotname or '_fraction_correct_vs_mute_freq' in plotname or plotname in [r + '_gene' for r in utils.regions]:
-            print '%s overriding overflow shifting for %s' % (utils.color('yellow', 'warning'), plotname)
+            print('%s overriding overflow shifting for %s' % (utils.color('yellow', 'warning'), plotname))
         else:
             shift_hist_overflows(hists, xmin, xmax)
         # assert '_vs_per_gene_support' not in plotname and '_fraction_correct_vs_mute_freq' not in plotname and plotname.find('_gene') != 1  # really, really, really don't want to shift overflows for these
@@ -423,7 +427,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
     if xline is not None:
         ax.plot([xline, xline], [-0.1*ymax, 0.5*ymax], color='black', linestyle='--', linewidth=3)
     if yline is not None:
-        print '%s fix y line' % utils.color('red', 'error')
+        print('%s fix y line' % utils.color('red', 'error'))
     if xyline is not None:
         assert len(xyline) == 2
         assert len(xyline[0]) == 2 and len(xyline[1]) == 2
@@ -436,7 +440,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
 
     if xticklabels is not None and 'y' in log:  # if xticklabels is set we need to also set the y ones so the fonts match up
         if yticks is not None:
-            print '  %s resetting yticks' % utils.color('yellow', 'warning')
+            print('  %s resetting yticks' % utils.color('yellow', 'warning'))
         yticks, yticklabels = get_auto_y_ticks(ymin, ymax, log=log)
         ymin = min(yticks + [ymin])
         ymax = max(yticks + [ymax])
@@ -454,7 +458,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
     if statstr is not None:
         tmptitle += statstr
         if print_stats:
-            print '    %s %s' % (plotname, statstr)
+            print('    %s %s' % (plotname, statstr))
 
     if xtitle is not None:
         tmpxtitle = xtitle
@@ -606,6 +610,9 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'mobille' : 'MobiLLe',
            'igblast' : 'IgBLAST',
            'linearham' : 'linearham',
+           'iqtree-tree-perf' : 'iqtree',
+           'gctree-tree-perf' : 'gctree',
+           'gctree-base-tree-perf' : 'gctree (base)',
            # '0.1-true-singletons' : '10% random singletons',
            # '0.1-true-reassign' : '10% random reassign',
            'misassign-0.60-singletons' : 'synth. 60%\nsingleton',
@@ -700,6 +707,9 @@ colors = {'true' : '#006600',
           'mobille' : '#a821c7',
           'igblast' : '#a821c7',
           'linearham' : '#006600',
+          'iqtree-tree-perf' : '#2b65ec',
+          'gctree-tree-perf' : '#cc0000',
+          'gctree-base-tree-perf' : '#006600',
           'enclone' : 'green',
           'mixcr' : '#2b65ec',
           'misassign-0.60-singletons' : '#808080',
@@ -874,8 +884,8 @@ def plot_tree_mut_stats(args, plotdir, antn_list, is_simu, only_leaves=False, on
         if fnames is not None:
             fnames[-1].append(fn)
     # ----------------------------------------------------------------------------------------
-    print '    plotting tree mutation stats %s' % ('using only leaves' if only_leaves else 'with all seqs')
-    import lbplotting
+    print('    plotting tree mutation stats %s' % ('using only leaves' if only_leaves else 'with all seqs'))
+    from . import lbplotting
     utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg'])
     if fnames is not None:
         fnames.append([])
@@ -1055,10 +1065,10 @@ def plot_pie_chart_marker(ax, xpos, ypos, radius, fracfos, alpha=None, debug=Fal
     np = numpy
     total = sum(f['fraction'] for f in fracfos)
     if not utils.is_normed(total):
-        print '  %s fractions add to %f (should add to 1): %s' % (utils.wrnstr(), total, '  '.join('%12s %-.3f'%(f['label'], f['fraction']) for f in sorted(fracfos, key=lambda x: x['fraction'], reverse=True)))
+        print('  %s fractions add to %f (should add to 1): %s' % (utils.wrnstr(), total, '  '.join('%12s %-.3f'%(f['label'], f['fraction']) for f in sorted(fracfos, key=lambda x: x['fraction'], reverse=True))))
 
     if debug:
-        print '   frac    label    N   min   max'
+        print('   frac    label    N   min   max')
         lwd = max(len(f['label']) for f in fracfos)
     total = 0
     for ifo, ffo in enumerate(fracfos):
@@ -1072,9 +1082,9 @@ def plot_pie_chart_marker(ax, xpos, ypos, radius, fracfos, alpha=None, debug=Fal
         ax.scatter([xpos], [ypos], marker=xyvals, s=(270*radius*s1)**2, facecolor=ffo['color'], alpha=alpha, linewidth=0)  # s= is in "points squared", but radius is in axis/fig coords ([0, 1], or maybe [-1, 1]?), and I can't figure out how to convert and I'm tired of googling so using 275 which seems about right, hopefully it keeps working
         total += ffo['fraction']
         if debug:
-            print '   %.3f  %s  %3d  %5.3f %5.3f %.3f %.3f' % (ffo['fraction'], utils.wfmt(ffo['label'], lwd), len(lnsp), min(lnsp), max(lnsp), s1, max(max(x, y) for x, y in zip(xvals, yvals) )) #, [math.sqrt(x*x + y*y) for x, y in zip(xvals, yvals)])
+            print('   %.3f  %s  %3d  %5.3f %5.3f %.3f %.3f' % (ffo['fraction'], utils.wfmt(ffo['label'], lwd), len(lnsp), min(lnsp), max(lnsp), s1, max(max(x, y) for x, y in zip(xvals, yvals) ))) #, [math.sqrt(x*x + y*y) for x, y in zip(xvals, yvals)])
     if debug:
-        print ''
+        print('')
 
 # ----------------------------------------------------------------------------------------
 def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=None, ybounds=None, leg_loc=(0.04, 0.6), leg_prop=None, log='',
@@ -1201,18 +1211,18 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
 def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max_bins=None, smatrix=None, xybins=None, float_vals=False, lfcn=lambda x: str(x), y_lfcn=None, xlabel='', ylabel='', title='', blabel='counts', tdbg=False):
     # ----------------------------------------------------------------------------------------
     def truncate_bins(xbins, ybins, n_max_bins):
-        print '    truncating x bins %d --> %d and ybins %d --> %d' % (len(xbins), n_max_bins, len(ybins), n_max_bins)
+        print('    truncating x bins %d --> %d and ybins %d --> %d' % (len(xbins), n_max_bins, len(ybins), n_max_bins))
         return xbins[:n_max_bins], ybins[:n_max_bins]
     # ----------------------------------------------------------------------------------------
     def get_smatrix_from_xy_dicts(xvals, yvals, kfcn=None, n_max_bins=None):  # NOTE lots of duplication with next fcn (but I think it's cleaner to have them separate)
-        xbins, ybins = [[-1] + sorted(set(td.values()), key=kfcn) for td in (xvals, yvals)]
+        xbins, ybins = [[-1] + sorted(sorted(set(td.values())), key=kfcn) for td in (xvals, yvals)]  # sort first with default order (e.g. alphabetical) then with the supplied kfcn (e.g. len) so that e.g. length ties have a defined order
         if n_max_bins is not None:  # it would be nice to skip bins based on the number of counts, but then we have to resize <smatrix> and the bins afterwards, and this bin sorting at least atm will usually give us the highest count bins
             xbins, ybins = truncate_bins(xbins, ybins, n_max_bins)
         smatrix = [[0 for _ in xbins] for _ in ybins]
         if tdbg > 1:
             uid_matrix = [[[] for _ in xbins] for _ in ybins]
         n_skipped = 0
-        for uid in set(yvals) | set(xvals):
+        for uid in sorted(set(yvals) | set(xvals)):
             yv, xv = yvals.get(uid, -1), xvals.get(uid, -1)
             if yv not in ybins or xv not in xbins:
                 n_skipped += 1
@@ -1222,10 +1232,10 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
                 uid_matrix[ybins.index(yv)][xbins.index(xv)].append(uid)
         if tdbg > 1:
             lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
-            print '  uids in smatrix'
+            print('  uids in smatrix')
             for iy, yb in enumerate(ybins):
                 for ix, xb in enumerate(xbins):
-                    print ('  %'+lb+'s   %'+lb+'s    %4d   %s') % (yb, xb, len(uid_matrix[iy][ix]), ':'.join(uid_matrix[iy][ix]))
+                    print(('  %'+lb+'s   %'+lb+'s    %4d   %s') % (yb, xb, len(uid_matrix[iy][ix]), ':'.join(uid_matrix[iy][ix])))
 
         return smatrix, xbins, ybins, n_skipped
     # ----------------------------------------------------------------------------------------
@@ -1258,13 +1268,13 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
             if v is None or numpy.isnan(v): return ''
             return ('%.2f' if float_vals else '%d') % v
         lb = str(max(len(str(b)) for b in ybins + xbins))  # max length (when converted to str) of any bin label
-        print '  detailed smatrix'
-        print '        %s' % ''.join((('  %'+lb+'s')%ib for ib in [''] + ybins))
+        print('  detailed smatrix')
+        print('        %s' % ''.join((('  %'+lb+'s')%ib for ib in [''] + ybins)))
         for iff, fb in enumerate(xbins):
-            print '       ',
+            print('       ', end=' ')
             for ii, ib in enumerate(ybins):
-                print ('%s %'+lb+'s') % ((('%'+lb+'s')%fb) if ii==0 else '', vstr(smatrix[ii][iff])),
-            print ''
+                print(('%s %'+lb+'s') % ((('%'+lb+'s')%fb) if ii==0 else '', vstr(smatrix[ii][iff])), end=' ')
+            print('')
 
     fig, ax = mpl_init()
     cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
@@ -1290,7 +1300,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', 
             if not isinstance(rowfnames, list):
                 raise Exception('each entry in fnames should be a list of strings, but got a %s: %s' % (type(rowfnames), rowfnames))
             for fn in rowfnames:
-                if not isinstance(fn, (str, unicode)):
+                if not isinstance(fn, six.string_types):
                     raise Exception('each entry in each row should be a string (file name), but got a %s: %s' % (type(fn), fn))
     if plotdir[-1] == '/':  # remove trailings slash, if present
         plotdir = plotdir[:-1]
@@ -1400,8 +1410,8 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None,
 
 # ----------------------------------------------------------------------------------------
 def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbounds, only_csv=False, write_csv=False):
-    if 'fraction_uncertainty' not in sys.modules:
-        import fraction_uncertainty
+    if 'python.fraction_uncertainty' not in sys.modules:
+        from . import fraction_uncertainty
 
     # NOTE should really merge this with draw_no_root()
     xvals = hright.get_bin_centers() #ignore_overflows=True)
@@ -1417,7 +1427,7 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
         wrong.pop(iv)
         yvals.pop(iv)
 
-    tmphilos = [sys.modules['fraction_uncertainty'].err(r, r + w) for r, w in zip(right, wrong)]
+    tmphilos = [sys.modules['python.fraction_uncertainty'].err(r, r + w) for r, w in zip(right, wrong)]
     yerrs = [err[1] - err[0] for err in tmphilos]
     # print '%s' % region
     # for iv in range(len(xvals)):
@@ -1445,17 +1455,17 @@ def make_fraction_plot(hright, hwrong, plotdir, plotname, xlabel, ylabel, xbound
 
 # ----------------------------------------------------------------------------------------
 def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', ylabel='', leg_title=None, title=None):
-    if 'fraction_uncertainty' not in sys.modules:
-        import fraction_uncertainty
-    fraction_uncertainty = sys.modules['fraction_uncertainty']
+    if 'python.fraction_uncertainty' not in sys.modules:
+        from . import fraction_uncertainty
+    fraction_uncertainty = sys.modules['python.fraction_uncertainty']
 
     def get_single_vals(pv):
         yvals = [float(c) / t for c, t in zip(pv['ycounts'], pv['ytotals'])]  # total shouldn't be able to be zero
         tmphilos = [fraction_uncertainty.err(c, t) for c, t in zip(pv['ycounts'], pv['ytotals'])]
         yerrs = [err[1] - err[0] for err in tmphilos]
-        print '  %s                    %s' % (xlabel, ylabel)
+        print('  %s                    %s' % (xlabel, ylabel))
         for iv in range(len(pv['xvals'])):
-            print '   %8.0f     %5.0f / %-5.0f  =  %5.2f   +/-  %.3f' % (pv['xvals'][iv], pv['ycounts'][iv], pv['ytotals'][iv], yvals[iv], yerrs[iv])
+            print('   %8.0f     %5.0f / %-5.0f  =  %5.2f   +/-  %.3f' % (pv['xvals'][iv], pv['ycounts'][iv], pv['ytotals'][iv], yvals[iv], yerrs[iv]))
         return pv['xvals'], yvals, yerrs
 
     fig, ax = mpl_init()
@@ -1463,7 +1473,7 @@ def plot_gl_inference_fractions(plotdir, plotname, plotvals, labels, xlabel='', 
 
     xmin, xmax, xticks = None, None, None
     for ii in range(len(labels)):
-        print labels[ii]
+        print(labels[ii])
         xvals, yvals, yerrs = get_single_vals(plotvals[ii])
         if xmin is None:
             xmin = xvals[0]
@@ -1496,7 +1506,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, all_emph_vals=None, emph_colors=None, global_max_vals=None,
                         make_legend=False, remove_none_vals=False, sortlabel='?', debug=False):
-    import lbplotting
+    from . import lbplotting
     smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
     # ----------------------------------------------------------------------------------------
@@ -1527,7 +1537,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     def getbounds(xkey):
         all_xvals = [x for c in sorted_clusters for x in get_xval_list(c, xkey) if x is not None]  # NOTE can't ignore/skip None vals in the list/dict getter fcn above, since order has to match line['unique_ids']
         if len(all_xvals) == 0:
-            print '    %s no (non-None) xvals for %s in single joyplot fcn' % (utils.wrnstr(), xkey)
+            print('    %s no (non-None) xvals for %s in single joyplot fcn' % (utils.wrnstr(), xkey))
             return None
         bounds = [f(all_xvals) for f in [min, max]]
         if bounds[0] == bounds[1]:  # if min and max are the same (i.e. all vals are the same), just use the value +/- 10%
@@ -1574,10 +1584,10 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
 
         if debug:
             fstr = '6.1f' if xkey == 'n_mutations' else '6.4f'
-            print ('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, numpy.median(sorted_xvals), numpy.mean(sorted_xvals)),
+            print(('     %5s  %-10s  %4.1f  %'+fstr+'  %'+fstr) % ('%d' % csize if iclust == 0 else '', repfracstr if iclust == 0 else '', yval, numpy.median(sorted_xvals), numpy.mean(sorted_xvals)), end=' ')
             if len(tqtis) > 0:
-                print '   ' + ' '.join(qtistrs),
-            print ''
+                print('   ' + ' '.join(qtistrs), end=' ')
+            print('')
 
         if xkey == 'n_mutations':
             nbins = sorted_xvals[-1] - sorted_xvals[0] + 1
@@ -1591,7 +1601,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         assert hist.overflow_contents() == 0.  # includes underflows
         max_contents = max(hist.bin_contents)
         for ibin in range(1, hist.n_bins + 1):
-            barheight = 0 if max_contents==0 else utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
+            barheight = 0. if max_contents==0 else utils.intexterpolate(0., min_bar_height, max_contents, max_bar_height, hist.bin_contents[ibin])
             if meta_info_key_to_color is not None:
                 bin_ids = [u for u, x in zip(antn['unique_ids'], get_xval_list(cluster, xkey)) if hist.find_bin(x)==ibin]  # uids in this bin
                 def psfcn(u): return utils.meta_emph_str(meta_info_key_to_color, utils.per_seq_val(antn, meta_info_key_to_color, u, use_default=True), formats=meta_emph_formats)
@@ -1599,14 +1609,14 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                 me_color_fracs = [(c, me_vals.count(v) / float(len(me_vals))) for v, c in emph_colors if v in me_vals]
             bin_color = base_color
             if offset is None:  # default: bar extends equally above + below center
-                y_lower, y_upper = yval - barheight/2, yval + barheight/2
+                y_lower, y_upper = yval - barheight/2., yval + barheight/2.
             else:  # this bar is only up or down (and presumably a different bar is being drawn the other direction)
                 y_lower, y_upper = yval, yval
                 bin_color = offcolor(offset)
                 if offset == 'up':
-                    y_upper += barheight / 2
+                    y_upper += barheight / 2.
                 elif offset == 'down':
-                    y_lower -= barheight / 2
+                    y_lower -= barheight / 2.
                 else:
                     assert False
             alpha = base_alpha
@@ -1648,7 +1658,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
         y_bar_pixels = 20
     min_bar_height, max_bar_height = 0.3 / min_ypixels * total_delta_y, float(y_bar_pixels) / min_ypixels * total_delta_y
     ypixels = max(min_ypixels, y_bar_pixels * total_delta_y)
-    fig, ax = mpl_init(figsize=(xpixels / dpi, ypixels / dpi))
+    fig, ax = mpl_init(figsize=(xpixels // dpi, ypixels // dpi))
     # min_alpha, max_alpha = 0.1, 1.
     base_alpha = 0.55
 
@@ -1661,17 +1671,17 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     if x2key is not None:
         xbounds[x2key] = getbounds(x2key)
     if any(xbounds[xk] is None for xk in xbounds):
-        print '    %s None type xbounds in single joyplot: %s' % (utils.wrnstr(), xbounds)
+        print('    %s None type xbounds in single joyplot: %s' % (utils.wrnstr(), xbounds))
         return 'no values' if high_x_val is None else high_x_clusters  # 'no values' isn't really a file name, it just shows up as a dead link in the html
     fixed_xmax = high_x_val if high_x_val is not None else xbounds[x1key][1]  # xmax to use for the plotting (ok now there's three max x values, this is getting confusing)
     if meta_info_to_emphasize is not None:
-        meta_emph_key, meta_emph_val = meta_info_to_emphasize.items()[0]
+        meta_emph_key, meta_emph_val = list(meta_info_to_emphasize.items())[0]
         if all(meta_emph_key not in l for l in annotations.values()):
-            print '  %s emphasis key \'%s\' not found in any of %d annotations' % (utils.color('yellow', 'warning'), meta_emph_key, len(annotations))
+            print('  %s emphasis key \'%s\' not found in any of %d annotations' % (utils.color('yellow', 'warning'), meta_emph_key, len(annotations)))
 
     if debug:
-        print '  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%x1key) if plot_high_x else '')
-        print '      size   frac      yval    median   mean'
+        print('  %s   %d x %d   %s' % (plotname, xpixels, ypixels, utils.color('red', 'high %s'%x1key) if plot_high_x else ''))
+        print('      size   frac      yval    median   mean')
 
     if x2key is None:
         cgroup_iter = itertools.groupby(sorted_clusters, key=lambda c: len(c))  # this doesn't re-sort anything, it just creates groups by size (like |sort|uniq)
@@ -1727,7 +1737,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
     n_x_ticks, xlabel, xticks, xticklabels = 4, x1label, None, None
     if x2key is not None:
         xlabel = x2label
-        xticks = [x for x in numpy.arange(xbounds[x1key][0], xbounds[x1key][1], (xbounds[x1key][1] - xbounds[x1key][0]) / (n_x_ticks-1))] + [xbounds[x1key][1]]
+        xticks = [x for x in numpy.arange(xbounds[x1key][0], xbounds[x1key][1], (xbounds[x1key][1] - xbounds[x1key][0]) / float(n_x_ticks-1))] + [xbounds[x1key][1]]
         xticklabels = ['%.1f' % utils.intexterpolate(xbounds[x1key][0], xbounds[x2key][0], xbounds[x1key][1], xbounds[x2key][1], x) for x in xticks]  # translate x1 tick positions to x2 tick labels
         fig.text(0.13, 0.07, '%.3f'%xbounds[x1key][0], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
         fig.text(0.89, 0.07, '%.3f'%xbounds[x1key][1], color=offcolor('up'), alpha=base_alpha, fontdict={'weight' : 'bold'}, fontsize=fsize)
@@ -1754,15 +1764,15 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
     def check_missing_extra():  # this shouldn't happen any more now that i'm using strings for 'id' key, but eh can't hurt
         iids, fids = set(d['id'] for d in bubfos), set(d['id'] for d in bubble_positions)
         if len(fids - iids) > 0:
-            print '    %s extra bubble ids read from file: %s' % (utils.wrnstr(), ' '.join(fids - iids))
+            print('    %s extra bubble ids read from file: %s' % (utils.wrnstr(), ' '.join(fids - iids)))
         if len(iids - fids) > 0:
-            print '    %s missing bubble ids from file: %s' % (utils.wrnstr(), ' '.join(iids - fids))
+            print('    %s missing bubble ids from file: %s' % (utils.wrnstr(), ' '.join(iids - fids)))
         assert len(bubble_positions) == len(bubfos)
     # ----------------------------------------------------------------------------------------
     rfn = '%s/csize-radii.csv' % plotdir
     bpfn = '%s/bubble-positions.csv' % plotdir
     workfnames = [rfn, bpfn]
-    with open(rfn, 'w') as rfile:
+    with open(rfn, utils.csv_wmode()) as rfile:
         writer = csv.DictWriter(rfile, ['id', 'radius'])
         writer.writeheader()
         for bfo in bubfos:
@@ -1781,7 +1791,7 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
             bdict[posfo['id']].update(posfo)
     fig, ax = mpl_init()
     if len(bubfos) == 0:
-        print '      %s no bubble positions, returning' % utils.wrnstr()
+        print('      %s no bubble positions, returning' % utils.wrnstr())
         return 'not-plotted.svg'
     lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubfos)
     plt.xlim(-lim, lim)

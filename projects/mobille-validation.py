@@ -1,6 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import csv
+from io import open
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import os
 import argparse
@@ -16,9 +19,9 @@ import math
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
 sys.path.insert(1, partis_dir + '/python')
 
-import utils
-import glutils
-import hutils
+import python.utils as utils
+import python.glutils as glutils
+import python.hutils as hutils
 
 mdir = 'packages/MobiLLe/Data/Simulated_datasets'
 base_odir = '/fh/fast/matsen_e/dralph/partis/mobille-validation'
@@ -28,7 +31,7 @@ def get_true_ptn(spval, stype):
     tcfn = '%s/True_cluster_by_simulator/%s_%s_true_cluster.txt' % (mdir, spval, stype)
     true_partition = []
     with open(tcfn) as tcfile:
-        reader = csv.DictReader(tcfile, delimiter='\t', fieldnames=['iclust', 'uids'])
+        reader = csv.DictReader(tcfile, delimiter=str('\t'), fieldnames=['iclust', 'uids'])
         for line in reader:
             cluster = [u.strip() for u in line['uids'].split()]
             true_partition.append(cluster)
@@ -76,7 +79,7 @@ def write_metrics(spval, stype, mthd, debug=False):
     for iseed in range(1 if args.n_random_seeds is None else args.n_random_seeds):
         _, _, cpath = utils.read_output(ptnfn(spval, stype, mthd, iseed=iseed))
         inf_ptn = cpath.best()
-        # import plotting
+        # import python.plotting as plotting
         # print plotting.plot_cluster_similarity_matrix(pltdir()+'/csim-plots', 'csim-matrix-%s-%s%s'%(stype, spval, '' if args.n_random_seeds is None else '-seed-%d'%iseed), 'true', tru_ptn, mthd, inf_ptn, 100, debug=True) #, debug=True)
         vdict = {}
         for mtstr in ['pairwise', 'closeness']:
@@ -90,11 +93,10 @@ def write_metrics(spval, stype, mthd, debug=False):
         for mtype, mvlist in mvals[mname].items():
             mvals[mname][mtype] = {'mean' : numpy.mean(mvlist), 'err' : numpy.std(mvlist, ddof=1) / math.sqrt(len(mvlist)), 'vals' : mvlist}
             if debug:
-                print '    %17s %12s %.4f +/- %.4f   %s' % (mname, mtype, mvals[mname][mtype]['mean'], mvals[mname][mtype]['err'], ' '.join('%.4f'%v for v in mvlist))
+                print('    %17s %12s %.4f +/- %.4f   %s' % (mname, mtype, mvals[mname][mtype]['mean'], mvals[mname][mtype]['err'], ' '.join('%.4f'%v for v in mvlist)))
     utils.mkdir(ofn, isfile=True)
-    print '  writing metrics to %s' % ofn
-    with open(ofn, 'w') as mfile:
-        json.dump(mvals, mfile)
+    print('  writing metrics to %s' % ofn)
+    utils.jsdump(ofn, mvals)
 
 # ----------------------------------------------------------------------------------------
 def run_method(mthd, spval, stype, iseed=0):
@@ -145,15 +147,15 @@ def make_plots(swarm=False, debug=False):
             for mthd in args.methods:
                 plotvals = read_files(mthd)
                 if debug:
-                    print '  %s' % mthd
-                xvals, yvals = zip(*plotvals[mthd][stype].items())
+                    print('  %s' % mthd)
+                xvals, yvals = list(zip(*list(plotvals[mthd][stype].items())))
                 if debug:
                     if ist==0:
-                        print '  %-18s %2s %s' % (mtr_type, '', '  '.join('%5s'%lzv(v) for v in xvals))
+                        print('  %-18s %2s %s' % (mtr_type, '', '  '.join('%5s'%lzv(v) for v in xvals)))
                     # print '    %8s  %8s  %s' % (stype, mthd, '  '.join('%.3f'%v for v in yvals))
                 xvals = [lzv(v) for v in xvals]
                 if not swarm:
-                    yvals, yerrs = zip(*yvals)
+                    yvals, yerrs = list(zip(*yvals))
                 if args.n_random_seeds is None:
                     ax.plot(xvals, yvals, label=mthd, alpha=0.6, linewidth=3, markersize=13, marker='.', color=method_colors.get(mthd))
                 else:
@@ -169,7 +171,7 @@ def make_plots(swarm=False, debug=False):
                                      xlabel='lambda 0', xticks=None if swarm else xvals, xticklabels=['%.2f'%v for v in xvals], ybounds=(0, 1.05), leg_loc=(0.1, 0.2))
             fnames[0 if 'pairwise' in mtr_type else (2 if mtr_type=='partis' else 1)].append(fn)
     # ----------------------------------------------------------------------------------------
-    import plotting
+    import python.plotting as plotting
     utils.prep_dir(pltdir(), wildlings=['*.csv', '*.svg'])
     fnames = [[], [], []]
     for mtstr in ['pairwise', 'closeness']:
@@ -179,7 +181,7 @@ def make_plots(swarm=False, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def plot_simulation():
-    import plotting
+    import python.plotting as plotting
     utils.prep_dir(pltdir(simu=True), wildlings=['*.csv', '*.svg'])
     for stype in stypes:
         # csize_hists = {}

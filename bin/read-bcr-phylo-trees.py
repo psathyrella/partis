@@ -1,10 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
 import os
 import sys
 import argparse
 import pickle
 import csv
 from ete3 import TreeNode, TreeStyle, NodeStyle, SVG_COLORS
+from io import open
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle-tree-file', help='bcr phylo output pickle tree file')
@@ -25,7 +27,7 @@ with open(args.newick_tree_file, 'w') as ntfile:
     ntfile.write(treestr)
 
 if args.kdfile is not None:
-    with open(args.kdfile, 'w') as kdfile:
+    with open(args.kdfile, 'wb' if sys.version_info.major < 3 else 'w') as kdfile:
         writer = csv.DictWriter(kdfile, ('uid', 'kd', 'time', 'relative_kd', 'lambda', 'target_index', 'target_distance'))
         writer.writeheader()
         for node in tree.traverse():  # small kd is higher affinity

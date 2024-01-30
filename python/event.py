@@ -1,4 +1,6 @@
 """ Container to hold the information for a single recombination event. """
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import csv
 import sys
 import random
@@ -6,9 +8,9 @@ import numpy
 import os
 import copy
 
-import utils
-import indelutils
-import treeutils
+from . import utils
+from . import indelutils
+from . import treeutils
 
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):
@@ -131,7 +133,7 @@ class RecombinationEvent(object):
         line['indelfos'] = self.indelfos
         line['seqs'] = [self.indelfos[iseq]['reversed_seq'] if indelutils.has_indels(self.indelfos[iseq]) else line['input_seqs'][iseq] for iseq in range(len(line['input_seqs']))]
         self.set_ids(line, irandom=irandom)
-        treeutils.translate_labels(self.tree, zip(self.leaf_names, line['unique_ids']), expect_missing=True)  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
+        treeutils.translate_labels(self.tree, list(zip(self.leaf_names, line['unique_ids'])), expect_missing=True)  # ordering in <self.leaf_names> is set in recombinator.add_mutants()
         line['tree'] = self.tree.as_string(schema='newick')
         line['duplicates'] = [[] for _ in range(len(line['input_seqs']))]
         line['loci'] = [self.glfo['locus'] for _ in range(len(line['input_seqs']))]  # this is annoying to make it per-seq, but that makes it easier to deal with it when it's input meta info
@@ -146,13 +148,13 @@ class RecombinationEvent(object):
 
     # ----------------------------------------------------------------------------------------
     def print_gene_choice(self):
-        print '    chose:  gene             length'
+        print('    chose:  gene             length')
         for region in utils.regions:
-            print '        %s  %-18s %-3d' % (region, utils.color_gene(self.genes[region], width=18), len(self.original_seqs[region])),
+            print('        %s  %-18s %-3d' % (region, utils.color_gene(self.genes[region], width=18), len(self.original_seqs[region])), end=' ')
             if region in self.pre_erosion_codon_positions:
-                print ' (%s: %d)' % (utils.conserved_codons[self.glfo['locus']][region], self.pre_erosion_codon_positions[region])
+                print(' (%s: %d)' % (utils.conserved_codons[self.glfo['locus']][region], self.pre_erosion_codon_positions[region]))
             else:
-                print ''
+                print('')
 
     # ----------------------------------------------------------------------------------------
     def revert_conserved_codons(self, seq, debug=False):
@@ -161,7 +163,7 @@ class RecombinationEvent(object):
             if seq[pos : pos + 3] != self.unmutated_codons[region]:
                 assert len(self.unmutated_codons[region]) == 3
                 if debug:
-                    print '    reverting %s --> %s' % (seq[pos : pos + 3], self.unmutated_codons[region])  # this doesn't happen *much* any more, but bppseqgen barfs if we pass it rates that are exactly zero, so it still happens sometimes
+                    print('    reverting %s --> %s' % (seq[pos : pos + 3], self.unmutated_codons[region]))  # this doesn't happen *much* any more, but bppseqgen barfs if we pass it rates that are exactly zero, so it still happens sometimes
                 seq = seq[:pos] + self.unmutated_codons[region] + seq[pos + 3 :]
             assert utils.codon_unmutated(utils.conserved_codons[self.glfo['locus']][region], seq, pos)
         return seq
@@ -180,7 +182,7 @@ class RecombinationEvent(object):
         for istp in [i for i, c in enumerate(codons) if c in utils.codon_table['stop']]:
             new_cdn = fix_stop(codons[istp])
             if debug:
-                print '  fixed %3d: %s --> %s' % (istp, codons[istp], new_cdn)
+                print('  fixed %3d: %s --> %s' % (istp, codons[istp], new_cdn))
             codons[istp] = new_cdn
         seq = trim_bits[0] + ''.join(codons) + trim_bits[1]
         if debug:

@@ -1,5 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
+import random
 import numpy
 import os
 import csv
@@ -12,25 +15,26 @@ from subprocess import Popen, PIPE, check_call, check_output, CalledProcessError
 import copy
 import colored_traceback.always
 import sys
+from io import open
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 if os.getcwd() != partis_dir:
     raise Exception('need to run test.py from main partis dir %s' % partis_dir)
 import yaml
 
-from baseutils import get_extra_str
-import utils
-import glutils
-from hist import Hist
-from clusterpath import ClusterPath
-import paircluster
+from python.baseutils import get_extra_str
+import python.utils as utils
+import python.glutils as glutils
+from python.hist import Hist
+from python.clusterpath import ClusterPath
+import python.paircluster as paircluster
 
 # ----------------------------------------------------------------------------------------
 class Tester(object):
     # ----------------------------------------------------------------------------------------
-    def dirs(self, tstr):
+    def dirs(self, tstr, force_paired=False):
         assert tstr in ['ref', 'new']
-        return 'test%s/%s-results%s' % ('/paired' if args.paired else '', tstr, '-slow' if args.slow else '')
+        return 'test%s/%s-results%s' % ('/paired' if (args.paired or force_paired) else '', tstr, '-slow' if args.slow else '')
     # ----------------------------------------------------------------------------------------
     def nqr(self, act):
         if act == 'quick':  # bears no relation to the others, so makes sense to handle it differently
@@ -65,7 +69,7 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def paramdir(self, st, dt):
         pd = self.label + '/parameters/' + dt
-        if st is None:
+        if st is None:  # if <st> isn't set, we want the subpath (without parent dir), e.g. when --dont-run/evaluating results
             return pd
         return self.dirs(st) + '/' + pd
     # ----------------------------------------------------------------------------------------
@@ -75,18 +79,18 @@ class Tester(object):
         return 'paired-%sdir' % inout
     # ----------------------------------------------------------------------------------------
     # i'm adding this late (especially for the non-production tests) so there's probably some more places it could be used
-    def opath(self, ptest, st=None):  # don't set <st> if you just want the basename-type stuff (no base/parent dirs)
+    def opath(self, ptest, st=None, force_paired=False):  # don't set <st> if you just want the basename-type stuff (no base/parent dirs)
         if 'cache-parameters' in ptest:
             return self.paramdir(None, ptest.split('-')[2])
         elif ptest == 'simulate':
             return self.inpath(None, 'simu')
         else:
-            op = '%s%s' % (ptest, '' if args.paired else '.yaml')
-            if args.paired and 'get-selection-metrics' in ptest:
+            op = '%s%s' % (ptest, '' if (args.paired or force_paired) else '.yaml')
+            if (args.paired or force_paired) and 'get-selection-metrics' in ptest:
                 op += '-chosen-abs.csv'
             if st is None:
                 return op
-            return '%s/%s' % (self.dirs(st), op)
+            return '%s/%s' % (self.dirs(st, force_paired=force_paired), op)
     # ----------------------------------------------------------------------------------------
     def ptn_cachefn(self, st, for_cmd=False, lpair=None, locus=None):  # see note above for opath()
         assert st == 'new'  # i think?
@@ -115,8 +119,17 @@ class Tester(object):
     def sclust_sizes(self):  # NOTE depends on self.n_simu_leaves
         return (15, 20) if args.slow else (5, 10)
     # ----------------------------------------------------------------------------------------
+    def min_smetric_cluster_size(self):
+        return 10 if args.slow else 3
+    # ----------------------------------------------------------------------------------------
+    def cluster_size_args(self):
+        return ['--min-selection-metric-cluster-size', str(self.min_smetric_cluster_size()),
+                '--min-paired-cluster-size-to-read', str(self.min_smetric_cluster_size())]
+    # ----------------------------------------------------------------------------------------
     def __init__(self):
         self.partis = '%s/bin/partis' % utils.get_partis_dir()
+        if args.prepend_coverage:
+            self.partis = 'coverage3 run --append %s' % self.partis
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         # generate paired data dir with: UPDATE i cat'd the ig?.fa files into all-seqs.fa (in the same dir) so extract-pair-info and split-loci get run
         #  - ./bin/split-loci.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta --outdir test/paired-data --input-metafname /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml --n-max-queries 100 >test/paired-data/split-loci.log
@@ -167,7 +180,7 @@ class Tester(object):
             self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
                 self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
-            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired']}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
+            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired'] + self.cluster_size_args()}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
         if args.quick:
             self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.nqr('quick'))]}
@@ -177,7 +190,7 @@ class Tester(object):
             n_events = int(self.nqr('simu') / float(self.n_simu_leaves))
             simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', str(self.n_simu_leaves)]}
             if args.paired:
-                simulate_args['extras'] += ['--min-observations-per-gene', '5', '--mean-cells-per-droplet', '1.5', '--constant-cells-per-droplet', '--fraction-of-reads-to-remove', '0.15']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
+                simulate_args['extras'] += ['--min-observations-per-gene', '5', '--mean-cells-per-droplet', '1.25', '--constant-cells-per-droplet', '--fraction-of-reads-to-remove', '0.15']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
             if args.bust_cache:  # if we're cache busting, we need to run these *first*, so that the inference tests run on a simulation file in the new dir that was just made (i.e. *not* whatever simulation file in the new dir happens to be there)
                 self.tests['cache-parameters-data'] = pcache_data_args
                 self.tests['simulate'] = simulate_args
@@ -197,10 +210,6 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def test(self, args):
-        if args.comparison_plots:
-            assert False  # needs updating
-            self.make_comparison_plots()
-            return
         if not args.dont_run:
             self.run(args)
         if args.dry_run or args.bust_cache or args.quick:
@@ -209,6 +218,72 @@ class Tester(object):
         self.compare_stuff(input_stype='new')
         self.compare_production_results(['cache-parameters-data', 'simulate'])
         self.compare_run_times()
+
+    # ----------------------------------------------------------------------------------------
+    def run_coverage(self, args):
+        # ----------------------------------------------------------------------------------------
+        def run_cmd(cmd, shell=False, logfname=None, dont_prepend=False):
+            if logfname is not None:
+                print('        writing log to %s' % logfname)
+            cov_str = 'coverage3 run --append'  # --data-file=%s/coverage/%d.cov (this doesn't seem to be supported in my version
+            utils.simplerun('%s%s' % ('' if dont_prepend else cov_str+' ', cmd), shell=shell, logfname=logfname)
+        # ----------------------------------------------------------------------------------------
+        ivsn = 0
+        while True:
+            odir = '%s/vsn-%d' % (args.coverage_outdir, ivsn)
+            if os.path.exists(odir):
+                print('  coverage outdir %s exists, you may want to rm -r it by hand' % odir)
+            else:
+                break
+            ivsn += 1
+        cfn = '%s/.coverage' % os.getcwd()
+        if os.path.exists(cfn):
+            print('  removing existing coverage file %s' % cfn)
+            os.remove(cfn)
+
+        run_cmd('./test/test.py --prepend-coverage', dont_prepend=True)  # NOTE tests may fail because of the coverage stuff, which is fine (at the least they'll be way too slow)
+        run_cmd('./test/test.py --prepend-coverage --paired', dont_prepend=True)  # also note that we have to put dont_prepend since recursive subprocs having coverage commands breaks things (at least before coverage 6.3)
+
+        # cp output files so that working files (e.g. tree inference output files) don't get scattered around the normal test output dir
+        if not os.path.exists(odir):
+            os.makedirs(odir)
+        ptnfn = '%s/%s' % (odir, utils.insert_before_suffix('-single', os.path.basename(self.opath('partition-new-simu', st='ref'))))
+        utils.simplerun('cp %s %s' % (self.opath('partition-new-simu', st='ref'), ptnfn))
+        pair_ptndir = '%s/%s-paired' % (odir, os.path.basename(self.opath('partition-new-simu', st='ref', force_paired=True)))
+        utils.simplerun('cp -r %s %s' % (self.opath('partition-new-simu', st='ref', force_paired=True), pair_ptndir))
+
+        for ft in ['csv', 'fa', 'yaml']:
+            run_cmd('./bin/parse-output.py %s %s/parse-output.%s' % (ptnfn, odir, ft))
+        run_cmd('./bin/parse-output.py %s %s/parse-output-paired --paired' % (pair_ptndir, odir))
+        run_cmd('./bin/cf-alleles.py --bases all', logfname='%s/cf-alleles.log'%odir)
+        run_cmd('./bin/cf-alleles.py --bases 8-51-1', logfname='%s/cf-alleles-8-51.log'%odir)
+
+        run_cmd('./bin/partis view-output --outfname %s' % ptnfn, logfname='%s/view-output.log'%odir)
+        run_cmd('./bin/partis view-output --paired-loci --paired-outdir %s' % pair_ptndir, logfname='%s/view-output-paired.log'%odir)
+
+        run_cmd('./bin/cf-germlines.py %s/hmm/germline-sets %s/hmm/germline-sets' % (self.paramdir('ref', 'simu'), self.paramdir('ref', 'data')), logfname='%s/cf-germlines.log'%odir)
+        run_cmd('./bin/compare-plotdirs.py --outdir %s/compare-plotdirs --plotdirs %s/hmm/mutation:%s/sw/mutation --names hmm:sw' % (odir, self.opath('annotate-new-simu-annotation-performance', st='ref').replace('.yaml', ''), self.opath('annotate-new-simu-annotation-performance', st='ref').replace('.yaml', '')))
+
+        ptn_plot_cmd = './bin/partis plot-partitions --partition-plot-cfg mds:trees --tree-inference-method iqtree --cluster-indices 0:2 %s' % ' '.join(self.cluster_size_args())
+        run_cmd('%s --outfname %s --plotdir %s/plot-partitions' % (ptn_plot_cmd, ptnfn, odir))
+        run_cmd('%s --paired-loci --paired-outdir %s --plotdir %s/plot-partitions-paired' % (ptn_plot_cmd, pair_ptndir, odir))
+
+        run_cmd('./bin/plot-hmms.py --outdir %s/plot-hmms --infiles %s' % (odir, ':'.join(glob.glob('%s/hmm/hmms/IGHD1*.yaml'%self.paramdir('ref', 'data')))))
+
+        gct_sm_cmd = './bin/partis get-selection-metrics --tree-inference-method gctree %s --cluster-indices 0:2' % ' '.join(self.cluster_size_args())
+        run_cmd('%s --outfname %s --plotdir %s/gctree-smetric-plots' % (gct_sm_cmd, ptnfn, odir))
+        run_cmd('./bin/read-gctree-output.py --locus igh --species human --gctreedir %s/gctree/iclust-0 --outdir %s/read-gctree-output' % (utils.getprefix(ptnfn), odir))  # NOTE this uses output from the previous line
+        run_cmd('%s --paired-loci --paired-outdir %s --plotdir %s/paired-gctree-smetric-plots' % (gct_sm_cmd, pair_ptndir, odir))
+
+        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run' % odir)  # don't use multiple gc rounds here, since we need the tree in the next line (and the tree isn't written for multiple gc rounds)
+        run_cmd('./bin/smetric-run.py --infname %s/bcr-phylo-run/selection/simu/mutated-simu.yaml --base-plotdir %s/smetric-run --metric-method lbi' % (odir, odir))  # NOTE uses results from previous line
+        run_cmd('./bin/bcr-phylo-run.py --base-outdir %s/bcr-phylo-run-paired --paired --n-gc-rounds 3 --obs-times 30:5,10:5' % odir)
+        run_cmd('./test/cf-paired-loci.py --label coverage --version v0 --n-replicates 2 --n-sub-procs 10 --scratch-mute-freq-list 0.01:0.1 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --mutate-stop-codons\" --final-plot-xvar scratch-mute-freq --n-leaves-list 3 --n-sim-events-list 100 --single-light-locus igk --base-outdir %s/cf-paired-loci --perf-metrics precision:sensitivity --actions simu:cache-parameters:partition:plot:combine-plots' % odir, shell=True)
+
+        # it'd be nice to add germline inference to the normal (non-coverage) tests, but doing more than a trivial test like this requires lots of sequences, which is slower than I really want to add to testing
+        run_cmd('./bin/test-germline-inference.py --prepend-coverage-command --n-sim-events 1000 --outdir %s/test-germline-inference --sim-v-genes=IGHV1-18*01 --inf-v-genes=IGHV1-18*01 --snp-positions 27,55,88 --mutation-multiplier 0.00001 --seed 1' % odir, dont_prepend=True)
+
+        print('now run: coverage3 report --omit=python/__init__.py')  # could automate this, but whatever
 
     # ----------------------------------------------------------------------------------------
     def fiddle_with_arguments(self, ptest, argfo):
@@ -236,8 +311,6 @@ class Tester(object):
             argfo['action'] = 'get-selection-metrics'  # could really remove almost all of the arguments, mostly just need --outfname
         elif 'cache-parameters-' in ptest:
             argfo['action'] = 'cache-parameters'
-            # if True:  #args.make_plots:
-            #     argfo['extras'] += ['--plotdir', 'paired-outdir' if args.paired else self.dirs('new') + '/' + self.label + '/plots/' + input_dtype]  # NOTE this needs lots of testing if i ever uncomment it
         else:
             argfo['action'] = ptest
 
@@ -255,7 +328,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_stuff(self, input_stype):
-        print '%s input' % input_stype
+        print('%s input' % input_stype)
         for version_stype in self.stypes:  # <version_stype> is the code version, i.e. 'ref' is the reference results, 'new' is the results we just made with the new code
             self.read_annotation_performance(version_stype, input_stype)
             self.read_partition_performance(version_stype, input_stype)  # NOTE also calls read_annotation_performance()
@@ -267,16 +340,34 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def prepare_to_run(self, args, name, info):
         """ Pre-run stuff that you don't want to do until *right* before you actually run. """
-
-        # delete old partition cache file
+        # ----------------------------------------------------------------------------------------
+        def clean_old_seed_dir(sdir):  # rm whole seed dir to make sure the dir for the previous seed id doesn't hang around
+            if args.dry_run:
+                print('    would rm %s' % sdir)
+            else:  # maybe i should just rm the output dir for every test before running? although it might get complicated since some of them i think share dirs
+                print('    removing %s' % sdir)
+                shutil.rmtree(sdir)
+        # ----------------------------------------------------------------------------------------
+        def rm_file(fn):
+            if args.dry_run:
+                print('   would remove %s' % fn)
+            else:
+                check_call(['rm', '-v', fn])
+        # ----------------------------------------------------------------------------------------
+        # delete any old partition cache files
         if name == 'partition-' + info['input_stype'] + '-simu':
-            # cachefnames = [self.dirs('new') + '/' + self.ptn_cachefn(info['input_stype'], locus=l) for l in (utils.sub_loci(args.ig_or_tr) if args.paired else [None])]
             cachefnames = ['%s/%s' % (self.dirs('new'), f) for f in self.all_ptn_cachefns()]
             for cfn in [f for f in cachefnames if os.path.exists(f)]:
-                if args.dry_run:
-                    print '   would remove %s' % cfn
-                else:
-                    check_call(['rm', '-v', cfn])
+                rm_file(cfn)
+        # and any old tree inference files
+        if name == 'get-selection-metrics-' + info['input_stype'] + '-simu':
+            tfns = []
+            for subd in ['', '/*+*/partition-*']:
+                for tmeth in ['fasttree', 'iqtree']:
+                    for ftp in ['fasttree.out', 'log*', 'input-seqs.fa']:
+                        tfns += glob.glob('%s%s/%s/iclust-*/%s' % (self.opath('partition-new-simu', st='new'), subd, tmeth, ftp))
+            for ffn in [f for f in tfns if os.path.exists(f)]:
+                rm_file(ffn)
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
@@ -285,6 +376,9 @@ class Tester(object):
             if args.paired:
                 seed_uid, seed_loci = seed_uid
                 info['extras'] += ['--seed-unique-id', ':'.join(seed_uid), '--seed-loci', ':'.join(seed_loci)]
+                sdir = '%s/seeds' % self.opath(name, st=info['input_stype'])
+                if os.path.exists(sdir):
+                    clean_old_seed_dir(sdir)
             else:
                 info['extras'] += ['--seed-unique-id', seed_uid]
 
@@ -302,6 +396,8 @@ class Tester(object):
             ist, idt = self.get_stypes(name)
             action = info['action']
             cmd_str = info['bin'] + ' ' + action + ' --dont-write-git-info'
+            if args.prepend_coverage:
+                cmd_str += ' --prepend-coverage-command'
             if args.paired:
                 cmd_str += ' --paired-loci'
             for tkey in ['inpath', 'parameter-dir', 'sw-cachefname']:
@@ -327,7 +423,7 @@ class Tester(object):
                 cmd_str += ' --%s %s' % (self.astr('out'), self.opath(name, st='new'))
 
             logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
-            print logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]'
+            print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
             if args.dry_run:
                 continue
             logfile = open(self.logfname, 'a')
@@ -337,11 +433,11 @@ class Tester(object):
             try:
                 check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
                 if args.quick:
-                    print '\n  %s' % 'ok'
-            except CalledProcessError, err:
+                    print('\n  %s' % 'ok')
+            except CalledProcessError as err:
                 # print err  # this just says it exited with code != 0
-                print '  log tail:'
-                print utils.pad_lines(check_output(['tail', self.logfname]))
+                print('  log tail: %s' % self.logfname)
+                print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
                 sys.exit(1)  # raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
 
@@ -350,16 +446,16 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_reference_results(self, expected_content):
-        print '  removing ref files'
+        print('  removing ref files')
         dir_content = set([os.path.basename(f) for f in glob.glob(self.dirs('ref') + '/*')])
         if len(dir_content - expected_content) > 0 or len(expected_content - dir_content) > 0:
             if len(dir_content - expected_content) > 0:
-                print 'in ref dir but not expected\n    %s' % (utils.color('red', ' '.join(dir_content - expected_content)))
+                print('in ref dir but not expected\n    %s' % (utils.color('red', ' '.join(dir_content - expected_content))))
             if len(expected_content - dir_content) > 0:
-                print 'expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content)))
+                print('expected but not in ref dir\n    %s' % (utils.color('red', ' '.join(expected_content - dir_content))))
             raise Exception('unexpected or missing content in reference dir (see above)')
         for fname in [self.dirs('ref') + '/' + ec for ec in expected_content]:
-            print '    rm %s' % fname
+            print('    %srm %s' % ('(would) ' if args.dry_run else '', fname))
             if args.dry_run:
                 continue
             if os.path.isdir(fname):
@@ -370,7 +466,7 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def bust_cache(self):
         test_outputs = [self.opath(k) for k in self.tests if not self.is_prod_test(k)]
-        expected_content = set(test_outputs + self.perfdirs.values() + [os.path.basename(self.logfname), self.label])
+        expected_content = set(test_outputs + list(self.perfdirs.values()) + [os.path.basename(self.logfname), self.label])
         if not args.paired:
             expected_content |= set(self.all_ptn_cachefns())  # they're in the partition outdir if --paired is set, so don't need to be moved
         expected_content.add('run-times.csv')
@@ -379,9 +475,9 @@ class Tester(object):
         self.remove_reference_results(expected_content)
 
         # copy over parameters, simulation, and plots
-        print '  copy new files to ref'
+        print('  mv new files to ref')
         for fname in expected_content:
-            print '    mv %s   -->  %s/' % (fname, self.dirs('ref'))
+            print('    mv %s   -->  %s/' % (fname, self.dirs('ref')))
             if args.dry_run:
                 continue
             shutil.move(self.dirs('new') + '/' + fname, self.dirs('ref') + '/')
@@ -394,22 +490,6 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def read_each_annotation_performance(self, sequence_multiplicity, version_stype, input_stype, these_are_cluster_annotations=False):  # <these_are_cluster_annotations> means this fcn is being called from within read_partition_performance()
         """ version_stype is the code version, while input_stype is the input data version, i.e. 'ref', 'new' is the reference code version (last commit) run on the then-new simulation and parameters"""
-        def read_performance_file(fname, column, only_ibin=None):
-            values = []
-            with open(fname) as csvfile:
-                reader = csv.DictReader(csvfile)
-                ibin = 0
-                for line in reader:
-                    if only_ibin is not None and ibin != only_ibin:
-                        ibin += 1
-                        continue
-                    values.append(float(line[column]))
-                    ibin += 1
-            if len(values) == 1:
-                return values[0]
-            else:
-                return values
-
         if these_are_cluster_annotations:
             ptest = '-'.join(['partition', input_stype, 'simu'])
             methods = ['hmm']
@@ -438,9 +518,6 @@ class Tester(object):
                 perffo[method][bound + '_insertion'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + bound + '_insertion.csv').get_mean(absval=True)
             for erosion in utils.real_erosions:
                 perffo[method][erosion + '_del'] = Hist(fname=perfdir + '/' + method + '/boundaries/' + erosion + '_del.csv').get_mean(absval=True)
-            # for region in utils.regions:
-            #     fraction_correct = read_performance_file(perfdir + '/' + method + '/gene-call/' + region + '_gene.csv', 'contents', only_ibin=1)
-            #     perffo[method][region + '_call'] = fraction_correct
 
     # ----------------------------------------------------------------------------------------
     def do_this_test(self, tstr, input_stype, pt):
@@ -462,7 +539,7 @@ class Tester(object):
             if None in ccfs:
                 raise Exception('none type ccf read from %s' % fname)
             if debug:
-                print '    %5.2f          %5.2f      %-28s   to true partition' % (ccfs[0], ccfs[1], fname) #os.path.basename(fname))
+                print('    %5.2f          %5.2f      %-28s   to true partition' % (ccfs[0], ccfs[1], fname)) #os.path.basename(fname))
             return ccfs
         # ----------------------------------------------------------------------------------------
         ptest_list = [k for k in self.tests.keys() if self.do_this_test('partition', input_stype, k)]
@@ -472,8 +549,8 @@ class Tester(object):
             self.perf_info[version_stype][input_stype] = OrderedDict()
         pinfo = self.perf_info[version_stype][input_stype]
         if debug:
-            print '  version %s input %s partitioning' % (version_stype, input_stype)
-            print '  purity         completeness        test                    description'
+            print('  version %s input %s partitioning' % (version_stype, input_stype))
+            print('  purity         completeness        test                    description')
         for ptest in ptest_list:
             if ptest not in pinfo:
                 pinfo[ptest] = OrderedDict()
@@ -494,7 +571,7 @@ class Tester(object):
                     htmp = Hist(fname='%s/true-pair-clean-performance.csv' % self.opath(ptest, st=version_stype))
                     ttot = htmp.integral(False)
                     for pcat in self.pair_clean_metrics:
-                        pinfo[ptest][pcat] = htmp.bin_contents[htmp.find_bin(None, label=pcat)] / ttot
+                        pinfo[ptest][pcat] = htmp.bin_contents[htmp.find_bin(None, label=pcat)] / float(ttot)
             else:
                 ccfs = read_cpath(self.opath(ptest, st=version_stype))  # self.dirs(version_stype) + '/' + ptest + '.yaml')
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = ccfs
@@ -506,14 +583,15 @@ class Tester(object):
         # ----------------------------------------------------------------------------------------
         def read_smfile(fname, smfo):
             if not os.path.exists(fname):  # probably e.g. igh+igl for a sample with only igh+igk
+                print('  %s selection metric output file doesn\'t exist: %s' % (utils.wrnstr(), fname))
                 return
             with open(fname) as yfile:
                 lbfos = yaml.load(yfile, Loader=yaml.CLoader)
             for metric in self.selection_metrics:
                 for lbfo in lbfos:  # one lbfo for each cluster
-                    smfo[metric] += lbfo['lb'][metric].values()
+                    smfo[metric] += list(lbfo['lb'][metric].values())
             if debug:
-                print '      read lbfos for %d cluster%s from %s' % (len(lbfos), utils.plural(len(lbfos)), fname)
+                print('      read lbfos for %d cluster%s from %s' % (len(lbfos), utils.plural(len(lbfos)), fname))
         # ----------------------------------------------------------------------------------------
         def read_chosen_abs(fname):
             with open(fname) as chfile:
@@ -522,7 +600,7 @@ class Tester(object):
         # ----------------------------------------------------------------------------------------
         pinfo = self.perf_info[version_stype][input_stype]
         if debug:
-            print '  version %s input %s selection metrics' % (version_stype, input_stype)
+            print('  version %s input %s selection metrics' % (version_stype, input_stype))
         ptest_list = [k for k in self.tests.keys() if self.do_this_test('get-selection', input_stype, k)]
         for ptest in ptest_list:
             if ptest not in pinfo:  # perf_info should already have all the parent keys cause we run read_partition_performance() first
@@ -533,7 +611,7 @@ class Tester(object):
                         smfname = '%s/%s/partition-%s-selection-metrics.yaml' % (self.opath(ptest.replace('get-selection-metrics', 'partition'), st=version_stype), '+'.join(lpair), locus)
                         read_smfile(smfname, pinfo[ptest])
                 if debug:
-                    print '  total values read: %s' % '  '.join('%s %d'%(m, len(pinfo[ptest][m])) for m in self.selection_metrics)
+                    print('  total values read: %s' % '  '.join('%s %d'%(m, len(pinfo[ptest][m])) for m in self.selection_metrics))
                 pinfo[ptest]['chosen-abs'] = read_chosen_abs(self.opath(ptest, st=version_stype))
             else:
                 read_smfile(self.opath(ptest, st=version_stype), pinfo[ptest])
@@ -542,7 +620,7 @@ class Tester(object):
     def compare_performance(self, input_stype):
         # ----------------------------------------------------------------------------------------
         def print_comparison_str(ref_val, new_val, epsval, fw=7, dp=3, pm=False):
-            fractional_change = 0. if ref_val == 0. else (new_val - ref_val) / ref_val  # NOTE not the abs value yet
+            fractional_change = 0. if ref_val == 0. else (new_val - ref_val) / float(ref_val)  # NOTE not the abs value yet
             if abs(fractional_change) > epsval:
                 color = 'red'
             elif abs(fractional_change) > self.tiny_eps:
@@ -554,10 +632,10 @@ class Tester(object):
                 if pm:
                     fmstr = fmstr.replace('%', '%+')
                 return fmstr % v
-            print '  %s%s  ' % (floatstr(ref_val), (fw+4)*' ' if color is None else utils.color(color, '--> %s'%floatstr(new_val))),
+            print('  %s%s  ' % (floatstr(ref_val), (fw+4)*' ' if color is None else utils.color(color, '--> %s'%floatstr(new_val))), end=' ')
 
         # ----------------------------------------------------------------------------------------
-        print '  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype
+        print('  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype)
         all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'multi-annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
         all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
         annotation_ptests = [pt for pt in all_annotation_ptests if pt in self.perf_info['ref'][input_stype]]
@@ -583,7 +661,7 @@ class Tester(object):
 
 
         # print annotation header
-        print '%8s %9s' % ('', ''),
+        print('%8s %9s' % ('', ''), end=' ')
         for ptest in annotation_ptests:
             for method in [m for m in refpfo[ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
                 printstr = method
@@ -591,30 +669,30 @@ class Tester(object):
                     printstr = 'multi %s' % method
                 if 'partition' in ptest:
                     printstr = 'partition %s' % method
-                print '    %-15s' % printstr,
-        print ''
+                print('    %-15s' % printstr, end=' ')
+        print('')
 
         # print values
         if 'hmm' in refpfo[annotation_ptests[0]]:  # it's not in there for paired partition test, since (at least atm) we don't do annotation tests for it
             allmetrics = [m for m in refpfo[annotation_ptests[0]]['hmm']]
             for metric in allmetrics:
                 alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
-                print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
+                print(('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)), end=' ')
                 for ptest in annotation_ptests:
                     for method in [m for m in refpfo[ptest] if m in ['sw', 'hmm']]:  # 'if' is just to skip purity and completeness
                         if set(refpfo[ptest]) != set(newpfo[ptest]):
                             raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))
                         print_comparison_str(refpfo[ptest][method][metric], newpfo[ptest][method][metric], self.eps_vals.get(metric, 0.1))
-                print ''
+                print('')
 
         # print partition header
-        print '%8s %5s' % ('', ''),
+        print('%8s %5s' % ('', ''), end=' ')
         for ptest in partition_ptests:
-            print '    %-18s' % ptest.split('-')[0],
-        print ''
+            print('    %-18s' % ptest.split('-')[0], end=' ')
+        print('')
         for metric in ['purity', 'completeness'] + self.pair_clean_metrics:
             alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
-            print ('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)),
+            print(('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)), end=' ')
             for ptest in partition_ptests:
                 if 'seed-' in ptest and metric in self.pair_clean_metrics:  # ick
                     continue
@@ -624,12 +702,12 @@ class Tester(object):
                 if metric != 'purity':
                     method = ''
                 print_comparison_str(refpfo[ptest][metric], newpfo[ptest][metric], self.eps_vals.get(metric, 0.1))
-            print ''
+            print('')
 
         # selection metrics
-        print '                      %s' % ''.join(['%-23s'%metricstrs.get(m, m) for m in self.selection_metrics])
+        print('                      %s' % ''.join(['%-23s'%metricstrs.get(m, m) for m in self.selection_metrics]))
         for mfname, mfcn in [('mean', numpy.mean), ('min', min), ('max', max), ('len', len)]:
-            print '             %5s' % mfname,
+            print('             %5s' % mfname, end=' ')
             for metric in self.selection_metrics:
                 for ptest in selection_metric_tests:  # this'll break if there's more than one selection metric ptest
                     if set(refpfo[ptest]) != set(newpfo[ptest]):
@@ -638,7 +716,7 @@ class Tester(object):
                     dp = 1 if metric=='cons-dist-aa' else 3
                     if mfname=='len': dp = 0
                     print_comparison_str(mfcn(ref_list), mfcn(new_list), self.eps_vals.get(metric, 0.1), dp=dp, pm=metric=='cons-dist-aa')
-            print ''
+            print('')
         if args.paired:
             ptest = utils.get_single_entry(selection_metric_tests)
             ref_abs, new_abs = refpfo[ptest]['chosen-abs'], newpfo[ptest]['chosen-abs']
@@ -648,46 +726,46 @@ class Tester(object):
             diffstr = '    ok'
             if n_ref != n_new or n_only_ref > 0 or n_only_new > 0:
                 diffstr = '       %s in common, %s only in ref, %s only in new' % (utils.color(None if n_common==n_ref else 'red', str(n_common)), utils.color(None if n_only_ref==0 else 'red',  str(n_only_ref)), utils.color(None if n_only_new==0 else 'red',  str(n_only_new)))
-            print '    chose %d abs %s%s' % (n_ref, '' if n_new==n_ref else utils.color('red', '--> %d'%n_new), diffstr)
+            print('    chose %d abs %s%s' % (n_ref, '' if n_new==n_ref else utils.color('red', '--> %d'%n_new), diffstr))
 
     # ----------------------------------------------------------------------------------------
     def compare_production_results(self, ptests):
-        print 'diffing production results'
+        print('diffing production results')
         for ptest in ptests:
             if args.quick and ptest not in self.quick_tests:
                 continue
             fname = self.opath(ptest)  # sometimes a dir rather than a file
-            print '    %-30s' % fname,
+            print('    %-30s' % fname, end=' ')
             cmd = 'diff -qbr ' + ' '.join(self.dirs(st) + '/' + fname for st in self.stypes)
-            proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
+            proc = Popen(cmd.split(), stdout=PIPE, stderr=PIPE, universal_newlines=True)
             out, err = proc.communicate()
             if proc.returncode == 0:
-                print '       ok'
+                print('       ok')
             else:
                 differlines = [ l for l in out.split('\n') if 'differ' in l]
                 onlylines = [ l for l in out.split('\n') if 'Only' in l]
-                print ''
+                print('')
                 if len(differlines) > 0:
-                    n_total_files = int(check_output('find ' + self.dirs('ref') + '/' + fname + ' -type f | wc -l', shell=True))
+                    n_total_files = int(check_output('find ' + self.dirs('ref') + '/' + fname + ' -type f | wc -l', shell=True, universal_newlines=True))
                     if n_total_files == 1:
                         assert len(differlines) == 1
-                        print utils.color('red', '      file differs'),
+                        print(utils.color('red', '      file differs'), end=' ')
                     else:
-                        print utils.color('red', '      %d / %d files differ' % (len(differlines), n_total_files)),
+                        print(utils.color('red', '      %d / %d files differ' % (len(differlines), n_total_files)), end=' ')
                 if len(onlylines) > 0:
                     for st in self.stypes:
                         theseonlylines = [l for l in onlylines if self.dirs(st) + '/' + fname in l]
                         if len(theseonlylines) > 0:
-                            print utils.color('red', '      %d files only in %s' % (len(theseonlylines), st)),
+                            print(utils.color('red', '      %d files only in %s' % (len(theseonlylines), st)), end=' ')
                 if differlines == 0 and onlylines == 0:
-                    print utils.color('red', '      not sure why, but diff returned %d' % proc.returncode),
-                print '  (%s)' % cmd
+                    print(utils.color('red', '      not sure why, but diff returned %d' % proc.returncode), end=' ')
+                print('  (%s)' % cmd)
                 if err != '':
-                    print err
+                    print(err)
 
     # ----------------------------------------------------------------------------------------
     def write_run_times(self):
-        with open(self.dirs('new') + '/run-times.csv', 'w') as newfile:
+        with open(self.dirs('new') + '/run-times.csv', utils.csv_wmode()) as newfile:
             writer = csv.DictWriter(newfile, ('name', 'seconds'))
             writer.writeheader()
             for name, seconds in self.run_times.items():
@@ -695,7 +773,7 @@ class Tester(object):
 
     # ----------------------------------------------------------------------------------------
     def compare_run_times(self):
-        print 'checking run times'
+        print('checking run times')
 
         def read_run_times(stype):
             times[stype] = {}
@@ -710,70 +788,35 @@ class Tester(object):
         for name in self.tests:
             if args.quick and name not in self.quick_tests:
                 continue
-            print '  %30s   %7.1f' % (name, times['ref'][name]),
+            print('  %30s   %7.1f' % (name, times['ref'][name]), end=' ')
             if name not in times['new']:
-                print '  no new time for %s' % utils.color('red', name)
+                print('  no new time for %s' % utils.color('red', name))
                 continue
-            fractional_change = (times['new'][name] - times['ref'][name]) / times['ref'][name]
+            fractional_change = (times['new'][name] - times['ref'][name]) / float(times['ref'][name])
             if abs(fractional_change) > 0.2:
-                print '--> %-5.1f %s' % (times['new'][name], utils.color('red', '(%+.3f)' % fractional_change)),
+                print('--> %-5.1f %s' % (times['new'][name], utils.color('red', '(%+.3f)' % fractional_change)), end=' ')
             elif abs(fractional_change) > 0.1:
-                print '--> %-5.1f %s' % (times['new'][name], utils.color('yellow', '(%+.3f)' % fractional_change)),
+                print('--> %-5.1f %s' % (times['new'][name], utils.color('yellow', '(%+.3f)' % fractional_change)), end=' ')
             else:
-                print '    ok   ',
-            print ''
+                print('    ok   ', end=' ')
+            print('')
 
-    # ----------------------------------------------------------------------------------------
-    def make_comparison_plots(self):
-        assert False  # self.perfdirs treatment (among probably lots of other things) needs work
-        plotdirs = [
-            # self.perfdirs['ref'] + '/sw',  # ref sw performance
-            # self.perfdirs['ref'] + '/hmm', # ref hmm performance
-            'test/plots/data/sw/overall',          # sw data parameters
-            'test/plots/data/hmm/overall',         # hmm data parameters
-            'test/plots/data/hmm/mute-freqs/overall',
-            'test/plots/data/sw/mute-freqs/overall'
-            # 'test/plots/data/hmm/mute-freqs'
-            # 'test/plots/simu/hmm-true',    # true simulation parameters
-            # 'test/plots/simu/hmm-true/mute-freqs'
-        ]
-        base_check_cmd = './bin/compare.py --linewidths 7:2 --alphas 0.55:1 --str-colors #006600:#990012 --markersizes 3:1 --names reference:new'  # --colors 595:807:834 --scale-errors 1.414 "
-        if os.getenv('www') is None:
-            www_dir = '_test-plots'
-        else:
-            www_dir = os.getenv('www') + '/partis/test'
-
-        # # if you want to do *all* the subdirs use this:
-        # recursive_subdirs = []
-        # for plotdir in plotdirs:
-        #     find_plotdirs_cmd = 'find ' + self.dirs('ref') + '/' + plotdir + ' -name "*.csv" -exec dirname {} \;|sed \'s@/plots$@@\' | sort | uniq'
-        #     recursive_subdirs += check_output(find_plotdirs_cmd, shell=True).split()
-
-        for plotdir in plotdirs:
-            print plotdir
-            check_cmd = base_check_cmd + ' --plotdirs '  + self.dirs('ref') + '/' + plotdir + ':' + self.dirs('new') + '/' + plotdir
-            check_cmd += ' --outdir ' + www_dir + '/' + plotdir
-            check_call(check_cmd.split())
-        
-#            # env.Command('test/_results/%s.passed' % name, out,
-#            #             './bin/diff-parameters.py --arg1 test/regression/parameters/' + actions[name]['target'] + ' --arg2 ' + stashdir + '/test/' + actions[name]['target'] + ' && touch $TARGET')
-        
     # ----------------------------------------------------------------------------------------
     def compare_partition_cachefiles(self, input_stype, debug=False):
         # ----------------------------------------------------------------------------------------
         def print_key_differences(vtype, refkeys, newkeys):
-            print '    %s keys' % vtype
+            print('    %s keys' % vtype)
             if len(refkeys - newkeys) > 0 or len(newkeys - refkeys) > 0:
                 if len(refkeys - newkeys) > 0:
-                    print utils.color('red', '      %d only in ref version' % len(refkeys - newkeys))
+                    print(utils.color('red', '      %d only in ref version' % len(refkeys - newkeys)))
                 if len(newkeys - refkeys) > 0:
-                    print utils.color('red', '      %d only in new version' % len(newkeys - refkeys))
-                print '      %d in common' % len(refkeys & newkeys)
+                    print(utils.color('red', '      %d only in new version' % len(newkeys - refkeys)))
+                print('      %d in common' % len(refkeys & newkeys))
             else:
-                print '        %d identical keys in new and ref cache' % len(refkeys)
+                print('        %d identical keys in new and ref cache' % len(refkeys))
         # ----------------------------------------------------------------------------------------
         def readcache(fname):
-            if debug: print '      reading partition cache from %s' % fname
+            if debug: print('      reading partition cache from %s' % fname)
             cache = {'naive_seqs' : {}, 'logprobs' : {}}
             with open(fname) as cachefile:
                 reader = csv.DictReader(cachefile)
@@ -785,7 +828,7 @@ class Tester(object):
             return cache
         # ----------------------------------------------------------------------------------------
         def compare_files(fname):
-            print '  %s input partition cache file' % input_stype
+            print('  %s input partition cache file' % input_stype)
             refcache = readcache(self.dirs('ref') + '/' + fname)
             newcache = readcache(self.dirs('new') + '/' + fname)
 
@@ -839,11 +882,11 @@ class Tester(object):
             if n_big_delta_logprobs > 0:
                 diff_logprob_str = utils.color('red', diff_logprob_str)
                 mean_logprob_str = utils.color('red', mean_logprob_str)
-            print '                  fraction different     mean abs difference among differents'
-            print '      naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str)
-            print '      log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str)
+            print('                  fraction different     mean abs difference among differents')
+            print('      naive seqs     %s                      %s      (hamming fraction)' % (diff_hfracs_str, mean_hfrac_str))
+            print('      log probs      %s                      %s' % (diff_logprob_str, mean_logprob_str))
             if n_different_length > 0:
-                print utils.color('red', '        %d different length' % n_different_length)
+                print(utils.color('red', '        %d different length' % n_different_length))
 
         # ----------------------------------------------------------------------------------------
         ptest = 'partition-' + input_stype + '-simu'
@@ -863,21 +906,23 @@ parser.add_argument('--dont-run', action='store_true', help='don\'t actually run
 parser.add_argument('--dry-run', action='store_true', help='do all preparations to run, but don\'t actually run the commands, and don\'t check results')
 parser.add_argument('--quick', action='store_true', help='only run one command: cache-parameters on a small numbrer of simulation events')
 parser.add_argument('--slow', action='store_true', help='by default, we run tests on a fairly small number of sequences, which is sufficient for checking that *nothing* has changed. But --slow is for cases where you\'ve made changes that you know will affect results, and you want to look at the details of how they\'re affected, for which you need to run on more sequences. Note that whether --slow is set or not (runs all tests with more or less sequences) is separate from --quick (which only runs one test).')
+parser.add_argument('--run-coverage', action='store_true', help='instead of running the normal suite of tests (which compare results to make sure they haven\'t changed), instead run a series of commands that\'s designed to execute as many of the lines as possible (without comparing results).')
+parser.add_argument('--prepend-coverage', action='store_true', help='run normal tests, but prepending coverage append commands')
+parser.add_argument('--coverage-outdir', default='%s/partis/tmp/coverage' % os.getenv('fs', default=os.getenv('HOME')))
 parser.add_argument('--bust-cache', action='store_true', help='overwrite current ref info, i.e. run this when things have changed, but you\'ve decided they\'re fine')
 parser.add_argument('--only-bust-current', action='store_true', help='only bust cache for current command line args (as opposed to the default of busting caches for both slow and non-slow, paired and non-paired)')
 parser.add_argument('--paired', action='store_true', help='run paired tests, i.e. with --paired-loci. Note that this doesn\'t test all the things (e.g. seed partitioning) that non-paired does.')
 parser.add_argument('--run-all', action='store_true', help='run all four combinations of tests: paired/non-paired and slow/non-slow (by default only runs one). *Not* for use with --bust-cache, which runs all of them by default.')
 parser.add_argument('--ig-or-tr', default='ig')
-parser.add_argument('--comparison-plots', action='store_true')
 parser.add_argument('--print-width', type=int, default=300, help='set to 0 for infinite')
-# parser.add_argument('--make-plots', action='store_true')  # needs updating
-# example to make comparison plots:
-#   ./bin/compare-plotdirs.py --plotdirs test/reference-results/simu-new-performance/sw:test/new-results/simu-new-performance/sw --names ref:new --outdir $www/partis/tmp/test-plots
 
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 assert not (args.quick and args.slow)  # it just doesn't make sense
+
+random.seed(0)
+numpy.random.seed(0)
 
 if args.print_width == 0:
     args.print_width = 99999
@@ -902,12 +947,16 @@ if args.run_all or (args.bust_cache and not args.only_bust_current):  # run all 
     sys.exit(0)
 
 tester = Tester()
+if args.run_coverage:
+    tester.run_coverage(args)
+    sys.exit(0)
 tester.test(args)
 if args.bust_cache:
     tester.bust_cache()
 
 # ----------------------------------------------------------------------------------------
 def get_typical_variances():
+    # NOTE don't delete this, since it was used (and might be needed again) to get the expected variances hardcoded above
     raise Exception('needs updating to work as a function')
     # cp = ClusterPath(fname='tmp.csv')
     # cp.print_partitions()

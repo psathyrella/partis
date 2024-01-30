@@ -1,7 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import glob
 import sys
 import csv
+from io import open
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import os
 import copy
@@ -11,13 +14,13 @@ import json
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
-sys.path.insert(1, partis_dir + '/python')
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import paircluster
-import glutils
-from clusterpath import ClusterPath
-import treeutils
+import python.utils as utils
+import python.paircluster as paircluster
+import python.glutils as glutils
+from python.clusterpath import ClusterPath
+import python.treeutils as treeutils
 
 gctree_outstr = 'gctree.out.inference.1'
 
@@ -30,6 +33,11 @@ Example usage:
     ./bin/read-gctree-output.py --locus igh --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
   paired:
     ./bin/read-gctree-output.py --paired-loci --seqfname <fasta-input-file> --gctreedir <gctree-output-dir> --outdir <dir-for-partis-output>
+  other args, with examples (see datascripts/meta/taraki-gctree-2021-10/partis-run.py):
+    --kdfname /fh/fast/matsen_e/data/taraki-gctree-2021-10/processed-data/determistic/gc1/kdvals.csv
+    --tree-basename tree.nwk --kd-columns delta_bind_CGG_FVS_additive --dont-invert-kd --multiplicity-column multiplicity --species mouse --no-insertions-or-deletions
+    --initial-germline-dir /home/dralph/work/partis/datascripts/meta/taraki-gctree-2021-10/germlines --parameter-plots
+    --slice-bin-fname /home/dralph/work/partis/datascripts/meta/taraki-gctree-2021-10/slice-bins.yaml
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass
@@ -68,7 +76,7 @@ if args.paired_loci:
 else:
     if args.seqfname is None:
         args.seqfname = '%s/%s.fasta' % (args.gctreedir, gctree_outstr)
-        print '    set --seqfname to default location in --gctreedir: %s' % args.seqfname
+        print('    set --seqfname to default location in --gctreedir: %s' % args.seqfname)
     if args.locus is None:
         raise Exception('have to set --locus for single chain')
 
@@ -120,7 +128,7 @@ utils.mkdir(args.outdir)
 metafos = {}
 if args.multiplicity_column is None:  # if not set, read abundances from args.abundance_basename
     abfn = '%s/%s' % (args.gctreedir, args.abundance_basename)
-    print '    reading abundance info from %s' % abfn
+    print('    reading abundance info from %s' % abfn)
     with open(abfn) as afile:
         reader = csv.DictReader(afile, fieldnames=('name', 'abundance'))
         for line in reader:
@@ -128,7 +136,7 @@ if args.multiplicity_column is None:  # if not set, read abundances from args.ab
                 metafos[line['name']] = {}
             metafos[line['name']]['multiplicity'] = max(1, int(line['abundance']))  # increase 0s (inferred ancestors) to 1
 if args.kdfname is not None:
-    print '    reading kd info%s from %s' % ('' if args.multiplicity_column is None else ' and multiplicity info', args.kdfname)
+    print('    reading kd info%s from %s' % ('' if args.multiplicity_column is None else ' and multiplicity info', args.kdfname))
     with open(args.kdfname) as kfile:
         reader = csv.DictReader(kfile)
         for line in reader:
@@ -142,16 +150,15 @@ if args.kdfname is not None:
                 metafos[uid]['multiplicity'] = int(line[args.multiplicity_column])
 
 if args.paired_loci:  # convert metafos to per-locus names
-    for base_id in metafos.keys():
+    for base_id in list(metafos.keys()):
         for ltmp in utils.sub_loci('ig'):
             new_id = '%s-%s' % (base_id, ltmp)
             metafos[new_id] = metafos[base_id]
         del metafos[base_id]
 
 # and write to json/yaml
-print '    writing input meta info to %s' % metafname()
-with open(metafname(), 'w') as mfile:
-    json.dump(metafos, mfile)
+print('    writing input meta info to %s' % metafname())
+utils.jsdump(metafname(), metafos)
 
 for action in args.actions:
     run_cmd(action)

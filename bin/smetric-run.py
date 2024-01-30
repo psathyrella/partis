@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import sys
 import colored_traceback.always
 import os
@@ -6,9 +8,9 @@ import yaml
 import argparse
 import numpy
 
-sys.path.insert(1, './python')
-import utils
-import treeutils
+sys.path.insert(1, '.') #'./python')
+import python.utils as utils
+import python.treeutils as treeutils
 
 # NOTE this only really works on simulation, although it maybe wouldn't take much work to get it working on data
 
@@ -19,10 +21,10 @@ parser.add_argument('--lb-tau', type=float)
 parser.add_argument('--dont-normalize-lbi', action='store_true')
 parser.add_argument('--action', choices=['train', 'test'])
 parser.add_argument('--dtr-path')
-parser.add_argument('--metric-method', default='dtr')
+parser.add_argument('--metric-method', default='aa-lbi')
 parser.add_argument('--dtr-cfg')
 parser.add_argument('--only-csv-plots', action='store_true')
-parser.add_argument('--n-max-queries', type=int)
+parser.add_argument('--n-max-queries', type=int, default=-1)
 parser.add_argument('--max-family-size', type=int, help='subset each family down to this size before passing to treeutils')
 parser.add_argument('--cluster-indices')
 parser.add_argument('--min-selection-metric-cluster-size', type=int, default=treeutils.default_min_selection_metric_cluster_size)
@@ -33,6 +35,7 @@ parser.add_argument('--label-tree-nodes', action='store_true')
 parser.add_argument('--label-root-node', action='store_true')
 parser.add_argument('--selection-metric-plot-cfg', default= ':'.join(treeutils.default_plot_cfg))
 args = parser.parse_args()
+# NOTE extra required args are set in treeutils plot_tree_metrics()
 args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_ranges=True)
 args.selection_metric_plot_cfg = utils.get_arg_list(args.selection_metric_plot_cfg, choices=treeutils.all_plot_cfg)
 ete_path, workdir = None, None
@@ -40,8 +43,8 @@ if args.make_tree_plots or 'tree' in args.selection_metric_plot_cfg:
     ete_path = '/home/%s/anaconda_ete/bin' % os.getenv('USER')
     workdir = utils.choose_random_subdir('/tmp/%s/tree-metrics' % os.getenv('USER'))
 
-if args.n_max_queries is not None:
-    print '    --n-max-queries set to %d' % args.n_max_queries
+if args.n_max_queries != -1:
+    print('    --n-max-queries set to %d' % args.n_max_queries)
 glfo, true_lines, _ = utils.read_output(args.infname, n_max_queries=args.n_max_queries)
 
 # numpy.random.seed(1)

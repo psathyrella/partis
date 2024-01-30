@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import csv
 import os
 import math
@@ -9,13 +11,15 @@ import collections
 import operator
 import copy
 import glob
+import re
 
-from hist import Hist
-import hutils
-import utils
-from clusterpath import ClusterPath
-import mds
-import treeutils
+from .hist import Hist
+from . import hutils
+from . import utils
+from .clusterpath import ClusterPath
+from . import mds
+from . import treeutils
+from io import open
 
 # ----------------------------------------------------------------------------------------
 class PartitionPlotter(object):
@@ -23,8 +27,8 @@ class PartitionPlotter(object):
     def __init__(self, args, glfo=None):
         self.args = args
         self.glfo = glfo
-        import plotting
-        self.plotting = sys.modules['plotting']
+        from . import plotting
+        self.plotting = sys.modules['python.plotting']
 
         self.n_clusters_per_joy_plot = 50 if self.args.meta_info_key_to_color is None else 30
         self.n_max_joy_plots = 12
@@ -39,6 +43,7 @@ class PartitionPlotter(object):
         self.min_tree_cluster_size = 5  # we also use min_selection_metric_cluster_size
         self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
+        self.min_mds_cluster_size = 3
         self.laplacian_spectra_min_clusters_size = 4
         self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
 
@@ -75,7 +80,7 @@ class PartitionPlotter(object):
                 if self.args.queries_to_include is not None:
                     tqtis |= set(cluster) & set(self.args.queries_to_include)
                 if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(cluster):
-                    key, val = self.args.meta_info_to_emphasize.items()[0]
+                    key, val = list(self.args.meta_info_to_emphasize.items())[0]
                     tqtis.add(utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats))
                 if len(tqtis) == 0:
                     continue
@@ -92,7 +97,7 @@ class PartitionPlotter(object):
             clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= min_csize]
             skipped_small_clusters = True
         if len(clusters_to_use) == 0:
-            print '  %s no clusters to plot for cluster size scatter' % utils.color('yellow', 'warning')
+            print('  %s no clusters to plot for cluster size scatter' % utils.color('yellow', 'warning'))
             return
         xvals, yvals = zip(*[[xfcn(cluster), yfcn(cluster)] for cluster in clusters_to_use])
         if log_cluster_size:
@@ -149,7 +154,7 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def meta_emph(self, cluster, uid):  # return True if <uid> from <cluster> satisfies criteria in self.args.meta_info_to_emphasize
         antn = self.antn_dict[':'.join(cluster)]
-        key, val = self.args.meta_info_to_emphasize.items()[0]
+        key, val = list(self.args.meta_info_to_emphasize.items())[0]
         return key in antn and utils.meta_info_equal(key, val, utils.per_seq_val(antn, key, uid), formats=self.args.meta_emph_formats)
 
     # ----------------------------------------------------------------------------------------
@@ -161,7 +166,7 @@ class PartitionPlotter(object):
         if len(self.sclusts[iclust]) == 1:
             return False
         if plottype == 'mds' and len(self.sclusts[iclust]) > self.mds_max_cluster_size:
-            print '     skipping mds plots for cluster with size %d > %d' % (len(self.sclusts[iclust]), self.mds_max_cluster_size)
+            print('     skipping mds plots for cluster with size %d > %d' % (len(self.sclusts[iclust]), self.mds_max_cluster_size))
             return False
         if plottype == 'trees' and len(self.sclusts[iclust]) < self.args.min_selection_metric_cluster_size:
             return False
@@ -195,7 +200,7 @@ class PartitionPlotter(object):
         high_mutation_clusters = []
         sorted_cluster_groups = [self.sclusts[i : i + self.n_clusters_per_joy_plot] for i in range(0, len(self.sclusts), self.n_clusters_per_joy_plot)]
         if debug:
-            print '  shm vs size joyplots: divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(self.sclusts), len(sorted_cluster_groups))
+            print('  shm vs size joyplots: divided repertoire of size %d with %d clusters into %d cluster groups' % (repertoire_size, len(self.sclusts), len(sorted_cluster_groups)))
         all_emph_vals, emph_colors = None, None
         if self.args.meta_info_key_to_color is not None:  # have to do this out here before the loop so that the colors are synchronized (and all plots include all possible values)
             all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
@@ -203,7 +208,7 @@ class PartitionPlotter(object):
             if iclustergroup > self.n_max_joy_plots:  # note that when this is activated, the high mutation plot is no longer guaranteed to have every high mutation cluster (but it should have every high mutation cluster that was bigger than the cluster size when we started skipping here)
                 continue
             if debug:
-                print '    %d: making joyplot with %d clusters' % (iclustergroup, len(subclusters))
+                print('    %d: making joyplot with %d clusters' % (iclustergroup, len(subclusters)))
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
             high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, self.antn_dict, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations,
                                                                         queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, all_emph_vals=all_emph_vals, emph_colors=emph_colors,
@@ -381,7 +386,7 @@ class PartitionPlotter(object):
             if self.args.queries_to_include is not None:
                 addqtis(tqtis, {u : u for u in self.args.queries_to_include})
             if self.args.meta_info_to_emphasize is not None:
-                key, val = self.args.meta_info_to_emphasize.items()[0]
+                key, val = list(self.args.meta_info_to_emphasize.items())[0]
                 addqtis(tqtis, {full_cluster[i] : utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats) for i in kept_indices if self.meta_emph(full_cluster, full_cluster[i])})  # leading '_' is so dot doesn't cover up label
             addseq('_naive', full_info['naive_seq%s'%tstr])  # note that if any naive sequences that were removed above are in self.args.queries_to_include, they won't be labeled in the plot (but, screw it, who's going to ask to specifically label a sequence that's already specifically labeled?)
             addseq('_consensus', utils.cons_seq_of_line(full_info, aa=aa))  # leading underscore is 'cause the mds will crash if there's another sequence with the same name, and e.g. christian's simulation spits out the naive sequence with name 'naive'. No, this is not a good long term fix
@@ -451,8 +456,8 @@ class PartitionPlotter(object):
         start = time.time()
         if debug:
             if not run_in_parallel:
-                print '    making mds plots starting with %d clusters' % len(self.sclusts)
-                print '       size (+naive)   mds    plot   total'
+                print('    making mds plots starting with %d clusters' % len(self.sclusts))
+                print('       size (+naive)   mds    plot   total')
         plotted_cluster_lengths, skipped_cluster_lengths = [], []
         fnames = [[]]
         cmdfos = []
@@ -464,6 +469,9 @@ class PartitionPlotter(object):
             plotted_cluster_lengths.append(len(self.sclusts[iclust]))
 
             seqfos, color_scale_vals, tqtis, title, leg_title = get_cluster_info(self.sclusts[iclust], iclust)
+            if len(seqfos) < self.min_mds_cluster_size:
+                print('    %s cluster index %d too small (%d < %d) after e.g. removing duplicates, skipping' % (utils.wrnstr(), iclust, len(seqfos), self.min_mds_cluster_size))
+                continue
 
             labels = None
             if color_rule is not None:
@@ -477,7 +485,7 @@ class PartitionPlotter(object):
                 tmpfo = self.antn_dict[':'.join(self.sclusts[iclust])]
                 # n_naive_in_cluster = len([iseq for iseq in range(len(self.sclusts[iclust])) if tmpfo['n_mutations'][iseq] == 0])  # work out if there was a sequence already in the cluster that was the same as the naive sequence
                 # print '      %4d%6s' % (len(seqfos) - 1 + n_naive_in_cluster, subset_str),
-                print '      %4d%6s' % (len(seqfos), subset_str),
+                print('      %4d%6s' % (len(seqfos), subset_str), end=' ')
 
             if run_in_parallel:
                 assert labels is None  # would need to implement this (or just switch to non-parallel version if you need to run with labels set)
@@ -487,24 +495,43 @@ class PartitionPlotter(object):
                                  aligned=True, plotdir=plotdir, plotname=get_fname(iclust),
                                  queries_to_include=tqtis, color_scale_vals=color_scale_vals, labels=labels, title=title, leg_title=leg_title)
                 if debug:
-                    print '  %5.1f' % (time.time() - substart)
+                    print('  %5.1f' % (time.time() - substart))
             self.addfname(fnames, '%s' % get_fname(iclust))
 
         if run_in_parallel and len(cmdfos) > 0:
             utils.run_cmds(cmdfos, clean_on_success=True)  #, debug='print')
 
         if len(skipped_cluster_lengths) > 0:
-            print '    mds: skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), utils.cluster_size_str(skipped_cluster_lengths, only_passing_lengths=True))
+            print('    mds: skipped %d clusters with lengths: %s' % (len(skipped_cluster_lengths), utils.cluster_size_str(skipped_cluster_lengths, only_passing_lengths=True)))
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames)
 
-        print '      made %d mds plots (%.1fs) with sizes %s' % (sum(len(x) for x in fnames), time.time() - start, utils.cluster_size_str(plotted_cluster_lengths, only_passing_lengths=True))
+        print('      made %d mds plots (%.1fs) with sizes %s' % (sum(len(x) for x in fnames), time.time() - start, utils.cluster_size_str(plotted_cluster_lengths, only_passing_lengths=True)))
 
         return [[subd + '/' + fn for fn in fnames[i]] for i in range(min(2, len(fnames)))]
 
     # ----------------------------------------------------------------------------------------
     def set_treefos(self, set_alternatives=False):
+        # ----------------------------------------------------------------------------------------
+        def find_atn(clust):
+            # ----------------------------------------------------------------------------------------
+            def obs_nodes(tclst):  # try to hackily ignore iqtree inferred ancestral nodes, since they have the same name in all clusters
+                return [u for u in tclst if len(re.findall('Node[0-9][0-9]*', u)) == 0]
+            # ----------------------------------------------------------------------------------------
+            def dupstr():
+                dcluststrs = [' '.join(utils.color('red' if u in clust else None, u) for u in c) for c in ovlp_clusts]
+                return 'more than one cluster overlaps with %s:\n        %s' % (' '.join(clust), '\n        '.join(dcluststrs))
+            # ----------------------------------------------------------------------------------------
+            ovlp_clusts = [l['unique_ids'] for l in antn_list if len(set(l['unique_ids']) & set(clust)) > 0]
+            if len(ovlp_clusts) > 1:
+                print('    %s %s' % (utils.wrnstr(), dupstr()))
+                print('       (trying to remove inferred internal nodes named e.g. NodeXX, if this works it\'s probably fine)')
+                ovlp_clusts = [c for c in ovlp_clusts if len(set(obs_nodes(c)) & set(clust)) > 0]
+                if len(ovlp_clusts) > 1:
+                    raise Exception(dupstr())
+            return utils.get_single_entry(ovlp_clusts)
+        # ----------------------------------------------------------------------------------------
         if self.treefos is not None:
             return
         antn_list = [self.antn_dict.get(':'.join(c)) for c in self.sclusts]  # NOTE we *need* cluster indices here to match those in all the for loops in this file
@@ -515,7 +542,7 @@ class PartitionPlotter(object):
         if self.args.tree_inference_method is not None:  # if the inference method infers ancestors, those sequences get added to the annotation during inference (e.g gctree, iqtree, linearham), but here we have to update the antn_dict keys and sclusts for these new seqs
             self.antn_dict = utils.get_annotation_dict(antn_list)
             for iclust, clust in enumerate(self.sclusts):  # NOTE can't just sort the 'unique_ids', since we need the indices to match up with the other plots here
-                self.sclusts[iclust] = utils.get_single_entry([l['unique_ids'] for l in antn_list if len(set(l['unique_ids']) & set(clust)) > 0])
+                self.sclusts[iclust] = find_atn(clust)
         if set_alternatives:
             for iclust, clust in enumerate(self.sclusts):
                 if self.treefos[iclust] is None:
@@ -575,7 +602,7 @@ class PartitionPlotter(object):
                 continue
             if len(set(self.sclusts[iclust])) < len(self.sclusts[iclust]):
                 repeated_uids = [u for u, count in collections.Counter(self.sclusts[iclust]).items() if count > 1]
-                print '  skipping laplacian spectra plotting for cluster with %d duplicate uids (%s)' % (len(repeated_uids), ' '.join(repeated_uids))
+                print('  skipping laplacian spectra plotting for cluster with %d duplicate uids (%s)' % (len(repeated_uids), ' '.join(repeated_uids)))
                 continue
             treeutils.run_laplacian_spectra(self.get_treestr(iclust), plotdir=plotdir, plotname='icluster-%d' % iclust, title='size %d' % len(annotation['unique_ids']))
             if len(fnames[-1]) < self.n_plots_per_row:
@@ -710,14 +737,14 @@ class PartitionPlotter(object):
                 if annotation.get('is_fake_paired', False):
                     for tch in 'hl':
                         offset = annotation['%s_offset'%tch]
-                        cbounds = [(b-offset)/3 + self.indexing for b in annotation['%s_cdr3_bounds'%tch]]
+                        cbounds = [(b-offset)//3 + self.indexing for b in annotation['%s_cdr3_bounds'%tch]]
                         cdr3fo[tch] = '[%d - %d]' % tuple(cbounds)
             return metafo, cdr3fo
         # ----------------------------------------------------------------------------------------
         if len(self.sclusts) == 0:
-            print '  %s no clusters to plot' % utils.wrnstr()
+            print('  %s no clusters to plot' % utils.wrnstr())
             return [['x.svg']]
-        import lbplotting  # this is really slow because of the scipy stats import
+        from . import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('trees')
         self.set_treefos()
         self.set_mut_infos()
@@ -752,7 +779,7 @@ class PartitionPlotter(object):
         if len(cmdfos) > 0:
             start = time.time()
             utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=utils.auto_n_procs(), proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
-            print '    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start)
+            print('    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start))
         if os.path.exists(workdir):
             os.rmdir(workdir)
 
@@ -770,13 +797,14 @@ class PartitionPlotter(object):
     def make_mut_bubble_plots(self, min_n_muts=3, debug=False):
         # ----------------------------------------------------------------------------------------
         def process_single_tree(tkey, mcounts, dtree, antn, tdbg=False):
+            dtree.resolve_node_ages()
             meta_vals = {u : utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats) for u, v in zip(antn['unique_ids'], antn[self.args.meta_info_key_to_color])}
             mutfos, ncounts = {}, {}
-            for mstr, mct in sorted(mcounts[tkey].items(), key=operator.itemgetter(1), reverse=True):  # loop over observed mutations/positions
+            for mstr, mct in sorted(list(mcounts[tkey].items()), key=lambda x: x[1]['count'], reverse=True):  # loop over observed mutations/positions
                 # if len(mct['nodes']) < min_n_muts:  # ignore mutations that we saw fewer than <min_n_muts> times (can't do this here if we're averaging over multiple trees since we'd ignore mutations in some trees but not others
                 #     continue
                 if tdbg:
-                    print '  %-6s   %3d occurences' % (str(mstr), len(mct['nodes']))
+                    print('  %-6s   %3d occurences' % (str(mstr), len(mct['nodes'])))
                 assert len(mct['nodes']) == len(set(mct['nodes']))  # shouldn't be possible for a node to be in the list twice (and wouldn't make sense)
                 nodevals = collections.Counter()  # meta values for all nodes under any instance of this mutation
                 for nlabel in mct['nodes']:
@@ -787,19 +815,19 @@ class PartitionPlotter(object):
                     treeutils.get_clade_purity(meta_vals, tnode, meta_vals[nlabel], mval_counts=mval_counts, exclude_vals=['None'])
                     nodevals.update(mval_counts)
                     if tdbg:
-                        print '        %s       %s' % ('  '.join('%s: %d'%(k, v) for k, v in mval_counts.items()), utils.antnval(antn, 'alternate-uids', antn['unique_ids'].index(nlabel), default_val=nlabel, use_default=True))
+                        print('        %s       %s' % ('  '.join('%s: %d'%(k, v) for k, v in mval_counts.items()), utils.antnval(antn, 'alternate-uids', antn['unique_ids'].index(nlabel), default_val=nlabel, use_default=True)))
                 ntot = sum(nodevals.values())
                 nodevals = {k : v / float(ntot) for k, v in nodevals.items()}
                 if tdbg:
-                    srtd_vals = sorted(nodevals.items(), key=operator.itemgetter(1))
-                    print '    %d total nodes:  %s  (%s)' % (ntot, '  '.join('%s %d'%(k, v*ntot) for k, v in srtd_vals), '  '.join('%s %.3f'%(k, v) for k, v in srtd_vals))
+                    srtd_vals = sorted(list(nodevals.items()), key=operator.itemgetter(1))
+                    print('    %d total nodes:  %s  (%s)' % (ntot, '  '.join('%s %d'%(k, v*ntot) for k, v in srtd_vals), '  '.join('%s %.3f'%(k, v) for k, v in srtd_vals)))
                 mutfos[mstr] = nodevals
                 ncounts[mstr] = {'n-obs' : len(mct['nodes']), 'n-total-nodes' : ntot}
             return mutfos, ncounts
         # ----------------------------------------------------------------------------------------
         use_alts = self.args.tree_inference_method == 'linearham'
         if len(self.sclusts) == 0:
-            print '  %s no clusters to plot' % utils.wrnstr()
+            print('  %s no clusters to plot' % utils.wrnstr())
             return [['x.svg']]
         subd, plotdir = self.init_subd('mut-bubble')
         self.set_treefos(set_alternatives=use_alts)
@@ -834,7 +862,7 @@ class PartitionPlotter(object):
                     all_mvals = sorted(set([k for mfs in all_mfos for nvals in mfs.values() for k in nvals]))
                     nlen, flen = 4 * len(all_mfos), 4 * len(all_mfos)
                     def fstr(v): return '1' if v==1 else ('-' if v is None else '%.2f'%v)
-                    print '  %s  %s  %s   %s' % (tlabel, utils.wfmt('N obs', 5+nlen), utils.wfmt('N total nodes', 5+nlen), '  '.join(utils.wfmt(v, 10+flen) for v in all_mvals))
+                    print('  %s  %s  %s   %s' % (tlabel, utils.wfmt('N obs', 5+nlen), utils.wfmt('N total nodes', 5+nlen), '  '.join(utils.wfmt(v, 10+flen) for v in all_mvals)))
                 bubfos = []
                 for mstr in all_mstrs:
                     mstr_mvals = set([k for mfs in all_mfos for k in mfs.get(mstr, {})])
@@ -847,8 +875,8 @@ class PartitionPlotter(object):
                     def mestr(m, e): return '%s+/-%s' % (('%.0f' if int(m)==m else '%.1f')%m, '0' if e==0 else '%.1f'%e)
                     if debug:
                         def klstr(k): return (' '*(10+flen)) if k not in klists else '[' + ', '.join(fstr(v) for v in klists[k]) + ']'
-                        print '    %-6s  %10s %s   %10s %s      %s' % (mstr, mestr(n_obs_mean, n_obs_std), utils.wfmt(n_obs_list, nlen, jfmt='-'), mestr(n_tn_mean, n_tn_std), utils.wfmt(n_tn_list, nlen, jfmt='-'),
-                                                                       '  '.join('%s %s'%(fstr(avg_nodevals[k]) if k in avg_nodevals else '', utils.wfmt(klstr(k), flen, jfmt='-')) for k in all_mvals))
+                        print('    %-6s  %10s %s   %10s %s      %s' % (mstr, mestr(n_obs_mean, n_obs_std), utils.wfmt(n_obs_list, nlen, jfmt='-'), mestr(n_tn_mean, n_tn_std), utils.wfmt(n_tn_list, nlen, jfmt='-'),
+                                                                       '  '.join('%s %s'%(fstr(avg_nodevals[k]) if k in avg_nodevals else '', utils.wfmt(klstr(k), flen, jfmt='-')) for k in all_mvals)))
 
                     if n_obs_mean < min_n_muts:  # ignore mutations that we saw fewer than <min_n_muts> times (it sucks we have to get all the info for all mutations for every tree, but otherwise we'd miss some that were below the threshold in some but not others)
                         continue
@@ -872,9 +900,9 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def make_subtree_purity_plots(self):
         if len(self.sclusts) == 0:
-            print '  %s no clusters to plot' % utils.wrnstr()
+            print('  %s no clusters to plot' % utils.wrnstr())
             return [['x.svg']]
-        import lbplotting  # this is really slow because of the scipy stats import
+        from . import lbplotting  # this is really slow because of the scipy stats import
         subd, plotdir = self.init_subd('subtree-purity')
         self.set_treefos()
         if self.treefos.count(None) == len(self.treefos):
@@ -899,7 +927,7 @@ class PartitionPlotter(object):
         failed_clusters = []
         for cluster in partition:
             if ':'.join(cluster) not in annotations:
-                print '    %s cluster %s not in annotations' % (utils.color('red', 'warning'), ':'.join(cluster))
+                print('    %s cluster %s not in annotations' % (utils.color('red', 'warning'), ':'.join(cluster)))
                 # # this prints overlap/extra/missing:
                 # for clstr in annotations:
                 #     x = clstr.split(':')
@@ -914,11 +942,11 @@ class PartitionPlotter(object):
     # ----------------------------------------------------------------------------------------
     def plot(self, plotdir, partition, annotations, reco_info=None, cpath=None, args=None):
         if self.args.only_csv_plots:
-            print '  --only-csv-plots not implemented for partition plots, so returning without plotting'
+            print('  --only-csv-plots not implemented for partition plots, so returning without plotting')
             return
         if args is not None and args.sub_plotdir is not None:
             plotdir += '/' + args.sub_plotdir
-        print '    plotting partitions to %s' % plotdir
+        print('    plotting partitions to %s' % plotdir)
         sys.stdout.flush()
         start = time.time()
         if args is None or args.partition_plot_cfg is None:
@@ -948,7 +976,7 @@ class PartitionPlotter(object):
             if utils.check_cmd('R', options=['--slave', '--version'], return_bool=True):
                 fnames += self.make_mds_plots(reco_info=reco_info, run_in_parallel=True, aa=True) #, color_rule='wtf')
             else:
-                print '  note: R does not seem to be installed, so skipping mds partition plots'
+                print('  note: R does not seem to be installed, so skipping mds partition plots')
         if 'sizes' in plot_cfg:
             csfns = self.make_cluster_size_distribution()
             if 'shm-vs-size' in plot_cfg:
@@ -965,4 +993,4 @@ class PartitionPlotter(object):
         if not self.args.only_csv_plots:
             self.plotting.make_html(self.base_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=self.base_plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd if os.path.exists('%s/%s.html'%(self.base_plotdir,subd)) else subd) for subd in subdirs], bgcolor='#FFFFFF')
 
-        print '    partition plotting time: %.1f sec' % (time.time()-start)
+        print('    partition plotting time: %.1f sec' % (time.time()-start))

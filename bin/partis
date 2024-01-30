@@ -1,4 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 from distutils.version import StrictVersion
 import argparse
 import copy
@@ -13,6 +15,7 @@ import math
 import itertools
 import collections
 import traceback
+from io import open
 if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
     raise RuntimeError("scipy version 0.17 or later is required (found version %s)." % scipy.__version__)
 import colored_traceback.always
@@ -21,20 +24,20 @@ import json
 import operator
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
-sys.path.insert(1, partis_dir + '/python')
+    print('%s partis dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import glutils
-import treeutils
-import processargs
-import seqfileopener
-from partitiondriver import PartitionDriver
-from clusterpath import ClusterPath
-import paircluster
-from parametercounter import ParameterCounter
-from corrcounter import CorrCounter
-from waterer import Waterer
+import python.utils as utils
+import python.glutils as glutils
+import python.treeutils as treeutils
+import python.processargs as processargs
+import python.seqfileopener as seqfileopener
+from python.partitiondriver import PartitionDriver
+from python.clusterpath import ClusterPath
+import python.paircluster as paircluster
+from python.parametercounter import ParameterCounter
+from python.corrcounter import CorrCounter
+from python.waterer import Waterer
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -42,7 +45,7 @@ def run_simulation(args):
     def run_sub_cmds(working_gldir):
         # ----------------------------------------------------------------------------------------
         def get_sub_events(iproc):
-            n_sub_events = args.n_sim_events / args.n_procs
+            n_sub_events = args.n_sim_events // args.n_procs
             if iproc == args.n_procs - 1 and args.n_sim_events % args.n_procs > 0:  # do any extra ones in the last proc (has to match sub file writer below)
                 n_sub_events += args.n_sim_events % args.n_procs
             n_per_proc_list.append(n_sub_events)
@@ -58,14 +61,14 @@ def run_simulation(args):
             assert subtype in ['trees', 'heavy-chain-events']
             subfname = '%s/%s-sub-%d.%s'%(args.workdir, subtype, iproc, 'nwk' if subtype=='trees' else 'yaml')
             utils.replace_in_arglist(clist, '--input-simulation-treefname' if subtype=='trees' else '--heavy-chain-event-fname', subfname)
-            n_sub_objs = len(objlist) / args.n_procs
+            n_sub_objs = len(objlist) // args.n_procs
             sub_obj_list = objlist[iproc * n_sub_objs : (iproc + 1) * n_sub_objs]
             if iproc == args.n_procs - 1 and len(objlist) % args.n_procs > 0:  # add any extra ones to the last proc (has to match n_sub_events above) NOTE it's important that we add them to the *last* proc (it used to be the first one), since otherwise the h/l paired correlations are wrong, since things end up in a different order after you read files
                 sub_obj_list += objlist[args.n_procs * n_sub_objs : ]
             if len(sub_obj_list) == 0:
                 raise Exception('couldn\'t split up %d %s among %d procs' % (len(objlist), subtype, args.n_procs))
             if len(sub_obj_list) < n_sub_events:
-                print '  note: number of %s %d smaller than number of events %d for sub proc %d (of %d)' % (subtype, len(sub_obj_list), n_sub_events, iproc, args.n_procs)
+                print('  note: number of %s %d smaller than number of events %d for sub proc %d (of %d)' % (subtype, len(sub_obj_list), n_sub_events, iproc, args.n_procs))
             work_fnames.append(subfname)
             if subtype == 'trees':
                 with open(subfname, 'w') as sfile:
@@ -77,7 +80,7 @@ def run_simulation(args):
             with open(args.input_simulation_treefname) as tfile:
                 treelines = tfile.readlines()
             if len(treelines) < args.n_sim_events:
-                print '  note: total number of trees %d less than --n-sim-events %d' % (len(treelines), args.n_sim_events)
+                print('  note: total number of trees %d less than --n-sim-events %d' % (len(treelines), args.n_sim_events))
 
         cmdfos = []
         for iproc in range(args.n_procs):
@@ -99,7 +102,7 @@ def run_simulation(args):
                 write_sub_file('heavy-chain-events', iproc, n_sub_events, heavy_chain_events)
             cmdstr = ' '.join(clist)
             if args.debug:
-                print '  %s %s' % (utils.color('red', 'run'), cmdstr)
+                print('  %s %s' % (utils.color('red', 'run'), cmdstr))
             cmdfos.append({'cmd_str' : cmdstr, 'workdir' : get_workdir(iproc), 'logdir' : args.workdir+'/log-'+str(iproc), 'outfname' : get_outfname(iproc)})  # logdirs have to be different than <workdirs> since ./bin/partis (rightfully) barfs if its workdir already exists
 
         utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, batch_config_fname=args.batch_config_fname, debug='print')
@@ -113,12 +116,12 @@ def run_simulation(args):
         run_all_loci(args)
         return
 
-    from recombinator import Recombinator
+    from python.recombinator import Recombinator
 
     utils.prep_dir(args.workdir)
 
     if args.generate_trees:  # note that if we're not simulating from scratch we kind of don't need to generate trees in a separate step (we can just set --choose-trees-in-order and heavy and light will use the same trees in the same order), but for scratch simulation they end up different (I think just from generating the germline set below). It anyway seems safer to really specify the same trees.
-        import treegenerator
+        import python.treegenerator as treegenerator
         tmp_shm_parameter_dir = utils.parameter_type_subdir(args, args.shm_parameter_dir) if args.shm_parameter_dir is not None else None
         treegen = treegenerator.TreeGenerator(args, tmp_shm_parameter_dir)
         treegen.generate_trees(args.random_seed, args.outfname, args.workdir)
@@ -130,7 +133,7 @@ def run_simulation(args):
 
     if args.initial_germline_dir is not None:  # the command line explicitly told us where to get the glfo
         if args.reco_parameter_dir is not None:
-            print '  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set'
+            print('  note: getting germline sets from --initial-germline-dir, even though --reco-parameter-dir was also set')
         input_gldir = args.initial_germline_dir
     else:  # if it wasn't explicitly set, we have to decide what to use
         if args.rearrange_from_scratch:  # just use the default
@@ -146,7 +149,7 @@ def run_simulation(args):
     if not args.im_a_subproc and args.generate_germline_set:
         glutils.generate_germline_set(glfo, args, new_allele_info=args.new_allele_info, debug=args.debug>1)  # NOTE removes unwanted genes from <glfo>
         if utils.getsuffix(args.outfname) == '.csv':
-            print '  writing generated germline set to %s/' % args.outfname.replace('.csv', '-glfo')
+            print('  writing generated germline set to %s/' % args.outfname.replace('.csv', '-glfo'))
             glutils.write_glfo(args.outfname.replace('.csv', '-glfo'), glfo)
         if args.n_procs > 1:
             working_gldir = args.workdir + '/' + glutils.glfo_dir
@@ -155,7 +158,7 @@ def run_simulation(args):
     heavy_chain_events, heavy_chain_glfo = None, None
     if args.paired_correlation_values is not None and not utils.has_d_gene(args.locus):  # if we're doing paired correlations and this is light chain, we need to read the heavy chain annotations so we can pass the proper igh event into each light chain rearrangement
         heavy_chain_glfo, heavy_chain_events, _ = utils.read_output(args.heavy_chain_event_fname, dont_add_implicit_info=True)
-        print '    read %d heavy chain events from %s for paired correlations: %s' % (len(heavy_chain_events), args.heavy_chain_event_fname, ' '.join(':'.join(l['unique_ids']) for l in heavy_chain_events))
+        print('    read %d heavy chain events from %s for paired correlations: %s' % (len(heavy_chain_events), args.heavy_chain_event_fname, ' '.join(':'.join(l['unique_ids']) for l in heavy_chain_events)))
 
     # ----------------------------------------------------------------------------------------
     def make_events(n_events, workdir, outfname, random_ints, heavy_chain_events=None):
@@ -168,10 +171,10 @@ def run_simulation(args):
         if args.check_tree_depths or args.debug:
             reco.print_validation_values()
         utils.write_annotations(outfname, glfo, events, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), synth_single_seqs=utils.getsuffix(outfname) == '.csv', use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading) NOTE list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
-        print '    made %d event%s with %d seqs in %.1fs (%.1fs of which was running bppseqgen)' % (len(events), utils.plural(len(events)), sum(len(l['unique_ids']) for l in events), time.time()-start, sum(reco.validation_values['bpp-times']))
+        print('    made %d event%s with %d seqs in %.1fs (%.1fs of which was running bppseqgen)' % (len(events), utils.plural(len(events)), sum(len(l['unique_ids']) for l in events), time.time()-start, sum(reco.validation_values['bpp-times'])))
 
     if not args.im_a_subproc:
-        print 'simulating'
+        print('simulating')
 
     n_per_proc_list, work_fnames = [], []
     if args.n_procs == 1:
@@ -187,7 +190,7 @@ def run_simulation(args):
         _, alist, _ = utils.read_output(args.outfname)
         clens = [l['cdr3_length'] for l in alist]
         clcounts = {l : clens.count(l) for l in set(clens)}
-        print '  final cdr3 lengths: %s (with counts: %s)' % (' '.join(str(l) for l in sorted(set(clens))), ',  '.join('%d %d'%(l, c) for l, c in sorted(clcounts.items(), key=operator.itemgetter(0))))
+        print('  final cdr3 lengths: %s (with counts: %s)' % (' '.join(str(l) for l in sorted(set(clens))), ',  '.join('%d %d'%(l, c) for l, c in sorted(list(clcounts.items()), key=operator.itemgetter(0)))))
 
     if working_gldir is not None:
         glutils.remove_glfo_files(working_gldir, args.locus)
@@ -215,11 +218,11 @@ def read_qti_file(args):
                 more_input_info[sfo['name']][lkey] = [sfo[mkey]]
     else:
         more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data, args=args)
-    print '  --queries-to-include-fname: adding %d extra sequence%s from %s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname)
+    print('  --queries-to-include-fname: adding %d extra sequence%s from %s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname))
     if args.queries_to_include is None:
         args.queries_to_include = []
     if len(set(more_input_info) & set(args.queries_to_include)) > 0:  # could be actual overlap, or could be we've called this fcn twice
-        print '  %s overlap between --queries-to-include and extra input meta info in %s (maybe accidentally called this fcn more than once?): %s' % (utils.wrnstr(), args.queries_to_include_fname, ' '.join(set(more_input_info) & set(args.queries_to_include)))
+        print('  %s overlap between --queries-to-include and extra input meta info in %s (maybe accidentally called this fcn more than once?): %s' % (utils.wrnstr(), args.queries_to_include_fname, ' '.join(set(more_input_info) & set(args.queries_to_include))))
     args.queries_to_include += [k for k in more_input_info.keys() if k not in args.queries_to_include]  # whatever, just remove any duplicates
     return more_input_info
 
@@ -257,7 +260,7 @@ def read_inputs(args, actions):
     if gldir is not None:
         template_glfo = None
         if args.sanitize_input_germlines:
-            print '   using default germline dir %s for template glfo (e.g. for codon positions)' % args.default_initial_germline_dir
+            print('   using default germline dir %s for template glfo (e.g. for codon positions)' % args.default_initial_germline_dir)
             template_glfo = glutils.read_glfo(args.default_initial_germline_dir, args.locus)
         glfo = glutils.read_glfo(gldir, args.locus, only_genes=args.only_genes, template_glfo=template_glfo, add_dummy_name_components=args.sanitize_input_germlines, debug=2 if args.sanitize_input_germlines else False)
 
@@ -267,8 +270,11 @@ def read_inputs(args, actions):
             simglfo = None  # cause we'll read it from the input file
         elif args.simulation_germline_dir is not None:  # if an explicit dir was set on the command line
             simglfo = glutils.read_glfo(args.simulation_germline_dir, locus=args.locus)  # probably don't apply <args.only_genes> (?)
+        elif args.outfname is not None:
+            print('  note: setting --infname to value from --outfname since --is-simu was set and we need input simulation info')
+            args.infname = args.outfname
         else:
-            raise Exception('couldn\'t find simulation germline info: either set with --simulation-germline-dir, or use .yaml simulation files and set --infname')
+            raise Exception('couldn\'t find simulation germline info: either set --infname to a .yaml simulation file, or set --simulation-germline-dir')
 
     more_input_info = read_qti_file(args)  # also set args.queries_to_include
 
@@ -282,9 +288,9 @@ def read_inputs(args, actions):
         simglfo = yaml_glfo
 
     if len(input_info) > 1000 and args.n_procs == 1:
-        print '  note: running on %d sequences with only %d process%s. This may be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --batch-system.' % (len(input_info), args.n_procs, utils.plural(args.n_procs, prefix='e'))
+        print('  note: running on %d sequences with only %d process%s. This may be kinda slow, so it might be a good idea to set --n-procs N to the number of processors on your local machine, or look into non-local parallelization with --batch-system.' % (len(input_info), args.n_procs, utils.plural(args.n_procs, prefix='e')))
     if len(input_info) > 1000 and args.outfname is None and actions != ['cache-parameters']:
-        print '  note: running on a lot of sequences (%d) without setting --outfname. Which is ok, but there will be no persistent record of the results (except the parameter directory).' % len(input_info)
+        print('  note: running on a lot of sequences (%d) without setting --outfname. Which is ok, but there will be no persistent record of the results (except the parameter directory).' % len(input_info))
     return input_info, reco_info, glfo, simglfo
 
 # ----------------------------------------------------------------------------------------
@@ -306,23 +312,23 @@ def run_partitiondriver(args):
 
     if args.parameter_dir is None:
         args.parameter_dir = default_parameter_dir(args)
-        print '  note: --parameter-dir not set, so using default: %s' % args.parameter_dir
+        print('  note: --parameter-dir not set, so using default: %s' % args.parameter_dir)
 
     actions = [args.action]  # do *not* use <args.action> after this (well, for anything other than checking what was actually set on the command line)
     if args.action in ['annotate', 'partition'] and not os.path.exists(args.parameter_dir):
         if args.refuse_to_cache_parameters:
             raise Exception('--parameter-dir %s doesn\'t exist, and --refuse-to-cache-parameters was set' % args.parameter_dir)
         actions = ['cache-parameters'] + actions
-        print '  parameter dir does not exist, so caching a new set of parameters before running action \'%s\': %s' % (actions[1], args.parameter_dir)
+        print('  parameter dir does not exist, so caching a new set of parameters before running action \'%s\': %s' % (actions[1], args.parameter_dir))
         if args.seed_unique_id is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
             raise Exception('if setting --seed-unique-id for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
 
     input_info, reco_info, glfo, simglfo = read_inputs(args, actions)
     if input_info is not None and len(input_info) < args.n_procs:
-        print '  note: reducing N procs to the number of seqs %d --> %d' % (args.n_procs, len(input_info))
+        print('  note: reducing N procs to the number of seqs %d --> %d' % (args.n_procs, len(input_info)))
         args.n_procs = len(input_info)
     if args.max_n_seqs_to_likelihood_cluster is not None and not args.naive_vsearch and not args.no_naive_vsearch and len(input_info) > args.max_n_seqs_to_likelihood_cluster:
-        print '  note: found %d (>%d) seqs in input, so turning on --naive-vsearch (i.e. --fast) to speed things up. You can turn this behavior off by either setting --no-naive-vsearch or increasing --max-n-seqs-to-likelihood-cluster' % (len(input_info), args.max_n_seqs_to_likelihood_cluster)
+        print('  note: found %d (>%d) seqs in input, so turning on --naive-vsearch (i.e. --fast) to speed things up. You can turn this behavior off by either setting --no-naive-vsearch or increasing --max-n-seqs-to-likelihood-cluster' % (len(input_info), args.max_n_seqs_to_likelihood_cluster))
         args.naive_vsearch = True
     parter = PartitionDriver(args, glfo, input_info, simglfo, reco_info)
     parter.run(actions)
@@ -353,7 +359,7 @@ def remove_action_specific_args(clist, argsaction, tmpaction, debug=True):  # re
         else:
             iarg += 1
     if debug and len(removed_strs) > 0:
-        print '    removed %d arg strs that were specific to action \'%s\': %s' % (len(removed_strs), argsaction, ' '.join(removed_strs))
+        print('    removed %d arg strs that were specific to action \'%s\': %s' % (len(removed_strs), argsaction, ' '.join(removed_strs)))
 
 # ----------------------------------------------------------------------------------------
 def run_all_loci(args, ig_or_tr='ig'):
@@ -423,7 +429,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             mfnames.append(getofn(ltmp, joint=joint, lpair=lpair, input_meta=True))
         if os.path.exists(getifn('meta')):  # look in a default-ish location to which e.g. paircluster.write_combined_fasta_and_meta() writes it
             if tdbg:
-                print '  note: adding input metafname from default location (%s)' % getifn('meta')
+                print('  note: adding input metafname from default location (%s)' % getifn('meta'))
             mfnames.append(getifn('meta'))
         return mfnames
     # ----------------------------------------------------------------------------------------
@@ -445,15 +451,18 @@ def run_all_loci(args, ig_or_tr='ig'):
     def spairs():
         return utils.locus_pairs[ig_or_tr]  # if args.seed_unique_id is None else [args.seed_loci]
     # ----------------------------------------------------------------------------------------
+    def cov_cmd():
+        return 'coverage3 run --append'
+    # ----------------------------------------------------------------------------------------
     def prep_inputs():
         has_input_meta_pair_info = False
         if args.input_metafnames is not None:  # need to see if we were passed any pair info
             has_input_meta_pair_info = any('paired-uids' in mfo for mfo in utils.read_json_yamls(args.input_metafnames).values())
             if has_input_meta_pair_info:
-                print '  note: found \'paired-uids\' in --input-metafnames, so not extracting pairing info'
+                print('  note: found \'paired-uids\' in --input-metafnames, so not extracting pairing info')
         mfname = getofn(None, joint=True, input_meta=True)
         if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
-            cmd = '%s/bin/extract-pairing-info.py %s %s' % (args.partis_dir, args.infname, mfname)
+            cmd = '%s%s/bin/extract-pairing-info.py %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
             if args.n_random_queries is not None:
@@ -466,9 +475,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.simplerun(cmd, dryrun=args.dry_run)
             except:
                 elines = traceback.format_exception(*sys.exc_info())
-                print utils.pad_lines(''.join(elines))
-                print '  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info'
-        cmd = '%s/bin/split-loci.py %s --outdir %s' % (args.partis_dir, args.infname, getodir())
+                print(utils.pad_lines(''.join(elines)))
+                print('  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info')
+        cmd = '%s%s/bin/split-loci.py %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
         if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
@@ -499,7 +508,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         elif len(existing_pdir_loci) == len(utils.sub_loci(ig_or_tr)):
             return False  # all there, don't auto-cache
         else:
-            print '  %s parameters exist for some (%s) but not all (%s) loci, so not auto-caching parameters into %s' % (utils.color('yellow', 'warning'), ' '.join(existing_pdir_loci), ' '.join(set(utils.sub_loci(ig_or_tr)) - set(existing_pdir_loci)), getpdir(''))
+            print('  %s parameters exist for some (%s) but not all (%s) loci, so not auto-caching parameters into %s' % (utils.color('yellow', 'warning'), ' '.join(existing_pdir_loci), ' '.join(set(utils.sub_loci(ig_or_tr)) - set(existing_pdir_loci)), getpdir('')))
             return False
     # ----------------------------------------------------------------------------------------
     def get_n_events(l_locus, arg_events, tdbg=False):
@@ -507,7 +516,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         def round_up(): return l_locus=='igk' if lfrac==0.5 else lfrac>0.5  # have to pick one of 'em if they're both exactly 0.5
         n_events = (math.ceil if round_up() else math.floor)(arg_events * lfrac)  # round one of them up, the other one down
         if tdbg:
-            print '  %s+%s: %d * %.2f = %d events' % (h_locus, l_locus, arg_events, lfrac, n_events)
+            print('  %s+%s: %d * %.2f = %d events' % (h_locus, l_locus, arg_events, lfrac, n_events))
         return int(n_events)
     # ----------------------------------------------------------------------------------------
     def translate_locus_names(clist, lpair, ltmp):
@@ -539,7 +548,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 new_clist = []
                 for cstr in clist:
                     if '=' in cstr and hasattr(args, cstr.split('=')[0].lstrip('-').replace('-', '_')):
-                        print '    note: replacing \'%s\' --> \'%s\' in clist' % (cstr, cstr.split('='))
+                        print('    note: replacing \'%s\' --> \'%s\' in clist' % (cstr, cstr.split('=')))
                         new_clist += cstr.split('=')
                     else:
                         new_clist.append(cstr)
@@ -559,15 +568,16 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--existing-output-run-cfg', has_arg=True)
+            if args.prepend_coverage_command:
+                clist = cov_cmd().split() + clist
+            utils.remove_from_arglist(clist, '--prepend-coverage-command')
             if 'single' not in args.existing_output_run_cfg:
                 utils.remove_from_arglist(clist, '--get-selection-metrics')
                 utils.remove_from_arglist(clist, '--plot-partitions')
             if tmpaction in ['generate-trees', 'simulate']:
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
-                hashval = hash(ltmp + '+'.join(lpair) + rseedstr)  # NOTE sends same seed to tree generation and igh, which i think is fine?
-                sval = hashval % 2**31  # % by max seed value (well it's really 32 not 31)
-                utils.replace_in_arglist(clist, '--random-seed', str(sval))
+                utils.replace_in_arglist(clist, '--random-seed', str(utils.hashint(ltmp + '+'.join(lpair) + rseedstr)))  # NOTE sends same seed to tree generation and igh, which i think is fine?
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
@@ -689,24 +699,24 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.seed_unique_id is not None and tmpaction == 'partition':  # maybe should also do for 'annotate'?
                 ifn = getofn(ltmp, lpair=lpair, fasta=True)
             if not os.path.exists(ifn):
-                print sdbgstr('input file missing', ifn)
+                print(sdbgstr('input file missing', ifn))
                 if not args.is_data and '-DUMMY-' in ifn:
-                    print '      maybe need to seed --paired-indir (in addition to --paired-outdir)?'
+                    print('      maybe need to seed --paired-indir (in addition to --paired-outdir)?')
                 return
             if os.stat(ifn).st_size == 0:
-                print sdbgstr('zero length input file', ifn)
+                print(sdbgstr('zero length input file', ifn))
                 return
             if tmpaction in ['annotate', 'partition'] and not os.path.exists(getpdir(ltmp)):  # this probably means that no sequences had annotations (i.e. all failed) for this locus when parameter caching
-                print sdbgstr('parameter dir missing', getpdir(ltmp))
+                print(sdbgstr('parameter dir missing', getpdir(ltmp)))
                 return
         if skip_missing_output:
             if not os.path.exists(getofn(ltmp, joint=joint, lpair=lpair)):
-                print sdbgstr('output file missing', getofn(ltmp, joint=joint, lpair=lpair))
+                print(sdbgstr('output file missing', getofn(ltmp, joint=joint, lpair=lpair)))
                 return
         if args.seed_unique_id is not None and tmpaction=='plot-partitions' and not joint:
-            print '    %s: not plotting single chain partitions with seed id set' % ltmp
+            print('    %s: not plotting single chain partitions with seed id set' % ltmp)
             return
-        print '%s %s:%s%s' % (utils.color('blue_bkg', tmpaction), lpstr, ltstr, utils.color('blue', ' merged') if joint and lpair is None else '')
+        print('%s %s:%s%s' % (utils.color('blue_bkg', tmpaction), lpstr, ltstr, utils.color('blue', ' merged') if joint and lpair is None else ''))
         sys.stdout.flush()
         utils.simplerun(' '.join(prep_args(ltmp)), dryrun=args.dry_run)
     # ----------------------------------------------------------------------------------------
@@ -737,8 +747,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 new_metafos[uid]['paired-uids'] = pids
         if not os.path.exists(getodir(lpair=lpair)):
             os.makedirs(getodir(lpair=lpair))
-        with open(getofn(ltmp, joint=True, lpair=lpair, input_meta=True), 'w') as mfile:
-            json.dump(new_metafos, mfile)
+        utils.jsdump(getofn(ltmp, joint=True, lpair=lpair, input_meta=True), new_metafos)
         work_fnames.append(getofn(ltmp, joint=True, lpair=lpair, input_meta=True))
     # ----------------------------------------------------------------------------------------
     def write_joint_locus(ltmp, lpair, joint_partition, antn_dict, glfo, single_antn_list, unpaired_seqs, ccfs=None):  # have to use <single_antn_list> since <antn_dict> is missing input seqs, i think mostly/entirely from removing badly paired seqs
@@ -753,7 +762,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     else:
                         missing_seqs.append(uid)
             if len(missing_seqs) > 0:
-                print '    %s missing %d/%d seqs when writing annotation input: %s' % (utils.color('yellow', 'warning'), len(missing_seqs), sum(len(c) for c in joint_partition), ' '.join(missing_seqs))  # not sure if this will actually happen or not
+                print('    %s missing %d/%d seqs when writing annotation input: %s' % (utils.color('yellow', 'warning'), len(missing_seqs), sum(len(c) for c in joint_partition), ' '.join(missing_seqs)))  # not sure if this will actually happen or not
             work_fnames.append(getofn(ltmp, lpair=lpair, fasta=True))
             if args.paired_outdir is None:
                 work_fnames.append(os.path.dirname(getofn(ltmp, lpair=lpair, fasta=True)))  # there's probably a better place to do this, but oh well
@@ -768,7 +777,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 # overlap_clusters = [l['unique_ids'] for l in annotation_list if len(set(l['unique_ids']) & set(jclust)) > 0]
                 # print '      %3d: %s' % (len(jclust), ' '.join('%3d/%3d'%(len(set(c) & set(jclust)), len(c)) for c in overlap_clusters))
         if len(missing_clusters) > 0:  # we also get the annotations for the non-missing ones, which should end up the same so it's a bit of a waste, but it's nice to not have to re-read the output file and rewrite it with the non-missing ones
-            print '  need to get annotations for %d/%d joint %s clusters' % (len(missing_clusters), len(joint_partition), ltmp)
+            print('  need to get annotations for %d/%d joint %s clusters' % (len(missing_clusters), len(joint_partition), ltmp))
         jcp = ClusterPath(partition=joint_partition, seed_unique_id=seedid(ltmp))
         if args.seed_unique_id is not None:
             jcp.print_seed_cluster_size(queries_to_include=args.queries_to_include, lstr='joint ')
@@ -778,9 +787,9 @@ def run_all_loci(args, ig_or_tr='ig'):
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
         if not os.path.exists(getpdir(ltmp)) or args.dont_calculate_annotations:  # no parameter dir, so can't get new annotations (or we were told not to get annotations) NOTE in the former case, could maybe just subset the existing annotations according to the joint partition?
             if not os.path.exists(getpdir(ltmp)):
-                print '  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), ltmp)
+                print('  %s no %s --parameter-dir was set (or it doesn\'t exist), so we can\'t get annotations for the new joint partition (the joint partition, and the non-joint/non-merged annotations, are still in the output dir)' % (utils.color('yellow', 'warning'), ltmp))
             if args.dont_calculate_annotations:
-                print '    not calculating annotations'
+                print('    not calculating annotations')
             utils.write_annotations(getofn(ltmp, joint=True, lpair=lpair), glfo, [], headers, partition_lines=partition_lines)  # only actually write the partition
             if args.airr_output:
                 utils.write_airr_output(utils.replace_suffix(getofn(ltmp, joint=True, lpair=lpair), '.tsv'), [], cpath=jcp, args=args)
@@ -796,18 +805,18 @@ def run_all_loci(args, ig_or_tr='ig'):
         hloc = utils.heavy_locus(ig_or_tr)
         if len(lpfos['glfos']) == 0:
             return lpfos
-        tmp_ptn = utils.get_deduplicated_partitions([lpfos['cpaths'][hloc].best()], antn_list=lpfos['antn_lists'][hloc] if not args.dont_calculate_annotations else None, glfo=lpfos['glfos'][hloc], debug=args.debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
+        tmp_ptn = utils.get_deduplicated_partitions([lpfos['cpaths'][hloc].best()], antn_list=lpfos['antn_lists'][hloc] if not args.dont_calculate_annotations else None, glfo=lpfos['glfos'][hloc], debug=args.debug_paired_clustering)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
         lpfos['cpaths'][hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seedid(hloc))
         return lpfos
     # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
         lp_infos = {}
         for lpair in spairs():
-            lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug)
+            lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug_paired_clustering)
             lp_infos[tuple(lpair)] = lpfos
-            if None in lpfos.values():
+            if None in list(lpfos.values()):
                 continue
-            print '%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair))
+            print('%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair)))
             for hline, lline in paircluster.get_antn_pairs(lpair, lpfos):
                 treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
             for ltmp in lpair:  # replace the old cpaths with new ones using the new uids (this should be faster than translating individual uids as we go)
@@ -843,16 +852,16 @@ def run_all_loci(args, ig_or_tr='ig'):
         # ----------------------------------------------------------------------------------------
         tmpstrs = ['   N clusters with all seqs:'] \
                   + ['%s %4d --> %-4d%s'  % (utils.locstr(l), len(input_cpaths[l].best()), len(concat_cpaths[l].best()), paircluster.chstr(len(input_cpaths[l].best()), len(concat_cpaths[l].best()))) for l in sloci(tdict=concat_cpaths)]
-        print '\n        '.join(tmpstrs)
+        print('\n        '.join(tmpstrs))
         if debug:
-            print 'annotations for initial partition clusters, showing (at right) the joint partition clusters into which they were split' # (%s: probably paired with other chain):' % utils.color('blue', '?')
+            print('annotations for initial partition clusters, showing (at right) the joint partition clusters into which they were split') # (%s: probably paired with other chain):' % utils.color('blue', '?')
             for ltmp in sloci(tdict=concat_cpaths):
-                print '%s' % utils.color('green', ltmp)
-                print '  initial:'
+                print('%s' % utils.color('green', ltmp))
+                print('  initial:')
                 input_cpaths[ltmp].print_partitions(n_to_print=1, extrastr='      ')
-                print '  joint:'
+                print('  joint:')
                 concat_cpaths[ltmp].print_partitions(n_to_print=1, extrastr='      ')
-                print '  annotations:'
+                print('  annotations:')
                 input_antn_dict = utils.get_annotation_dict(input_antn_lists[ltmp])
                 for tclust in input_cpaths[ltmp].best():  # loop over clusters in the initial partition
                     jfamilies = [c for c in concat_cpaths[ltmp].best() if len(set(tclust) & set(c)) > 0]  # clusters in the joint partition that overlap with this cluster
@@ -892,11 +901,11 @@ def run_all_loci(args, ig_or_tr='ig'):
             waterer.read_cachefile('%s/sw-cache.yaml'%getpdir(ltmp), ignore_seed_unique_id=True, quiet=True)
             return [waterer.info[q] for q in waterer.info['queries']]
         # ----------------------------------------------------------------------------------------
-        print '   removing seqs very different from seed seq'
+        print('   removing seqs very different from seed seq')
         sw_antns = {l : read_sw(l) for l in utils.sub_loci(ig_or_tr)}
         seed_lines = [utils.get_single_entry([l for l in sw_antns[ltmp] if l['unique_ids'][0]==seedid(ltmp)]) for ltmp in args.seed_loci]
         def hbfcn(ltmp): return utils.get_naive_hamming_bounds('likelihood', overall_mute_freq=numpy.mean([f for l in sw_antns[ltmp] for f in l['mut_freqs']]))  # with 'likelihood', these are the wider bounds, so < lo is almost certainly clonal, > hi is almost certainly not
-        _, hi_hbounds = zip(*[hbfcn(l) for l in args.seed_loci])
+        _, hi_hbounds = list(zip(*[hbfcn(l) for l in args.seed_loci]))
         def hfrc(tl, sl): return utils.hamming_fraction(tl['naive_seq'], sl['naive_seq'], align_if_necessary=True)
         def hfracs(tlines): return [hfrc(tl, sl) for tl, sl in zip(tlines, seed_lines)]  # shouldn't need to align, but if it does it'll print a warning, which is probably better than crashing? but if it's aligning i think something is probably pretty wrong
 
@@ -952,31 +961,31 @@ def run_all_loci(args, ig_or_tr='ig'):
                         mtruestr = '    ' + utils.color('green', '-')
                     else:
                         mtruestr = '    ' + utils.color('red', str(len(missing_true_ids)))
-            print '                           wrong/no     removed      singly         kept%s' % ('' if args.is_data else '   missing')
-            print '           locus  before   pairing    cdr3  hfrac    added   after  frac%s' % ('' if args.is_data else '   true ids')
+            print('                           wrong/no     removed      singly         kept%s' % ('' if args.is_data else '   missing'))
+            print('           locus  before   pairing    cdr3  hfrac    added   after  frac%s' % ('' if args.is_data else '   true ids'))
             for ltmp in args.seed_loci:
                 n_init, n_final = len(sw_antns[ltmp]), len(final_antns[ltmp])
-                print '             %s    %5d    %5d     %5d %5d    %5d   %5d   %.3f%s' % (utils.locstr(ltmp), n_init, n_init - len(antn_pairs), n_removed['cdr3'], n_removed['hfrac'], n_single_added[ltmp], n_final, n_final / float(n_init), mtruestr)
+                print('             %s    %5d    %5d     %5d %5d    %5d   %5d   %.3f%s' % (utils.locstr(ltmp), n_init, n_init - len(antn_pairs), n_removed['cdr3'], n_removed['hfrac'], n_single_added[ltmp], n_final, n_final / float(n_init), mtruestr))
 
         taken_uids = [u for alist in final_antns.values() for l in alist for u in l['unique_ids']]  # uids that we actually want, that might be related to the seed ab
         all_paired_uids = set([u for alist in final_antns.values() for l in alist for pids in l['paired-uids'] for u in pids])  # all uids that're paired with a uid that we took (includes ones that we took)
         missing_paired_uids = set(all_paired_uids) - set(taken_uids)  # uids that we need to get in the next step
         if len(missing_paired_uids) > 0:  # shouldn't happen any more unless pairing info is messed up, i.e. we added single seqs (we used to remove by cdr3/hfrac on single chains), but it's really bad if we miss one, since then it looks like its partner is unpaired, which screws up paired clustering
             if debug:
-                print '     adding seqs paired with uids we kept'
-                print '           locus  before  added  after  kept frac'
+                print('     adding seqs paired with uids we kept')
+                print('           locus  before  added  after  kept frac')
             for ltmp in utils.sub_loci(ig_or_tr):
                 n_before = len(final_antns[ltmp])
                 final_antns[ltmp] += [l for l in sw_antns[ltmp] if utils.get_single_entry(l['unique_ids']) in missing_paired_uids]
                 if debug:
-                    print '             %s   %5d   %5d  %5d    %.3f' % (utils.locstr(ltmp), n_before, len(final_antns[ltmp]) - n_before, len(final_antns[ltmp]), 0 if len(sw_antns[ltmp])==0 else len(final_antns[ltmp]) / float(len(sw_antns[ltmp])))
+                    print('             %s   %5d   %5d  %5d    %.3f' % (utils.locstr(ltmp), n_before, len(final_antns[ltmp]) - n_before, len(final_antns[ltmp]), 0 if len(sw_antns[ltmp])==0 else len(final_antns[ltmp]) / float(len(sw_antns[ltmp]))))
             final_uids = [u for alist in final_antns.values() for l in alist for u in l['unique_ids']]
             missing_uids = missing_paired_uids - set(final_uids)
             if debug:
-                print '      taken %d, paired with taken %d (total %d)' % (len(taken_uids), len(missing_paired_uids), len(taken_uids) + len(missing_paired_uids))
+                print('      taken %d, paired with taken %d (total %d)' % (len(taken_uids), len(missing_paired_uids), len(taken_uids) + len(missing_paired_uids)))
                 # print '             final %d%s' % (len(final_uids), ' (missing %d)'%len(missing_uids) if len(missing_uids)>0 else '')
             if len(missing_uids) > 0:
-                print '  %s missing %d expected uids paired with seqs maybe clonal to seed ab' % (utils.color('red', 'error'), len(missing_uids))
+                print('  %s missing %d expected uids paired with seqs maybe clonal to seed ab' % (utils.color('red', 'error'), len(missing_uids)))
 
         qti_queries = []
         if args.queries_to_include_fname is not None:  # need to exclude these, so the single-chain partition procs don't then read them from both infname and queries to include file
@@ -1023,58 +1032,58 @@ def run_all_loci(args, ig_or_tr='ig'):
         pfcn = 'best'
         if args.n_final_clusters is not None or args.min_largest_cluster_size is not None:
             pfcn = 'last'
-            print '    %s%s: using last partition (rather than best) from single-locus output cpaths' % ('--n-final-clusters' if args.n_final_clusters else '', '--min-largest-cluster-size' if args.min_largest_cluster_size else '')
-            print '                     N clusters     N uids'
-            print '                   best   last   best   last'
+            print('    %s%s: using last partition (rather than best) from single-locus output cpaths' % ('--n-final-clusters' if args.n_final_clusters else '', '--min-largest-cluster-size' if args.min_largest_cluster_size else ''))
+            print('                     N clusters     N uids')
+            print('                   best   last   best   last')
             for ltmp in sloci():
                 bptn, lptn = [getattr(single_outfos['cpaths'][ltmp], pf)() for pf in ('best', 'last')]
-                print '            %s   %5d %6d   %5d %6d' % (utils.locstr(ltmp), len(bptn), len(lptn), sum(len(c) for c in bptn), sum(len(c) for c in lptn))
+                print('            %s   %5d %6d   %5d %6d' % (utils.locstr(ltmp), len(bptn), len(lptn), sum(len(c) for c in bptn), sum(len(c) for c in lptn)))
         for ltmp in sloci():
             single_outfos['cpaths'][ltmp] = ClusterPath(partition=getattr(single_outfos['cpaths'][ltmp], pfcn)(), seed_unique_id=seedid(ltmp))
     # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
-        print '%s chains' % utils.color('blue_bkg', 'combining')
+        print('%s chains' % utils.color('blue_bkg', 'combining'))
         sys.stdout.flush()
         single_outfos = paircluster.read_locus_output_files(sloci(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='partition', debug=args.debug_paired_clustering)  # single chain cpaths (and other info)
         restrict_to_single_partition(single_outfos)
         # doesn't work: (see note above)
         # if args.seed_unique_id is not None:
         #     reinstate_missing_uids(single_outfos)
-        if None in single_outfos.values():
+        if None in list(single_outfos.values()):
             return None
         if not any('paired-uids' in l for alist in single_outfos['antn_lists'].values() for l in alist):
-            print '  no paired uids in any annotations, not merging single chain partitions'
+            print('  no paired uids in any annotations, not merging single chain partitions')
             return None
         true_outfos = None if args.is_data else {k : read_true_files(merged=mgd, no_plot=True) for k, mgd in [('merged', True), ('lpairs', False)]}
         paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_outfos=true_outfos, debug=args.debug_paired_clustering)
         lp_infos = {}
         for lpair in spairs():
-            print '%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair))
+            print('%s: synchronizing heavy and light chain cluster paths' % utils.color('blue', '+'.join(lpair)))
             sys.stdout.flush()
             ploci = {ch : l for ch, l in zip(utils.chains, lpair)}
             if any(l not in single_outfos['antn_lists'] or len(single_outfos['antn_lists'][l])==0 for l in lpair):
-                print '    no single chain output'
+                print('    no single chain output')
                 continue
             lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=args.debug_paired_clustering)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             if all(len(alist)==0 for alist in lp_antn_lists.values()):
-                print '    %s zero sequences remain after removing un/badly paired seqs. Maybe you\'re missing pairing info?' % utils.color('yellow', 'warning')
+                print('    %s zero sequences remain after removing un/badly paired seqs. Maybe you\'re missing pairing info?' % utils.color('yellow', 'warning'))
                 continue
             seedids = None if args.seed_unique_id is None else {l : u for l, u in zip(args.seed_loci, args.seed_unique_id)}
             if args.n_final_clusters is not None:
-                print '    %s: --n-final-clusters is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently this means we over-merge as far as possible (which is correct only if you set --n-final-clusters to 1)' % utils.color('yellow', 'warning')
+                print('    %s: --n-final-clusters is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently this means we over-merge as far as possible (which is correct only if you set --n-final-clusters to 1)' % utils.color('yellow', 'warning'))
             if args.min_largest_cluster_size is not None:
-                print '    %s: --min-largest-cluster-size is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently we don\'t do anything specific for --min-largest-cluster-size during paired clustering, so you\'ll probably get smaller clusters than you want. If this is a problem, you can try using --n-final-clusters 1 instead.' % utils.color('yellow', 'warning')
+                print('    %s: --min-largest-cluster-size is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently we don\'t do anything specific for --min-largest-cluster-size during paired clustering, so you\'ll probably get smaller clusters than you want. If this is a problem, you can try using --n-final-clusters 1 instead.' % utils.color('yellow', 'warning'))
             mstart = time.time()
             joint_partitions, cluster_pairs, ccfs = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, true_outfos=true_outfos, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
                                                                              seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, debug=args.debug_paired_clustering, fail_frac=args.max_ccf_fail_frac if args.seed_unique_id is None else None)  # , iparts={'igl' : 7}
             if args.pair_unpaired_seqs_with_paired_family:
                 paircluster.pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, single_outfos['antn_lists'], debug=args.debug_paired_clustering)
-            print '  merge time %.1f' % (time.time() - mstart)
+            print('  merge time %.1f' % (time.time() - mstart))
             for ltmp in lpair:  # 'writes' them by running annotate with the joint partition as input partition
                 if args.seed_unique_id is not None:  # NOTE it's kind of dumb/shitty to keep the non-seeded h/l pair all the way through this (i.e. to do paired clustering on igl when the seed seq is igh+igk), but we really need to not lose the seqs in there, since then we lose track of their chain, which means it looks like the seqs they're paired with that we *do* care about are unpaired, which screws up their joint partition
                     n_before = len(joint_partitions[ltmp])
                     joint_partitions[ltmp], _ = utils.split_partition_with_criterion(joint_partitions[ltmp], lambda cluster: seedid(ltmp) in cluster)
-                    print '     removed %d unseeded clusters (of %d total, leaving %d) from %s joint partition' % (n_before - len(joint_partitions[ltmp]), n_before, len(joint_partitions[ltmp]), ltmp)
+                    print('     removed %d unseeded clusters (of %d total, leaving %d) from %s joint partition' % (n_before - len(joint_partitions[ltmp]), n_before, len(joint_partitions[ltmp]), ltmp))
                 write_joint_locus(ltmp, lpair, joint_partitions[ltmp], utils.get_annotation_dict(lp_antn_lists[ltmp]), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], unpaired_seqs, ccfs=ccfs)
             lp_infos[tuple(lpair)] = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering and not args.count_parameters, dbgstr='partition')
             count_parameter_things(lp_infos, lpair)
@@ -1109,7 +1118,7 @@ def run_all_loci(args, ig_or_tr='ig'):
 
         # NOTE this has to happen *after* running compare-plotdirs.py, since it cleans the dirs
         if not args.dry_run:
-            import plotting
+            import python.plotting as plotting
             plotting.plot_csim_matrix_from_files(cfpdir + '/' + ltmp, 'csim-matrix', 'single partition', getofn(ltmp, joint=False), 'joint partition', getofn(ltmp, joint=True), 35)
     # ----------------------------------------------------------------------------------------
     def process_all_outputs(tmpaction):
@@ -1132,7 +1141,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     run_cf_plotdirs(cfpdir, ltmp)
             if os.path.exists(cfpdir):
                 fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % cfpdir, return_out_err=True, dryrun=args.dry_run)
-                import plotting
+                import python.plotting as plotting
                 fnlist = sorted(fnoutstr.strip().split('\n'))
                 plotting.make_html(cfpdir, fnames=[[f for f in fnlist if 'cluster-sizes' in f], [f for f in fnlist if 'cluster-sizes' not in f]])
     # ----------------------------------------------------------------------------------------
@@ -1145,7 +1154,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         else:
             lp_infos = paircluster.read_lpair_output_files(spairs(), getofn, dont_add_implicit_info=not args.debug_paired_clustering, read_selection_metrics=smetrics and len(args.existing_output_run_cfg) > 0, dbgstr='partition', debug=args.debug or args.debug_paired_clustering)
             _ = read_qti_file(args)  # sets <args.queries_to_include>
-            antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=args.min_paired_cluster_size_to_read if smetrics else None)  # , required_keys=['tree-info']
+            antn_pairs = paircluster.find_all_cluster_pairs(lp_infos, min_cluster_size=args.min_paired_cluster_size_to_read if smetrics else None, min_cluster_arg_str=' (controlled by --min-paired-cluster-size-to-read)' if smetrics else '')  # , required_keys=['tree-info']
         antn_pairs = sorted(antn_pairs, key=lambda x: sum(len(l['unique_ids']) for l in x), reverse=True)  # sort by the sum of h+l ids (if i could start over i might sort by the number of common ids)
         fake_pntns, mpfo_lists, mtpys = paircluster.make_fake_hl_pair_antns(args, antn_pairs)
         return antn_pairs, fake_pntns, mpfo_lists, mtpys
@@ -1154,7 +1163,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     if args.action not in paired_loci_actions:
         raise Exception('action %s not supported for paired loci (choose from %s)' % (args.action, paired_loci_actions))
     if args.paired_outdir is None:
-        print '  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).'
+        print('  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).')
     utils.prep_dir(args.workdir)  # NOTE it's kind of weird to have workdir and paired_outdir, but workdir is for stuff we throw out by default, whereas paired_outdir is for stuff we save
     work_fnames = []
     if args.infname is not None:
@@ -1167,13 +1176,13 @@ def run_all_loci(args, ig_or_tr='ig'):
             paircluster.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
         for lpair in utils.locus_pairs[ig_or_tr]:
             h_locus, l_locus = lpair
-            print '%s: simulating %d event%s' % (utils.color('blue', '+'.join(lpair)), get_n_events(l_locus, args.n_sim_events), utils.plural(get_n_events(l_locus, args.n_sim_events)))
+            print('%s: simulating %d event%s' % (utils.color('blue', '+'.join(lpair)), get_n_events(l_locus, args.n_sim_events), utils.plural(get_n_events(l_locus, args.n_sim_events))))
             if get_n_events(l_locus, args.n_sim_events) == 0:
                 continue
             if args.input_simulation_treefname is None:
                 run_step('generate-trees', h_locus, lpair=lpair)
             else:
-                print '    %s drawing input simulation trees from --input-simulation-treefname *in order* for both heavy and light (rather than randomly, as for single chain)' % utils.color('yellow', 'warning')
+                print('    %s drawing input simulation trees from --input-simulation-treefname *in order* for both heavy and light (rather than randomly, as for single chain)' % utils.color('yellow', 'warning'))
             for ltmp in lpair:
                 run_step(args.action, ltmp, lpair=lpair)
         combine_simu_chains()
@@ -1184,7 +1193,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.seed_unique_id is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
                 raise Exception('if setting --seed-unique-id for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
             missing_pdir_loci = [l for l in sloci() if not os.path.exists(getpdir(l))]
-            print '  missing %d locus parameter dirs (%s), so caching a new set of parameters before running action \'%s\':  %s' % (len(missing_pdir_loci), ' '.join(missing_pdir_loci), args.action, ' '.join(getpdir(l) for l in missing_pdir_loci))
+            print('  missing %d locus parameter dirs (%s), so caching a new set of parameters before running action \'%s\':  %s' % (len(missing_pdir_loci), ' '.join(missing_pdir_loci), args.action, ' '.join(getpdir(l) for l in missing_pdir_loci)))
             for ltmp in sloci():
                 run_step('cache-parameters', ltmp, auto_cache=True, skip_missing_input=True)
         if args.random_seed_seq:
@@ -1212,20 +1221,20 @@ def run_all_loci(args, ig_or_tr='ig'):
                 run_step('view-output', ltmp, joint=True, skip_missing_input=not args.is_data, skip_missing_output=True)
         antn_pairs, fake_pntns, mpfo_lists, mtpys = None, None, None, None
         if args.action=='get-selection-metrics' or args.get_selection_metrics:
-            print '%s' % utils.color('blue_bkg', 'getting combined h/l selection metrics')
+            print('%s' % utils.color('blue_bkg', 'getting combined h/l selection metrics'))
             antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns(smetrics=True)
             treeutils.combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir=None if args.plotdir is None else getplotdir(None), args=args, tree_inference_outdir=getodir())
         if args.action == 'write-fake-paired-annotations':
             antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns()
             utils.write_annotations('%s/fake-paired-annotations.yaml'%args.paired_outdir, None, fake_pntns, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns) + utils.fake_paired_columns)
         if ptnplot:
-            from partitionplotter import PartitionPlotter
-            print '%s' % utils.color('blue_bkg', 'plotting combined h/l partitions')
+            from python.partitionplotter import PartitionPlotter
+            print('%s' % utils.color('blue_bkg', 'plotting combined h/l partitions'))
             partplotter = PartitionPlotter(args)
             if fake_pntns is None:
                 antn_pairs, fake_pntns, mpfo_lists, mtpys = get_pntns()  # smetrics=True
             inf_lines, true_lines = (None, fake_pntns) if not args.is_data else (utils.get_annotation_dict(fake_pntns), None)
-            partplotter.plot('%s/partitions/%s'%(getplotdir(None), 'true' if not args.is_data else 'inferred'), [l['unique_ids'] for l in (true_lines if not args.is_data else inf_lines.values()) if len(l['unique_ids']) > 0], utils.get_annotation_dict(true_lines) if not args.is_data else inf_lines, args=args)  # you get len 0 uids e.g. if reading simulation with multiple cells per droplet/missing reads
+            partplotter.plot('%s/partitions/%s'%(getplotdir(None), 'true' if not args.is_data else 'inferred'), [l['unique_ids'] for l in (true_lines if not args.is_data else list(inf_lines.values())) if len(l['unique_ids']) > 0], utils.get_annotation_dict(true_lines) if not args.is_data else inf_lines, args=args)  # you get len 0 uids e.g. if reading simulation with multiple cells per droplet/missing reads
 
     if not args.dry_run:  # this will crash if you set plotdir, but not paired outdir, but who cares
         if args.paired_outdir is None and args.seed_unique_id is not None:
@@ -1251,7 +1260,7 @@ subparsers = parser.add_subparsers(dest='action')
 parent_parser = SaneArgumentParser(add_help=False)
 
 parent_args = []
-parent_args.append({'name' : '--locus', 'kwargs' : {'default' : 'igh', 'choices' : utils.loci.keys(), 'help' : 'which immunoglobulin or t-cell receptor locus? This is automatically unset if --paired-loci is set.'}})
+parent_args.append({'name' : '--locus', 'kwargs' : {'default' : 'igh', 'choices' : utils.loci, 'help' : 'which immunoglobulin or t-cell receptor locus? This is automatically unset if --paired-loci is set.'}})
 parent_args.append({'name' : '--ig-or-tr', 'kwargs' : {'default' : 'ig', 'choices' : ['ig', 'tr'], 'help' : 'if --locus is not set (i.e. if --paired-loci is set), this specifies whether we\'re running on ig or tr data (if --locus *is* set, then --ig-or-tr is set automatically). TODO probably needs a bit of testing to work for tcrs'}})  # TODO also there's probably lots of places that should use this new ig_or_tr that's in <args>
 parent_args.append({'name' : '--paired-loci', 'kwargs' : {'action' : 'store_true', 'help' : 'Set this if input contains sequences from more than one locus (igh+igk+igl all together). Input can be specified either with --infname (in which case it will be automatically split apart by loci), or with --paired-indir (whose files must conform to the same conventions). It will then run the specified action on each of the single locus input files, and (if specified) merge the resulting partitions.'}})
 parent_args.append({'name' : '--reverse-negative-strands', 'kwargs' : {'action' : 'store_true', 'help' : 'If --paired-loci is set, align every sequence both forwards and revcomp\'d, then for each sequence keep the sense with better alignment. If *not* running with --paired-loci, then first run bin/split-loci.py separately with --reverse-negative-strands.'}})
@@ -1275,6 +1284,7 @@ parent_args.append({'name' : '--dont-write-git-info', 'kwargs' : {'action' : 'st
 parent_args.append({'name' : '--only-print-best-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'when printing cluster annotations (either with --debug 1 for \'partition\', or for \'view-output\'), instead of the default of printing the annotation for every cluster for which we calculated one (see --calculate-alternative-annotations and --n-partitions-to-write), only print annotations for clusters in the best partition. UPDATE also restricts to the best partition when performing all operations on existing output, e.g. calculating selection metrics, plotting partitions, etc.'}})
 parent_args.append({'name' : '--only-print-seed-clusters', 'kwargs' : {'action' : 'store_true', 'help' : 'same as --only-print-best-partition, but in addition, only print the seed cluster(s). Note that if --only-print-best-partition is *not* set, then there will be more than one seed cluster.'}})
 parent_args.append({'name' : '--only-print-queries-to-include-clusters', 'kwargs' : {'action' : 'store_true', 'help' : 'same as --only-print-best-partition, but in addition, only print the cluster(s) corresponding to --queries-to-include/--queries-to-include-fname. Note that if --only-print-best-partition is *not* set, then there will be more than one cluster for each such query.'}})  # NOTE we could just assume this if queries to include are specified, but that's not the behavior when we're plotting (in which case we include everybody but highlight the queries to include}})
+parent_args.append({'name' : '--print-trees', 'kwargs' : {'action' : 'store_true', 'help' : 'When printing ascii annotations (e.g. with \'view-output\'), print any tree that\'s in each annotation.'}})
 parent_args.append({'name' : '--cluster-indices', 'kwargs' : {'help' : 'indices of clusters (when sorted largest to smallest) to process for actions that read existing output, e.g. \'view-output\' and \'get-selection-metrics\'. Specified as a colon-separated list, where each item can be either a single integer or a python slice-style range of integers, e.g. 0:3-6:50 --> 0:3:4:5:50'}})
 parent_args.append({'name' : '--partition-index-to-print', 'kwargs' : {'type' : int, 'help' : 'like --cluster-indices, but restricts to the partition with this index (rather than default of printing best partition).'}})
 parent_args.append({'name' : '--extra-print-keys', 'kwargs' : {'help' : 'add the value of these keys (colon-separated list) as a new column to the ascii art annotation'}})
@@ -1395,11 +1405,12 @@ parent_args.append({'name' : '--n-max-snps', 'kwargs' : {'type' : int, 'default'
 parent_args.append({'name' : '--n-max-mutations-per-segment', 'kwargs' : {'type' : int, 'default' : 23, 'help' : 'when new-allele finding, exclude sequences which have more than this many mutations in the V segment'}})
 parent_args.append({'name' : '--min-allele-finding-gene-length', 'kwargs' : {'type' : int, 'default' : 150, 'help' : 'if (after excluding particularly short reads) the reads for a gene are shorter than this, then don\'t look for new alleles with/on this gene'}})
 parent_args.append({'name' : '--plot-and-fit-absolutely-everything', 'kwargs' : {'type' : int, 'help' : 'fit every single position for this <istart> and write every single corresponding plot (slow as hell, and only for debugging/making plots for paper)'}})
-parent_args.append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate tree-based selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details), but you can give it more accurate trees by setting --treefname, or alternatively run gctree with --run-gctree (unrelated to --input-simulation-treefname).'}})
+parent_args.append({'name' : '--get-selection-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'calculate selection metrics for each cluster (can also be run on existing output with \'get-selection-metrics\' action). By default it calculates fast, but very approximate, trees (see manual for details).'}})
 parent_args.append({'name' : '--min-selection-metric-cluster-size', 'kwargs' : {'type' : int, 'default' : treeutils.default_min_selection_metric_cluster_size, 'help' : 'When calculating selection metrics, ignore clusters smaller than this. See also --min-paired-cluster-size-to-read, which is similar but applies earlier, when reading clusters from files.'}})
 parent_args.append({'name' : '--min-paired-cluster-size-to-read', 'kwargs' : {'type' : int, 'default' : treeutils.default_min_selection_metric_cluster_size, 'help' : 'When reading paired annotations when getting selection metrics or plotting partitions, ignore clusters with either N h or l ids smaller than this. See also --min-selection-metric-cluster-size, which is similar but only skips selection metric calculation.'}})
 parent_args.append({'name' : '--treefname', 'kwargs' : {'help' : 'newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-selection-metrics) (unrelated to --input-simulation-treefname).'}})
-parent_args.append({'name' : '--tree-inference-method', 'kwargs' : {'choices' : ['fasttree', 'iqtree', 'gctree', 'linearham', 'cpath'], 'help' : 'Tree inference method to run when getting selection metrics (if not set, uses fasttree)'}})
+parent_args.append({'name' : '--tree-inference-method', 'kwargs' : {'choices' : ['fasttree', 'iqtree', 'gctree', 'gctree-base', 'linearham', 'cpath'], 'help' : 'Method to use when inferring trees (default: fasttree)'}})
+parent_args.append({'name' : '--infer-trees-with-only-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Discard internal nodes in true trees when inferring phylogenetic trees.'}})
 parent_args.append({'name' : '--selection-metrics-to-calculate', 'kwargs' : {'default' : 'lbi:lbr:aa-lbi:aa-lbr:cons-dist-aa', 'help' : 'colon-separated list of selection metrics to calculate.'}})
 parent_args.append({'name' : '--selection-metric-plot-cfg', 'kwargs' : {'default' : ':'.join(treeutils.default_plot_cfg), 'help' : 'colon-separated list of plot types to make for selection metrics (see treeutils.plot_tree_metrics()). Choices: %s.' % ' '.join(treeutils.all_plot_cfg)}})
 parent_args.append({'name' : '--extra-daffy-metrics', 'kwargs' : {'help' : 'colon-separated list of extra metrics (beyond defaults of %s) for which to make delta-affinity performance plots'%':'.join(treeutils.daffy_metrics)}})
@@ -1429,8 +1440,11 @@ parent_args.append({'name' : '--add-unpaired-seqs-to-fake-paired-annotations', '
 
 parent_args.append({'name' : '--max-ccf-fail-frac', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'when calculating clustering performance metrics (correct cluster fractions, purity/completeness), crash if more than this fraction of sequences are missing from the inferred partition'}})
 
+parent_args.append({'name' : '--prepend-coverage-command', 'kwargs' : {'action' : 'store_true', 'help' : 'when running subprocesses, prepend the python coverage append command to their command lines'}})
+
 # ----------------------------------------------------------------------------------------
 subconfig = collections.OrderedDict((
+    # NOTE when adding a new action, also update utils.existing_output_action below
     ('version'          , {'func' : int, 'help' : 'print version information and exit'}),  # int doesn't do anything, it's just because I have to put something here
     ('cache-parameters' , {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'}),
     ('annotate'         , {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'}),
@@ -1441,6 +1455,7 @@ subconfig = collections.OrderedDict((
     ('view-alternative-annotations' , {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-annotations in a previous partition step so that this information was saved.'}),
     ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
     ('get-selection-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate selection metrics using existing output.'}),
+    ('infer-trees' , {'func' : run_partitiondriver, 'help' : 'Infer phylogenetic trees on annotations in existing output file.'}),
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
     ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
@@ -1451,9 +1466,26 @@ subconfig = collections.OrderedDict((
     ('run-viterbi'      , {'func' : run_partitiondriver, 'help' : 'DEPRECATED use \'annotate\''}),
 ))
 
-def runs_on_existing_output(actionstr):
-    return actionstr.split('-')[0] in ['view', 'plot', 'get', 'merge', 'update', 'write']
+utils.existing_output_actions = [
+    'view-output',
+    'merge-paired-partitions',
+    'view-alternative-annotations',
+    'plot-partitions',
+    'get-selection-metrics',
+    'infer-trees',
+    'get-linearham-info',
+    'update-meta-info',
+    'write-fake-paired-annotations',
+    'view-annotations',
+    'view-partitions',
+    'view-alternative-naive-seqs',
+]
 
+# ----------------------------------------------------------------------------------------
+def runs_on_existing_output(actionstr):
+    return actionstr in utils.existing_output_actions
+
+# ----------------------------------------------------------------------------------------
 subargs = {subname : [] for subname in subconfig}
 
 # ----------------------------------------------------------------------------------------
@@ -1500,7 +1532,7 @@ subargs['simulate'].append({'name' : '--default-scratch-n-leaf-distribution', 'k
 subargs['simulate'].append({'name' : '--n-leaves', 'kwargs' : {'type' : float, 'default' : 5., 'help' : 'Parameter determining the shape of the distribution from which the number of leaves per tree is drawn (--n-leaf-distribution). For \'geometric\' and \'box\', this is the mean; while for \'zipf\' it is the exponent, i.e. *not* the mean -- see docs for numpy.random.zipf for details. Has *no* effect if --n-leaf-distribution is \'hist\'.'}})
 subargs['simulate'].append({'name' : '--constant-number-of-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Give all trees the same number of leaves (i.e. override --n-leaf-distribution).'}})
 subargs['simulate'].append({'name' : '--allowed-cdr3-lengths', 'kwargs' : {'help' : 'For single chain simulation, a colon-separated list of nucleotide cdr3 lengths to which to restrict the simulation (ranges also allowed, e.g. 36-40 [python slice conventions]). NOTE that our cdr3 definition includes both conserved codons, which differs from the imgt definition (sorry). If --paired-loci is set, specify different lengths for each loci as key/val pairs e.g. \'igh,39c42-46:igk,30c33c36\' (each \'c\' will be replaced by a colon when passing to each locus\'s simulation process). If a locus is not present in the dict, no restrictions will be placed on its lengths. If a locus is present more than once, the lengths for each additional entry are appended. Typical human lengths: igh (36-72), igk (30-39), igl (30-42).'}})
-subargs['simulate'].append({'name' : '--remove-nonfunctional-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'Remove non-functional sequences from simulated rearrangement events. Note that because this happens after generating SHM (since we have no way to tell bppseqgen to only generate functional sequences), you will in general need to specify a (potentialy much) larger value for --n-leaves if you set --remove-nonfunctional-seqs. Typically, the vast majority of nonfunctional simulated sequences are due to stop codons generated by SHM.'}})
+subargs['simulate'].append({'name' : '--remove-nonfunctional-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'Remove non-functional sequences from simulated rearrangement events. Note that because this happens after generating SHM (since we have no way to tell bppseqgen to only generate functional sequences), you will in general need to specify a (potentialy much) larger value for --n-leaves if you set --remove-nonfunctional-seqs. Typically, the vast majority of nonfunctional simulated sequences are due to stop codons generated by SHM. See also --mutate-stop-codons.'}})
 subargs['simulate'].append({'name' : '--gtrfname', 'kwargs' : {'default' : partis_dir + '/data/recombinator/gtr.txt', 'help' : 'File with list of GTR parameters. Fed into bppseqgen along with the chosen tree. Corresponds to an arbitrary dataset at the moment, but eventually will be inferred per-dataset.'}})  # NOTE command to generate gtr parameter file: [stoat] partis/ > zcat /shared/silo_researcher/Matsen_F/MatsenGrp/data/bcr/output_sw/A/04-A-M_gtr_tr-qi-gi.json.gz | jq .independentParameters | grep -v '[{}]' | sed 's/["\:,]//g' | sed 's/^[ ][ ]*//' | sed 's/ /,/' | sort >data/gtr.txt)
 subargs['simulate'].append({'name' : '--root-mrca-weibull-parameter', 'kwargs' : {'type' : float, 'help' : 'if set, uses TreeSimGM (instead of TreeSim), and passes this value as the weibull parameter (e.g. 0.1: long root-mrca distance, lots of shared mutation; 5: short, little) NOTE requires installation of TreeSimGM'}})
 subargs['simulate'].append({'name' : '--input-simulation-treefname', 'kwargs' : {'help' : 'file with newick-formatted lines corresponding to trees to use for simulation. Note that a) the tree depths are rescaled according to the shm rates requested by other command line arguments, i.e. the depths in the tree file are ignored, and b) the resulting sequences do not use the leaf names from the trees (unrelated to --treefname).'}})
@@ -1521,6 +1553,7 @@ subargs['simulate'].append({'name' : '--indel-location', 'kwargs' : {'help' : 'W
 subargs['simulate'].append({'name' : '--rearrange-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory for rearrangement-level parameters, and instead make up some plausible stuff from scratch. Have to also set --shm-parameter-dir.'}})
 subargs['simulate'].append({'name' : '--mutate-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t use an existing parameter directory for shm-level (mutation) parameters, and instead make up stuff from scratch (by default this means shm rate varies over positions and sequences, but is the same for all regions). Have to also set --reco-parameter-dir.'}})
 subargs['simulate'].append({'name' : '--simulate-from-scratch', 'kwargs' : {'action' : 'store_true', 'help' : 'same as setting both --rearrange-from-scratch and --mutate-from-scratch'}})
+subargs['simulate'].append({'name' : '--allow-nonfunctional-scratch-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'By default, scratch rearrangement skips potential rearrangements that are either out of frame or have stop codons. Setting this arg instead allows them, which can be useful to e.g. to speed up simulation if you don\'t care about getting only productive sequences.'}})
 subargs['simulate'].append({'name' : '--shm-parameter-dir', 'kwargs' : {'help' : 'parameter directory from which to retrieve shm-level info when --rearrange-from-scratch is set (to set germline info, use --initial-germline-dir).'}})
 subargs['simulate'].append({'name' : '--reco-parameter-dir', 'kwargs' : {'help' : 'parameter directory from which to retrieve rearrangement-level info when --mutate-from-scratch is set (to set germline info, use --initial-germline-dir).'}})
 subargs['simulate'].append({'name' : '--scratch-mute-freq', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'shm fraction/rate (tree depth passed to bpp) used by --mutate-from-scratch. Note that to get very large average values you need to also set --same-mute-freq-for-all-seqs (and maybe --flat-mute-freq), since saturation means that the high end of the spectrum ends up getting pushed down while the low end doesn\'t.'}})
@@ -1566,7 +1599,7 @@ subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs
 
 def get_arg_names(actions):  # return set of all arg names (in the form they appear in args.__dict__) for the specified actions
     if actions == 'all':
-        actions = subconfig.keys()
+        actions = list(subconfig.keys())
     return set([actionconf['name'][2:].replace('-', '_') for action in actions for actionconf in subargs[action]])
 
 # above we just made a dict with lists of args, here we actually make the sub parsers
@@ -1586,12 +1619,9 @@ args = parser.parse_args()
 for missing_arg in get_arg_names('all') - set(args.__dict__):  # NOTE see also remove_action_specific_args() above, which kind of does similar things, at least if i rewrote this all from scratch only one (or neither...) would exist
     args.__dict__[missing_arg] = None
 
-if args.outfname is None and args.paired_outdir is None and runs_on_existing_output(args.action):  # would be better to have this in processargs.py like everything else, but then I'd have to import the function somehow
-    raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
-
 processargs.process(args)
 random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
 start = time.time()
 args.func(args)
-print '      total time: %.1f' % (time.time()-start)
+print('      total time: %.1f' % (time.time()-start))

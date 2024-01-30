@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import os
 import argparse
 from collections import OrderedDict
@@ -8,16 +10,17 @@ import yaml
 import sys
 from subprocess import check_call
 import matplotlib as mpl
+from io import open
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
-sys.path.insert(1, partis_dir + '/python')
-import plotting
-import paramutils
-import utils
+    print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
+sys.path.insert(1, partis_dir) # + '/python')
+import python.plotting as plotting
+import python.paramutils as paramutils
+import python.utils as utils
 
 # ----------------------------------------------------------------------------------------
 class ModelPlotter(object):
@@ -25,7 +28,7 @@ class ModelPlotter(object):
         self.base_plotdir = base_plotdir
 
         self.eps_to_skip = 1e-3
-        print 'skipping eps %f' % self.eps_to_skip
+        print('skipping eps %f' % self.eps_to_skip)
 
         plot_types = ('transitions', 'emissions')
         for ptype in plot_types:
@@ -55,7 +58,7 @@ class ModelPlotter(object):
         fig.set_size_inches(plotting.plot_ratios[utils.get_region(gene_name)])
 
         ibin = 0
-        print utils.color_gene(utils.unsanitize_name(gene_name))
+        print(utils.color_gene(utils.unsanitize_name(gene_name)))
         legend_colors = set()  # add a color to this the first time you plot it
         for state in model.states:
 
@@ -68,7 +71,7 @@ class ModelPlotter(object):
                     sorted_to_states[name] = int(paramutils.simplify_state_name(name))
                 else:
                     sorted_to_states[name] = name
-            sorted_to_states = sorted(sorted_to_states.items(), key=operator.itemgetter(1))
+            sorted_to_states = sorted(list(sorted_to_states.items()), key=lambda x: str(x[1]))
 
             total = 0.0
             for to_state, simple_to_state in sorted_to_states:
@@ -140,7 +143,7 @@ if args.hmmdir is None and args.infiles is None:
     raise Exception('have to specify either --hmmdir or --infiles')
 
 if __name__ == '__main__':
-    print '  %s the top line in the emission plots is usually yellow because the three non-germline bases are equally likely, and G comes last when sorted alphabetically' % utils.color('red', 'note')
+    print('  %s the top line in the emission plots is usually yellow because the three non-germline bases are equally likely, and G comes last when sorted alphabetically' % utils.color('red', 'note'))
     if not os.path.exists(args.outdir):
         raise Exception('output directory %s does not exist' % args.outdir)
     mplot = ModelPlotter(args, args.outdir) # + '/modelplots')

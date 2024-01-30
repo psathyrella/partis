@@ -1,15 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import os
 import sys
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 if not os.path.exists(partis_dir):
-    print 'WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir
-sys.path.insert(1, partis_dir + '/python')
+    print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
+sys.path.insert(1, partis_dir) # + '/python')
 
-import utils
-import glutils
+import python.utils as utils
+import python.glutils as glutils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--bases', required=True, help='colon-separated list of the bits before the stars, e.g. 1-18:2-2 (set to \'all\' to print entire germline set)')
@@ -17,7 +19,7 @@ parser.add_argument('--allele-numbers')
 parser.add_argument('--ref-allele', help='print this one first')
 parser.add_argument('--other-genes')
 parser.add_argument('--region', default='v')
-parser.add_argument('--locus', default='igh', choices=utils.loci.keys())
+parser.add_argument('--locus', default='igh', choices=utils.loci)
 parser.add_argument('--species', default='human')
 parser.add_argument('--glfo-dir', help='default set below')
 args = parser.parse_args()
@@ -91,4 +93,4 @@ def print_str(gene, seqstr, snpstr):
     return '%s  %s  %s  %s' % (utils.color_gene(gene, width=gene_str_width), seqstr, utils.color_gene(gene, width=gene_str_width), snpstr)
 
 for igene in range(len(genes)):
-    print print_str(genes[igene], seqstrs[igene], snpstrs[igene])
+    print(print_str(genes[igene], seqstrs[igene], snpstrs[igene]))

@@ -1,8 +1,10 @@
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import math
 import sys
 
-from hist import Hist
-import utils
+from .hist import Hist
+from . import utils
 
 # ----------------------------------------------------------------------------------------
 def get_expanded_bounds(values, dxmin, dxmax=None, only_down=False):  # NOTE see also plotting.expand_bounds()
@@ -44,7 +46,7 @@ def set_bins(values, n_bins, is_log_x, xbins, var_type='float'):  # NOTE this fc
             xmin, xmax = get_expanded_bounds(values, float(values[-1] - values[0]) / n_bins)
         dx = float(xmax - xmin) / n_bins  # then recalculate dx
         if dx < 1e-10:
-            print '  %s very small difference %f between xmin %f and xmax %f in hutils.set_bins() (values: %s)' % (utils.wrnstr(), dx, xmin, xmax, values)
+            print('  %s very small difference %f between xmin %f and xmax %f in hutils.set_bins() (values: %s)' % (utils.wrnstr(), dx, xmin, xmax, values))
         for ib in range(n_bins+1):
             xbins[ib] = xmin + ib*dx
 
@@ -56,19 +58,19 @@ def autobins(values, n_bins, is_log=False, var_type='float'):  # just making a b
 
 # ----------------------------------------------------------------------------------------
 def binprint(xbins, values):
-    print '    chose %d bins (%d bin low edges, including low edge of overflow) using %d values with min/max %f %f' % (len(xbins) - 1, len(xbins), len(values), min(values), max(values))
-    print '      %s' % ' '.join('%8d'%(i+1) for i in range(len(xbins)))  # start at 1, to match hist.py/root convention that 0 is underflow (whose low edge is added in hist scratch init fcn, since its value has no effect)
-    print '      %s' % ' '.join('%8.4f'%x for x in xbins)
-    print '      %s' % ' '.join('%8d'%(len([v for v in values if v >= xbins[i] and v < xbins[i+1]])) for i in range(len(xbins) - 1))
+    print('    chose %d bins (%d bin low edges, including low edge of overflow) using %d values with min/max %f %f' % (len(xbins) - 1, len(xbins), len(values), min(values), max(values)))
+    print('      %s' % ' '.join('%8d'%(i+1) for i in range(len(xbins))))  # start at 1, to match hist.py/root convention that 0 is underflow (whose low edge is added in hist scratch init fcn, since its value has no effect)
+    print('      %s' % ' '.join('%8.4f'%x for x in xbins))
+    print('      %s' % ' '.join('%8d'%(len([v for v in values if v >= xbins[i] and v < xbins[i+1]])) for i in range(len(xbins) - 1)))
 
 # ----------------------------------------------------------------------------------------
 def auto_bin_expand(values, xbins, int_bins=False, debug=False):
     padval = 0.5 if int_bins else 0.01 * abs(max(values) - min(values))
     if xbins[0] > values[0] - padval:  # make sure the hi edge of the underflow bin (lo edge of first bin) is below the smallest value
-        print '      expanding lower edge of first bin (hi edge of underflow): %.3f --> %.3f' % (xbins[0], values[0] - padval)
+        print('      expanding lower edge of first bin (hi edge of underflow): %.3f --> %.3f' % (xbins[0], values[0] - padval))
         xbins[0] = values[0] - padval
     if xbins[-1] < values[-1] + padval:  # make sure the lo edge of the overflow bin is above the largest value
-        print '      expanding upper edge of last bin (lo edge of overflow): %.3f --> %.3f' % (xbins[-1], values[-1] + padval)
+        print('      expanding upper edge of last bin (lo edge of overflow): %.3f --> %.3f' % (xbins[-1], values[-1] + padval))
         xbins[-1] = values[-1] + padval
     if debug:
         binprint(xbins, values)
@@ -79,41 +81,41 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
     n_per_bin = int(len(values) / float(n_bins))
     values = sorted([v for v in values if v is not None])
     if debug > 1:
-        print '  trying to divide %d values%s from %s to %s into %d bins (%d per bin) %s' % (len(values), ' (with int bins)' if int_bins else '', values[0], values[-1], n_bins, n_per_bin, values if len(values) < 150 else '')
+        print('  trying to divide %d values%s from %s to %s into %d bins (%d per bin) %s' % (len(values), ' (with int bins)' if int_bins else '', values[0], values[-1], n_bins, n_per_bin, values if len(values) < 150 else ''))
     if int_bins:
         if len(set(values)) < n_bins:
-            print '    %s SHOULD PROBABLY MAYBE reduce n_bins %d to the number of different values %d' % (utils.wrnstr(), n_bins, len(set(values)))
+            print('    %s SHOULD PROBABLY MAYBE reduce n_bins %d to the number of different values %d' % (utils.wrnstr(), n_bins, len(set(values))))
         xbins = [values[0] - 0.5]
         n_this_bin = 0
         for iv, val in enumerate(values):  # similar to the ibins = below, but we have to deal with ties here
             n_this_bin += 1
             potential_hi_edge = val + 0.5
             if n_this_bin < n_per_bin:
-                if debug > 1: print '  %3d %5.1f  too few %d'  % (iv, potential_hi_edge, n_this_bin)
+                if debug > 1: print('  %3d %5.1f  too few %d'  % (iv, potential_hi_edge, n_this_bin))
                 continue
             if min_xdist is not None and potential_hi_edge - xbins[-1] < min_xdist:
-                if debug > 1: print '  %3d %5.1f  too close %.1f'  % (iv, potential_hi_edge, potential_hi_edge - xbins[-1])
+                if debug > 1: print('  %3d %5.1f  too close %.1f'  % (iv, potential_hi_edge, potential_hi_edge - xbins[-1]))
                 continue
             xbins.append(potential_hi_edge)
             n_this_bin = 0
-            if debug > 1: print '  %3d %5.1f  adding hi edge for bin with %d entries'  % (iv, potential_hi_edge, n_this_bin)
+            if debug > 1: print('  %3d %5.1f  adding hi edge for bin with %d entries'  % (iv, potential_hi_edge, n_this_bin))
         if xbins[-1] != values[-1] + 0.5:  # add the lo edge of the overflow bin
             xbins.append(values[-1] + 0.5)
-            if debug > 1: print '  %3d %5.1f  adding hi edge for bin with %d entries'  % (len(values) - 1, values[-1] + 0.5, n_this_bin)
+            if debug > 1: print('  %3d %5.1f  adding hi edge for bin with %d entries'  % (len(values) - 1, values[-1] + 0.5, n_this_bin))
         n_bins = len(xbins) - 1
     else:
         if len(set(values)) > 2 * n_bins:  # if there's many more values than bins, do actual auto volume bins (~same number of entries per bin)
             ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]  # indices (in sorted values) of bin boundaries that have ~equal entries per bin
             xbins = [values[i] for i in ibins]
         else:
-            print '    %s number of distinct values %d less than or equal to requested number of bins %d, so using one bin (n_bins = 2) in/instead of auto volume bins' % (utils.wrnstr(), len(set(values)), n_bins)
+            print('    %s number of distinct values %d less than or equal to requested number of bins %d, so using one bin (n_bins = 2) in/instead of auto volume bins' % (utils.wrnstr(), len(set(values)), n_bins))
             xbins = [values[0], values[-1]]
             n_bins = 1
             debug = True  # turn debug on just to make more clear what's going on
         dxmin, dxmax = [abs(float(xbins[ist+1] - xbins[ist])) for ist in (0, len(xbins) - 2)]  # width of (first, last) bin [not under/overflows]
         xbins[0], xbins[-1] = get_expanded_bounds(values, dxmin, dxmax=dxmax)
     if len(set(xbins)) != len(xbins):
-        print '    %s duplicate xbins in auto volume bins, so removing duplicates (and reducing n_bins)' % utils.wrnstr()
+        print('    %s duplicate xbins in auto volume bins, so removing duplicates (and reducing n_bins)' % utils.wrnstr())
         xbins = sorted(set(xbins))
         n_bins = len(xbins) - 1
     if debug:
@@ -133,13 +135,13 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
     assert var_type == 'int' or var_type == 'string'  # floats should be handled by Hist class in hist.py
 
     if len(values) == 0:
-        print 'WARNING no values for %s in make_hist' % hist_label
+        print('WARNING no values for %s in make_hist' % hist_label)
         return Hist(1, 0, 1)
 
     if not no_sort:
         bin_labels = sorted(values)  # by default sort by keys in dict (i.e. these aren't usually actually string "labels")
     else:
-        bin_labels = values.keys()
+        bin_labels = list(values.keys())
     if sort_by_counts:  # instead sort by counts
         bin_labels = sorted(values, key=values.get, reverse=True)
 
@@ -179,7 +181,7 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
     # make sure there's no overflows
     if hist.bin_contents[0] != 0.0 or hist.bin_contents[-1] != 0.0:
         for ibin in range(hist.n_bins + 2):
-            print '%d %f %f' % (ibin, hist.low_edges[ibin], hist.bin_contents[ibin])
+            print('%d %f %f' % (ibin, hist.low_edges[ibin], hist.bin_contents[ibin]))
         raise Exception('overflows in ' + hist_label)
 
     return hist

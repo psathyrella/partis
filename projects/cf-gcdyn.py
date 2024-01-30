@@ -1,4 +1,6 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
+from __future__ import absolute_import, division, unicode_literals
+from __future__ import print_function
 import argparse
 import os
 import sys
@@ -10,12 +12,13 @@ import multiprocessing
 import glob
 import copy
 
-sys.path.insert(1, './python')
-import utils
-import paircluster
-import scanplot
-import plotting
-import clusterpath
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
+sys.path.insert(1, partis_dir) # + '/python')
+import python.utils as utils
+import python.paircluster as paircluster
+import python.scanplot as scanplot
+import python.plotting as plotting
+import python.clusterpath as clusterpath
 
 # ----------------------------------------------------------------------------------------
 # This is the template/minimal implementation (not necessarily functional) for scan scripts, final versions of which include test/{cf-{germline-inference,paired-loci,tree-metrics}.py and projects/cf-gcdyn.py
@@ -32,7 +35,7 @@ merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all sca
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('--actions', default='simu:merge-simu:process:plot')  # dl-infer (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
+parser.add_argument('--actions', default='don\'t use')  # old defaults: simu:merge-simu:process:plot (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
 parser.add_argument('--birth-response-list')
 parser.add_argument('--xscale-values-list')
 parser.add_argument('--xshift-values-list')
@@ -40,34 +43,42 @@ parser.add_argument('--xscale-range-list')
 parser.add_argument('--xshift-range-list')
 parser.add_argument('--yscale-range-list')
 parser.add_argument('--initial-birth-rate-range-list')
-parser.add_argument('--carry-cap-list')
-parser.add_argument('--time-to-sampling-values-list')
+parser.add_argument('--carry-cap-range-list')
+parser.add_argument('--time-to-sampling-range-list')
+parser.add_argument('--n-seqs-range-list')
 parser.add_argument('--n-trials-list')
-parser.add_argument('--n-seqs-list')
 parser.add_argument('--dl-bundle-size-list', help='size of bundles during dl inference (must be equal to or less than simulation bundle size)')
 parser.add_argument('--epochs-list')
 parser.add_argument('--dropout-rate-list')
 parser.add_argument('--learning-rate-list')
 parser.add_argument('--ema-momentum-list')
-parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --bundle-size-list)')
+parser.add_argument('--prebundle-layer-cfg-list')
+parser.add_argument('--dont-scale-params-list')
+parser.add_argument('--params-to-predict-list')
+parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --dl-bundle-size-list)')
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
+parser.add_argument('--data-samples-list', help='List of data samples to run on. Don\'t set this, it uses glob on --data-dir')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
 parser.add_argument('--dl-extra-args')
-parser.add_argument('--params-to-predict', default='xscale:xshift:yscale')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
+parser.add_argument('--dl-model-dir')
+parser.add_argument('--data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v0')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap', 'time-to-sampling-values', 'n-trials', 'n-seqs', 'simu-bundle-size'],
-    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
-    'group-expts' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum'],
+    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-range', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
+    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
+    'data' : ['data-samples'],
 }
-args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
+args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-range', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
-args.bool_args = []  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
+args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
+if 'data' in args.actions:
+    args.data_samples_list = ':'.join(os.path.basename(d) for d in glob.glob('%s/*' % args.data_dir))
+    print('  running on %d data samples from %s' % (len(args.data_samples_list), args.data_dir))
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
-args.params_to_predict = utils.get_arg_list(args.params_to_predict, choices=['xscale', 'xshift', 'yscale'])
 if args.inference_extra_args is not None:
     raise Exception('not used atm')
 if 'all-dl' in args.perf_metrics:
@@ -78,12 +89,12 @@ if 'all-test-dl' in args.perf_metrics:
     args.perf_metrics.remove('all-test-dl')
 if 'group-expts' in args.plot_metrics and any('train' in m for m in args.perf_metrics):
     acts_to_remove = [m for m in args.perf_metrics if 'train' in m]
-    print '    can\'t plot any training metrics for \'group-expts\' so removing: %s' % ' '.join(acts_to_remove)
+    print('    can\'t plot any training metrics for \'group-expts\' so removing: %s' % ' '.join(acts_to_remove))
     args.perf_metrics = [m for m in args.perf_metrics if 'train' not in m]
-if args.params_to_predict is not None:
+if args.params_to_predict_list is not None:
     before_metrics = copy.copy(args.perf_metrics)
-    args.perf_metrics = [m for m in args.perf_metrics if any(p in m for p in args.params_to_predict)]
-    print '    restricting perf metrics to correspond to --params-to-predict (removed %s)' % (' '.join(m for m in before_metrics if m not in args.perf_metrics))
+    args.perf_metrics = [m for m in args.perf_metrics if any(p in m for plist in args.params_to_predict_list for p in plist)]
+    print('    restricting perf metrics to correspond to --params-to-predict (removed %s)' % (' '.join(m for m in before_metrics if m not in args.perf_metrics)))
 
 # ----------------------------------------------------------------------------------------
 def odir(args, varnames, vstrs, action):
@@ -108,6 +119,8 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
         sfx = 'test.csv'
     elif action == 'partis':
         sfx = 'partition.yaml'
+    elif action == 'data':
+        sfx = 'infer.csv'
     else:
         assert False
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
@@ -115,7 +128,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
 # ----------------------------------------------------------------------------------------
 def add_ete_cmds(cmd):
     # cmd = ['. %s/miniconda3/etc/profile.d/conda.sh'%os.getenv('HOME'), 'conda activate gcdyn', cmd]
-    cmd = ['eval "$(micromamba shell hook --shell bash)"', 'micromamba activate gcdyn', cmd]
+    cmd = utils.mamba_cmds('gcdyn') + [cmd]
     cmd = ' && '.join(cmd)
     return cmd
 
@@ -141,7 +154,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     if action in ['simu', 'merge-simu']:
         cmd = 'gcd-simulate' if action=='simu' else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
         if action == 'simu':
-            cmd += ' --debug 1 --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))
+            cmd += ' --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))  #  --debug 1
             if args.test:
                 cmd += ' --test'
             cmd = add_scan_args(cmd)
@@ -155,22 +168,22 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     elif action == 'process':
         cmd = './projects/gcreplay/analysis/gcdyn-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
-        if 'dl-infer' in action:
-            cmd = 'gcd-dl-infer --indir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+        if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
+            cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
+            if args.dl_model_dir is not None:
+                cmd += ' --model-dir %s' % args.dl_model_dir
         else:
             cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), os.path.dirname(ofname(args, varnames, vstrs, action)))
             cmd = add_ete_cmds(cmd)
-        if args.params_to_predict is not None:
-            cmd += ' --params-to-predict %s' % ' '.join(args.params_to_predict)
         cmd = add_scan_args(cmd, skip_fcn=lambda vname: vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer'])  # ick
     elif action == 'partis':
         # make a partition-only file
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
         ptnfn = '%s/true-partition.yaml' % simdir
         if not os.path.exists(ptnfn):
-            print '    writing true partitions: %s' % ptnfn
+            print('    writing true partitions: %s' % ptnfn)
             all_seqs = [s['name'] for s in utils.read_fastx(ofname(args, varnames, vstrs, 'simu'))]  # just to make sure we get the names right
             true_partition = []
             for sfn in glob.glob('%s/seqs_*.fasta'%simdir):
@@ -185,6 +198,14 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odir
         # if args.inference_extra_args is not None:
         #     cmd += ' %s' % args.inference_extra_args
+    elif action == 'data':
+        odir = os.path.dirname(ofname(args, varnames, vstrs, action))
+        assert len(vstrs) == 1  # should just one data sample in a list
+        smpl = vstrs[0]
+        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s' % (args.dl_model_dir, args.data_dir, smpl, odir)
+        if args.dl_bundle_size_list is not None:  # kind of weird to use it for this as well as a scan var, but whatever
+            assert len(args.dl_bundle_size_list) == 1
+            cmd += ' --dl-bundle-size %d' % int(args.dl_bundle_size_list[0])
     else:
         assert False
     return cmd
@@ -205,14 +226,14 @@ def run_scan(action):
     # ----------------------------------------------------------------------------------------
     base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action])
     cmdfos = []
-    print '  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames))
+    print('  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames)))
     if args.debug:
-        print '   %s' % ' '.join(varnames)
+        print('   %s' % ' '.join(varnames))
     n_already_there, n_missing_input, ifn = 0, 0, None
     all_simdirs = []
     for icombo, vstrs in enumerate(valstrs):
         if args.debug:
-            print '   %s' % ' '.join(vstrs)
+            print('   %s' % ' '.join(vstrs))
 
         ofn = ofname(args, varnames, vstrs, action) if action not in merge_actions else ofname(args, [], [], action)  #, single_file=True)
         if utils.output_exists(args, ofn, debug=False):
@@ -232,7 +253,7 @@ def run_scan(action):
 
     if action in merge_actions and len(all_simdirs) > 0:
         if action == 'merge-simu' and n_missing_input > 0:
-            print '    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr()
+            print('    %s writing merged simulation file despite missing some of its input files' % utils.wrnstr())
         init_cmd([], [], ofn, 0)
 
     utils.run_scan_cmds(args, cmdfos, '%s.log'%action, len(valstrs), n_already_there, ofn, n_missing_input=n_missing_input, single_ifn=ifn, shell=any('micromamba activate' in c['cmd_str'] for c in cmdfos))
@@ -250,23 +271,23 @@ if args.workdir is None:
     args.workdir = utils.choose_random_subdir('/tmp/%s/hmms' % (os.getenv('USER', default='partis-work')))
 
 for action in args.actions:
-    if action in ['simu', ] + after_actions + plot_actions:
+    if action in ['simu', 'data', ] + after_actions + plot_actions:
         run_scan(action)
     elif action in ['plot', 'combine-plots']:
         plt_scn_vars = args.scan_vars['group-expts']
         if args.dry:
-            print '  --dry: not plotting'
+            print('  --dry: not plotting')
             continue
         _, varnames, val_lists, valstrs = utils.get_var_info(args, plt_scn_vars)
         if action == 'plot':
-            print 'plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None))
+            print('plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None)))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}
             procs = []
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
                     utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
                 for pmetr in args.perf_metrics:
-                    print '  %12s %s' % (method, pmetr)
+                    print('  %12s %s' % (method, pmetr))
                     arglist, kwargs = (args, plt_scn_vars, action, method, pmetr, args.final_plot_xvar), {'fnfcn' : get_fnfcn(method, pmetr), 'fnames' : fnames[method][pmetr], 'script_base' : script_base, 'debug' : args.debug}
                     if args.test:
                         scanplot.make_plots(*arglist, **kwargs)
@@ -284,7 +305,7 @@ for action in args.actions:
             utils.prep_dir(cfpdir, wildlings=['*.html', '*.svg'])
             fnames = [[] for _ in args.perf_metrics]
             for ipm, pmetr in enumerate(args.perf_metrics):
-                print '    ', pmetr
+                print('    ', pmetr)
                 scanplot.make_plots(args, plt_scn_vars, action, None, pmetr, args.final_plot_xvar, fnames=fnames[ipm], make_legend=True, debug=args.debug)
             plotting.make_html(cfpdir, fnames=fnames)
         else:
