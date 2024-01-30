@@ -12,6 +12,7 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
   libyaml-dev \
   libz-dev \
   ncbi-blast+ \
+  python-is-python3 \
   python-pyqt5 \
   vim
 
