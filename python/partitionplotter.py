@@ -704,35 +704,52 @@ class PartitionPlotter(object):
     def make_tree_plots(self):
         # ----------------------------------------------------------------------------------------
         def add_mut_labels(annotation, metafo, iclust):
+            # NOTE that the label/str machinations in here interact in complicated ways (i.e. it's hackey) with those in plot-lb-tree.py
+            # ----------------------------------------------------------------------------------------
+            def add_aa_mutstr(uid):
+                if annotation.get('is_fake_paired', False):
+                    chstrs = []
+                    for tch in 'hl':
+                        chmuts = [m for m in mutfo['aa'][uid] if m['str'].find(tch+':')==0]
+                        if len(chmuts) > 0:
+                             chstrs.append('%s: %s' % (tch, ', '.join(m['str'].replace(tch+':', '') for m in chmuts)))
+                    metafo['labels'][uid] += '\n' + '\n'.join(chstrs)
+                else:
+                    metafo['labels'][uid] += '\n' + ', '.join(m['str'] for m in mutfo['aa'][uid])
+            # ----------------------------------------------------------------------------------------
             mutfo = {tstr : self.mut_info[iclust]['%s_muts'%tstr] for tstr in ['aa', 'nuc']}
             metafo['labels'] = {}
+            if 'leaf' in self.args.mutation_label_cfg:
+                dtree = self.treefos[iclust]['tree']
             for uid in annotation['unique_ids']:
                 if uid not in mutfo['nuc']:
                     continue
-                if len(mutfo['nuc'][uid]) == 0:
-                    metafo['labels'][uid] = '0'
-                # elif annotation.get('is_fake_paired', False):
-                #     metafo['labels'][uid] = '%d nuc, %d aa' % (len(mutfo['nuc'][uid]), len(mutfo['aa'][uid])) #''
-                else:
-                    metafo['labels'][uid] = '%d nuc, %d aa' % (len(mutfo['nuc'][uid]), len(mutfo['aa'][uid]))
-                if uid in mutfo['aa'] and len(mutfo['aa'][uid]) > 0:
-                    if annotation.get('is_fake_paired', False):
-                        chstrs = []
-                        for tch in 'hl':
-                            chmuts = [m for m in mutfo['aa'][uid] if m['str'].find(tch+':')==0]
-                            if len(chmuts) > 0:
-                                 chstrs.append('%s: %s' % (tch, ', '.join(m['str'].replace(tch+':', '') for m in chmuts)))
-                        metafo['labels'][uid] += '\n' + '\n'.join(chstrs)
+                has_aa_mutfo = 'mut-str' in self.args.mutation_label_cfg and uid in mutfo['aa'] and len(mutfo['aa'][uid]) > 0
+                divstr = ', ' if has_aa_mutfo else '\n'
+                if 'leaf' in self.args.mutation_label_cfg:
+                    node = dtree.find_node_with_taxon_label(uid)
+                    if node is None or not node.is_leaf():
+                        continue
+                    metafo['labels'][uid] = '%d nuc%s%d aa' % (utils.per_seq_val(annotation, 'n_mutations', uid), divstr, utils.shm_aa(annotation, uid=uid))
+                elif 'all' in self.args.mutation_label_cfg:
+                    if len(mutfo['nuc'][uid]) == 0:
+                        metafo['labels'][uid] = '0'
+                    # elif annotation.get('is_fake_paired', False):
+                    #     metafo['labels'][uid] = '%d nuc, %d aa' % (len(mutfo['nuc'][uid]), len(mutfo['aa'][uid])) #''
                     else:
-                        metafo['labels'][uid] += '\n' + ', '.join(m['str'] for m in mutfo['aa'][uid])
+                        metafo['labels'][uid] = '%d nuc%s%d aa' % (len(mutfo['nuc'][uid]), divstr, len(mutfo['aa'][uid]))
+                else:
+                    raise Exception('expected either \'leaf\' or \'all\' in --mutation-label-cfg but got: %s' % self.args.mutation_label_cfg)
+                if has_aa_mutfo:
+                    add_aa_mutstr(uid)
         # ----------------------------------------------------------------------------------------
         def get_metafo(annotation, iclust):
-            if self.args.meta_info_key_to_color is None and self.args.node_size_key is None and not self.args.label_mutations:
+            if self.args.meta_info_key_to_color is None and self.args.meta_info_to_emphasize is None and self.args.node_size_key is None and self.args.mutation_label_cfg is None:
                 return None, None
             metafo, cdr3fo = {}, {}
-            for tk in [k for k in [self.args.meta_info_key_to_color, self.args.node_size_key] if k is not None and k in annotation]:
+            for tk in [k for k in [self.args.meta_info_key_to_color, list(self.args.meta_info_to_emphasize.items())[0][0], self.args.node_size_key] if k is not None and k in annotation]:
                 metafo[tk] = {u : f for u, f in zip(annotation['unique_ids'], annotation[tk])}
-            if self.args.label_mutations:
+            if self.args.mutation_label_cfg is not None:
                 add_mut_labels(annotation, metafo, iclust)
                 if annotation.get('is_fake_paired', False):
                     for tch in 'hl':
@@ -764,7 +781,7 @@ class PartitionPlotter(object):
             altids = [(u, au) for u, au in zip(annotation['unique_ids'], annotation['alternate-uids']) if au is not None] if 'alternate-uids' in annotation else None
             mfo, cdr3fo = get_metafo(annotation, iclust)
             cfo = lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=mfo,
-                                             queries_to_include=qtis, meta_info_key_to_color=self.args.meta_info_key_to_color, uid_translations=altids,
+                                             queries_to_include=qtis, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_info_to_emphasize=self.args.meta_info_to_emphasize, uid_translations=altids,
                                              label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, node_label_regex=self.args.node_label_regex)
             cmdfos.append(cfo)
             self.addfname(fnames, plotname)

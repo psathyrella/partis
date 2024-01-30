@@ -398,11 +398,11 @@ def process(args):
         print('  --extra-daffy-metrics: adding %d metrics to treeutils.daffy_metrics (%s)' % (len(args.extra_daffy_metrics), ':'.join(args.extra_daffy_metrics)))
         treeutils.daffy_metrics += args.extra_daffy_metrics
     args.tree_inference_outdir = None
-    if args.tree_inference_method is not None:
-        if args.outfname is None and args.paired_outdir is None:
-            args.tree_inference_outdir = None
-        else:
-            args.tree_inference_outdir = utils.fpath(utils.getprefix(utils.non_none([args.outfname, args.paired_outdir])))
+    if args.outfname is None and args.paired_outdir is None:
+        args.tree_inference_outdir = None
+    else:
+        args.tree_inference_outdir = utils.fpath(utils.getprefix(utils.non_none([args.outfname, args.paired_outdir])))
+    args.mutation_label_cfg = utils.get_arg_list(args.mutation_label_cfg)
 
     if args.plot_annotation_performance:
         if args.plotdir is None and args.print_n_worst_annotations is None:
