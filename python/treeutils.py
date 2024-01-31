@@ -2105,7 +2105,8 @@ def calculate_liberman_lonr(input_seqfos=None, line=None, reco_info=None, phylip
     return lonr_info
 
 # ----------------------------------------------------------------------------------------
-def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_overlap_fraction=0.5, only_use_best_partition=False, only_plot_uids_with_affinity_info=False, glfo=None, debug=False):
+# if inf_partition is set (and use_true_clusters isn't), we only calculate tree metrics on those clusters
+def get_tree_metric_lines(annotations, reco_info, use_true_clusters, inf_partition=None, min_overlap_fraction=0.5, only_plot_uids_with_affinity_info=False, glfo=None, debug=False):
     # collect inferred and true events
     inf_lines_to_use, true_lines_to_use = None, None
     if use_true_clusters:  # use clusters from the true partition, rather than inferred one
@@ -2141,11 +2142,10 @@ def get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, min_
                 raise Exception('chose the same inferred cluster to correspond to two different true clusters')
             chosen_ustrs.add(ustr_to_use)
             inf_lines_to_use.append(annotations[ustr_to_use])
-    else:  # use clusters from the inferred partition (whether from <cpath> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
+    else:  # use clusters from the inferred partition (whether from <inf_partition> or <annotations>), and synthesize clusters exactly matching these using single true annotations from <reco_info> (to repeat: these are *not* true clusters)
         inf_lines_to_use = list(annotations.values())  # we used to restrict it to clusters in the best partition, but I'm switching since I think whenever there are extra ones in <annotations> we always actually want their tree metrics (at the moment there will only be extra ones if either --calculate-alternative-annotations or --write-additional-cluster-annotations are set, but in the future it could also be the default)
-        if only_use_best_partition:
-            assert cpath is not None and cpath.i_best is not None
-            inf_lines_to_use = [l for l in inf_lines_to_use if l['unique_ids'] in cpath.partitions[cpath.i_best]]
+        if inf_partition is not None:
+            inf_lines_to_use = [l for l in inf_lines_to_use if l['unique_ids'] in inf_partition]
         if only_plot_uids_with_affinity_info:
             assert False  # should work fine as is, but needs to be checked and integrated with things
             tmplines = []
@@ -2280,7 +2280,7 @@ def check_cluster_indices(cluster_indices, ntot, inf_lines_to_use):
 
 # ----------------------------------------------------------------------------------------
 # NOTE partially duplicates lbplotting.get_tree_in_line()
-def get_treefos(args, antn_list, cpath=None, glfo=None, debug=False):  # note that <antn_list> is expected to have None values (in order to ensure iclust values stay consistent)
+def get_treefos(args, antn_list, glfo=None, debug=False):  # note that <antn_list> is expected to have None values (in order to ensure iclust values stay consistent)
     if not args.is_data and any('tree' not in l for l in antn_list if l is not None):
         print('  %s true tree missing from at least one annotation, but --is-simu was set (probably bcr-phylo simulation with multiple gc rounds, where we remove the tree since it\'s no longer correct [need to implement tree merging for multiple rounds])' % utils.wrnstr())
     if args.is_data and any('tree' in l for l in antn_list if l is not None):
@@ -2293,7 +2293,7 @@ def get_treefos(args, antn_list, cpath=None, glfo=None, debug=False):  # note th
         treefos = [{'tree' : get_dendro_tree(treestr=l['tree-info']['lb']['tree'])} if l is not None else None for l in antn_list]  # needs to be same length as antn_list
         print('    using existing inferred trees in lb info')
     else:
-        treefos = get_trees_for_annotations(antn_list, treefname=args.treefname, cpath=cpath, workdir=args.workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
+        treefos = get_trees_for_annotations(antn_list, treefname=args.treefname, workdir=args.workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
                                             inf_outdir=args.tree_inference_outdir, glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir,
                                             linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, only_pass_leaves=args.infer_trees_with_only_leaves, debug=debug)
     return treefos
@@ -2366,6 +2366,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             # line['tree-info']['lonr'] = lonr_info
             origin = 'lonr'
         elif tree_inference_method == 'cpath': #tree_inference_method is None and cpath is not None and cpath.i_best is not None and line['unique_ids'] in cpath.partitions[cpath.i_best]:
+            assert cpath is not None
             dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
             origin = 'cpath'
         elif tree_inference_method in ['fasttree', 'iqtree', 'gctree', 'gctree-base', 'linearham', None]:
@@ -2440,8 +2441,10 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, dont_normalize_lbi=False, extra_s
         line['tree-info']['lb']['aa-'+nuc_metric] = aa_lb_info[nuc_metric]
 
 # ----------------------------------------------------------------------------------------
-def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                 train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, only_use_best_partition=False, glfo=None, tree_inference_outdir=None, debug=False):
+# by default, gets smetrics for all <annotations>
+# if inf_partition is set (and use_true_clusters isn't), we only calculate tree metrics on those clusters
+def add_smetrics(args, metrics_to_calc, annotations, lb_tau, inf_partition=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
+                 train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, glfo=None, tree_inference_outdir=None, debug=False):
     min_cluster_size = args.min_selection_metric_cluster_size  # default_min_selection_metric_cluster_size
     smdbgstr = '  getting selection metrics (%s)' % ' '.join(metrics_to_calc)
     if reco_info is not None:
@@ -2458,7 +2461,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
         assert reco_info is None
         inf_lines_to_use = None
     else:  # called from python/partitiondriver.py (with reco_info set, which needs to be turned into true_lines_to_use)
-        inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, cpath, reco_info, use_true_clusters, only_use_best_partition=only_use_best_partition, glfo=glfo)  # NOTE these continue to be modified (by removing clusters we don't want) further down, and then they get passed to the plotting functions
+        inf_lines_to_use, true_lines_to_use = get_tree_metric_lines(annotations, reco_info, use_true_clusters, inf_partition=inf_partition, glfo=glfo)  # NOTE these continue to be modified (by removing clusters we don't want) further down, and then they get passed to the plotting functions
         # NOTE that if running a tree inference method that infers ancestral seqs, and we add those seqs to annotations, the keys in <annotations> will no longer be correct (but i think i'd rather fix this in the calling fcn than here, since i don't use <annotations> after this atm). Yes, this sucks and is dangerous
 
     # get tree and calculate metrics for inferred lines
@@ -2473,7 +2476,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, cpath=None, reco_in
             return
         treefos = None
         if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
-            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, cpath=cpath, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
+            treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
                                                 inf_outdir=tree_inference_outdir, glfo=glfo, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir,
                                                 seed_id=args.seed_unique_id, only_pass_leaves=args.infer_trees_with_only_leaves, debug=debug)
         check_cluster_indices(args.cluster_indices, n_after, inf_lines_to_use)

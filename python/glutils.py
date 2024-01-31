@@ -1118,7 +1118,7 @@ def choose_some_alleles(region, genes_to_use, allelic_groups, n_alleles_per_gene
         raise Exception('requested mean number of alleles per gene has to be less than the max alleles per gene, but %f >= %f' % (n_alleles_per_gene[region], n_max_alleles_per_gene))
 
     if len(allelic_groups[region]) == 0:
-        raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-alleles-per-gene are probably too big)' % region)  # note that we don't reuse pv/sv pairs (the idea being such a pair represents an actual gene), and we don't directly control how many alleles are chosen from each such pair, so there isn't really a way to make sure you get every single allele in the germline set.
+        raise Exception('ran out of %s alleles (either --n-genes-per-region or --n-sim-alleles-per-gene are probably too big)' % region)  # note that we don't reuse pv/sv pairs (the idea being such a pair represents an actual gene), and we don't directly control how many alleles are chosen from each such pair, so there isn't really a way to make sure you get every single allele in the germline set.
     available_versions = None
     while available_versions is None or len(available_versions) == 0:
         # if available_versions is not None:

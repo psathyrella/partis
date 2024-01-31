@@ -364,7 +364,7 @@ class PartitionDriver(object):
         print('hmm')
         annotations, hmm_failures = self.actually_get_annotations_for_clusters(clusters_to_annotate=self.input_partition)
         if self.args.get_selection_metrics:
-            self.calc_tree_metrics(annotations, cpath=None)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(annotations)  # adds tree metrics to <annotations>
         if self.args.annotation_clustering:  # VJ CDR3 clustering (NOTE it would probably be better to have this under 'partition' action, but it's historical and also not very important)
             from . import annotationclustering
             antn_ptn = annotationclustering.vollmers(annotations, self.args.annotation_clustering_threshold)
@@ -376,12 +376,12 @@ class PartitionDriver(object):
             if self.args.plot_partitions or self.input_partition is not None and self.args.plotdir is not None:
                 assert self.input_partition is not None
                 partplotter = PartitionPlotter(self.args, glfo=self.glfo)
-                partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, args=self.args) #, cpath=cpath) cpath is only used for laplacian spectra
+                partplotter.plot(self.args.plotdir + '/partitions', self.input_partition, annotations, reco_info=self.reco_info, args=self.args)
             if self.args.count_parameters and not self.args.dont_write_parameters:
                 self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
-    def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
+    def calc_tree_metrics(self, annotation_dict, annotation_list=None):
         if annotation_list is None:
             annotation_list = list(annotation_dict.values())
         if self.current_action == 'get-selection-metrics' and self.args.input_metafnames is not None:  # presumably if you're running 'get-selection-metrics' with --input-metafnames set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
@@ -389,12 +389,9 @@ class PartitionDriver(object):
         if self.args.seed_unique_id is not None:  # restrict to seed cluster in the best partition (clusters from non-best partition have duplicate uids, which then make fasttree barf, and it doesn't seem worth the trouble to fix it now)
             print('    --seed-unique-id: restricting selection metric calculation to seed cluster in best partition (mostly to avoid fasttree crash on duplicate uids)')
             annotation_dict = OrderedDict([(uidstr, line) for uidstr, line in annotation_dict.items() if self.args.seed_unique_id in line['unique_ids'] and line['unique_ids'] in cpath.partitions[cpath.i_best]])
-            cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=cpath.partitions[cpath.i_best])  # replace <cpath> with a new <cpath> that only has the best partition. The cpath will in general have duplicate uids in different clusters when seed partitioning, so it's better to just use the best partition and use fasttree for everything
-        treeutils.add_smetrics(self.args, self.args.selection_metrics_to_calculate, annotation_dict, self.args.lb_tau, cpath=cpath, reco_info=self.reco_info,  # NOTE keys in <annotation_dict> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
+        treeutils.add_smetrics(self.args, self.args.selection_metrics_to_calculate, annotation_dict, self.args.lb_tau, reco_info=self.reco_info,  # NOTE keys in <annotation_dict> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
                                use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir,
-                               outfname=self.args.selection_metric_fname, only_use_best_partition=self.args.only_print_best_partition, glfo=self.glfo,
-                               tree_inference_outdir=self.args.tree_inference_outdir,
-                               debug=self.args.debug)
+                               outfname=self.args.selection_metric_fname, glfo=self.glfo, tree_inference_outdir=self.args.tree_inference_outdir, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------
     def parse_existing_annotations(self, annotation_list, ignore_args_dot_queries=False, process_csv=False):
@@ -454,6 +451,21 @@ class PartitionDriver(object):
         self.write_output(list(cluster_annotations.values()), set(), cpath=cpath, dont_write_failed_queries=True)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotations>
 
     # ----------------------------------------------------------------------------------------
+    def get_index_restricted_clusters(self, cpath):
+        tptn = cpath.best()
+        if self.args.partition_index_to_print is not None:
+            if self.args.partition_index_to_print > len(cpath.partitions) - 1:
+                cpath.print_partitions()
+                print('  %s --partition-index-to-print %d too large for cpath with length %d, so ignoring it and using best partition' % (utils.wrnstr(), self.args.partition_index_to_print, len(cpath.partitions)))
+            else:
+                tptn = cpath.partitions[self.args.partition_index_to_print]
+        tptn = sorted(tptn, key=len, reverse=True)  # NOTE we always want this sorted, i.e. dont_sort doesn't apply to this, since here we're only doing --cluster-indices, which says in its help message that we sort
+        if self.args.cluster_indices is None:
+            return tptn
+        else:
+            return [tptn[i] for i in self.args.cluster_indices]
+
+    # ----------------------------------------------------------------------------------------
     def print_results(self, cpath, annotation_list, dont_sort=False, label_list=None, extra_str=''):
         if label_list is not None:
             assert len(label_list) == len(annotation_list)
@@ -467,9 +479,7 @@ class PartitionDriver(object):
             if seed_uid is not None and cpath.seed_unique_id != seed_uid:
                 print('  %s seed uids from args and cpath don\'t match %s %s ' % (utils.color('red', 'error'), self.args.seed_unique_id, cpath.seed_unique_id))
             if self.args.cluster_indices is not None:
-                tptn = cpath.best() if self.args.partition_index_to_print is None else cpath.partitions[self.args.partition_index_to_print]
-                tptn = sorted(tptn, key=len, reverse=True)  # NOTE this should always be sorted, i.e. dont_sort doesn't apply to this, since here we're only doing --cluster-indices, which says in its help message that we sort
-                restricted_clusters = [tptn[i] for i in self.args.cluster_indices]
+                restricted_clusters = self.get_index_restricted_clusters(cpath)
             seed_uid = cpath.seed_unique_id
             n_to_print, ipart_center = None, None
             if self.args.partition_index_to_print is not None:
@@ -538,6 +548,45 @@ class PartitionDriver(object):
                 utils.print_reco_event(line, extra_str=extra_str+'  ', label=''.join(label), post_label=''.join(post_label), queries_to_emphasize=queries_to_emphasize, extra_print_keys=self.args.extra_print_keys)
 
     # ----------------------------------------------------------------------------------------
+    def restrict_ex_out_clusters(self, cpath, annotation_list):  # NOTE would be nice to use [bits of] this also for result printing fcn above, but there we need the indices to line up, so have to do the 'continue' thing
+        n_before = len(annotation_list)
+        ptn_to_use, dbg_str = cpath.best() , []
+        if self.args.only_print_best_partition and cpath is not None and cpath.i_best is not None:
+            annotation_list = [l for l in annotation_list if l['unique_ids'] in cpath.partitions[cpath.i_best]]
+        if self.args.only_print_seed_clusters or self.args.seed_unique_id is not None:
+            annotation_list = [l for l in annotation_list if self.args.seed_unique_id in l['unique_ids']]
+            ptn_to_use = [c for c in ptn_to_use if self.args.seed_unique_id in c]
+        if self.args.only_print_queries_to_include_clusters:
+            annotation_list = [l for l in annotation_list if len(set(self.args.queries_to_include) & set(l['unique_ids'])) > 0]  # will barf if you don't tell us what queries to include, but then that's your fault isn't it
+            ptn_to_use = [c for c in ptn_to_use if len(set(self.args.queries_to_include) & set(c)) > 0]
+        if self.args.n_final_clusters is not None or self.args.min_largest_cluster_size is not None:
+            tptns = cpath.partitions
+            if self.args.n_final_clusters is not None:
+                tptns = [p for p in tptns if len(p) == self.args.n_final_clusters]
+                dbg_str.append('--n-final-clusters')
+            if self.args.min_largest_cluster_size is not None:
+                tptns = [p for p in cpath.partitions if any(len(c) >= self.args.min_largest_cluster_size for c in p)]
+                dbg_str.append('--min-largest-cluster-size')
+            if len(tptns) > 1:
+                print('    %s multiple partitions satisfy --n-final-clusters/--min-largest-cluster-size criteria, just picking first one' % utils.wrnstr())
+            ptn_to_use = cpath.partitions[-1] if len(tptns)==0 else tptns[0]
+            annotation_list = [l for l in annotation_list if l['unique_ids'] in ptn_to_use]
+        if self.args.partition_index_to_print is not None or self.args.cluster_indices is not None:
+            ptn_to_use = self.get_index_restricted_clusters(cpath)
+            annotation_list = [l for l in annotation_list if l['unique_ids'] in ptn_to_use]
+            if self.args.partition_index_to_print is not None:
+                dbg_str.append('--partition-index-to-print')
+            if self.args.cluster_indices is not None:
+                dbg_str.append('--cluster-indices')
+        if self.args.only_print_best_partition or self.args.only_print_seed_clusters or self.args.only_print_queries_to_include_clusters or len(dbg_str) > 0:
+            astr = ', '.join(['--only-print-'+s for s in ['best-partition', 'seed-clusters', 'queries-to-include-clusters'] if getattr(self.args, ('only-print-'+s).replace('-', '_'))] + dbg_str)
+            print('  %s: restricting to %d/%d annotations' % (astr, len(annotation_list), n_before))
+        else:
+            print('  note: By default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set).\n        If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters (or, if set during partitioning, --n-final-clusters or --min-largest-cluster-size).')
+
+        return ptn_to_use, annotation_list
+
+    # ----------------------------------------------------------------------------------------
     def read_existing_output(self, outfname=None, ignore_args_dot_queries=False, read_partitions=False, read_annotations=False):
         if outfname is None:
             outfname = self.args.outfname
@@ -562,18 +611,7 @@ class PartitionDriver(object):
             raise Exception('unhandled annotation file suffix %s' % outfname)
 
         annotation_list = self.parse_existing_annotations(annotation_list, ignore_args_dot_queries=ignore_args_dot_queries, process_csv=utils.getsuffix(outfname) == '.csv')  # NOTE modifies <annotation_list>
-        if not self.args.only_print_best_partition and not self.args.only_print_seed_clusters and not self.args.only_print_queries_to_include_clusters:
-            print('  note: by default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set). If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters')
-        n_before = len(annotation_list)  # note that we don't handle --cluster-indices or --partition-indices-to-print here, it just seems like it'll be a bit fiddly
-        if self.args.only_print_best_partition and cpath is not None and cpath.i_best is not None:
-            annotation_list = [l for l in annotation_list if l['unique_ids'] in cpath.partitions[cpath.i_best]]
-        if self.args.only_print_seed_clusters or self.args.seed_unique_id is not None:
-            annotation_list = [l for l in annotation_list if self.args.seed_unique_id in l['unique_ids']]
-        if self.args.only_print_queries_to_include_clusters:
-            annotation_list = [l for l in annotation_list if len(set(self.args.queries_to_include) & set(l['unique_ids'])) > 0]  # will barf if you don't tell us what queries to include, but then that's your fault isn't it
-        if self.args.only_print_best_partition or self.args.only_print_seed_clusters or self.args.only_print_queries_to_include_clusters:
-            astr = ', '.join('--only-print-'+s for s in ['best-partition', 'seed-clusters', 'queries-to-include-clusters'] if getattr(self.args, ('only-print-'+s).replace('-', '_')))
-            print('  %s: restricting to %d/%d annotations' % (astr, len(annotation_list), n_before))
+        ptn_to_use, annnotation_list = self.restrict_ex_out_clusters(cpath, annotation_list)
         if len(annotation_list) == 0:
             if cpath is not None and tmpact in ['view-output', 'view-annotations', 'view-partitions']:
                 self.print_results(cpath, [])  # used to just return, but now i want to at least see the cpath
@@ -595,7 +633,7 @@ class PartitionDriver(object):
             self.write_output(annotation_list, set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'get-selection-metrics':
-            self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list, cpath=cpath)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list)  # adds tree metrics to <annotations>
         if tmpact == 'update-meta-info':
             seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities', 'paired-uids'])  # these keys are modified by sw (multiplicities) or paired clustering (paired-uids), so if you want to update them with this action here you're out of luck
         if tmpact == 'update-meta-info' or (tmpact == 'get-selection-metrics' and self.args.add_selection_metrics_to_outfname):
@@ -609,7 +647,7 @@ class PartitionDriver(object):
 
         if tmpact == 'plot-partitions':
             partplotter = PartitionPlotter(self.args, glfo=self.glfo)
-            partplotter.plot(self.args.plotdir + '/partitions', cpath.partitions[cpath.i_best], annotation_dict, reco_info=self.reco_info, cpath=cpath, args=self.args)
+            partplotter.plot(self.args.plotdir + '/partitions', ptn_to_use, annotation_dict, reco_info=self.reco_info, args=self.args)
 
         if tmpact in ['view-output', 'view-annotations', 'view-partitions']:
             self.print_results(cpath, annotation_list)
@@ -1017,7 +1055,7 @@ class PartitionDriver(object):
         print('getting annotations for final partition%s%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '', ' (with star tree annotation since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else ''))
         all_annotations, hmm_failures = self.actually_get_annotations_for_clusters(clusters_to_annotate=clusters_to_annotate, n_procs=n_procs, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
         if self.args.get_selection_metrics:
-            self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(all_annotations)  # adds tree metrics to <annotations>
 
         if self.args.calculate_alternative_annotations:
             for cluster in sorted(cpath.best(), key=len, reverse=True):
@@ -1036,8 +1074,9 @@ class PartitionDriver(object):
         self.current_action = action_cache
 
         if self.args.plotdir is not None and not self.args.no_partition_plots:
+            ptn_to_use, annotation_list = self.restrict_ex_out_clusters(cpath, list(all_annotations.values()))
             partplotter = PartitionPlotter(self.args, glfo=self.glfo)
-            partplotter.plot(self.args.plotdir + '/partitions', cpath.best(), all_annotations, reco_info=self.reco_info, cpath=cpath, args=self.args)
+            partplotter.plot(self.args.plotdir + '/partitions', ptn_to_use, utils.get_annotation_dict(annotation_list), reco_info=self.reco_info, args=self.args)
 
         if self.args.seed_unique_id is not None:
             cpath.print_seed_cluster_size(queries_to_include=self.args.queries_to_include)

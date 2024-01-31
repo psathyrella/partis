@@ -17,6 +17,7 @@
     - [germline sets](#germline-sets)
   - [simulate](#simulate) make simulated sequences
   - [other topics](#other-topics)
+    - [restricting to certain partitions or clusters](#restricting-to-certain-partitions-or-clusters)
     - [subcluster annotation](#subcluster-annotation)
 	- [annotation uncertainties (alternative annotations)](#annotation-uncertainties-alternative-annotations)
     - [naive rearrangement probability estimates](#naive-rearrangement-probability-estimates)
@@ -444,6 +445,24 @@ You can then add novel alleles to the germline set by telling it how many novel 
 
 
 ### other topics
+
+##### restricting to certain partitions or clusters
+
+There are a variety of options that restrict the clusters or partitions on which actions are performed.
+When printing annotations (e.g. with `--debug 1`) or running on existing output (e.g. `plot-partitions`, `view-output`, `get-selection-metrics`), by default we typically operate on all clusters in the best (most likely) partition (although `get-selection-metrics` for instance by default operates on clusters from all partitions, and there may be other exceptions).
+This behavior can be changed, however, with the following arguments.
+
+| option                                  | description
+|-----------------------------------------|-----------------------------------------------------------------
+| `--n-final-clusters <N>`            | If you reach the maximum likelihood partition and there are still more than this many clusters, attempt to keep merging until there aren't.  If --min-largest-cluster-size is also set, we stop if either of their criteria are satisfied. Set this also when reading existing output (e.g. plot-partitions) in order to select the proper partition.
+| `--min-largest-cluster-size <size>` | If you reach the maximum likelihood partition and the largest cluster isn't this big, attempt to keep merging until it is. If --n-final-clusters is also set, we stop if either of their criteria are satisfied. Set this also when reading existing output (e.g. plot-partitions) in order to select the proper partition.
+| `--only-print-best-partition`       | When printing annotations or reading existing output (e.g. view-output, plot-partitions), instead of the default of printing/reading the annotation for every cluster for which we calculated one (see e.g. --calculate-alternative-annotations and --n-partitions-to-write), only print annotations for clusters in the best partition.
+| `--only-print-seed-clusters`        | same as --only-print-best-partition, but in addition, only print/read the seed cluster(s). Note that if --only-print-best-partition is *not* set, then there will be more than one seed cluster. (default: False)
+| `--only-print-queries-to-include-clusters` | same as --only-print-best-partition, but in addition, only print/read the cluster(s) corresponding to --queries-to-include/--queries-to-include-fname. Note that if --only-print-best-partition is *not* set, then there will be more than one cluster for each such query. (default: False)
+| `--cluster-indices <i:j:k>`         | indices of clusters (when sorted largest to smallest) to process for actions that read existing output, e.g. 'view-output' and 'get-selection-metrics'. Specified as a colon-separated list, where each item can be either a single integer or a python slice-style range of integers, e.g. 0:3-6:50 --> 0:3:4:5:50
+| `--partition-index-to-print <i>`    | like --cluster-indices, but restricts to the partition with this index (rather than default of printing best partition). (default: None)
+
+Note that while `get-selection-metrics` by default runs on all annotations (even if not in the best partition, since we usually want selection metrics for all clusters), `plot-partitions` by default only runs on annotations in the best partition, since we usually want the plots to reflect an actual partition of the data.
 
 ##### subcluster annotation
 

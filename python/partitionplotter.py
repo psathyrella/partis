@@ -537,7 +537,7 @@ class PartitionPlotter(object):
         antn_list = [self.antn_dict.get(':'.join(c)) for c in self.sclusts]  # NOTE we *need* cluster indices here to match those in all the for loops in this file
         cibak = self.args.cluster_indices  # ick
         self.args.cluster_indices = [i for i in range(len(self.sclusts)) if self.plot_this_cluster(i, plottype='trees')]
-        self.treefos = treeutils.get_treefos(self.args, antn_list, cpath=self.cpath, glfo=self.glfo)
+        self.treefos = treeutils.get_treefos(self.args, antn_list, glfo=self.glfo)
         self.args.cluster_indices = cibak
         if self.args.tree_inference_method is not None:  # if the inference method infers ancestors, those sequences get added to the annotation during inference (e.g gctree, iqtree, linearham), but here we have to update the antn_dict keys and sclusts for these new seqs
             self.antn_dict = utils.get_annotation_dict(antn_list)
@@ -957,13 +957,13 @@ class PartitionPlotter(object):
             partition.remove(fclust)
 
     # ----------------------------------------------------------------------------------------
-    def plot(self, plotdir, partition, annotations, reco_info=None, cpath=None, args=None):
+    def plot(self, plotdir, partition, annotations, reco_info=None, args=None):
         if self.args.only_csv_plots:
             print('  --only-csv-plots not implemented for partition plots, so returning without plotting')
             return
         if args is not None and args.sub_plotdir is not None:
             plotdir += '/' + args.sub_plotdir
-        print('    plotting partitions to %s' % plotdir)
+        print('    plotting partition with %d cluster%s to %s' % (len(partition), utils.plural(len(partition)), plotdir))
         sys.stdout.flush()
         start = time.time()
         if args is None or args.partition_plot_cfg is None:
@@ -974,7 +974,7 @@ class PartitionPlotter(object):
 
         fnames = []
         self.remove_failed_clusters(partition, annotations)
-        self.sclusts, self.antn_dict, self.cpath, self.base_plotdir = sorted(partition, key=lambda c: len(c), reverse=True), annotations, cpath, plotdir
+        self.sclusts, self.antn_dict, self.base_plotdir = sorted(partition, key=lambda c: len(c), reverse=True), annotations, plotdir
 
         if 'shm-vs-size' in plot_cfg:
             fnames += self.make_shm_vs_cluster_size_plots()
