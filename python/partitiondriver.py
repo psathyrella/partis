@@ -635,6 +635,9 @@ class PartitionDriver(object):
         if tmpact == 'get-selection-metrics':
             self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list)  # adds tree metrics to <annotations>
         if tmpact == 'update-meta-info':
+            inids, alist_ids = set(self.input_info), set(u for l in annotation_list for u in l['unique_ids'])
+            if inids != alist_ids:
+                print('  %s input info (len %d) has different uids to annotation list (len %d), and meta info will only be set/correct for the ones in input info' % (utils.wrnstr(), len(inids), len(alist_ids)))
             seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities', 'paired-uids'])  # these keys are modified by sw (multiplicities) or paired clustering (paired-uids), so if you want to update them with this action here you're out of luck
         if tmpact == 'update-meta-info' or (tmpact == 'get-selection-metrics' and self.args.add_selection_metrics_to_outfname):
             print('  rewriting output file with %s: %s' % ('newly-calculated selection metrics' if tmpact=='get-selection-metrics' else 'updated input meta info', outfname))

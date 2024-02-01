@@ -812,7 +812,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
         print('           distance       %s                     parent' % utils.wfmt('leaf', nlen, jfmt='-'))
     missing_seq_ids = set(sequence_uids) - set([n.taxon.label for n in dtree.preorder_node_iter()])
     if len(missing_seq_ids) > 0:  # ok maybe i don't need this, but once i missed a translation step, so <sequence_uids> didn't correspond to the node labels, which meant i was collapsing a bunch of things i didn't want (i.e. removing from the tree) to with no other warning.
-        print('    %s didn\'t find %d / %d sequence ids when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?)' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids)))
+        print('    %s %d / %d sequence ids weren\'t found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?): %s' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids), ' '.join(sorted(missing_seq_ids))))
     removed_nodes = []
     for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
         recursed = False
@@ -1546,7 +1546,7 @@ def find_pure_subtrees(dtree, antn, meta_key, debug=False):
     for tleaf in dtree.leaf_node_iter():
         mval = meta_vals[tleaf.taxon.label]
         if mval is None:
-            print('    %s None type leaf (wtf)' % utils.wrnstr())
+            print('    %s None type leaf (missing \'%s\' meta info): %s' % (utils.wrnstr(), meta_key, tleaf.taxon.label))
             continue
         if debug:
             print('   %20s  %10s' % (tleaf.taxon.label, mval), end=' ')

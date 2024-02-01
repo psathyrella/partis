@@ -615,7 +615,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if auto_cache or tmpaction in ['annotate', 'plot-partitions', 'view-output']:
                         remove_action_specific_args(clist, args.action, tmpaction)
                     if tmpaction != 'view-output' or not args.is_data:
-                        utils.replace_in_arglist(clist, '--infname', getifn(ltmp, lpair=lpair))  # NOTE this is in some cases replaced below
+                        lpt = lpair if tmpaction != 'update-meta-info' else None  # ok this is weird, but for updating meta info we need to read also unpaired seqs (so meta info is set for them). Maybe other actions also? but not sure
+                        utils.replace_in_arglist(clist, '--infname', getifn(ltmp, lpair=lpt))  # NOTE this is in some cases replaced below
                     utils.replace_in_arglist(clist, '--parameter-dir', getpdir(ltmp))
                     if args.seed_unique_id is not None and tmpaction in ['plot-partitions', 'view-output', 'get-selection-metrics']:  # 'partition',   # for 'partition' we no longer want to run with seed unique id set, since we're now dropping unseeded clusters beforehand, and don't want the single-chain procs to drop them (since that leaves us with seemingly-unpaired seqs later on)
                         utils.replace_in_arglist(clist, '--seed-unique-id', seedid(ltmp))

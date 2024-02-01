@@ -1806,7 +1806,7 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
         if 'texts' in bfo:
             for tfo in bfo['texts']:
                 ax.text(bfo['x']+tfo.get('dx', 0), bfo['y']+tfo.get('dy', 0), tfo['tstr'], fontsize=tfo['fsize'], alpha=alpha, color=tfo['tcol'])
-        if bfo['fracs'] is None:
+        if bfo['fracs'] is None or len(bfo['fracs']) == 0:
             ax.add_patch(plt.Circle((bfo['x'], bfo['y']), bfo['r'], alpha=alpha, linewidth=2, fill=True))  # plain circle
         else:
             plot_pie_chart_marker(ax, bfo['x'], bfo['y'], bfo['r'], bfo['fracs'], alpha=alpha)
