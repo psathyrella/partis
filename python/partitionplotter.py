@@ -724,7 +724,7 @@ class PartitionPlotter(object):
             for uid in annotation['unique_ids']:
                 if uid not in mutfo['nuc']:
                     continue
-                has_aa_mutfo = 'mut-str' in self.args.mutation_label_cfg and uid in mutfo['aa'] and len(mutfo['aa'][uid]) > 0
+                has_aa_mutfo = 'mut-strs' in self.args.mutation_label_cfg and uid in mutfo['aa'] and len(mutfo['aa'][uid]) > 0
                 divstr = ', ' if has_aa_mutfo else '\n'
                 if 'leaf' in self.args.mutation_label_cfg:
                     node = dtree.find_node_with_taxon_label(uid)

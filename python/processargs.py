@@ -402,7 +402,7 @@ def process(args):
         args.tree_inference_outdir = None
     else:
         args.tree_inference_outdir = utils.fpath(utils.getprefix(utils.non_none([args.outfname, args.paired_outdir])))
-    args.mutation_label_cfg = utils.get_arg_list(args.mutation_label_cfg)
+    args.mutation_label_cfg = utils.get_arg_list(args.mutation_label_cfg, choices=['all', 'leaf', 'mut-strs'])
 
     if args.plot_annotation_performance:
         if args.plotdir is None and args.print_n_worst_annotations is None:
