@@ -397,11 +397,15 @@ def process(args):
     if args.extra_daffy_metrics is not None:
         print('  --extra-daffy-metrics: adding %d metrics to treeutils.daffy_metrics (%s)' % (len(args.extra_daffy_metrics), ':'.join(args.extra_daffy_metrics)))
         treeutils.daffy_metrics += args.extra_daffy_metrics
-    args.tree_inference_outdir = None
+    args.tree_inference_outdir = None  # NOTE not an actual command line arg
     if args.outfname is None and args.paired_outdir is None:
         args.tree_inference_outdir = None
     else:
         args.tree_inference_outdir = utils.fpath(utils.getprefix(utils.non_none([args.outfname, args.paired_outdir])))
+    if args.tree_inference_subdir is not None:
+        args.tree_inference_outdir = '%s/%s' % (utils.non_none([args.tree_inference_outdir, os.getcwd()]), args.tree_inference_subdir)
+    if args.tree_inference_outdir is not None:
+        print('  note: set tree inference outdir to %s' % args.tree_inference_outdir)
     args.mutation_label_cfg = utils.get_arg_list(args.mutation_label_cfg, choices=['all', 'leaf', 'mut-strs'])
 
     if args.plot_annotation_performance:

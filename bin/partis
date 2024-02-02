@@ -1170,6 +1170,8 @@ def run_all_loci(args, ig_or_tr='ig'):
     if args.infname is not None:
         prep_inputs()
     args.tree_inference_outdir = getodir()
+    if args.tree_inference_subdir is not None:
+        args.tree_inference_outdir = '%s/%s' % (args.tree_inference_outdir, args.tree_inference_subdir)
 
     if args.action == 'simulate':
         if not args.dry_run:
@@ -1415,6 +1417,7 @@ parent_args.append({'name' : '--min-selection-metric-cluster-size', 'kwargs' : {
 parent_args.append({'name' : '--min-paired-cluster-size-to-read', 'kwargs' : {'type' : int, 'default' : treeutils.default_min_selection_metric_cluster_size, 'help' : 'When reading paired annotations when getting selection metrics or plotting partitions, ignore clusters with either N h or l ids smaller than this. See also --min-selection-metric-cluster-size, which is similar but only skips selection metric calculation.'}})
 parent_args.append({'name' : '--treefname', 'kwargs' : {'help' : 'newick-formatted file with a tree corresponding to the sequences either in --infname (if making new output, i.e. action is annotate or partition) or --outfname (if reading existing output, i.e. action is get-selection-metrics) (unrelated to --input-simulation-treefname).'}})
 parent_args.append({'name' : '--tree-inference-method', 'kwargs' : {'choices' : ['fasttree', 'iqtree', 'gctree', 'gctree-base', 'linearham', 'cpath'], 'help' : 'Method to use when inferring trees (default: fasttree)'}})
+parent_args.append({'name' : '--tree-inference-subdir', 'kwargs' : {'help' : 'Subdirectory of the (automatically-set) tree inference workdir to which to write tree inference output files. By default, these are written to a subdir of --outfname/--paired-outdir with the name of the inference method, but this argument allows multiple versions, as with --sub-plotdir.'}})
 parent_args.append({'name' : '--infer-trees-with-only-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Discard internal nodes in true trees when inferring phylogenetic trees.'}})
 parent_args.append({'name' : '--selection-metrics-to-calculate', 'kwargs' : {'default' : 'lbi:lbr:aa-lbi:aa-lbr:cons-dist-aa', 'help' : 'colon-separated list of selection metrics to calculate.'}})
 parent_args.append({'name' : '--selection-metric-plot-cfg', 'kwargs' : {'default' : ':'.join(treeutils.default_plot_cfg), 'help' : 'colon-separated list of plot types to make for selection metrics (see treeutils.plot_tree_metrics()). Choices: %s.' % ' '.join(treeutils.all_plot_cfg)}})

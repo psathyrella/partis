@@ -16,6 +16,8 @@ In addition, svgs that are simply histograms have their content written to a csv
 This facilitates comparison across [different directories](#comparison-plots), as well as allowing the many re-plotting steps inevitably required during publication to involve only quick csv processing, rather than rerunning partis.
 The svgs themselves can also be easily modified to change axis labels, fonts, colors, etc. using, for instance, [inkscape](https://inkscape.org/), or in simple cases `sed` or a text editor.
 
+You can write different plot versions to different subdirectories by specifying `--sub-plotdir`.
+
 #### parameter plots
 
 If a `--plotdir` is specified during parameter caching (whether run automatically, or as a separate `cache-parameters` step), many plots related to rearrangement-level and shm-level parameters will be written to `sw/` and `hmm/` subdirs

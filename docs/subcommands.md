@@ -578,3 +578,6 @@ First, you can set either --min-selection-metric-cluster-size (families smaller 
 You can also set --cluster-indices, for instance '0:1:2' would infer on only the first three families, however this requires some care to ensure that you're getting the ones you want since there's several different ways to sort families within partitions.
 
 If you only want trees (and don't care about selection metrics), things will go much faster if you set `--selection-metrics-to-calculate lbi --selection-metric-plot-cfg lb-scatter`, and either don't set `--plotdir` or set `--only-csv-plots`.
+
+By default, if `--outfname` or `--paired-outdir` are set, tree inference results for each method will be written/cached to an automatically-generated subdir of those args so you can change plotting styles (e.g. for `plot-partitions`) without rerunning the actual inference.
+In order to run different versions, you can specify `--tree-inference-subdir`, which works similarly to `--sub-plotdir`.
