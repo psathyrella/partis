@@ -66,7 +66,7 @@ def read_input(args):
 min_size = 1.5
 max_size = 10
 opacity = 0.65
-fsize = 7
+node_fsize = 7
 
 # ----------------------------------------------------------------------------------------
 def set_delta_affinities(etree, affyfo):  # set change in affinity from parent for each node, and return a list of all such affinity changes (for normalizing the cmap)
@@ -131,6 +131,8 @@ def label_node(node, root_node):
     def use_name():
         if args.label_all_nodes:
             return True
+        if args.label_leaf_nodes and node.is_leaf():
+            return True
         if args.queries_to_include is not None and node.name in args.queries_to_include:
             return True
         if args.label_root_node and node is root_node:
@@ -179,11 +181,11 @@ def label_node(node, root_node):
         else:
             tlabels[0] = mlabel
         for il, (blab, bcol) in enumerate(zip(blabels, bcolors)):
-            node.add_face(ete3.TextFace(blab, fsize=3, fgcolor=bcol), column=il, position='branch-bottom')
+            node.add_face(ete3.TextFace(blab, fsize=node_fsize, fgcolor=bcol), column=il, position='branch-bottom')
         for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):
-            node.add_face(ete3.TextFace(tlab, fsize=3, fgcolor=tcol), column=il, position='branch-top')
-    tface = ete3.TextFace(rename(nlabel), fsize=3, fgcolor='red')
-    node.add_face(tface, column=0)
+            node.add_face(ete3.TextFace(tlab, fsize=node_fsize, fgcolor=tcol), column=il, position='branch-top')
+    tface = ete3.TextFace(' '+rename(nlabel), fsize=node_fsize, fgcolor='red')
+    node.add_face(tface, column=1) # position='branch-bottom')
 
 # ----------------------------------------------------------------------------------------
 def rename(name):
@@ -336,6 +338,7 @@ parser.add_argument('--affy-key', default='affinity', choices=['affinity', 'rela
 parser.add_argument('--metafname')
 parser.add_argument('--queries-to-include')
 parser.add_argument('--label-all-nodes', action='store_true')
+parser.add_argument('--label-leaf-nodes', action='store_true')
 parser.add_argument('--label-root-node', action='store_true')
 parser.add_argument('--node-label-regex', help='portion of node label to keep (rest is discarded if regex is found, if no regex label is left unchanged). E.g. \'ig.\' reduces them all to the locus')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
@@ -363,7 +366,7 @@ args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, ke
 args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
 utils.meta_emph_arg_process(args)
 args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
-if args.node_label_regex is not None and not args.label_all_nodes:
+if args.node_label_regex is not None and not args.label_all_nodes and not args.label_leaf_nodes:
     print('  note: turning on --label-all-nodes')
     args.label_all_nodes = True
 

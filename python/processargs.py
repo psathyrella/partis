@@ -406,7 +406,7 @@ def process(args):
         args.tree_inference_outdir = '%s/%s' % (utils.non_none([args.tree_inference_outdir, os.getcwd()]), args.tree_inference_subdir)
     if args.tree_inference_outdir is not None:
         print('  note: set tree inference outdir to %s' % args.tree_inference_outdir)
-    args.mutation_label_cfg = utils.get_arg_list(args.mutation_label_cfg, choices=['all', 'leaf', 'mut-strs'])
+    args.mutation_label_cfg = utils.get_arg_list(args.mutation_label_cfg, choices=['all', 'leaf', 'mut-strs', 'short'])
 
     if args.plot_annotation_performance:
         if args.plotdir is None and args.print_n_worst_annotations is None:

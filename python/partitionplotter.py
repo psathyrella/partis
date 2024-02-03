@@ -719,6 +719,7 @@ class PartitionPlotter(object):
             # ----------------------------------------------------------------------------------------
             mutfo = {tstr : self.mut_info[iclust]['%s_muts'%tstr] for tstr in ['aa', 'nuc']}
             metafo['labels'] = {}
+            is_short = 'short' in self.args.mutation_label_cfg
             if 'leaf' in self.args.mutation_label_cfg:
                 dtree = self.treefos[iclust]['tree']
             for uid in annotation['unique_ids']:
@@ -733,11 +734,12 @@ class PartitionPlotter(object):
                     metafo['labels'][uid] = '%d nuc%s%d aa' % (utils.per_seq_val(annotation, 'n_mutations', uid), divstr, utils.shm_aa(annotation, uid=uid))
                 elif 'all' in self.args.mutation_label_cfg:
                     if len(mutfo['nuc'][uid]) == 0:
-                        metafo['labels'][uid] = '0'
+                        metafo['labels'][uid] = '' if is_short else '0'
                     # elif annotation.get('is_fake_paired', False):
                     #     metafo['labels'][uid] = '%d nuc, %d aa' % (len(mutfo['nuc'][uid]), len(mutfo['aa'][uid])) #''
                     else:
-                        metafo['labels'][uid] = '%d nuc%s%d aa' % (len(mutfo['nuc'][uid]), divstr, len(mutfo['aa'][uid]))
+                        n_nuc, n_aa = len(mutfo['nuc'][uid]), len(mutfo['aa'][uid])
+                        metafo['labels'][uid] = '%d (%d)' % (n_nuc, n_aa) if is_short else '%d nuc%s%d aa' % (n_nuc, divstr, n_aa)
                 else:
                     raise Exception('expected either \'leaf\' or \'all\' in --mutation-label-cfg but got: %s' % self.args.mutation_label_cfg)
                 if has_aa_mutfo:
@@ -782,7 +784,7 @@ class PartitionPlotter(object):
             mfo, cdr3fo = get_metafo(annotation, iclust)
             cfo = lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=mfo,
                                              queries_to_include=qtis, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_info_to_emphasize=self.args.meta_info_to_emphasize, uid_translations=altids,
-                                             label_all_nodes=self.args.label_tree_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, node_label_regex=self.args.node_label_regex)
+                                             label_all_nodes=self.args.label_tree_nodes, label_leaf_nodes=self.args.label_leaf_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, node_label_regex=self.args.node_label_regex)
             cmdfos.append(cfo)
             self.addfname(fnames, plotname)
             if self.args.meta_info_key_to_color is not None:
@@ -932,7 +934,7 @@ class PartitionPlotter(object):
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 continue
 
-            fnlists = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, self.treefos[iclust]['tree'], annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
+            fnlists = lbplotting.plot_subtree_purity(plotdir, 'subtree-purity-iclust-%d' % iclust, self.treefos[iclust]['tree'], annotation, self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots, max_size=21)
             for fnl in fnlists:
                 fnames.append(fnl)
 

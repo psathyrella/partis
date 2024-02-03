@@ -355,7 +355,7 @@ def plot_bcr_phylo_simulation(plotdir, outdir, events, extrastr, metric_for_targ
     plotting.make_html(plotdir, fnames=fnames)
 
 # ----------------------------------------------------------------------------------------
-def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph_formats=None, only_csv=False, swarm_plots=False):
+def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph_formats=None, only_csv=False, swarm_plots=False, max_size=0):
     # ----------------------------------------------------------------------------------------
     def vlabel(var):
         return plotconfig.xtitles.get('subtree-purity-'+var)
@@ -363,17 +363,18 @@ def plot_subtree_purity(plotdir, base_plotname, dtree, antn, meta_key, meta_emph
     def make_scatter_plot(yvar):
         add_jitter = True
         szvals = [sub_stat['size'] for tstats in st_stats.values() for sub_stat in tstats]
-        djit = 0.2 #0.01 * (max(szvals) - min(szvals))
+        xmax = int(max(max_size, max(szvals)))
+        djit = 0.2 #0.01 * (xmax - min(szvals))
         fig, ax = plotting.mpl_init()
         for im, (mval, tstats) in enumerate(st_stats.items()):
             jitval = ((im+1) // 2) * djit * (-1)**im if add_jitter else 0
             for sub_stat in tstats:
                 ax.scatter([sub_stat['size'] + jitval], [sub_stat[yvar]], facecolor=mcolors[mval], alpha=0.6) #, s=10)
-        if max(szvals) <= 5:
+        if xmax <= 5:
             xticks = [1, 2, 3, 4, 5]
         else:
-            xticks = [1, 3, 5] + list(range(10, max(szvals)-1, 5)) + [max(szvals)]
-        fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-%s'%(base_plotname, yvar), title='', xlabel=vlabel('size')+(' (+offset)' if add_jitter else ''), ylabel=vlabel(yvar), xticks=xticks)
+            xticks = [1, 3, 5] + list(range(10, xmax-1, 5)) + [xmax]
+        fn = plotting.mpl_finish(ax, plotdir, '%s-size-vs-%s'%(base_plotname, yvar), title='', xlabel=vlabel('size')+(' (+offset)' if add_jitter else ''), ylabel=vlabel(yvar), xticks=xticks, xbounds=[0, xmax+1])  # +1 is to account for jitter (well, might be nice to have it even without jitter)
         fnames[1].append(os.path.basename(fn).replace('.svg', ''))
     # ----------------------------------------------------------------------------------------
     st_nodes, st_stats = treeutils.find_pure_subtrees(dtree, antn, meta_key)
@@ -1533,7 +1534,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
         add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_root_node=False, seq_len=None,
+def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_leaf_nodes=False, label_root_node=False, seq_len=None,
                     meta_info_key_to_color=None, meta_info_to_emphasize=None, node_size_key=None, uid_translations=None, node_label_regex=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
@@ -1551,6 +1552,8 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --uid-translations %s' % ':'.join('%s,%s'%(u, au) for u, au in uid_translations)
     if label_all_nodes:
         cmdstr += ' --label-all-nodes'
+    if label_leaf_nodes:
+        cmdstr += ' --label-leaf-nodes'
     if label_root_node:
         cmdstr += ' --label-root-node'
     cmdstr += ' --outfname %s' % outfname
@@ -1600,7 +1603,7 @@ def plot_lb_trees(args, metric_methods, baseplotdir, lines, ete_path, base_workd
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
             cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=qtis,
-                                       label_all_nodes=args.label_tree_nodes, label_root_node=args.label_root_node, uid_translations=altids, node_label_regex=args.node_label_regex,
+                                       label_all_nodes=args.label_tree_nodes, label_leaf_nodes=args.label_leaf_nodes, label_root_node=args.label_root_node, uid_translations=altids, node_label_regex=args.node_label_regex,
                                        seq_len=float(numpy.mean([len(s) for s in line['seqs']])))]
             add_fn(fnames, fn=outfname, n_per_row=4)
 
