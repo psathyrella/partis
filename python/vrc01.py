@@ -25,46 +25,48 @@
 #
 
 
+import sys
 import numpy as np
 
 from . import utils
-# from abtools.alignment import global_alignment, muscle
-# from abtools.sequence import Sequence
 
-
-def vrc01_class_mutation_count(seqs):
-    input_seqs = [Sequence([s['seq_id'], s['vdj_aa']]) for s in seqs]
+# ----------------------------------------------------------------------------------------
+# returns two lists (with entries for each input sequence): <shared>: mutations shared with any vrc01-class sequence and <total>: total number of mutations in input sequence
+def vrc01_class_mutation_count(input_seqs):
     shared = []
     total = []
     # get VRC01-class sequences
     vrc01_seqs = get_vrc01_class_sequences()
-    vrc01_names = [s.id for s in vrc01_seqs]
+    vrc01_names = [s['name'] for s in vrc01_seqs]
     # get glVRC01 sequence
     glvrc01 = get_vrc01_germline_sequence()
-    glvrc01_name = glvrc01.id
+    glvrc01_name = glvrc01['name']
     # identify VRC01-class mutations
-    for s in input_seqs:
-        alignment_seqs = [s] + vrc01_seqs + [glvrc01]
-        aln = muscle(alignment_seqs)
-        aln_seq = [seq for seq in aln if seq.id == s.id][0]
-        aln_gl = [seq for seq in aln if seq.id == glvrc01_name][0]
-        aln_vrc01s = [seq for seq in aln if seq.id in vrc01_names]
-        total.append(sum([_s != g for _s, g in zip(str(aln_seq.seq), str(aln_gl.seq)) if g != '-']))
-        all_shared = {}
+    for info in input_seqs:
+# TODO align all the input seqs at once
+        msa_seqfos = utils.align_many_seqs([info] + vrc01_seqs + [glvrc01], aa=True, debug=True)
+        sys.exit()
+        # aln = muscle(alignment_seqs)
+# TODO here
+        aln_seq = [seq for seq in aln if seq.id == s.id][0]  # alignment of query sequence (info)
+        aln_gl = [seq for seq in aln if seq.id == glvrc01_name][0]  # alignment of germline sequence
+        aln_vrc01s = [seq for seq in aln if seq.id in vrc01_names]  # alignment of vrc01-class (reference) seqs
+        total.append(sum([_s != g for _s, g in zip(str(aln_seq.seq), str(aln_gl.seq)) if g != '-']))  # total number of differences between aln_seq and aln_gl
+        all_shared = {}  # all mutations shared with each vrc01-class seq
         for vrc01 in aln_vrc01s:
             _shared = []
-            for q, g, v in zip(str(aln_seq.seq), str(aln_gl.seq), str(vrc01.seq)):
+            for q, g, v in zip(str(aln_seq.seq), str(aln_gl.seq), str(vrc01.seq)):  # query, germline, and vrc01-class (ref) characters
                 if g == '-' and v == '-':
                     _shared.append(False)
                 elif q == v and q != g:
-                    _shared.append(True)
+                    _shared.append(True)  # it's a shared mutation if query and vrc01-class have the same char, and it's not germline
                 else:
                     _shared.append(False)
             all_shared[vrc01.id] = _shared
         any_shared = 0
-        for pos in zip(*all_shared.values()):
-            if any(pos):
-                any_shared += 1
+        for pos in zip(*all_shared.values()):  # loop over all positions in the aligned sequences
+            if any(pos):  # if this input seq shares a mutation with any vrc01-class seq at this position...
+                any_shared += 1  # ...then increment this
         shared.append(any_shared)
     return shared, total
 
@@ -113,7 +115,7 @@ def get_vrc01_germline_sequence(vgene_only=True):
         gl_vrc01 = ('glVRC01', 'QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCAR')
     else:
         gl_vrc01 = ('glVRC01', 'QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCARGKNSDYNWDFQHWGQGTLVTVSS')
-    return Sequence(gl_vrc01)
+    return {'name' : gl_vrc01[0], 'seq' : gl_vrc01[1]}
 
 
 def get_vrc01_class_sequences(chain='heavy', vgene_only=True, only_include=None):
@@ -138,33 +140,33 @@ def get_vrc01_class_sequences(chain='heavy', vgene_only=True, only_include=None)
         if type(only_include) in [str, unicode]:
             only_include = [only_include, ]
         seqs = [s for s in seqs if s[0] in only_include]
-    return [Sequence(s) for s in seqs]
+    return [{'name' : n, 'seq' : s} for n, s in seqs]
 
 
 def get_vrc01_class_mutations():
-    vrc01_class = [s.sequence for s in get_vrc01_class_sequences()]
-    glvrc01 = get_vrc01_germline_sequence().sequence
+    vrc01_class = get_vrc01_class_sequences()
+    glvrc01 = get_vrc01_germline_sequence()
     return list(set(_get_mutations(vrc01_class, glvrc01)))
 
 
 def _get_mutations(seqs, standard):
     mutations = []
-    for seq in seqs:
-        aln = global_alignment(seq, target=standard,
-            matrix='blosum62', gap_open=-15, gap_extend=-1)
-        mutations.extend(_parse_mutations(aln))
+    msa_seqfos = utils.align_many_seqs([standard] + seqs, aa=True, debug=True)
+    glfo, queryfos = msa_seqfos[0], msa_seqfos[1:]
+    for qfo in queryfos:
+        mutations.extend(_parse_mutations(qfo, glfo))
     return mutations
 
 
-def _parse_mutations(aln):
+def _parse_mutations(qfo, glfo):
     muts = []
     tpos = 0
-    for q, t in zip(aln.aligned_query, aln.aligned_target):
+    for q, t in zip(qfo['seq'], glfo['seq']):
         if t == '-':
             continue
         tpos += 1
         if any([q == '-', q == t]):
             continue
-        mut = '{}{}'.format(tpos, q)
+        mut = '{}{}{}'.format(t, tpos, q)
         muts.append(mut)
     return muts
