@@ -27,51 +27,68 @@
 
 import sys
 import numpy as np
+import time
 
 from . import utils
 
 # ----------------------------------------------------------------------------------------
-# returns two lists (with entries for each input sequence): <shared>: mutations shared with any vrc01-class sequence and <total>: total number of mutations in input sequence
-def vrc01_class_mutation_count(input_seqs):
-    shared = []
-    total = []
-    # get VRC01-class sequences
+# returns two lists (with entries for each input sequence): <shared_vals>: mutations shared with any vrc01-class sequence and <total_vals>: total number of mutations in input sequence
+def vrc01_class_mutation_count(input_seqs, debug=True):
+    start = time.time()
+    shared_vals, total_vals = [], []
     vrc01_seqs = get_vrc01_class_sequences()
     vrc01_names = [s['name'] for s in vrc01_seqs]
-    # get glVRC01 sequence
     glvrc01 = get_vrc01_germline_sequence()
     glvrc01_name = glvrc01['name']
-    # identify VRC01-class mutations
+    msa_seqfos = utils.align_many_seqs([glvrc01] + vrc01_seqs + input_seqs, aa=True, extra_str='      ', debug=debug)
     for info in input_seqs:
-# TODO align all the input seqs at once
-        msa_seqfos = utils.align_many_seqs([info] + vrc01_seqs + [glvrc01], aa=True, debug=True)
-        sys.exit()
-        # aln = muscle(alignment_seqs)
-# TODO here
-        aln_seq = [seq for seq in aln if seq.id == s.id][0]  # alignment of query sequence (info)
-        aln_gl = [seq for seq in aln if seq.id == glvrc01_name][0]  # alignment of germline sequence
-        aln_vrc01s = [seq for seq in aln if seq.id in vrc01_names]  # alignment of vrc01-class (reference) seqs
-        total.append(sum([_s != g for _s, g in zip(str(aln_seq.seq), str(aln_gl.seq)) if g != '-']))  # total number of differences between aln_seq and aln_gl
+        aln_in = utils.get_single_entry([s for s in msa_seqfos if s['name'] == info['name']])  # alignment of query sequence (info)
+        aln_gl = utils.get_single_entry([s for s in msa_seqfos if s['name'] == glvrc01_name])  # alignment of germline sequence
+        aln_vrc01s = [s for s in msa_seqfos if s['name'] in vrc01_names]  # alignment of vrc01-class (reference) seqs
+        skip_chars = set(utils.gap_chars + utils.ambiguous_amino_acids)
+        total_vals.append(sum([i != g for i, g in zip(aln_in['seq'], aln_gl['seq']) if i not in skip_chars and g not in skip_chars]))  # total number of differences between aln_in and aln_gl (if query base (<i>) is a gap, i guess that counts as a mutation?
         all_shared = {}  # all mutations shared with each vrc01-class seq
+        if debug:
+            print('  getting shared for %s:' % info['name'])
         for vrc01 in aln_vrc01s:
             _shared = []
-            for q, g, v in zip(str(aln_seq.seq), str(aln_gl.seq), str(vrc01.seq)):  # query, germline, and vrc01-class (ref) characters
-                if g == '-' and v == '-':
+            chk_tot = 0
+            twidth = max(len(s['name']) for s in msa_seqfos)
+            for q, g, v in zip(aln_in['seq'], aln_gl['seq'], vrc01['seq']):  # query, germline, and vrc01-class (ref) characters
+                if any(c in skip_chars for c in [q, g, v]):  # if any of the three bases are either gaps or ambiguous, we can't know it's shared (or mutated)
                     _shared.append(False)
-                elif q == v and q != g:
-                    _shared.append(True)  # it's a shared mutation if query and vrc01-class have the same char, and it's not germline
+                    if all(c not in skip_chars for c in [q, g]) and q != g:  # if query and germline are non-skipped and different, it's a (non-shared) mutation [just for checking total above)
+                        chk_tot += 1
+                elif q == g:  # unmutated: query and germline are the same
+                    _shared.append(False)
+                elif q != g:
+                    if q == v:  # same mutation as vrc01 (ref)
+                        _shared.append(True)
+                    else:
+                        _shared.append(False)
+                    chk_tot += 1
                 else:
-                    _shared.append(False)
-            all_shared[vrc01.id] = _shared
+                    assert False
+            if chk_tot != total_vals[-1]:  # this shouldn't happen, but i'm scared i forgot some case
+                print('  %s different sum totals %d %d' % (utils.wrnstr(), total_vals[-1], chk_tot))
+            if debug:
+                print('      %s %s' % (utils.wfmt(vrc01['name'], twidth), ''.join(utils.color(None, 'x') if s else '-' for s in _shared)))
+            all_shared[vrc01['name']] = _shared
         any_shared = 0
         for pos in zip(*all_shared.values()):  # loop over all positions in the aligned sequences
             if any(pos):  # if this input seq shares a mutation with any vrc01-class seq at this position...
                 any_shared += 1  # ...then increment this
-        shared.append(any_shared)
-    return shared, total
+        shared_vals.append(any_shared)
+        if debug:
+            print('      shared: %d  total: %d' % (any_shared, total_vals[-1]))
+    print('  vrc01 class mutation counts for %d seqs in %.1f sec' % (len(input_seqs), time.time() - start))
+    return shared_vals, total_vals
 
 
+# ----------------------------------------------------------------------------------------
 def vrc01_class_mutation_positions(seqs):
+# TODO
+    assert False
     data = []
     input_seqs = [Sequence([s['seq_id'], s['vdj_aa']]) for s in seqs]
     input_names = [s.id for s in input_seqs]
