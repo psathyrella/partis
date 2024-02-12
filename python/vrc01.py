@@ -33,7 +33,7 @@ from . import utils
 
 # ----------------------------------------------------------------------------------------
 # returns two lists (with entries for each input sequence): <shared_vals>: mutations shared with any vrc01-class sequence and <total_vals>: total number of mutations in input sequence
-def vrc01_class_mutation_count(input_seqs, debug=True):
+def vrc01_class_mutation_count(input_seqs, debug=False):
     start = time.time()
     shared_vals, total_vals = [], []
     vrc01_seqs = get_vrc01_class_sequences()
@@ -86,47 +86,6 @@ def vrc01_class_mutation_count(input_seqs, debug=True):
 
 
 # ----------------------------------------------------------------------------------------
-def vrc01_class_mutation_positions(seqs):
-# TODO
-    assert False
-    data = []
-    input_seqs = [Sequence([s['seq_id'], s['vdj_aa']]) for s in seqs]
-    input_names = [s.id for s in input_seqs]
-    # get VRC01-class sequences
-    hiv_seqs = get_vrc01_class_sequences()
-    all_hiv_names = [s.id for s in hiv_seqs]
-    # MSA
-    seqs_for_alignment = input_seqs + hiv_seqs
-    seqs_for_alignment.append(get_vrc01_germline_sequence(vgene_only=False))
-    aln = muscle(seqs_for_alignment)
-    aln_seqs = [seq for seq in aln if seq.id in input_names]
-    aln_gl = [seq for seq in aln if seq.id == 'glVRC01'][0]
-    aln_mins = [seq for seq in aln if seq.id in ['minVRC01', 'min12A21']]
-    aln_hiv = [seq for seq in aln if seq.id in all_hiv_names]
-    for seq in aln_seqs:
-        seq_data = []
-        for i, (s, g) in enumerate(zip(str(seq.seq), str(aln_gl.seq))):
-            # if g == '-' and s == '-':
-            if g == '-':
-                continue
-            min_residues = [seq[i] for seq in aln_mins]
-            vrc01_residues = [seq[i] for seq in aln_hiv]
-            if s == '-':
-                seq_data.append(0)
-            elif s == g:
-                seq_data.append(0)
-            elif s != g and s in min_residues:
-                seq_data.append(2)
-            elif s != g and s in vrc01_residues:
-                seq_data.append(3)
-            elif s != g and s not in vrc01_residues:
-                seq_data.append(1)
-            else:
-                seq_data.append(0)
-        data.append(np.asarray(seq_data))
-    return np.asarray(data)
-
-
 def get_vrc01_germline_sequence(vgene_only=True):
     if vgene_only:
         gl_vrc01 = ('glVRC01', 'QVQLVQSGAEVKKPGASVKVSCKASGYTFTGYYMHWVRQAPGQGLEWMGWINPNSGGTNYAQKFQGRVTMTRDTSISTAYMELSRLRSDDTAVYYCAR')
@@ -135,6 +94,7 @@ def get_vrc01_germline_sequence(vgene_only=True):
     return {'name' : gl_vrc01[0], 'seq' : gl_vrc01[1]}
 
 
+# ----------------------------------------------------------------------------------------
 def get_vrc01_class_sequences(chain='heavy', vgene_only=True, only_include=None):
     if vgene_only:
         heavy = [('VRC01', 'QVQLVQSGGQMKKPGESMRISCRASGYEFIDCTLNWIRLAPGKRPEWMGWLKPRGGAVNYARPLQGRVTMTRDVYSDTAFLELRSLTVDDTAVYFCTR'),
@@ -160,12 +120,14 @@ def get_vrc01_class_sequences(chain='heavy', vgene_only=True, only_include=None)
     return [{'name' : n, 'seq' : s} for n, s in seqs]
 
 
+# ----------------------------------------------------------------------------------------
 def get_vrc01_class_mutations():
     vrc01_class = get_vrc01_class_sequences()
     glvrc01 = get_vrc01_germline_sequence()
     return list(set(_get_mutations(vrc01_class, glvrc01)))
 
 
+# ----------------------------------------------------------------------------------------
 def _get_mutations(seqs, standard):
     mutations = []
     msa_seqfos = utils.align_many_seqs([standard] + seqs, aa=True, debug=True)
@@ -175,6 +137,7 @@ def _get_mutations(seqs, standard):
     return mutations
 
 
+# ----------------------------------------------------------------------------------------
 def _parse_mutations(qfo, glfo):
     muts = []
     tpos = 0
