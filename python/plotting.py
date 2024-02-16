@@ -1817,3 +1817,50 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
     for wfn in workfnames:
         os.remove(wfn)
     return plotname
+
+# ----------------------------------------------------------------------------------------
+def plot_vrc01_class_muts(plotdir, plotname, annotation, only_csv=False, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def get_vmut_counts(infos, tdbg=False):
+        obs_muts = vrc01.glvrc01_mutation_list(infos, debug=tdbg)
+        vclass_muts = vrc01.vrc01_class_mutation_set(debug=tdbg)
+        obs_vclass_muts = [m for m in obs_muts if m in vclass_muts]
+        obs_non_muts = [m for m in obs_muts if m not in vclass_muts]
+        vmuts, vtot = len(obs_vclass_muts), len(obs_vclass_muts) + len(obs_non_muts)
+
+        # this gives very similar results, but the alignment can differ, so isn't always exactly the same
+        # shared_muts, total_muts = vrc01.vrc01_class_mutation_count(infos, debug=tdbg)
+        # vmuts_2, vtot_2 = shared_muts, total_muts
+
+        return vmuts, vtot
+
+    # ----------------------------------------------------------------------------------------
+    if only_csv:
+        print('  only_csv not implemented for vrc01 mut plots, returning')
+        return [[]]
+    import python.vrc01 as vrc01
+
+    vrc01.check_naive_seq(annotation)
+
+    utils.add_seqs_aa(annotation)
+    infos = [{'name' : u, 'seq' : s} for u, s in zip(annotation['unique_ids'], annotation['seqs_aa'])]
+    vmuts, vtot = get_vmut_counts(infos)
+
+    fnames = [[]]
+    fig, ax = mpl_init()
+    n_bins = 1
+    hist = Hist(n_bins, -0.5, n_bins - 0.5)
+    hist.set_ibin(1, vmuts / float(vtot), 0)
+    hist.mpl_plot(ax, square_bins=True)
+
+    fn = mpl_finish(ax, plotdir, plotname, title='vrc01 fraction')
+    fnames[-1].append(plotname)
+
+# TODO
+# ----------------------------------------------------------------------------------------
+#     all_emph_vals, emph_colors = meta_emph_init(mekey, formats=formats, all_emph_vals=set(plotvals))
+#     all_emph_vals = sorted(all_emph_vals)
+# # ----------------------------------------------------------------------------------------
+    # for iseq, seq_aa in enumerate(annotation['seqs_aa']):
+
+    return fnames

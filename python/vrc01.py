@@ -31,6 +31,8 @@ import time
 
 from . import utils
 
+skip_chars = set(utils.gap_chars + utils.ambiguous_amino_acids)
+
 # ----------------------------------------------------------------------------------------
 # returns two lists (with entries for each input sequence): <shared_vals>: mutations shared with any vrc01-class sequence and <total_vals>: total number of mutations in input sequence
 def vrc01_class_mutation_count(input_seqs, debug=False):
@@ -45,7 +47,6 @@ def vrc01_class_mutation_count(input_seqs, debug=False):
         aln_in = utils.get_single_entry([s for s in msa_seqfos if s['name'] == info['name']])  # alignment of query sequence (info)
         aln_gl = utils.get_single_entry([s for s in msa_seqfos if s['name'] == glvrc01_name])  # alignment of germline sequence
         aln_vrc01s = [s for s in msa_seqfos if s['name'] in vrc01_names]  # alignment of vrc01-class (reference) seqs
-        skip_chars = set(utils.gap_chars + utils.ambiguous_amino_acids)
         total_vals.append(sum([i != g for i, g in zip(aln_in['seq'], aln_gl['seq']) if i not in skip_chars and g not in skip_chars]))  # total number of differences between aln_in and aln_gl (if query base (<i>) is a gap, i guess that counts as a mutation?
         all_shared = {}  # all mutations shared with each vrc01-class seq
         if debug:
@@ -121,32 +122,55 @@ def get_vrc01_class_sequences(chain='heavy', vgene_only=True, only_include=None)
 
 
 # ----------------------------------------------------------------------------------------
-def get_vrc01_class_mutations():
-    vrc01_class = get_vrc01_class_sequences()
-    glvrc01 = get_vrc01_germline_sequence()
-    return list(set(_get_mutations(vrc01_class, glvrc01)))
-
+# return (list of) set of vrc01-class mutations defined by comparing vrc01-class reference sequences the germline vrc01 sequence
+def vrc01_class_mutation_set(vgene_only=True, debug=False):
+    vrc01_class = get_vrc01_class_sequences(vgene_only=vgene_only)
+    return glvrc01_mutation_set(vrc01_class, vgene_only=vgene_only, debug=debug)
 
 # ----------------------------------------------------------------------------------------
-def _get_mutations(seqs, standard):
+# check similarity of glvrc01 and naive seq from <antn> (if you're comparing vrc01-class mutations from <antn>,
+# presumably you're assuming they have similar naive sequences?
+def check_naive_seq(antn, vgene_only=True):
+    utils.add_naive_seq_aa(antn)
+    glvfo = get_vrc01_germline_sequence(vgene_only=vgene_only)
+    hdist = utils.hamming_distance(glvfo['seq'], antn['naive_seq_aa'], align=True)
+    if hdist > 0:
+        utils.color_mutants(glvfo['seq'], antn['naive_seq_aa'], amino_acid=True, ref_label='glvrc01 ', seq_label='antn ', align_if_necessary=True, print_result=True)
+        raise Exception('naive sequence in annotation doesn\'t match expected gl vrc01 (see previous lines)')
+
+# ----------------------------------------------------------------------------------------
+# return list of mutations in sequences in <qryfos> relative to the vrc01 germline sequence
+def glvrc01_mutation_list(qryfos, vgene_only=True, debug=False):
+    glvfo = get_vrc01_germline_sequence(vgene_only=vgene_only)
+    return _get_mutations(qryfos, glvfo, debug=debug)
+
+# ----------------------------------------------------------------------------------------
+# return (list of) set of mutations in sequences in <qryfos> relative to the vrc01 germline sequence
+def glvrc01_mutation_set(qryfos, vgene_only=True, debug=False):
+    return list(set(glvrc01_mutation_list(qryfos, vgene_only=vgene_only, debug=debug)))
+
+# ----------------------------------------------------------------------------------------
+def _get_mutations(seqs, standard, debug=False):
     mutations = []
-    msa_seqfos = utils.align_many_seqs([standard] + seqs, aa=True, debug=True)
+    msa_seqfos = utils.align_many_seqs([standard] + seqs, aa=True, debug=debug)
     glfo, queryfos = msa_seqfos[0], msa_seqfos[1:]
     for qfo in queryfos:
-        mutations.extend(_parse_mutations(qfo, glfo))
+        mutations.extend(_parse_mutations(qfo, glfo, debug=debug))
     return mutations
 
 
 # ----------------------------------------------------------------------------------------
-def _parse_mutations(qfo, glfo):
+def _parse_mutations(qfo, glfo, debug=False):
     muts = []
     tpos = 0
     for q, t in zip(qfo['seq'], glfo['seq']):
         if t == '-':
             continue
         tpos += 1
-        if any([q == '-', q == t]):
+        if any([q == '-', q == t, q in utils.ambiguous_amino_acids]):
             continue
         mut = '{}{}{}'.format(t, tpos, q)
         muts.append(mut)
+    if debug:
+        print('    parsed %d mutation%s for %s: %s' % (len(muts), utils.plural(len(muts)), qfo['name'], ' '.join(str(m) for m in muts)))
     return muts
