@@ -401,7 +401,7 @@ parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of 
 parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
 parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm percent] when --final-plot-x-var is scratch-mute-freq)')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
-parser.add_argument('--ete-path', default=('/home/%s/anaconda_ete/bin' % os.getenv('USER')) if os.getenv('USER') is not None else None)
+parser.add_argument('--ete-path', default=('%s/anaconda_ete/bin' % os.getenv('HOME')) if os.getenv('HOME') is not None else None)
 parser.add_argument('--make-hist-plots', action='store_true')
 # specific to get-lb-bounds:
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')

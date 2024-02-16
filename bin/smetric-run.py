@@ -40,7 +40,7 @@ args.cluster_indices = utils.get_arg_list(args.cluster_indices, intify_with_rang
 args.selection_metric_plot_cfg = utils.get_arg_list(args.selection_metric_plot_cfg, choices=treeutils.all_plot_cfg)
 ete_path, workdir = None, None
 if args.make_tree_plots or 'tree' in args.selection_metric_plot_cfg:
-    ete_path = '/home/%s/anaconda_ete/bin' % os.getenv('USER')
+    ete_path = '%s/anaconda_ete/bin' % os.getenv('HOME')
     workdir = utils.choose_random_subdir('/tmp/%s/tree-metrics' % os.getenv('USER'))
 
 if args.n_max_queries != -1:

@@ -871,7 +871,7 @@ parser.add_argument('--only-print', action='store_true')
 parser.add_argument('--check', action='store_true')
 parser.add_argument('--dryrun', action='store_true')
 parser.add_argument('--label', default='xxx')
-parser.add_argument('--ete-path', default='/home/' + os.getenv('USER') + '/anaconda_ete/bin')
+parser.add_argument('--ete-path', default=os.getenv('HOME') + '/anaconda_ete/bin')
 args = parser.parse_args()
 
 args.methods = sorted(utils.get_arg_list(args.methods))

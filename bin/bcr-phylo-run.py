@@ -24,7 +24,7 @@ import python.treeutils as treeutils
 from python.event import RecombinationEvent
 import python.paircluster as paircluster
 
-ete_path = '/home/' + os.getenv('USER') + '/anaconda_ete/bin'
+ete_path = os.getenv('HOME') + '/anaconda_ete/bin'
 bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
 ig_or_tr = 'ig'
 
