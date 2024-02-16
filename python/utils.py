@@ -36,7 +36,7 @@ except ImportError:
 
 existing_output_actions = []  # set in bin/partis (so it's next to the action dict)
 
-all_ptn_plot_cfg = ['shm-vs-size', 'cluster-bubble', 'mut-bubble', 'diversity', 'sizes', 'trees', 'subtree-purity', 'mds', 'laplacian-spectra', 'sfs']
+all_ptn_plot_cfg = ['shm-vs-size', 'cluster-bubble', 'mut-bubble', 'diversity', 'sizes', 'trees', 'subtree-purity', 'mds', 'laplacian-spectra', 'sfs', 'vrc01-muts']
 default_ptn_plot_cfg = ['shm-vs-size', 'diversity', 'cluster-bubble', 'sizes', 'trees']
 
 dummy_str = 'x-dummy-x'

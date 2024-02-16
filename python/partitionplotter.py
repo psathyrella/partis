@@ -941,6 +941,23 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn + '.svg' for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
+    def make_vrc01_class_mut_plots(self):
+        if len(self.sclusts) == 0:
+            print('  %s no clusters to plot' % utils.wrnstr())
+            return [['x.svg']]
+        subd, plotdir = self.init_subd('vrc01-muts')
+        fnames = [[]]
+        for iclust in range(len(self.sclusts)):
+            if not self.plot_this_cluster(iclust):
+                continue
+            annotation = self.antn_dict[':'.join(self.sclusts[iclust])]
+            fnlists = self.plotting.plot_vrc01_class_muts(plotdir, 'vrc01-muts-iclust-%d' % iclust, annotation, mekey=self.args.meta_info_key_to_color, formats=self.args.meta_emph_formats, only_csv=self.args.only_csv_plots)
+            for fnl in fnlists:
+                fnames.append(fnl)
+
+        return [[subd + '/' + fn + '.svg' for fn in fnl] for fnl in fnames]
+
+    # ----------------------------------------------------------------------------------------
     def remove_failed_clusters(self, partition, annotations):
         # remove clusters with failed annotations
         failed_clusters = []
@@ -1008,6 +1025,8 @@ class PartitionPlotter(object):
             fnames += self.make_laplacian_spectra_plots()
         if 'sfs' in plot_cfg:
             fnames += self.make_sfs_plots()
+        if 'vrc01-muts' in plot_cfg:
+            fnames += self.make_vrc01_class_mut_plots()
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(self.base_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=self.base_plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd if os.path.exists('%s/%s.html'%(self.base_plotdir,subd)) else subd) for subd in subdirs], bgcolor='#FFFFFF')

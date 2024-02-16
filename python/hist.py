@@ -28,6 +28,7 @@ class Hist(object):
                 n_bins = template_hist.n_bins
                 xmin, xmax = template_hist.xmin, template_hist.xmax
                 xbins = template_hist.low_edges[1:]
+            assert n_bins is not None
             assert xmin is not None and xmax is not None
             self.scratch_init(n_bins, xmin, xmax, sumw2=sumw2, xbins=xbins)
             if template_hist is not None and template_hist.bin_labels.count('') != len(template_hist.bin_labels):

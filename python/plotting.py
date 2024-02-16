@@ -488,6 +488,8 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
     all_emph_vals = sorted(all_emph_vals)
 
     if not no_hist:
+        if template_hist is None:
+            raise Exception('need to specify template_hist if no_hist isn\'t set')
         hdict = collections.OrderedDict()
         for meval in all_emph_vals:
             hdict[meval] = Hist(value_list=plotvals[meval], template_hist=template_hist, title=str(meval), xtitle=xtitle)
@@ -1819,48 +1821,45 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
     return plotname
 
 # ----------------------------------------------------------------------------------------
-def plot_vrc01_class_muts(plotdir, plotname, annotation, only_csv=False, debug=False):
+def plot_vrc01_class_muts(plotdir, plotname, annotation, mekey=None, formats=None, only_csv=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_vmut_counts(infos, tdbg=False):
-        obs_muts = vrc01.glvrc01_mutation_list(infos, debug=tdbg)
+        obs_muts = vrc01.glvrc01_mutation_set(infos, debug=tdbg)
         vclass_muts = vrc01.vrc01_class_mutation_set(debug=tdbg)
         obs_vclass_muts = [m for m in obs_muts if m in vclass_muts]
         obs_non_muts = [m for m in obs_muts if m not in vclass_muts]
-        vmuts, vtot = len(obs_vclass_muts), len(obs_vclass_muts) + len(obs_non_muts)
-
-        # this gives very similar results, but the alignment can differ, so isn't always exactly the same
-        # shared_muts, total_muts = vrc01.vrc01_class_mutation_count(infos, debug=tdbg)
-        # vmuts_2, vtot_2 = shared_muts, total_muts
-
+        vmuts, vtot = len(obs_vclass_muts), len(obs_muts)
         return vmuts, vtot
-
     # ----------------------------------------------------------------------------------------
     if only_csv:
         print('  only_csv not implemented for vrc01 mut plots, returning')
         return [[]]
     import python.vrc01 as vrc01
+    fnames = [[]]
 
     vrc01.check_naive_seq(annotation)
 
     utils.add_seqs_aa(annotation)
-    infos = [{'name' : u, 'seq' : s} for u, s in zip(annotation['unique_ids'], annotation['seqs_aa'])]
-    vmuts, vtot = get_vmut_counts(infos)
+    mutvals, totvals = {}, {}
+    for meval in set(annotation[mekey]):
+        infos = [{'name' : u, 'seq' : s} for u, s, m in zip(annotation['unique_ids'], annotation['seqs_aa'], annotation[mekey]) if m==meval]
+        vmuts, vtot = get_vmut_counts(infos)
+        mutvals[meval], totvals[meval] = vmuts, vtot
 
-    fnames = [[]]
-    fig, ax = mpl_init()
-    n_bins = 1
-    hist = Hist(n_bins, -0.5, n_bins - 0.5)
-    hist.set_ibin(1, vmuts / float(vtot), 0)
-    hist.mpl_plot(ax, square_bins=True)
+    all_emph_vals, emph_colors = meta_emph_init(mekey, formats=formats, all_emph_vals=set(annotation[mekey]))
+    all_emph_vals = sorted(all_emph_vals)
 
-    fn = mpl_finish(ax, plotdir, plotname, title='vrc01 fraction')
+    n_bins = len(all_emph_vals)
+    mcolors = {v : c for v, c in emph_colors}
+    hlist, colors = [], []
+    for ibin, meval in enumerate(all_emph_vals, 1):
+        hist = Hist(n_bins, -0.5, n_bins - 0.5)
+        hist.bin_labels = [''] + all_emph_vals + ['']
+        hist.set_ibin(ibin, 0 if totvals[meval]==0 else mutvals[meval] / totvals[meval], 0, label=meval)  # it's already labeled, but this make me feel warmer + fuzzier
+        hlist.append(hist)
+        colors.append(mcolors[meval])
+
+    draw_no_root(None, plotdir=plotdir, plotname=plotname, more_hists=hlist, square_bins=True, linewidths=[3 for _ in hlist], alphas=[0.7 for _ in hlist], colors=colors, plottitle='vrc01 mut frac', ybounds=[0, 1], ytitle='fraction of mutations')
+
     fnames[-1].append(plotname)
-
-# TODO
-# ----------------------------------------------------------------------------------------
-#     all_emph_vals, emph_colors = meta_emph_init(mekey, formats=formats, all_emph_vals=set(plotvals))
-#     all_emph_vals = sorted(all_emph_vals)
-# # ----------------------------------------------------------------------------------------
-    # for iseq, seq_aa in enumerate(annotation['seqs_aa']):
-
     return fnames
