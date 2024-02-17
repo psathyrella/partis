@@ -746,10 +746,26 @@ class PartitionPlotter(object):
                     add_aa_mutstr(uid)
         # ----------------------------------------------------------------------------------------
         def get_metafo(annotation, iclust):
-            if self.args.meta_info_key_to_color is None and self.args.meta_info_to_emphasize is None and self.args.node_size_key is None and self.args.mutation_label_cfg is None:
+            # ----------------------------------------------------------------------------------------
+            def vmuts(vclass_muts, mutfo, uid):
+                if uid not in mutfo:
+                    return None
+                obs_muts = [m['str'] for m in mutfo[uid]]
+                obs_vclass_muts = [m for m in obs_muts if m in vclass_muts]
+                return 0 if len(obs_muts) == 0 else len(obs_vclass_muts) #/ float(len(obs_muts))
+            # ----------------------------------------------------------------------------------------
+            malist = [self.args.meta_info_key_to_color, self.args.meta_info_to_emphasize, self.args.node_size_key, self.args.branch_color_key, self.args.mutation_label_cfg]
+            if all(a is None for a in malist):
                 return None, None
             metafo, cdr3fo = {}, {}
-            for tk in [k for k in [self.args.meta_info_key_to_color, list(self.args.meta_info_to_emphasize.items())[0][0], self.args.node_size_key] if k is not None and k in annotation]:
+            tklist = [self.args.meta_info_key_to_color, self.args.node_size_key, self.args.branch_color_key]
+            if self.args.meta_info_to_emphasize is not None:
+                tklist.append(list(self.args.meta_info_to_emphasize.items())[0][0])
+            if 'vrc01-muts' in tklist:  # have to set the values, and don't want to incorporate into utils.py since it's complicated and requires the tree
+                import python.vrc01 as vrc01
+                vc_muts = vrc01.vrc01_class_mutation_set()  # somehow this is way faster if i don't put it in the fcn call in the next line???
+                annotation['vrc01-muts'] = [vmuts(vc_muts, self.mut_info[iclust]['aa_muts'], u) for u in annotation['unique_ids']]
+            for tk in [k for k in tklist if k is not None and k in annotation]:
                 metafo[tk] = {u : f for u, f in zip(annotation['unique_ids'], annotation[tk])}
             if self.args.mutation_label_cfg is not None:
                 add_mut_labels(annotation, metafo, iclust)
@@ -784,7 +800,7 @@ class PartitionPlotter(object):
             mfo, cdr3fo = get_metafo(annotation, iclust)
             cfo = lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=mfo,
                                              queries_to_include=qtis, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_info_to_emphasize=self.args.meta_info_to_emphasize, uid_translations=altids,
-                                             label_all_nodes=self.args.label_tree_nodes, label_leaf_nodes=self.args.label_leaf_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, node_label_regex=self.args.node_label_regex)
+                                             label_all_nodes=self.args.label_tree_nodes, label_leaf_nodes=self.args.label_leaf_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, branch_color_key=self.args.branch_color_key, node_label_regex=self.args.node_label_regex)
             cmdfos.append(cfo)
             self.addfname(fnames, plotname)
             if self.args.meta_info_key_to_color is not None:

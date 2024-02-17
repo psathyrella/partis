@@ -1535,7 +1535,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_leaf_nodes=False, label_root_node=False, seq_len=None,
-                    meta_info_key_to_color=None, meta_info_to_emphasize=None, node_size_key=None, uid_translations=None, node_label_regex=None):
+                    meta_info_key_to_color=None, meta_info_to_emphasize=None, node_size_key=None, branch_color_key=None, uid_translations=None, node_label_regex=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
@@ -1572,6 +1572,8 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --meta-info-to-emphasize %s' % ','.join(list(meta_info_to_emphasize.items())[0])
     if node_size_key is not None:
         cmdstr += ' --node-size-key %s' % node_size_key
+    if branch_color_key is not None:
+        cmdstr += ' --branch-color-key %s' % branch_color_key
     if node_label_regex is not None:
         cmdstr += ' --node-label-regex %s' % node_label_regex
     cmdstr, _ = utils.run_ete_script(cmdstr, ete_path, return_for_cmdfos=True, tmpdir=subworkdir, extra_str='        ')

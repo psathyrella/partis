@@ -664,6 +664,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'xshift-train-vs-test' : 'xshift\nabs(train - test) width',
            'n-trials' : 'N trees',
            'n-trees-per-expt' : 'N trees/expt.',
+           'vrc01-muts' : 'N VRC01 muts',
            }
 
 axis_labels = {
@@ -1827,7 +1828,6 @@ def plot_vrc01_class_muts(plotdir, plotname, annotation, mekey=None, formats=Non
         obs_muts = vrc01.glvrc01_mutation_set(infos, debug=tdbg)
         vclass_muts = vrc01.vrc01_class_mutation_set(debug=tdbg)
         obs_vclass_muts = [m for m in obs_muts if m in vclass_muts]
-        obs_non_muts = [m for m in obs_muts if m not in vclass_muts]
         vmuts, vtot = len(obs_vclass_muts), len(obs_muts)
         return vmuts, vtot
     # ----------------------------------------------------------------------------------------

@@ -285,6 +285,13 @@ def set_meta_styles(args, etree, tstyle):
     if args.node_size_key is not None:
         nsvals = set(args.metafo[args.node_size_key].values()) - set([None])
         min_nsval, max_nsval = [mfcn(nsvals) for mfcn in [min, max]]
+    if args.branch_color_key is not None:
+        bcvals = args.metafo[args.branch_color_key]
+        smvals = [v for v in bcvals.values() if v is not None]
+        if 'vrc01' in args.branch_color_key:
+            smvals = [v for v in smvals if v > 0]
+        bc_smap = plotting.get_normalized_scalar_map(smvals, 'Reds', remove_top_end=True)
+        add_legend(tstyle, plotting.legends.get(args.branch_color_key, args.branch_color_key), smvals, bc_smap, bcvals, 3, no_opacity=True)
     for node in etree.traverse():
         node.img_style['size'] = 0
         rfsize = 5
@@ -298,6 +305,12 @@ def set_meta_styles(args, etree, tstyle):
         rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
         rface.opacity = opacity
         node.add_face(rface, column=0)
+
+        if args.branch_color_key is not None:
+            bval = bcvals.get(node.name)
+            bcol = plotting.getgrey() if 'vrc01' in args.branch_color_key and bval==0 else plotting.get_smap_color(bc_smap, bcvals, key=node.name)
+            node.img_style['hz_line_color'] = bcol
+            node.img_style['hz_line_width'] = 1.2
 
 # ----------------------------------------------------------------------------------------
 def plot_trees(args):
@@ -349,7 +362,8 @@ parser.add_argument('--uid-translations', help='colon-separated list of comma-se
 parser.add_argument('--meta-info-to-emphasize', help='see partis help')
 parser.add_argument('--meta-info-key-to-color', help='see partis help')
 parser.add_argument('--meta-emph-formats', help='see partis help')
-parser.add_argument('--node-size-key', help='see partis help')
+parser.add_argument('--node-size-key', help='annotation key with which to scale the node size')
+parser.add_argument('--branch-color-key', help='annotation key with which to scale the branch length color')
 args = parser.parse_args()
 
 sys.path.insert(1, args.partis_dir) # + '/python')
