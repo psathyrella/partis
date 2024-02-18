@@ -917,8 +917,8 @@ class PartitionPlotter(object):
                         continue
                     bfo = {'id' : str(mstr), 'radius' : n_obs_mean} #int(n_obs_mean)}  # truncate to integer since a) we don't care exactly how big the bubbles are and b) i think something further along requires an integer
                     cntstr = '%s\n%s'%(mestr(n_obs_mean, n_obs_std), mestr(n_tn_mean, n_tn_std)) if use_alts else '%d\n%d'%(n_obs_mean, n_tn_mean)
-                    bfo['texts'] = [{'tstr' : str(mstr), 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.07, 'dy' : 0.01},
-                                    {'tstr' : cntstr, 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.08, 'dy' : -0.08 if use_alts else -0.05}]
+                    bfo['texts'] = [{'tstr' : str(mstr), 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.07 if 'is_fake_paired' in annotation else -0.05, 'dy' : 0.035},
+                                    {'tstr' : cntstr, 'fsize' : 6, 'tcol' : 'black', 'dx' : -0.05, 'dy' : -0.08 if use_alts else -0.05}]
                     bfo['fracs'] = [{'label' : v, 'fraction' : f, 'color' : hcolors[utils.meta_emph_str(self.args.meta_info_key_to_color, v, formats=self.args.meta_emph_formats)]} for v, f in avg_nodevals.items()]
                     bubfos.append(bfo)
 
@@ -1041,7 +1041,7 @@ class PartitionPlotter(object):
             fnames += self.make_laplacian_spectra_plots()
         if 'sfs' in plot_cfg:
             fnames += self.make_sfs_plots()
-        if 'vrc01-muts' in plot_cfg:
+        if 'vrc01-muts' in plot_cfg and self.args.locus == 'igh':
             fnames += self.make_vrc01_class_mut_plots()
 
         if not self.args.only_csv_plots:
