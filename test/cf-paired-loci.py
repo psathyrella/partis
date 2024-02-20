@@ -47,6 +47,7 @@ parser.add_argument('--merge-paired-partitions', action='store_true', help='for 
 parser.add_argument('--n-sim-events-list', default='10', help='N sim events in each repertoire/"proc"/partis simulate run')
 parser.add_argument('--n-leaves-list', help='NOTE can use either this or \'n-leaf-distribution\' for \'hist\' n leaf distr (and depending on zip vars you need to use one or the other)') #'2:3:4:10') #1 5; do10)
 parser.add_argument('--n-sim-seqs-per-generation-list')  # only for bcr-phylo
+parser.add_argument('--carry-cap-list')  # only for bcr-phylo
 parser.add_argument('--constant-number-of-leaves-list')
 parser.add_argument('--n-leaf-distribution-list', help='NOTE can use either this or \'n-leaves\' for \'hist\' n leaf distr (and depending on zip vars you need to use one or the other)')
 parser.add_argument('--mean-cells-per-droplet-list') #, default='None')
@@ -73,7 +74,7 @@ parser.add_argument('--bcrham-time', action='store_true')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics)
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'context-depend', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events', 'dataset-in'],
+    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'carry-cap', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'context-depend', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events', 'dataset-in'],
     'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameter dir
     'partition' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],
 }

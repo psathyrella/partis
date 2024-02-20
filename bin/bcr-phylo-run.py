@@ -298,7 +298,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
             for old_id, new_id in tmp_trns.items():
                 nodefo[new_id] = nodefo[old_id]
                 del nodefo[old_id]
-            treeutils.translate_labels(ftree, [(o, n) for o, n in tmp_trns.items()])
+            treeutils.translate_labels(ftree, [(o, n) for o, n in tmp_trns.items()], expect_missing=True)
         if dup_translations is not None:
             dup_translations.update(tmp_trns)
 

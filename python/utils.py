@@ -4877,8 +4877,12 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfna
         return outstr, errstr
 
 # ----------------------------------------------------------------------------------------
-def mamba_cmds(env):
-    return ['eval "$(micromamba shell hook --shell bash)"', 'micromamba activate %s'%env]
+def mamba_cmds(env, only_prep=False):
+    cmds = ['eval "$(micromamba shell hook --shell bash)"']
+    if only_prep:
+        return cmds
+    cmds += ['micromamba activate %s'%env]
+    return cmds
 
 # ----------------------------------------------------------------------------------------
 def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion='', return_for_cmdfos=False, tmpdir=None, dryrun=False, extra_str='', debug=True):  # ete3 requires its own python version, so we run as a subprocess

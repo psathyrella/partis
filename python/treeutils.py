@@ -590,6 +590,7 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
         # print utils.pad_lines(get_ascii_tree(dendro_tree))
 
 # ----------------------------------------------------------------------------------------
+# set <expect_missing> if <translation_pairs> doesn't have an entry for every node -- otherwise it will kick a warning
 def translate_labels(dendro_tree, translation_pairs, dbgstr='', dont_fail=False, expect_missing=False, debug=False):
     if debug:
         print('    translating %stree:' % ('' if dbgstr=='' else dbgstr+' '))
