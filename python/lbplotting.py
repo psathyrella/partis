@@ -436,7 +436,7 @@ def get_tree_in_line(line, is_true_line, aa=False):  # NOTE unlike treeutils.get
 # ----------------------------------------------------------------------------------------
 # NOTE that this isn't symmetric wrt x/y vars -- some combos require one var to be x, and the other y (otherwise it'll crash cause it can't figure out how to calculate the values)
 def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=None, is_true_line=False, colorvar=None, only_overall=False, only_iclust=False, add_uids=False, yvar=None, choose_among_families=False,
-                          add_jitter=False, min_ptile=80., n_iclust_plot_fnames=None, use_relative_affy=False, queries_to_include=None, add_stats=None, xlabel=None, ylabel=None, title_str=''):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
+                          add_jitter=False, min_ptile=80., n_iclust_plot_fnames=None, use_relative_affy=False, queries_to_include=None, meta_info_to_emphasize=None, meta_emph_formats=None, add_stats=None, xlabel=None, ylabel=None, title_str=''):  # <is_true_line> is there because we want the true and inferred lines to keep their trees in different places, because the true line just has the one, true, tree, while the inferred line could have a number of them (yes, this means I maybe should have called it the 'true-tree' or something)
     # ----------------------------------------------------------------------------------------
     def add_warn(tstr, targs):
         if 'warn_text' in targs:
@@ -452,6 +452,9 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
         return
     if queries_to_include is not None:
         add_uids = True
+    if meta_info_to_emphasize is not None:
+        add_uids = True
+        meta_emph_key, meta_emph_val = list(meta_info_to_emphasize.items())[0]
     cdist_pt_keys = [s+'-ptile' for s in cdist_keys]
     if yvar is None:
         yvar = lb_metric
@@ -578,7 +581,14 @@ def make_lb_scatter_plots(xvar, baseplotdir, lb_metric, lines_to_use, fnames=Non
                     assert False
                 iclust_plotvals[colorvar].append(colorval)  # I think any uid in <line> should be in the tree, but may as well handle the case where it isn't
             if add_uids:
-                iclust_plotvals['uids'].append(uid if queries_to_include is None or uid in queries_to_include else None)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
+                if meta_info_to_emphasize is None:
+                    iclust_plotvals['uids'].append(uid if queries_to_include is None or uid in queries_to_include else None)  # use to add None here instead of <uid> if this node didn't have an affinity value, but that seems unnecessary, I can worry about uid config options later when I actually use the uid dots for something
+                else:
+                    # estr = utils.meta_emph_str(meta_emph_key, meta_emph_val, formats=meta_emph_formats)  # use this if you want the emph value to show up, but for now i like having the uid
+                    uval = None
+                    if utils.meta_info_equal(meta_emph_key, meta_emph_val, utils.antnval(line, meta_emph_key, iseq), formats=meta_emph_formats):
+                        uval = utils.antnval(line, 'alternate-uids', iseq, use_default=True, default_val=uid)
+                    iclust_plotvals['uids'].append(uval)
         if len(iclust_plotvals[xvar]) == 0:
             continue
         iskargs = copy.deepcopy(scatter_kwargs)

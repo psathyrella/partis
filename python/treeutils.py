@@ -2243,7 +2243,7 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
     if not args.only_csv_plots:  # all the various scatter plots are really slow
         if 'lb-scatter' in plot_cfg:
             for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
-                lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include) #, add_stats='correlation')
+                lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include, meta_info_to_emphasize=args.meta_info_to_emphasize, meta_emph_formats=args.meta_emph_formats) #, add_stats='correlation')
         if ete_path is not None and has_trees and 'tree' in plot_cfg:
             lbplotting.plot_lb_trees(args, metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, fnames=fnames)
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
