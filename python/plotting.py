@@ -1043,12 +1043,12 @@ def plot_legend_only(leg_entries, plotdir, plotname, title=None, n_digits=None):
             tlab = utils.round_to_n_digits(tlab, 2)
         ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
     handles, labels = ax.get_legend_handles_labels()
-    figlegend.legend(handles, labels, 'center', title=title)
+    figlegend.legend(handles, labels, loc='center', title=title)
     figlegend.savefig(lfn)
     return lfn
 
 # ----------------------------------------------------------------------------------------
-def mpl_init(figsize=None, fsize=20, label_fsize=15):
+def mpl_init(figsize=None, fsize=20, label_fsize=15, fweight='bold'):
     if 'seaborn' not in sys.modules:
         import seaborn  # really #$*$$*!ing slow to import, but only importing part of it doesn't seem to help
     sys.modules['seaborn'].set_style('ticks')
@@ -1056,8 +1056,10 @@ def mpl_init(figsize=None, fsize=20, label_fsize=15):
         'font.size': fsize, 'axes.titlesize': fsize, 'axes.labelsize': fsize,
         'xtick.labelsize': label_fsize, 'ytick.labelsize': label_fsize,  # NOTE this gets (maybe always?) overriden by xticklabelsize/yticklabelsize in mpl_finis()
         'legend.fontsize': fsize,
-        'font.family': 'Lato', 'font.weight': 600,
-        'axes.labelweight': 600, 'axes.titleweight': 600,
+        'font.family': 'Lato',
+        'font.weight': fweight,
+        'axes.labelweight': fweight,
+        'axes.titleweight': fweight,
         'figure.autolayout': True})
     fig, ax = plt.subplots(figsize=figsize)
     fig.tight_layout()

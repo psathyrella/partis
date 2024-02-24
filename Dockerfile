@@ -8,6 +8,7 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
   build-essential \
   cmake \
   emacs \
+  fonts-lato \
   libboost-dev \
   libgsl-dev \
   libncurses-dev \
@@ -17,10 +18,13 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
   libz-dev \
   ncbi-blast+ \
   python3-pyqt5 \
-  vim
+  vim \
+  xvfb
 USER $MAMBA_USER
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
-RUN micromamba install -y -cconda-forge -cbioconda -cbiocore python biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn mafft # -cbioconda is for pysam, -cbiocore is for mafft
+RUN micromamba install -y -c conda-forge -c bioconda -cbiocore -c etetoolkit \
+    python biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn \
+    mafft circlify ete3 # ete_toolchain
 RUN pip install colored-traceback dendropy levenshtein
 COPY --chown=$MAMBA_USER:$MAMBA_USER_GID . /partis
 WORKDIR /partis
