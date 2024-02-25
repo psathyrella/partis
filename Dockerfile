@@ -26,6 +26,9 @@ RUN micromamba install -y -c conda-forge -c bioconda -cbiocore -c etetoolkit \
     python biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn \
     mafft circlify ete3 # ete_toolchain
 RUN pip install colored-traceback dendropy levenshtein
+ENV XDG_RUNTIME_DIR=/tmp/xdgrd  # this xdg runtime dir is for plotting (i think it's required for headless/xvfb-run)
+RUN mkdir /tmp/xdgrd
+RUN chmod 0700 /tmp/xdgrd
 COPY --chown=$MAMBA_USER:$MAMBA_USER_GID . /partis
 WORKDIR /partis
 RUN ./bin/build.sh
