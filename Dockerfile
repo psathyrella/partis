@@ -9,6 +9,8 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
   cmake \
   emacs \
   fonts-lato \
+  git \
+  less \
   libboost-dev \
   libgsl-dev \
   libncurses-dev \
@@ -27,8 +29,8 @@ RUN micromamba install -y -c conda-forge -c bioconda -cbiocore -c etetoolkit \
     mafft circlify ete3
 RUN pip install colored-traceback dendropy levenshtein
 ENV XDG_RUNTIME_DIR=/tmp/xdgrd
-RUN mkdir /tmp/xdgrd
-RUN chmod 0700 /tmp/xdgrd
+RUN mkdir $XDG_RUNTIME_DIR
+RUN chmod 0700 $XDG_RUNTIME_DIR
 COPY --chown=$MAMBA_USER:$MAMBA_USER_GID . /partis
 WORKDIR /partis
 RUN ./bin/build.sh
