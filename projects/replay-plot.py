@@ -321,16 +321,16 @@ def compare_plots(hname, plotdir, hists, labels, abtype, diff_vals):
 # ----------------------------------------------------------------------------------------
 ustr = """
 Compare various distributions (especially abundances) in simu and gcreplay data:
-  replay-plot.py --gcreplay-dir <replay data dir> --data-dir <> --simu-dir <>
+  replay-plot.py --data-dir <> --simu-dir <>
   --data-dir /fh/fast/matsen_e/dralph/gcdyn/gcreplay-observed
   --simu-dir /fh/fast/matsen_e/dralph/partis/gcdyn/vary-all/v1/n-trials-5000/simu-bundle-size-1/simu
   --outdir /fh/fast/matsen_e/dralph/partis/gcdyn/vary-all/v1/n-trials-5000/simu-bundle-size-1/process
 """
 parser = argparse.ArgumentParser(usage=ustr)
-parser.add_argument('--data-dir')
+parser.add_argument('--data-dir', help='dir from which to read gctree trees on gcreplay data')
 # NOTE there's other scripts that process gcreplay results for partis input here: partis/datascripts/meta/taraki-gctree-2021-20
-parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10')
-parser.add_argument('--simu-dir')
+parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10', help='dir with gctree otuput from which we read seqs, affinity, and mutation info from a csv file (trees and leaf/internal info are read from --data-dir)')
+parser.add_argument('--simu-dir', help='dir from which to read simulation trees and mutation info')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, default=70)
 parser.add_argument('--max-seqs-per-gc', type=int, default=70)
