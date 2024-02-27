@@ -1,6 +1,11 @@
 #!/usr/bin/env python2
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 import csv
+from io import open
+from six.moves import zip
+from six.moves import range
 csv.field_size_limit(sys.maxsize)  # make sure we can write very large csv fields
 import os
 import glob
@@ -69,14 +74,14 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
             abundance_distribution[id_count] = abundance_distribution[id_count] + 1
         assert sequence_count == sum(k * v for k, v in abundance_distribution.items())
         for amax, max_abdn_idlists in itertools.groupby(
-            sorted(ids_by_checksum.values(), key=len, reverse=True), key=len
+            sorted(list(ids_by_checksum.values()), key=len, reverse=True), key=len
         ):
             # print(amax, [len(l) for l in max_abdn_idlists])
             break  # just want the first one (max abundance)
 
         base = hash(''.join(s['seq'] for s in fam_fos))
         abundances[base] = pd.Series(
-            abundance_distribution.values(), index=abundance_distribution.keys()
+            list(abundance_distribution.values()), index=list(abundance_distribution.keys())
         )
 
         fdicts["hdists"][base] = hdvals
@@ -93,14 +98,14 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
         process_family(fam_fos)
 
     if counters['too-small'] > 0:
-        print("    skipped %d files with fewer than %d seqs" % (counters['too-small'], args.min_seqs_per_gc))
+        print(("    skipped %d files with fewer than %d seqs" % (counters['too-small'], args.min_seqs_per_gc)))
     if len(init_sizes) > 0:
-        print(
+        print((
             "    downsampled %d samples to %d from initial sizes: %s"
             % (len(init_sizes), args.max_seqs_per_gc, " ".join(str(s) for s in sorted(init_sizes)))
-        )
+        ))
 
-    print "  writing to %s" % os.path.dirname(abfn(label))
+    print("  writing to %s" % os.path.dirname(abfn(label)))
     if not os.path.exists(os.path.dirname(abfn(label))):
         os.makedirs(os.path.dirname(abfn(label)))
 
@@ -189,12 +194,12 @@ def read_input_files(label):
                     continue
                 plotvals[nstr(node)].append(affy_vals[name])
         if sum(len(l) for l in n_missing.values()) > 0:
-            print '      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal']))
+            print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
         return plotvals
     # ----------------------------------------------------------------------------------------
     def read_data_file():
         skipped_mice, kept_mice, all_gcs = set(), set(), set()
-        print '    reading replay data from %s' % args.gcreplay_dir
+        print('    reading replay data from %s' % args.gcreplay_dir)
         with open('%s/gcreplay/nextflow/results/latest/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
             reader = csv.DictReader(cfile)
             for line in reader:
@@ -218,7 +223,7 @@ def read_input_files(label):
                                             'n_muts' : hdist,
                                             'affinity' : None if affinity == '' else float(affinity),
                                             })
-        print '    kept %d / %d GCs from  %d / %d mice: %s' % (len(all_seqfos), len(all_gcs), len(kept_mice), len(kept_mice) + len(skipped_mice), ' '.join(str(m) for m in kept_mice))
+        print('    kept %d / %d GCs from  %d / %d mice: %s' % (len(all_seqfos), len(all_gcs), len(kept_mice), len(kept_mice) + len(skipped_mice), ' '.join(str(m) for m in kept_mice)))
     # ----------------------------------------------------------------------------------------
     all_seqfos = collections.OrderedDict()
     plotvals = {k : [] for k in ['leaf', 'internal']}
@@ -241,9 +246,9 @@ def read_input_files(label):
                     continue
                 plotvals[nstr(nodefo[nname])].append(sfo['affinity'])
         if sum(len(l) for l in n_missing.values()) > 0:
-            print '      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal']))
+            print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
         if n_too_small > 0:
-            print '    skipped %d / %d gcs with fewer than %d seqs' % (n_too_small, len(all_seqfos), args.min_seqs_per_gc)
+            print('    skipped %d / %d gcs with fewer than %d seqs' % (n_too_small, len(all_seqfos), args.min_seqs_per_gc))
         n_trees = len(all_seqfos) - n_too_small
     elif label == 'simu':
         mfos = {}
@@ -280,8 +285,8 @@ def read_input_files(label):
 # NOTE may also/instead want to use log of y difference (The max abundance seems ok, but the high tail of the abundance distr is getting totally washed out/overwhelmed by the low end)
 def hist_distance(h1, h2, dbgstr='hist', weighted=False, debug=False):
     if debug:
-        print '    %s distance%s:' % (dbgstr, ' (weighted)' if weighted else '')
-        print '      xval     v1      v2    abs diff'
+        print('    %s distance%s:' % (dbgstr, ' (weighted)' if weighted else ''))
+        print('      xval     v1      v2    abs diff')
     xvals = sorted(set(x for h in [h1, h2] for x in h.get_bin_centers()))
     dvals = []
     for xval in xvals:
@@ -293,9 +298,9 @@ def hist_distance(h1, h2, dbgstr='hist', weighted=False, debug=False):
         dvals.append((xval if weighted else 1) * abs(v1 - v2))
         if debug:
             def fstr(v): return utils.color('blue', '-', width=6) if v==0 else '%6.2f'%v
-            print '      %3.0f  %s  %s  %s' % (xval, fstr(v1), fstr(v2), fstr(dvals[-1]))
+            print('      %3.0f  %s  %s  %s' % (xval, fstr(v1), fstr(v2), fstr(dvals[-1])))
     if debug:
-        print '    %.1f' % sum(dvals)
+        print('    %.1f' % sum(dvals))
     return sum(dvals)
 
 # ----------------------------------------------------------------------------------------
