@@ -29,7 +29,7 @@ import python.clusterpath as clusterpath
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 dl_metrics = ['%s-%s-%s' % (p, s, m) for s in ['train', 'test'] for m in ['bias', 'variance', 'mae'] for p in ['xscale', 'xshift']] + ['xscale-train-vs-test-mae']
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists', 'all-dl', 'all-test-dl'] + dl_metrics #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-after_actions = ['merge-simu', 'process', 'dl-infer', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
+after_actions = ['merge-simu', 'replay-plot', 'dl-infer', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = ['group-expts']  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
 
@@ -58,10 +58,10 @@ parser.add_argument('--params-to-predict-list')
 parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --dl-bundle-size-list)')
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 parser.add_argument('--data-samples-list', help='List of data samples to run on. Don\'t set this, it uses glob on --data-dir')
-utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='process')
+utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='replay-plot')
 parser.add_argument('--dl-extra-args')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
-parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
+# parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 parser.add_argument('--dl-model-dir')
 parser.add_argument('--data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v0')
@@ -113,7 +113,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
             'pkl' : 'responses',
         }
         sfx = '%s.%s' % (ftstrs.get(ftype, 'simu'), ftype)
-    elif action == 'process':
+    elif action == 'replay-plot':
         sfx = 'diff-vals.yaml'
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         sfx = 'test.csv'
@@ -165,8 +165,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         if action == 'simu' and args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         cmd = add_ete_cmds(cmd)
-    elif action == 'process':
-        cmd = './projects/replay-plot.py --data-dir %s --simu-dir %s --outdir %s' % (args.gcreplay_data_dir, os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+    elif action == 'replay-plot':
+        cmd = './projects/replay-plot.py --simu-dir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
             cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
@@ -240,7 +240,7 @@ def run_scan(action):
             n_already_there += 1
             continue
 
-        if action in ['process'] + merge_actions:
+        if action in ['replay-plot'] + merge_actions:
             ifn = ofname(args, varnames, vstrs, 'simu')
             if not os.path.exists(ifn):  # do *not* use this, it'll delete it if --overwrite is set: utils.output_exists(args, ifn, debug=False):
                 n_missing_input += 1
