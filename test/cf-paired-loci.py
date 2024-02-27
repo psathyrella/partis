@@ -33,7 +33,7 @@ synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'dist
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 phylo_actions = ['iqtree', 'gctree', 'gctree-base']
 tree_perf_actions = ['%s-tree-perf'%a for a in phylo_actions]  # it would be really nice to run tree perf during the phylo action, but i can't figure out a good way to do that (main problem is getting access to both true and inferred annotations in a sensible way)
-after_actions = ['cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees', 'write-fake-paired-annotations', 'tree-perf']  + ptn_actions + phylo_actions + tree_perf_actions  # actions that come after simulation (e.g. partition)
+after_actions = ['replay-plot', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees', 'write-fake-paired-annotations', 'tree-perf']  + ptn_actions + phylo_actions + tree_perf_actions  # actions that come after simulation (e.g. partition)
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
@@ -115,7 +115,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     if single_file:
         assert locus is None
         locus = 'igk'
-    assert locus is not None or action in phylo_actions
+    assert locus is not None or action in phylo_actions + ['write-fake-paired-annotations', 'replay-plot']
     if logfile:
         ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '', action)
     elif pmetr is not None and 'pcfrac-' in pmetr:
@@ -133,6 +133,8 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         ofn = '%s/tree-perf-vals.yaml' % outdir
     elif action == 'write-fake-paired-annotations':
         ofn = '%s/fake-paired-annotations.yaml' % outdir
+    elif action == 'replay-plot':
+        ofn = '%s/diff-vals.yaml' % outdir
     else:
         ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or is_single_chain(action))
     return ofn
@@ -202,7 +204,9 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
     binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.bcr_phylo and action=='simu' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
     cmd = './bin/%s %s --paired-loci --%s-outdir %s' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action))
     cmd += ' --n-procs %d' % args.n_sub_procs
-    if action == 'simu':
+    if action == 'replay-plot':
+        cmd = './projects/replay-plot.py --simu-dir %s --outdir %s --bcr-phylo' % (os.path.dirname(ofname(args, varnames, vstrs, 'write-fake-paired-annotations')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+    elif action == 'simu':
         if not args.bcr_phylo:
             cmd += ' --simulate-from-scratch --no-per-base-mutation'
         cmd += ' %s' % ' '.join(base_args)
@@ -239,7 +243,6 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --paired-naive-hfrac-threshold-type likelihood'
         if action == 'star-partition':
             cmd += ' --subcluster-annotation-size None'
-        # if action != 'get-selection-metrics':  # UPDATE maybe want to do this always? it just breaks here because i don't want to set --simultaneous-true-clonal-seqs (but maybe i should?)
         if action not in phylo_actions:  # we want to infer the trees with get-selection-metrics action, so need to ignore true annotations
             cmd += ' --is-simu'
         if action != 'cache-parameters':
