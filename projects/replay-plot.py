@@ -224,6 +224,28 @@ def read_input_files(label):
                                             })
         print('    kept %d / %d GCs from  %d / %d mice: %s' % (len(all_seqfos), len(all_gcs), len(kept_mice), len(kept_mice) + len(skipped_mice), ' '.join(str(m) for m in kept_mice)))
     # ----------------------------------------------------------------------------------------
+    def read_gcd_meta():
+        mfos = {}
+        with open('%s/leaf-meta.csv'%args.simu_dir) as mfile:
+            reader = csv.DictReader(mfile)
+            for line in reader:
+                itree = int(line['name'].split('-')[0])
+                if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
+                        print('    --n-max-simu-trees: breaking after reading leaf meta for %d trees' % itree)
+                        break
+                mfos[line['name']] = line
+        return mfos
+    # ----------------------------------------------------------------------------------------
+    def scale_affinities(atn, mfos):
+        naive_ids = [u for u, a, n in zip(atn['unique_ids'], atn['affinities'], atn['n_mutations']) if n==0]
+        if len(naive_ids) == 0:
+            raise Exception('no unmutated seqs in annotation')  # the naive seq seems to always be in there, i guess cause i'm sampling intermediate common ancestors
+        naive_affy = utils.per_seq_val(atn, 'affinities', naive_ids[0])
+        affy_std = numpy.std([m['affinity'] for m in mfos.values()], ddof=1)
+        print('    rescaling to (naive) mean %.3f std %.4f' % (naive_affy, affy_std))
+        for mfo in mfos.values():
+            mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
+    # ----------------------------------------------------------------------------------------
     all_seqfos = collections.OrderedDict()
     plotvals = {k : [] for k in ['leaf', 'internal']}
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
@@ -252,26 +274,34 @@ def read_input_files(label):
         n_trees = len(all_seqfos) - n_too_small
     elif label == 'simu':
         print('  reading simulation from %s' % args.simu_dir)
-        mfos = {}
-        with open('%s/leaf-meta.csv'%args.simu_dir) as mfile:
-            reader = csv.DictReader(mfile)
-            for line in reader:
-                if args.n_max_simu_trees is not None:
-                    itree = int(line['name'].split('-')[0])
-                    if itree > args.n_max_simu_trees - 1:
-                        print('    --n-max-simu-trees: breaking after reading leaf meta for %d trees' % itree)
+        if args.bcr_phylo:
+            glfo, antn_list, _ = utils.read_output('%s/fake-paired-annotations.yaml' % args.simu_dir, dont_add_implicit_info=True)
+            mfos, tmp_seqfos = {}, []
+            for itn, atn in enumerate(antn_list):
+                if args.n_max_simu_trees is not None and itn > args.n_max_simu_trees - 1:
+                        print('    --n-max-simu-trees: breaking after reading annotations for %d trees' % itn)
                         break
-                mfos[line['name']] = line
-        tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%args.simu_dir, queries=None if args.n_max_simu_trees is None else mfos.keys())  # NOTE this args.n_max_queries bit assumes they're in the same order, but they should be, and it's probably only for testing, so maybe ok
+                for iseq, (uid, n_muts, affy) in enumerate(zip(atn['unique_ids'], atn['n_mutations'], atn['affinities'])):
+                    assert uid not in mfos  # jeez i really hope there aren't repeated uids in different trees
+                    mfos[uid] = {'n_muts' : n_muts, 'affinity' : affy}
+                tnsfos = utils.seqfos_from_line(atn, use_input_seqs=True) #, extra_keys=['n_mutations'])
+                for sfo in tnsfos:
+                    sfo['gcn'] = itn
+                tmp_seqfos += tnsfos
+            dendro_trees = [treeutils.get_dendro_tree(treestr=l['tree']) for l in antn_list]
+            scale_affinities(atn, mfos)
+        else:
+            mfos = read_gcd_meta()
+            tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%args.simu_dir, queries=None if args.n_max_simu_trees is None else mfos.keys())
+            dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%args.simu_dir, n_max_trees=args.n_max_simu_trees)]
         for sfo in tmp_seqfos:
             if 'naive' in sfo['name']:
                 continue
             sfo['n_muts'] = int(mfos[sfo['name']]['n_muts'])
-            gcn, nname = sfo['name'].split('-')
+            gcn = sfo['gcn'] if args.bcr_phylo else sfo['name'].split('-')[0]
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
-        dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%args.simu_dir, n_max_trees=args.n_max_simu_trees)]
         plotvals = get_simu_affy(label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
         n_trees = len(dendro_trees)
     else:
@@ -318,10 +348,12 @@ def compare_plots(hname, plotdir, hists, labels, abtype, diff_vals):
         if 'fraction of' in hists[0].ytitle:
             ytitle = 'fraction of total'
     xbounds, ybounds, xticks, yticks, yticklabels = abdn_hargs(hists) if abtype=='abundances' else (None, None, None, None, None)  # seems not to need this? hutils.multi_hist_filled_bin_xbounds(hists)
+    text_dict = None if 'affinity' not in hists[0].xtitle or not args.bcr_phylo else {'x' : 0.2, 'y' : 0.6, 'text' : 'simu scaled to\nnaive mean, std 1'}
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(hname, abtype), more_hists=hists, log='y' if abtype=='abundances' else '', xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=hname!='max', square_bins=hname=='max', linewidths=[4, 3],
                                plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
-                               alphas=[0.6, 0.6], colors=[colors[l] for l in labels], translegend=[-0.65, 0] if 'affinity' in abtype else [-0.2, 0], write_csv=True, hfile_labels=labels)
+                               alphas=[0.6, 0.6], colors=[colors[l] for l in labels], translegend=[-0.65, 0] if 'affinity' in abtype else [-0.2, 0], write_csv=True, hfile_labels=labels,
+                               text_dict=text_dict)
     fnames[0].append(fn)
 
     hdict = {l : h for l, h in zip(labels, hists)}
@@ -337,7 +369,7 @@ NOTE that there's other scripts that process gcreplay results for partis input h
 """
 parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
-parser.add_argument('--simu-dir', help='Dir from which to read simulation results')
+parser.add_argument('--simu-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, default=70)
 parser.add_argument('--max-seqs-per-gc', type=int, default=70)
@@ -346,6 +378,7 @@ parser.add_argument('--GCs', default=[0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15
 parser.add_argument('--plot-labels', default='data:simu', help='which/both of data/simu to plot')
 parser.add_argument('--max-gc-plots', type=int, default=0, help='only plot individual (per-GC) plots for this  many GCs')
 parser.add_argument('--dont-normalize', action='store_true')
+parser.add_argument('--bcr-phylo', action='store_true', help='set this if you\'re using bcr-phylo (rather than gcdyn) simulation')
 parser.add_argument('--naive-seq', default="GAGGTGCAGCTTCAGGAGTCAGGACCTAGCCTCGTGAAACCTTCTCAGACTCTGTCCCTCACCTGTTCTGTCACTGGCGACTCCATCACCAGTGGTTACTGGAACTGGATCCGGAAATTCCCAGGGAATAAACTTGAGTACATGGGGTACATAAGCTACAGTGGTAGCACTTACTACAATCCATCTCTCAAAAGTCGAATCTCCATCACTCGAGACACATCCAAGAACCAGTACTACCTGCAGTTGAATTCTGTGACTACTGAGGACACAGCCACATATTACTGTGCAAGGGACTTCGATGTCTGGGGCGCAGGGACCACGGTCACCGTCTCCTCAGACATTGTGATGACTCAGTCTCAAAAATTCATGTCCACATCAGTAGGAGACAGGGTCAGCGTCACCTGCAAGGCCAGTCAGAATGTGGGTACTAATGTAGCCTGGTATCAACAGAAACCAGGGCAATCTCCTAAAGCACTGATTTACTCGGCATCCTACAGGTACAGTGGAGTCCCTGATCGCTTCACAGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAATGTGCAGTCTGAAGACTTGGCAGAGTATTTCTGTCAGCAATATAACAGCTATCCTCTCACGTTCGGCTCGGGGACTAAGCTAGAAATAAAA")
 parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading this many trees from simulation')
 parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")

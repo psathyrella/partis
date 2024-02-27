@@ -313,7 +313,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
                  figsize=None, shift_overflows=False, colors=None, errors=False, write_csv=False, xline=None, yline=None, xyline=None, linestyles=None,
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
-                 square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None, no_legend=False, hfile_labels=None):
+                 square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None, no_legend=False, hfile_labels=None,
+                 text_dict=None):
     assert os.path.exists(plotdir)
 
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
@@ -470,6 +471,8 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
     else:
         tmpxtitle = hist.xtitle  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
 
+    if text_dict is not None:
+        fig.text(text_dict['x'], text_dict['y'], text_dict['text'], fontdict={'weight' : 'bold'}) #, fontsize=)
     ymin = 0.8 * ymin if 'y' in log else ymin  # why tf was this here? -0.03*ymax
     fn = mpl_finish(ax, plotdir, plotname,
                     title=tmptitle,
