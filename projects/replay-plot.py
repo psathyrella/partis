@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 from __future__ import absolute_import
 from __future__ import print_function
 import sys
@@ -20,17 +20,17 @@ import collections
 import ast
 
 # if you move this script, you'll need to change this method of getting the imports
-partis_dir = '%s/work/partis' % os.getenv('HOME') #os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
-sys.path.insert(1, partis_dir + '/python')
+partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
+sys.path.insert(1, partis_dir)
 
-import utils
-import glutils
-import plotting
-import lbplotting
-import hutils
-from hist import Hist
-import treeutils
-import paircluster
+import python.utils as utils
+import python.glutils as glutils
+import python.plotting as plotting
+import python.lbplotting as lbplotting
+import python.hutils as hutils
+from python.hist import Hist
+import python.treeutils as treeutils
+import python.paircluster as paircluster
 
 # ----------------------------------------------------------------------------------------
 colors = {'data' : plotting.default_colors[1],
@@ -105,7 +105,7 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
             % (len(init_sizes), args.max_seqs_per_gc, " ".join(str(s) for s in sorted(init_sizes)))
         ))
 
-    print("  writing to %s" % os.path.dirname(abfn(label)))
+    print("    writing %s to %s" % (label, os.path.dirname(abfn(label))))
     if not os.path.exists(os.path.dirname(abfn(label))):
         os.makedirs(os.path.dirname(abfn(label)))
 
@@ -197,9 +197,8 @@ def read_input_files(label):
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
         return plotvals
     # ----------------------------------------------------------------------------------------
-    def read_data_file():
+    def read_data_csv(all_seqfos):
         skipped_mice, kept_mice, all_gcs = set(), set(), set()
-        print('    reading replay data from %s' % args.gcreplay_dir)
         with open('%s/gcreplay/nextflow/results/latest/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
             reader = csv.DictReader(cfile)
             for line in reader:
@@ -229,7 +228,8 @@ def read_input_files(label):
     plotvals = {k : [] for k in ['leaf', 'internal']}
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
     if label == 'data':
-        read_data_file()  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
+        print('  reading replay data from %s' % args.gcreplay_dir)
+        read_data_csv(all_seqfos)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
         n_too_small = 0
         for gcn in all_seqfos:
             if len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc as in write_abdn_csv() (can't be bothered, it seems more important for abundance stuff anyway)
@@ -251,12 +251,18 @@ def read_input_files(label):
             print('    skipped %d / %d gcs with fewer than %d seqs' % (n_too_small, len(all_seqfos), args.min_seqs_per_gc))
         n_trees = len(all_seqfos) - n_too_small
     elif label == 'simu':
+        print('  reading simulation from %s' % args.simu_dir)
         mfos = {}
         with open('%s/leaf-meta.csv'%args.simu_dir) as mfile:
             reader = csv.DictReader(mfile)
             for line in reader:
+                if args.n_max_simu_trees is not None:
+                    itree = int(line['name'].split('-')[0])
+                    if itree > args.n_max_simu_trees - 1:
+                        print('    --n-max-simu-trees: breaking after reading leaf meta for %d trees' % itree)
+                        break
                 mfos[line['name']] = line
-        tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%args.simu_dir)
+        tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%args.simu_dir, queries=None if args.n_max_simu_trees is None else mfos.keys())  # NOTE this args.n_max_queries bit assumes they're in the same order, but they should be, and it's probably only for testing, so maybe ok
         for sfo in tmp_seqfos:
             if 'naive' in sfo['name']:
                 continue
@@ -265,7 +271,7 @@ def read_input_files(label):
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
-        dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%args.simu_dir)]
+        dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%args.simu_dir, n_max_trees=args.n_max_simu_trees)]
         plotvals = get_simu_affy(label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
         n_trees = len(dendro_trees)
     else:
@@ -325,44 +331,33 @@ def compare_plots(hname, plotdir, hists, labels, abtype, diff_vals):
 
 # ----------------------------------------------------------------------------------------
 ustr = """
-Compare various distributions (especially abundances) in simu and gcreplay data:
-  replay-plot.py --data-dir <> --simu-dir <>
-  --data-dir /fh/fast/matsen_e/dralph/gcdyn/gcreplay-observed
-  --simu-dir /fh/fast/matsen_e/dralph/partis/gcdyn/vary-all/v1/n-trials-5000/simu-bundle-size-1/simu
-  --outdir /fh/fast/matsen_e/dralph/partis/gcdyn/vary-all/v1/n-trials-5000/simu-bundle-size-1/process
+Compare various distributions (especially abundances) in simu and gcreplay data.
+NOTE that there's other scripts that process gcreplay results for partis input here: partis/datascripts/meta/taraki-gctree-2021-20
+  replay-plot.py --simu-dir <dir> --outdir <dir>
 """
 parser = argparse.ArgumentParser(usage=ustr)
-parser.add_argument('--data-dir', help='dir from which to read gctree trees on gcreplay data')
-# NOTE there's other scripts that process gcreplay results for partis input here: partis/datascripts/meta/taraki-gctree-2021-20
-parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10', help='dir with gctree otuput from which we read seqs, affinity, and mutation info from a csv file (trees and leaf/internal info are read from --data-dir)')
-parser.add_argument('--simu-dir', help='dir from which to read simulation trees and mutation info')
+parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
+parser.add_argument('--simu-dir', help='Dir from which to read simulation results')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, default=70)
 parser.add_argument('--max-seqs-per-gc', type=int, default=70)
 parser.add_argument('--mice', default=[1, 2, 3, 4, 5, 6], help='restrict to these mouse numbers')
 parser.add_argument('--GCs', default=[0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32, 34, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 50, 55, 56, 57, 58, 59, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83], help='restrict to these GC numbers (these correspond to --mice, used command in comment: ') # csv -cHK_key_gc:HK_key_mouse /fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay/nextflow/results/latest/merged-results/observed-seqs.csv |sort|uniq|grep ' [123456]$'|ap 1|sort|uniq >/tmp/out')
-parser.add_argument('--is-simu', action='store_true')
-parser.add_argument('--gcdyn-dir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
+parser.add_argument('--plot-labels', default='data:simu', help='which/both of data/simu to plot')
 parser.add_argument('--max-gc-plots', type=int, default=0, help='only plot individual (per-GC) plots for this  many GCs')
 parser.add_argument('--dont-normalize', action='store_true')
 parser.add_argument('--naive-seq', default="GAGGTGCAGCTTCAGGAGTCAGGACCTAGCCTCGTGAAACCTTCTCAGACTCTGTCCCTCACCTGTTCTGTCACTGGCGACTCCATCACCAGTGGTTACTGGAACTGGATCCGGAAATTCCCAGGGAATAAACTTGAGTACATGGGGTACATAAGCTACAGTGGTAGCACTTACTACAATCCATCTCTCAAAAGTCGAATCTCCATCACTCGAGACACATCCAAGAACCAGTACTACCTGCAGTTGAATTCTGTGACTACTGAGGACACAGCCACATATTACTGTGCAAGGGACTTCGATGTCTGGGGCGCAGGGACCACGGTCACCGTCTCCTCAGACATTGTGATGACTCAGTCTCAAAAATTCATGTCCACATCAGTAGGAGACAGGGTCAGCGTCACCTGCAAGGCCAGTCAGAATGTGGGTACTAATGTAGCCTGGTATCAACAGAAACCAGGGCAATCTCCTAAAGCACTGATTTACTCGGCATCCTACAGGTACAGTGGAGTCCCTGATCGCTTCACAGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAATGTGCAGTCTGAAGACTTGGCAGAGTATTTCTGTCAGCAATATAACAGCTATCCTCTCACGTTCGGCTCGGGGACTAAGCTAGAAATAAAA")
-parser.add_argument(
-    "--random-seed", type=int, default=1, help="random seed for subsampling"
-)
+parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading this many trees from simulation')
+parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")
 args = parser.parse_args()
+args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'simu'])
 
 numpy.random.seed(args.random_seed)
-
-dlabels = []
-if args.data_dir is not None:
-    dlabels.append([args.data_dir, 'data'])
-if args.simu_dir is not None:
-    dlabels.append([args.simu_dir, 'simu'])
 
 abtypes = ['leaf-affinity', 'internal-affinity', 'abundances', 'hdists', 'max-abdn-shm']
 hclists = {t : {'distr' : [], 'max' : []} for t in abtypes}
 fnames = [[], [], []]
-for idir, tlab in dlabels:
+for tlab in args.plot_labels:
     utils.prep_dir('%s/plots/%s'%(args.outdir, tlab), wildlings=['*.csv', '*.svg'])
     lhists = read_input_files(tlab)  # puts affinity hists in lhists
     for abtype in abtypes:
@@ -373,12 +368,13 @@ for idir, tlab in dlabels:
 
 cfpdir = '%s/plots/comparisons' % args.outdir
 utils.prep_dir(cfpdir, wildlings=['*.csv', '*.svg'])
+print('  plotting comparisons to %s' % cfpdir)
 diff_vals = {}
 for abtype in abtypes:
     for hname, hlist in hclists[abtype].items():
         if hlist.count(None) == len(hlist):
             continue
-        compare_plots(hname, cfpdir, hlist, [l for _, l in dlabels], abtype, diff_vals)
+        compare_plots(hname, cfpdir, hlist, args.plot_labels, abtype, diff_vals)
 
 if len(fnames[0]) > 4:
     fnames = [fnames[0][:4], fnames[0][4:]] + fnames[1:]

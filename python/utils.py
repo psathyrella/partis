@@ -6544,6 +6544,10 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 break
             if queries is not None and len(missing_queries) == 0:
                 break
+    if n_max_queries > 0:
+        print('    stopped after reading %d sequences from %s' % (n_max_queries, fname))
+    if queries is not None:
+        print('    only looked for %d specified sequences in %s' % (len(queries), fname))
 
     if n_random_queries is not None:
         if n_random_queries > len(finfo):

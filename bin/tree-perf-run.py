@@ -92,7 +92,8 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
     leaf_ids_t = [l.taxon.label for l in tr_t.leaf_node_iter() if l.taxon.label in atn_t['unique_ids']]
     leaf_ids_i = [u for u in leaf_ids_t if u in atn_i['unique_ids']]  # inferred tree may swap internal/leaf nodes
     if set(leaf_ids_i) != set(leaf_ids_t):
-        print('    %s inferred leaf ids not the same as true leaf ids when trying to fix seqs (this is probably ok, since the coar calculation will probably skip them).\n      extra true: %s\n      extra inf: %s' % (utils.wrnstr(), ' '.join(set(leaf_ids_t) - set(leaf_ids_i)), ' '.join(set(leaf_ids_i) - set(leaf_ids_t))))
+        only_true, only_inf = set(leaf_ids_t) - set(leaf_ids_i), set(leaf_ids_i) - set(leaf_ids_t)
+        print('    %s inferred leaf ids not the same as true leaf ids when trying to fix seqs (this is probably ok, since the coar calculation will probably skip them).\n      %d extra true: %s\n      %d extra inf: %s' % (utils.wrnstr(), len(only_true), ' '.join(only_true), len(only_inf), ' '.join(only_inf)))
     common_leaf_ids = set(leaf_ids_t) & set(leaf_ids_i)  # maybe missing ones would be ok? but don't want to mess with it, and for now we assume below that they're the same
     seqs_t, seqs_i = [{u : utils.per_seq_val(atn, seq_key, u).strip('N') for u in atn['unique_ids']} for atn in (atn_t, atn_i)]
     seqs_t[naive_name], seqs_i[naive_name] = [a['naive_seq'].strip('N') for a in (atn_t, atn_i)]

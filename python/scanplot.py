@@ -858,7 +858,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 title = title.replace(ltexts[ptntype], '')
             if script_base == 'paired-loci':
                 ymin = 0
-                if ptilestr not in ['naive-hdist', 'n-clusters', 'coar']:
+                if ptilestr not in ['naive-hdist', 'n-clusters', 'coar', 'rf']:
                     ymax = 1.05
             else:
                 ymin, ymax = None, None

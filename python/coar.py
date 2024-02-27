@@ -244,7 +244,7 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
 
     if any(len(v) > 0 for v in n_skipped.values()):
         dstrs = {'missing-leaf' : '%d missing from inferred tree: %s', 'inferred-internal' : '%d were internal in inferred tree: %s', 'aln-fail' : '%d failed lineage alignment: %s'}
-        print('    %s skipped %d true leaf nodes in coar calculation (%s)' % (utils.wrnstr(), sum(len(v) for v in n_skipped.values()), ', '.join((dstrs[k]%(len(n_skipped[k]), ' '.join(sorted(n_skipped[k])))) for k in n_skipped if len(n_skipped[k])>0)))
+        print('    %s skipped %d / %d true leaf nodes in coar calculation (%s)' % (utils.wrnstr(), sum(len(v) for v in n_skipped.values()), len(list(true_tree.leaf_node_iter())), ', '.join((dstrs[k]%(len(n_skipped[k]), ' '.join(sorted(n_skipped[k])))) for k in n_skipped if len(n_skipped[k])>0)))
 
     if len(lineage_dists) == 0:  # max_penalty is 0 when all lineages have less than three members
         if debug:

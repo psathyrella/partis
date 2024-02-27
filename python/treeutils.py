@@ -342,11 +342,17 @@ def normalize_lb_val(metric, lbval, tau, seq_len):
     return (lbval - lbmin) / float(lbmax - lbmin)
 
 # ----------------------------------------------------------------------------------------
-def get_treestrs_from_file(treefname, n_expected_trees=None):
+def get_treestrs_from_file(treefname, n_expected_trees=None, n_max_trees=None):
+    tlines = []
     with open(treefname) as treefile:
-        tlines = treefile.readlines()
+        for tl in treefile:
+            tlines.append(tl)
+            if n_max_trees is not None and len(tlines) >= n_max_trees:
+                break
     if n_expected_trees is not None and len(tlines) != n_expected_trees:
         raise Exception('expected %d tree%s, but read %d tree lines from %s' % (n_expected_trees, utils.plural(n_expected_trees), len(tlines), treefname))
+    if n_max_trees is not None:
+        print('    stopped after reading %d trees from %s' % (n_max_trees, treefname))
     return tlines
 
 # ----------------------------------------------------------------------------------------
