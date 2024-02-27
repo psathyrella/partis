@@ -489,7 +489,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                         ytmpfo = readlog(args, yfname, metric, locus, ptntype)
                     elif 'pcfrac-' in ptilestr or ptilestr == 'naive-hdist':
                         ytmpfo = read_hist_csv(args, yfname, ptilestr)
-                    elif ptilestr in ['coar', 'rf']:
+                    elif ptilestr in ['coar', 'rf', 'n-pars-trees']:
                         with open(yfname) as yfile:  # should maybe use try/except as in smetric fcn above?
                             yjfo = json.load(yfile)  # too slow with yaml
                         ytmpfo = {ptilestr : numpy.mean(yjfo[ptilestr])}

@@ -110,8 +110,19 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
     return seqs_t, seqs_i
 
 # ----------------------------------------------------------------------------------------
+def get_n_parsimony_trees(n_clusters):
+    n_ptree_list = []
+    for iclust in range(n_clusters):
+        logfn = '%s/%s/iclust-%d/log' % (os.path.dirname(args.inferred_tree_file), os.path.basename(args.inferred_tree_file).replace('-annotations.yaml', ''), iclust)
+        out, err = utils.simplerun('grep "number of trees with integer branch lengths:" %s ' % logfn, shell=True, return_out_err=True, debug=False)
+        n_ptree_list.append(int(out.split()[-1]))
+    return n_ptree_list
+
+# ----------------------------------------------------------------------------------------
 def trnfn(u): return u + '_contig_igh+igk'
 utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
+
+# ----------------------------------------------------------------------------------------
 jvals = {'coar' : [], 'rf' : []}
 for atn_t in tru_atn_list:
     print('  starting true annotation with size %d' % len(atn_t['unique_ids']))
@@ -137,6 +148,9 @@ for atn_t in tru_atn_list:
     jvals['coar'].append(cval)
     dtree_t, dtree_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
     jvals['rf'].append(dendropy.calculate.treecompare.robinson_foulds_distance(dtree_t, dtree_i))
+
+if os.path.basename(args.inferred_tree_file).split('-')[0] == 'gctree':
+    jvals['n-pars-trees'] = get_n_parsimony_trees(len(tru_atn_list))
 
 if args.outdir is None:
     print('  %s no --outdir specified, so not writing anything' % utils.wrnstr())
