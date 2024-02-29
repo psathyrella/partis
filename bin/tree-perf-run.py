@@ -111,6 +111,10 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
 
 # ----------------------------------------------------------------------------------------
 def get_n_parsimony_trees(n_clusters):
+# other way to get this number:
+#              with open('gctree_base.inference.parsimony_forest.p', 'rb') as fh:
+#                  forest = pickle.load(fh)
+#              n_parsimony_trees = forest._forest.count_histories()
     n_ptree_list = []
     for iclust in range(n_clusters):
         logfn = '%s/%s/iclust-%d/log' % (os.path.dirname(args.inferred_tree_file), os.path.basename(args.inferred_tree_file).replace('-annotations.yaml', ''), iclust)

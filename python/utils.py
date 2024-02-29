@@ -6333,7 +6333,7 @@ def remove_from_arglist(clist, argstr, has_arg=False):
         raise Exception('None type value in clist %s' % clist)
     imatches = arglist_imatches(clist, argstr)
     if len(imatches) == 0:
-        return
+        return clist
     if len(imatches) > 1:
         imatches = reduce_imatches(imatches, clist, argstr)
     iloc = imatches[0]

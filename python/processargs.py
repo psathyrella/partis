@@ -406,6 +406,8 @@ def process(args):
         args.tree_inference_outdir = '%s/%s' % (utils.non_none([args.tree_inference_outdir, os.getcwd()]), args.tree_inference_subdir)
     if args.tree_inference_outdir is not None:
         print('  note: set tree inference outdir to %s' % args.tree_inference_outdir)
+    if args.is_simu and args.tree_inference_method is not None:
+        raise Exception('can\'t set both --is-simu and --tree-inference-method, since if --is-simu is set we use the simulation tree without inferring anything')
     args.mutation_label_cfg = utils.get_arg_list(args.mutation_label_cfg, choices=['all', 'leaf', 'mut-strs', 'short'])
 
     if args.plot_annotation_performance:

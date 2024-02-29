@@ -46,6 +46,7 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
     # ----------------------------------------------------------------------------------------
     def process_family(fam_fos):
         n_seqs = len(fam_fos)
+        counters['total'] += 1
         if args.min_seqs_per_gc is not None and n_seqs < args.min_seqs_per_gc:
             counters['too-small'] += 1
             return
@@ -90,7 +91,7 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
         ]
 
     # ----------------------------------------------------------------------------------------
-    counters = {'too-small' : 0, 'removed' : 0}
+    counters = {'too-small' : 0, 'total' : 0}
     init_sizes = []
     abundances = {}
     fdicts = {"hdists": {}, "max-abdn-shm": {}}
@@ -98,12 +99,11 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
         process_family(fam_fos)
 
     if counters['too-small'] > 0:
-        print(("    skipped %d files with fewer than %d seqs" % (counters['too-small'], args.min_seqs_per_gc)))
+        print("    skipped %d / %d files with fewer than %d seqs" % (counters['too-small'], counters['total'], args.min_seqs_per_gc))
+    if counters['too-small'] == counters['total']:
+        raise Exception('skipped all families (see previous line)')
     if len(init_sizes) > 0:
-        print((
-            "    downsampled %d samples to %d from initial sizes: %s"
-            % (len(init_sizes), args.max_seqs_per_gc, " ".join(str(s) for s in sorted(init_sizes)))
-        ))
+        print("    downsampled %d samples to %d from initial sizes: %s" % (len(init_sizes), args.max_seqs_per_gc, " ".join(str(s) for s in sorted(init_sizes))))
 
     print("    writing %s to %s" % (label, os.path.dirname(abfn(label))))
     if not os.path.exists(os.path.dirname(abfn(label))):
@@ -236,11 +236,13 @@ def read_input_files(label):
                 mfos[line['name']] = line
         return mfos
     # ----------------------------------------------------------------------------------------
-    def scale_affinities(atn, mfos):
-        naive_ids = [u for u, a, n in zip(atn['unique_ids'], atn['affinities'], atn['n_mutations']) if n==0]
-        if len(naive_ids) == 0:
-            raise Exception('no unmutated seqs in annotation')  # the naive seq seems to always be in there, i guess cause i'm sampling intermediate common ancestors
-        naive_affy = utils.per_seq_val(atn, 'affinities', naive_ids[0])
+    def scale_affinities(antn_list, mfos):
+        naive_id_affys = [(u, a) for l in antn_list for u, a, n in zip(l['unique_ids'], l['affinities'], l['n_mutations']) if n==0]
+        if len(naive_id_affys) == 0:
+            print('  %s no unmutated seqs in annotation, using default naive affinity %f' % (utils.wrnstr(), args.default_naive_affinity))  # the naive seq seems to always be in there, i guess cause i'm sampling intermediate common ancestors
+            naive_affy = args.default_naive_affinity
+        else:
+            _, naive_affy = naive_id_affys[0]
         affy_std = numpy.std([m['affinity'] for m in mfos.values()], ddof=1)
         print('    rescaling to (naive) mean %.3f std %.4f' % (naive_affy, affy_std))
         for mfo in mfos.values():
@@ -289,7 +291,7 @@ def read_input_files(label):
                     sfo['gcn'] = itn
                 tmp_seqfos += tnsfos
             dendro_trees = [treeutils.get_dendro_tree(treestr=l['tree']) for l in antn_list]
-            scale_affinities(atn, mfos)
+            scale_affinities(antn_list, mfos)
         else:
             mfos = read_gcd_meta()
             tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%args.simu_dir, queries=None if args.n_max_simu_trees is None else mfos.keys())
@@ -382,6 +384,7 @@ parser.add_argument('--bcr-phylo', action='store_true', help='set this if you\'r
 parser.add_argument('--naive-seq', default="GAGGTGCAGCTTCAGGAGTCAGGACCTAGCCTCGTGAAACCTTCTCAGACTCTGTCCCTCACCTGTTCTGTCACTGGCGACTCCATCACCAGTGGTTACTGGAACTGGATCCGGAAATTCCCAGGGAATAAACTTGAGTACATGGGGTACATAAGCTACAGTGGTAGCACTTACTACAATCCATCTCTCAAAAGTCGAATCTCCATCACTCGAGACACATCCAAGAACCAGTACTACCTGCAGTTGAATTCTGTGACTACTGAGGACACAGCCACATATTACTGTGCAAGGGACTTCGATGTCTGGGGCGCAGGGACCACGGTCACCGTCTCCTCAGACATTGTGATGACTCAGTCTCAAAAATTCATGTCCACATCAGTAGGAGACAGGGTCAGCGTCACCTGCAAGGCCAGTCAGAATGTGGGTACTAATGTAGCCTGGTATCAACAGAAACCAGGGCAATCTCCTAAAGCACTGATTTACTCGGCATCCTACAGGTACAGTGGAGTCCCTGATCGCTTCACAGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAATGTGCAGTCTGAAGACTTGGCAGAGTATTTCTGTCAGCAATATAACAGCTATCCTCTCACGTTCGGCTCGGGGACTAAGCTAGAAATAAAA")
 parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading this many trees from simulation')
 parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")
+parser.add_argument("--default-naive-affinity", type=float, default=1./100, help="this is the default for bcr-phylo, so maybe be correct if we don\'t have an unmutated sequence")
 args = parser.parse_args()
 args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'simu'])
 

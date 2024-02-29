@@ -61,6 +61,12 @@ parser.add_argument('--mutation-multiplier-list') #, type=float, default=1)
 parser.add_argument('--obs-times-list')  # only for bcr-phylo
 parser.add_argument('--tree-imbalance-list')
 parser.add_argument('--context-depend-list')
+parser.add_argument('--target-distance-list')
+parser.add_argument('--aa-paratope-positions-list')
+parser.add_argument('--aa-struct-positions-list')
+parser.add_argument('--leaf-sampling-scheme-list')
+parser.add_argument('--n-naive-seq-copies-list')
+parser.add_argument('--dont-observe-common-ancestors-list')
 parser.add_argument('--biggest-naive-seq-cluster-to-calculate-list')
 parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
@@ -74,13 +80,13 @@ parser.add_argument('--bcrham-time', action='store_true')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics)
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'carry-cap', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'context-depend', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events', 'dataset-in'],
+    'simu' : ['seed', 'n-leaves', 'n-sim-seqs-per-generation', 'carry-cap', 'constant-number-of-leaves', 'n-leaf-distribution', 'scratch-mute-freq', 'mutation-multiplier', 'obs-times', 'tree-imbalance', 'context-depend', 'target-distance', 'aa-paratope-positions', 'aa-struct-positions', 'leaf-sampling-scheme', 'n-naive-seq-copies', 'dont-observe-common-ancestors', 'mean-cells-per-droplet', 'fraction-of-reads-to-remove', 'bulk-data-fraction', 'allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-events', 'dataset-in'],
     'cache-parameters' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],  # only really want these in 'partition', but this makes it easier to point at the right parameter dir
     'partition' : ['biggest-naive-seq-cluster-to-calculate', 'biggest-logprob-cluster-to-calculate'],
 }
-args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times']
+args.str_list_vars = ['allowed-cdr3-lengths', 'n-genes-per-region', 'n-sim-alleles-per-gene', 'n-sim-seqs-per-generation', 'obs-times', 'aa-paratope-positions', 'aa-struct-positions']
 args.recurse_replace_vars = ['allowed-cdr3-lengths']  # ick ick ick
-args.bool_args = ['constant-number-of-leaves']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
+args.bool_args = ['constant-number-of-leaves', 'dont-observe-common-ancestors']  # NOTE different purpose to svartypes below (this isn't to convert all the values to the proper type, it's just to handle flag-type args
 if 'all-pcfrac' in args.perf_metrics:
     args.perf_metrics = args.perf_metrics.replace('all-pcfrac', ':'.join(pcfrac_metrics))
 args.paired_loci = True
@@ -243,7 +249,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --paired-naive-hfrac-threshold-type likelihood'
         if action == 'star-partition':
             cmd += ' --subcluster-annotation-size None'
-        if action not in phylo_actions:  # we want to infer the trees with get-selection-metrics action, so need to ignore true annotations
+        if action not in phylo_actions:  # we want to infer the trees, so need to ignore true annotations
             cmd += ' --is-simu'
         if action != 'cache-parameters':
             cmd += ' --refuse-to-cache-parameters'
@@ -268,6 +274,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         if args.inference_extra_args is not None:
             cmd += ' %s' % args.inference_extra_args
         if action in phylo_actions:  # should maybe remove plotdir and annotation performance?
+            cmd = ' '.join(utils.remove_from_arglist(cmd.split(), '--simultaneous-true-clonal-seqs'))  # --is-simu can't be set for this, but if it isn't set then this causes it to crash
             cmd += ' --tree-inference-method %s --infer-trees-with-only-leaves' % action
 
     return cmd
