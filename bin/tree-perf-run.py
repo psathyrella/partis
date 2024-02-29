@@ -123,8 +123,9 @@ def get_n_parsimony_trees(n_clusters):
     return n_ptree_list
 
 # ----------------------------------------------------------------------------------------
-def trnfn(u): return u + '_contig_igh+igk'
-utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
+# don't need this now that i'm using --simultaneous-true-clonal-seqs (yes, ick)
+# def trnfn(u): return u + '_contig_igh+igk'
+# utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
 
 # ----------------------------------------------------------------------------------------
 jvals = {'coar' : [], 'rf' : []}
@@ -139,7 +140,7 @@ for atn_t in tru_atn_list:
             atn_i = tatn
             break
     if atn_i is None:
-        raise Exception('couldn\'t find inferred annotation (looked in %d inferred annotations)' % len(inf_atn_list))
+        raise Exception('couldn\'t find inferred annotation for true annotation (looked in %d inferred annotations, maybe try uncommenting translation above): %s' % (len(inf_atn_list), ' '.join(atn_t['unique_ids'])))
     dtree_t, dtree_i = [treeutils.get_dendro_tree(treestr=lbplotting.get_tree_in_line(l, is_true)) for is_true, l in [[True, atn_t], [False, atn_i]]]
     if args.debug:
         for tstr, ttr in zip(['true', 'inf'], [dtree_t, dtree_i]):
