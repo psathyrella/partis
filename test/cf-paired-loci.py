@@ -121,7 +121,7 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     if single_file:
         assert locus is None
         locus = 'igk'
-    assert locus is not None or action in phylo_actions + ['write-fake-paired-annotations', 'replay-plot']
+    assert locus is not None or action in phylo_actions + tree_perf_actions + ['write-fake-paired-annotations', 'replay-plot']
     if logfile:
         ofn = '%s/%s%s.log' % (outdir, 'work/%s/'%locus if action=='mobille' else '', action)
     elif pmetr is not None and 'pcfrac-' in pmetr:
@@ -349,7 +349,9 @@ def parse_linearham_trees():
                 ofile.write(dtr.as_string(schema='newick'))
 
 # ----------------------------------------------------------------------------------------
-def plot_loci():
+def plot_loci(methods=None):
+    if methods is not None and any(m in tree_perf_actions for m in methods):  # maybe should be all(), i dunno
+        return [None]
     if args.single_light_locus is None:
         return utils.sub_loci('ig')
     else:
@@ -412,7 +414,7 @@ for action in args.actions:
                 for pmetr in args.perf_metrics:
                     utils.prep_dir(scanplot.get_comparison_plotdir(args, method) + '/' + pmetr, wildlings=['*.html', '*.svg', '*.yaml'])  # , subdirs=args.perf_metrics
                 for ipt, ptntype in enumerate(get_ptntypes(method)):
-                    for ltmp in plot_loci():
+                    for ltmp in plot_loci(methods=[method]):
                         for pmetr in args.perf_metrics:
                             if skip_this(pmetr, ptntype, method, ltmp):
                                 continue
@@ -424,6 +426,7 @@ for action in args.actions:
                                 procs.append(multiprocessing.Process(target=scanplot.make_plots, args=arglist, kwargs=kwargs))
             if not args.test:
                 utils.run_proc_functions(procs)
+            # NOTE fnames doesn't get filled by the multiprocessing stuff, so if you want the html you have to set --test
             for method in args.plot_metrics:
                 for pmetr in args.perf_metrics:
                     pmcdir = scanplot.get_comparison_plotdir(args, method) + '/' + pmetr
@@ -436,10 +439,10 @@ for action in args.actions:
             for ipm, pmetr in enumerate([m for m in args.perf_metrics if 'pcfrac-correct-family' not in m]):  # see note in read_hist_csv()
                 print('    ', pmetr)
                 for ptntype in partition_types:
-                    for ltmp in plot_loci():
-                        if 'pcfrac-' in pmetr and (ptntype != 'joint' or ltmp != 'igh'):
+                    for ltmp in plot_loci(methods=args.plot_metrics):
+                        if skip_this(pmetr, ptntype, args.plot_metrics[0], ltmp):  # kind of sucks to use [0], but if i'm skipping one i'm probably skipping all of them
                             continue
-                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[int(ipm//3) if 'pcfrac-' in pmetr else ipm], make_legend=ltmp=='igh', leg_label='-'+ptntype, script_base=script_base, debug=args.debug)
+                        scanplot.make_plots(args, args.scan_vars['partition'], action, None, pmetr, args.final_plot_xvar, locus=ltmp, ptntype=ptntype, fnames=fnames[int(ipm//3) if 'pcfrac-' in pmetr else ipm], make_legend=ltmp in ['igh', None], leg_label='-'+ptntype, script_base=script_base, debug=args.debug)
                         # iplot += 1
             fnames += [[os.path.dirname(fnames[0][0]) + '/legend-%s.svg'%ptntype] for ptntype in partition_types]
             plotting.make_html(cfpdir, n_columns=3 if len(plot_loci())==3 else 4, fnames=fnames)  # NOTE the pcfrac ones have to be first in the list for the ipm/3 thing to work

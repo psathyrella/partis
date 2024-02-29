@@ -124,8 +124,8 @@ def get_n_parsimony_trees(n_clusters):
 
 # ----------------------------------------------------------------------------------------
 # don't need this now that i'm using --simultaneous-true-clonal-seqs (yes, ick)
-# def trnfn(u): return u + '_contig_igh+igk'
-# utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
+def trnfn(u): return u + '_contig_igh+igk'
+utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
 
 # ----------------------------------------------------------------------------------------
 jvals = {'coar' : [], 'rf' : []}
