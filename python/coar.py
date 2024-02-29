@@ -101,9 +101,9 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
     else:
         node_i = find_node(tree_i, node_t.seq, node_t.taxon.label)  # looks first by seq, then disambuguates with uid (if you only look by uid, if the inference swaps two nearby internal/leaf nodes with the same seq it'll crash)
         (lin_t, uids_t), (lin_i, uids_i) = [reconstruct_lineage(t, n) for t, n in [(tree_t, node_t), (tree_i, node_i)]]
-    # One lineages must be longer than just the root and the terminal node
+    # lineages must be longer than just the root and the terminal node
     if len(lin_t) <= 2 and len(lin_i) <= 2:
-        return False
+        return None
     if debug:
         print('      aligning lineage for true node %s: found inf node %s' % (uids_t[0], uids_i[0]))
         max_len = max(len(u) for u in uids_i + uids_t)
@@ -219,7 +219,7 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
 
 # ----------------------------------------------------------------------------------------
 def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debug=False):
-    lineage_dists, n_skipped = list(), collections.OrderedDict([('inferred-internal', []), ('missing-leaf', []), ('aln-fail', [])])
+    lineage_dists, n_skipped = list(), collections.OrderedDict([('inferred-internal', []), ('missing-leaf', []), ('too-short', [])])
     inf_leaf_nodes = [n.taxon.label for n in inferred_tree.leaf_node_iter()]  # just so we can skip true leaf nodes that were inferred to be internal
     for node_t in true_tree.leaf_node_iter():
         nlabel = node_t.taxon.label
@@ -230,8 +230,8 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
             n_skipped['inferred-internal' if is_internal else 'missing-leaf'].append(nlabel)
             continue
         aln_res = align_lineages(node_t, true_tree, inferred_tree, known_root=known_root, allow_double_gap=allow_double_gap, debug=debug)
-        if aln_res is False:  # Skip lineages less than three members long
-            n_skipped['aln-fail'].append(nlabel)
+        if aln_res is None:  # skip lineages less than three members long
+            n_skipped['too-short'].append(nlabel)
             continue
         align_t, align_i, final_score, max_penalty = aln_res
         if max_penalty < 0:
@@ -242,8 +242,8 @@ def COAR(true_tree, inferred_tree, known_root=True, allow_double_gap=False, debu
             if debug:
                 print('    max penalty not less than zero: %.3f' % max_penalty)
 
-    if any(len(v) > 0 for v in n_skipped.values()):
-        dstrs = {'missing-leaf' : '%d missing from inferred tree: %s', 'inferred-internal' : '%d were internal in inferred tree: %s', 'aln-fail' : '%d failed lineage alignment: %s'}
+    if any(len(v) > 0 for v in n_skipped.values()):  # this really shouldn't say 'warning' in yello if it's only 'too-short', but oh well it's hard ish to change
+        dstrs = {'missing-leaf' : '%d missing from inferred tree: %s', 'inferred-internal' : '%d were internal in inferred tree: %s', 'too-short' : '%d lineages had only two members: %s'}
         print('    %s skipped %d / %d true leaf nodes in coar calculation (%s)' % (utils.wrnstr(), sum(len(v) for v in n_skipped.values()), len(list(true_tree.leaf_node_iter())), ', '.join((dstrs[k]%(len(n_skipped[k]), ' '.join(sorted(n_skipped[k])))) for k in n_skipped if len(n_skipped[k])>0)))
 
     if len(lineage_dists) == 0:  # max_penalty is 0 when all lineages have less than three members
