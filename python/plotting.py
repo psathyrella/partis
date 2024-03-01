@@ -1043,7 +1043,7 @@ def plot_legend_only(leg_entries, plotdir, plotname, title=None, n_digits=None):
     fig, ax = mpl_init()
     for tlab, lfo in sorted((str(l), fo) for l, fo in leg_entries.items()):  # have to convert labels to str in case e.g. one of them's None
         if n_digits is not None and tlab is not None:
-            tlab = utils.round_to_n_digits(tlab, 2)
+            tlab = utils.round_to_n_digits(float(tlab), 2)
         ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
     handles, labels = ax.get_legend_handles_labels()
     figlegend.legend(handles, labels, loc='center', title=title)

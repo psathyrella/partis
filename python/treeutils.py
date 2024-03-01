@@ -955,7 +955,9 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             workdir = utils.choose_random_subdir('/tmp/%s/tree-inference' % os.getenv('USER', default='user'))
         if not os.path.exists(ofn(workdir)):  # don't rewrite input file if output already exists (we print warning about not rerunning below)
             if method == 'linearham':
-                utils.write_annotations('%s/partition-%s.yaml'%(lhindir(workdir), glfo['locus']), glfo, [annotation], utils.annotation_headers)
+                tmpatn = utils.get_full_copy(annotation, glfo)
+                utils.trim_fwk_insertions(glfo, tmpatn)  # if there's fwk insertions linearham returns nonsense annotations
+                utils.write_annotations('%s/partition-%s.yaml'%(lhindir(workdir), glfo['locus']), glfo, [tmpatn], utils.annotation_headers)
                 utils.mkdir('%s/parameters'%lhindir(workdir))
                 lnk_name = '%s/parameters/%s' % (lhindir(workdir), glfo['locus'])
                 utils.makelink(os.path.dirname(lnk_name), os.path.abspath(parameter_dir), lnk_name)

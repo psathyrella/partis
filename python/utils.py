@@ -3106,10 +3106,11 @@ def get_null_linearham_info():
     return {'flexbounds' : None, 'relpos' : None}
 
 # ----------------------------------------------------------------------------------------
-def add_linearham_info(sw_info, annotation_list, min_cluster_size=None, debug=False):
+def add_linearham_info(sw_info, annotation_list, glfo, min_cluster_size=None, debug=False):
     print('  adding linearham info')
     n_already_there, n_size_skipped, n_added = 0, 0, 0
     for line in annotation_list:
+        trim_fwk_insertions(glfo, line)
         if min_cluster_size is not None and len(line['unique_ids']) < min_cluster_size:
             if debug:
                 print('       %s adding null linearham info to line: %s, because cluster is less than the passed <min_cluster_size> value of %d' % (color('yellow', 'warning'), ':'.join(line['unique_ids']), min_cluster_size))
@@ -3446,7 +3447,7 @@ def restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None, remove_tree=False
         line['tree'] = None
     if line.get('linearham-info') is not None:
         if sw_info is not None:
-            add_linearham_info(sw_info, [line])
+            add_linearham_info(sw_info, [line], glfo)
         else:
             print('% restrict_to_iseqs(line, iseqs_to_keep, glfo, sw_info=None) needs sw_info to re-add existing \'linearham-info\' key to an annotation' % color('yellow', 'warning'))
 

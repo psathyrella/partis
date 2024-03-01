@@ -29,29 +29,28 @@ args = parser.parse_args()
 # ----------------------------------------------------------------------------------------
 def read_linearham_output():
     lh_info = {}
-    clusterdirs = [d for d in (glob.glob('%s/cluster*' % args.linearham_dir)) if os.path.isdir(d)]  # works for old style 'clusterN' and new-style 'cluster-N'
+    glbfns = [f for gstr in ['cluster', 'iclust-'] for f in glob.glob('%s/%s*' % (args.linearham_dir, gstr))]
+    clusterdirs = [d for d in (glbfns) if os.path.isdir(d)]  # works for old style 'clusterN' and new-style 'cluster-N'
     if len(clusterdirs) == 0:
         raise Exception('no linearham cluster subdirs (of form clusterN/ or cluster-N/ found in %s' % args.linearham_dir)
     print('  reading linearham info for %d cluster%s: %s' % (len(clusterdirs), utils.plural(len(clusterdirs)),' '.join(os.path.basename(cd) for cd in clusterdirs)))
     for cdir in clusterdirs:
-        sfname = utils.get_single_entry(glob.glob('%s/*_seqs.fasta' % cdir))  # used to be input_seqs.fasta, now it's cluster_seqs.fasta
-        input_seqfos = utils.read_fastx(sfname)
+        sfnames = [f for gstr in ['', 'lineage*/'] for f in glob.glob('%s/%scluster_seqs.fasta' % (cdir, gstr))]
+        if len(sfnames) == 0:
+            raise Exception('no sequence files \'*_seqs.fasta\' found in %s' % cdir)
+        sfn = utils.get_single_entry(sfnames)
+        input_seqfos = utils.read_fastx(sfn)
         input_uids = [sfo['name'] for sfo in input_seqfos if sfo['name'] != 'naive']
         # aa_naive_seqs.fasta:   prob of each aa naive seq
         # aa_naive_seqs.dnamap:  prob of each nuc naive seq contributing to each of those aa naive seqs
-        flist = glob.glob('%s/*/*/aa_naive_seqs.fasta' % cdir)
-        if len(flist) == 0:
-            print('  no linearham output for %s in %s' % (os.path.basename(cdir), cdir))
-            continue
-        elif len(flist) != 1:
-            raise Exception('too many linearham output dirs:\n %s' % '\n      '.join(flist))
-        aa_seq_infos = utils.read_fastx(flist[0])
+        aasfn = '%s/aa_naive_seqs.fasta'%os.path.dirname(sfn)
+        aa_seq_infos = utils.read_fastx(aasfn)
         for iseq, sfo in enumerate(aa_seq_infos):
             tlist = sfo['name'].split('_')
             assert len(tlist) == 3
             assert int(tlist[1]) == iseq
             sfo['prob'] = float(tlist[2])
-        with open(flist[0].replace('.fasta', '.dnamap')) as outfile:  # this is some weird bastardization of a fasta file
+        with open(aasfn.replace('.fasta', '.dnamap')) as outfile:  # this is some weird bastardization of a fasta file
             iseq = -1
             for line in outfile:
                 if line[0] == '>':

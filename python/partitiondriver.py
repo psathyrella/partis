@@ -381,7 +381,7 @@ class PartitionDriver(object):
                 self.write_hmms(self.final_multi_paramdir)  # note that this modifies <self.glfo>
 
     # ----------------------------------------------------------------------------------------
-    def calc_tree_metrics(self, annotation_dict, annotation_list=None):
+    def calc_tree_metrics(self, annotation_dict, annotation_list=None, cpath=None):
         if annotation_list is None:
             annotation_list = list(annotation_dict.values())
         if self.current_action == 'get-selection-metrics' and self.args.input_metafnames is not None:  # presumably if you're running 'get-selection-metrics' with --input-metafnames set, that means you didn't add the affinities (+ other metafo) when you partitioned, so we need to add it now
@@ -633,7 +633,7 @@ class PartitionDriver(object):
             self.write_output(annotation_list, set(), cpath=cpath, outfname=self.args.linearham_info_fname, dont_write_failed_queries=True, extra_headers=extra_headers)  # I *think* we want <dont_write_failed_queries> set, because the failed queries should already have been written, so now they'll just be mixed in with the others in <annotation_list>
 
         if tmpact == 'get-selection-metrics':
-            self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(annotation_dict, annotation_list=annotation_list, cpath=cpath)  # adds tree metrics to <annotations>
         if tmpact == 'update-meta-info':
             inids, alist_ids = set(self.input_info), set(u for l in annotation_list for u in l['unique_ids'])
             if inids != alist_ids:
@@ -1058,7 +1058,7 @@ class PartitionDriver(object):
         print('getting annotations for final partition%s%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '', ' (with star tree annotation since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else ''))
         all_annotations, hmm_failures = self.actually_get_annotations_for_clusters(clusters_to_annotate=clusters_to_annotate, n_procs=n_procs, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
         if self.args.get_selection_metrics:
-            self.calc_tree_metrics(all_annotations)  # adds tree metrics to <annotations>
+            self.calc_tree_metrics(all_annotations, cpath=cpath)  # adds tree metrics to <annotations>
 
         if self.args.calculate_alternative_annotations:
             for cluster in sorted(cpath.best(), key=len, reverse=True):
@@ -2446,7 +2446,7 @@ class PartitionDriver(object):
                                                         n_to_write=self.args.n_partitions_to_write, calc_missing_values=('all' if (len(annotation_list) < 500) else 'best'), fail_frac=self.args.max_ccf_fail_frac, add_pairwise_metrics=self.args.add_pairwise_clustering_metrics)
 
         if self.args.extra_annotation_columns is not None and 'linearham-info' in self.args.extra_annotation_columns:  # it would be nice to do this in utils.add_extra_column(), but it requires sw info, which would then have to be passed through all the output infrastructure
-            utils.add_linearham_info(self.sw_info, annotation_list, min_cluster_size=5)  # NOTE not really worth trying to propagate through --cluster-indices or --seed/lineage-unique-ids here (i.e. propagate from linearham scons file) (setting hard coded 5 will fuck you if you want linearham on a tree with 4 seqs, but you probably don't really, and both not having a threshold here, and using --min-selection-metric-cluster-size suck [yes i tried both])
+            utils.add_linearham_info(self.sw_info, annotation_list, self.glfo, min_cluster_size=5)  # NOTE not really worth trying to propagate through --cluster-indices or --seed/lineage-unique-ids here (i.e. propagate from linearham scons file) (setting hard coded 5 will fuck you if you want linearham on a tree with 4 seqs, but you probably don't really, and both not having a threshold here, and using --min-selection-metric-cluster-size suck [yes i tried both])
 
         headers = utils.sw_cache_headers if write_sw else utils.annotation_headers
         if extra_headers is not None:

@@ -14,15 +14,14 @@ import pwd
 import collections
 from io import open
 
-# sys.path.insert(1, './python')
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
-sys.path.insert(1, partis_dir + '/python')
-import utils
-import glutils
-import paircluster
-from clusterpath import ClusterPath
-import treeutils
+sys.path.insert(1, partis_dir)
+import python.utils as utils
+import python.glutils as glutils
+import python.paircluster as paircluster
+from python.clusterpath import ClusterPath
+import python.treeutils as treeutils
 
 docker_path = '/linearham/work'
 ig_or_tr = 'ig'
@@ -88,7 +87,11 @@ def antn_plotdir(locus):
     return '%s/plots/%s/hmm' % (os.path.dirname(finalfn(locus)), locus)
 # ----------------------------------------------------------------------------------------
 def gloci():  # if no sw file, we probably only made one light locus (or i guess all input is missing, oh well)
-    return [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(simfn(l) if args.simdir is not None else ptnfn(l))]
+    def tfn(l): return simfn(l) if args.simdir is not None else ptnfn(l)
+    tloci = [l for l in utils.sub_loci(ig_or_tr) if os.path.exists(tfn(l))]
+    if len(tloci) == 0:
+        print('  %s returning zero loci (files probably don\'t exist: %s)' % (utils.wrnstr(), ' '.join(tfn(l) for l in utils.sub_loci(ig_or_tr))))
+    return tloci
 
 # ----------------------------------------------------------------------------------------
 def get_clusters(locus):
@@ -225,14 +228,17 @@ def read_lh_trees(locus, iclust, best=False):  # read trees and inferred ancestr
 # ----------------------------------------------------------------------------------------
 def processs_linearham_output():
     if args.original_outdir is not None and os.path.exists(args.outdir):  # rm the stupid link bullshit
-        os.remove(args.outdir)
+        try:
+            os.remove(args.outdir)
+        except IsADirectoryError:
+            print('  %s couldn\'t remove %s (it\'s a dir, not a link)' % (utils.wrnstr(), args.outdir))
         # os.rmdir(os.path.dirname(args.outdir))  # UPDATE nah can't do this, other processes might be sharing this parent dir OLD: maybe? it would be nice to keep going upwards and delete everything we made, but I'm not sure how to stop in exactly the right place
         args.outdir = args.original_outdir
 
     n_already_there, n_too_small, n_non_seed, missing_iclusts, n_total_iclusts, n_total_out = 0, 0, 0, [], 0, 0
     missing_icpaths = []
     for locus in gloci():
-        if args.simdir is not None and  not os.path.exists(simfn(locus)):
+        if args.simdir is not None and not os.path.exists(simfn(locus)):
             continue
         clusters = get_clusters(locus)
 
@@ -325,6 +331,11 @@ args = parser.parse_args()
 if args.fast:
     linearham_defaults[0]['mcmciter'] = '1000'
     linearham_defaults[0]['tuneiter'] = '500'
+
+# linearham (well, i think scons) gets confused if they don't have the full path
+args.simdir = utils.fpath(args.simdir)
+args.partis_outdir = utils.fpath(args.partis_outdir)
+args.outdir = utils.fpath(args.outdir)
 
 args.original_outdir = None
 if not args.docker and (args.linearham_dir is None or args.linearham_dir not in args.outdir):
