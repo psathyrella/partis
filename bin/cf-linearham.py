@@ -21,9 +21,11 @@ import python.glutils as glutils
 from python.clusterpath import ClusterPath
 
 parser = argparse.ArgumentParser()
+# NOTE to compare multiple output runs see  datascripts/meta/qa013-synth/read-lh-cf.py
 parser.add_argument('--partis-file', required=True, help='partis yaml partition output file that includes alternative annotation information (i.e. --calculate-alternative-annotations was set while partitioning)')
 parser.add_argument('--linearham-dir', required=True, help='linearham output dir (the main/parent dir))')
 parser.add_argument('--prob-to-ignore', default=0.15, help='don\'t print sequences with probabilities smaller than this')
+parser.add_argument('--outdir', help='if set, write csv info for the printed naive sequences to here')
 args = parser.parse_args()
 
 # ----------------------------------------------------------------------------------------
@@ -64,7 +66,7 @@ def read_linearham_output():
     return lh_info
 
 # ----------------------------------------------------------------------------------------
-def print_naive_seq_lines(nseq_info, namestr, namecolor, ref_seq=None, amino_acid=False):
+def print_naive_seq_lines(nseq_info, namestr, namecolor, ref_seq=None, amino_acid=False, writefo=None):
     def i_aa_color(i_aa):
         tmpcolors = ['purple', 'yellow', 'red', 'blue', 'green']
         return tmpcolors[i_aa % len(tmpcolors)]
@@ -79,6 +81,8 @@ def print_naive_seq_lines(nseq_info, namestr, namecolor, ref_seq=None, amino_aci
             breakstr = 'total: %5.2f (breaking after %.2f)' % (prob+total_prob, 1. - args.prob_to_ignore)
         print('     %s %s    %5.2f    %s   %s' % (utils.color_mutants(ref_seq, naive_seq, amino_acid=amino_acid, align_if_necessary=True),
                                                   utils.color(i_aa_color(i_aa_seq), str(i_aa_seq), width=2), prob, utils.color(namecolor, namestr, width=9, padside='right'), breakstr))
+        if writefo is not None:
+            writefo.append({'method' : namestr, 'prob' : prob, 'seq' : naive_seq})
         if breaking:
             break
         total_prob += prob
@@ -97,8 +101,18 @@ def print_all_lines(lh_aa_seq_infos, pline, amino_acid=False):
     else:
         cdstr = seq_len*' '
     print('    %s index  prob' % cdstr)
-    ref_seq = print_naive_seq_lines(get_lh_nsinfo(lh_aa_seq_infos, amino_acid=amino_acid), 'linearham', 'green', amino_acid=amino_acid)
-    _ = print_naive_seq_lines(get_partis_nsinfo(pline, amino_acid=amino_acid), 'partis', 'blue', ref_seq=ref_seq, amino_acid=amino_acid)  # use the linearham naive seq as ref_seq also for partis
+    writefo=[]
+    ref_seq = print_naive_seq_lines(get_lh_nsinfo(lh_aa_seq_infos, amino_acid=amino_acid), 'linearham', 'green', amino_acid=amino_acid, writefo=writefo)
+    _ = print_naive_seq_lines(get_partis_nsinfo(pline, amino_acid=amino_acid), 'partis', 'blue', ref_seq=ref_seq, amino_acid=amino_acid, writefo=writefo)  # use the linearham naive seq as ref_seq also for partis
+    if not os.path.exists(args.outdir):
+        os.makedirs(args.outdir)
+    if args.outdir is not None:
+        print('  writing %s seqs to %s' % ('aa' if amino_acid else 'nuc', args.outdir))
+        with open('%s/%s-seqs.csv'%(args.outdir, 'aa' if amino_acid else 'nuc'), 'w') as jfile:
+            writer = csv.DictWriter(jfile, writefo[0].keys())
+            writer.writeheader()
+            for wfo in writefo:
+                writer.writerow(wfo)
 
 # ----------------------------------------------------------------------------------------
 def print_gene_calls(pline):
