@@ -327,7 +327,7 @@ def run_partitiondriver(args):
     if input_info is not None and len(input_info) < args.n_procs:
         print('  note: reducing N procs to the number of seqs %d --> %d' % (args.n_procs, len(input_info)))
         args.n_procs = len(input_info)
-    if args.max_n_seqs_to_likelihood_cluster is not None and not args.naive_vsearch and not args.no_naive_vsearch and len(input_info) > args.max_n_seqs_to_likelihood_cluster:
+    if args.max_n_seqs_to_likelihood_cluster is not None and not args.naive_vsearch and not args.no_naive_vsearch and args.seed_unique_id is None and len(input_info) > args.max_n_seqs_to_likelihood_cluster:
         print('  note: found %d (>%d) seqs in input, so turning on --naive-vsearch (i.e. --fast) to speed things up. You can turn this behavior off by either setting --no-naive-vsearch or increasing --max-n-seqs-to-likelihood-cluster' % (len(input_info), args.max_n_seqs_to_likelihood_cluster))
         args.naive_vsearch = True
     parter = PartitionDriver(args, glfo, input_info, simglfo, reco_info)

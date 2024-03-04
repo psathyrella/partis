@@ -139,7 +139,7 @@ def label_node(node, root_node):
             return True
         if args.meta_info_to_emphasize is not None:
             key, val = list(args.meta_info_to_emphasize.items())[0]
-            if node.name in args.metafo[key] and utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
+            if key in args.metafo and node.name in args.metafo[key] and utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
                 return True
         if args.uid_translations is not None and node.name in args.uid_translations:
             return True

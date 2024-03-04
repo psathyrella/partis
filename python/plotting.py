@@ -44,6 +44,10 @@ hard_meta_colors = {'IGHM' : '#9467bd',  # purple
                     'w2' : '#1f77b4',  # ok these should clearly be passed in but i don't feel like adding a partis arg atm
                     'w23' : '#2ca02c',
                     'w25' : '#ff7f0e',
+                    'd385' : '#2b65ec',
+                    'd765' : '#ff7f0e',
+                    'dm351' : '#006600',
+                    'dm379' : '#9467bd',
                     }
 
 # ----------------------------------------------------------------------------------------
