@@ -33,7 +33,7 @@ parser.add_argument('--inferred-tree-file', required=True, help='partis yaml fil
 parser.add_argument('--outdir')
 parser.add_argument('--n-procs', type=int, help='NOTE not used, just putting here for consistency with other scripts')
 parser.add_argument('--overwrite', action='store_true', help='NOTE just for compatibility, not used atm')
-parser.add_argument('--debug', action='store_true')
+parser.add_argument('--debug', type=int)
 args = parser.parse_args()
 
 _, tru_atn_list, _ = utils.read_output(args.true_tree_file)
@@ -68,12 +68,9 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
             new_seq_i.append(cseq_i)
         return ''.join(new_seq_i).strip('N')
     # ----------------------------------------------------------------------------------------
-    def check_seqs(uid, seq_i, seq_t, force=False, dont_fix=False):
-        if debug:
-            print('      fixing %s:' % uid, end='')
+    def check_seqs(uid, seq_i, seq_t, fix_counts, force=False, dont_fix=False):
+        fix_counts['total'] += 1
         if seq_t == seq_i:
-            if debug:
-                print('   nothing to fix (seqs already the same)')
             return False  # return whether we fixed it or not
         seq_i = combine_chain_seqs(uid, seq_i)
         if seq_t is None:
@@ -82,11 +79,10 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
             if seq_t != seq_i and not dont_fix:
                 print('%s tried to fix %s but seqs still different:' % (utils.wrnstr(), uid))
                 utils.color_mutants(seq_t, seq_i, print_result=True, align_if_necessary=True, ref_label='true ', seq_label='inf ')
-                assert False
+                assert False  # NOTE if you stop crashing here, you probably need to increment something in fix_counts
             seqs_t[uid] = seq_t
         seqs_i[uid] = seq_i
-        if debug:
-            print('    successfully fixed')
+        fix_counts['fixed'].append(uid)
         return True
     # ----------------------------------------------------------------------------------------
     leaf_ids_t = [l.taxon.label for l in tr_t.leaf_node_iter() if l.taxon.label in atn_t['unique_ids']]
@@ -97,15 +93,18 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
     common_leaf_ids = set(leaf_ids_t) & set(leaf_ids_i)  # maybe missing ones would be ok? but don't want to mess with it, and for now we assume below that they're the same
     seqs_t, seqs_i = [{u : utils.per_seq_val(atn, seq_key, u).strip('N') for u in atn['unique_ids']} for atn in (atn_t, atn_i)]
     seqs_t[naive_name], seqs_i[naive_name] = [a['naive_seq'].strip('N') for a in (atn_t, atn_i)]
-    fixed, cs_lens = None, {}
+    fixed, cs_lens, fix_counts = None, {}, {'fixed' : [], 'total' : 0}
     for uid in common_leaf_ids:
-        tfx = check_seqs(uid, seqs_i[uid], seqs_t[uid])
+        tfx = check_seqs(uid, seqs_i[uid], seqs_t[uid], fix_counts)
         if fixed is None:
             fixed = tfx
         assert tfx == fixed  # if we fix one, we should fix all of them
     if fixed:
         for uid in [u for u in atn_i['unique_ids'] if u not in leaf_ids_i] + [naive_name]:  # need to also fix any internal/inferred nodes
-            check_seqs(uid, seqs_i[uid], seqs_t.get(uid), force=True, dont_fix=uid==naive_name)
+            check_seqs(uid, seqs_i[uid], seqs_t.get(uid), fix_counts, force=True, dont_fix=uid==naive_name)
+    print('    no nodes needed fixing (all seqs already the same)' if len(fix_counts['fixed'])==0 else '    fixed %d / %d nodes' % (len(fix_counts['fixed']), fix_counts['total']))
+    if debug:
+        print('      fixed seqs: %s' % ' '.join(sorted(fix_counts['fixed'])))
 
     return seqs_t, seqs_i
 
@@ -149,7 +148,7 @@ for atn_t in tru_atn_list:
     seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i, debug=args.debug)
     for ttr, seqdict, tfn in zip([dtree_t, dtree_i], [seqs_t, seqs_i], [args.true_tree_file, args.inferred_tree_file]):
         add_seqs_to_nodes(ttr, seqdict, tfn)
-    cval = coar.COAR(dtree_t, dtree_i, debug=args.debug)
+    cval = coar.COAR(dtree_t, dtree_i, known_root=False, debug=args.debug)
     jvals['coar'].append(cval)
     dtree_t, dtree_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
     jvals['rf'].append(dendropy.calculate.treecompare.robinson_foulds_distance(dtree_t, dtree_i))

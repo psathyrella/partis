@@ -110,6 +110,8 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
         print('              %s' % '  '.join(utils.wfmt(i, max_len, fmt='d', jfmt='-') for i in range(max(len(uids_t), len(uids_i)))))
         print('        true: %s' % '  '.join(utils.wfmt(u, max_len, jfmt='-') for u in uids_t))
         print('         inf: %s' % '  '.join(utils.wfmt(u, max_len, jfmt='-') for u in uids_i))
+    if known_root and lin_t[-1] != lin_i[-1]:  # known_root tells it to assume the *alignment* of inferred and true root, but if the seqs differ it'll still count their differences in the alignment score, which doesn't make sense
+        raise Exception('known_root is set, but true and inferred naive seqs are different:\n        %s\n        %s' % (lin_t[-1], utils.color_mutants(lin_t[-1], lin_i[-1])))
 
     len_t, len_i = [len(l) for l in [lin_t, lin_i]]
     gap_penalty, gp_i, gp_j = get_gap_penalties(len_t, len_i)
@@ -117,33 +119,34 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
     sc_mat = np.zeros((len_t, len_i), dtype=np.float64)
     for i in range(len_t):
         for j in range(len_i):
-            # Notice the score is defined by number of mismatches:
-            #sc_mat[i, j] = len(lin_t[i]) - hamming_distance(lin_t[i], lin_i[j])
             sc_mat[i, j] = -1 * utils.hamming_distance(lin_t[i], lin_i[j])
 
     # Calculate the alignment scores:
     aln_sc = np.zeros((len_t+1, len_i+1), dtype=np.float64)
     for i in range(0, len_t+1):
-        if known_root is True:
-            aln_sc[i][0] = -1 * float('inf')
-        else:
-            aln_sc[i][0] = gp_i * i
+        aln_sc[i][0] = -float('inf') if known_root else gp_i * i
     for j in range(0, len_i+1):
-        if known_root is True:
-            aln_sc[0][j] = -1 * float('inf')
-        else:
-            aln_sc[0][j] = gp_j * j
+        aln_sc[0][j] = -float('inf') if known_root else gp_j * j
     aln_sc[0][0] = 0  # The top left is fixed to zero
+    if debug > 1:
+        print('         i  j   match inf-gap true-gap   score')
     for i in range(1, len_t+1):
         for j in range(1, len_i+1):
-            match = aln_sc[i-1][j-1] + sc_mat[i-1, j-1]
+            match_sc = aln_sc[i-1][j-1] + sc_mat[i-1, j-1]
             gap_in_inferred = aln_sc[i-1][j] + gp_i
             gap_in_true = aln_sc[i][j-1] + gp_j
-            aln_sc[i][j] = max(match, gap_in_inferred, gap_in_true)
+            aln_sc[i][j] = max(match_sc, gap_in_inferred, gap_in_true)
+            if debug > 1:
+                print('        %2d %2d   %4.0f   %4.0f    %4.0f     %4.0f' % (i, j, match_sc, gap_in_inferred, gap_in_true, aln_sc[i][j]))
+    if debug > 1:
+        print('    final aln_sc:')
+        print('        '+'\n        '.join(' '.join('%4.0f'%v for v in vl) for vl in aln_sc))
     # Traceback to compute the alignment:
     align_t, align_i, asr_align, aln_ids = list(), list(), list(), {'true' : [], 'inf' : []}
     i, j = len_t, len_i
     alignment_score = aln_sc[i][j]
+    if debug:
+        print('    alignment score (i %d j %d): %d' % (i, j, aln_sc[i][j]))
     while i > 0 and j > 0:
         sc_current = aln_sc[i][j]
         sc_diagonal = aln_sc[i-1][j-1]
@@ -188,9 +191,10 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
             max_penalty += gap_penalty
         else:
             max_penalty += -len(a)
-    # Notice that the root and the terminal node is excluded from this comparison.
-    # by adding their length to the max_penalty:
+    # exclude/remove root and terminal node from max_penalty
     if known_root is True:
+        if debug:
+            print('      known_root: adding 2 * %d to max penalty: %d --> %d' % (len(lin_t[0]), max_penalty, max_penalty + 2 * len(lin_t[0])))
         max_penalty += 2 * len(lin_t[0])
     else:  # Or in the case of an unknown root, just add the terminal node
         max_penalty += len(lin_t[0])
@@ -199,7 +203,7 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
         max_seq_len = max(len(s) for slist in [align_t, align_i] for s in slist)
         max_uid_len = max(len(u) for u in uids_i + uids_t)
         print('      aligned lineages:')
-        print(('          index  hdist  %'+str(max_seq_len)+'s  %'+str(max_seq_len)+'s')  % ('true', 'inferred'))
+        print('          hdist  %s  %s   %s' % (utils.wfmt('true ids', max_uid_len), utils.wfmt('inf ids', max_uid_len), utils.wfmt('inferred seqs', max_seq_len, jfmt='-')))
         for uid_t, uid_i, seq_t, seq_i in zip(aln_ids['true'], aln_ids['inf'], align_t, align_i):
             def cfn(s): return utils.color('blue', s, width=max_seq_len, padside='right') if s == gap_seq else s
             str_t, str_i = cfn(seq_t), cfn(seq_i)
@@ -208,7 +212,7 @@ def align_lineages(node_t, tree_t, tree_i, gap_penalty_pct=0, known_root=True, a
                 str_i, isnps = utils.color_mutants(seq_t, seq_i, return_isnps=True)
                 hdstr = utils.color('red' if len(isnps) > 0 else None, '%3d' % len(isnps))
             def ustr(u): return utils.color('blue' if u=='gap' else None, utils.wfmt(u, max_uid_len))
-            print('           %s  %s %s  %s   %s' % (hdstr, ustr(uid_t), ustr(uid_i), str_t, str_i))
+            print('           %s   %s  %s   %s' % (hdstr, ustr(uid_t), ustr(uid_i), str_i))
         if alignment_score % 1 != 0 or max_penalty % 1 != 0:
             raise Exception('alignment_score score %s or max_penalty %s not integers, so need to fix dbg print in next line' % (alignment_score, max_penalty))
         print('      alignment score: %.0f   max penalty: %.0f' % (alignment_score, max_penalty))

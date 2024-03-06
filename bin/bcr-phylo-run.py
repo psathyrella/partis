@@ -146,7 +146,7 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None, igcr=None):
             cmd += ' --no_selection'
         else:
             cmd += ' --selection_strength %f' % get_vpar_val('selection-strength', args.selection_strength)
-        for astr in ['obs-times', 'n-sim-seqs-per-generation']:
+        for astr in ['obs-times', 'n-sim-seqs-per-generation']:  # for search: obs_times n_sim_seqs_per_generation
             aval = getattr(args, astr.replace('-', '_'))
             tstr = ' '.join('%d' % get_vpar_val(astr, t) for t in (aval if args.n_gc_rounds is None else aval[igcr]))
             cmd += ' --%s %s' % (astr.replace('n-sim-seqs-per-generation', 'n-to-sample').replace('-', '_'), tstr)  # ick

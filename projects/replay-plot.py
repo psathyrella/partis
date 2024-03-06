@@ -313,7 +313,7 @@ def read_input_files(label):
 
     hists = {}
     for pkey, pvals in plotvals.items():
-        htmp = Hist(xmin=-15, xmax=7, n_bins=30, value_list=pvals, title=label, xtitle='%s affinity'%pkey)
+        htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=label, xtitle='%s affinity'%pkey)  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
         htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
         hists['%s-affinity'%pkey] = {'distr' : htmp}
     return hists

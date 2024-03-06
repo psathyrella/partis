@@ -236,6 +236,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
                 cmd += ' --dont-observe-common-ancestors'
             if args.overwrite:
                 cmd += ' --overwrite'
+            cmd += ' --debug 1'
     else:
         cmd += ' --paired-indir %s' % odir(args, varnames, vstrs, 'simu')
         if action == 'vsearch-partition':
