@@ -33,7 +33,7 @@ parser.add_argument('--inferred-tree-file', required=True, help='partis yaml fil
 parser.add_argument('--outdir')
 parser.add_argument('--n-procs', type=int, help='NOTE not used, just putting here for consistency with other scripts')
 parser.add_argument('--overwrite', action='store_true', help='NOTE just for compatibility, not used atm')
-parser.add_argument('--debug', type=int)
+parser.add_argument('--debug', type=int, default=0)
 args = parser.parse_args()
 
 _, tru_atn_list, _ = utils.read_output(args.true_tree_file)
