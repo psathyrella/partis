@@ -153,8 +153,8 @@ for atn_t in tru_atn_list:
     dts_t, dts_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
     jvals['rf'].append(dendropy.calculate.treecompare.robinson_foulds_distance(dts_t, dts_i))
 
-if os.path.basename(args.inferred_tree_file).split('-')[0] == 'gctree':
-    jvals['n-pars-trees'] = get_n_parsimony_trees(len(tru_atn_list))
+# if os.path.basename(args.inferred_tree_file).split('-')[0] == 'gctree':
+#     jvals['n-pars-trees'] = get_n_parsimony_trees(len(tru_atn_list))
 
 if args.outdir is None:
     print('  %s no --outdir specified, so not writing anything' % utils.wrnstr())

@@ -87,6 +87,8 @@ def run_gctree():
         tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
         if not args.base_model:
             tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
+        if args.ranking_coeffs is not None:
+            tcmd += ' --ranking_coeffs %s' % (' '.join(c for c in args.ranking_coeffs))
         if os.path.exists(args.metafname):
             tcmd = add_mfo(tcmd, args.metafname)
         cmds.append(tcmd)
@@ -168,6 +170,7 @@ parser.add_argument('--metafname', help='if you need --frame (v region doesn\'t 
 parser.add_argument('--outdir')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--base-model', action='store_true', help='By default, we pass gctree info for the s5f mutation model; if this is set, we don\'t, and it instead use the base model.')
+parser.add_argument('--ranking-coeffs', nargs='+', help='see gctree help')
 parser.add_argument('--env-label', default='gctree')
 parser.add_argument('--root-label', default='naive')
 parser.add_argument('--data-dir', default='%s/data/s5f'%utils.get_partis_dir())
