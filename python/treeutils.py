@@ -498,31 +498,35 @@ def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_na
     # dtree.purge_taxon_namespace()
 
 # ----------------------------------------------------------------------------------------
+# return list of node labels common to both trees
+def get_common_labels(dtree_a, dtree_b, only_leaves=False, dbgstr='getting common labels', debug=False):  # NOTE probably don't really want to always warn when they don't have exactly the same nodes, but for the two places i use it right now it's fine
+    # ----------------------------------------------------------------------------------------
+    def leaf_taxa(ttr):
+        return [l.taxon for l in ttr.leaf_node_iter()]
+    # ----------------------------------------------------------------------------------------
+    if only_leaves:
+        tns1, tns2 = leaf_taxa(dtree_a), leaf_taxa(dtree_b)
+    else:
+        tns1, tns2 = dtree_a.taxon_namespace, dtree_b.taxon_namespace
+    labels_a, labels_b = [[t.label for t in tns] for tns in (tns1, tns2)]
+    common_labels = set(labels_a) & set(labels_b)
+    only_a, only_b = set(labels_a) - set(labels_b), set(labels_b) - set(labels_a)
+    if len(only_a) > 0 or len(only_b) > 0:
+        print('    %s %s with different node sets (new tns will only have common nodes):' % (utils.wrnstr(), dbgstr))
+    if debug or len(only_a) > 0 or len(only_b) > 0:
+        print('      %d common labels: %s' % (len(common_labels), ' '.join(sorted(common_labels))))
+        print('      %d only in first tree:  %s' % (len(only_a), ' '.join(sorted(only_a))))
+        print('      %d only in second tree: %s' % (len(only_b), ' '.join(sorted(only_b))))
+    return sorted(common_labels)
+
+# ----------------------------------------------------------------------------------------
 # return copies of the two trees with a common taxon namespace, so they can be compared with dendropy tree distance metrics
 def sync_taxon_namespaces(dtree_a, dtree_b, only_leaves=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def new_tree(told, new_tns):
         return dendropy.Tree(seed_node=told.seed_node, taxon_namespace=new_tns)
     # ----------------------------------------------------------------------------------------
-    def get_common_labels(tns1, tns2):
-        labels_a, labels_b = [[t.label for t in tns] for tns in (tns1, tns2)]
-        common_labels = set(labels_a) & set(labels_b)
-        only_a, only_b = set(labels_a) - set(labels_b), set(labels_b) - set(labels_a)
-        if len(only_a) > 0 or len(only_b) > 0:
-            print('    %s syncing taxon namespaces with different node sets:' % utils.wrnstr())
-        if debug or len(only_a) > 0 or len(only_b) > 0:
-            print('      %d common labels: %s' % (len(common_labels), ' '.join(sorted(common_labels))))
-            print('      %d only in first tree:  %s' % (len(only_a), ' '.join(sorted(only_a))))
-            print('      %d only in second tree: %s' % (len(only_b), ' '.join(sorted(only_b))))
-        return common_labels
-    # ----------------------------------------------------------------------------------------
-    def leaf_taxa(ttr):
-        return [l.taxon for l in ttr.leaf_node_iter()]
-    # ----------------------------------------------------------------------------------------
-    if only_leaves:
-        common_labels = get_common_labels(leaf_taxa(dtree_a), leaf_taxa(dtree_b))
-    else:
-        common_labels = get_common_labels(dtree_a.taxon_namespace, dtree_b.taxon_namespace)
+    common_labels = get_common_labels(dtree_a, dtree_b, only_leaves=only_leaves, dbgstr='syncing taxon namespaces')
     new_tns = dendropy.TaxonNamespace(common_labels)
     return [new_tree(t, new_tns) for t in [dtree_a, dtree_b]]
 
@@ -754,6 +758,35 @@ def compare_input_tree_to_leaf_seqs(region, in_treestr, leafseqs, naive_seq):
     print(in_ascii_str)
     print('    %s' % utils.color('blue', 'output:'))
     print(out_ascii_str)
+
+# ----------------------------------------------------------------------------------------
+# copied from method == "MRCA" section in gctree/branching_process.py, which maybe is at this line:  https://github.com/matsengrp/gctree/blob/main/gctree/branching_processes.py#L744
+def mrca_dist(dtree_t, dtree_i, denom_type='mut', debug=False):
+    assert denom_type in ['mut', 'len']
+    common_labels = get_common_labels(dtree_t, dtree_i, only_leaves=True, debug=debug)
+    pdm_t, pdm_i = [t.phylogenetic_distance_matrix() for t in [dtree_t, dtree_i]]
+    if debug > 1:
+        print('    starting mrca dist for trees with %d common leaf nodes' % len(common_labels))
+        max_len = max(len(l) for l in common_labels)
+        def upr(u): return utils.wfmt(u, max_len, jfmt='-')
+        print('         hdist     %s   %s    %s   %s' % (upr('leaf 1'), upr('leaf 2'), upr('true mrca'), upr('inf mrca')))
+    totals = {k : 0 for k in ['hdist', 'len', 'mut', 'n_pairs']}
+    for l1, l2 in itertools.combinations(common_labels, 2):
+        totals['n_pairs'] += 1
+        mnode_t, mnode_i = [p.mrca(t.taxon_namespace.get_taxon(l1), t.taxon_namespace.get_taxon(l2)) for p, t in zip([pdm_t, pdm_i], [dtree_t, dtree_i])]
+        hdist = utils.hamming_distance(mnode_t.seq, mnode_i.seq)
+        totals['hdist'] += hdist
+        totals['len'] += len(mnode_t.seq)
+        totals['mut'] += numpy.mean([utils.hamming_distance(mnode_t.seq, dtree_t.find_node_with_taxon_label(l).seq) for l in [l1, l2]])  # mean distance from leaf to mrca in true tree
+        if debug > 1:
+            print('         %s     %s   %s     %s   %s  ' % (utils.color('blue' if hdist==0 else None, str(hdist), width=3), upr(l1), upr(l2), upr(mnode_t.taxon.label), upr(mnode_i.taxon.label)))
+    if debug:
+        print('    mrca dist totals over %d leaf pairs' % n_pairs)
+        for dtype in ['mut', 'len']:
+            print('        hdist / %s: %d / %d = %.3f' % (dtype, totals['hdist'], totals[dtype], totals['hdist'] / float(totals[dtype])))
+
+    return totals['hdist'] / float(totals[denom_type])
+# ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
 # loops over uids in <hline> and <lline> (which, in order, must correspond to each other), chooses a new joint uid and applies it to both h and l trees, then checks to make sure the trees are identical

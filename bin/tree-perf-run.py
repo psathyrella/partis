@@ -127,7 +127,7 @@ def trnfn(u): return u + '_contig_igh+igk'
 utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
 
 # ----------------------------------------------------------------------------------------
-jvals = {'coar' : [], 'rf' : []}
+jvals = {'coar' : [], 'rf' : [], 'mrca' : []}
 for atn_t in tru_atn_list:
     print('  starting true annotation with size %d' % len(atn_t['unique_ids']))
     atn_i = None
@@ -148,10 +148,10 @@ for atn_t in tru_atn_list:
     seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i, debug=args.debug)
     for ttr, seqdict, tfn in zip([dtree_t, dtree_i], [seqs_t, seqs_i], [args.true_tree_file, args.inferred_tree_file]):
         add_seqs_to_nodes(ttr, seqdict, tfn)
-    cval = coar.COAR(dtree_t, dtree_i, known_root=False, debug=args.debug)
-    jvals['coar'].append(cval)
-    dtree_t, dtree_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
-    jvals['rf'].append(dendropy.calculate.treecompare.robinson_foulds_distance(dtree_t, dtree_i))
+    jvals['coar'].append(coar.COAR(dtree_t, dtree_i, known_root=False, debug=args.debug))
+    jvals['mrca'].append(treeutils.mrca_dist(dtree_t, dtree_i, debug=args.debug))
+    dts_t, dts_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
+    jvals['rf'].append(dendropy.calculate.treecompare.robinson_foulds_distance(dts_t, dts_i))
 
 if os.path.basename(args.inferred_tree_file).split('-')[0] == 'gctree':
     jvals['n-pars-trees'] = get_n_parsimony_trees(len(tru_atn_list))
