@@ -782,7 +782,7 @@ def mrca_dist(dtree_t, dtree_i, denom_type='mut', debug=False):
         if debug > 1:
             print('         %s     %s   %s     %s   %s  ' % (utils.color('blue' if hdist==0 else None, str(hdist), width=3), upr(l1), upr(l2), upr(mnode_t.taxon.label), upr(mnode_i.taxon.label)))
     if debug:
-        print('    mrca dist totals over %d leaf pairs' % n_pairs)
+        print('    mrca dist totals over %d leaf pairs' % totals['n_pairs'])
         for dtype in ['mut', 'len']:
             print('        hdist / %s: %d / %d = %.3f' % (dtype, totals['hdist'], totals[dtype], totals['hdist'] / float(totals[dtype])))
 
