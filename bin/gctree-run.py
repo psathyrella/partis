@@ -122,7 +122,8 @@ def parse_output():
         print('  %s expected 1 naive seq with label \'%s\' but found %d: %s  (in %s)' % (utils.wrnstr(), args.root_label, len(nfos), ' '.join(n['name'] for n in nfos), gctofn('seqs')))
     seqfos = [s for s in seqfos if s['name'] != args.root_label]  # don't want naive seq in final fasta
     seq_len = numpy.mean([len(s['seq']) for s in seqfos])
-    seqfos = [s for s in seqfos if s['name'] not in idm_trns]  # also remove input seqs
+    if not args.expand_all_nodes:  # also remove input seqs (well, gctree's new names for input seqs), unless we're expanding all nodes, in which case we need the gctree-named-nodes as fake new internal nodes
+        seqfos = [s for s in seqfos if s['name'] not in idm_trns]
     if len(seqfos) == 0:
         print('  %s no inferred sequences (all seqs read from gctree output were input seqs' % utils.wrnstr())
     inf_int_trns = []
@@ -138,15 +139,21 @@ def parse_output():
         node = dtree.find_node_with_taxon_label(gname)
         if node is None:
             raise Exception('couldn\'t find node with name \'%s\' in tree from gctree in %s' % (gname, gctofn('tree')))
+        if args.debug and len(onames) > 1:
+            print('    abundance > 1 for %s: %d (%s)' % (gname, len(onames), ' '.join(onames)))
         for onm in onames:
-            if node.taxon.label == gname:
+            if node.taxon.label == gname and not args.expand_all_nodes:
                 node.taxon.label = onm
+                if args.debug and len(onames) > 1:
+                    print('        setting node to %s' % onm)
                 continue
             new_taxon = dendropy.Taxon(onm)  # add duplicates as children with zero-length edges
             dtree.taxon_namespace.add_taxon(new_taxon)
             new_node = dendropy.Node(taxon=new_taxon)
             node.add_child(new_node)
             new_node.edge_length = 0
+            if args.debug and len(onames) > 1:
+                print('        adding child node %s' % onm)
     treeutils.translate_labels(dtree, inf_int_trns, expect_missing=True, debug=args.debug)
 
     if args.debug:
@@ -175,6 +182,7 @@ parser.add_argument('--env-label', default='gctree')
 parser.add_argument('--root-label', default='naive')
 parser.add_argument('--data-dir', default='%s/data/s5f'%utils.get_partis_dir())
 parser.add_argument('--inf-int-label', default='inf', help='base name for inferred intermediate seqs (numerical name is appended with -')
+parser.add_argument('--expand-all-nodes', action='store_true', help='Gctree collapses duplicate observed seqs into nodes with new names and abundance N > 1. By default, we expand these such that the node is named for one of the observed seqs, and add N-1 (zero-length) children. If this arg is set, however, we leave the node and add N (zero-length) children.')
 parser.add_argument('--run-help', action='store_true', help='run gctree help')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry-run', action='store_true')

@@ -903,6 +903,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 cmd += ' --base-model'
             if method == 'gctree-mut-mult':
                 cmd += ' --ranking-coeffs 0 20 0'
+            if only_pass_leaves:
+                cmd += ' --expand-all-nodes'  # these aren't actually the same, but if we're only passing leaves, it's probably because we want all input seqs to end up as leaves, so we want to expand all of em
         elif method == 'linearham':
             # TODO maybe should remove parameter_dir as an arg? I think i no longer need it
             # if parameter_dir is None or utils.dummy_str in parameter_dir:
