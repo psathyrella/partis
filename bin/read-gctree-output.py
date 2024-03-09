@@ -113,12 +113,13 @@ def run_cmd(action):
         cmd += ' --min-selection-metric-cluster-size 3 --treefname %s/%s --plotdir %s --selection-metrics-to-calculate lbi:aa-lbi:cons-dist-aa:lbr:aa-lbr:lbf:aa-lbf' % (args.gctreedir, args.tree_basename, 'paired-outdir' if args.paired_loci else '%s/selection-metrics/plots'%args.outdir)
         cmd += ' --extra-daffy-metrics lbi:aa-lbi'
         cmd += ' --label-root-node'
-        cmd += ' --add-selection-metrics-to-outfname --use-droplet-id-for-combo-id --selection-metric-plot-cfg %s' % ':'.join(treeutils.default_plot_cfg + ['distr', 'tree-mut-stats'])
+        plt_cfg = treeutils.default_plot_cfg + ['distr', 'tree-mut-stats']
+        if args.no_tree_plots:
+            plt_cfg = [t for t in plt_cfg if t != 'tree']
+        cmd += ' --add-selection-metrics-to-outfname --use-droplet-id-for-combo-id --selection-metric-plot-cfg %s' % ':'.join(plt_cfg)
         if args.slice_bin_fname is not None:
             cmd += ' --slice-bin-fname %s' % args.slice_bin_fname
         cmd += ' --choose-all-abs --chosen-ab-fname %s/chosen-abs.csv' % args.outdir  #  --debug 1
-        if args.no_tree_plots:
-            cmd += ' --ete-path None'
     if args.n_procs is not None:
         cmd += ' --n-procs %d' % args.n_procs
     utils.simplerun(cmd, logfname='%s/%s.log'%(args.outdir, action), dryrun=args.dry)

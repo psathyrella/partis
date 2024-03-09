@@ -1544,7 +1544,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
         add_fn(fnames, fn=fn)
 
 # ----------------------------------------------------------------------------------------
-def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_leaf_nodes=False, label_root_node=False, seq_len=None,
+def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_leaf_nodes=False, label_root_node=False, seq_len=None,
                     meta_info_key_to_color=None, meta_info_to_emphasize=None, node_size_key=None, branch_color_key=None, uid_translations=None, node_label_regex=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
@@ -1586,12 +1586,12 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, subworkdir
         cmdstr += ' --branch-color-key %s' % branch_color_key
     if node_label_regex is not None:
         cmdstr += ' --node-label-regex %s' % node_label_regex
-    cmdstr, _ = utils.run_ete_script(cmdstr, ete_path, return_for_cmdfos=True, tmpdir=subworkdir, extra_str='        ')
+    cmdstr = utils.run_ete_script(cmdstr, return_for_cmdfos=True, extra_str='        ')
 
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
 
 # ----------------------------------------------------------------------------------------
-def plot_lb_trees(args, metric_methods, baseplotdir, lines, ete_path, base_workdir, is_true_line=False, tree_style=None, fnames=None):
+def plot_lb_trees(args, metric_methods, baseplotdir, lines, base_workdir, is_true_line=False, tree_style=None, fnames=None):
     add_fn(fnames, new_row=True)
     workdir = '%s/ete3-plots' % base_workdir
     plotdir = baseplotdir + '/trees'
@@ -1614,7 +1614,7 @@ def plot_lb_trees(args, metric_methods, baseplotdir, lines, ete_path, base_workd
             if affy_key in line:  # either 'affinities' or 'relative_affinities'
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
-            cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, ete_path, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=qtis,
+            cmdfos += [get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, '%s/sub-%d' % (workdir, len(cmdfos)), metafo=metafo, tree_style=tree_style, queries_to_include=qtis,
                                        label_all_nodes=args.label_tree_nodes, label_leaf_nodes=args.label_leaf_nodes, label_root_node=args.label_root_node, uid_translations=altids, node_label_regex=args.node_label_regex,
                                        seq_len=float(numpy.mean([len(s) for s in line['seqs']])))]
             add_fn(fnames, fn=outfname, n_per_row=4)

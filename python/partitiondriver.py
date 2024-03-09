@@ -390,7 +390,7 @@ class PartitionDriver(object):
             print('    --seed-unique-id: restricting selection metric calculation to seed cluster in best partition (mostly to avoid fasttree crash on duplicate uids)')
             annotation_dict = OrderedDict([(uidstr, line) for uidstr, line in annotation_dict.items() if self.args.seed_unique_id in line['unique_ids'] and line['unique_ids'] in cpath.partitions[cpath.i_best]])
         treeutils.add_smetrics(self.args, self.args.selection_metrics_to_calculate, annotation_dict, self.args.lb_tau, reco_info=self.reco_info,  # NOTE keys in <annotation_dict> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
-                               use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, ete_path=self.args.ete_path, workdir=self.args.workdir,
+                               use_true_clusters=self.reco_info is not None, base_plotdir=self.args.plotdir, workdir=self.args.workdir,
                                outfname=self.args.selection_metric_fname, glfo=self.glfo, tree_inference_outdir=self.args.tree_inference_outdir, debug=self.args.debug)
 
     # ----------------------------------------------------------------------------------------

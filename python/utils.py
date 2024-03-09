@@ -4879,33 +4879,24 @@ def run_r(cmdlines, workdir, dryrun=False, print_time=None, extra_str='', logfna
 
 # ----------------------------------------------------------------------------------------
 def mamba_cmds(env, only_prep=False):
-    cmds = ['eval "$(micromamba shell hook --shell bash)"']
+    cmds = ['export PYTHONNOUSERSITE=1']  # make sure it doesn't use packages from local environment
+    cmds += ['eval "$(micromamba shell hook --shell bash)"']
     if only_prep:
         return cmds
     cmds += ['micromamba activate %s'%env]
     return cmds
 
 # ----------------------------------------------------------------------------------------
-def run_ete_script(sub_cmd, ete_path, conda_path=None, conda_env=None, pyversion='', return_for_cmdfos=False, tmpdir=None, dryrun=False, extra_str='', debug=True):  # ete3 requires its own python version, so we run as a subprocess
+def run_ete_script(sub_cmd, return_for_cmdfos=False, dryrun=False, extra_str='', debug=True):
     prof_cmds = '' #' -m cProfile -s tottime -o prof.out'
     # xvfb_err_str = '' # '-e %s' % XXX outdir + '/xvfb-err'  # tell xvfb-run to write its error to this file (rather than its default of /dev/null). This is only errors actually from xvfb-run, e.g. xauth stuff is broken
-    if tmpdir is None:
-        tmpdir = choose_random_subdir('/tmp/xvfb-run', make_dir=True)
-    cmd = 'export TMPDIR=%s' % tmpdir
-    if conda_path is None:
-        cmd += ' && export PATH=%s:$PATH' % ete_path
-    else:
-        assert conda_env is not None  # specify both conda_path and conda_env
-        cmd += ' && . %s/etc/profile.d/conda.sh && conda activate %s' % (conda_path, conda_env)
-    cmd += ' && %s/bin/xvfb-run -a python%s%s %s' % (get_partis_dir(), pyversion, prof_cmds, sub_cmd)
+    cmd = '%s/bin/xvfb-run -a python3%s %s' % (get_partis_dir(), prof_cmds, sub_cmd)
     if debug or dryrun:
-        itmp = cmd.rfind('&&')
-        print('%s%s %s' % (extra_str, color('red', 'run'), '%s \\\n%s     %s' % (cmd[:itmp + 2], extra_str, cmd[itmp + 2:])))
+        print('%s%s %s' % (extra_str, color('red', 'run'), cmd))
     if return_for_cmdfos:
-        return cmd, tmpdir
+        return cmd
     else:
         simplerun(cmd, shell=True, dryrun=dryrun, debug=False)
-        os.rmdir(tmpdir)
 
 # ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', logfname=None, debug=True):

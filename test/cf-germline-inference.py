@@ -197,7 +197,7 @@ def make_gls_tree_plot(args, region, plotdir, plotname, glsfnames, glslabels, lo
         cmdstr += ' --use-cache'
     if args.only_print:
         cmdstr += ' --only-print'
-    utils.run_ete_script(cmdstr, args.ete_path, debug=args.dryrun, dryrun=args.dryrun, extra_str='        ')
+    utils.run_ete_script(cmdstr, debug=args.dryrun, dryrun=args.dryrun, extra_str='        ')
 
 # ----------------------------------------------------------------------------------------
 def print_gls_gen_summary_table(args, region, baseoutdir):
@@ -871,7 +871,6 @@ parser.add_argument('--only-print', action='store_true')
 parser.add_argument('--check', action='store_true')
 parser.add_argument('--dryrun', action='store_true')
 parser.add_argument('--label', default='xxx')
-parser.add_argument('--ete-path', default=os.getenv('HOME') + '/anaconda_ete/bin')
 args = parser.parse_args()
 
 args.methods = sorted(utils.get_arg_list(args.methods))

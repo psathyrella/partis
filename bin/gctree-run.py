@@ -167,7 +167,8 @@ def parse_output():
 def convert_pickle_tree():
     assert False  # doesn't work yet
     cmd = '%s/bin/read-bcr-phylo-trees.py --pickle-tree-file %s --newick-tree-file %s/tree.nwk' % (utils.get_partis_dir(), args.infname, args.outdir)
-    utils.run_ete_script(cmd, None, conda_path=args.condapath, conda_env='ete3', pyversion='3')
+    # assert False  # this also needs updating
+    # utils.run_ete_script(cmd, None, conda_path=args.condapath, conda_env='ete3', pyversion='3')
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()

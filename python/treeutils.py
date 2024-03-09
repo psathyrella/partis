@@ -2214,7 +2214,7 @@ def get_tree_metric_lines(annotations, reco_info, use_true_clusters, inf_partiti
     return inf_lines_to_use, true_lines_to_use
 
 # ----------------------------------------------------------------------------------------
-def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, ete_path=None, workdir=None, include_relative_affy_plots=False, queries_to_include=None,
+def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, inf_annotations=None, workdir=None, include_relative_affy_plots=False, queries_to_include=None,
                       paired=False, debug=False):
     reqd_args = [('selection_metric_plot_cfg', None), ('slice_bin_fname', None), ('queries_to_include', None), ('label_tree_nodes', False), ('label_leaf_nodes', False), ('label_root_node', False),
                  ('affinity_key', None), ('sub_plotdir', None), ('tree_inference_method', None), ('node_label_regex', None)]
@@ -2291,8 +2291,8 @@ def plot_tree_metrics(args, plotdir, metrics_to_calc, antn_list, is_simu=False, 
         if 'lb-scatter' in plot_cfg:
             for xv, yv in [(xv, yv) for xv, yv in [('cons-dist-aa', 'aa-lbi'), ('aa-lbi', 'lbi')] if xv in metrics_to_calc and yv in metrics_to_calc]:
                 lbplotting.make_lb_scatter_plots(xv, plotdir, yv, antn_list, fnames=fnames, is_true_line=is_simu, colorvar='affinity' if has_affinities and 'cons-dist' in xv else None, add_jitter='cons-dist' in xv, n_iclust_plot_fnames=None if has_affinities else 8, queries_to_include=args.queries_to_include, meta_info_to_emphasize=args.meta_info_to_emphasize, meta_emph_formats=args.meta_emph_formats) #, add_stats='correlation')
-        if ete_path is not None and has_trees and 'tree' in plot_cfg:
-            lbplotting.plot_lb_trees(args, metrics_to_calc, plotdir, antn_list, ete_path, workdir, is_true_line=is_simu, fnames=fnames)
+        if has_trees and 'tree' in plot_cfg:
+            lbplotting.plot_lb_trees(args, metrics_to_calc, plotdir, antn_list, workdir, is_true_line=is_simu, fnames=fnames)
         subdirs = [d for d in os.listdir(plotdir) if os.path.isdir(plotdir + '/' + d)]
         plotting.make_html(plotdir, fnames=fnames, new_table_each_row=True, htmlfname=plotdir + '/overview.html', extra_links=[(subd, '%s/' % subd) for subd in subdirs], bgcolor='#FFFFFF', title='all plots:')
 
@@ -2492,7 +2492,7 @@ def get_aa_lb_metrics(line, nuc_dtree, lb_tau, dont_normalize_lbi=False, extra_s
 # by default, gets smetrics for all <annotations>
 # if inf_partition is set (and use_true_clusters isn't), we only calculate tree metrics on those clusters
 def add_smetrics(args, metrics_to_calc, annotations, lb_tau, inf_partition=None, reco_info=None, use_true_clusters=False, base_plotdir=None,
-                 train_dtr=False, dtr_cfg=None, ete_path=None, workdir=None, true_lines_to_use=None, outfname=None, glfo=None, tree_inference_outdir=None, debug=False):
+                 train_dtr=False, dtr_cfg=None, workdir=None, true_lines_to_use=None, outfname=None, glfo=None, tree_inference_outdir=None, debug=False):
     min_cluster_size = args.min_selection_metric_cluster_size  # default_min_selection_metric_cluster_size
     smdbgstr = '  getting selection metrics (%s)' % ' '.join(metrics_to_calc)
     if reco_info is not None:
@@ -2621,7 +2621,6 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, inf_partition=None,
         # elif base_plotdir is not None:
         #     assert true_lines_to_use is not None
         #     plstart = time.time()
-        #     assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         #     import plotting
         #     import lbplotting
         #     # if 'affinities' not in annotations[0] or all(affy is None for affy in annotations[0]['affinities']):  # if it's bcr-phylo simulation we should have affinities for everybody, otherwise for nobody
@@ -2641,8 +2640,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, inf_partition=None,
         #         plotting.make_html(true_plotdir, fnames=fnames, extra_links=[(subd, '%s/%s/' % (true_plotdir, subd)) for subd in lbmlist])
         #     print '      dtr plotting time %.1fs' % (time.time() - plstart)
     elif base_plotdir is not None:
-        assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
-        plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir, debug=debug)
+        plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), metrics_to_calc, antn_list, is_simu=is_simu, inf_annotations=inf_annotations, workdir=workdir, debug=debug)
 
     if outfname is not None:
         print('  writing selection metrics to %s' % outfname)
@@ -2804,7 +2802,7 @@ def calc_dtr(train_dtr, line, lbfo, dtree, trainfo, pmml_models, dtr_cfgvals, sk
 #    3) doesn't plot as many things
 #    4) only runs on simulation (as opposed to making two sets of things, for simulation and data)
 # and yes, it would be really *#(!$ing nice to merge them but I haven't had the time yet
-def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, ete_path=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
+def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=None, workdir=None, lb_tau=None, only_csv=False, min_cluster_size=None, include_relative_affy_plots=False,
                                       dont_normalize_lbi=False, cluster_indices=None, only_look_upwards=False, args=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def get_combo_lbfo(varlist, iclust, line, lb_tau, is_aa_lb=False): #, add_to_line=False):
@@ -2902,9 +2900,8 @@ def calculate_individual_tree_metrics(metric_method, annotations, base_plotdir=N
         print('       tree quantity calculation/prediction time: %.1fs' % (time.time() - pstart))
 
     if base_plotdir is not None:
-        assert ete_path is None or workdir is not None  # need the workdir to make the ete trees
         plstr, is_simu, inf_annotations = 'true', True, None
-        plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), [metric_method], metric_antns, is_simu=is_simu, inf_annotations=inf_annotations, ete_path=ete_path, workdir=workdir, debug=debug)
+        plot_tree_metrics(args, '%s/%s-tree-metrics' % (base_plotdir, plstr), [metric_method], metric_antns, is_simu=is_simu, inf_annotations=inf_annotations, workdir=workdir, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, title=None, debug=False):
@@ -3584,7 +3581,7 @@ def combine_selection_metrics(antn_pairs, fake_pntns, mpfo_lists, mtpys, plotdir
         icl_mfos = choose_abs(metric_pairs, iclust, mtpys[iclust], tdbg=debug)
         all_chosen_mfos[iclust] = icl_mfos
     inf_lines, true_lines = (None, fake_pntns) if not args.is_data else (utils.get_annotation_dict(fake_pntns), None)
-    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, base_plotdir=plotdir, ete_path=args.ete_path,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
+    add_smetrics(args, args.selection_metrics_to_calculate, inf_lines, args.lb_tau, true_lines_to_use=true_lines, base_plotdir=plotdir,  # NOTE keys in <inf_lines> may be out of sync with 'unique_ids' if we add inferred ancestral seqs here
                  tree_inference_outdir=tree_inference_outdir,
                  workdir=args.workdir, outfname=args.selection_metric_fname, debug=args.debug or args.debug_paired_clustering)
     if inf_lines is not None:  # re-synchronize keys in the dict with 'unique_ids' in the lines, in case we added inferred ancestral seqs while getting selection metrics)

@@ -116,7 +116,7 @@ def calc_lb_bounds(args, n_max_gen_to_plot=4, lbt_bounds=(0.001, 0.005), print_r
                 for btype in btypes:
                     if lbvals[metric][btype]['vals'] is None:
                         continue
-                    cmdfos = [lbplotting.get_lb_tree_cmd(lbvals[metric][btype]['vals']['tree'], '%s/%s-%s-tree.svg' % (plotdir, metric, btype), metric, 'affinities', args.ete_path, args.workdir, metafo=lbvals[metric][btype]['vals'], tree_style='circular')]
+                    cmdfos = [lbplotting.get_lb_tree_cmd(lbvals[metric][btype]['vals']['tree'], '%s/%s-%s-tree.svg' % (plotdir, metric, btype), metric, 'affinities', args.workdir, metafo=lbvals[metric][btype]['vals'], tree_style='circular')]
                     utils.run_cmds(cmdfos, clean_on_success=True, shell=True, debug='print')
 
     if args.make_plots:
@@ -293,6 +293,7 @@ def get_tree_metrics(args):
         #     cmd += ' --seed %s' % args.random_seed  # NOTE second/commented version this is actually wrong: vstrs[varnames.index('seed')]  # there isn't actually a reason for different seeds here (we want the different seeds when running bcr-phylo), but oh well, maybe it's a little clearer this way
         #     cmd += ' --selection-metrics-to-calculate lbi:lbr'  # TODO it would be better to just always use smetric-run.py, which you can do now, but i don't want to break backwards compatibility
         #     if args.no_tree_plots:
+        #         assert False  # needs to be updated to modify plot cfg arg
         #         cmd += ' --ete-path None'
         #     # if args.n_sub_procs > 1:  # TODO get-tree-metrics doesn't paralellize anything atm
         #     #     cmd += ' --n-procs %d' % args.n_sub_procs
@@ -390,7 +391,7 @@ parser.add_argument('--label', default='test')
 parser.add_argument('--extra-plotstr', default='', help='if set, put plots resulting from \'get-tree-metrics\' into a separate subdir using this string, rather than just plots/ (e.g. for plotting with many different dtr versions)')
 parser.add_argument('--include-relative-affy-plots', action='store_true')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv/yaml versions of plots (for future parsing), and not the actual svg files (which is slow)')
-parser.add_argument('--no-tree-plots', action='store_true', help='don\'t make any of the tree plots, which are slow (this just sets --ete-path to None)')
+parser.add_argument('--no-tree-plots', action='store_true', help='don\'t make any of the tree plots, which are slow')
 parser.add_argument('--overwrite', action='store_true')  # not really propagated to everything I think
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry', action='store_true')
@@ -401,7 +402,6 @@ parser.add_argument('--final-plot-xvar', help='variable to put on the x axis of 
 parser.add_argument('--legend-var', help='non-default "component" variable (e.g. obs-frac) to use to label different lines in the legend')
 parser.add_argument('--x-legend-var', help='derived variable with which to label the x axis (e.g. mfreq [shm percent] when --final-plot-x-var is scratch-mute-freq)')
 parser.add_argument('--partis-dir', default=os.getcwd(), help='path to main partis install dir')
-parser.add_argument('--ete-path', default=('%s/anaconda_ete/bin' % os.getenv('HOME')) if os.getenv('HOME') is not None else None)
 parser.add_argument('--make-hist-plots', action='store_true')
 # specific to get-lb-bounds:
 parser.add_argument('--n-tau-lengths-list', help='set either this or --n-generations-list')

@@ -798,7 +798,7 @@ class PartitionPlotter(object):
             qtis = None if self.args.queries_to_include is None else [q for q in self.args.queries_to_include if q in annotation['unique_ids']]  # NOTE make sure to *not* modify args.queries_to_include
             altids = [(u, au) for u, au in zip(annotation['unique_ids'], annotation['alternate-uids']) if au is not None] if 'alternate-uids' in annotation else None
             mfo, cdr3fo = get_metafo(annotation, iclust)
-            cfo = lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, self.args.ete_path, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=mfo,
+            cfo = lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=mfo,
                                              queries_to_include=qtis, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_info_to_emphasize=self.args.meta_info_to_emphasize, uid_translations=altids,
                                              label_all_nodes=self.args.label_tree_nodes, label_leaf_nodes=self.args.label_leaf_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, branch_color_key=self.args.branch_color_key, node_label_regex=self.args.node_label_regex)
             cmdfos.append(cfo)

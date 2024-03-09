@@ -24,7 +24,6 @@ import python.treeutils as treeutils
 from python.event import RecombinationEvent
 import python.paircluster as paircluster
 
-ete_path = os.getenv('HOME') + '/anaconda_ete/bin'
 bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
 ig_or_tr = 'ig'
 
@@ -212,9 +211,9 @@ def run_bcr_phylo(naive_seq, outdir, ievent, uid_str_len=None, igcr=None):
 
     cfo = None
     if args.n_procs == 1:
-        utils.run_ete_script(cmd, ete_path, dryrun=args.dry_run)
+        utils.run_ete_script(cmd, dryrun=args.dry_run)
     else:
-        cmd, _ = utils.run_ete_script(cmd, ete_path, return_for_cmdfos=True, tmpdir=outdir, dryrun=args.dry_run)
+        cmd = utils.run_ete_script(cmd, return_for_cmdfos=True, dryrun=args.dry_run)
         cfo = {'cmd_str' : cmd, 'workdir' : outdir, 'outfname' : bcr_phylo_fasta_fname(outdir)}
     sys.stdout.flush()
     return cfo
@@ -348,7 +347,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
     kdfname, nwkfname = '%s/kd-vals.csv' % outdir, '%s/simu.nwk' % outdir
     if not utils.output_exists(args, kdfname, outlabel='kd/nwk conversion', offset=4):  # eh, don't really need to check for both kd and nwk file, chances of only one being missing are really small, and it'll just crash when it looks for it a couple lines later
         cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s --newick-tree-file %s' % (outdir, args.extrastr, kdfname, nwkfname)
-        utils.run_ete_script(cmd, ete_path, debug=args.n_procs==1)
+        utils.run_ete_script(cmd, debug=args.n_procs==1)
     nodefo = read_kdvals(kdfname)
     dtree = treeutils.get_dendro_tree(treefname=nwkfname)
     seqfos = utils.read_fastx(bcr_phylo_fasta_fname(outdir))  # output mutated sequences from bcr-phylo
