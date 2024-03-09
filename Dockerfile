@@ -27,7 +27,7 @@ ARG MAMBA_DOCKERFILE_ACTIVATE=1
 RUN micromamba install -y -c conda-forge -c bioconda -cbiocore -c etetoolkit \
     python biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn \
     mafft circlify ete3
-RUN pip install colored-traceback dendropy levenshtein
+RUN pip install colored-traceback dendropy joypy levenshtein
 ENV XDG_RUNTIME_DIR=/tmp/xdgrd
 RUN mkdir $XDG_RUNTIME_DIR
 RUN chmod 0700 $XDG_RUNTIME_DIR
