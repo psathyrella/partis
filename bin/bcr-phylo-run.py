@@ -301,7 +301,6 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
         if dup_translations is not None:
             dup_translations.update(tmp_trns)
 
-        # extract kd values from pickle file (use a separate script since it requires ete/anaconda to read)
         if len(set(nodefo) - set(final_line['unique_ids'])) > 0:  # uids in the kd file but not the <line> (i.e. not in the newick/fasta files) are probably just bcr-phylo discarding internal nodes
             print('        in kd file, but missing from final_line (probably just internal nodes that bcr-phylo wrote to the tree without names): %s' % (set(nodefo) - set(final_line['unique_ids'])))
         if len(set(final_line['unique_ids']) - set(nodefo)) > 0:
@@ -344,6 +343,7 @@ def parse_bcr_phylo_output(glfos, naive_events, outdir, ievent, uid_info):
             atn1['paired-uids'] = [[u] for u in atn2['unique_ids']]  # seems a bit hackey to reset all of them, not just the translated one, but whatever
 
     # ----------------------------------------------------------------------------------------
+    # extract kd values from pickle file (used to need a separate script since ete3 needed python 3, but now probably doesn't)
     kdfname, nwkfname = '%s/kd-vals.csv' % outdir, '%s/simu.nwk' % outdir
     if not utils.output_exists(args, kdfname, outlabel='kd/nwk conversion', offset=4):  # eh, don't really need to check for both kd and nwk file, chances of only one being missing are really small, and it'll just crash when it looks for it a couple lines later
         cmd = './bin/read-bcr-phylo-trees.py --pickle-tree-file %s/%s_lineage_tree.p --kdfile %s --newick-tree-file %s' % (outdir, args.extrastr, kdfname, nwkfname)

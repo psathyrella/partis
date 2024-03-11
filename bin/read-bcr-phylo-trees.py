@@ -8,6 +8,8 @@ import csv
 from ete3 import TreeNode, TreeStyle, NodeStyle, SVG_COLORS
 from io import open
 
+# NOTE this probably doesn't need to be a separate script any more, it used to be necessary since ete3 requires python 3
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--pickle-tree-file', help='bcr phylo output pickle tree file')
 parser.add_argument('--kdfile', help='output csv file with kd info')

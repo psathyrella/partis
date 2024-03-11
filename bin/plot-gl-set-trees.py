@@ -16,10 +16,7 @@ import sys
 import colored_traceback.always
 from collections import OrderedDict
 from io import open
-try:
-    import ete3
-except ImportError:
-    raise Exception('couldn\'t find the ete3 module. Either:\n          - it isn\'t installed (use instructions at http://etetoolkit.org/download/) or\n          - $PATH needs modifying (typically with the command \'% export PATH=~/anaconda_ete/bin:$PATH\')')
+import ete3
 
 # ----------------------------------------------------------------------------------------
 def pairkey(name1, name2):

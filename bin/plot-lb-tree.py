@@ -18,11 +18,7 @@ import numpy
 import math
 import re
 from io import open
-try:
-    # NOTE install with http://etetoolkit.org/new_download/ (i.e. in a *separate* ~/anaconda_ete conda install dir)
-    import ete3
-except ImportError:
-    raise Exception('couldn\'t find the ete3 module. Either:\n          - it isn\'t installed (use instructions at http://etetoolkit.org/download/) or\n          - $PATH needs modifying (typically with the command \'% export PATH=~/anaconda_ete/bin:$PATH\')')
+import ete3
 
 # ----------------------------------------------------------------------------------------
 scolors = {
