@@ -4,9 +4,9 @@
 
 Partis can be installed either [with Docker](#installation-with-docker) or [from scratch](#installation-from-scratch).
 
-[Using Docker](#installation-with-docker) makes the installation process much easier, because it installs specific versions of each dependency in a controlled environment. The process of running, however, is then a bit less convenient since you're inside Docker (the use of batch systems, for instance, will be difficult).
+[Using Docker](#installation-with-docker) makes the installation process much easier, because it installs specific versions of each dependency in a controlled environment. The process of running, however, is then less convenient since you're inside Docker (the use of batch systems, for instance, will be difficult).
 
-Installing [without Docker](#installation-from-scratch), on the other hand, will require more effort to install (or more accurately, a higher chance of descent into dependency hell), but once installed it'll be easier to use. The closer your system is to the latest Ubuntu, the easier this process will be (RHEL variants and macOS typically work without too much trouble).
+Installing [without Docker](#installation-from-scratch), on the other hand, will require more effort to install, but once installed it'll be easier to use. The closer your system is to the latest Debian/Ubuntu, the easier this process will be (RHEL variants and macOS typically work without too much trouble).
 
 If you want to make simulated samples, you'll also need to [install some R packages](#simulation).
 
@@ -30,25 +30,20 @@ If you don't plan on reattaching to a container, you should run with `--rm` so i
 
 #### Installation from scratch
 
-To install without Docker, you basically just run the commands in the [Dockerfile](../Dockerfile) (ignoring the `FROM` and `COPY` lines).
-In place of `FROM`, you should clone the partis repo and init/update its submodules:
+To install without Docker, you basically need to run the commands in the [Dockerfile](../Dockerfile), starting by installing [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html) (essentially an alternate flavor of conda).
+You can probably ignore the `$MAMBA_USER` stuff.
+Because mamba/conda and pip do not play well with each other, if you've used pip in the past but are going to now use conda, and you won't need pip in the future, you should completely remove `~/.local`.
+If you might need pip in the future, you should expect some difficulty with having both conda and pip on the same system.
+In most cases you can prevent conda from finding the packages in `~/.local` (and consequently breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
+You may also need to `unset LD_LIBRARY_PATH`.
+If you're on a debian variant, run the apt-get install as written.
+On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/brew for apt-get.
+In place of `COPY`, you should clone the partis repo and init/update its submodules:
 ```
 git clone git@github.com:psathyrella/partis
 git submodule update --init --recursive
 ```
-If you're on a debian variant, run the apt-get install as written.
-On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/brew for apt-get.
-
-If you don't have conda installed, follow the full installation instructions [here](https://docs.anaconda.com/anaconda/install/).
-Any time you're using conda, it needs to be in your path, for example with `export PATH=<path_to_conda>:$PATH`.
-While conda typically works better, you can also install the python packages with pip (you should probably user the `--user` option).
-
-Because conda and pip do not play well with each other, if you've used pip in the past but are going to now use conda, and you won't need pip in the future, you should completely remove `~/.local`.
-If you might need pip in the future, you should expect some difficulty with having both conda and pip on the same system.
-In most cases you can prevent conda from finding the packages in `~/.local` (and consequently breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
-You may also need to `unset LD_LIBRARY_PATH`.
-
-Once conda is installed, run the rest of the commands in the Dockerfile whose lines are marked with `RUN` or `CMD`, except substitute the line `WORKDIR /partis` with `cd partis/`.
+`ARG` lines should be `export` commands, and substitute the line `WORKDIR /partis` with `cd partis/`.
 
 In order to avoid polluting your environment, we do not automatically add partis to your path.
 Several methods of accomplishing this are described [here](subcommands.md#subcommands).

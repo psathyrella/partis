@@ -24,7 +24,7 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
   xvfb
 USER $MAMBA_USER
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
-RUN micromamba install -y -c conda-forge -c bioconda -cbiocore -c etetoolkit \
+RUN micromamba install -y -c conda-forge -c bioconda -c biocore -c etetoolkit \
     python biopython pandas psutil pysam scons seaborn zlib pyyaml scikit-learn \
     mafft circlify ete3
 RUN pip install colored-traceback dendropy joypy levenshtein
