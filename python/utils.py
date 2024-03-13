@@ -4899,6 +4899,17 @@ def run_ete_script(sub_cmd, return_for_cmdfos=False, dryrun=False, extra_str='',
         simplerun(cmd, shell=True, dryrun=dryrun, debug=False)
 
 # ----------------------------------------------------------------------------------------
+def write_cmd_file(cmd_str, cmdfname, dryrun=False, debug=False):
+    mkdir(cmdfname, isfile=True)
+    with open(cmdfname, 'w') as cmdfile:
+        cmdfile.write(cmd_str)
+    subprocess.check_call(['chmod', '+x', cmdfname])
+    if debug or dryrun:
+        print('      cmd lines in %s:' % cmdfname)
+        print(pad_lines('\n'.join(cmd_str.split('\n'))))
+        sys.stdout.flush()
+
+# ----------------------------------------------------------------------------------------
 def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=False, print_time=None, extra_str='', logfname=None, debug=True):
     # ----------------------------------------------------------------------------------------
     def run_subp(cmd_str, shell, fout=None, ferr=None):
@@ -4908,14 +4919,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
         #     raise Exception() #err)
     # ----------------------------------------------------------------------------------------
     if cmdfname is not None:
-        mkdir(cmdfname, isfile=True)
-        with open(cmdfname, 'w') as cmdfile:
-            cmdfile.write(cmd_str)
-        subprocess.check_call(['chmod', '+x', cmdfname])
-        if debug or dryrun:
-            print('      cmd lines in %s:' % cmdfname)
-            print(pad_lines('\n'.join(cmd_str.split('\n'))))
-            sys.stdout.flush()
+        write_cmd_file(cmd_str, cmdfname, dryrun=dryrun, debug=debug)
         cmd_str = cmdfname
 
     if debug:

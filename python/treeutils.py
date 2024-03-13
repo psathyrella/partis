@@ -896,6 +896,12 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             cmd = '%s/packages/iqtree-1.6.12-Linux/bin/iqtree -asr -s %s -pre %s/%s' % (utils.get_partis_dir(), ifn(workdir), os.path.dirname(ifn(workdir)), outfix)
             if redo:
                 cmd += ' -redo'
+        elif method == 'raxml':
+            rcmds = ['#!/bin/bash']
+            rcmds += ['%s/packages/raxml/raxml-ng --model GTR+G --msa %s --msa-format FASTA' % (utils.get_partis_dir(), ifn(workdir))]
+            rcmds += ['%s/packages/raxml/raxml-ng --model GTR+G --msa %s --msa-format FASTA --ancestral --tree %s' % (utils.get_partis_dir(), ifn(workdir), ofn(workdir))]
+            utils.write_cmd_file('\n'.join(rcmds) + '\n', '%s/run.sh'%workdir, debug=True)
+            cmd = '%s/run.sh'%workdir
         elif 'gctree' in method:
             assert iclust is not None
             cmd = '%s/bin/gctree-run.py --infname %s --metafname %s --outdir %s --root-label %s --inf-int-label i-%d-inf' % (utils.get_partis_dir(), ifn(workdir), mfn(workdir), workdir, naive_seq_name, iclust)
@@ -929,13 +935,15 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     def mfn(workdir):
         return '%s/meta.yaml' % workdir
     # ----------------------------------------------------------------------------------------
-    def ofn(workdir, antns=False, best=False):
+    def ofn(workdir, antns=False, best=False, ancestors=False):
         if method == 'iqtree':
             return '%s/%s.treefile' % (workdir, outfix)
         elif method == 'fasttree':
             return '%s/%s.out' % (workdir, method)  # just where utils.run_cmds() writes std out
         elif 'gctree' in method:
             return '%s/tree.nwk' % workdir
+        elif method == 'raxml':
+            return '%s.raxml.%s' % (ifn(workdir), 'ancestralStates' if ancestors else 'ancestralTree')
         elif method == 'linearham':
             subd = ('single-chain/' if best else 'alternative-annotations/iclust-0/') if antns else ''  # kind of dumb to have iclust-0 here, but 1) we can't write multiple clusters to these files since they have many annotations for each cluster and 2) we only ever tell linearham-run.py to run on one cluster here, so it's always in iclust-0/
             return '%s/%s%s-%s.%s' % (workdir, subd, 'partition' if antns else 'trees', glfo['locus'], 'yaml' if antns else 'nwk')  # one tree for each cluster
@@ -957,7 +965,65 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
               print('        removed %d internal nodes (kept %d leaf+naive)' % (n_internal, n_kept))
         return newfos
     # ----------------------------------------------------------------------------------------
-    assert method in ['fasttree', 'iqtree', 'linearham'] + gct_methods
+    def read_inf_seqs(dtree, removed_nodes, padded_seq_info_list):
+        inf_seqfos, inf_antn = [], None
+        if method in ['iqtree', 'raxml'] + gct_methods:
+            if method == 'iqtree':
+                inf_infos, skipped_rm_nodes = {}, set()
+                with open('%s/%s.state'%(workdir, outfix)) as afile:
+                    reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'))
+                    for line in reader:
+                        node = line['Node']
+                        if removed_nodes is not None and node in removed_nodes:
+                            skipped_rm_nodes.add(node)
+                            continue
+                        if node not in inf_infos:
+                            inf_infos[node] = {}
+                        inf_infos[node][int(line['Site'])] = line['State'].replace('-', utils.ambig_base)  # NOTE this has uncertainty info as well, which atm i'm ignoring
+                seq_len = len(seqfos[0]['seq'])
+                for node, nfo in inf_infos.items():
+                    inf_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
+                if len(skipped_rm_nodes) > 0:
+                    print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
+            elif method == 'raxml':
+                skipped_rm_nodes = set()
+                with open(ofn(workdir, ancestors=True)) as afile:
+                    reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'), fieldnames=['Node', 'State'])
+                    for line in reader:
+                        node = line['Node']
+                        if removed_nodes is not None and node in removed_nodes:
+                            skipped_rm_nodes.add(node)
+                            continue
+                        inf_seqfos.append({'name' : node, 'seq' : line['State']})
+                if len(skipped_rm_nodes) > 0:
+                    print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
+            elif method in gct_methods:
+                gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
+                for sfo in gct_seqfos:
+                    nseq, ig = [], 0
+                    for pchar in padded_seq_info_list:
+                        if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
+                            nseq.append(utils.ambig_base)
+                        else:
+                            nseq.append(sfo['seq'][ig])
+                            ig += 1
+                    sfo['seq'] = ''.join(nseq)
+                    assert len(sfo['seq']) == len(padded_seq_info_list)
+                inf_seqfos += gct_seqfos
+            else:
+                assert False
+            if debug:
+                print('      read %d inferred ancestral seqs' % len(inf_seqfos))
+        elif method == 'linearham':
+            _, tmpantns, _ = utils.read_output(ofn(workdir, antns=True, best=True))
+            inf_antn = utils.get_single_entry(tmpantns)
+            _, alt_antns, _ = utils.read_output(ofn(workdir, antns=True))
+            inf_antn['alternative-annotations'] = alt_antns  # atm the other place we set this key (in partitiondriver) we put different stuff in it, but that seems fine, it's just different stuff goes here from different programs
+            internal_ids = [n.taxon.label for n in dtree.preorder_internal_node_iter() if n.taxon.label in inf_antn['unique_ids']]
+            print('      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids'])))
+        return inf_seqfos, inf_antn
+    # ----------------------------------------------------------------------------------------
+    assert method in ['fasttree', 'iqtree', 'raxml', 'linearham'] + gct_methods
     assert actions in ['prep:run:read', 'prep', 'read']  # other combinations could make sense, but don't need them atm
     if method == 'linearham' and glfo is None:
         raise Exception('need to pass in glfo in order to run linearham (e.g. linearham can\'t work on the fake h/l annotations')
@@ -981,6 +1047,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 old_name = sfo['name']
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
+    padded_seq_info_list = None
     if method in ['linearham'] + gct_methods:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
         padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
         for sfo in seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
@@ -1041,49 +1108,11 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     removed_nodes = None
     # fasttree, iqtree, and gctree put all observed seqs as leaves, so we sometimes want to collapse [near-]zero-length leaves onto their internal node parent
     if not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
+        print('      collapsing zero length leaves')
         removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name])
 
-    inf_seqfos, inf_antn = [], None
-    if method in ['iqtree'] + gct_methods:  # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
-        if method == 'iqtree':
-            inf_infos, skipped_rm_nodes = {}, set()
-            with open('%s/%s.state'%(workdir, outfix)) as afile:
-                reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'))
-                for line in reader:
-                    node = line['Node']
-                    if removed_nodes is not None and node in removed_nodes:
-                        skipped_rm_nodes.add(node)
-                        continue
-                    if node not in inf_infos:
-                        inf_infos[node] = {}
-                    inf_infos[node][int(line['Site'])] = line['State'].replace('-', utils.ambig_base)  # NOTE this has uncertainty info as well, which atm i'm ignoring
-            seq_len = len(seqfos[0]['seq'])
-            for node, nfo in inf_infos.items():
-                inf_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
-            if len(skipped_rm_nodes) > 0:
-                print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
-        elif method in ['linearham'] + gct_methods:  # haven't tested this with linearham, but it's probably ok
-            gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
-            for sfo in gct_seqfos:
-                nseq, ig = [], 0
-                for pchar in padded_seq_info_list:
-                    if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
-                        nseq.append(utils.ambig_base)
-                    else:
-                        nseq.append(sfo['seq'][ig])
-                        ig += 1
-                sfo['seq'] = ''.join(nseq)
-                assert len(sfo['seq']) == len(padded_seq_info_list)
-            inf_seqfos += gct_seqfos
-        if debug:
-            print('      read %d inferred ancestral seqs' % len(inf_seqfos))
-    elif method == 'linearham':
-        _, tmpantns, _ = utils.read_output(ofn(workdir, antns=True, best=True))
-        inf_antn = utils.get_single_entry(tmpantns)
-        _, alt_antns, _ = utils.read_output(ofn(workdir, antns=True))
-        inf_antn['alternative-annotations'] = alt_antns  # atm the other place we set this key (in partitiondriver) we put different stuff in it, but that seems fine, it's just different stuff goes here from different programs
-        internal_ids = [n.taxon.label for n in dtree.preorder_internal_node_iter() if n.taxon.label in inf_antn['unique_ids']]
-        print('      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids'])))
+    # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
+    inf_seqfos, inf_antn = read_inf_seqs(dtree, removed_nodes, padded_seq_info_list)
 
     if debug:
         print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
@@ -1093,6 +1122,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         if method == 'iqtree':
             wfns += ['%s/%s%s' % (workdir, outfix, s) for s in ['.log', '.state', '.mldist', '.iqtree', '.bionj', '.treefile', '.model.gz', '.ckp.gz']]  # ick
             wfns.append('%s/log'%workdir)
+        if method == 'raxml':
+            wfns += ['%s/run.sh'%workdir] + glob.glob('%s.raxml.*' % ifn(workdir))
         if 'gctree' in method:
             wfns.append(mfn(workdir))
         if method == 'fasttree':
@@ -2378,7 +2409,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             filetrees.append({'tree' : dtree, 'ids' : treeids})
         print('      read %d trees from %s' % (len(filetrees), treefname))
     check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
-    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in [('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr')] + [(m, 'ran %s'%m) for m in ['fasttree', 'iqtree', 'linearham'] + gct_methods]}
+    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in [('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr')] + [(m, 'ran %s'%m) for m in ['fasttree', 'iqtree', 'raxml', 'linearham'] + gct_methods]}
     n_already_there, n_skipped_uid, n_skipped_line, n_skipped_size = 0, 0, 0, 0
     cmdfos, treefos = [None for _ in inf_lines_to_use], [None for _ in inf_lines_to_use]
     for iclust, line in enumerate(inf_lines_to_use):
@@ -2417,7 +2448,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             assert cpath is not None
             dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
             origin = 'cpath'
-        elif tree_inference_method in ['fasttree', 'iqtree', 'linearham', None] + gct_methods:
+        elif tree_inference_method in ['fasttree', 'iqtree', 'raxml', 'linearham', None] + gct_methods:
             if tree_inference_method is None:
                 tree_inference_method = 'fasttree'  # ick
             cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
@@ -2443,7 +2474,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             print('      starting %d jobs' % len(cfos_to_run))
             for cfo in cfos_to_run:
                 print('        %s %s' % (utils.color('red', 'run'), cfo['cmd_str']))
-            utils.run_cmds(cfos_to_run, n_max_procs=utils.auto_n_procs(), proc_limit_str=os.path.basename(cmdfos[0]['cmd_str'].split()[0]), debug='write')
+            utils.run_cmds(cfos_to_run, n_max_procs=utils.auto_n_procs(), proc_limit_str=os.path.basename(cfos_to_run[0]['cmd_str'].split()[0]), debug='write')
             print('      made %d %s trees (%.1fs)' % (len(cfos_to_run), tree_inference_method, time.time() - start))
         else:
             print('      all %s outputs exist, not rerunning (e.g. %s)' % (tree_inference_method, [c['outfname'] for c in cmdfos if c is not None and os.path.exists(c['outfname'])][0]))
@@ -2452,7 +2483,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             if cfo is None:
                 continue
             dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)
-            if tree_inference_method in ['iqtree'] + gct_methods:
+            if tree_inference_method in ['iqtree', 'raxml'] + gct_methods:
                 utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, debug=debug)
             elif tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
                 for mkey in [k for k in utils.input_metafile_keys.values() if k in line]:  # have to copy over any input meta keys
