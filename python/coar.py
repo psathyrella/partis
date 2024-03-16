@@ -30,7 +30,7 @@ def find_node(inf_nodes, seq, uid):
     return inf_nodes[seq][uid]
 
 # ----------------------------------------------------------------------------------------
-def align_lineages(node_t, tree_t, tree_i, inf_nodes, gap_penalty_pct=0, known_root=True, allow_double_gap=False, test=False, debug=False):
+def align_lineages(node_t, tree_t, tree_i, inf_nodes, gap_penalty_pct=0, known_root=True, allow_double_gap=False, denom_type='mut_pos', test=False, debug=False):
     '''
     Standard implementation of a Needleman-Wunsch algorithm as described here:
     http://telliott99.blogspot.com/2009/08/alignment-needleman-wunsch.html
@@ -39,6 +39,7 @@ def align_lineages(node_t, tree_t, tree_i, inf_nodes, gap_penalty_pct=0, known_r
     https://github.com/alevchuk/pairwise-alignment-in-python/blob/master/alignment.py
 
     gap_penalty_pct is the gap penalty relative to the sequence length of the sequences on the tree.
+    denom_type: denominator (max penalty) type: either mut_pos (N mutated positions) or len (seq length)
 
     Set test to True to evalue the simple example from supplemental info in the paper.
     '''
@@ -97,6 +98,7 @@ def align_lineages(node_t, tree_t, tree_i, inf_nodes, gap_penalty_pct=0, known_r
         if not node_i.is_leaf():
             print('    %s inferred node %s is internal' % (utils.wrnstr(), node_t.taxon.label))
         (lin_t, uids_t), (lin_i, uids_i) = [reconstruct_lineage(t, n) for t, n in [(tree_t, node_t), (tree_i, node_i)]]
+    assert denom_type in ['mut_pos', 'len']
     # lineages must be longer than just the root and the terminal node
     if len(lin_t) <= 2 and len(lin_i) <= 2:
         return None
@@ -113,9 +115,12 @@ def align_lineages(node_t, tree_t, tree_i, inf_nodes, gap_penalty_pct=0, known_r
     gap_penalty, gp_i, gp_j = get_gap_penalties(len_t, len_i)
 
     sc_mat = np.zeros((len_t, len_i), dtype=np.float64)
+    all_mutd_positions = set()
     for i in range(len_t):
         for j in range(len_i):
-            sc_mat[i, j] = -1 * utils.hamming_distance(lin_t[i], lin_i[j])
+            hdist, mutd_positions = utils.hamming_distance(lin_t[i], lin_i[j], return_mutated_positions=True)
+            sc_mat[i, j] = -1 * hdist
+            all_mutd_positions |= set(mutd_positions)
 
     # Calculate the alignment scores:
     aln_sc = np.zeros((len_t+1, len_i+1), dtype=np.float64)
@@ -181,19 +186,25 @@ def align_lineages(node_t, tree_t, tree_i, inf_nodes, gap_penalty_pct=0, known_r
         align_i.append(lin_i[j-1])
         j -= 1
 
+    if denom_type == 'len':
+        penalty_val = len(lin_t[0])
+    elif denom_type == 'mut_pos':
+        penalty_val = len(all_mutd_positions)
+    else:
+        assert False
     max_penalty = 0
     for a, b in zip(align_t, align_i):
         if a == gap_seq or b == gap_seq:
             max_penalty += gap_penalty
         else:
-            max_penalty += -len(a)
+            max_penalty += -penalty_val
     # exclude/remove root and terminal node from max_penalty
     if known_root is True:
         if debug:
-            print('      known_root: adding 2 * %d to max penalty: %d --> %d' % (len(lin_t[0]), max_penalty, max_penalty + 2 * len(lin_t[0])))
-        max_penalty += 2 * len(lin_t[0])
+            print('      known_root: adding 2 * %d to max penalty: %d --> %d' % (penalty_val, max_penalty, max_penalty + 2 * penalty_val))
+        max_penalty += 2 * penalty_val
     else:  # Or in the case of an unknown root, just add the terminal node
-        max_penalty += len(lin_t[0])
+        max_penalty += penalty_val
 
     if debug:
         max_seq_len = max(len(s) for slist in [align_t, align_i] for s in slist)
@@ -211,7 +222,7 @@ def align_lineages(node_t, tree_t, tree_i, inf_nodes, gap_penalty_pct=0, known_r
             print('           %s   %s  %s   %s' % (hdstr, ustr(uid_t), ustr(uid_i), str_i))
         if alignment_score % 1 != 0 or max_penalty % 1 != 0:
             raise Exception('alignment_score score %s or max_penalty %s not integers, so need to fix dbg print in next line' % (alignment_score, max_penalty))
-        print('      alignment score: %.0f   max penalty: %.0f' % (alignment_score, max_penalty))
+        print('      alignment score: %.0f   max penalty (%s): %d * %d = %d' % (alignment_score, denom_type, max_penalty / penalty_val, penalty_val, max_penalty))
         if test:
             check_test_values(alignment_score, max_penalty, align_t, align_i)
 
