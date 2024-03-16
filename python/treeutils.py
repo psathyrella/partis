@@ -762,25 +762,28 @@ def compare_input_tree_to_leaf_seqs(region, in_treestr, leafseqs, naive_seq):
 
 # ----------------------------------------------------------------------------------------
 # copied from method == "MRCA" section in gctree/branching_process.py, which maybe is at this line:  https://github.com/matsengrp/gctree/blob/main/gctree/branching_processes.py#L744
+#  - note that they use the seq len as the denominator, which I don't think is really the best choice
 def mrca_dist(dtree_t, dtree_i, denom_type='mut', debug=False):
     assert denom_type in ['mut', 'len']
     common_labels = get_common_labels(dtree_t, dtree_i, only_leaves=True, debug=debug)
+    taxa_t, taxa_i = [{l : t.taxon_namespace.get_taxon(l) for l in common_labels} for t in [dtree_t, dtree_i]]
     pdm_t, pdm_i = [t.phylogenetic_distance_matrix() for t in [dtree_t, dtree_i]]
     if debug > 1:
         print('    starting mrca dist for trees with %d common leaf nodes' % len(common_labels))
         max_len = max(len(l) for l in common_labels)
         def upr(u): return utils.wfmt(u, max_len, jfmt='-')
-        print('         hdist     %s   %s    %s   %s' % (upr('leaf 1'), upr('leaf 2'), upr('true mrca'), upr('inf mrca')))
+        print('         hdist mdist  %s   %s    %s   %s' % (upr('leaf 1'), upr('leaf 2'), upr('true mrca'), upr('inf mrca')))
     totals = {k : 0 for k in ['hdist', 'len', 'mut', 'n_pairs']}
     for l1, l2 in itertools.combinations(common_labels, 2):
         totals['n_pairs'] += 1
-        mnode_t, mnode_i = [p.mrca(t.taxon_namespace.get_taxon(l1), t.taxon_namespace.get_taxon(l2)) for p, t in zip([pdm_t, pdm_i], [dtree_t, dtree_i])]
+        mnode_t, mnode_i = [p.mrca(t[l1], t[l2]) for p, t in zip([pdm_t, pdm_i], [taxa_t, taxa_i])]
         hdist = utils.hamming_distance(mnode_t.seq, mnode_i.seq)
         totals['hdist'] += hdist
         totals['len'] += len(mnode_t.seq)
-        totals['mut'] += numpy.mean([utils.hamming_distance(mnode_t.seq, dtree_t.find_node_with_taxon_label(l).seq) for l in [l1, l2]])  # mean distance from leaf to mrca in true tree
+        mdist = len(mnode_t.seq) * numpy.mean([pdm_t.distance(taxa_t[l1], taxa_t[l2]) for l in [l1, l2]])  # mean distance from the two leaves to mrca in true tree
+        totals['mut'] += mdist
         if debug > 1:
-            print('         %s     %s   %s     %s   %s  ' % (utils.color('blue' if hdist==0 else None, str(hdist), width=3), upr(l1), upr(l2), upr(mnode_t.taxon.label), upr(mnode_i.taxon.label)))
+            print('         %s   %3d    %s   %s     %s   %s  ' % (utils.color('blue' if hdist==0 else None, str(hdist), width=3), mdist, upr(l1), upr(l2), upr(mnode_t.taxon.label), upr(mnode_i.taxon.label)))
     if debug:
         print('    mrca dist totals over %d leaf pairs' % totals['n_pairs'])
         for dtype in ['mut', 'len']:

@@ -109,7 +109,7 @@ def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_em
         assert clusters is None and antn_dict is None
     def cfcn(i, v): return 'grey' if v in [None, 'None'] else hard_meta_colors.get(v, tme_colors[i%len(tme_colors)])
     emph_colors = []
-    for iv, val in enumerate(sorted(all_emph_vals - set([None, 'None']))):
+    for iv, val in enumerate(sorted(all_emph_vals - set([None, 'None']), key=str)):
         tcol = cfcn(iv, val)
         emph_colors.append((val, cfcn(iv, val)))
         if tcol in tme_colors:
@@ -492,7 +492,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
 # ----------------------------------------------------------------------------------------
 def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, colors=None, formats=None, only_csv=False, xtitle=None, normalize=False, swarm_plots=False, violin_plots=False, no_hist=False, xticks=None):
     all_emph_vals, emph_colors = meta_emph_init(mekey, formats=formats, all_emph_vals=set(plotvals))
-    all_emph_vals = sorted(all_emph_vals)
+    all_emph_vals = sorted(all_emph_vals, key=str)
 
     if not no_hist:
         if template_hist is None:
@@ -1134,7 +1134,7 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         plt.yticks(yticks)
     if xticklabels is not None:
         # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
-        median_length = numpy.median([len(xl) for xl in xticklabels])
+        median_length = numpy.median([len(str(xl)) for xl in xticklabels])
         if median_length > 4:
             ax.set_xticklabels(xticklabels, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
         else:
@@ -1858,7 +1858,7 @@ def plot_vrc01_class_muts(plotdir, plotname, annotation, mekey=None, formats=Non
         mutvals[meval], totvals[meval] = vmuts, vtot
 
     all_emph_vals, emph_colors = meta_emph_init(mekey, formats=formats, all_emph_vals=set(annotation[mekey]))
-    all_emph_vals = sorted(all_emph_vals)
+    all_emph_vals = sorted(all_emph_vals, key=str)
 
     n_bins = len(all_emph_vals)
     mcolors = {v : c for v, c in emph_colors}

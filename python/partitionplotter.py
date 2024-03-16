@@ -1044,7 +1044,7 @@ class PartitionPlotter(object):
         if 'vrc01-muts' in plot_cfg and self.args.locus == 'igh':
             fnames += self.make_vrc01_class_mut_plots()
 
-        if not self.args.only_csv_plots:
+        if not self.args.only_csv_plots and os.path.exists(self.base_plotdir):
             self.plotting.make_html(self.base_plotdir, fnames=fnames, new_table_each_row=True, htmlfname=self.base_plotdir + '/overview.html', extra_links=[(subd, '%s.html'%subd if os.path.exists('%s/%s.html'%(self.base_plotdir,subd)) else subd) for subd in subdirs], bgcolor='#FFFFFF')
 
         print('    partition plotting time: %.1f sec' % (time.time()-start))

@@ -31,10 +31,12 @@ parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, des
 parser.add_argument('--true-tree-file', required=True, help='partis yaml file with true annotations from which to extract true trees')
 parser.add_argument('--inferred-tree-file', required=True, help='partis yaml file with inferred annotations and inferred trees')
 parser.add_argument('--outdir')
+parser.add_argument('--metrics', default='coar:rf:mrca')
 parser.add_argument('--n-procs', type=int, help='NOTE not used, just putting here for consistency with other scripts')
 parser.add_argument('--overwrite', action='store_true', help='NOTE just for compatibility, not used atm')
 parser.add_argument('--debug', type=int, default=0)
 args = parser.parse_args()
+args.metrics = utils.get_arg_list(args.metrics, choices=['coar', 'rf', 'mrca'])
 
 _, tru_atn_list, _ = utils.read_output(args.true_tree_file)
 _, inf_atn_list, _ = utils.read_output(args.inferred_tree_file)
@@ -148,10 +150,13 @@ for atn_t in tru_atn_list:
     seqs_t, seqs_i = fix_seqs(atn_t, atn_i, dtree_t, dtree_i, debug=args.debug)
     for ttr, seqdict, tfn in zip([dtree_t, dtree_i], [seqs_t, seqs_i], [args.true_tree_file, args.inferred_tree_file]):
         add_seqs_to_nodes(ttr, seqdict, tfn)
-    jvals['coar'].append(coar.COAR(dtree_t, dtree_i, known_root=False, debug=args.debug))
-    jvals['mrca'].append(treeutils.mrca_dist(dtree_t, dtree_i, debug=args.debug))
-    dts_t, dts_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
-    jvals['rf'].append(dendropy.calculate.treecompare.robinson_foulds_distance(dts_t, dts_i))
+    if 'coar' in args.metrics:
+        jvals['coar'].append(coar.COAR(dtree_t, dtree_i, known_root=False, debug=args.debug))
+    if 'mrca' in args.metrics:
+        jvals['mrca'].append(treeutils.mrca_dist(dtree_t, dtree_i, debug=args.debug))
+    if 'rf' in args.metrics:
+        dts_t, dts_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
+        jvals['rf'].append(dendropy.calculate.treecompare.robinson_foulds_distance(dts_t, dts_i))
 
 # if os.path.basename(args.inferred_tree_file).split('-')[0] == 'gctree':
 #     jvals['n-pars-trees'] = get_n_parsimony_trees(len(tru_atn_list))

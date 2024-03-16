@@ -47,13 +47,14 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
     def process_family(fam_fos):
         n_seqs = len(fam_fos)
         counters['total'] += 1
+        init_sizes.append(n_seqs)
         if args.min_seqs_per_gc is not None and n_seqs < args.min_seqs_per_gc:
             counters['too-small'] += 1
             return
         if args.max_seqs_per_gc is not None and n_seqs > args.max_seqs_per_gc:
-            init_sizes.append(n_seqs)
             i_to_keep = numpy.random.choice(list(range(n_seqs)), size=args.max_seqs_per_gc)
             fam_fos = [fam_fos[i] for i in i_to_keep]
+            final_sizes.append(len(fam_fos))  # don't actually use this number any more, but we use the len of final_sizes
 
         # This dictionary will map sequence checksum to the list of squence ids that have that
         # sequence checksum.
@@ -92,18 +93,19 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
 
     # ----------------------------------------------------------------------------------------
     counters = {'too-small' : 0, 'total' : 0}
-    init_sizes = []
+    init_sizes, final_sizes = [], []
     abundances = {}
     fdicts = {"hdists": {}, "max-abdn-shm": {}}
     for gcn, fam_fos in all_seqfos.items():
         process_family(fam_fos)
 
+    print('    %d initial families with sizes: %s' % (len(init_sizes), " ".join(str(s) for s in sorted(init_sizes, reverse=True))))
     if counters['too-small'] > 0:
-        print("    skipped %d / %d files with fewer than %d seqs" % (counters['too-small'], counters['total'], args.min_seqs_per_gc))
+        print("      skipped %d / %d files with fewer than %d seqs" % (counters['too-small'], counters['total'], args.min_seqs_per_gc))
     if counters['too-small'] == counters['total']:
         raise Exception('skipped all families (see previous line)')
-    if len(init_sizes) > 0:
-        print("    downsampled %d samples to %d from initial sizes: %s" % (len(init_sizes), args.max_seqs_per_gc, " ".join(str(s) for s in sorted(init_sizes))))
+    if len(final_sizes) > 0:
+        print("      downsampled %d samples to %d" % (len(final_sizes), args.max_seqs_per_gc))
 
     print("    writing %s to %s" % (label, os.path.dirname(abfn(label))))
     if not os.path.exists(os.path.dirname(abfn(label))):
@@ -256,7 +258,7 @@ def read_input_files(label):
         read_data_csv(all_seqfos)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
         n_too_small = 0
         for gcn in all_seqfos:
-            if len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc as in write_abdn_csv() (can't be bothered, it seems more important for abundance stuff anyway)
+            if args.min_seqs_per_gc is not None and len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc as in write_abdn_csv() (can't be bothered, it seems more important for abundance stuff anyway)
                 n_too_small += 1
                 continue
             gctree_dir = utils.get_single_entry(glob.glob('%s/gcreplay/nextflow/results/latest/gctrees/PR*-%d-GC'%(args.gcreplay_dir, gcn)))
@@ -373,8 +375,8 @@ parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
 parser.add_argument('--simu-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
-parser.add_argument('--min-seqs-per-gc', type=int, default=70)
-parser.add_argument('--max-seqs-per-gc', type=int, default=70)
+parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/gcs with fewer than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
+parser.add_argument('--max-seqs-per-gc', type=int, help='if set, downsample any families/gcs with more than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
 parser.add_argument('--mice', default=[1, 2, 3, 4, 5, 6], help='restrict to these mouse numbers')
 parser.add_argument('--GCs', default=[0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32, 34, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 50, 55, 56, 57, 58, 59, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83], help='restrict to these GC numbers (these correspond to --mice, used command in comment: ') # csv -cHK_key_gc:HK_key_mouse /fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay/nextflow/results/latest/merged-results/observed-seqs.csv |sort|uniq|grep ' [123456]$'|ap 1|sort|uniq >/tmp/out')
 parser.add_argument('--plot-labels', default='data:simu', help='which/both of data/simu to plot')
