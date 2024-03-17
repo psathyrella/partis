@@ -268,7 +268,7 @@ def check_cigar_len(cigars, qrseq, glseq, uid=None, debug=False):  # check consi
         cigar_len = sum([length for code, length in cigars if code != tmpcode])
         if cigar_len != len(tmpseq):
             # raise Exception('cigar length %d (without %s) doesn\'t match %s seq length %d%s' % (cigar_len, tmpcode, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
-            # print 'cigar length %d (without %s) doesn\'t match %s seq length %d%s' % (cigar_len, tmpcode, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else '')
+            # print('cigar length %d (without %s) doesn\'t match %s seq length %d%s' % (cigar_len, tmpcode, seqtype, len(tmpseq), (' for %s' % uid) if uid is not None else ''))
             raise IndelfoReconstructionError()  # ok i still don't like this but it happens
 
 # ----------------------------------------------------------------------------------------

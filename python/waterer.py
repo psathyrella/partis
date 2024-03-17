@@ -548,7 +548,7 @@ class Waterer(object):
             'new_indels' : {}
         }
 
-        last_scores = {r : None for r in utils.regions}
+        last_scores, bad_cigars = {r : None for r in utils.regions}, []
         for read in reads:  # loop over the matches found for each query sequence
             read.seq = qinfo['seq']  # only the first one has read.seq set by default, so we need to set the rest by hand
             gene = references[read.tid]
@@ -566,6 +566,9 @@ class Waterer(object):
                 assert len(qinfo['matches'][region]) == self.args.n_max_per_region[utils.regions.index(region)]  # there better not be a way to get more than we asked for
                 continue
 
+            if 'M' not in read.cigarstring:  # cigar str doesn't actually have any matches, which means the cigar parsing stuff will fail
+                bad_cigars.append(read.cigarstring)
+                continue
             indelfo = indelutils.get_indelfo_from_cigar(read.cigarstring, qinfo['seq'], qrbounds, self.glfo['seqs'][region][gene], glbounds, {region : gene}, uid=qinfo['name'])  # note that qinfo['seq'] differs from self.input_info[qinfo['name']]['seqs'][0] if we've already reversed an indel in this sequence
             if indelutils.has_indels(indelfo):
                 if len(qinfo['matches'][region]) > 0:  # skip any gene matches with indels after the first one for each region (if we want to handle [i.e. reverse] an indel, we will have stored the indel info for the first match, and we'll be rerunning)
@@ -577,6 +580,9 @@ class Waterer(object):
             qinfo['matches'][region].append((score, gene))  # NOTE it is important that this is ordered such that the best match is first
             qinfo['qrbounds'][gene] = qrbounds
             qinfo['glbounds'][gene] = glbounds
+
+        if len(bad_cigars) > 0:
+            print('    %s no M in %d / %d cigar strs for %s: %s' % (utils.wrnstr(), len(bad_cigars), len(reads), qinfo['name'], ' '.join(bad_cigars)))
 
         if not utils.has_d_gene(self.args.locus) and len(qinfo['matches']['v']) > 0:
             _, first_v_match = qinfo['matches']['v'][0]
