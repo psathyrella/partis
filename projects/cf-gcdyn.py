@@ -126,7 +126,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
 
 # ----------------------------------------------------------------------------------------
-def add_ete_cmds(cmd):
+def add_mamba_cmds(cmd):
     cmd = utils.mamba_cmds('gcdyn') + [cmd]
     cmd = ' && '.join(cmd)
     return cmd
@@ -163,7 +163,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             cmd += ' --n-sub-procs %d' % args.n_sub_procs
         if action == 'simu' and args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
-        cmd = add_ete_cmds(cmd)
+        cmd = add_mamba_cmds(cmd)
     elif action == 'replay-plot':
         cmd = './projects/replay-plot.py --simu-dir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
@@ -175,7 +175,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
                 cmd += ' --model-dir %s' % args.dl_model_dir
         else:
             cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), os.path.dirname(ofname(args, varnames, vstrs, action)))
-            cmd = add_ete_cmds(cmd)
+            cmd = add_mamba_cmds(cmd)
         cmd = add_scan_args(cmd, skip_fcn=lambda vname: vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer'])  # ick
     elif action == 'partis':
         # make a partition-only file

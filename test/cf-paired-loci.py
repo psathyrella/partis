@@ -72,7 +72,7 @@ parser.add_argument('--biggest-logprob-cluster-to-calculate-list')
 parser.add_argument('--prep', action='store_true', help='only for mobille run script atm')
 parser.add_argument('--antn-perf', action='store_true', help='calculate annotation performance values')
 parser.add_argument('--calc-antns', action='store_true', help='calculate annotations')
-parser.add_argument('--bcr-phylo', action='store_true', help='use bcr-phylo for mutation simulation, rather than partis (i.e. TreeSim/bpp)')
+parser.add_argument('--simu-type', default='partis', choices=['partis', 'bcr-phylo', 'gcdyn'], help='which simulation package to use: partis (i.e. TreeSim/bpp), bcr-phylo, or gcdyn')
 parser.add_argument('--dont-observe-common-ancestors', action='store_true')
 parser.add_argument('--data-cluster-size-hist-fname', default='/fh/fast/matsen_e/processed-data/partis/goo-dengue-10x/count-params-v0/d-14/parameters/igh+igk/igh/hmm/cluster_size.csv') #/fh/fast/matsen_e/processed-data/partis/10x-examples/v1/hs-1-postvax/parameters/igh+igk/igh/hmm/cluster_size.csv')  # ick ick ick
 parser.add_argument('--make-plots', action='store_true')
@@ -207,16 +207,18 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         actstr = 'merge-paired-partitions'
     if action in phylo_actions:
         actstr = 'infer-trees'
-    binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.bcr_phylo and action=='simu' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
-    cmd = './bin/%s %s --paired-loci --%s-outdir %s' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action))
-    cmd += ' --n-procs %d' % args.n_sub_procs
+    if action == 'simu' and args.simu_type == 'gcdyn':
+        cmd = './bin/gcdyn-simu-run.py --rm-last-ighj-base --outdir %s --n-sub-procs %d' % (odir(args, varnames, vstrs, action), args.n_sub_procs)
+    else:
+        binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.simu_type=='bcr-phylo' and action=='simu' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
+        cmd = './bin/%s %s --paired-loci --%s-outdir %s --n-procs %d' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action), args.n_sub_procs)
     if action == 'replay-plot':
         cmd = './projects/replay-plot.py --simu-dir %s --outdir %s --bcr-phylo' % (os.path.dirname(ofname(args, varnames, vstrs, 'write-fake-paired-annotations')), os.path.dirname(ofname(args, varnames, vstrs, action)))
     elif action == 'simu':
-        if not args.bcr_phylo:
+        if args.simu_type == 'partis':
             cmd += ' --simulate-from-scratch --no-per-base-mutation'
         cmd += ' %s' % ' '.join(base_args)
-        if args.single_light_locus is not None:
+        if args.simu_type in ['partis', 'bcr-phylo'] and args.single_light_locus is not None:
             cmd += ' --single-light-locus %s' % args.single_light_locus
         if args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
@@ -229,7 +231,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
                 cmd = ' '.join(utils.remove_from_arglist(cmd.split(), '--n-leaves', has_arg=True))
                 cmd += ' --n-leaf-distribution hist'
             cmd += ' --n-leaf-hist-fname %s' %  args.data_cluster_size_hist_fname
-        if args.bcr_phylo:
+        if args.simu_type == 'bcr-phylo':
             # raise Exception('need to fix duplicate uids coming from bcr-phylo (they get modified in seqfileopener, which is ok, but then the uids in the final partition don\'t match the uids in the true partition')
             cmd += ' --dont-get-tree-metrics --only-csv-plots --mutated-outpath --min-ustr-len 20'  # NOTE don't increase the mutation rate it makes everything terminate early  --base-mutation-rate 1'  # it's nice to jack up the mutation rate so we get more mutations in less time (higher than this kills off all leaves, not sure why, altho i'm sure it's obvious if i thought about it)
             if args.dont_observe_common_ancestors:
