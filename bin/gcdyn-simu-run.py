@@ -22,6 +22,7 @@ import python.glutils as glutils
 from python.clusterpath import ClusterPath
 import python.treeutils as treeutils
 import python.indelutils as indelutils
+from python.event import RecombinationEvent
 
 # ----------------------------------------------------------------------------------------
 def get_replay_naive_antn(glfos, ltmp, add_empty_mature_keys=False, debug=False):
@@ -102,13 +103,15 @@ def process_tree(glfos, treelist, tree_sfos, leaf_meta, itree, lp_infos, lpair):
         dtree = treeutils.get_dendro_tree(treestr=treelist[itree])
         treeutils.translate_labels(dtree, [(s['name'], get_uid(s['name'], ltmp)) for s in tree_sfos[itree] if 'naive' not in s['name']], expect_missing=True)
         antns[ltmp]['tree'] = dtree.as_string(schema='newick').strip()
+        tmp_event = RecombinationEvent(glfos[ltmp])  # I don't want to move the function out of event.py right now
+        tmp_event.set_reco_id(antns[ltmp], irandom=itree)  # not sure that setting <irandom> here actually does anything
+        utils.add_implicit_info(glfos[ltmp], antns[ltmp])  # easiest way to add codon_positions, which we want to write to file
 
     for ltmp in lpair:
         lp_infos[lpair]['antn_lists'][ltmp].append(antns[ltmp])
 
     if args.debug:
         for ltmp in sorted(glfos):
-            utils.add_implicit_info(glfos[ltmp], antns[ltmp])
             utils.print_reco_event(antns[ltmp], extra_str='        ')
     
 # ----------------------------------------------------------------------------------------
@@ -141,7 +144,7 @@ def process_output():
     seqfos = utils.read_fastx('%s/seqs.fasta'%gcd_dir)
     treelist = treeutils.get_treestrs_from_file('%s/trees.nwk'%gcd_dir)
     lmetalines = utils.csvlines('%s/leaf-meta.csv'%gcd_dir)
-    leaf_meta = {l['name'] : {'affinity' : l['affinity']} for l in lmetalines}
+    leaf_meta = {l['name'] : {'affinity' : float(l['affinity'])} for l in lmetalines}
     print('  read %d trees, %d seqs  (plus leaf metafo) from %s' % (len(treelist), len(seqfos), gcd_dir))
     tree_sfos, all_uids = {}, set()  # collect up the seqfos for each tree
     for sfo in seqfos:

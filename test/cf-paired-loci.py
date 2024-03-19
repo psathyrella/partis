@@ -262,6 +262,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --dont-calculate-annotations'
         if action == 'write-fake-paired-annotations':
             cmd += ' --extra-annotation-columns tree'
+        if args.simu_type == 'gcdyn':
+            cmd += ' --species mouse --initial-germline-dir datascripts/meta/taraki-gctree-2021-10/germlines --no-insertions-or-deletions'
         for vname, vstr in zip(varnames, vstrs):
             if vname in args.scan_vars['simu']:
                 continue
