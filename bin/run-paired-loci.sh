@@ -7,7 +7,7 @@ bin=./test/cf-paired-loci.py
 # methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
 # methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
 # methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"  # NOTE this is only for vs-shm (comparing single vs joint); for time-reqd you only need scoper
-methods=simu:cache-parameters:partition:write-fake-paired-annotations:replay-plot:iqtree:gctree:gctree-base:tree-perf  # coar stuff cache-parameters:partition
+methods=simu:cache-parameters:partition:write-fake-paired-annotations:replay-plot:iqtree:raxml:gctree:gctree-base:tree-perf  # coar stuff cache-parameters:partition
 astr="--actions $methods" #partition --merge-paired-partitions" #$methods"
 # astr="--actions combine-plots --plot-metrics $methods --perf-metrics precision:n-clusters"
 # astr="--actions combine-plots --plot-metrics $methods $xstr"
@@ -25,8 +25,10 @@ common="--n-sub-procs 15 --n-max-procs 5 --single-light-locus igk --base-outdir 
 # echo $bin --label test-antn --version imbal-v3   --n-replicates 2 --tree-imbalance-list None:0.04:0.07 --scratch-mute-freq-list 0.15 --n-leaves-list 50 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs\" --n-sim-events-list 50 --antn-perf --perf-metrics naive-hdist $common  # NOTE also made :0.13:0.14:0.16
 # echo $bin --label bcr-phylo-antn --version v0   --n-replicates 2 --obs-times-list 50:150:300 --n-sim-seqs-per-generation-list 15:45 --context-depend-list 1 --simu-type bcr-phylo --dont-observe-common-ancestors --antn-perf --perf-metrics naive-hdist $common
 simu_extra="--simu-extra-args=\"--target-distance 10 --context-depend 1 --tdist-weights random-uniform --min-target-distance 2 --aa-struct-positions N=100\""
-#affinity-biased:
-echo $bin --label gct-valid --version v4-test-v4 --n-replicates 2 --obs-times-list 20:100 --n-sim-seqs-per-generation-list 50:100 --aa-paratope-positions-list N=30:N=60 --n-sim-events-list 50 --carry-cap-list 1000 --leaf-sampling-scheme high-affinity --simu-type bcr-phylo --perf-metrics coar:rf:mrca --calc-antns --inference-extra-args=\"--no-indels --simultaneous-true-clonal-seqs\" --plot-metrics tree-perf --final-plot-xvar obs-times --pvks-to-plot "N=30; 100" --final-plot-xvar obs-times $simu_extra $common
+# next: choose one paratope position arg, more obs-times (50 and 150?), 70 seqs per gen, n sim-events-list 70
+# echo $bin --label gct-valid --version v4-test-v4 --n-replicates 2 --obs-times-list 20:100 --n-sim-seqs-per-generation-list 50:100 --aa-paratope-positions-list N=30:N=60 --n-sim-events-list 50 --carry-cap-list 1000 --leaf-sampling-scheme high-affinity --simu-type bcr-phylo --perf-metrics coar:rf:mrca --calc-antns --inference-extra-args=\"--no-indels --simultaneous-true-clonal-seqs\" --plot-metrics tree-perf --final-plot-xvar obs-times --pvks-to-plot "N=30; 100" --final-plot-xvar obs-times $simu_extra $common
+echo $bin --label gct-valid --version gcdyn-v0 --n-replicates 2 --simu-type gcdyn --n-sim-events-list 70 --obs-times-list 15:30 --perf-metrics coar:rf:mrca --calc-antns --inference-extra-args=\"--no-indels --simultaneous-true-clonal-seqs\" --plot-metrics tree-perf $common
+
 # NOTE have to set --n-sub-procs to 1 for partition step, and re-set --n-sim-events-list for each --n-leaves value (500 leaves: 10 events, 100:50, 50:100):
 # echo $bin --label key-trans --version v0   --n-replicates 2  --biggest-naive-seq-cluster-to-calculate 5:15:10000 --biggest-logprob-cluster-to-calculate 5:15:10000 --zip-vars biggest-naive-seq-cluster-to-calculate:biggest-logprob-cluster-to-calculate --scratch-mute-freq-list 0.15 --n-leaves-list 50:100:500 --simu-extra-args=\"--flat-mute-freq --same-mute-freq-for-all-seqs --constant-number-of-leaves --only-genes IGHV1-2*01:IGHD2-15*01:IGHJ6*02:IGKV1-12*01:IGKJ1*01:IGKDx-x*x --force-dont-generate-germline-set --allowed-cdr3-lengths 66:33\" --n-sim-events-list 10 --inference-extra-args=\"--debug 1 --sw-debug 0\" --perf-metrics time-reqd --final-plot-xvar biggest-logprob-cluster-to-calculate --bcrham-time $common
 # echo $bin --label lcdr3 --version v0 --n-replicates 2 --n-sim-events-list 1000 --single-light-locus igk --base-outdir /fh/fast/matsen_e/dralph/partis/paired-loci --allowed-cdr3-lengths ighM9-22:ighM15-34:ighM36-43:ighM45-52:ighM54-61:ighM63-73 $common

@@ -282,7 +282,9 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' %s' % args.inference_extra_args
         if action in phylo_actions:  # should maybe remove plotdir and annotation performance?
             cmd = ' '.join(utils.remove_from_arglist(cmd.split(), '--simultaneous-true-clonal-seqs'))  # --is-simu can't be set for this, but if it isn't set then this causes it to crash
-            cmd += ' --tree-inference-method %s --infer-trees-with-only-leaves' % action
+            cmd += ' --tree-inference-method %s' % action
+            if args.simu_type == 'bcr-phylo':
+                cmd += ' --infer-trees-with-only-leaves'  # bcr-phylo gives you seqs for internal nodes, which we don't want to pass to the tree inference methods
 
     return cmd
 
