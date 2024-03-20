@@ -902,7 +902,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             rcmds = ['#!/bin/bash']
             rcmds += ['%s/packages/raxml/raxml-ng --model GTR+G --msa %s --msa-format FASTA' % (utils.get_partis_dir(), ifn(workdir))]
             rcmds += ['%s/packages/raxml/raxml-ng --model GTR+G --msa %s --msa-format FASTA --ancestral --tree %s' % (utils.get_partis_dir(), ifn(workdir), ofn(workdir))]
-            utils.write_cmd_file('\n'.join(rcmds) + '\n', '%s/run.sh'%workdir, debug=True)
+            utils.write_cmd_file('\n'.join(rcmds) + '\n', '%s/run.sh'%workdir)
             cmd = '%s/run.sh'%workdir
         elif 'gctree' in method:
             assert iclust is not None
@@ -967,7 +967,28 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
               print('        removed %d internal nodes (kept %d leaf+naive)' % (n_internal, n_kept))
         return newfos
     # ----------------------------------------------------------------------------------------
+    def re_insert_ambig(tmpfos, padded_seq_info_list):
+        for sfo in tmpfos:
+            nseq, ig = [], 0
+            for pchar in padded_seq_info_list:
+                if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
+                    nseq.append(utils.ambig_base)
+                else:
+                    nseq.append(sfo['seq'][ig])
+                    ig += 1
+            sfo['seq'] = ''.join(nseq)
+            assert len(sfo['seq']) == len(padded_seq_info_list)
+    # ----------------------------------------------------------------------------------------
+    def check_lengths(seqfos, inf_seqfos):
+        inf_lens, input_lens = [list(set(len(s['seq']) for s in sfos)) for sfos in [inf_seqfos, seqfos]]
+        if len(inf_lens) != 1:
+            raise Exception('infered seqs have more than one length:  %s' % inf_lens)
+        if utils.get_single_entry(inf_lens) != utils.get_single_entry(input_lens):
+            # utils.align_many_seqs([seqfos[0]] + inf_seqfos, debug=True)
+            raise Exception('infered seqs from %s have length %d different from input seqs %d' % (method, inf_lens[0], input_lens[0]))
+    # ----------------------------------------------------------------------------------------
     def read_inf_seqs(dtree, removed_nodes, padded_seq_info_list):
+        # ----------------------------------------------------------------------------------------
         inf_seqfos, inf_antn = [], None
         if method in ['iqtree', 'raxml'] + gct_methods:
             if method == 'iqtree':
@@ -997,26 +1018,19 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                             skipped_rm_nodes.add(node)
                             continue
                         inf_seqfos.append({'name' : node, 'seq' : line['State']})
+                re_insert_ambig(inf_seqfos, padded_seq_info_list)
                 if len(skipped_rm_nodes) > 0:
                     print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
             elif method in gct_methods:
                 gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
-                for sfo in gct_seqfos:
-                    nseq, ig = [], 0
-                    for pchar in padded_seq_info_list:
-                        if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
-                            nseq.append(utils.ambig_base)
-                        else:
-                            nseq.append(sfo['seq'][ig])
-                            ig += 1
-                    sfo['seq'] = ''.join(nseq)
-                    assert len(sfo['seq']) == len(padded_seq_info_list)
+                re_insert_ambig(gct_seqfos, padded_seq_info_list)
                 inf_seqfos += gct_seqfos
             else:
                 assert False
             if debug:
                 print('      read %d inferred ancestral seqs' % len(inf_seqfos))
         elif method == 'linearham':
+# TODO don't i need to use padded_seq_info_list here?
             _, tmpantns, _ = utils.read_output(ofn(workdir, antns=True, best=True))
             inf_antn = utils.get_single_entry(tmpantns)
             _, alt_antns, _ = utils.read_output(ofn(workdir, antns=True))
@@ -1049,8 +1063,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 old_name = sfo['name']
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
-    padded_seq_info_list = None
-    if method in ['linearham'] + gct_methods:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
+    padded_seq_info_list = None  # remove N padding for methods that'll barf on it
+    if method in ['linearham', 'raxml'] + gct_methods:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
         padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
         for sfo in seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
             sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
@@ -1115,6 +1129,9 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
 
     # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
     inf_seqfos, inf_antn = read_inf_seqs(dtree, removed_nodes, padded_seq_info_list)
+    if padded_seq_info_list is not None:
+        re_insert_ambig(seqfos, padded_seq_info_list)
+    check_lengths(seqfos, inf_seqfos)
 
     if debug:
         print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))

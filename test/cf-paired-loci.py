@@ -214,6 +214,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         cmd = './bin/%s %s --paired-loci --%s-outdir %s --n-procs %d' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action), args.n_sub_procs)
     if action == 'replay-plot':
         cmd = './projects/replay-plot.py --simu-dir %s --outdir %s --bcr-phylo' % (os.path.dirname(ofname(args, varnames, vstrs, 'write-fake-paired-annotations')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+        if args.simu_type == 'gcdyn':
+            cmd += ' --default-naive-affinity 0'
     elif action == 'simu':
         if args.simu_type == 'partis':
             cmd += ' --simulate-from-scratch --no-per-base-mutation'

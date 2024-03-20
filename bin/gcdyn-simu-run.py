@@ -121,7 +121,7 @@ def run_gcdyn():
         return
     cmds = ['#!/bin/bash']
     cmds += utils.mamba_cmds('gcdyn')
-    gcmd = 'gcd-simulate --outdir %s' % gcd_dir
+    gcmd = 'gcd-simulate --outdir %s --xshift-values 2.5 --xscale-values 5 --yscale-values 1000000' % gcd_dir
     if args.n_sub_procs is not None:
         gcmd += ' --n-sub-procs %d' % args.n_sub_procs
     if args.seed is not None:
@@ -129,7 +129,7 @@ def run_gcdyn():
     if args.n_sim_events is not None:
         gcmd += ' --n-trials %d' % args.n_sim_events
     if args.obs_times is not None:
-        gcmd += ' --time-to-sampling %d' % args.obs_times
+        gcmd += ' --time-to-sampling-values %d' % args.obs_times
     cmds += [gcmd]
     cmdfname = '%s/run.sh' % gcd_dir
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=cmdfname)

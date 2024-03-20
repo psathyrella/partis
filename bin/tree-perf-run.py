@@ -34,6 +34,7 @@ parser.add_argument('--outdir')
 parser.add_argument('--metrics', default='coar:rf:mrca')
 parser.add_argument('--n-procs', type=int, help='NOTE not used, just putting here for consistency with other scripts')
 parser.add_argument('--overwrite', action='store_true', help='NOTE just for compatibility, not used atm')
+parser.add_argument('--itree', type=int, help='only run on tree/annotation with this index')
 parser.add_argument('--debug', type=int, default=0)
 args = parser.parse_args()
 args.metrics = utils.get_arg_list(args.metrics, choices=['coar', 'rf', 'mrca'])
@@ -130,8 +131,10 @@ utils.translate_uids(tru_atn_list, trfcn=trnfn, expect_missing=True)
 
 # ----------------------------------------------------------------------------------------
 jvals = {'coar' : [], 'rf' : [], 'mrca' : []}
-for atn_t in tru_atn_list:
-    print('  starting true annotation with size %d' % len(atn_t['unique_ids']))
+for itree, atn_t in enumerate(tru_atn_list):
+    if args.itree is not None and itree != args.itree:
+        continue
+    print('  %d: starting true annotation with size %d' % (itree, len(atn_t['unique_ids'])))
     atn_i = None
     for tatn in inf_atn_list:
         common_ids = set(atn_t['unique_ids']) & set(tatn['unique_ids'])
