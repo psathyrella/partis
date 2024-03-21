@@ -1131,7 +1131,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     inf_seqfos, inf_antn = read_inf_seqs(dtree, removed_nodes, padded_seq_info_list)
     if padded_seq_info_list is not None:
         re_insert_ambig(seqfos, padded_seq_info_list)
-    check_lengths(seqfos, inf_seqfos)
+    if len(inf_seqfos) > 0:
+        check_lengths(seqfos, inf_seqfos)
 
     if debug:
         print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
