@@ -100,7 +100,7 @@ The following keys are written to output by default:
 | c_genes            |  constant gene that was the best alignment to each seq in c_gene_seqs (only filled if --align-constant-regions is set) `[per-seq]`
 | fv_insertion       |  N-padded sequence added to 5' of V (if necessary, see above)
 | jf_insertion       |  N-padded sequence added to 3' of J (if necessary, see above)
-| codon_positions	 |  zero-indexed indel-reversed-sequence positions of the conserved cyst and tryp/phen codons, e.g. `{'v': 285, 'j': 336}`
+| codon_positions	 |  zero-indexed indel-reversed-sequence positions of the conserved cyst and tryp/phen codons that define the start/end of the CDR3 region, e.g. `{'v': 285, 'j': 336}`
 | mutated_invariants |  true if either of the conserved codons corresponding to the start and end of the CDR3 code for a different amino acid than their original germline (cyst and tryp/phen, in IMGT numbering) `[per-seq]`
 | in_frames          |  true if the net effect of VDJ rearrangement and SHM indels leaves both the start and end of the CDR3 (IMGT cyst and tryp/phen) in frame with respect to the start of the germline V sequence `[per-seq]`
 | stops              |  true if there's a stop codon in frame with respect to the start of the germline V sequence `[per-seq]`
