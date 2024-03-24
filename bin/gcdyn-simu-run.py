@@ -115,13 +115,20 @@ def process_tree(glfos, treelist, tree_sfos, leaf_meta, itree, lp_infos, lpair):
             utils.print_reco_event(antns[ltmp], extra_str='        ')
     
 # ----------------------------------------------------------------------------------------
+def mfname():  # have to look for old meta file name for backwards compatibility
+    mfn = '%s/meta.csv'%gcd_dir
+    if os.path.exists(mfn):  # if new name exists, return that
+        return mfn
+    return '%s/leaf-meta.csv'%gcd_dir  # otherwise return old name
+
+# ----------------------------------------------------------------------------------------
 def run_gcdyn():
-    if os.path.exists('%s/leaf-meta.csv'%gcd_dir):
+    if os.path.exists('%s/encoded-trees.npy'%gcd_dir):
         print('    gcdyn output exists in %s' % gcd_dir)
         return
     cmds = ['#!/bin/bash']
     cmds += utils.mamba_cmds('gcdyn')
-    gcmd = 'gcd-simulate --outdir %s --xshift-values 2.5 --xscale-values 5 --yscale-values 1000000' % gcd_dir
+    gcmd = 'gcd-simulate --sample-internal-nodes --label-leaf-internal-nodes --outdir %s --xshift-values 2.5 --xscale-values 5 --yscale-values 1000000' % gcd_dir
     if args.n_sub_procs is not None:
         gcmd += ' --n-sub-procs %d' % args.n_sub_procs
     if args.seed is not None:
@@ -143,12 +150,17 @@ def process_output():
 
     seqfos = utils.read_fastx('%s/seqs.fasta'%gcd_dir)
     treelist = treeutils.get_treestrs_from_file('%s/trees.nwk'%gcd_dir)
-    lmetalines = utils.csvlines('%s/leaf-meta.csv'%gcd_dir)
+    lmetalines = utils.csvlines(mfname())
     leaf_meta = {l['name'] : {'affinity' : float(l['affinity'])} for l in lmetalines}
     print('  read %d trees, %d seqs  (plus leaf metafo) from %s' % (len(treelist), len(seqfos), gcd_dir))
     tree_sfos, all_uids = {}, set()  # collect up the seqfos for each tree
     for sfo in seqfos:
-        itree, sname = sfo['name'].split('-')
+        if sfo['name'].count('-') == 1:  # old-style, and naive seq
+            itree, sname = sfo['name'].split('-')
+        elif sfo['name'].count('-') == 2:  # new-style
+            itree, listr, sname = sfo['name'].split('-')  # listr is either 'leaf' or 'mrca'
+        else:
+            assert False
         itree = int(itree)
         if itree not in tree_sfos:
             tree_sfos[itree] = []
