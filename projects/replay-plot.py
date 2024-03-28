@@ -32,14 +32,48 @@ from python.hist import Hist
 import python.treeutils as treeutils
 import python.paircluster as paircluster
 
-# ----------------------------------------------------------------------------------------
-colors = {'data' : plotting.default_colors[1],
-          'simu' : plotting.default_colors[0]}
+colors = {
+        'data' :  plotting.default_colors[1],
+        'data-d15' : '#006600',
+        'data-d20' : plotting.default_colors[1],
+        'data-w10' : '#2b65ec',
+        'simu' : '#808080',
+    }
 pltlabels = {'hdists' : 'root-tip dist', 'max-abdn-shm' : 'SHM in most\nabundant seq'}  # 'median SHM of seqs\nw/max abundance'}
 
 # ----------------------------------------------------------------------------------------
 def abfn(tlab, abtype='abundances'):
     return '%s/%s/%s.csv' % (args.outdir, tlab, abtype)
+
+# ----------------------------------------------------------------------------------------
+def get_gcid(prn, mouse, gcn):
+    return 'pr-%s-m-%s-gc-%s' % (prn, mouse, gcn)
+
+# ----------------------------------------------------------------------------------------
+def read_gcreplay_metadata():
+    # ----------------------------------------------------------------------------------------
+    def readcfn(prn):
+        with open('%s/metadata.PR%s.csv' % (args.gcreplay_dir, prn)) as cfile:
+            reader = csv.DictReader(cfile)
+            for line in reader:
+                line['pr'] = prn
+                if prn == '1':
+                    line['time'] = line['imm_duration']
+                    del line['imm_duration']
+                elif prn == '2':
+                    line['time'] = 'd15'
+                    line['strain'] = 'wt'
+                else:
+                    assert False
+                gcid = get_gcid(line['pr'], line['mouse'], line['gc'])
+                assert gcid not in rpmeta
+                rpmeta[gcid] = line
+    # ----------------------------------------------------------------------------------------
+    print('  reading gcreplay meta info from %s' % args.gcreplay_dir)
+    rpmeta = {}
+    for prn in ['1', '2']:
+        readcfn(prn)
+    return rpmeta
 
 # ----------------------------------------------------------------------------------------
 def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info into csv files, for later reading (kind of weird to separate it like this, it's because this used to be in another script)
@@ -199,32 +233,40 @@ def read_input_files(label):
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
         return plotvals
     # ----------------------------------------------------------------------------------------
-    def read_data_csv(all_seqfos):
-        skipped_mice, kept_mice, all_gcs = set(), set(), set()
-        with open('%s/gcreplay/nextflow/results/latest/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
+    def read_data_csv(all_seqfos, label):
+        gc_counts = {tk : set() for tk in ['all', 'skipped']}
+        timestr = None
+        if '-' in label:
+            dstr, timestr = label.split('-')
+            assert dstr == 'data'
+            assert timestr in ['d20', 'w10', 'd15']
+        print('    reading node data from %s' % '%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir)
+        with open('%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
             reader = csv.DictReader(cfile)
             for line in reader:
-                gcn = int(line['HK_key_gc'])
-                all_gcs.add(gcn)
-                if int(line['HK_key_mouse']) not in args.mice:
-                    skipped_mice.add(int(line['HK_key_mouse']))
+                prstr, prsuffix = line['PR'].split('.')
+                assert prstr[:2] == 'PR'
+                prn = prstr[2:]
+                gcid = get_gcid(prn, line['HK_key_mouse'], line['HK_key_gc'])
+                gc_counts['all'].add(gcid)
+                if timestr is not None and rpmeta[gcid]['time'] != timestr:
+                    gc_counts['skipped'].add(gcid)
                     continue
-                kept_mice.add(int(line['HK_key_mouse']))
-                if gcn not in all_seqfos:
-                    all_seqfos[gcn] = []
-                affinity = line['delta_bind_CGG_FVS_additive']
+                if gcid not in all_seqfos:
+                    all_seqfos[gcid] = []
+                affinity = line['delta_bind']  # _CGG_FVS_additive
                 hdist = utils.hamming_distance(args.naive_seq, line['IgH_nt_sequence']+line['IgK_nt_sequence'])  # this is different to nmuts in the next line, not yet sure why (UPDATE: one is nuc/other is AA, docs/column names maybe will be changed in gcreplay)
                 # nmuts = int(line['n_mutations_HC']) + int(line['n_mutations_LC'])
                 # print '  %2d  %2d  %s' % (hdist, nmuts, utils.color('red', '<--') if hdist!=nmuts else '')
                 # print '      %s' % utils.color_mutants(NAIVE_SEQUENCE, line['IgH_nt_sequence']+line['IgK_nt_sequence'])
                 for iseq in range(int(line['abundance'])):
-                    all_seqfos[gcn].append({'name' : 'gc%d-%s-%d' % (int(line['HK_key_gc']), line['name'], iseq),
+                    all_seqfos[gcid].append({'name' : '%s-%s-%d' % (gcid, line['name'], iseq),
                                             'seq' : line['IgH_nt_sequence']+line['IgK_nt_sequence'],
                                             # 'n_muts' : nmuts,
                                             'n_muts' : hdist,
                                             'affinity' : None if affinity == '' else float(affinity),
                                             })
-        print('    kept %d / %d GCs from  %d / %d mice: %s' % (len(all_seqfos), len(all_gcs), len(kept_mice), len(kept_mice) + len(skipped_mice), ' '.join(str(m) for m in kept_mice)))
+        print('    kept %d / %d GCs%s (skipped %d)' % (len(all_seqfos), len(gc_counts['all']), '' if timestr is None else ' at time \'%s\''%timestr, len(gc_counts['skipped'])))
     # ----------------------------------------------------------------------------------------
     def read_gcd_meta():
         mfos = {}
@@ -253,19 +295,21 @@ def read_input_files(label):
     all_seqfos = collections.OrderedDict()
     plotvals = {k : [] for k in ['leaf', 'internal']}
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
-    if label == 'data':
+    if 'data' in label:
         print('  reading replay data from %s' % args.gcreplay_dir)
-        read_data_csv(all_seqfos)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
+        read_data_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
         n_too_small = 0
         for gcn in all_seqfos:
             if args.min_seqs_per_gc is not None and len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc as in write_abdn_csv() (can't be bothered, it seems more important for abundance stuff anyway)
                 n_too_small += 1
                 continue
-            gctree_dir = utils.get_single_entry(glob.glob('%s/gcreplay/nextflow/results/latest/gctrees/PR*-%d-GC'%(args.gcreplay_dir, gcn)))
+            gctree_dir = utils.get_single_entry(glob.glob('%s/nextflow/results/gctrees/PR%s*-%s-%s-%s-GC'%(args.gcreplay_dir, rpmeta[gcn]['pr'], rpmeta[gcn]['mouse'], rpmeta[gcn]['node'], rpmeta[gcn]['gc'])))
             dtree = treeutils.get_dendro_tree(treefname='%s/gctree.inference.1.nk'%gctree_dir)
             nodefo = {n.taxon.label : n for n in dtree.preorder_node_iter()}
             for sfo in all_seqfos[gcn]:
-                gcstr, nname, iseq = sfo['name'].split('-')
+                n_gcid_dashes = get_gcid('a', 'b', 'c').count('-')
+                # gcstr = sfo['name'].split('-')[ : n_gcid_dashes + 1]
+                nname, iseq = sfo['name'].split('-')[n_gcid_dashes + 1 : ]
                 n_tot[nstr(nodefo[nname])].append(nname)
                 if sfo['affinity'] is None:
                     n_missing[nstr(nodefo[nname])].append(nname)
@@ -356,14 +400,14 @@ def compare_plots(hname, plotdir, hists, labels, abtype, diff_vals):
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(hname, abtype), more_hists=hists, log='y' if abtype=='abundances' else '', xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=hname!='max', square_bins=hname=='max', linewidths=[4, 3],
                                plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
-                               alphas=[0.6, 0.6], colors=[colors[l] for l in labels], translegend=[-0.65, 0] if 'affinity' in abtype else [-0.2, 0], write_csv=True, hfile_labels=labels,
-                               text_dict=text_dict)
+                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=['--' if l=='simu' else '-' for l in labels], translegend=[-0.65, 0] if 'affinity' in abtype else [-0.2, 0], write_csv=True,
+                               hfile_labels=labels, text_dict=text_dict)
     fnames[0].append(fn)
 
-    hdict = {l : h for l, h in zip(labels, hists)}
-    if abtype != 'max-abdn-shm':  # min/max aren't the same for all hists, so doesn't work yet
-        dname = '%s-%s'%(hname, abtype)
-        diff_vals[dname] = hist_distance(hdict['simu'], hdict['data'], weighted='abundances' in abtype, dbgstr=dname)
+    # hdict = {l : h for l, h in zip(labels, hists)}
+    # if abtype != 'max-abdn-shm':  # min/max aren't the same for all hists, so doesn't work yet
+    #     dname = '%s-%s'%(hname, abtype)
+    #     diff_vals[dname] = hist_distance(hdict['simu'], hdict['data'], weighted='abundances' in abtype, dbgstr=dname)
 
 # ----------------------------------------------------------------------------------------
 ustr = """
@@ -372,14 +416,12 @@ NOTE that there's other scripts that process gcreplay results for partis input h
   replay-plot.py --simu-dir <dir> --outdir <dir>
 """
 parser = argparse.ArgumentParser(usage=ustr)
-parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
+parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
 parser.add_argument('--simu-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/gcs with fewer than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
 parser.add_argument('--max-seqs-per-gc', type=int, help='if set, downsample any families/gcs with more than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
-parser.add_argument('--mice', default=[1, 2, 3, 4, 5, 6], help='restrict to these mouse numbers')
-parser.add_argument('--GCs', default=[0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32, 34, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 50, 55, 56, 57, 58, 59, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83], help='restrict to these GC numbers (these correspond to --mice, used command in comment: ') # csv -cHK_key_gc:HK_key_mouse /fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay/nextflow/results/latest/merged-results/observed-seqs.csv |sort|uniq|grep ' [123456]$'|ap 1|sort|uniq >/tmp/out')
-parser.add_argument('--plot-labels', default='data:simu', help='which/both of data/simu to plot')
+parser.add_argument('--plot-labels', default='data-d15:data-d20:data-w10:simu', help='which/both of data/simu to plot')
 parser.add_argument('--max-gc-plots', type=int, default=0, help='only plot individual (per-GC) plots for this  many GCs')
 parser.add_argument('--dont-normalize', action='store_true')
 parser.add_argument('--bcr-phylo', action='store_true', help='set this if you\'re using bcr-phylo (rather than gcdyn) simulation')
@@ -388,9 +430,11 @@ parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading thi
 parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")
 parser.add_argument("--default-naive-affinity", type=float, default=1./100, help="this is the default for bcr-phylo, so maybe be correct if we don\'t have an unmutated sequence")
 args = parser.parse_args()
-args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'simu'])
+args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'data-d15', 'data-d20', 'data-w10', 'simu'])
 
 numpy.random.seed(args.random_seed)
+
+rpmeta = read_gcreplay_metadata()
 
 abtypes = ['leaf-affinity', 'internal-affinity', 'abundances', 'hdists', 'max-abdn-shm']
 hclists = {t : {'distr' : [], 'max' : []} for t in abtypes}
