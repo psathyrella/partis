@@ -37,6 +37,7 @@ from . import utils
 fmetrics = ['lbf', 'aa-lbf']
 affy_metrics = ['lbi', 'cons-dist-aa', 'cons-dist-nuc', 'shm', 'shm-aa', 'aa-lbi', 'cons-lbi']  # it would be nice to instead use the info at the top of treeutils/lbplotting
 daffy_metrics = ['delta-lbi', 'lbr', 'aa-lbr'] + fmetrics
+phylo_metrics = ['coar', 'rf', 'mrca']
 
 lb_metrics = collections.OrderedDict(('lb' + let, 'lb ' + lab) for let, lab in (('i', 'index'), ('r', 'ratio'), ('f', 'fraction')))
 selection_metrics = ['lbi', 'lbr', 'lbf', 'cons-dist-aa', 'cons-frac-aa', 'aa-lbi', 'aa-lbr', 'aa-lbf', 'shm', 'shm-aa', 'coar']

@@ -853,7 +853,10 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
             if 'pcfrac-' in ptilestr:
                 title = ldfcn(ptilestr)  #legdict.get(ptilestr, ptilestr).replace('frac. ', '')
             elif script_base == 'paired-loci':
-                title += ' %s: %s %s' % (locus, ltexts[ptntype], ldfcn(ptilestr)) #legdict.get(ptilestr, ptilestr))
+                if ptilestr in treeutils.phylo_metrics:
+                    title += '%s%s' % ((locus+': ') if locus is not None else '', ldfcn(ptilestr)) #legdict.get(ptilestr, ptilestr))
+                else:
+                    title += ' %s: %s %s' % (locus, ltexts[ptntype], ldfcn(ptilestr)) #legdict.get(ptilestr, ptilestr))
             if any('single-chain-' in m for m in args.plot_metrics):  # better not to call it the 'joint' f1 score or whatever if we're plotting the single chain partition on it
                 title = title.replace(ltexts[ptntype], '')
             if script_base == 'paired-loci':
