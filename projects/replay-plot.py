@@ -240,7 +240,7 @@ def read_input_files(label):
             dstr, timestr = label.split('-')
             assert dstr == 'data'
             assert timestr in ['d20', 'w10', 'd15']
-        print('    reading node data from %s' % '%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir)
+        print('      reading node data from %s' % '%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir)
         with open('%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
             reader = csv.DictReader(cfile)
             for line in reader:
@@ -296,7 +296,7 @@ def read_input_files(label):
     plotvals = {k : [] for k in ['leaf', 'internal']}
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
     if 'data' in label:
-        print('  reading replay data from %s' % args.gcreplay_dir)
+        print('    reading replay data from %s' % args.gcreplay_dir)
         read_data_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
         n_too_small = 0
         for gcn in all_seqfos:
@@ -440,6 +440,7 @@ abtypes = ['leaf-affinity', 'internal-affinity', 'abundances', 'hdists', 'max-ab
 hclists = {t : {'distr' : [], 'max' : []} for t in abtypes}
 fnames = [[], [], []]
 for tlab in args.plot_labels:
+    print('  %s' % utils.color('blue', tlab))
     utils.prep_dir('%s/plots/%s'%(args.outdir, tlab), wildlings=['*.csv', '*.svg'])
     lhists = read_input_files(tlab)  # puts affinity hists in lhists
     for abtype in abtypes:

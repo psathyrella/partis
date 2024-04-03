@@ -914,6 +914,11 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         elif 'gctree' in method:
             assert iclust is not None
             cmd = '%s/bin/gctree-run.py --infname %s --metafname %s --outdir %s --root-label %s --inf-int-label i-%d-inf' % (utils.get_partis_dir(), ifn(workdir), mfn(workdir), workdir, naive_seq_name, iclust)
+            if method != 'gctree':  # non-default ones need to read dnapars results from an existing default run
+                default_wkd = workdir.replace(method, 'gctree')
+                if not os.path.exists(default_wkd):
+                    raise Exception('have to run default gctree before running \'%s\' so that dnapars results are in %s' % (method, default_wkd))
+                cmd += ' --input-forest-dir %s' % default_wkd
             if method == 'gctree-base':
                 cmd += ' --base-model'
             if method == 'gctree-mut-mult':

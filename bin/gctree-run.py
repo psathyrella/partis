@@ -26,8 +26,12 @@ def get_inf_int_name(gname):  # <gname> is just an integer, which won't be uniqu
 
 # ----------------------------------------------------------------------------------------
 def gctofn(ft):
-    assert ft in ['tree', 'seqs']
-    return '%s/gctree.out.inference.1%s' % (args.outdir, '.nk' if ft=='tree' else '.fasta')
+    ftstrs = {
+        'tree' :  'gctree.out.inference.1.nk',
+        'seqs' : 'gctree.out.inference.1.fasta',
+        'dnapars' : 'outfile',
+    }
+    return '%s/%s' % (args.outdir, ftstrs[ft])
 
 # ----------------------------------------------------------------------------------------
 def fofn(ft):
@@ -68,22 +72,8 @@ def add_mfo(tcmd, mfn):
 
 # ----------------------------------------------------------------------------------------
 def run_gctree():
-    if not args.run_help and utils.output_exists(args, gctofn('tree')):
-        return
-
-    cmds = ['#!/bin/bash']
-    cmds += utils.mamba_cmds(args.env_label)
-    if args.run_help:
-        cmds += ['gctree infer -h']
-    else:
-        if not os.path.exists(args.infname):
-            raise Exception('--infname %s doesn\'t exist' % args.infname)
-        utils.prep_dir(args.outdir, wildlings=['outfile', 'outtree'], allow_other_files=True)  # phylip barfs like a mfer if its outputs exist (probably you'll get a KeyError 'naive')
-        # cmds += ['gctree &>/dev/null && dnapars &>/dev/null || echo "command \'gctree\' or \'dnapars\' not in path, maybe need to run: gctree-run.py --actions install"']  # ick doesn't quite work, whatever
-        cmds += ['cd %s' % args.outdir]
-        cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
-        cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
-        cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
+    # ----------------------------------------------------------------------------------------
+    def get_gctree_cmd():
         tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
         if not args.base_model:
             tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
@@ -91,7 +81,34 @@ def run_gctree():
             tcmd += ' --ranking_coeffs %s' % (' '.join(c for c in args.ranking_coeffs))
         if os.path.exists(args.metafname):
             tcmd = add_mfo(tcmd, args.metafname)
-        cmds.append(tcmd)
+        return tcmd
+    # ----------------------------------------------------------------------------------------
+    def get_cmds():
+        cmds = ['#!/bin/bash']
+        cmds += utils.mamba_cmds(args.env_label)
+        if args.run_help:
+            cmds += ['gctree infer -h']
+            return cmds
+        if not os.path.exists(args.infname):
+            raise Exception('--infname %s doesn\'t exist' % args.infname)
+        utils.prep_dir(args.outdir, wildlings=['outfile', 'outtree'], allow_other_files=True)  # phylip barfs like a mfer if its outputs exist (probably you'll get a KeyError 'naive')
+        cmds += ['cd %s' % args.outdir]
+        if args.input_forest_dir is None:
+            # cmds += ['gctree &>/dev/null && dnapars &>/dev/null || echo "command \'gctree\' or \'dnapars\' not in path, maybe need to run: gctree-run.py --actions install"']  # ick doesn't quite work, whatever
+            cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
+            cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
+            cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
+        else:
+            print('    --input-forest-dir: copying abundance, idmap, and forest files from %s' % args.input_forest_dir)
+            cmds += ['cp %s/{abundances.csv,%s,outfile} %s/' % (args.input_forest_dir, idfn(), args.outdir)]
+        if not args.only_write_forest:
+            cmds.append(get_gctree_cmd())
+        return cmds
+    # ----------------------------------------------------------------------------------------
+    if not args.run_help and utils.output_exists(args, gctofn('dnapars' if args.only_write_forest else 'tree')):
+        return
+
+    cmds = get_cmds()  # also preps dir + other stuff
 
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=args.outdir + '/run.sh', print_time='gctree', debug=True, dryrun=args.dry_run)
     if args.run_help:
@@ -176,6 +193,8 @@ parser.add_argument('--actions', default='run:parse')
 parser.add_argument('--infname')
 parser.add_argument('--metafname', help='if you need --frame (v region doesn\'t start at first position) or --chain_split and --frame2 (heavy/light chain smooshed together), pass the info in json format with this arg (see code above for format).')
 parser.add_argument('--outdir')
+parser.add_argument('--only-write-forest', action='store_true', help='only run preparatory steps for gctree, i.e. up through dnapars, to write parsimony forest')
+parser.add_argument('--input-forest-dir', help='If set, skips preparatory steps (see --only-write-forest), and looks for \'abundance.csv\' and parsimony forest file (\'outfile\') in the specified dir')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--base-model', action='store_true', help='By default, we pass gctree info for the s5f mutation model; if this is set, we don\'t, and it instead use the base model.')
 parser.add_argument('--ranking-coeffs', nargs='+', help='see gctree help')
@@ -189,6 +208,8 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
 
 args = parser.parse_args()
+if args.only_write_forest and args.input_forest_dir:
+    raise Exception('doesn\'t make sense to specify both')
 args.actions = utils.get_arg_list(args.actions, choices=['install', 'update', 'run', 'parse', 'convert-pickle-tree'])
 args.infname = utils.fpath(args.infname)
 args.outdir = utils.fpath(args.outdir)
