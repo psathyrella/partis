@@ -2516,7 +2516,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
                 continue
             dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)
             if tree_inference_method in ['iqtree', 'raxml'] + gct_methods:
-                utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, debug=debug)
+                utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, extra_str='      iclust %d '%iclust, debug=debug)
             elif tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
                 for mkey in [k for k in utils.input_metafile_keys.values() if k in line]:  # have to copy over any input meta keys
                     inf_antn[mkey] = [utils.per_seq_val(line, mkey, u, use_default=True) for u in inf_antn['unique_ids']]

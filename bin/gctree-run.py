@@ -27,7 +27,7 @@ def get_inf_int_name(gname):  # <gname> is just an integer, which won't be uniqu
 # ----------------------------------------------------------------------------------------
 def gctofn(ft):
     ftstrs = {
-        'tree' :  'gctree.out.inference.1.nk',
+        'tree' : 'gctree.out.inference.1.nk',
         'seqs' : 'gctree.out.inference.1.fasta',
         'dnapars' : 'outfile',
     }
