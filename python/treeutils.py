@@ -46,6 +46,7 @@ typical_bcr_seq_len = 400
 # default_lbr_tau_factor = 1
 default_min_selection_metric_cluster_size = 10
 gct_methods = ['gctree', 'gctree-base', 'gctree-mut-mult']
+inf_anc_methods = ['iqtree', 'raxml', 'linearham'] + gct_methods  # methods that infer ancestors
 
 legtexts = {
     'metric-for-target-distance' : 'target dist. metric',
@@ -1000,55 +1001,54 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             raise Exception('infered seqs from %s have length %d different from input seqs %d' % (method, inf_lens[0], input_lens[0]))
     # ----------------------------------------------------------------------------------------
     def read_inf_seqs(dtree, removed_nodes, padded_seq_info_list):
-        # ----------------------------------------------------------------------------------------
         inf_seqfos, inf_antn = [], None
-        if method in ['iqtree', 'raxml'] + gct_methods:
-            if method == 'iqtree':
-                inf_infos, skipped_rm_nodes = {}, set()
-                with open('%s/%s.state'%(workdir, outfix)) as afile:
-                    reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'))
-                    for line in reader:
-                        node = line['Node']
-                        if removed_nodes is not None and node in removed_nodes:
-                            skipped_rm_nodes.add(node)
-                            continue
-                        if node not in inf_infos:
-                            inf_infos[node] = {}
-                        inf_infos[node][int(line['Site'])] = line['State'].replace('-', utils.ambig_base)  # NOTE this has uncertainty info as well, which atm i'm ignoring
-                seq_len = len(seqfos[0]['seq'])
-                for node, nfo in inf_infos.items():
-                    inf_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
-                if len(skipped_rm_nodes) > 0:
-                    print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
-            elif method == 'raxml':
-                skipped_rm_nodes = set()
-                with open(ofn(workdir, ancestors=True)) as afile:
-                    reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'), fieldnames=['Node', 'State'])
-                    for line in reader:
-                        node = line['Node']
-                        if removed_nodes is not None and node in removed_nodes:
-                            skipped_rm_nodes.add(node)
-                            continue
-                        inf_seqfos.append({'name' : node, 'seq' : line['State']})
-                re_insert_ambig(inf_seqfos, padded_seq_info_list)
-                if len(skipped_rm_nodes) > 0:
-                    print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
-            elif method in gct_methods:
-                gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
-                re_insert_ambig(gct_seqfos, padded_seq_info_list)
-                inf_seqfos += gct_seqfos
-            else:
-                assert False
-            if debug:
-                print('      read %d inferred ancestral seqs' % len(inf_seqfos))
-        elif method == 'linearham':
-# TODO don't i need to use padded_seq_info_list here?
+        if method == 'iqtree':
+            inf_infos, skipped_rm_nodes = {}, set()
+            with open('%s/%s.state'%(workdir, outfix)) as afile:
+                reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'))
+                for line in reader:
+                    node = line['Node']
+                    if removed_nodes is not None and node in removed_nodes:
+                        skipped_rm_nodes.add(node)
+                        continue
+                    if node not in inf_infos:
+                        inf_infos[node] = {}
+                    inf_infos[node][int(line['Site'])] = line['State'].replace('-', utils.ambig_base)  # NOTE this has uncertainty info as well, which atm i'm ignoring
+            seq_len = len(seqfos[0]['seq'])
+            for node, nfo in inf_infos.items():
+                inf_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
+            if len(skipped_rm_nodes) > 0:
+                print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
+        elif method == 'raxml':
+            skipped_rm_nodes = set()
+            with open(ofn(workdir, ancestors=True)) as afile:
+                reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'), fieldnames=['Node', 'State'])
+                for line in reader:
+                    node = line['Node']
+                    if removed_nodes is not None and node in removed_nodes:
+                        skipped_rm_nodes.add(node)
+                        continue
+                    if '-' in line['State']:
+                        raise Exception('gaps in seq from %s (maybe run crashed part way through?)' % ofn(workdir, ancestors=True))
+                    inf_seqfos.append({'name' : node, 'seq' : line['State']})
+            re_insert_ambig(inf_seqfos, padded_seq_info_list)
+            if len(skipped_rm_nodes) > 0:
+                print('      skipped %d nodes that were collapsed as zero length (internal-ish) leaves: %s' % (len(skipped_rm_nodes), ' '.join(skipped_rm_nodes)))
+        elif method in gct_methods:
+            gct_seqfos = utils.read_fastx('%s/inferred-seqs.fa'%workdir, look_for_tuples=True)
+            re_insert_ambig(gct_seqfos, padded_seq_info_list)
+            inf_seqfos += gct_seqfos
+        elif method == 'linearham':  # TODO don't i need to use padded_seq_info_list here?
             _, tmpantns, _ = utils.read_output(ofn(workdir, antns=True, best=True))
             inf_antn = utils.get_single_entry(tmpantns)
             _, alt_antns, _ = utils.read_output(ofn(workdir, antns=True))
             inf_antn['alternative-annotations'] = alt_antns  # atm the other place we set this key (in partitiondriver) we put different stuff in it, but that seems fine, it's just different stuff goes here from different programs
             internal_ids = [n.taxon.label for n in dtree.preorder_internal_node_iter() if n.taxon.label in inf_antn['unique_ids']]
             print('      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids'])))
+        else:  # method should be in inf_anc_methods
+            assert False
+        if debug:
+            print('      read %d inferred ancestral seqs' % len(inf_seqfos))
         return inf_seqfos, inf_antn
     # ----------------------------------------------------------------------------------------
     assert method in ['fasttree', 'iqtree', 'raxml', 'linearham'] + gct_methods
@@ -2515,7 +2515,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             if cfo is None:
                 continue
             dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)
-            if tree_inference_method in ['iqtree', 'raxml'] + gct_methods:
+            if tree_inference_method in ['iqtree', 'raxml'] + gct_methods:  # i.e. inf_anc_methods except linearham (this comment is really just for search)
                 utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, extra_str='      iclust %d '%iclust, debug=debug)
             elif tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
                 for mkey in [k for k in utils.input_metafile_keys.values() if k in line]:  # have to copy over any input meta keys
