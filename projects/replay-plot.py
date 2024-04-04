@@ -221,7 +221,12 @@ def read_input_files(label):
         return 'leaf' if node.is_leaf() else 'internal'
     # ----------------------------------------------------------------------------------------
     def get_simu_affy(label, dendro_trees, affy_vals):
-        for dtree in dendro_trees:
+        n_trees = 0
+        for itree, dtree in enumerate(dendro_trees):
+            if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
+                    print('    --n-max-simu-trees: breaking after reading affinity for %d trees' % itree)
+                    break
+            n_trees += 1
             for node in dtree.preorder_node_iter():
                 name = node.taxon.label
                 n_tot[nstr(node)].append(name)
@@ -231,7 +236,7 @@ def read_input_files(label):
                 plotvals[nstr(node)].append(affy_vals[name])
         if sum(len(l) for l in n_missing.values()) > 0:
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
-        return plotvals
+        return plotvals, n_trees
     # ----------------------------------------------------------------------------------------
     def read_data_csv(all_seqfos, label):
         gc_counts = {tk : set() for tk in ['all', 'skipped']}
@@ -288,7 +293,7 @@ def read_input_files(label):
         else:
             _, naive_affy = naive_id_affys[0]
         affy_std = numpy.std([m['affinity'] for m in mfos.values()], ddof=1)
-        print('    rescaling to (naive) mean %.3f std %.4f' % (naive_affy, affy_std))
+        print('    rescaling to naive mean %.3f and std 1 (dividing by current std %.4f)' % (naive_affy, affy_std))
         for mfo in mfos.values():
             mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
     # ----------------------------------------------------------------------------------------
@@ -350,8 +355,7 @@ def read_input_files(label):
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
-        plotvals = get_simu_affy(label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
-        n_trees = len(dendro_trees)
+        plotvals, n_trees = get_simu_affy(label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
     else:
         assert False
 
