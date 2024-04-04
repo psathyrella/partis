@@ -788,7 +788,7 @@ def mrca_dist(dtree_t, dtree_i, denom_type='mut', debug=False):
         for ltmp in [l1, l2]:
             if ltmp not in hdcache:
                 hdcache[ltmp] = utils.hamming_distance(nodes_t[ltmp].seq, mnode_t.seq)
-        mdist = numpy.mean([hdcache[l] for l in [l1, l2]])
+        mdist = numpy.mean([hdcache[l] for l in [l1, l2]])  # average hamming distance from the two true leaf nodes to true common ancestor node
         totals['mut'] += mdist
         if debug > 1:
             print('         %s   %3d    %s   %s     %s   %s  ' % (utils.color('blue' if hdist==0 else None, str(hdist), width=3), mdist, upr(l1), upr(l2), upr(mnode_t.taxon.label), upr(mnode_i.taxon.label)))
