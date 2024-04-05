@@ -332,7 +332,7 @@ def vlval(args, vlists, varnames, vname):  # ok this name also sucks, but they'r
 # ----------------------------------------------------------------------------------------
 # handles the complicated machinations of scanning over a variety of (mostly simulation) variables, taking as input the command line args, and returning several lists e.g. with these separated into those with/without multiple values
 # <args.str_list_vars>: vars that are lists of lists of strs, rather than simple lists of strs
-def get_var_info(args, scan_vars, debug=False):
+def get_var_info(args, scan_vars, action=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def handle_var(svar, val_lists, valstrs):
         # convert_fcn = (lambda vlist: ':'.join(str(v) for v in vlist)) if svar in args.str_list_vars else str  # old version, leaving here cause i'm chicken that i messed something up
@@ -367,7 +367,7 @@ def get_var_info(args, scan_vars, debug=False):
 
     if args.zip_vars is not None:
         if any(v not in varnames for v in args.zip_vars):
-            print('  %s zip var \'%s\' not in varnames for this action, so not zipping anything')
+            print('  %s zip var[s] %s not in varnames (%s) for %s action, so not zipping anything' % (wrnstr(), ', '.join(v for v in args.zip_vars if v not in varnames), ', '.join(varnames), action if action is not None else 'this'))
         else:
             assert len(args.zip_vars) == 2  # nothing wrong with more, but I don't feel like testing it right now
             assert len(sargval(args, args.zip_vars[0])) == len(sargval(args, args.zip_vars[1]))  # doesn't make sense unless you provide a corresponding value for each
@@ -476,7 +476,7 @@ def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics):
 
     get_scanvar_arg_lists(args)
     if args.final_plot_xvar is None:  # set default value based on scan vars
-        base_args, varnames, _, valstrs = get_var_info(args, args.scan_vars['simu'])
+        base_args, varnames, _, valstrs = get_var_info(args, args.scan_vars['simu'], action='simu')
         svars = [v for v in varnames if v != 'seed']
         args.final_plot_xvar = svars[0] if len(svars) > 0 else 'seed'  # if we're not scanning over any vars, i'm not sure what we should use
     if args.dataset_in_list is not None and len(args.dataset_in_list) < 2:
@@ -6353,6 +6353,12 @@ def replace_in_arglist(clist, argstr, replace_with, insert_after=None, has_arg=F
             insert_in_arglist(clist, [argstr, replace_with], insert_after, has_arg=has_arg)
     else:
         clist[arglist_index(clist, argstr) + 1] = replace_with
+
+# ----------------------------------------------------------------------------------------
+def replace_in_argstr(cmd, argstr, replace_with, insert_after=None, has_arg=False):  # same as previous fcn, but on arg str (probably a bunch of places I could use this, but I'm adding it late)
+    clist = cmd.split()
+    replace_in_arglist(clist, argstr, replace_with, insert_after=insert_after, has_arg=has_arg)
+    return ' '.join(clist)
 
 # ----------------------------------------------------------------------------------------
 # insert list <new_arg_strs> after <argstr> (unless <before> is set),  Use <has_arg> if <argstr> has an argument after which the insertion should occur

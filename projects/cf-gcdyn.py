@@ -29,7 +29,7 @@ import python.clusterpath as clusterpath
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 dl_metrics = ['%s-%s-%s' % (p, s, m) for s in ['train', 'test'] for m in ['bias', 'variance', 'mae'] for p in ['xscale', 'xshift']] + ['xscale-train-vs-test-mae']
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists', 'all-dl', 'all-test-dl'] + dl_metrics #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-after_actions = ['merge-simu', 'replay-plot', 'dl-infer', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
+after_actions = ['merge-simu', 'replay-plot', 'dl-infer', 'check-dl', 'replay-plot-ckdl', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = ['group-expts']  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
 
@@ -59,6 +59,7 @@ parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predicti
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 parser.add_argument('--data-samples-list', help='List of data samples to run on. Don\'t set this, it uses glob on --data-dir')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='replay-plot')
+parser.add_argument('--check-dl-n-trials', type=int, default=10)
 parser.add_argument('--dl-extra-args')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 # parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
@@ -72,6 +73,8 @@ args.scan_vars = {
     'data' : ['data-samples'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
+args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['dl-infer'])
+args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['dl-infer'])
 args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-range', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
@@ -105,7 +108,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
     if action == 'merge-simu':
         varnames = []
         vstrs = []
-    if action in ['simu', 'merge-simu']:
+    if action in ['simu', 'merge-simu', 'check-dl']:
         ftstrs = {  # copied from gcdyn/scripts/multi_simulation.py
             'fasta' : 'seqs',
             'nwk' : 'trees',
@@ -113,7 +116,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
             'pkl' : 'responses',
         }
         sfx = '%s.%s' % (ftstrs.get(ftype, 'simu'), ftype)
-    elif action == 'replay-plot':
+    elif 'replay-plot' in action:
         sfx = 'diff-vals.yaml'
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         sfx = 'test.csv'
@@ -150,33 +153,39 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
         return cmd
     # ----------------------------------------------------------------------------------------
-    if action in ['simu', 'merge-simu']:
-        cmd = 'gcd-simulate' if action=='simu' else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
-        if action == 'simu':
-            cmd += ' --outdir %s' % os.path.dirname(ofname(args, varnames, vstrs, action))  #  --debug 1
+    odr = os.path.dirname(ofname(args, varnames, vstrs, action))  # NOTE that this isn't the same as odir() (ugh)
+    if action in ['simu', 'check-dl', 'merge-simu']:
+        cmd = 'gcd-simulate' if action in ['simu', 'check-dl'] else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
+        if action in ['simu', 'check-dl']:
+            cmd += ' --outdir %s' % odr  #  --debug 1
             if args.test:
                 cmd += ' --test'
-            cmd = add_scan_args(cmd)
+            cmd = add_scan_args(cmd, skip_fcn=lambda v: v not in args.scan_vars[action] or action=='check-dl' and v in args.scan_vars['dl-infer'])  # ick
         else:
             cmd += ' %s --outdir %s' % (' '.join(all_simdirs), os.path.dirname(ofname(args, [], [], action)))
+        if action == 'check-dl':
+            cmd += ' --dl-prediction-dir %s' % os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer'))
+            cmd = utils.replace_in_argstr(cmd, '--n-trials', str(args.check_dl_n_trials))
         if args.n_sub_procs > 1:
             cmd += ' --n-sub-procs %d' % args.n_sub_procs
+            if action == 'check-dl':
+                cmd = utils.replace_in_argstr(cmd, '--n-sub-procs', str(int(args.n_sub_procs / args.check_dl_n_trials)))
         if action == 'simu' and args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         cmd = add_mamba_cmds(cmd)
-    elif action == 'replay-plot':
-        cmd = './projects/replay-plot.py --simu-dir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'simu')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+    elif 'replay-plot' in action:
+        cmd = './projects/replay-plot.py --simu-dir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
-            cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+            cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), odr)
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
             if args.dl_model_dir is not None:
                 cmd += ' --model-dir %s' % args.dl_model_dir
         else:
-            cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+            cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), odr)
             cmd = add_mamba_cmds(cmd)
-        cmd = add_scan_args(cmd, skip_fcn=lambda vname: vname in args.scan_vars['simu'] or vname not in args.scan_vars[action] or action=='group-expts' and vname in args.scan_vars['dl-infer'])  # ick
+        cmd = add_scan_args(cmd, skip_fcn=lambda v: v in args.scan_vars['simu'] or v not in args.scan_vars[action] or action=='group-expts' and v in args.scan_vars['dl-infer'])  # ick
     elif action == 'partis':
         # make a partition-only file
         simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
@@ -191,17 +200,17 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
                 true_partition.append(['%d-%s' % (icluster, s['name']) for s in sfos])
             utils.write_annotations(ptnfn, None, [], utils.annotation_headers, partition_lines=clusterpath.ClusterPath(partition=true_partition).get_partition_lines())
         # then get command
-        odir = '%s' % os.path.dirname(ofname(args, varnames, vstrs, action))
-        cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --treefname %s --parameter-dir %s/parameters --outfname %s' % (ofname(args, varnames, vstrs, 'simu'), ptnfn, ofname(args, varnames, vstrs, 'simu', trees=True), odir, ofname(args, varnames, vstrs, action))
+        odtmp = '%s' % odr
+        cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --treefname %s --parameter-dir %s/parameters --outfname %s' % (ofname(args, varnames, vstrs, 'simu'), ptnfn, ofname(args, varnames, vstrs, 'simu', trees=True), odtmp, ofname(args, varnames, vstrs, action))
         cmd += ' --initial-germline-dir %s --no-insertions-or-deletions --min-selection-metric-cluster-size 3' % args.gcreplay_germline_dir
-        cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odir
+        cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odtmp
         # if args.inference_extra_args is not None:
         #     cmd += ' %s' % args.inference_extra_args
     elif action == 'data':
-        odir = os.path.dirname(ofname(args, varnames, vstrs, action))
+        odtmp = odr
         assert len(vstrs) == 1  # should just one data sample in a list
         smpl = vstrs[0]
-        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s' % (args.dl_model_dir, args.data_dir, smpl, odir)
+        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s' % (args.dl_model_dir, args.data_dir, smpl, odtmp)
         if args.dl_bundle_size_list is not None:  # kind of weird to use it for this as well as a scan var, but whatever
             assert len(args.dl_bundle_size_list) == 1
             cmd += ' --dl-bundle-size %d' % int(args.dl_bundle_size_list[0])
@@ -223,7 +232,7 @@ def run_scan(action):
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         })
     # ----------------------------------------------------------------------------------------
-    base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action])
+    base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action], action=action)
     cmdfos = []
     print('  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames)))
     if args.debug:
@@ -239,8 +248,8 @@ def run_scan(action):
             n_already_there += 1
             continue
 
-        if action in ['replay-plot'] + merge_actions:
-            ifn = ofname(args, varnames, vstrs, 'simu')
+        if action in ['replay-plot', 'replay-plot-ckdl'] + merge_actions:
+            ifn = ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')
             if not os.path.exists(ifn):  # do *not* use this, it'll delete it if --overwrite is set: utils.output_exists(args, ifn, debug=False):
                 n_missing_input += 1
                 continue
@@ -277,7 +286,7 @@ for action in args.actions:
         if args.dry:
             print('  --dry: not plotting')
             continue
-        _, varnames, val_lists, valstrs = utils.get_var_info(args, plt_scn_vars)
+        _, varnames, val_lists, valstrs = utils.get_var_info(args, plt_scn_vars, action='group-expts')
         if action == 'plot':
             print('plotting %d combinations of %d variable%s (%s) to %s' % (len(valstrs), len(varnames), utils.plural(len(varnames)), ', '.join(varnames), scanplot.get_comparison_plotdir(args, None)))
             fnames = {meth : {pmetr : [] for pmetr in args.perf_metrics} for meth in args.plot_metrics}

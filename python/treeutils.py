@@ -46,7 +46,8 @@ typical_bcr_seq_len = 400
 # default_lbr_tau_factor = 1
 default_min_selection_metric_cluster_size = 10
 gct_methods = ['gctree', 'gctree-base', 'gctree-mut-mult']
-inf_anc_methods = ['iqtree', 'raxml', 'linearham'] + gct_methods  # methods that infer ancestors
+iqt_methods = ['iqtree', 'iqtree-1.6.beta3', 'iqtree-2.3.1']
+inf_anc_methods = ['raxml', 'linearham'] + gct_methods + iqt_methods  # methods that infer ancestors
 
 legtexts = {
     'metric-for-target-distance' : 'target dist. metric',
@@ -902,8 +903,9 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     def getcmd(workdir):
         if method == 'fasttree':
             cmd = '%s/bin/FastTree -gtr -nt -out %s %s' % (utils.get_partis_dir(), ofn(workdir), ifn(workdir))
-        elif method == 'iqtree':
-            cmd = '%s/packages/iqtree-1.6.12-Linux/bin/iqtree -asr -s %s -pre %s/%s' % (utils.get_partis_dir(), ifn(workdir), os.path.dirname(ifn(workdir)), outfix)
+        elif method in iqt_methods:
+            vsn = '1.6.12' if method=='iqtree' else method.split('-')[1]
+            cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix)
             if redo:
                 cmd += ' -redo'
         elif method == 'raxml':
@@ -951,7 +953,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         return '%s/meta.yaml' % workdir
     # ----------------------------------------------------------------------------------------
     def ofn(workdir, antns=False, best=False, ancestors=False):
-        if method == 'iqtree':
+        if method in iqt_methods:
             return '%s/%s.treefile' % (workdir, outfix)
         elif method == 'fasttree':
             return '%s/%s.out' % (workdir, method)  # just where utils.run_cmds() writes std out
@@ -1002,7 +1004,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     # ----------------------------------------------------------------------------------------
     def read_inf_seqs(dtree, removed_nodes, padded_seq_info_list):
         inf_seqfos, inf_antn = [], None
-        if method == 'iqtree':
+        if method in iqt_methods:
             inf_infos, skipped_rm_nodes = {}, set()
             with open('%s/%s.state'%(workdir, outfix)) as afile:
                 reader = csv.DictReader(filter(lambda row: row[0]!='#', afile), delimiter=str('\t'))
@@ -1051,7 +1053,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             print('      read %d inferred ancestral seqs' % len(inf_seqfos))
         return inf_seqfos, inf_antn
     # ----------------------------------------------------------------------------------------
-    assert method in ['fasttree', 'iqtree', 'raxml', 'linearham'] + gct_methods
+    assert method in ['fasttree', 'raxml', 'linearham'] + gct_methods + iqt_methods
     assert actions in ['prep:run:read', 'prep', 'read']  # other combinations could make sense, but don't need them atm
     if method == 'linearham' and glfo is None:
         raise Exception('need to pass in glfo in order to run linearham (e.g. linearham can\'t work on the fake h/l annotations')
@@ -1067,7 +1069,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     if only_pass_leaves:
         seqfos = restrict_to_leaf_sfos(seqfos)
     uid_list = [sfo['name'] for sfo in seqfos]
-    if method == 'iqtree':  # iqtree silently replaces + with _, so we have to do some translation
+    if method in iqt_methods:  # iqtree silently replaces + with _, so we have to do some translation
         translations = {}
         for sfo in seqfos:
             if '+' in sfo['name']:  # there may be other characters it doesn't like, but this is the only one i've run into
@@ -1102,7 +1104,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                         mfo = {'%s_%s'%(c, k) : annotation[c+'_'+k] for c in 'hl' for k in ['frame', 'offset']} if is_fake_paired else {'frame' : utils.get_frame(annotation)}  # don't need the frames unless v_5p_del - fv_insertion > 0 which shouldn't be possible on padded sequences ofrm the hmm, but it's maybe better to always pass it in, it's too much trouble to only pass in if needed
                         json.dump(mfo, mfile)
         # # eh, turning this off for now:
-        # if method == 'iqtree' and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
+        # if method in iqt_methods and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
         #     print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
         #     redo = True
     else:
@@ -1127,7 +1129,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         print('      converting %s newick string to dendro tree' % method)
     dtree = get_dendro_tree(treefname=ofn(workdir), taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree',
                             suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
-    if method == 'iqtree':
+    if method in iqt_methods:
         translate_labels(dtree, list(translations.items()), expect_missing=True)  # we only need to replace ones with '+'s, so in general lots will be missing
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
     if naive_node is not None:
@@ -1151,7 +1153,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
 
     if persistent_workdir is None:
         wfns = [ifn(workdir), workdir]
-        if method == 'iqtree':
+        if method in iqt_methods:
             wfns += ['%s/%s%s' % (workdir, outfix, s) for s in ['.log', '.state', '.mldist', '.iqtree', '.bionj', '.treefile', '.model.gz', '.ckp.gz']]  # ick
             wfns.append('%s/log'%workdir)
         if method == 'raxml':
@@ -2441,7 +2443,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             filetrees.append({'tree' : dtree, 'ids' : treeids})
         print('      read %d trees from %s' % (len(filetrees), treefname))
     check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
-    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in [('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr')] + [(m, 'ran %s'%m) for m in ['fasttree', 'iqtree', 'raxml', 'linearham'] + gct_methods]}
+    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in [('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr')] + [(m, 'ran %s'%m) for m in ['fasttree', 'raxml', 'linearham'] + gct_methods + iqt_methods]}
     n_already_there, n_skipped_uid, n_skipped_line, n_skipped_size = 0, 0, 0, 0
     cmdfos, treefos = [None for _ in inf_lines_to_use], [None for _ in inf_lines_to_use]
     for iclust, line in enumerate(inf_lines_to_use):
@@ -2480,7 +2482,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             assert cpath is not None
             dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
             origin = 'cpath'
-        elif tree_inference_method in ['fasttree', 'iqtree', 'raxml', 'linearham', None] + gct_methods:
+        elif tree_inference_method in ['fasttree', 'raxml', 'linearham', None] + gct_methods + iqt_methods:
             if tree_inference_method is None:
                 tree_inference_method = 'fasttree'  # ick
             cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
@@ -2515,7 +2517,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             if cfo is None:
                 continue
             dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)
-            if tree_inference_method in ['iqtree', 'raxml'] + gct_methods:  # i.e. inf_anc_methods except linearham (this comment is really just for search)
+            if tree_inference_method in ['raxml'] + gct_methods + iqt_methods:  # i.e. inf_anc_methods except linearham (this comment is really just for search)
                 utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, extra_str='      iclust %d '%iclust, debug=debug)
             elif tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
                 for mkey in [k for k in utils.input_metafile_keys.values() if k in line]:  # have to copy over any input meta keys
@@ -2713,7 +2715,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, inf_partition=None,
             dumpfo.update(tl['tree-info'])
             return dumpfo
         utils.jsdump(outfname, [dumpfo(l) for l in antn_list if 'tree-info' in l])
-    if args.tree_inference_method in ['iqtree', 'raxml', 'linearham']+gct_methods and tree_inference_outdir is not None:
+    if args.tree_inference_method in ['raxml', 'linearham']+gct_methods+iqt_methods and tree_inference_outdir is not None:
         anfname = '%s/%s-annotations.yaml' % (tree_inference_outdir, args.tree_inference_method)
         print('    writing annotations with inferred ancestral sequences from %s to %s' % (args.tree_inference_method, anfname))
         utils.write_annotations(anfname, glfo, antn_list, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns) + utils.fake_paired_columns)  # NOTE these probably have the fwk insertions removed, which is probably ok?

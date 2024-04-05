@@ -274,8 +274,15 @@ def read_input_files(label):
         print('    kept %d / %d GCs%s (skipped %d)' % (len(all_seqfos), len(gc_counts['all']), '' if timestr is None else ' at time \'%s\''%timestr, len(gc_counts['skipped'])))
     # ----------------------------------------------------------------------------------------
     def read_gcd_meta():
+        # ----------------------------------------------------------------------------------------
+        def mfname():  # have to look for old meta file name for backwards compatibility (copied form partis/bin/gcdyn-simu-run.py
+            mfn = '%s/meta.csv'%args.simu_dir
+            if os.path.exists(mfn):  # if new name exists, return that
+                return mfn
+            return '%s/leaf-meta.csv'%args.simu_dir  # otherwise return old name
+        # ----------------------------------------------------------------------------------------
         mfos = {}
-        with open('%s/leaf-meta.csv'%args.simu_dir) as mfile:
+        with open(mfname()) as mfile:
             reader = csv.DictReader(mfile)
             for line in reader:
                 itree = int(line['name'].split('-')[0])
