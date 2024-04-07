@@ -59,7 +59,7 @@ parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predicti
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
 parser.add_argument('--data-samples-list', help='List of data samples to run on. Don\'t set this, it uses glob on --data-dir')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='replay-plot')
-parser.add_argument('--check-dl-n-trials', type=int, default=10)
+parser.add_argument('--check-dl-n-trials', type=int, default=85)
 parser.add_argument('--dl-extra-args')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 # parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
@@ -73,8 +73,9 @@ args.scan_vars = {
     'data' : ['data-samples'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
-args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['dl-infer'])
-args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['dl-infer'])
+args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['dl-infer'])  # note '+='
+check_dl_args = ['seed', 'birth-response', 'carry-cap-range', 'time-to-sampling-range', 'n-seqs-range', 'n-trials']  # ugh ugh ugh
+args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['check-dl'])
 args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-range', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
@@ -160,20 +161,22 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             cmd += ' --outdir %s' % odr  #  --debug 1
             if args.test:
                 cmd += ' --test'
-            cmd = add_scan_args(cmd, skip_fcn=lambda v: v not in args.scan_vars[action] or action=='check-dl' and v in args.scan_vars['dl-infer'])  # ick
+            cmd = add_scan_args(cmd, skip_fcn=lambda v: v not in args.scan_vars[action] or action=='check-dl' and v not in check_dl_args)
         else:
             cmd += ' %s --outdir %s' % (' '.join(all_simdirs), os.path.dirname(ofname(args, [], [], action)))
-        if action == 'check-dl':
-            cmd += ' --dl-prediction-dir %s' % os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer'))
-            cmd = utils.replace_in_argstr(cmd, '--n-trials', str(args.check_dl_n_trials))
         if args.n_sub_procs > 1:
             cmd += ' --n-sub-procs %d' % args.n_sub_procs
-            if action == 'check-dl':
-                cmd = utils.replace_in_argstr(cmd, '--n-sub-procs', str(int(args.n_sub_procs / args.check_dl_n_trials)))
+        if action == 'check-dl':
+            cmd += ' --dl-prediction-dir %s' % os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer'))
+            if args.n_sub_procs > 1:
+                trials_per_proc = int(int(utils.get_val_from_arglist(cmd.split(), '--n-trials')) / args.n_sub_procs)  # keep the same trials/proc as for regular simulation action
+                cmd = utils.replace_in_argstr(cmd, '--n-sub-procs', str(int(args.check_dl_n_trials / trials_per_proc)))
+            cmd = utils.replace_in_argstr(cmd, '--n-trials', str(args.check_dl_n_trials))
         if action == 'simu' and args.simu_extra_args is not None:
             cmd += ' %s' % args.simu_extra_args
         cmd = add_mamba_cmds(cmd)
     elif 'replay-plot' in action:
+        #  --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61  # don't want these turned on as long as e.g. N sampled seqs is varying a lot in simulation
         cmd = './projects/replay-plot.py --simu-dir %s --outdir %s' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'

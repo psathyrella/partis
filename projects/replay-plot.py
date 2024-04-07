@@ -39,7 +39,7 @@ colors = {
         'data-w10' : '#2b65ec',
         'simu' : '#808080',
     }
-pltlabels = {'hdists' : 'root-tip dist', 'max-abdn-shm' : 'SHM in most\nabundant seq'}  # 'median SHM of seqs\nw/max abundance'}
+pltlabels = {'hdists' : 'root-tip dist', 'max-abdn-shm' : 'SHM in most\nabundant seq', 'csizes' : 'N leaves'}  # 'median SHM of seqs\nw/max abundance'}
 
 # ----------------------------------------------------------------------------------------
 def abfn(tlab, abtype='abundances'):
@@ -306,6 +306,7 @@ def read_input_files(label):
     # ----------------------------------------------------------------------------------------
     all_seqfos = collections.OrderedDict()
     plotvals = {k : [] for k in ['leaf', 'internal']}
+    partition = []
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
     if 'data' in label:
         print('    reading replay data from %s' % args.gcreplay_dir)
@@ -327,6 +328,7 @@ def read_input_files(label):
                     n_missing[nstr(nodefo[nname])].append(nname)
                     continue
                 plotvals[nstr(nodefo[nname])].append(sfo['affinity'])
+            partition.append([l.taxon.label for l in dtree.leaf_node_iter()])
         if sum(len(l) for l in n_missing.values()) > 0:
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
         if n_too_small > 0:
@@ -363,6 +365,7 @@ def read_input_files(label):
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
         plotvals, n_trees = get_simu_affy(label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
+        partition += [[l.taxon.label for l in t.leaf_node_iter()] for t in dendro_trees]
     else:
         assert False
 
@@ -373,6 +376,13 @@ def read_input_files(label):
         htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=label, xtitle='%s affinity'%pkey)  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
         htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
         hists['%s-affinity'%pkey] = {'distr' : htmp}
+
+    xmin, xmax = 10, 100
+    n_bins = 5
+    dx = int((xmax - xmin) / n_bins)
+    xbins = [l-0.5 for l in range(xmin, xmax + dx, dx)]
+    hists['csizes'] = {'distr' : plotting.make_csize_hist(partition, n_bins=len(xbins), xbins=xbins, xtitle='N leaves')}
+
     return hists
 
 # ----------------------------------------------------------------------------------------
@@ -447,7 +457,9 @@ numpy.random.seed(args.random_seed)
 
 rpmeta = read_gcreplay_metadata()
 
-abtypes = ['leaf-affinity', 'internal-affinity', 'abundances', 'hdists', 'max-abdn-shm']
+def affy_like(tp):  # ick ( plots that get filled similarly to how affinity plots get filled, i.e. not how abundance-like stuff gets filled)
+    return 'affinity' in tp or tp in ['csizes']
+abtypes = ['leaf-affinity', 'internal-affinity', 'abundances', 'hdists', 'max-abdn-shm', 'csizes']
 hclists = {t : {'distr' : [], 'max' : []} for t in abtypes}
 fnames = [[], [], []]
 for tlab in args.plot_labels:
@@ -455,7 +467,7 @@ for tlab in args.plot_labels:
     utils.prep_dir('%s/plots/%s'%(args.outdir, tlab), wildlings=['*.csv', '*.svg'])
     lhists = read_input_files(tlab)  # puts affinity hists in lhists
     for abtype in abtypes:
-        if 'affinity' not in abtype:
+        if not affy_like(abtype):
             plot_abdn_stuff(lhists, '%s/plots/%s'%(args.outdir, tlab), tlab, abtype)  # adds abdn hists to lhists
         for hn in lhists[abtype]:
             hclists[abtype][hn].append(lhists[abtype][hn])

@@ -70,7 +70,7 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either
     return xticks, [tstr(xt) for xt in xticks]
 
 # ----------------------------------------------------------------------------------------
-def make_csize_hist(partition, n_bins=10, xbins=None):
+def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None):
     cslist = [len(c) for c in partition]
     if xbins is None:
         xbins, n_bins = hutils.auto_volume_bins(cslist, n_bins, int_bins=True, debug=True)
@@ -89,6 +89,8 @@ def make_csize_hist(partition, n_bins=10, xbins=None):
         lo, hi = thist.low_edges[ib], thist.low_edges[ib+1]
         ivals = [i for i in range(int(math.ceil(lo)), int(math.floor(hi)) + 1)]
         thist.bin_labels[ib] = str(ivals[0]) if len(ivals)==1 else '%d-%d'%(ivals[0], ivals[-1])
+    if xtitle is not None:
+        thist.xtitle = xtitle
     return thist
 
 # ----------------------------------------------------------------------------------------
