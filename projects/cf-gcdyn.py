@@ -73,7 +73,7 @@ args.scan_vars = {
     'data' : ['data-samples'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
-args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['dl-infer'])  # note '+='
+args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['dl-infer'])
 check_dl_args = ['seed', 'birth-response', 'carry-cap-range', 'time-to-sampling-range', 'n-seqs-range', 'n-trials']  # ugh ugh ugh
 args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['check-dl'])
 args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-range', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)

@@ -39,7 +39,7 @@ colors = {
         'data-w10' : '#2b65ec',
         'simu' : '#808080',
     }
-pltlabels = {'hdists' : 'root-tip dist', 'max-abdn-shm' : 'SHM in most\nabundant seq', 'csizes' : 'N leaves'}  # 'median SHM of seqs\nw/max abundance'}
+pltlabels = {'hdists' : 'N leaf muts', 'max-abdn-shm' : 'SHM in most\nabundant seq', 'csizes' : 'N leaves per tree', 'leaf-muts' : 'N leaf muts', 'internal-muts' : 'N internal muts'}  # 'median SHM of seqs\nw/max abundance'}
 
 # ----------------------------------------------------------------------------------------
 def abfn(tlab, abtype='abundances'):
@@ -93,10 +93,7 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
         # This dictionary will map sequence checksum to the list of squence ids that have that
         # sequence checksum.
         ids_by_checksum = collections.defaultdict(list)
-        hdvals, hd_dict = (
-            [],
-            {},
-        )  # list of hamming distance to naive for each sequence (hd_dict is just for max_abdn below)
+        hdvals, hd_dict = [], {}  # list of hamming distance to naive for each sequence (hd_dict is just for max_abdn below)
         sequence_count = 0
         for sfo in fam_fos:
             sequence_count = sequence_count + 1
@@ -163,7 +160,7 @@ def abdn_hargs(hlist):
     ymin = min(h.get_minimum(exclude_empty=True) for h in hlist)
     ymax = max(h.get_maximum() for h in hlist)
     ybounds = [0.9 * ymin, 1.1 * ymax]
-    yticks, yticklabels = plotting.get_auto_y_ticks(ybounds[0], ybounds[1])
+    yticks, yticklabels = plotting.get_auto_y_ticks(ybounds[0], ybounds[1], log='y')
     ybounds = [yticks[0], yticks[-1]]
     return xbounds, ybounds, xticks, yticks, yticklabels
 
@@ -197,7 +194,7 @@ def plot_abdn_stuff(lhists, plotdir, label, abtype):
             mvtxt = 'mean %.1f' % htmp.get_mean()
             fn = htmp.fullplot(plotdir, '%s-distr-gc-%s'%(abtype, bn), pargs={'square_bins' : True, 'errors' : False, 'color' : colors[label]},
                                fargs={'title' : bn, 'xlabel' : pltlabels.get(abtype, abtype), 'ylabel' : 'counts', 'log' : 'y', 'title' : '%s: %s'%(label, bn)}, texts=[[0.6, 0.8, nstxt], [0.6, 0.75, mvtxt]])
-            lbplotting.add_fn(fnames, fn, new_row=len(distr_hists)==0)
+            # lbplotting.add_fn(fnames, fn, new_row=len(distr_hists)==0)
         distr_hists.append(htmp)
 
     hmax = None
@@ -206,7 +203,7 @@ def plot_abdn_stuff(lhists, plotdir, label, abtype):
         hmax.title = '%s (%d trees)' % (label, len(distr_hists))
         hmax.xtitle = 'max abundance in GC'
 
-    # plot mean distribution over GCs
+    # plot mean distribution over GCs (atm: abundance, N tip muts, SHM in most abundant seq)
     mean_hdistr = plotting.make_mean_hist(distr_hists)
     mean_hdistr.title = '%s (%d trees)' % (label, len(distr_hists))
     mean_hdistr.xtitle = pltlabels.get(abtype, abtype)
@@ -306,7 +303,7 @@ def read_input_files(label):
     # ----------------------------------------------------------------------------------------
     all_seqfos = collections.OrderedDict()
     plotvals = {k : [] for k in ['leaf', 'internal']}
-    partition = []
+    partition, mut_vals = [], {'leaf' : [], 'internal' : []}
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
     if 'data' in label:
         print('    reading replay data from %s' % args.gcreplay_dir)
@@ -328,6 +325,7 @@ def read_input_files(label):
                     n_missing[nstr(nodefo[nname])].append(nname)
                     continue
                 plotvals[nstr(nodefo[nname])].append(sfo['affinity'])
+                mut_vals['leaf' if nodefo[nname].is_leaf() else 'internal'].append(sfo['n_muts'])
             partition.append([l.taxon.label for l in dtree.leaf_node_iter()])
         if sum(len(l) for l in n_missing.values()) > 0:
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
@@ -366,6 +364,13 @@ def read_input_files(label):
             all_seqfos[gcn].append(sfo)
         plotvals, n_trees = get_simu_affy(label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
         partition += [[l.taxon.label for l in t.leaf_node_iter()] for t in dendro_trees]
+        for dtree in dendro_trees:
+            for tnode in dtree.preorder_node_iter():
+                if tnode.taxon.label not in mfos:
+                    if not tnode is dtree.seed_node:  # we expect to be missing naive, but not any others
+                        print('    missing N muts for node %s'%tnode.taxon.label)
+                    continue
+                mut_vals['leaf' if tnode.is_leaf() else 'internal'].append(int(mfos[tnode.taxon.label]['n_muts']))
     else:
         assert False
 
@@ -382,7 +387,13 @@ def read_input_files(label):
     dx = int((xmax - xmin) / n_bins)
     xbins = [l-0.5 for l in range(xmin, xmax + dx, dx)]
     hists['csizes'] = {'distr' : plotting.make_csize_hist(partition, n_bins=len(xbins), xbins=xbins, xtitle='N leaves')}
+    hists['csizes']['distr'].title = label
 
+    for tstr in ['leaf', 'internal']:
+        htmp = hutils.make_hist_from_list_of_values(mut_vals[tstr], 'int', '%s-muts'%tstr)
+        htmp.xtitle = pltlabels['%s-muts'%tstr]
+        htmp.title = '%s (%d nodes in %d trees)' % (label, len(mut_vals[tstr]), n_trees)
+        hists['%s-muts'%tstr] = {'distr' : htmp}
     return hists
 
 # ----------------------------------------------------------------------------------------
@@ -411,19 +422,23 @@ def hist_distance(h1, h2, dbgstr='hist', weighted=False, debug=False):
 # ----------------------------------------------------------------------------------------
 def compare_plots(hname, plotdir, hists, labels, abtype, diff_vals):
     ytitle = hists[0].ytitle
-    if not args.dont_normalize:
+    if args.normalize:
+        print('  %s I\'m not really sure it makes sense to normalize the mean hists (maybe could just skip them)' % utils.wrnstr)
         for htmp in hists:
             htmp.normalize()
-        if 'fraction of' in hists[0].ytitle:
+        if 'fraction of' in hists[0].ytitle:  # NOTE normalize() call sets the ytitle
             ytitle = 'fraction of total'
     xbounds, ybounds, xticks, yticks, yticklabels = abdn_hargs(hists) if abtype=='abundances' else (None, None, None, None, None)  # seems not to need this? hutils.multi_hist_filled_bin_xbounds(hists)
     text_dict = None if 'affinity' not in hists[0].xtitle or not args.bcr_phylo else {'x' : 0.2, 'y' : 0.6, 'text' : 'simu scaled to\nnaive mean, std 1'}
+    adjust = None
+    if '\n' in ytitle:
+        adjust = {'left' : 0.23 if abtype=='abundances' else 0.18}
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(hname, abtype), more_hists=hists, log='y' if abtype=='abundances' else '', xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=hname!='max', square_bins=hname=='max', linewidths=[4, 3],
                                plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
-                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=['--' if l=='simu' else '-' for l in labels], translegend=[-0.65, 0] if 'affinity' in abtype else [-0.2, 0], write_csv=True,
-                               hfile_labels=labels, text_dict=text_dict)
-    fnames[0].append(fn)
+                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=['--' if l=='simu' else '-' for l in labels], translegend=[-0.65, 0.2] if affy_like(abtype) else [-0.2, 0], write_csv=True,
+                               hfile_labels=labels, text_dict=text_dict, adjust=adjust)
+    fnames[-1].append(fn)
 
     # hdict = {l : h for l, h in zip(labels, hists)}
     # if abtype != 'max-abdn-shm':  # min/max aren't the same for all hists, so doesn't work yet
@@ -444,7 +459,7 @@ parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/g
 parser.add_argument('--max-seqs-per-gc', type=int, help='if set, downsample any families/gcs with more than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
 parser.add_argument('--plot-labels', default='data-d15:data-d20:data-w10:simu', help='which/both of data/simu to plot')
 parser.add_argument('--max-gc-plots', type=int, default=0, help='only plot individual (per-GC) plots for this  many GCs')
-parser.add_argument('--dont-normalize', action='store_true')
+parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--bcr-phylo', action='store_true', help='set this if you\'re using bcr-phylo (rather than gcdyn) simulation')
 parser.add_argument('--naive-seq', default="GAGGTGCAGCTTCAGGAGTCAGGACCTAGCCTCGTGAAACCTTCTCAGACTCTGTCCCTCACCTGTTCTGTCACTGGCGACTCCATCACCAGTGGTTACTGGAACTGGATCCGGAAATTCCCAGGGAATAAACTTGAGTACATGGGGTACATAAGCTACAGTGGTAGCACTTACTACAATCCATCTCTCAAAAGTCGAATCTCCATCACTCGAGACACATCCAAGAACCAGTACTACCTGCAGTTGAATTCTGTGACTACTGAGGACACAGCCACATATTACTGTGCAAGGGACTTCGATGTCTGGGGCGCAGGGACCACGGTCACCGTCTCCTCAGACATTGTGATGACTCAGTCTCAAAAATTCATGTCCACATCAGTAGGAGACAGGGTCAGCGTCACCTGCAAGGCCAGTCAGAATGTGGGTACTAATGTAGCCTGGTATCAACAGAAACCAGGGCAATCTCCTAAAGCACTGATTTACTCGGCATCCTACAGGTACAGTGGAGTCCCTGATCGCTTCACAGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAATGTGCAGTCTGAAGACTTGGCAGAGTATTTCTGTCAGCAATATAACAGCTATCCTCTCACGTTCGGCTCGGGGACTAAGCTAGAAATAAAA")
 parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading this many trees from simulation')
@@ -458,10 +473,15 @@ numpy.random.seed(args.random_seed)
 rpmeta = read_gcreplay_metadata()
 
 def affy_like(tp):  # ick ( plots that get filled similarly to how affinity plots get filled, i.e. not how abundance-like stuff gets filled)
-    return 'affinity' in tp or tp in ['csizes']
-abtypes = ['leaf-affinity', 'internal-affinity', 'abundances', 'hdists', 'max-abdn-shm', 'csizes']
+    return 'affinity' in tp or tp in ['csizes', 'leaf-muts', 'internal-muts']
+abrows = [
+    ['abundances', 'hdists', 'max-abdn-shm'],
+    ['leaf-affinity', 'internal-affinity', 'csizes'],
+    ['leaf-muts', 'internal-muts']
+]
+abtypes = [a for arow in abrows for a in arow]
 hclists = {t : {'distr' : [], 'max' : []} for t in abtypes}
-fnames = [[], [], []]
+fnames = []
 for tlab in args.plot_labels:
     print('  %s' % utils.color('blue', tlab))
     utils.prep_dir('%s/plots/%s'%(args.outdir, tlab), wildlings=['*.csv', '*.svg'])
@@ -476,14 +496,14 @@ cfpdir = '%s/plots/comparisons' % args.outdir
 utils.prep_dir(cfpdir, wildlings=['*.csv', '*.svg'])
 print('  plotting comparisons to %s' % cfpdir)
 diff_vals = {}
-for abtype in abtypes:
-    for hname, hlist in hclists[abtype].items():
-        if hlist.count(None) == len(hlist):
-            continue
-        compare_plots(hname, cfpdir, hlist, args.plot_labels, abtype, diff_vals)
+for arow in abrows:
+    fnames.append([])
+    for abtype in arow:
+        for hname, hlist in hclists[abtype].items():
+            if hlist.count(None) == len(hlist):
+                continue
+            compare_plots(hname, cfpdir, hlist, args.plot_labels, abtype, diff_vals)
 
-if len(fnames[0]) > 4:
-    fnames = [fnames[0][:4], fnames[0][4:]] + fnames[1:]
 plotting.make_html(args.outdir+'/plots', fnames=fnames)
 dfn = '%s/diff-vals.yaml' % args.outdir
 with open(dfn, 'w') as dfile:

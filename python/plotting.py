@@ -320,7 +320,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
                  square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None, no_legend=False, hfile_labels=None,
-                 text_dict=None):
+                 text_dict=None, adjust=None):
     assert os.path.exists(plotdir)
 
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
@@ -480,6 +480,9 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
     if text_dict is not None:
         fig.text(text_dict['x'], text_dict['y'], text_dict['text'], fontdict={'weight' : 'bold'}) #, fontsize=)
     ymin = 0.8 * ymin if 'y' in log else ymin  # why tf was this here? -0.03*ymax
+    default_adjust = {'left' : 0.2}
+    if adjust is not None:
+        default_adjust.update(adjust)
     fn = mpl_finish(ax, plotdir, plotname,
                     title=tmptitle,
                     xlabel=tmpxtitle,
@@ -488,7 +491,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
                     ybounds=[ymin, 1.15*ymax],
                     leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
                     log=log, xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels,
-                    no_legend=(no_legend or len(hists) <= 1), adjust={'left' : 0.2}, leg_title=leg_title)
+                    no_legend=(no_legend or len(hists) <= 1), adjust=default_adjust, leg_title=leg_title)
     return fn
 
 # ----------------------------------------------------------------------------------------
@@ -1170,7 +1173,17 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
 
 # ----------------------------------------------------------------------------------------
 def get_auto_y_ticks(ymin, ymax, log=''):  # NOTE pretty similar to get_cluster_size_xticks() (for search: log_bins log bins)
-    def tstr(y): return (('%.0e'%y) if (y>1000 or y < 1) else '%.0f'%y) if 'y' in log else str(y)
+    # ----------------------------------------------------------------------------------------
+    def tstr(y):
+        y = utils.round_to_n_digits(y, 3)
+        if 'y' in log:
+            if y > 1000 or y < 0.01:
+                return '%.0e' % y
+            else:
+                return str(y) #'%.1f' % y
+        else:
+            return str(y)
+    # ----------------------------------------------------------------------------------------
     if ymin == 0:
         ymin = 1e-10  # not sure what to use here
     tstart, tstop = math.floor(math.log(ymin, 10)), math.ceil(math.log(ymax, 10))
