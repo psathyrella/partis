@@ -40,7 +40,7 @@ colors = {
     'simu' : '#808080',
 }
 pltlabels = {
-    'hdists' : 'N leaf muts',
+    'hdists' : 'N muts',
     'max-abdn-shm' : 'SHM in most\nabundant seq',
     'csizes' : 'N leaves per tree',
     'leaf-muts' : 'N muts (leaf nodes)',
@@ -218,12 +218,48 @@ def plot_abdn_stuff(lhists, plotdir, label, abtype):
     lhists[abtype] = {'distr' : mean_hdistr, 'max' : hmax}
 
 # ----------------------------------------------------------------------------------------
+def read_gctree_data_csv(all_seqfos, label):
+    gc_counts = {tk : set() for tk in ['all', 'skipped']}
+    timestr = None
+    if '-' in label:
+        dstr, timestr = label.split('-')
+        assert dstr == 'data'
+        assert timestr in ['d20', 'w10', 'd15']
+    print('      reading gctree node data from %s' % '%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir)
+    with open('%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
+        reader = csv.DictReader(cfile)
+        for line in reader:
+            prstr, prsuffix = line['PR'].split('.')
+            assert prstr[:2] == 'PR'
+            prn = prstr[2:]
+            gcid = get_gcid(prn, line['HK_key_mouse'], line['HK_key_gc'])
+            gc_counts['all'].add(gcid)
+            if timestr is not None and rpmeta[gcid]['time'] != timestr:
+                gc_counts['skipped'].add(gcid)
+                continue
+            if gcid not in all_seqfos:
+                all_seqfos[gcid] = []
+            affinity = line['delta_bind']  # _CGG_FVS_additive
+            hdist = utils.hamming_distance(args.naive_seq, line['IgH_nt_sequence']+line['IgK_nt_sequence'])  # this is different to nmuts in the next line, not yet sure why (UPDATE: one is nuc/other is AA, docs/column names maybe will be changed in gcreplay)
+            # nmuts = int(line['n_mutations_HC']) + int(line['n_mutations_LC'])
+            # print '  %2d  %2d  %s' % (hdist, nmuts, utils.color('red', '<--') if hdist!=nmuts else '')
+            # print '      %s' % utils.color_mutants(NAIVE_SEQUENCE, line['IgH_nt_sequence']+line['IgK_nt_sequence'])
+            for iseq in range(max(1, int(line['abundance']))):  # internal nodes have abundance 0, but want to add them once
+                all_seqfos[gcid].append({'name' : '%s-%s-%d' % (gcid, line['name'], iseq),
+                                         'base-name' : line['name'],
+                                         'seq' : line['IgH_nt_sequence']+line['IgK_nt_sequence'],
+                                         'n_muts' : hdist,
+                                         'affinity' : None if affinity == '' else float(affinity),
+                                         })
+    print('    kept %d / %d GCs%s (skipped %d)' % (len(all_seqfos), len(gc_counts['all']), '' if timestr is None else ' at time \'%s\''%timestr, len(gc_counts['skipped'])))
+
+# ----------------------------------------------------------------------------------------
 def read_input_files(label):
     # ----------------------------------------------------------------------------------------
     def nstr(node):
         return 'leaf' if node.is_leaf() else 'internal'
     # ----------------------------------------------------------------------------------------
-    def get_simu_affy(label, dendro_trees, affy_vals):
+    def get_simu_affy(plotvals, label, dendro_trees, affy_vals):
         n_trees = 0
         for itree, dtree in enumerate(dendro_trees):
             if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
@@ -236,44 +272,10 @@ def read_input_files(label):
                 if affy_vals.get(name) is None:
                     n_missing[nstr(node)].append(name)
                     continue
-                plotvals[nstr(node)].append(affy_vals[name])
+                plotvals['affinity'][nstr(node)].append(affy_vals[name])
         if sum(len(l) for l in n_missing.values()) > 0:
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
-        return plotvals, n_trees
-    # ----------------------------------------------------------------------------------------
-    def read_data_csv(all_seqfos, label):
-        gc_counts = {tk : set() for tk in ['all', 'skipped']}
-        timestr = None
-        if '-' in label:
-            dstr, timestr = label.split('-')
-            assert dstr == 'data'
-            assert timestr in ['d20', 'w10', 'd15']
-        print('      reading node data from %s' % '%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir)
-        with open('%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
-            reader = csv.DictReader(cfile)
-            for line in reader:
-                prstr, prsuffix = line['PR'].split('.')
-                assert prstr[:2] == 'PR'
-                prn = prstr[2:]
-                gcid = get_gcid(prn, line['HK_key_mouse'], line['HK_key_gc'])
-                gc_counts['all'].add(gcid)
-                if timestr is not None and rpmeta[gcid]['time'] != timestr:
-                    gc_counts['skipped'].add(gcid)
-                    continue
-                if gcid not in all_seqfos:
-                    all_seqfos[gcid] = []
-                affinity = line['delta_bind']  # _CGG_FVS_additive
-                hdist = utils.hamming_distance(args.naive_seq, line['IgH_nt_sequence']+line['IgK_nt_sequence'])  # this is different to nmuts in the next line, not yet sure why (UPDATE: one is nuc/other is AA, docs/column names maybe will be changed in gcreplay)
-                # nmuts = int(line['n_mutations_HC']) + int(line['n_mutations_LC'])
-                # print '  %2d  %2d  %s' % (hdist, nmuts, utils.color('red', '<--') if hdist!=nmuts else '')
-                # print '      %s' % utils.color_mutants(NAIVE_SEQUENCE, line['IgH_nt_sequence']+line['IgK_nt_sequence'])
-                for iseq in range(max(1, int(line['abundance']))):  # internal nodes have abundance 0, but want to add them once
-                    all_seqfos[gcid].append({'name' : '%s-%s-%d' % (gcid, line['name'], iseq),
-                                            'seq' : line['IgH_nt_sequence']+line['IgK_nt_sequence'],
-                                            'n_muts' : hdist,
-                                            'affinity' : None if affinity == '' else float(affinity),
-                                            })
-        print('    kept %d / %d GCs%s (skipped %d)' % (len(all_seqfos), len(gc_counts['all']), '' if timestr is None else ' at time \'%s\''%timestr, len(gc_counts['skipped'])))
+        return n_trees
     # ----------------------------------------------------------------------------------------
     def read_gcd_meta():
         # ----------------------------------------------------------------------------------------
@@ -307,12 +309,12 @@ def read_input_files(label):
             mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
     # ----------------------------------------------------------------------------------------
     all_seqfos = collections.OrderedDict()
-    plotvals = {k : [] for k in ['leaf', 'internal']}
-    partition, mut_vals = [], {'leaf' : [], 'internal' : []}
+    plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts']}
+    partition = []
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
     if 'data' in label:
-        print('    reading replay data from %s' % args.gcreplay_dir)
-        read_data_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
+        print('    reading gctree data from %s' % args.gcreplay_dir)
+        read_gctree_data_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
         n_too_small = 0
         for gcn in all_seqfos:
             if args.min_seqs_per_gc is not None and len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc as in write_abdn_csv() (can't be bothered, it seems more important for abundance stuff anyway)
@@ -322,16 +324,14 @@ def read_input_files(label):
             dtree = treeutils.get_dendro_tree(treefname='%s/gctree.inference.1.nk'%gctree_dir)
             nodefo = {n.taxon.label : n for n in dtree.preorder_node_iter()}
             for sfo in all_seqfos[gcn]:
-                n_gcid_dashes = get_gcid('a', 'b', 'c').count('-')
-                # gcstr = sfo['name'].split('-')[ : n_gcid_dashes + 1]
-                nname, iseq = sfo['name'].split('-')[n_gcid_dashes + 1 : ]
-                n_tot[nstr(nodefo[nname])].append(nname)
+                snode = nodefo[sfo['base-name']]
+                n_tot[nstr(snode)].append(sfo['base-name'])
                 if sfo['affinity'] is None:
-                    n_missing[nstr(nodefo[nname])].append(nname)
+                    n_missing[nstr(snode)].append(sfo['base-name'])
                     continue
-                plotvals[nstr(nodefo[nname])].append(sfo['affinity'])
-                mut_vals['leaf' if nodefo[nname].is_leaf() else 'internal'].append(sfo['n_muts'])
-                if nodefo[nname] is dtree.seed_node:  # check --naive-seq (should really just not have it as an arg)
+                for tk in plotvals:  # atm, fills affinity and n_muts
+                    plotvals[tk][nstr(snode)].append(sfo[tk])
+                if snode is dtree.seed_node:  # check --naive-seq (should really just not have it as an arg)
                     if sfo['seq'] != args.naive_seq:
                         raise Exception('--naive seq doesn\'t match seq for root node from data tree')
             partition.append([l.taxon.label for l in dtree.leaf_node_iter()])
@@ -370,7 +370,7 @@ def read_input_files(label):
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
-        plotvals, n_trees = get_simu_affy(label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
+        n_trees = get_simu_affy(plotvals, label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
         partition += [[l.taxon.label for l in t.leaf_node_iter()] for t in dendro_trees]
         for dtree in dendro_trees:
             for tnode in dtree.preorder_node_iter():
@@ -378,14 +378,14 @@ def read_input_files(label):
                     if not tnode is dtree.seed_node:  # we expect to be missing naive, but not any others
                         print('    missing N muts for node %s'%tnode.taxon.label)
                     continue
-                mut_vals['leaf' if tnode.is_leaf() else 'internal'].append(int(mfos[tnode.taxon.label]['n_muts']))
+                plotvals['n_muts'][nstr(tnode)].append(int(mfos[tnode.taxon.label]['n_muts']))
     else:
         assert False
 
     write_abdn_csv(label, all_seqfos)
 
     hists = {}
-    for pkey, pvals in plotvals.items():
+    for pkey, pvals in plotvals['affinity'].items():
         htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=label, xtitle='%s affinity'%pkey)  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
         htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
         hists['%s-affinity'%pkey] = {'distr' : htmp}
@@ -398,9 +398,9 @@ def read_input_files(label):
     hists['csizes']['distr'].title = label
 
     for tstr in ['leaf', 'internal']:
-        htmp = hutils.make_hist_from_list_of_values(mut_vals[tstr], 'int', '%s-muts'%tstr)
+        htmp = hutils.make_hist_from_list_of_values(plotvals['n_muts'][tstr], 'int', '%s-muts'%tstr)
         htmp.xtitle = pltlabels['%s-muts'%tstr]
-        htmp.title = '%s (%d nodes in %d trees)' % (label, len(mut_vals[tstr]), n_trees)
+        htmp.title = '%s (%d nodes in %d trees)' % (label, len(plotvals['n_muts'][tstr]), n_trees)
         hists['%s-muts'%tstr] = {'distr' : htmp}
     return hists
 
