@@ -33,13 +33,19 @@ import python.treeutils as treeutils
 import python.paircluster as paircluster
 
 colors = {
-        'data' :  plotting.default_colors[1],
-        'data-d15' : '#006600',
-        'data-d20' : plotting.default_colors[1],
-        'data-w10' : '#2b65ec',
-        'simu' : '#808080',
-    }
-pltlabels = {'hdists' : 'N leaf muts', 'max-abdn-shm' : 'SHM in most\nabundant seq', 'csizes' : 'N leaves per tree', 'leaf-muts' : 'N leaf muts', 'internal-muts' : 'N internal muts'}  # 'median SHM of seqs\nw/max abundance'}
+    'data' :  plotting.default_colors[1],
+    'data-d15' : '#006600',
+    'data-d20' : plotting.default_colors[1],
+    'data-w10' : '#2b65ec',
+    'simu' : '#808080',
+}
+pltlabels = {
+    'hdists' : 'N leaf muts',
+    'max-abdn-shm' : 'SHM in most\nabundant seq',
+    'csizes' : 'N leaves per tree',
+    'leaf-muts' : 'N muts (leaf nodes)',
+    'internal-muts' : 'N muts (internal nodes)'
+}  # 'median SHM of seqs\nw/max abundance'}
 
 # ----------------------------------------------------------------------------------------
 def abfn(tlab, abtype='abundances'):

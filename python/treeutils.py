@@ -399,7 +399,7 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     # # uncomment for more verbosity: NOTE node label check will likely fail if suppress_internal_node_taxa is set
     # check_node_labels(dtree, debug=debug)  # makes sure that for all nodes, node.taxon is not None, and node.label *is* None (i.e. that label_nodes did what it was supposed to, as long as suppress_internal_node_taxa wasn't set)
     # if debug:
-    #     print utils.pad_lines(get_ascii_tree(dendro_tree=dtree))
+    #     print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
 
     return dtree
 
