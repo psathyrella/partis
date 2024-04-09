@@ -313,22 +313,23 @@ def read_input_files(label):
     # ----------------------------------------------------------------------------------------
     def read_simu_files(all_seqfos, plotvals, partition, n_missing, n_tot):
         # ----------------------------------------------------------------------------------------
-        def get_simu_affy(plotvals, label, dendro_trees, affy_vals):
+        def get_simu_affy(plotvals, label, dendro_trees, mfos):
             n_trees = 0
             for itree, dtree in enumerate(dendro_trees):
                 if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
-                        print('    --n-max-simu-trees: breaking after reading affinity for %d trees' % itree)
-                        break
+                    print('    --n-max-simu-trees: breaking after reading affinity for %d trees' % itree)
+                    break
                 n_trees += 1
                 for node in dtree.preorder_node_iter():
                     name = node.taxon.label
                     n_tot[nstr(node)].append(name)
-                    if affy_vals.get(name) is None:
+                    if name not in mfos or mfos[name]['affinity'] is None:
                         n_missing[nstr(node)].append(name)
                         continue
-                    plotvals['affinity'][nstr(node)].append(affy_vals[name])
+                    for tk in plotvals:
+                        plotvals[tk][nstr(node)].append(mfos[name][tk])
             if sum(len(l) for l in n_missing.values()) > 0:
-                print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
+                print('      %s missing/none affinity/n_muts values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
             return n_trees
         # ----------------------------------------------------------------------------------------
         def scale_affinities(antn_list, mfos):
@@ -361,7 +362,7 @@ def read_input_files(label):
             dendro_trees = [treeutils.get_dendro_tree(treestr=l['tree']) for l in antn_list]
             scale_affinities(antn_list, mfos)
         else:
-            mfos = read_gcd_meta()
+            mfos = read_gcd_meta()  # this applies args.n_max_simu_trees
             tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%args.simu_dir, queries=None if args.n_max_simu_trees is None else mfos.keys())
             dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%args.simu_dir, n_max_trees=args.n_max_simu_trees)]
         for sfo in tmp_seqfos:
@@ -372,15 +373,8 @@ def read_input_files(label):
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
-        n_trees = get_simu_affy(plotvals, label, dendro_trees, {u : float(mfos[u]['affinity']) for u in mfos})
+        n_trees = get_simu_affy(plotvals, label, dendro_trees, mfos)
         partition += [[l.taxon.label for l in t.leaf_node_iter()] for t in dendro_trees]
-        for dtree in dendro_trees:
-            for tnode in dtree.preorder_node_iter():
-                if tnode.taxon.label not in mfos:
-                    if not tnode is dtree.seed_node:  # we expect to be missing naive, but not any others
-                        print('    missing N muts for node %s'%tnode.taxon.label)
-                    continue
-                plotvals['n_muts'][nstr(tnode)].append(int(mfos[tnode.taxon.label]['n_muts']))
         return n_trees
     # ----------------------------------------------------------------------------------------
     all_seqfos = collections.OrderedDict()
@@ -440,7 +434,7 @@ def hist_distance(h1, h2, dbgstr='hist', weighted=False, debug=False):
     return sum(dvals)
 
 # ----------------------------------------------------------------------------------------
-def compare_plots(hname, plotdir, hists, labels, abtype, diff_vals):
+def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
     ytitle = hists[0].ytitle
     if args.normalize:
         print('  %s I\'m not really sure it makes sense to normalize the mean hists (maybe could just skip them)' % utils.wrnstr)
@@ -448,22 +442,22 @@ def compare_plots(hname, plotdir, hists, labels, abtype, diff_vals):
             htmp.normalize()
         if 'fraction of' in hists[0].ytitle:  # NOTE normalize() call sets the ytitle
             ytitle = 'fraction of total'
-    xbounds, ybounds, xticks, yticks, yticklabels = abdn_hargs(hists) if abtype=='abundances' else (None, None, None, None, None)  # seems not to need this? hutils.multi_hist_filled_bin_xbounds(hists)
+    xbounds, ybounds, xticks, yticks, yticklabels = abdn_hargs(hists) if hname=='abundances' else (None, None, None, None, None)  # seems not to need this? hutils.multi_hist_filled_bin_xbounds(hists)
     text_dict = None if 'affinity' not in hists[0].xtitle or not args.bcr_phylo else {'x' : 0.2, 'y' : 0.6, 'text' : 'simu scaled to\nnaive mean, std 1'}
     adjust = None
     if '\n' in ytitle:
-        adjust = {'left' : 0.23 if abtype=='abundances' else 0.18}
-    fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(hname, abtype), more_hists=hists, log='y' if abtype=='abundances' else '', xtitle=hists[0].xtitle, ytitle=ytitle,
-                               bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=hname!='max', square_bins=hname=='max', linewidths=[4, 3],
+        adjust = {'left' : 0.23 if hname=='abundances' else 0.18}
+    fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(htype, hname), more_hists=hists, log='y' if hname=='abundances' else '', xtitle=hists[0].xtitle, ytitle=ytitle,
+                               bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[4, 3],
                                plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
-                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=['--' if l=='simu' else '-' for l in labels], translegend=[-0.65, 0.2] if affy_like(abtype) else [-0.2, 0], write_csv=True,
-                               hfile_labels=labels, text_dict=text_dict, adjust=adjust)
+                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=['--' if l=='simu' else '-' for l in labels], translegend=[-0.65, 0.2] if affy_like(hname) else [-0.2, 0], write_csv=True,
+                               hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname)
     fnames[-1].append(fn)
 
     # hdict = {l : h for l, h in zip(labels, hists)}
-    # if abtype != 'max-abdn-shm':  # min/max aren't the same for all hists, so doesn't work yet
-    #     dname = '%s-%s'%(hname, abtype)
-    #     diff_vals[dname] = hist_distance(hdict['simu'], hdict['data'], weighted='abundances' in abtype, dbgstr=dname)
+    # if hname != 'max-abdn-shm':  # min/max aren't the same for all hists, so doesn't work yet
+    #     dname = '%s-%s'%(htype, hname)
+    #     diff_vals[dname] = hist_distance(hdict['simu'], hdict['data'], weighted='abundances' in hname, dbgstr=dname)
 
 # ----------------------------------------------------------------------------------------
 ustr = """
@@ -519,10 +513,10 @@ diff_vals = {}
 for arow in abrows:
     fnames.append([])
     for abtype in arow:
-        for hname, hlist in hclists[abtype].items():
+        for htype, hlist in hclists[abtype].items():
             if hlist.count(None) == len(hlist):
                 continue
-            compare_plots(hname, cfpdir, hlist, args.plot_labels, abtype, diff_vals)
+            compare_plots(htype, cfpdir, hlist, args.plot_labels, abtype, diff_vals)
 
 plotting.make_html(args.outdir+'/plots', fnames=fnames)
 dfn = '%s/diff-vals.yaml' % args.outdir

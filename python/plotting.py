@@ -70,13 +70,14 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either
     return xticks, [tstr(xt) for xt in xticks]
 
 # ----------------------------------------------------------------------------------------
-def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None):
+def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, debug=False):
     cslist = [len(c) for c in partition]
     if xbins is None:
         xbins, n_bins = hutils.auto_volume_bins(cslist, n_bins, int_bins=True, debug=True)
     else:
-        print('   using user specified bins %s:' % xbins)
-        hutils.binprint(xbins, cslist)
+        if debug:
+            print('   using user specified bins %s:' % xbins)
+            hutils.binprint(xbins, cslist)
         if any(x==int(x) for x in xbins):
             raise Exception('bin boundaries should be non-integers (e.g. 3.5) to avoid integer values seeming to fall on the boundary')
         if max(cslist) >= xbins[-1]:  # last entry in xbins is the low edge of overflow bin, and we *really* want to know if anything's overflowing (well maybe in future i'll want to allow this, but not now)
