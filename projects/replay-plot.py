@@ -40,7 +40,7 @@ colors = {
     'simu' : '#808080',
 }
 pltlabels = {
-    'hdists' : 'N muts',
+    'hdists' : 'N leaf + internal muts',
     'max-abdn-shm' : 'SHM in most\nabundant seq',
     'csizes' : 'N leaves per tree',
     'leaf-muts' : 'N muts (leaf nodes)',
@@ -218,7 +218,7 @@ def plot_abdn_stuff(lhists, plotdir, label, abtype):
     lhists[abtype] = {'distr' : mean_hdistr, 'max' : hmax}
 
 # ----------------------------------------------------------------------------------------
-def read_gctree_data_csv(all_seqfos, label):
+def read_gctree_csv(all_seqfos, label):
     gc_counts = {tk : set() for tk in ['all', 'skipped']}
     timestr = None
     if '-' in label:
@@ -259,24 +259,6 @@ def read_input_files(label):
     def nstr(node):
         return 'leaf' if node.is_leaf() else 'internal'
     # ----------------------------------------------------------------------------------------
-    def get_simu_affy(plotvals, label, dendro_trees, affy_vals):
-        n_trees = 0
-        for itree, dtree in enumerate(dendro_trees):
-            if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
-                    print('    --n-max-simu-trees: breaking after reading affinity for %d trees' % itree)
-                    break
-            n_trees += 1
-            for node in dtree.preorder_node_iter():
-                name = node.taxon.label
-                n_tot[nstr(node)].append(name)
-                if affy_vals.get(name) is None:
-                    n_missing[nstr(node)].append(name)
-                    continue
-                plotvals['affinity'][nstr(node)].append(affy_vals[name])
-        if sum(len(l) for l in n_missing.values()) > 0:
-            print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
-        return n_trees
-    # ----------------------------------------------------------------------------------------
     def read_gcd_meta():
         # ----------------------------------------------------------------------------------------
         def mfname():  # have to look for old meta file name for backwards compatibility (copied form partis/bin/gcdyn-simu-run.py
@@ -296,33 +278,20 @@ def read_input_files(label):
                 mfos[line['name']] = line
         return mfos
     # ----------------------------------------------------------------------------------------
-    def scale_affinities(antn_list, mfos):
-        naive_id_affys = [(u, a) for l in antn_list for u, a, n in zip(l['unique_ids'], l['affinities'], l['n_mutations']) if n==0]
-        if len(naive_id_affys) == 0:
-            print('  %s no unmutated seqs in annotation, using default naive affinity %f' % (utils.wrnstr(), args.default_naive_affinity))  # the naive seq seems to always be in there, i guess cause i'm sampling intermediate common ancestors
-            naive_affy = args.default_naive_affinity
-        else:
-            _, naive_affy = naive_id_affys[0]
-        affy_std = numpy.std([m['affinity'] for m in mfos.values()], ddof=1)
-        print('    rescaling to naive mean %.3f and std 1 (dividing by current std %.4f)' % (naive_affy, affy_std))
-        for mfo in mfos.values():
-            mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
-    # ----------------------------------------------------------------------------------------
-    all_seqfos = collections.OrderedDict()
-    plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts']}
-    partition = []
-    n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
-    if 'data' in label:
+    def read_gctree_data(all_seqfos, plotvals, partition, n_missing, n_tot):
         print('    reading gctree data from %s' % args.gcreplay_dir)
-        read_gctree_data_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
+        read_gctree_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
         n_too_small = 0
         for gcn in all_seqfos:
-            if args.min_seqs_per_gc is not None and len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc as in write_abdn_csv() (can't be bothered, it seems more important for abundance stuff anyway)
+            if args.min_seqs_per_gc is not None and len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc (can't be bothered, it seems more important for abundance stuff anyway)
                 n_too_small += 1
                 continue
             gctree_dir = utils.get_single_entry(glob.glob('%s/nextflow/results/gctrees/PR%s*-%s-%s-%s-GC'%(args.gcreplay_dir, rpmeta[gcn]['pr'], rpmeta[gcn]['mouse'], rpmeta[gcn]['node'], rpmeta[gcn]['gc'])))
             dtree = treeutils.get_dendro_tree(treefname='%s/gctree.inference.1.nk'%gctree_dir)
             nodefo = {n.taxon.label : n for n in dtree.preorder_node_iter()}
+            sfo_nodes = set(s['base-name'] for s in all_seqfos[gcn])
+            if set(nodefo) != sfo_nodes:
+                print('    %s nodefo keys not equal to sfo nodes:  %d extra in nodefo (%s)   %d extra sfo (%s)' % (utils.wrnstr(), len(set(nodefo) - sfo_nodes), ' '.join(set(nodefo) - sfo_nodes), len(sfo_nodes - set(nodefo)), ' '.join(sfo_nodes - set(nodefo))))
             for sfo in all_seqfos[gcn]:
                 snode = nodefo[sfo['base-name']]
                 n_tot[nstr(snode)].append(sfo['base-name'])
@@ -340,7 +309,40 @@ def read_input_files(label):
         if n_too_small > 0:
             print('    skipped %d / %d gcs with fewer than %d seqs' % (n_too_small, len(all_seqfos), args.min_seqs_per_gc))
         n_trees = len(all_seqfos) - n_too_small
-    elif label == 'simu':
+        return n_trees
+    # ----------------------------------------------------------------------------------------
+    def read_simu_files(all_seqfos, plotvals, partition, n_missing, n_tot):
+        # ----------------------------------------------------------------------------------------
+        def get_simu_affy(plotvals, label, dendro_trees, affy_vals):
+            n_trees = 0
+            for itree, dtree in enumerate(dendro_trees):
+                if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
+                        print('    --n-max-simu-trees: breaking after reading affinity for %d trees' % itree)
+                        break
+                n_trees += 1
+                for node in dtree.preorder_node_iter():
+                    name = node.taxon.label
+                    n_tot[nstr(node)].append(name)
+                    if affy_vals.get(name) is None:
+                        n_missing[nstr(node)].append(name)
+                        continue
+                    plotvals['affinity'][nstr(node)].append(affy_vals[name])
+            if sum(len(l) for l in n_missing.values()) > 0:
+                print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
+            return n_trees
+        # ----------------------------------------------------------------------------------------
+        def scale_affinities(antn_list, mfos):
+            naive_id_affys = [(u, a) for l in antn_list for u, a, n in zip(l['unique_ids'], l['affinities'], l['n_mutations']) if n==0]
+            if len(naive_id_affys) == 0:
+                print('  %s no unmutated seqs in annotation, using default naive affinity %f' % (utils.wrnstr(), args.default_naive_affinity))  # the naive seq seems to always be in there, i guess cause i'm sampling intermediate common ancestors
+                naive_affy = args.default_naive_affinity
+            else:
+                _, naive_affy = naive_id_affys[0]
+            affy_std = numpy.std([m['affinity'] for m in mfos.values()], ddof=1)
+            print('    rescaling to naive mean %.3f and std 1 (dividing by current std %.4f)' % (naive_affy, affy_std))
+            for mfo in mfos.values():
+                mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
+        # ----------------------------------------------------------------------------------------
         print('  reading simulation from %s' % args.simu_dir)
         if args.bcr_phylo:
             glfo, antn_list, _ = utils.read_output('%s/fake-paired-annotations.yaml' % args.simu_dir, dont_add_implicit_info=True)
@@ -379,10 +381,20 @@ def read_input_files(label):
                         print('    missing N muts for node %s'%tnode.taxon.label)
                     continue
                 plotvals['n_muts'][nstr(tnode)].append(int(mfos[tnode.taxon.label]['n_muts']))
+        return n_trees
+    # ----------------------------------------------------------------------------------------
+    all_seqfos = collections.OrderedDict()
+    plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts']}
+    partition = []
+    n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
+    if 'data' in label:
+        n_trees = read_gctree_data(all_seqfos, plotvals, partition, n_missing, n_tot)
+    elif label == 'simu':
+        n_trees = read_simu_files(all_seqfos, plotvals, partition, n_missing, n_tot)
     else:
         assert False
 
-    write_abdn_csv(label, all_seqfos)
+    write_abdn_csv(label, all_seqfos)  # this is super weird to write abundance (+some other) info here, then read it with plot_abdn_stuff(), but it's a relic from another script
 
     hists = {}
     for pkey, pvals in plotvals['affinity'].items():
