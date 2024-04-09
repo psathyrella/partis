@@ -267,10 +267,9 @@ def read_input_files(label):
                 # nmuts = int(line['n_mutations_HC']) + int(line['n_mutations_LC'])
                 # print '  %2d  %2d  %s' % (hdist, nmuts, utils.color('red', '<--') if hdist!=nmuts else '')
                 # print '      %s' % utils.color_mutants(NAIVE_SEQUENCE, line['IgH_nt_sequence']+line['IgK_nt_sequence'])
-                for iseq in range(int(line['abundance'])):
+                for iseq in range(max(1, int(line['abundance']))):  # internal nodes have abundance 0, but want to add them once
                     all_seqfos[gcid].append({'name' : '%s-%s-%d' % (gcid, line['name'], iseq),
                                             'seq' : line['IgH_nt_sequence']+line['IgK_nt_sequence'],
-                                            # 'n_muts' : nmuts,
                                             'n_muts' : hdist,
                                             'affinity' : None if affinity == '' else float(affinity),
                                             })
@@ -332,6 +331,9 @@ def read_input_files(label):
                     continue
                 plotvals[nstr(nodefo[nname])].append(sfo['affinity'])
                 mut_vals['leaf' if nodefo[nname].is_leaf() else 'internal'].append(sfo['n_muts'])
+                if nodefo[nname] is dtree.seed_node:  # check --naive-seq (should really just not have it as an arg)
+                    if sfo['seq'] != args.naive_seq:
+                        raise Exception('--naive seq doesn\'t match seq for root node from data tree')
             partition.append([l.taxon.label for l in dtree.leaf_node_iter()])
         if sum(len(l) for l in n_missing.values()) > 0:
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
