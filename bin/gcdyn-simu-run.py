@@ -197,6 +197,8 @@ class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.Argumen
 formatter_class = MultiplyInheritedFormatter
 parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, description=helpstr)
 parser.add_argument('--outdir', required=True)
+parser.add_argument('--actions', default='run:process')
+parser.add_argument('--input-simu-dir', help='if set, only run \'process\' action, reading gcdyn simu from this dir and writing partis files to --outdir')
 parser.add_argument('--replay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines', help='dir with gcreplay germline sequences')
 parser.add_argument('--rm-last-ighj-base', action='store_true', help='sometimes the ighj gene has an extra G at the end, sometimes not, this says to remove it from the seqs read from --replay-germline-dir')
 parser.add_argument('--n-sub-procs', type=int)
@@ -208,7 +210,13 @@ parser.add_argument('--ig-or-tr', default='ig')
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 args.meta_columns = utils.get_arg_list(args.meta_columns, choices=utils.input_metafile_keys.keys())
-
-gcd_dir = '%s/gcdyn' % args.outdir
-run_gcdyn()
-process_output()
+if args.input_simu_dir is None:
+    gcd_dir = '%s/gcdyn' % args.outdir
+    args.actions = utils.get_arg_list(args.actions)
+else:
+    gcd_dir = args.input_simu_dir
+    args.actions = ['process']
+if 'run' in args.actions:
+    run_gcdyn()
+if 'process' in args.actions:
+    process_output()

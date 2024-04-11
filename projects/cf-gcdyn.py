@@ -29,7 +29,7 @@ import python.clusterpath as clusterpath
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 dl_metrics = ['%s-%s-%s' % (p, s, m) for s in ['train', 'test'] for m in ['bias', 'variance', 'mae'] for p in ['xscale', 'xshift']] + ['xscale-train-vs-test-mae']
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists', 'all-dl', 'all-test-dl'] + dl_metrics #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
-after_actions = ['merge-simu', 'replay-plot', 'dl-infer', 'check-dl', 'replay-plot-ckdl', 'dl-infer-merged', 'partis']  # actions that come after simulation (e.g. partition)
+after_actions = ['merge-simu', 'replay-plot', 'dl-infer', 'check-dl', 'replay-plot-ckdl', 'dl-infer-merged', 'write-partis-simu-files', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = ['group-expts']  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
 
@@ -121,6 +121,8 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
         sfx = 'diff-vals.yaml'
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         sfx = 'test.csv'
+    elif action == 'write-partis-simu-files':
+        sfx = 'igh.fa'
     elif action == 'partis':
         sfx = 'partition.yaml'
     elif action == 'data':
@@ -189,31 +191,20 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
             cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), odr)
             cmd = add_mamba_cmds(cmd)
         cmd = add_scan_args(cmd, skip_fcn=lambda v: v in args.scan_vars['simu'] or v not in args.scan_vars[action] or action=='group-expts' and v in args.scan_vars['dl-infer'])  # ick
+    elif action == 'write-partis-simu-files':  # didn't really use/test this (found a way around it), but want to keep it around
+        cmd = './bin/gcdyn-simu-run.py --actions process --rm-last-ighj-base --input-simu-dir %s --outdir %s --n-sub-procs %d' % (os.path.dirname(ofname(args, varnames, vstrs, 'simu')), odr, args.n_sub_procs)
     elif action == 'partis':
-        # make a partition-only file
-        simdir = os.path.dirname(ofname(args, varnames, vstrs, 'simu'))
-        ptnfn = '%s/true-partition.yaml' % simdir
-        if not os.path.exists(ptnfn):
-            print('    writing true partitions: %s' % ptnfn)
-            all_seqs = [s['name'] for s in utils.read_fastx(ofname(args, varnames, vstrs, 'simu'))]  # just to make sure we get the names right
-            true_partition = []
-            for sfn in glob.glob('%s/seqs_*.fasta'%simdir):
-                sfos = utils.read_fastx(sfn)
-                icluster = int(os.path.basename(sfn).replace('seqs_', '').replace('.fasta', ''))
-                true_partition.append(['%d-%s' % (icluster, s['name']) for s in sfos])
-            utils.write_annotations(ptnfn, None, [], utils.annotation_headers, partition_lines=clusterpath.ClusterPath(partition=true_partition).get_partition_lines())
-        # then get command
-        odtmp = '%s' % odr
-        cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --treefname %s --parameter-dir %s/parameters --outfname %s' % (ofname(args, varnames, vstrs, 'simu'), ptnfn, ofname(args, varnames, vstrs, 'simu', trees=True), odtmp, ofname(args, varnames, vstrs, action))
+        assert False  # needs updating
+        cmd = './bin/partis partition --species mouse --infname %s --input-partition-fname %s --treefname %s' % (ofname(args, varnames, vstrs, 'simu', ftype='fasta'), ofname(args, varnames, vstrs, 'write-true-partition'), ofname(args, varnames, vstrs, 'simu', ftype='nwk'))
+        cmd += ' --parameter-dir %s/parameters --outfname %s' % (odr, ofname(args, varnames, vstrs, action))
         cmd += ' --initial-germline-dir %s --no-insertions-or-deletions --min-selection-metric-cluster-size 3' % args.gcreplay_germline_dir
-        cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odtmp
+        cmd += ' --plotdir %s/plots --partition-plot-cfg trees' % odr
         # if args.inference_extra_args is not None:
         #     cmd += ' %s' % args.inference_extra_args
     elif action == 'data':
-        odtmp = odr
         assert len(vstrs) == 1  # should just one data sample in a list
         smpl = vstrs[0]
-        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s' % (args.dl_model_dir, args.data_dir, smpl, odtmp)
+        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s' % (args.dl_model_dir, args.data_dir, smpl, odr)
         if args.dl_bundle_size_list is not None:  # kind of weird to use it for this as well as a scan var, but whatever
             assert len(args.dl_bundle_size_list) == 1
             cmd += ' --dl-bundle-size %d' % int(args.dl_bundle_size_list[0])
