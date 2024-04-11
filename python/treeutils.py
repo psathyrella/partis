@@ -1008,6 +1008,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     # ----------------------------------------------------------------------------------------
     def read_inf_seqs(dtree, removed_nodes, padded_seq_info_list):
         inf_seqfos, inf_antn = [], None
+        if method not in inf_anc_methods:
+            return inf_seqfos, inf_antn
         if method in iqt_methods:
             inf_infos, skipped_rm_nodes = {}, set()
             with open('%s/%s.state'%(workdir, outfix)) as afile:
