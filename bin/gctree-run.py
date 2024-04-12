@@ -79,6 +79,8 @@ def run_gctree():
             tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
         if args.ranking_coeffs is not None:
             tcmd += ' --ranking_coeffs %s' % (' '.join(c for c in args.ranking_coeffs))
+        if args.branching_process_ranking_coeff is not None:
+            tcmd += ' --branching_process_ranking_coeff %d' % args.branching_process_ranking_coeff
         if os.path.exists(args.metafname):
             tcmd = add_mfo(tcmd, args.metafname)
         return tcmd
@@ -91,13 +93,18 @@ def run_gctree():
             return cmds
         if not os.path.exists(args.infname):
             raise Exception('--infname %s doesn\'t exist' % args.infname)
-        utils.prep_dir(args.outdir, wildlings=['outfile', 'outtree'], allow_other_files=True)  # phylip barfs like a mfer if its outputs exist (probably you'll get a KeyError 'naive')
         cmds += ['cd %s' % args.outdir]
         if args.input_forest_dir is None:
-            # cmds += ['gctree &>/dev/null && dnapars &>/dev/null || echo "command \'gctree\' or \'dnapars\' not in path, maybe need to run: gctree-run.py --actions install"']  # ick doesn't quite work, whatever
-            cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
-            cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
-            cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
+            ofn = '%s/outfile' % args.outdir  # dnapars output file (this is what takes the longest to make
+            if os.path.exists(ofn) and os.stat(ofn).st_size > 0:
+                print('    dnapars output already exists, not rerunning: %s' % ofn)
+            else:
+                if os.stat(ofn).st_size == 0:
+                    print('    removing zero length dnapars output %s' % ofn)
+                    utils.prep_dir(args.outdir, wildlings=['outfile', 'outtree'], allow_other_files=True)  # phylip barfs like a mfer if its outputs exist (probably you'll get a KeyError 'naive')
+                cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
+                cmds += ['mkconfig deduplicated.phylip dnapars > dnapars.cfg']
+                cmds += ['dnapars < dnapars.cfg > dnapars.log']  # NOTE if things fail, look in dnaparse.log (but it's super verbose so we can't print it to std out by default)
         else:
             print('    --input-forest-dir: copying abundance, idmap, and forest files from %s' % args.input_forest_dir)
             cmds += ['cp %s/{abundances.csv,%s,outfile} %s/' % (args.input_forest_dir, idfn(), args.outdir)]
@@ -198,6 +205,7 @@ parser.add_argument('--input-forest-dir', help='If set, skips preparatory steps 
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--base-model', action='store_true', help='By default, we pass gctree info for the s5f mutation model; if this is set, we don\'t, and it instead use the base model.')
 parser.add_argument('--ranking-coeffs', nargs='+', help='see gctree help')
+parser.add_argument('--branching-process-ranking-coeff', type=int, help='see gctree help')
 parser.add_argument('--env-label', default='gctree')
 parser.add_argument('--root-label', default='naive')
 parser.add_argument('--data-dir', default='%s/data/s5f'%utils.get_partis_dir())

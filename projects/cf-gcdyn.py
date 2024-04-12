@@ -122,7 +122,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         sfx = 'test.csv'
     elif action == 'write-partis-simu-files':
-        sfx = 'igh.fa'
+        sfx = 'igh.yaml'
     elif action == 'partis':
         sfx = 'partition.yaml'
     elif action == 'data':

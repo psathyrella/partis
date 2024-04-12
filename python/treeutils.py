@@ -929,7 +929,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             if method == 'gctree-base':
                 cmd += ' --base-model'
             if method == 'gctree-mut-mult':
-                cmd += ' --ranking-coeffs 0 20 0'
+                cmd += ' --ranking-coeffs 0 -1 0 --branching-process-ranking-coeff 0'
             if only_pass_leaves:
                 cmd += ' --expand-all-nodes'  # these aren't actually the same, but if we're only passing leaves, it's probably because we want all input seqs to end up as leaves, so we want to expand all of em
         elif method == 'linearham':

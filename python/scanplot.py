@@ -757,6 +757,7 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
         pvks_from_args = set([pvkeystr(vlists, varnames) for vlists in val_lists])  # have to call this fcn at least once just to set pvlabel (see above) [but now we're also using the results below UPDATE nvmd didn't end up doing it that way, but I'm leaving the return value there in case I want it later]
         plotfos = collections.OrderedDict()
         assert len(args.plot_metrics) == len(args.plot_metric_extra_strs)
+        tmp_xvals = None  # makes sure that all of the methods have the same xvals
         for mtmp, estr in zip(args.plot_metrics, args.plot_metric_extra_strs):  # <mtmp>: metric for trees, method for paired
             if per_x is not None and ptilestr not in [v for v, l in lbplotting.single_lbma_cfg_vars(mtmp, final_plots=True)]:  # i.e. if the <ptilestr> (variable name) isn't in any of the (variable name, label) pairs (e.g. n-ancestor for lbi; we need this here because of the set() in the calling block)
                 continue
@@ -769,6 +770,10 @@ def make_plots(args, svars, action, metric, ptilestr, xvar, ptilelabel=None, fnf
                 if estr != '':
                     mkey = '%s%s%s' % (mtmp, xdelim, estr)  # this is ugly, but we need to be able to split it apart in the loop just below here
                 plotfos[mkey] = collections.OrderedDict(json.load(yfile))
+                if tmp_xvals is None:
+                    tmp_xvals = plotfos[mkey]['']['xvals']
+                if tmp_xvals != plotfos[mkey]['']['xvals']:
+                    raise Exception('method \'%s\' has different xvals %s to previous method[s]: %s' % (mkey, plotfos[mkey]['']['xvals'], tmp_xvals))
                 if len(plotfos[mkey]) == 0:
                     raise Exception('read zero length info from %s' % ofn)  # if this happens when we're writing the file (above), we can skip it, but  I think we have to crash here (just rerun without this metric/extra_str). It probably means you were missing the dtr files for this per_x/cgroup
         if len(plotfos) == 0:
