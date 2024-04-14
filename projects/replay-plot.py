@@ -37,10 +37,11 @@ colors = {
     'data-d15' : '#006600',
     'data-d20' : plotting.default_colors[1],
     'data-w10' : '#2b65ec',
+    'data-beast' : '#990012',
     'simu' : '#808080',
 }
 pltlabels = {
-    'hdists' : 'N leaf + internal muts',
+    'hdists' : 'N leaf + internal (?) muts',
     'max-abdn-shm' : 'SHM in most\nabundant seq',
     'csizes' : 'N leaves per tree',
     'leaf-muts' : 'N muts (leaf nodes)',
@@ -82,9 +83,9 @@ def read_gcreplay_metadata():
     return rpmeta
 
 # ----------------------------------------------------------------------------------------
-def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info into csv files, for later reading (kind of weird to separate it like this, it's because this used to be in another script)
+def write_abdn_csv(label, all_seqfos, all_dtrees):  # summarize abundance (and other) info into csv files, for later reading (kind of weird to separate it like this, it's because this used to be in another script)
     # ----------------------------------------------------------------------------------------
-    def process_family(fam_fos):
+    def process_family(fam_fos, dtree):
         n_seqs = len(fam_fos)
         counters['total'] += 1
         init_sizes.append(n_seqs)
@@ -101,11 +102,14 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
         ids_by_checksum = collections.defaultdict(list)
         hdvals, hd_dict = [], {}  # list of hamming distance to naive for each sequence (hd_dict is just for max_abdn below)
         sequence_count = 0
+        ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
         for sfo in fam_fos:
             sequence_count = sequence_count + 1
             ids_by_checksum[seguid(sfo['seq'])].append(sfo['name'])
             hdvals.append(sfo['n_muts'])
             hd_dict[sfo['name']] = hdvals[-1]
+            tname = sfo.get('base-name', sfo['name'])  # gctree data we change the name, but keep original name as 'base-name'
+            licounts[nstr(ndict[tname]) if tname in ndict else 'missing'] += 1
 
         abundance_distribution = collections.defaultdict(int)
         for id_list in ids_by_checksum.values():
@@ -133,8 +137,9 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
     init_sizes, final_sizes = [], []
     abundances = {}
     fdicts = {"hdists": {}, "max-abdn-shm": {}}
+    licounts = {s : 0 for s in ['leaf', 'internal', 'missing']}
     for gcn, fam_fos in all_seqfos.items():
-        process_family(fam_fos)
+        process_family(fam_fos, all_dtrees[gcn])
 
     print('    %d initial families with sizes: %s' % (len(init_sizes), " ".join(str(s) for s in sorted(init_sizes, reverse=True))))
     if counters['too-small'] > 0:
@@ -143,6 +148,9 @@ def write_abdn_csv(label, all_seqfos):  # summarize abundance (and other) info i
         raise Exception('skipped all families (see previous line)')
     if len(final_sizes) > 0:
         print("      downsampled %d samples to %d" % (len(final_sizes), args.max_seqs_per_gc))
+    if licounts['missing'] > 0:
+        print('    %s couldn\'t find %d nodes in their trees (maybe was looking in wrong treess)' % (utils.wrnstr(), licounts['missing']))
+    print('     %s needs fixing: %s' % (utils.wrnstr(), '  '.join(('%s %d'%(s, c))for s, c in licounts.items())))
 
     print("    writing %s to %s" % (label, os.path.dirname(abfn(label))))
     if not os.path.exists(os.path.dirname(abfn(label))):
@@ -254,18 +262,19 @@ def read_gctree_csv(all_seqfos, label):
     print('    kept %d / %d GCs%s (skipped %d)' % (len(all_seqfos), len(gc_counts['all']), '' if timestr is None else ' at time \'%s\''%timestr, len(gc_counts['skipped'])))
 
 # ----------------------------------------------------------------------------------------
+def nstr(node):
+    return 'leaf' if node.is_leaf() else 'internal'
+
+# ----------------------------------------------------------------------------------------
 def read_input_files(label):
     # ----------------------------------------------------------------------------------------
-    def nstr(node):
-        return 'leaf' if node.is_leaf() else 'internal'
-    # ----------------------------------------------------------------------------------------
-    def read_gcd_meta():
+    def read_gcd_meta(sldir):
         # ----------------------------------------------------------------------------------------
         def mfname():  # have to look for old meta file name for backwards compatibility (copied form partis/bin/gcdyn-simu-run.py
-            mfn = '%s/meta.csv'%args.simu_dir
+            mfn = '%s/meta.csv' % sldir
             if os.path.exists(mfn):  # if new name exists, return that
                 return mfn
-            return '%s/leaf-meta.csv'%args.simu_dir  # otherwise return old name
+            return '%s/leaf-meta.csv' % sldir  # otherwise return old name
         # ----------------------------------------------------------------------------------------
         mfos = {}
         with open(mfname()) as mfile:
@@ -288,6 +297,7 @@ def read_input_files(label):
                 continue
             gctree_dir = utils.get_single_entry(glob.glob('%s/nextflow/results/gctrees/PR%s*-%s-%s-%s-GC'%(args.gcreplay_dir, rpmeta[gcn]['pr'], rpmeta[gcn]['mouse'], rpmeta[gcn]['node'], rpmeta[gcn]['gc'])))
             dtree = treeutils.get_dendro_tree(treefname='%s/gctree.inference.1.nk'%gctree_dir)
+            all_dtrees[gcn] = dtree
             nodefo = {n.taxon.label : n for n in dtree.preorder_node_iter()}
             sfo_nodes = set(s['base-name'] for s in all_seqfos[gcn])
             if set(nodefo) != sfo_nodes:
@@ -311,23 +321,27 @@ def read_input_files(label):
         n_trees = len(all_seqfos) - n_too_small
         return n_trees
     # ----------------------------------------------------------------------------------------
-    def read_simu_files(all_seqfos, plotvals, partition, n_missing, n_tot):
+    def read_simu_like_files(all_seqfos, plotvals, partition, n_missing, n_tot):
         # ----------------------------------------------------------------------------------------
-        def get_simu_affy(plotvals, label, dendro_trees, mfos):
+        def get_affy(plotvals, label, dendro_trees, mfos):
             n_trees = 0
             for itree, dtree in enumerate(dendro_trees):
-                if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
+                if 'data' not in label and args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
                     print('    --n-max-simu-trees: breaking after reading affinity for %d trees' % itree)
                     break
                 n_trees += 1
                 for node in dtree.preorder_node_iter():
                     name = node.taxon.label
+                    gcn = name.split('-')[0]
+                    if gcn not in all_dtrees:
+                        all_dtrees[gcn] = dtree
                     n_tot[nstr(node)].append(name)
                     if name not in mfos or mfos[name]['affinity'] is None:
                         n_missing[nstr(node)].append(name)
                         continue
                     for tk in plotvals:
-                        plotvals[tk][nstr(node)].append(mfos[name][tk])
+                        cfn = float if tk=='affinity' else int
+                        plotvals[tk][nstr(node)].append(cfn(mfos[name][tk]))
             if sum(len(l) for l in n_missing.values()) > 0:
                 print('      %s missing/none affinity/n_muts values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
             return n_trees
@@ -344,12 +358,13 @@ def read_input_files(label):
             for mfo in mfos.values():
                 mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
         # ----------------------------------------------------------------------------------------
-        print('  reading simulation from %s' % args.simu_dir)
+        sldir = args.beast_dir if 'data' in label else args.simu_like_dir
+        print('  reading %s from %s' % ('beast data' if 'data' in label else 'simulation', sldir))
         if args.bcr_phylo:
-            glfo, antn_list, _ = utils.read_output('%s/fake-paired-annotations.yaml' % args.simu_dir, dont_add_implicit_info=True)
+            glfo, antn_list, _ = utils.read_output('%s/fake-paired-annotations.yaml' % sldir, dont_add_implicit_info=True)
             mfos, tmp_seqfos = {}, []
             for itn, atn in enumerate(antn_list):
-                if args.n_max_simu_trees is not None and itn > args.n_max_simu_trees - 1:
+                if 'data' not in label and args.n_max_simu_trees is not None and itn > args.n_max_simu_trees - 1:
                         print('    --n-max-simu-trees: breaking after reading annotations for %d trees' % itn)
                         break
                 for iseq, (uid, n_muts, affy) in enumerate(zip(atn['unique_ids'], atn['n_mutations'], atn['affinities'])):
@@ -362,9 +377,9 @@ def read_input_files(label):
             dendro_trees = [treeutils.get_dendro_tree(treestr=l['tree']) for l in antn_list]
             scale_affinities(antn_list, mfos)
         else:
-            mfos = read_gcd_meta()  # this applies args.n_max_simu_trees
-            tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%args.simu_dir, queries=None if args.n_max_simu_trees is None else mfos.keys())
-            dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%args.simu_dir, n_max_trees=args.n_max_simu_trees)]
+            mfos = read_gcd_meta(sldir)  # this applies args.n_max_simu_trees
+            tmp_seqfos = utils.read_fastx('%s/seqs.%s'%(sldir, 'fa' if 'data' in label else 'fasta'), queries=None if 'data' in label or args.n_max_simu_trees is None else mfos.keys())
+            dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%sldir, n_max_trees=None if 'data' in label else args.n_max_simu_trees)]
         for sfo in tmp_seqfos:
             if 'naive' in sfo['name']:
                 continue
@@ -373,22 +388,22 @@ def read_input_files(label):
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
-        n_trees = get_simu_affy(plotvals, label, dendro_trees, mfos)
+        n_trees = get_affy(plotvals, label, dendro_trees, mfos)
         partition += [[l.taxon.label for l in t.leaf_node_iter()] for t in dendro_trees]
         return n_trees
     # ----------------------------------------------------------------------------------------
-    all_seqfos = collections.OrderedDict()
+    all_seqfos, all_dtrees = collections.OrderedDict(), collections.OrderedDict()
     plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts']}
     partition = []
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
-    if 'data' in label:
+    if 'data' in label and 'beast' not in label:
         n_trees = read_gctree_data(all_seqfos, plotvals, partition, n_missing, n_tot)
-    elif label == 'simu':
-        n_trees = read_simu_files(all_seqfos, plotvals, partition, n_missing, n_tot)
+    elif label == 'simu' or 'beast' in label:  # beast data is formatted like simulation
+        n_trees = read_simu_like_files(all_seqfos, plotvals, partition, n_missing, n_tot)
     else:
         assert False
 
-    write_abdn_csv(label, all_seqfos)  # this is super weird to write abundance (+some other) info here, then read it with plot_abdn_stuff(), but it's a relic from another script
+    write_abdn_csv(label, all_seqfos, all_dtrees)  # this is super weird to write abundance (+some other) info here, then read it with plot_abdn_stuff(), but it's a relic from another script
 
     hists = {}
     for pkey, pvals in plotvals['affinity'].items():
@@ -396,7 +411,7 @@ def read_input_files(label):
         htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
         hists['%s-affinity'%pkey] = {'distr' : htmp}
 
-    xmin, xmax = 10, 100
+    xmin, xmax = 8, 100
     n_bins = 5
     dx = int((xmax - xmin) / n_bins)
     xbins = [l-0.5 for l in range(xmin, xmax + dx, dx)]
@@ -437,7 +452,7 @@ def hist_distance(h1, h2, dbgstr='hist', weighted=False, debug=False):
 def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
     ytitle = hists[0].ytitle
     if args.normalize:
-        print('  %s I\'m not really sure it makes sense to normalize the mean hists (maybe could just skip them)' % utils.wrnstr)
+        print('  %s I\'m not really sure it makes sense to normalize the mean hists (maybe could just skip them)' % utils.wrnstr())
         for htmp in hists:
             htmp.normalize()
         if 'fraction of' in hists[0].ytitle:  # NOTE normalize() call sets the ytitle
@@ -447,10 +462,12 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
     adjust = None
     if '\n' in ytitle:
         adjust = {'left' : 0.23 if hname=='abundances' else 0.18}
+    # if 'muts' in hname:  # useful for data-beast
+    #     xbounds = [-0.5, 30.5]
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(htype, hname), more_hists=hists, log='y' if hname=='abundances' else '', xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[4, 3],
                                plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
-                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=['--' if l=='simu' else '-' for l in labels], translegend=[-0.65, 0.2] if affy_like(hname) else [-0.2, 0], write_csv=True,
+                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=['--' if l=='simu' else '-' for l in labels], translegend=[-0.65, 0.1] if affy_like(hname) else [-0.2, 0], write_csv=True,
                                hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname)
     fnames[-1].append(fn)
 
@@ -463,11 +480,12 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
 ustr = """
 Compare various distributions (especially abundances) in simu and gcreplay data.
 NOTE that there's other scripts that process gcreplay results for partis input here: partis/datascripts/meta/taraki-gctree-2021-20
-  replay-plot.py --simu-dir <dir> --outdir <dir>
+  replay-plot.py --simu-like-dir <dir> --outdir <dir>
 """
 parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
-parser.add_argument('--simu-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
+parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v1/all-trees', help='dir with beast results on gcreplay data (same format as simulation)')
+parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/gcs with fewer than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
 parser.add_argument('--max-seqs-per-gc', type=int, help='if set, downsample any families/gcs with more than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
@@ -480,7 +498,7 @@ parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading thi
 parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")
 parser.add_argument("--default-naive-affinity", type=float, default=1./100, help="this is the default for bcr-phylo, so maybe be correct if we don\'t have an unmutated sequence")
 args = parser.parse_args()
-args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'data-d15', 'data-d20', 'data-w10', 'simu'])
+args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'data-d15', 'data-d20', 'data-w10', 'data-beast', 'simu'])
 
 numpy.random.seed(args.random_seed)
 

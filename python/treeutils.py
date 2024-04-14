@@ -604,8 +604,8 @@ def label_nodes(dendro_tree, ignore_existing_internal_node_labels=False, ignore_
     if debug:
         print('      skipped (already labeled): %s' % ' '.join(sorted(skipped_dbg)))
         print('                   (re-)labeled: %s' % ' '.join(sorted(relabeled_dbg)))
-        # print '   after:'
-        # print utils.pad_lines(get_ascii_tree(dendro_tree))
+        # print('   after:')
+        # print(utils.pad_lines(get_ascii_tree(dendro_tree)))
 
 # ----------------------------------------------------------------------------------------
 # set <expect_missing> if <translation_pairs> doesn't have an entry for every node -- otherwise it will kick a warning
