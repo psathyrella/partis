@@ -40,7 +40,7 @@ def update():
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
 # ----------------------------------------------------------------------------------------
-def hofn():
+def hofn():  # same as the current default
     return '%s/hilary_results/inferred_full_method_input.tsv' % args.outdir  # "input" has to match afn below (hilary doesn't seem to havey any options to control output file)
 
 # ----------------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ def run_hilary():
 
     cmds = ['#!/bin/bash']
     cmds += utils.mamba_cmds(args.env_label)
-    cmds += ['infer-lineages full-method %s --json' % afn]
+    cmds += ['infer-lineages full-method %s --silent --result-folder %s' % (afn, os.path.dirname(hofn()))]  # --silent is supposed to kill the progress bar, but doesn't actually seem to)  --verbose
     # --kappa-file   # path to igk file, which tells it to do paired clustering
     if args.overwrite:
         cmds[-1] += ' --override'  # don't really need to set this, but it's probably nice
