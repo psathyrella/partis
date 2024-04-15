@@ -1743,6 +1743,12 @@ airr_headers = OrderedDict([  # enforce this ordering so the output files are ea
     ('cdr3_start', None),
     ('cdr3_end', None),
     ('cell_id', None),
+    ('v_sequence_alignment', None),
+    ('d_sequence_alignment', None),
+    ('j_sequence_alignment', None),
+    ('v_germline_alignment', None),
+    ('d_germline_alignment', None),
+    ('j_germline_alignment', None),
 ])
 for rtmp in regions:
     airr_headers[rtmp+'_support'] = None      # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
@@ -1881,6 +1887,12 @@ def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_co
             aline[akey] = qr_gap_seq
         elif akey == 'germline_alignment':
             aline[akey] = gl_gap_seq
+        elif any(akey == r+'_sequence_alignment' for r in regions):
+            gap_bounds = indelutils.get_regional_bounds_with_indels_reinstated(pline, iseq)[getrgn(akey)]  # pline['regional_bounds'][getrgn(akey)]
+            aline[akey] = qr_gap_seq[gap_bounds[0] : gap_bounds[1]]
+        elif any(akey == r+'_germline_alignment' for r in regions):
+            gap_bounds = indelutils.get_regional_bounds_with_indels_reinstated(pline, iseq)[getrgn(akey)]  # pline['regional_bounds'][getrgn(akey)]
+            aline[akey] = gl_gap_seq[gap_bounds[0] : gap_bounds[1]]
         elif akey == 'junction':
             aline[akey] = get_cdr3_seq(pline, iseq)
         elif akey == 'junction_aa':

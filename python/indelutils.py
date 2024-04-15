@@ -566,7 +566,7 @@ def reset_indelfo_for_new_genes(line, iseq, debug=False):
 def reconstruct_indelfo_from_gap_seqs_and_naive_seq(qr_gap_seq, gl_gap_seq, line, iseq, debug=False):  # either a <line> that doesn't already have <indelfos> in it (from a new-style file), or it does but we want to reconstruct the indelfos to make sure we get the same thing
     # NOTE passing gap seqs separately on purpose! don't use any that might be in <line>
     if utils.gap_len(qr_gap_seq) == 0 and utils.gap_len(gl_gap_seq) == 0:
-        if line['has_shm_indels'][iseq]:  # maybe it's no longer possible to make files like this? But there was a file written with an annotation like this (has_shm_indels set to true and qr/gl gap seqs not '', but with no actual gaps) but I couldn't reproduce the file
+        if 'has_shm_indels' in line and line['has_shm_indels'][iseq]:  # maybe it's no longer possible to make files like this? But there was a file written with an annotation like this (has_shm_indels set to true and qr/gl gap seqs not '', but with no actual gaps) but I couldn't reproduce the file
             # if len(line['input_seqs'][iseq]) != len(line['indel_reversed_seqs'][iseq]):  # input/naive seqs are probably also messed up
             raise Exception('indel info is inconsistent (gap seqs are set, but have no actual gaps for %s)' % line['unique_ids'][iseq])
         return get_empty_indel()
