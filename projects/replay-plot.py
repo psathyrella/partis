@@ -12,26 +12,19 @@ import glob
 import argparse
 import colored_traceback.always
 import json
-from Bio.SeqUtils.CheckSum import seguid
 import itertools
-import pandas as pd
 import numpy
 import collections
-import ast
-import operator
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
 sys.path.insert(1, partis_dir)
 
 import python.utils as utils
-import python.glutils as glutils
 import python.plotting as plotting
-import python.lbplotting as lbplotting
 import python.hutils as hutils
 from python.hist import Hist
 import python.treeutils as treeutils
-import python.paircluster as paircluster
 
 colors = {
     'data' :  plotting.default_colors[1],
@@ -51,6 +44,8 @@ linewidths = {
     'simu-iqtree' : 2,
 }
 pltlabels = {
+    'abundances' : 'abundances',
+    'max-abundances' : 'max abundance in each GC',
     'csizes' : 'N leaves per tree',
     'leaf-muts' : 'N muts (leaf nodes)',
     'internal-muts' : 'N muts (internal nodes)'
@@ -91,90 +86,6 @@ def read_gcreplay_metadata():
     return rpmeta
 
 # ----------------------------------------------------------------------------------------
-def write_abdn_csv(label, all_seqfos, all_dtrees):  # summarize abundance (and other) info into csv files, for later reading (kind of weird to separate it like this, it's because this used to be in another script)
-    # ----------------------------------------------------------------------------------------
-    def ntranslate(sfo):  # ugh
-        return sfo.get('base-name', sfo['name'])
-    # ----------------------------------------------------------------------------------------
-    def check_ids(fam_fos, dtree):
-        sfo_names = set(ntranslate(s) for s in fam_fos)
-        tree_names, leaf_names, internal_names = {n.taxon.label for n in dtree.preorder_node_iter()}, {n.taxon.label for n in dtree.leaf_node_iter()}, {n.taxon.label for n in dtree.preorder_node_iter() if not n.is_leaf()}
-        if len(sfo_names - tree_names) > 0:
-            licounts['missing'] += len(sfo_names - tree_names)
-        if len(leaf_names - sfo_names) > 0:
-            licounts['leaf'] += len(leaf_names - sfo_names)
-        if len(internal_names - sfo_names) > 0:
-            licounts['internal'] += len(internal_names - sfo_names)
-    # ----------------------------------------------------------------------------------------
-    def process_family(fam_fos, dtree):
-        check_ids(fam_fos, dtree)
-
-        n_seqs = len(fam_fos)
-        fcounters['total'] += 1
-        init_sizes.append(n_seqs)
-        if args.min_seqs_per_gc is not None and n_seqs < args.min_seqs_per_gc:
-            fcounters['too-small'] += 1
-            return
-        if args.max_seqs_per_gc is not None and n_seqs > args.max_seqs_per_gc:
-            i_to_keep = numpy.random.choice(list(range(n_seqs)), size=args.max_seqs_per_gc)
-            fam_fos = [fam_fos[i] for i in i_to_keep]
-            final_sizes.append(len(fam_fos))  # don't actually use this number any more, but we use the len of final_sizes
-
-        # This dictionary will map sequence checksum to the list of squence ids that have that
-        # sequence checksum.
-        ids_by_checksum = collections.defaultdict(list)
-        sequence_count = 0
-        for sfo in fam_fos:
-            sequence_count = sequence_count + 1
-            ids_by_checksum[seguid(sfo['seq'])].append(sfo['name'])
-
-        if len(ids_by_checksum) == 0:
-            raise Exception('zero ids by checksum')
-        abundance_distribution = collections.defaultdict(int)
-        for id_list in ids_by_checksum.values():
-            id_count = len(id_list)
-            abundance_distribution[id_count] = abundance_distribution[id_count] + 1
-        assert sequence_count == sum(k * v for k, v in abundance_distribution.items())
-
-        base = hash(''.join(s['seq'] for s in fam_fos))
-        abundances[base] = pd.Series(
-            list(abundance_distribution.values()), index=list(abundance_distribution.keys())
-        )
-
-    # ----------------------------------------------------------------------------------------
-    fcounters = {'too-small' : 0, 'total' : 0}
-    init_sizes, final_sizes = [], []
-    abundances = {}
-    licounts = {s : 0 for s in ['leaf', 'internal', 'missing']}
-    for gcn, fam_fos in all_seqfos.items():
-        process_family(fam_fos, all_dtrees[gcn])
-
-    print('    %d initial families with sizes: %s' % (len(init_sizes), " ".join(str(s) for s in sorted(init_sizes, reverse=True))))
-    if fcounters['too-small'] > 0:
-        print("      skipped %d / %d files with fewer than %d seqs" % (fcounters['too-small'], fcounters['total'], args.min_seqs_per_gc))
-    if fcounters['too-small'] == fcounters['total']:
-        raise Exception('skipped all families (see previous line)')
-    if len(final_sizes) > 0:
-        print("      downsampled %d samples to %d" % (len(final_sizes), args.max_seqs_per_gc))
-    for tkey in ['leaf', 'internal']:
-        if licounts[tkey] > 0:
-            print('    %s couldn\'t find sequences for %d %s nodes%s' % (utils.wrnstr(), licounts[tkey], tkey, ' (maybe simulation didn\'t have internal node sampling turned on, so internal node sequences weren\'t written to fasta)' if tkey=='internal' else ''))
-
-    print("    writing %s to %s" % (label, os.path.dirname(abfn(label))))
-    if not os.path.exists(os.path.dirname(abfn(label))):
-        os.makedirs(os.path.dirname(abfn(label)))
-
-    to_write = pd.DataFrame(abundances).fillna(0).astype(int)
-    to_write.to_csv(abfn(label, 'abundances'))
-
-    for fstr, fdct in fdicts.items():
-        with open(abfn(label, abtype=fstr), 'w') as cfile:
-            writer = csv.DictWriter(cfile, ["fbase", "vlist"])
-            writer.writeheader()
-            for fbase, vlist in fdicts[fstr].items():
-                writer.writerow({"fbase": fbase, "vlist": ":".join(str(v) for v in vlist)})
-
-# ----------------------------------------------------------------------------------------
 def abdn_hargs(hlist):
     xmax = max(h.xmax for h in hlist)
     xbounds = [0.5, xmax+0.5]
@@ -185,53 +96,6 @@ def abdn_hargs(hlist):
     yticks, yticklabels = plotting.get_auto_y_ticks(ybounds[0], ybounds[1], log='y')
     ybounds = [yticks[0], yticks[-1]]
     return xbounds, ybounds, xticks, yticks, yticklabels
-
-# ----------------------------------------------------------------------------------------
-def plot_abdn_stuff(lhists, plotdir, label, abtype):
-    # read values from csv file
-    with open(abfn(label, abtype=abtype)) as afile:
-        reader = csv.DictReader(afile)
-        if abtype == 'abundances':
-            plotvals = {k : {} for k in reader.fieldnames if k!=''}
-            for line in reader:
-                abn = int(line[''])  # i can't figure out how to set this column label in the other script
-                for bn in plotvals:  # <bn> is GC name
-                    plotvals[bn][abn] = int(line[bn])
-        else:
-            plotvals = {}
-            for line in reader:
-                plotvals[line['fbase']] = [int(s) for s in line['vlist'].split(':')]
-
-    # collect values from each GC
-    max_vals = []
-    distr_hists = []
-    for bn in plotvals:  # bn is the base name of the fasta file (i.e. gc name)
-        if abtype == 'abundances':
-            max_vals.append(max([a for a, n in plotvals[bn].items() if n>0]))
-            htmp = hutils.make_hist_from_dict_of_counts(plotvals[bn], 'int', bn)
-        else:
-            htmp = hutils.make_hist_from_list_of_values(plotvals[bn], 'int', bn) #, xmin_force=-0.5 if abtype=='max-abdn-shm' else None)
-        if len(distr_hists) < args.max_gc_plots:
-            nstxt = '%d seqs'%htmp.integral(True, multiply_by_bin_center=abtype=='abundances')
-            mvtxt = 'mean %.1f' % htmp.get_mean()
-            fn = htmp.fullplot(plotdir, '%s-distr-gc-%s'%(abtype, bn), pargs={'square_bins' : True, 'errors' : False, 'color' : colors[label]},
-                               fargs={'title' : bn, 'xlabel' : pltlabels.get(abtype, abtype), 'ylabel' : 'counts', 'log' : 'y', 'title' : '%s: %s'%(label, bn)}, texts=[[0.6, 0.8, nstxt], [0.6, 0.75, mvtxt]])
-            # lbplotting.add_fn(fnames, fn, new_row=len(distr_hists)==0)
-        distr_hists.append(htmp)
-
-    hmax = None
-    if abtype == 'abundances':
-        hmax = hutils.make_hist_from_list_of_values(max_vals, 'int', 'max-abdn')
-        hmax.title = '%s (%d trees)' % (label, len(distr_hists))
-        hmax.xtitle = 'max abundance in GC'
-
-    # plot mean distribution over GCs (atm: abundance, N tip muts, SHM in most abundant seq)
-    mean_hdistr = plotting.make_mean_hist(distr_hists)
-    mean_hdistr.title = '%s (%d trees)' % (label, len(distr_hists))
-    mean_hdistr.xtitle = pltlabels.get(abtype, abtype)
-    mean_hdistr.ytitle = 'N seqs in bin\nmean+/-std (over GCs)'
-
-    lhists[abtype] = {'distr' : mean_hdistr, 'max' : hmax}
 
 # ----------------------------------------------------------------------------------------
 def read_gctree_csv(all_seqfos, label):
@@ -291,8 +155,8 @@ def read_input_files(label):
             for line in reader:
                 itree = int(line['name'].split('-')[0])
                 if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
-                        print('    --n-max-simu-trees: breaking after reading leaf meta for %d trees' % itree)
-                        break
+                    print('    --n-max-simu-trees: breaking after reading leaf meta for %d trees' % itree)
+                    break
                 mfos[line['name']] = line
         return mfos
     # ----------------------------------------------------------------------------------------
@@ -410,7 +274,6 @@ def read_input_files(label):
     # ----------------------------------------------------------------------------------------
     def add_abundances(all_seqfos):
         for gcn in all_seqfos:
-            sdict = {s['seq'] : s for s in all_seqfos[gcn]}
             def kfn(s): return s['seq']
             for tseq, sgroup in itertools.groupby(sorted(all_seqfos[gcn], key=kfn), key=kfn):
                 sfos = list(sgroup)
@@ -435,21 +298,20 @@ def read_input_files(label):
         assert False
 
     add_abundances(all_seqfos)
-    write_abdn_csv(label, all_seqfos, all_dtrees)  # this is super weird to write abundance (+some other) info here, then read it with plot_abdn_stuff(), but it's a relic from another script
 
     hists = {}
 
     abdnvals = [s['abundance'] for g in all_seqfos for s in all_seqfos[g] if s['abundance']!=0]
-    htmp = hutils.make_hist_from_list_of_values(abdnvals, 'int', 'new-abundances')
-    htmp.title += ' (%d nodes in %d trees)' % (len(abdnvals), n_trees)
-    htmp.xtitle = 'abundances'
-    hists['new-abundances'] = {'distr' : htmp}
+    htmp = hutils.make_hist_from_list_of_values(abdnvals, 'int', 'abundances')
+    htmp.title = '%s (%d nodes in %d trees)' % (label, len(abdnvals), n_trees)
+    htmp.xtitle = pltlabels['abundances']
+    hists['abundances'] = {'distr' : htmp}
 
     maxabvals = [max(s['abundance'] for s in all_seqfos[g] if s['abundance']!=0) for g in all_seqfos]
     htmp = hutils.make_hist_from_list_of_values(maxabvals, 'int', 'max-new-abundances')
-    htmp.title += ' (%d trees)' % n_trees
-    htmp.xtitle = 'max abundance in each GC'
-    hists['max-new-abundances'] = {'distr' : htmp}
+    htmp.title = '%s (%d trees)' % (label, n_trees)
+    htmp.xtitle = pltlabels['max-abundances']
+    hists['max-abundances'] = {'distr' : htmp}
 
     for pkey, pvals in plotvals['affinity'].items():
         htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=label, xtitle='%s affinity'%pkey)  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
@@ -554,11 +416,9 @@ numpy.random.seed(args.random_seed)
 rpmeta = read_gcreplay_metadata()
 
 def affy_like(tp):  # ick ( plots that get filled similarly to how affinity plots get filled, i.e. not how abundance-like stuff gets filled)
-    return 'affinity' in tp or tp in ['csizes', 'leaf-muts', 'internal-muts', 'new-abundances', 'max-new-abundances']
+    return 'affinity' in tp or tp in ['csizes', 'leaf-muts', 'internal-muts', 'abundances', 'max-abundances']
 abrows = [
-# TODO rename 'new-abundances' and 'max-new-abundances'
-    ['abundances'],
-    ['new-abundances', 'max-new-abundances', 'csizes'],
+    ['abundances', 'max-abundances', 'csizes'],
     ['leaf-affinity', 'internal-affinity', 'leaf-muts', 'internal-muts'],
 ]
 abtypes = [a for arow in abrows for a in arow]
@@ -569,8 +429,6 @@ for tlab in args.plot_labels:
     utils.prep_dir('%s/plots/%s'%(args.outdir, tlab), wildlings=['*.csv', '*.svg'])
     lhists = read_input_files(tlab)  # puts affinity hists in lhists
     for abtype in abtypes:
-        if not affy_like(abtype):
-            plot_abdn_stuff(lhists, '%s/plots/%s'%(args.outdir, tlab), tlab, abtype)  # adds abdn hists to lhists
         for hn in lhists[abtype]:
             hclists[abtype][hn].append(lhists[abtype][hn])
 
