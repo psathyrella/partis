@@ -213,7 +213,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
         binstr, actstr, odstr = ('bcr-phylo-run.py', '--actions %s'%actstr, 'base') if args.simu_type=='bcr-phylo' and action=='simu' else ('partis', actstr.replace('simu', 'simulate'), 'paired')
         cmd = './bin/%s %s --paired-loci --%s-outdir %s --n-procs %d' % (binstr, actstr, odstr, odir(args, varnames, vstrs, action), args.n_sub_procs)
     if action == 'replay-plot':
-        cmd = './projects/replay-plot.py --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61 --simu-dir %s --outdir %s --bcr-phylo' % (os.path.dirname(ofname(args, varnames, vstrs, 'write-fake-paired-annotations')), os.path.dirname(ofname(args, varnames, vstrs, action)))
+        cmd = './projects/replay-plot.py --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61 --simu-like-dir %s --outdir %s --bcr-phylo' % (os.path.dirname(ofname(args, varnames, vstrs, 'write-fake-paired-annotations')), os.path.dirname(ofname(args, varnames, vstrs, action)))
         if args.simu_type == 'gcdyn':
             cmd += ' --default-naive-affinity 0'
     elif action == 'simu':

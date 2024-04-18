@@ -321,7 +321,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
                  square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None, no_legend=False, hfile_labels=None,
-                 text_dict=None, adjust=None):
+                 text_dict=None, adjust=None, make_legend_only_plot=False):
     assert os.path.exists(plotdir)
 
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
@@ -493,6 +493,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
                     leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
                     log=log, xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels,
                     no_legend=(no_legend or len(hists) <= 1), adjust=default_adjust, leg_title=leg_title)
+
+    if make_legend_only_plot:
+        plot_legend_only(None, plotdir, plotname+'-legend', ax=ax, title=tmpxtitle)
+
     return fn
 
 # ----------------------------------------------------------------------------------------
@@ -1057,18 +1061,23 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
 
 # ----------------------------------------------------------------------------------------
 # NOTE can use get_leg_entries()
-def plot_legend_only(leg_entries, plotdir, plotname, title=None, n_digits=None):
+def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digits=None):
     lfn = plotdir+'/'+plotname+'.svg'
+    if leg_entries is None:
+        assert ax is not None
+        handles, labels = ax.get_legend_handles_labels()
+        leg_entries = collections.OrderedDict((l, None) for l in labels)
     if len(leg_entries) == 0:
         return lfn
     max_label_len = max(len(str(l)) for l in leg_entries)
     figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(leg_entries) / 4.))
-    fig, ax = mpl_init()
-    for tlab, lfo in sorted((str(l), fo) for l, fo in leg_entries.items()):  # have to convert labels to str in case e.g. one of them's None
-        if n_digits is not None and tlab is not None:
-            tlab = utils.round_to_n_digits(float(tlab), 2)
-        ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
-    handles, labels = ax.get_legend_handles_labels()
+    if ax is None:
+        fig, ax = mpl_init()
+        for tlab, lfo in sorted((str(l), fo) for l, fo in leg_entries.items()):  # have to convert labels to str in case e.g. one of them's None
+            if n_digits is not None and tlab is not None:
+                tlab = utils.round_to_n_digits(float(tlab), 2)
+            ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
+        handles, labels = ax.get_legend_handles_labels()
     figlegend.legend(handles, labels, loc='center', title=title)
     figlegend.savefig(lfn)
     return lfn

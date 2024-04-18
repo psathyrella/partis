@@ -18,6 +18,7 @@ import pandas as pd
 import numpy
 import collections
 import ast
+import operator
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
@@ -39,10 +40,17 @@ colors = {
     'data-w10' : '#2b65ec',
     'data-beast' : '#990012',
     'simu' : '#808080',
+    'simu-iqtree' : 'black',
+}
+linestyles = {
+    'simu' : '--',
+    # 'if 'simu' in l else '-' for l in labels]
+}
+linewidths = {
+    'simu' : 4,
+    'simu-iqtree' : 2,
 }
 pltlabels = {
-    'hdists' : 'N leaf + internal (?) muts',
-    'max-abdn-shm' : 'SHM in most\nabundant seq',
     'csizes' : 'N leaves per tree',
     'leaf-muts' : 'N muts (leaf nodes)',
     'internal-muts' : 'N muts (internal nodes)'
@@ -85,12 +93,27 @@ def read_gcreplay_metadata():
 # ----------------------------------------------------------------------------------------
 def write_abdn_csv(label, all_seqfos, all_dtrees):  # summarize abundance (and other) info into csv files, for later reading (kind of weird to separate it like this, it's because this used to be in another script)
     # ----------------------------------------------------------------------------------------
+    def ntranslate(sfo):  # ugh
+        return sfo.get('base-name', sfo['name'])
+    # ----------------------------------------------------------------------------------------
+    def check_ids(fam_fos, dtree):
+        sfo_names = set(ntranslate(s) for s in fam_fos)
+        tree_names, leaf_names, internal_names = {n.taxon.label for n in dtree.preorder_node_iter()}, {n.taxon.label for n in dtree.leaf_node_iter()}, {n.taxon.label for n in dtree.preorder_node_iter() if not n.is_leaf()}
+        if len(sfo_names - tree_names) > 0:
+            licounts['missing'] += len(sfo_names - tree_names)
+        if len(leaf_names - sfo_names) > 0:
+            licounts['leaf'] += len(leaf_names - sfo_names)
+        if len(internal_names - sfo_names) > 0:
+            licounts['internal'] += len(internal_names - sfo_names)
+    # ----------------------------------------------------------------------------------------
     def process_family(fam_fos, dtree):
+        check_ids(fam_fos, dtree)
+
         n_seqs = len(fam_fos)
-        counters['total'] += 1
+        fcounters['total'] += 1
         init_sizes.append(n_seqs)
         if args.min_seqs_per_gc is not None and n_seqs < args.min_seqs_per_gc:
-            counters['too-small'] += 1
+            fcounters['too-small'] += 1
             return
         if args.max_seqs_per_gc is not None and n_seqs > args.max_seqs_per_gc:
             i_to_keep = numpy.random.choice(list(range(n_seqs)), size=args.max_seqs_per_gc)
@@ -100,57 +123,42 @@ def write_abdn_csv(label, all_seqfos, all_dtrees):  # summarize abundance (and o
         # This dictionary will map sequence checksum to the list of squence ids that have that
         # sequence checksum.
         ids_by_checksum = collections.defaultdict(list)
-        hdvals, hd_dict = [], {}  # list of hamming distance to naive for each sequence (hd_dict is just for max_abdn below)
         sequence_count = 0
-        ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
         for sfo in fam_fos:
             sequence_count = sequence_count + 1
             ids_by_checksum[seguid(sfo['seq'])].append(sfo['name'])
-            hdvals.append(sfo['n_muts'])
-            hd_dict[sfo['name']] = hdvals[-1]
-            tname = sfo.get('base-name', sfo['name'])  # gctree data we change the name, but keep original name as 'base-name'
-            licounts[nstr(ndict[tname]) if tname in ndict else 'missing'] += 1
 
+        if len(ids_by_checksum) == 0:
+            raise Exception('zero ids by checksum')
         abundance_distribution = collections.defaultdict(int)
         for id_list in ids_by_checksum.values():
             id_count = len(id_list)
             abundance_distribution[id_count] = abundance_distribution[id_count] + 1
         assert sequence_count == sum(k * v for k, v in abundance_distribution.items())
-        for amax, max_abdn_idlists in itertools.groupby(
-            sorted(list(ids_by_checksum.values()), key=len, reverse=True), key=len
-        ):
-            # print(amax, [len(l) for l in max_abdn_idlists])
-            break  # just want the first one (max abundance)
 
         base = hash(''.join(s['seq'] for s in fam_fos))
         abundances[base] = pd.Series(
             list(abundance_distribution.values()), index=list(abundance_distribution.keys())
         )
 
-        fdicts["hdists"][base] = hdvals
-        fdicts["max-abdn-shm"][base] = [
-            int(numpy.median([hd_dict[u] for x in max_abdn_idlists for u in x]))
-        ]
-
     # ----------------------------------------------------------------------------------------
-    counters = {'too-small' : 0, 'total' : 0}
+    fcounters = {'too-small' : 0, 'total' : 0}
     init_sizes, final_sizes = [], []
     abundances = {}
-    fdicts = {"hdists": {}, "max-abdn-shm": {}}
     licounts = {s : 0 for s in ['leaf', 'internal', 'missing']}
     for gcn, fam_fos in all_seqfos.items():
         process_family(fam_fos, all_dtrees[gcn])
 
     print('    %d initial families with sizes: %s' % (len(init_sizes), " ".join(str(s) for s in sorted(init_sizes, reverse=True))))
-    if counters['too-small'] > 0:
-        print("      skipped %d / %d files with fewer than %d seqs" % (counters['too-small'], counters['total'], args.min_seqs_per_gc))
-    if counters['too-small'] == counters['total']:
+    if fcounters['too-small'] > 0:
+        print("      skipped %d / %d files with fewer than %d seqs" % (fcounters['too-small'], fcounters['total'], args.min_seqs_per_gc))
+    if fcounters['too-small'] == fcounters['total']:
         raise Exception('skipped all families (see previous line)')
     if len(final_sizes) > 0:
         print("      downsampled %d samples to %d" % (len(final_sizes), args.max_seqs_per_gc))
-    if licounts['missing'] > 0:
-        print('    %s couldn\'t find %d nodes in their trees (maybe was looking in wrong treess)' % (utils.wrnstr(), licounts['missing']))
-    print('     %s needs fixing: %s' % (utils.wrnstr(), '  '.join(('%s %d'%(s, c))for s, c in licounts.items())))
+    for tkey in ['leaf', 'internal']:
+        if licounts[tkey] > 0:
+            print('    %s couldn\'t find sequences for %d %s nodes%s' % (utils.wrnstr(), licounts[tkey], tkey, ' (maybe simulation didn\'t have internal node sampling turned on, so internal node sequences weren\'t written to fasta)' if tkey=='internal' else ''))
 
     print("    writing %s to %s" % (label, os.path.dirname(abfn(label))))
     if not os.path.exists(os.path.dirname(abfn(label))):
@@ -258,6 +266,7 @@ def read_gctree_csv(all_seqfos, label):
                                          'seq' : line['IgH_nt_sequence']+line['IgK_nt_sequence'],
                                          'n_muts' : hdist,
                                          'affinity' : None if affinity == '' else float(affinity),
+                                         'abundance' : int(line['abundance']),
                                          })
     print('    kept %d / %d GCs%s (skipped %d)' % (len(all_seqfos), len(gc_counts['all']), '' if timestr is None else ' at time \'%s\''%timestr, len(gc_counts['skipped'])))
 
@@ -358,7 +367,14 @@ def read_input_files(label):
             for mfo in mfos.values():
                 mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
         # ----------------------------------------------------------------------------------------
-        sldir = args.beast_dir if 'data' in label else args.simu_like_dir
+        if 'data' in label:
+            sldir = args.beast_dir
+        elif 'simu' in label:
+            sldir = args.simu_like_dir
+            if '-iqtree' in label:
+                sldir += '/iqtree'
+        else:
+            assert False
         print('  reading %s from %s' % ('beast data' if 'data' in label else 'simulation', sldir))
         if args.bcr_phylo:
             glfo, antn_list, _ = utils.read_output('%s/fake-paired-annotations.yaml' % sldir, dont_add_implicit_info=True)
@@ -392,20 +408,49 @@ def read_input_files(label):
         partition += [[l.taxon.label for l in t.leaf_node_iter()] for t in dendro_trees]
         return n_trees
     # ----------------------------------------------------------------------------------------
+    def add_abundances(all_seqfos):
+        for gcn in all_seqfos:
+            sdict = {s['seq'] : s for s in all_seqfos[gcn]}
+            def kfn(s): return s['seq']
+            for tseq, sgroup in itertools.groupby(sorted(all_seqfos[gcn], key=kfn), key=kfn):
+                sfos = list(sgroup)
+                abundance = len(sfos)
+                for sfo in sfos:
+                    if 'abundance' in sfo:
+                        if sfo['abundance'] == 0:  # inferred ancestral sequence (have to skip since len(sfos) from above will be 1)
+                            continue
+                        if sfo['abundance'] != abundance:
+                            raise Exception('abundances don\'t match %d %d' % (sfo['abundance'], abundance))
+                    sfo['abundance'] = abundance
+    # ----------------------------------------------------------------------------------------
     all_seqfos, all_dtrees = collections.OrderedDict(), collections.OrderedDict()
     plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts']}
     partition = []
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
     if 'data' in label and 'beast' not in label:
         n_trees = read_gctree_data(all_seqfos, plotvals, partition, n_missing, n_tot)
-    elif label == 'simu' or 'beast' in label:  # beast data is formatted like simulation
+    elif 'simu' in label or 'beast' in label:  # beast data is formatted like simulation
         n_trees = read_simu_like_files(all_seqfos, plotvals, partition, n_missing, n_tot)
     else:
         assert False
 
+    add_abundances(all_seqfos)
     write_abdn_csv(label, all_seqfos, all_dtrees)  # this is super weird to write abundance (+some other) info here, then read it with plot_abdn_stuff(), but it's a relic from another script
 
     hists = {}
+
+    abdnvals = [s['abundance'] for g in all_seqfos for s in all_seqfos[g] if s['abundance']!=0]
+    htmp = hutils.make_hist_from_list_of_values(abdnvals, 'int', 'new-abundances')
+    htmp.title += ' (%d nodes in %d trees)' % (len(abdnvals), n_trees)
+    htmp.xtitle = 'abundances'
+    hists['new-abundances'] = {'distr' : htmp}
+
+    maxabvals = [max(s['abundance'] for s in all_seqfos[g] if s['abundance']!=0) for g in all_seqfos]
+    htmp = hutils.make_hist_from_list_of_values(maxabvals, 'int', 'max-new-abundances')
+    htmp.title += ' (%d trees)' % n_trees
+    htmp.xtitle = 'max abundance in each GC'
+    hists['max-new-abundances'] = {'distr' : htmp}
+
     for pkey, pvals in plotvals['affinity'].items():
         htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=label, xtitle='%s affinity'%pkey)  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
         htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
@@ -452,7 +497,7 @@ def hist_distance(h1, h2, dbgstr='hist', weighted=False, debug=False):
 def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
     ytitle = hists[0].ytitle
     if args.normalize:
-        print('  %s I\'m not really sure it makes sense to normalize the mean hists (maybe could just skip them)' % utils.wrnstr())
+        # print('  %s I\'m not really sure it makes sense to normalize the mean hists (maybe could just skip them)' % utils.wrnstr())
         for htmp in hists:
             htmp.normalize()
         if 'fraction of' in hists[0].ytitle:  # NOTE normalize() call sets the ytitle
@@ -464,11 +509,11 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
         adjust = {'left' : 0.23 if hname=='abundances' else 0.18}
     # if 'muts' in hname:  # useful for data-beast
     #     xbounds = [-0.5, 30.5]
-    fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(htype, hname), more_hists=hists, log='y' if hname=='abundances' else '', xtitle=hists[0].xtitle, ytitle=ytitle,
-                               bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[4, 3],
+    fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(htype, hname), more_hists=hists, log='y' if 'abundances' in hname else '', xtitle=hists[0].xtitle, ytitle=ytitle,
+                               bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],
                                plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
-                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=['--' if l=='simu' else '-' for l in labels], translegend=[-0.65, 0.1] if affy_like(hname) else [-0.2, 0], write_csv=True,
-                               hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname)
+                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=[linestyles.get(l, '-') for l in labels], translegend=[-0.65, 0.1] if affy_like(hname) and 'abundance' not in hname else [-0.3, 0.1], write_csv=True,
+                               hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname, make_legend_only_plot=args.write_legend_only_plots, no_legend=args.write_legend_only_plots)
     fnames[-1].append(fn)
 
     # hdict = {l : h for l, h in zip(labels, hists)}
@@ -493,23 +538,28 @@ parser.add_argument('--plot-labels', default='data-d15:data-d20:data-w10:simu', 
 parser.add_argument('--max-gc-plots', type=int, default=0, help='only plot individual (per-GC) plots for this  many GCs')
 parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--bcr-phylo', action='store_true', help='set this if you\'re using bcr-phylo (rather than gcdyn) simulation')
+parser.add_argument('--write-legend-only-plots', action='store_true', help='if set, instead of putting legends on each plot, write a separate legend-only svg for each plot')
 parser.add_argument('--naive-seq', default="GAGGTGCAGCTTCAGGAGTCAGGACCTAGCCTCGTGAAACCTTCTCAGACTCTGTCCCTCACCTGTTCTGTCACTGGCGACTCCATCACCAGTGGTTACTGGAACTGGATCCGGAAATTCCCAGGGAATAAACTTGAGTACATGGGGTACATAAGCTACAGTGGTAGCACTTACTACAATCCATCTCTCAAAAGTCGAATCTCCATCACTCGAGACACATCCAAGAACCAGTACTACCTGCAGTTGAATTCTGTGACTACTGAGGACACAGCCACATATTACTGTGCAAGGGACTTCGATGTCTGGGGCGCAGGGACCACGGTCACCGTCTCCTCAGACATTGTGATGACTCAGTCTCAAAAATTCATGTCCACATCAGTAGGAGACAGGGTCAGCGTCACCTGCAAGGCCAGTCAGAATGTGGGTACTAATGTAGCCTGGTATCAACAGAAACCAGGGCAATCTCCTAAAGCACTGATTTACTCGGCATCCTACAGGTACAGTGGAGTCCCTGATCGCTTCACAGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAATGTGCAGTCTGAAGACTTGGCAGAGTATTTCTGTCAGCAATATAACAGCTATCCTCTCACGTTCGGCTCGGGGACTAAGCTAGAAATAAAA")
 parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading this many trees from simulation')
 parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")
 parser.add_argument("--default-naive-affinity", type=float, default=1./100, help="this is the default for bcr-phylo, so maybe be correct if we don\'t have an unmutated sequence")
 args = parser.parse_args()
-args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'data-d15', 'data-d20', 'data-w10', 'data-beast', 'simu'])
+args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'data-d15', 'data-d20', 'data-w10', 'data-beast', 'simu', 'simu-iqtree'])
+if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
+    print('  note; setting --write-legend-only-plots since --plot-labels is longer than 3')
+    args.write_legend_only_plots = True
 
 numpy.random.seed(args.random_seed)
 
 rpmeta = read_gcreplay_metadata()
 
 def affy_like(tp):  # ick ( plots that get filled similarly to how affinity plots get filled, i.e. not how abundance-like stuff gets filled)
-    return 'affinity' in tp or tp in ['csizes', 'leaf-muts', 'internal-muts']
+    return 'affinity' in tp or tp in ['csizes', 'leaf-muts', 'internal-muts', 'new-abundances', 'max-new-abundances']
 abrows = [
-    ['abundances', 'hdists', 'max-abdn-shm'],
-    ['leaf-affinity', 'internal-affinity', 'csizes'],
-    ['leaf-muts', 'internal-muts']
+# TODO rename 'new-abundances' and 'max-new-abundances'
+    ['abundances'],
+    ['new-abundances', 'max-new-abundances', 'csizes'],
+    ['leaf-affinity', 'internal-affinity', 'leaf-muts', 'internal-muts'],
 ]
 abtypes = [a for arow in abrows for a in arow]
 hclists = {t : {'distr' : [], 'max' : []} for t in abtypes}
@@ -535,6 +585,13 @@ for arow in abrows:
             if hlist.count(None) == len(hlist):
                 continue
             compare_plots(htype, cfpdir, hlist, args.plot_labels, abtype, diff_vals)
+
+for ifl in range(len(fnames)):
+    fnames.append([])
+    for fnm in fnames[ifl]:
+        lfn = fnm.replace('.svg', '-legend.svg')
+        if os.path.exists(lfn):
+            fnames[-1].append(lfn)
 
 plotting.make_html(args.outdir+'/plots', fnames=fnames)
 dfn = '%s/diff-vals.yaml' % args.outdir
