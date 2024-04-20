@@ -58,9 +58,9 @@ def run_igphyml():
     cmds += utils.mamba_cmds(args.env_label)
     cmds += ['BuildTrees.py -d %s --log %s/build-trees.log --collapse' % (afn, args.outdir)]
     # doesn't correct for shm biases:
-    cmds += ['%s/packages/igphyml/src/igphyml --repfile %s --ASR --ASRc 0.9 -m GY --outrep %s/input_lineages_gy.tsv --run_id gy --threads %d' % (partis_dir, rfn, args.outdir, args.n_procs)]
+    cmds += ['%s/packages/igphyml/src/igphyml --repfile %s --ASR --ASRc %.2f -m GY --outrep %s/input_lineages_gy.tsv --run_id gy --threads %d' % (partis_dir, rfn, args.ambig_codon_threshold, args.outdir, args.n_procs)]
     # corrects for shm biases:
-    cmds += ['%s/packages/igphyml/src/igphyml --repfile %s/input_lineages_gy.tsv --ASR --ASRc 0.9 -m HLP --run_id hlp --threads %d' % (partis_dir, args.outdir, args.n_procs)]
+    cmds += ['%s/packages/igphyml/src/igphyml --repfile %s/input_lineages_gy.tsv --ASR --ASRc %.2f -m HLP --run_id hlp --threads %d' % (partis_dir, args.outdir, args.ambig_codon_threshold, args.n_procs)]
     if args.fast:
         cmds[-1] += ' --optimize lr'
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=args.outdir + '/run.sh', print_time='igphyml', debug=True, dryrun=args.dry_run)
@@ -97,6 +97,7 @@ parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--env-label', default='igphyml')
 parser.add_argument('--naive-seq-name', default='naive', help='rename the igphyml-inferred naive sequence to this')
 parser.add_argument('--n-procs', type=int, default=1)
+parser.add_argument('--ambig-codon-threshold', type=float, default=0.9, help='partial likelihood threshold for ambiguous codons (not really sure what this does, but maybe should adjust it)')
 
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions, choices=['run', 'parse', 'install'])
