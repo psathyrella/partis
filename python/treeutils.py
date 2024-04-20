@@ -869,29 +869,32 @@ def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=
 
 # ----------------------------------------------------------------------------------------
 def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence_uids> is uids for which we have actual sequences (i.e. not internal nodes inferred by the tree program without sequences)
-    if debug:
-        nlen = max(len(n.taxon.label) for n in dtree.preorder_node_iter())
-        print('  merging trivially-dangling leaves into parent internal nodes:')
-        print('           distance       %s                     parent' % utils.wfmt('leaf', nlen, jfmt='-'))
+    min_len = 1./(2*typical_bcr_seq_len)  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree/iqtree dangling an internal node as a leaf NOTE this shouldn't really use typical_bcr_seq_len any more since we have h seqs, l seqs, and h+l seqs
     missing_seq_ids = set(sequence_uids) - set([n.taxon.label for n in dtree.preorder_node_iter()])
     if len(missing_seq_ids) > 0:  # ok maybe i don't need this, but once i missed a translation step, so <sequence_uids> didn't correspond to the node labels, which meant i was collapsing a bunch of things i didn't want (i.e. removing from the tree) to with no other warning.
         print('    %s %d / %d sequence ids weren\'t found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?): %s' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids), ' '.join(sorted(missing_seq_ids))))
+    if debug:
+        nlen = max(len(n.taxon.label) for n in dtree.preorder_node_iter())
+        print('  merging trivially-dangling leaves (branches shorter than %.2e) into parent internal nodes:' % min_len)
+        print('           distance       %s    parent' % utils.wfmt('leaf', nlen, jfmt='-'))
     removed_nodes = []
     for leaf in list(dtree.leaf_node_iter()):  # subsume super short/zero length leaves into their parent internal nodes
         recursed = False
-# TODO this shouldn't really use typical_bcr_seq_len any more since we have h seqs, l seqs, and h+l seqs
-        while leaf.edge_length is not None and leaf.edge_length < 1./(2*typical_bcr_seq_len):  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree/iqtree dangling an internal node as a leaf
+        while leaf.edge_length is not None and leaf.edge_length < min_len:
             if leaf.parent_node is None:  # why tf can i get the root node here?
                 break
             if leaf.parent_node.taxon is not None and leaf.parent_node.taxon.label in sequence_uids:  # only want to do it if the parent node is a (spurious) internal node added by fasttree/iqtree (this parent's taxon will be None if suppress_internal_node_taxa was set)
                 break
             if debug:
-                print('            %8.5f      %s    %s' % (leaf.edge_length, utils.wfmt(' " ' if recursed else leaf.taxon.label, nlen, jfmt='-'), utils.wfmt('none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label, nlen, jfmt='-')))
+                def estr(v): return ('%8.5f' if v > 0.0001 else '%8.2e') % v
+                lstr = utils.wfmt(utils.color('blue', ' " ', width=nlen, padside='right') if recursed else leaf.taxon.label, nlen, jfmt='-')
+                pstr = utils.wfmt('none' if leaf.parent_node.taxon is None else leaf.parent_node.taxon.label, nlen, jfmt='-')
+                print('            %s      %s    %s%s' % (estr(leaf.edge_length), lstr, pstr, ' (recursed)' if recursed else ''))
 
-            parent_node = leaf.parent_node
-            removed_nodes.append(parent_node.taxon.label if parent_node.taxon is not None else None)
+            pnode = leaf.parent_node
+            removed_nodes.append(pnode.taxon.label if pnode.taxon is not None else None)
             collapse_nodes(dtree, leaf.taxon.label, None, keep_name_node=leaf, remove_name_node=leaf.parent_node)
-            leaf = parent_node
+            leaf = pnode
             recursed = True
     dtree.update_bipartitions(suppress_unifurcations=False)
     dtree.purge_taxon_namespace()
@@ -954,7 +957,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             # --min-cluster-size 50 # 10
             #--n-procs 15
         elif method == 'igphyml':
-            cmd = './projects/igphyml-run.py --infname %s/partition%s.yaml --outdir %s --naive-seq-name %s' % (workdir, '' if glfo['locus'] is None else '-'+glfo['locus'], workdir, naive_seq_name)
+            cmd = './projects/igphyml-run.py --infname %s/partition%s.yaml --outdir %s --naive-seq-name %s' % (workdir, '' if glfo is None else '-'+glfo['locus'], workdir, naive_seq_name)
         else:
             assert False
         return cmd
@@ -1012,7 +1015,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             lnk_name = '%s/parameters/%s' % (lhindir(workdir), glfo['locus'])
             utils.makelink(os.path.dirname(lnk_name), os.path.abspath(parameter_dir), lnk_name)
         elif method == 'igphyml':
-            utils.write_annotations('%s/partition-%s.yaml'%(workdir, glfo['locus']), glfo, [annotation], utils.annotation_headers)
+            utils.write_annotations('%s/partition%s.yaml'%(workdir, '' if glfo is None else '-'+glfo['locus']), glfo, [annotation], utils.annotation_headers)
         else:
             utils.write_fasta(ifn(workdir), input_seqfos)
             if 'gctree' in method:
@@ -1044,6 +1047,9 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                 sfo['seq'] = trimmed_seq
             else:
                 raise Exception('couldn\'t fix seq for %s (len %d, input len %d): %s' % (sfo['name'], len(sfo['seq']), input_len, sfo['seq']))
+    # # ----------------------------------------------------------------------------------------
+    # def re_add_removed_duplicates(input_seqfos, dtree):  # igphyml discards duplicate seqs, so we re-add them as zero-length leaves
+    #     missing_uids = set([s['name'] for s in 
     # ----------------------------------------------------------------------------------------
     def check_lengths(input_seqfos, inf_seqfos):
         inf_lens, input_lens = [list(set(len(s['seq']) for s in sfos)) for sfos in [inf_seqfos, input_seqfos]]
@@ -1103,6 +1109,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
         elif method == 'igphyml':
             inf_seqfos = utils.read_fastx(ofn(workdir, ancestors=True))
             remove_added_ambig(input_seqfos, inf_seqfos)
+            # re_add_removed_duplicates(input_seqfos, dtree)  # not implementing this atm, maybe we're not even really caring about igphyml
         else:  # method should be in inf_anc_methods
             assert False
         if debug:
@@ -1175,7 +1182,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
     # fasttree, iqtree, and gctree put all observed seqs as leaves, so we sometimes want to collapse [near-]zero-length leaves onto their internal node parent
     if not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
         print('      collapsing zero length leaves')
-        removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name])
+        removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], debug=debug)
 
     # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
     inf_seqfos, inf_antn = read_inf_seqs(dtree, removed_nodes, padded_seq_info_list)
