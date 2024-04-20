@@ -60,7 +60,9 @@ def run_igphyml():
     # doesn't correct for shm biases:
     cmds += ['%s/packages/igphyml/src/igphyml --repfile %s --ASR --ASRc 0.9 -m GY --outrep %s/input_lineages_gy.tsv --run_id gy --threads %d' % (partis_dir, rfn, args.outdir, args.n_procs)]
     # corrects for shm biases:
-    cmds += ['%s/packages/igphyml/src/igphyml --repfile %s/input_lineages_gy.tsv --ASR --ASRc 0.9 -m HLP --optimize lr --run_id hlp --threads %d' % (partis_dir, args.outdir, args.n_procs)]
+    cmds += ['%s/packages/igphyml/src/igphyml --repfile %s/input_lineages_gy.tsv --ASR --ASRc 0.9 -m HLP --run_id hlp --threads %d' % (partis_dir, args.outdir, args.n_procs)]
+    if args.fast:
+        cmds[-1] += ' --optimize lr'
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname=args.outdir + '/run.sh', print_time='igphyml', debug=True, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
@@ -72,8 +74,15 @@ def fofn(ft):
 def parse_output():
     if utils.all_outputs_exist(args, [fofn('tree'), fofn('seqs')], outlabel='final parsed'):
         return
-    utils.makelink(args.outdir, igp_ofn('seqs'), fofn('seqs'), debug=True)
+    # utils.makelink(args.outdir, igp_ofn('seqs'), fofn('seqs'), debug=True)  # could just do this if i didn't need to fix the naive name
+    seqfos = utils.read_fastx(igp_ofn('seqs'))
+    igp_naive_name = '0_GERM'
+    for sfo in seqfos:
+        if sfo['name'] == igp_naive_name:
+            sfo['name'] = args.naive_seq_name
+    utils.write_fasta(fofn('seqs'), seqfos)
     dtree = treeutils.get_dendro_tree(treefname=igp_ofn('tree'), schema='nexus', debug=True)
+    treeutils.translate_labels(dtree, [(igp_naive_name, args.naive_seq_name)], expect_missing=True)
     with open(fofn('tree'), 'w') as tfile:
         tfile.write(dtree.as_string(schema='newick'))
 
@@ -83,8 +92,10 @@ parser.add_argument('--actions', default='run:parse')
 parser.add_argument('--infname', help='partis yaml format input file')
 parser.add_argument('--outdir')
 parser.add_argument('--dry-run', action='store_true')
+parser.add_argument('--fast', action='store_true', help='turn on an optimization option (see igphyml docs for other optimization options)')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--env-label', default='igphyml')
+parser.add_argument('--naive-seq-name', default='naive', help='rename the igphyml-inferred naive sequence to this')
 parser.add_argument('--n-procs', type=int, default=1)
 
 args = parser.parse_args()

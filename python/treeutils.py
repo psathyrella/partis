@@ -47,7 +47,8 @@ typical_bcr_seq_len = 400
 default_min_selection_metric_cluster_size = 10
 gct_methods = ['gctree', 'gctree-base', 'gctree-mut-mult']
 iqt_methods = ['iqtree', 'iqtree-1.6.beta3', 'iqtree-2.3.1']
-inf_anc_methods = ['raxml', 'linearham'] + gct_methods + iqt_methods  # methods that infer ancestors
+inf_anc_methods = ['raxml', 'linearham', 'igphyml'] + gct_methods + iqt_methods  # methods that infer ancestors
+all_phylo_methods = ['fasttree', 'raxml', 'linearham', 'igphyml'] + gct_methods + iqt_methods
 
 legtexts = {
     'metric-for-target-distance' : 'target dist. metric',
@@ -377,20 +378,26 @@ def cycle_through_ascii_conversion(dtree=None, treestr=None, taxon_namespace=Non
         assert False
 
 # ----------------------------------------------------------------------------------------
-def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False, suppress_internal_node_taxa=False, no_warn=False, debug=False):  # specify either <treestr> or <treefname>
+def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='newick', ignore_existing_internal_node_labels=False,
+                    suppress_internal_node_taxa=False, no_warn=False, print_tree=False, debug=False):  # specify either <treestr> or <treefname>
     # <ignore_existing_internal_node_labels> is for when you want the internal nodes labeled (which we usually do, since we want to calculate selection metrics for internal nodes), but you also want to ignore the existing internal node labels (e.g. with FastTree output, where they're floats)
     # <suppress_internal_node_taxa> on the other hand is for when you don't want to have taxa for any internal nodes (e.g. when calculating the tree difference metrics, the two trees have to have the same taxon namespace, but since they in general have different internal nodes, the internal nodes can't have taxa)
     assert treestr is None or treefname is None
     if ignore_existing_internal_node_labels and suppress_internal_node_taxa:
         raise Exception('doesn\'t make sense to specify both')
-    if treestr is None:
+    if schema == 'newick' and treestr is None:
         treestr = get_treestr_from_file(treefname)
     if debug:
-        print('   getting dendro tree from string:\n     %s' % treestr)
+        astr, bstr, cstr = ('path', ' ', treefname) if treestr is None else ('string', '\n     ', treestr)
+        print('   getting dendro tree from %s:%s%s' % (astr, bstr, cstr))
         if taxon_namespace is not None:
             print('     and taxon namespace:  %s' % ' '.join([t.label for t in taxon_namespace]))
-    # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
-    dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True, rooting='force-rooted')  # make sure the tree is rooted, to avoid nodes disappearing in remove_dummy_branches() (and proably other places as well)
+    if schema == 'newick':
+        # dendropy doesn't make taxons for internal nodes by default, so it puts the label for internal nodes in node.label instead of node.taxon.label, but it crashes if it gets duplicate labels, so you can't just always turn off internal node taxon suppression
+        dtree = dendropy.Tree.get_from_string(treestr, schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True, rooting='force-rooted')  # make sure the tree is rooted, to avoid nodes disappearing in remove_dummy_branches() (and proably other places as well)
+    else:
+        assert treefname is not None
+        dtree = dendropy.Tree.get(path=treefname, schema=schema, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=(ignore_existing_internal_node_labels or suppress_internal_node_taxa), preserve_underscores=True, rooting='force-rooted')  # make sure the tree is rooted, to avoid nodes disappearing in remove_dummy_branches() (and proably other places as well)
     if dtree.seed_node.edge_length is not None and dtree.seed_node.edge_length > 0 and not no_warn:
         # this would be easy to fix, but i think it only happens from simulation trees from treegenerator UPDATE ok also happens for trees from the linearham paper
         print('  %s seed/root node has non-zero edge length (i.e. there\'s a branch above it)' % utils.color('red', 'warning'))
@@ -398,8 +405,8 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
 
     # # uncomment for more verbosity: NOTE node label check will likely fail if suppress_internal_node_taxa is set
     # check_node_labels(dtree, debug=debug)  # makes sure that for all nodes, node.taxon is not None, and node.label *is* None (i.e. that label_nodes did what it was supposed to, as long as suppress_internal_node_taxa wasn't set)
-    # if debug:
-    #     print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
+    if print_tree:
+        print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
 
     return dtree
 
@@ -889,14 +896,14 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
     dtree.update_bipartitions(suppress_unifurcations=False)
     dtree.purge_taxon_namespace()
     if debug:
-        print('    merged %d trivially-dangling leaves into parent internal nodes: %s' % (len(removed_nodes), ' '.join(str(n) for n in removed_nodes)))
+        print('    merged %d trivially-dangling leaves (branches shorter than %.2e) into parent internal nodes: %s' % (len(removed_nodes), min_len, ' '.join(str(n) for n in removed_nodes)))
     #     print get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350)
     #     print dtree.as_string(schema='newick').strip()
     return removed_nodes
 
 # ----------------------------------------------------------------------------------------
-# specify <seqfos> or <annotation> (in latter case we add the naive seq)
-def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read',
+# specify <input_seqfos> or <annotation> (in latter case we add the naive seq)
+def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read',
                        taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None, redo=False, outfix='out', cmdfo=None,
                        glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, only_pass_leaves=False,
                        debug=False):
@@ -946,6 +953,8 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 cmd += ' --linearham-dir %s' % linearham_dir
             # --min-cluster-size 50 # 10
             #--n-procs 15
+        elif method == 'igphyml':
+            cmd = './projects/igphyml-run.py --infname %s/partition%s.yaml --outdir %s --naive-seq-name %s' % (workdir, '' if glfo['locus'] is None else '-'+glfo['locus'], workdir, naive_seq_name)
         else:
             assert False
         return cmd
@@ -968,13 +977,15 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         elif method == 'linearham':
             subd = ('single-chain/' if best else 'alternative-annotations/iclust-0/') if antns else ''  # kind of dumb to have iclust-0 here, but 1) we can't write multiple clusters to these files since they have many annotations for each cluster and 2) we only ever tell linearham-run.py to run on one cluster here, so it's always in iclust-0/
             return '%s/%s%s-%s.%s' % (workdir, subd, 'partition' if antns else 'trees', glfo['locus'], 'yaml' if antns else 'nwk')  # one tree for each cluster
+        elif method == 'igphyml':
+            return '%s/%s' % (workdir, 'inferred-seqs.fa' if ancestors else 'tree.nwk')
         else:
             assert False
     # ----------------------------------------------------------------------------------------
-    def restrict_to_leaf_sfos(seqfos):  # just use bcr-phylo-style names to determine leaf/internal (it'd be nice to use the true tree, but it'd be messy to get that info in here)
+    def restrict_to_leaf_sfos(input_seqfos):  # just use bcr-phylo-style names to determine leaf/internal (it'd be nice to use the true tree, but it'd be messy to get that info in here)
         n_kept, n_internal = 0, 0
         newfos = []
-        for sfo in seqfos:
+        for sfo in input_seqfos:
             if 'leaf-' in sfo['name'] or 'int-' in sfo['name'] or sfo['name'] == naive_seq_name:  # 'int-' are leaf sequences that were sampled at imtermediate times
                 n_kept += 1
                 newfos.append(sfo)
@@ -985,6 +996,31 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
         if 'prep' in actions:  # this still gets run for run/read, but i don't think there's a reason to print it twice
               print('        removed %d internal nodes (kept %d leaf+naive)' % (n_internal, n_kept))
         return newfos
+    # ----------------------------------------------------------------------------------------
+    def prep_files(input_seqfos, is_fake_paired):
+        workdir = persistent_workdir
+        if workdir is None:
+            workdir = utils.choose_random_subdir('/tmp/%s/tree-inference' % os.getenv('USER', default='user'))
+        if os.path.exists(ofn(workdir)):  # don't rewrite input file if output already exists (we print warning about not rerunning below)
+            return workdir
+
+        if method == 'linearham':
+            tmpatn = utils.get_full_copy(annotation, glfo)
+            utils.trim_fwk_insertions(glfo, tmpatn)  # if there's fwk insertions linearham returns nonsense annotations
+            utils.write_annotations('%s/partition-%s.yaml'%(lhindir(workdir), glfo['locus']), glfo, [tmpatn], utils.annotation_headers)
+            utils.mkdir('%s/parameters'%lhindir(workdir))
+            lnk_name = '%s/parameters/%s' % (lhindir(workdir), glfo['locus'])
+            utils.makelink(os.path.dirname(lnk_name), os.path.abspath(parameter_dir), lnk_name)
+        elif method == 'igphyml':
+            utils.write_annotations('%s/partition-%s.yaml'%(workdir, glfo['locus']), glfo, [annotation], utils.annotation_headers)
+        else:
+            utils.write_fasta(ifn(workdir), input_seqfos)
+            if 'gctree' in method:
+                with open(mfn(workdir), 'w') as mfile:
+                    mfo = {'%s_%s'%(c, k) : annotation[c+'_'+k] for c in 'hl' for k in ['frame', 'offset']} if is_fake_paired else {'frame' : utils.get_frame(annotation)}  # don't need the frames unless v_5p_del - fv_insertion > 0 which shouldn't be possible on padded sequences ofrm the hmm, but it's maybe better to always pass it in, it's too much trouble to only pass in if needed
+                    json.dump(mfo, mfile)
+        return workdir
+
     # ----------------------------------------------------------------------------------------
     def re_insert_ambig(tmpfos, padded_seq_info_list):
         for sfo in tmpfos:
@@ -998,12 +1034,23 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             sfo['seq'] = ''.join(nseq)
             assert len(sfo['seq']) == len(padded_seq_info_list)
     # ----------------------------------------------------------------------------------------
-    def check_lengths(seqfos, inf_seqfos):
-        inf_lens, input_lens = [list(set(len(s['seq']) for s in sfos)) for sfos in [inf_seqfos, seqfos]]
+    def remove_added_ambig(input_seqfos, inf_seqfos, tdbg=False):
+        input_len = utils.get_single_entry(list(set(len(s['seq']) for s in input_seqfos)))
+        for sfo in [s for s in inf_seqfos if len(s['seq']) != input_len]:
+            trimmed_seq = utils.remove_ambiguous_ends(sfo['seq'])
+            if len(trimmed_seq) == input_len:
+                if tdbg:
+                    print('    fixed %s: %d --> %d' % (sfo['name'], len(sfo['seq']), len(trimmed_seq)))
+                sfo['seq'] = trimmed_seq
+            else:
+                raise Exception('couldn\'t fix seq for %s (len %d, input len %d): %s' % (sfo['name'], len(sfo['seq']), input_len, sfo['seq']))
+    # ----------------------------------------------------------------------------------------
+    def check_lengths(input_seqfos, inf_seqfos):
+        inf_lens, input_lens = [list(set(len(s['seq']) for s in sfos)) for sfos in [inf_seqfos, input_seqfos]]
         if len(inf_lens) != 1:
             raise Exception('infered seqs have more than one length:  %s' % inf_lens)
         if utils.get_single_entry(inf_lens) != utils.get_single_entry(input_lens):
-            # utils.align_many_seqs([seqfos[0]] + inf_seqfos, debug=True)
+            # utils.align_many_seqs([input_seqfos[0]] + inf_seqfos, debug=True)
             raise Exception('infered seqs from %s have length %d different from input seqs %d' % (method, inf_lens[0], input_lens[0]))
     # ----------------------------------------------------------------------------------------
     def read_inf_seqs(dtree, removed_nodes, padded_seq_info_list):
@@ -1022,7 +1069,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                     if node not in inf_infos:
                         inf_infos[node] = {}
                     inf_infos[node][int(line['Site'])] = line['State'].replace('-', utils.ambig_base)  # NOTE this has uncertainty info as well, which atm i'm ignoring
-            seq_len = len(seqfos[0]['seq'])
+            seq_len = len(input_seqfos[0]['seq'])
             for node, nfo in inf_infos.items():
                 inf_seqfos.append({'name' : node, 'seq' : ''.join(nfo[i] for i in range(1, seq_len+1))})
             if len(skipped_rm_nodes) > 0:
@@ -1053,31 +1100,34 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             inf_antn['alternative-annotations'] = alt_antns  # atm the other place we set this key (in partitiondriver) we put different stuff in it, but that seems fine, it's just different stuff goes here from different programs
             internal_ids = [n.taxon.label for n in dtree.preorder_internal_node_iter() if n.taxon.label in inf_antn['unique_ids']]
             print('      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids'])))
+        elif method == 'igphyml':
+            inf_seqfos = utils.read_fastx(ofn(workdir, ancestors=True))
+            remove_added_ambig(input_seqfos, inf_seqfos)
         else:  # method should be in inf_anc_methods
             assert False
         if debug:
             print('      read %d inferred ancestral seqs' % len(inf_seqfos))
         return inf_seqfos, inf_antn
     # ----------------------------------------------------------------------------------------
-    assert method in ['fasttree', 'raxml', 'linearham'] + gct_methods + iqt_methods
+    assert method in all_phylo_methods
     assert actions in ['prep:run:read', 'prep', 'read']  # other combinations could make sense, but don't need them atm
     if method == 'linearham' and glfo is None:
         raise Exception('need to pass in glfo in order to run linearham (e.g. linearham can\'t work on the fake h/l annotations')
 
     is_fake_paired = annotation is not None and annotation.get('is_fake_paired', False)
-    if seqfos is None:
+    if input_seqfos is None:
         assert naive_seq is None  # can't specify it two ways
-        seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, add_sfos_for_multiplicity='gctree' in method)
+        input_seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, add_sfos_for_multiplicity='gctree' in method)
     elif naive_seq is not None:
-        seqfos = [{'name' : naive_seq_name, 'seq' : naive_seq}] + seqfos
+        input_seqfos = [{'name' : naive_seq_name, 'seq' : naive_seq}] + input_seqfos
     elif not no_naive:  # force calling fcn to affirmatively indicate it doesn't want the naive sequence in the tree (since at one point we forget to add it, with bad consequences)
-        raise Exception('not adding naive seq to seqfos (need to set no_naive)')
+        raise Exception('not adding naive seq to input_seqfos (need to set no_naive)')
     if only_pass_leaves:
-        seqfos = restrict_to_leaf_sfos(seqfos)
-    uid_list = [sfo['name'] for sfo in seqfos]
+        input_seqfos = restrict_to_leaf_sfos(input_seqfos)
+    uid_list = [sfo['name'] for sfo in input_seqfos]
     if method in iqt_methods:  # iqtree silently replaces + with _, so we have to do some translation
         translations = {}
-        for sfo in seqfos:
+        for sfo in input_seqfos:
             if '+' in sfo['name']:  # there may be other characters it doesn't like, but this is the only one i've run into
                 assert 'PLUS' not in sfo['name']
                 old_name = sfo['name']
@@ -1085,34 +1135,14 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
                 translations[sfo['name']] = old_name
     padded_seq_info_list = None  # remove N padding for methods that'll barf on it
     if method in ['linearham', 'raxml'] + gct_methods:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
-        padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
-        for sfo in seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
+        padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in input_seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
+        for sfo in input_seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
             sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
 
     if 'prep' in actions:
-        workdir = persistent_workdir
-        if workdir is None:
-            workdir = utils.choose_random_subdir('/tmp/%s/tree-inference' % os.getenv('USER', default='user'))
-        if not os.path.exists(ofn(workdir)):  # don't rewrite input file if output already exists (we print warning about not rerunning below)
-            if method == 'linearham':
-                tmpatn = utils.get_full_copy(annotation, glfo)
-                utils.trim_fwk_insertions(glfo, tmpatn)  # if there's fwk insertions linearham returns nonsense annotations
-                utils.write_annotations('%s/partition-%s.yaml'%(lhindir(workdir), glfo['locus']), glfo, [tmpatn], utils.annotation_headers)
-                utils.mkdir('%s/parameters'%lhindir(workdir))
-                lnk_name = '%s/parameters/%s' % (lhindir(workdir), glfo['locus'])
-                utils.makelink(os.path.dirname(lnk_name), os.path.abspath(parameter_dir), lnk_name)
-            else:
-                utils.write_fasta(ifn(workdir), seqfos)
-                if 'gctree' in method:
-                    with open(mfn(workdir), 'w') as mfile:
-                        mfo = {'%s_%s'%(c, k) : annotation[c+'_'+k] for c in 'hl' for k in ['frame', 'offset']} if is_fake_paired else {'frame' : utils.get_frame(annotation)}  # don't need the frames unless v_5p_del - fv_insertion > 0 which shouldn't be possible on padded sequences ofrm the hmm, but it's maybe better to always pass it in, it's too much trouble to only pass in if needed
-                        json.dump(mfo, mfile)
-        # # eh, turning this off for now:
-        # if method in iqt_methods and len(glob.glob('%s/%s.*'%(workdir, outfix))) > 0:
-        #     print '  %s iqtree output files exist, adding -redo option to overwrite them: %s' % (utils.wrnstr(), ' '.join(glob.glob('%s/%s.*'%(workdir, outfix))))
-        #     redo = True
+        workdir = prep_files(input_seqfos, is_fake_paired)
     else:
         assert cmdfo is not None
         workdir = cmdfo['workdir']
@@ -1125,7 +1155,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
             print('      %s output exists, not rerunning: %s' % (method, ofn(workdir)))
         else:
             if debug:
-                print('    running %s on %d sequences plus a naive' % (method, len(seqfos)))
+                print('    running %s on %d sequences plus a naive' % (method, len(input_seqfos)))
             out, err = utils.simplerun(getcmd(workdir), shell=True, return_out_err=True, extra_str='            ') #debug=debug)
 
     if 'read' not in actions:
@@ -1134,7 +1164,7 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     if debug:
         print('      converting %s newick string to dendro tree' % method)
     dtree = get_dendro_tree(treefname=ofn(workdir), taxon_namespace=taxon_namespace, ignore_existing_internal_node_labels=not suppress_internal_node_taxa and method=='fasttree',
-                            suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', debug=debug)
+                            suppress_internal_node_taxa=suppress_internal_node_taxa and method=='fasttree', print_tree=debug, debug=debug)
     if method in iqt_methods:
         translate_labels(dtree, list(translations.items()), expect_missing=True)  # we only need to replace ones with '+'s, so in general lots will be missing
     naive_node = dtree.find_node_with_taxon_label(naive_seq_name)
@@ -1150,9 +1180,9 @@ def run_tree_inference(method, seqfos=None, annotation=None, naive_seq=None, nai
     # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
     inf_seqfos, inf_antn = read_inf_seqs(dtree, removed_nodes, padded_seq_info_list)
     if padded_seq_info_list is not None:
-        re_insert_ambig(seqfos, padded_seq_info_list)
+        re_insert_ambig(input_seqfos, padded_seq_info_list)
     if len(inf_seqfos) > 0:
-        check_lengths(seqfos, inf_seqfos)
+        check_lengths(input_seqfos, inf_seqfos)
 
     if debug:
         print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
@@ -2449,7 +2479,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             filetrees.append({'tree' : dtree, 'ids' : treeids})
         print('      read %d trees from %s' % (len(filetrees), treefname))
     check_cluster_indices(cluster_indices, ntot, inf_lines_to_use)
-    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in [('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr')] + [(m, 'ran %s'%m) for m in ['fasttree', 'raxml', 'linearham'] + gct_methods + iqt_methods]}
+    tree_origin_counts = {n : {'count' : 0, 'label' : l} for n, l in [('treefname', 'read from %s' % treefname), ('cpath', 'made from cpath'), ('no-uids', 'no uids in common between annotation and trees in file'), ('lonr', 'ran liberman lonr')] + [(m, 'ran %s'%m) for m in all_phylo_methods]}
     n_already_there, n_skipped_uid, n_skipped_line, n_skipped_size = 0, 0, 0, 0
     cmdfos, treefos = [None for _ in inf_lines_to_use], [None for _ in inf_lines_to_use]
     for iclust, line in enumerate(inf_lines_to_use):
@@ -2488,7 +2518,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             assert cpath is not None
             dtree = cpath.get_single_tree(line, get_fasttrees=True, debug=False)
             origin = 'cpath'
-        elif tree_inference_method in ['fasttree', 'raxml', 'linearham', None] + gct_methods + iqt_methods:
+        elif tree_inference_method in all_phylo_methods + [None]:
             if tree_inference_method is None:
                 tree_inference_method = 'fasttree'  # ick
             cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it

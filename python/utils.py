@@ -4175,7 +4175,7 @@ def mkdir(path, isfile=False):  # adding this very late, so could use it in a lo
         os.makedirs(path)
 
 # ----------------------------------------------------------------------------------------
-def makelink(odir, target, link_name, dryrun=False, debug=False):  # <odir> is generally os.path.dirname(link_name)
+def makelink(odir, target, link_name, dryrun=False, debug=False):  # <odir> is generally os.path.dirname(link_name)   for search: def link def ln
     if os.path.exists(link_name):
         if os.path.islink(link_name):
             if os.path.isdir(link_name):  # if the link we're making (well, made on a previous call) is to a dir, calling a second time will instead create a new link inside the linked-to dir (which we don't want), so we have to remove it
