@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
-from distutils.version import StrictVersion
 import argparse
 import copy
 import time
@@ -16,8 +15,6 @@ import itertools
 import collections
 import traceback
 from io import open
-if StrictVersion(scipy.__version__) < StrictVersion('0.17.0'):
-    raise RuntimeError("scipy version 0.17 or later is required (found version %s)." % scipy.__version__)
 import colored_traceback.always
 import os
 import json
