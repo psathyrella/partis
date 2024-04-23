@@ -4987,16 +4987,17 @@ def auto_n_procs():  # for running on the local machine
     return n_procs
 
 # ----------------------------------------------------------------------------------------
-def limit_procs(cmdstr, n_max_procs=None, sleep_time=1, procs=None, debug=False):  # <sleep_time> is seconds
-    if cmdstr is None:
+def limit_procs(base_cmd_str, n_max_procs=None, sleep_time=1, procs=None, debug=False):  # <sleep_time> is seconds
+    if base_cmd_str is None:
         if procs is None:
-            raise Exception('<cmdstr> should be a (string) fragment of the command that will show up in ps, e.g. \'bin/partis\'')
+            raise Exception('<base_cmd_str> should be a (string) fragment of the command that will show up in ps, e.g. \'bin/partis\'')
         else:
             def n_running_jobs():
                 return [p.poll() for p in procs].count(None)
     else:
         def n_running_jobs():
-            return int(subprocess.check_output('ps auxw | grep %s | grep -v grep | grep -v defunct | wc -l' % cmdstr, shell=True, universal_newlines=True))
+            tcmd = 'ps auxw | grep %s | grep -v grep | grep -v defunct | grep -v emacs | wc -l' % base_cmd_str  # ignoring emacs lines is hackey, but not sure what else to do
+            return int(subprocess.check_output(tcmd, shell=True, universal_newlines=True))
     if n_max_procs is None:
         n_max_procs = auto_n_procs()
     n_jobs = n_running_jobs()
