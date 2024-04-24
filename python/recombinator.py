@@ -222,9 +222,12 @@ class Recombinator(object):
         # NOTE don't use reco_event after here, since we don't modify it when we remove non-functional sequences (as noted elsewhere, it would be nice to eventually update to just using <line>s instead of <reco_event> now that that's possible)
         if self.args.remove_nonfunctional_seqs:
             functional_iseqs = [iseq for iseq in range(len(line['unique_ids'])) if utils.is_functional(line, iseq)]
-            if len(functional_iseqs) == 0:  # none functional -- try again
+            if len(functional_iseqs) == 0:  # none are functional -- try again
                 return None
-            self.remove_nonfunc_seqs(line)
+            if len(functional_iseqs) < len(line['unique_ids']):  # it's generally very rare for them to all be functional
+                if self.args.debug:
+                    print('      removing %d nonfunctional seqs (of %d)' % (len(line['unique_ids']) - len(functional_iseqs), len(line['unique_ids'])))
+                utils.restrict_to_iseqs(line, functional_iseqs, self.glfo)
 
         return line
 
@@ -892,12 +895,6 @@ class Recombinator(object):
             print('  bppseqgen ran on the following tree (mean depth %.3f, imbalance %.4f) in %.2fs:' % (treeutils.get_mean_leaf_height(tree=reco_event.tree), treeutils.get_imbalance(reco_event.tree), self.validation_values['bpp-times'][-1]))
             print(treeutils.get_ascii_tree(dendro_tree=reco_event.tree, extra_str='      '))
             utils.print_reco_event(reco_event.line, extra_str='    ')
-
-    # ----------------------------------------------------------------------------------------
-    def remove_nonfunc_seqs(self, line):
-        functional_iseqs = [iseq for iseq in range(len(line['unique_ids'])) if utils.is_functional(line, iseq)]
-        if len(functional_iseqs) < len(line['unique_ids']):  # it's generally very rare for them to all be functional
-            utils.restrict_to_iseqs(line, functional_iseqs, self.glfo)
 
     # ----------------------------------------------------------------------------------------
     def check_tree_simulation(self, reco_event, debug=False):  # also adds validation values for this event, so you can later print them for all of the events

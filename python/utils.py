@@ -4407,15 +4407,18 @@ def shm_aa(line, iseq=None, uid=None):  # it's kind of weird to have this fcn se
     return hamming_distance(line['naive_seq_aa'], line['seqs_aa'][iseq], amino_acid=True)
 
 # ----------------------------------------------------------------------------------------
-def pad_nuc_seq(nseq, side='right'):  # if length not multiple of three, pad on right (by default) with Ns
+def pad_nuc_seq(nseq, side='right', return_n_padded=False):  # if length not multiple of three, pad on right (by default) with Ns
+    padstr = ''
     if len(nseq) % 3 != 0:
         if side == 'right':
-            nseq += 'N' * (3 - (len(nseq) % 3))
+            padstr = 'N' * (3 - (len(nseq) % 3))
+            nseq += padstr
         elif side == 'left':
-            nseq = 'N' * (3 - (len(nseq) % 3)) + nseq
+            padstr = 'N' * (3 - (len(nseq) % 3))
+            nseq = padstr + nseq
         else:
             assert False
-    return nseq
+    return (nseq, len(padstr)) if return_n_padded else nseq
 
 # ----------------------------------------------------------------------------------------
 def trim_nuc_seq(nseq):  # if length not multiple of three, trim extras from the right side

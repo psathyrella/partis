@@ -565,6 +565,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
             utils.remove_from_arglist(clist, '--existing-output-run-cfg', has_arg=True)
+            utils.remove_from_arglist(clist, '--remove-nonfunctional-seqs')  # have to do this after we have both chains, so we can remove both seqs if either one is nonfunctional
             if args.prepend_coverage_command:
                 clist = cov_cmd().split() + clist
             utils.remove_from_arglist(clist, '--prepend-coverage-command')
@@ -808,6 +809,31 @@ def run_all_loci(args, ig_or_tr='ig'):
         return lpfos
     # ----------------------------------------------------------------------------------------
     def combine_simu_chains():
+        # ----------------------------------------------------------------------------------------
+        def rm_nonfunc_seqs(antns_to_remove, hline, lline):  # remove both seqs (h+l) if either is nonfunctional
+            assert len(hline['unique_ids']) == len(lline['unique_ids'])
+            functional_iseqs = [iseq for iseq in range(len(hline['unique_ids'])) if utils.is_functional(hline, iseq) and utils.is_functional(lline, iseq)]
+            if len(functional_iseqs) == 0:  # none are functional
+                print('      %s no functional seqs in family with %d seqs' % (utils.wrnstr(), len(hline['unique_ids'])))
+                antns_to_remove.append([hline, lline])
+            elif len(functional_iseqs) < len(hline['unique_ids']):  # it's generally very rare for them to all be functional
+                if args.debug:
+                    print('      removing %d nonfunctional seqs (of %d)' % (len(hline['unique_ids']) - len(functional_iseqs), len(hline['unique_ids'])))
+                for ltmp, tln in zip(lpair, [hline, lline]):
+                    utils.restrict_to_iseqs(tln, functional_iseqs, lpfos['glfos'][ltmp])
+            else:
+                print('    all seqs functional, so not removing any: %d / %d' % (len(functional_iseqs), len(line['unique_ids'])))
+        # ----------------------------------------------------------------------------------------
+        def rm_empty_annotations(antns_to_remove):
+            print('    %s removing %d families with zero functional seqs' % (utils.wrnstr(), len(antns_to_remove)))
+            for atn_pair in antns_to_remove:
+                for ltmp, tln in zip(lpair, atn_pair):
+                    alist = lpfos['antn_lists'][ltmp]
+                    i_to_remove = utils.get_single_entry([i for i, l in enumerate(alist) if l['unique_ids']==tln['unique_ids']])  # do it in two steps to make sure we remove exactly one of them
+                    lpfos['antn_lists'][ltmp] = [l for i, l in enumerate(alist) if i!=i_to_remove]  # NOTE don't need to update the cpaths since they already get replaced below
+                    if len(lpfos['antn_lists'][ltmp]) == 0:
+                        print('  %s removed all %s families' % (utils.wrnstr(), ltmp))
+        # ----------------------------------------------------------------------------------------
         lp_infos = {}
         for lpair in spairs():
             lpfos = paircluster.read_locus_output_files(lpair, getofn, lpair=lpair, dont_add_implicit_info=not args.debug_paired_clustering, dbgstr='simulation', debug=args.debug_paired_clustering)
@@ -815,8 +841,13 @@ def run_all_loci(args, ig_or_tr='ig'):
             if None in list(lpfos.values()):
                 continue
             print('%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair)))
+            antns_to_remove = []
             for hline, lline in paircluster.get_antn_pairs(lpair, lpfos):
                 treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
+                if args.remove_nonfunctional_seqs:
+                    rm_nonfunc_seqs(antns_to_remove, hline, lline)
+            if len(antns_to_remove) > 0:
+                rm_empty_annotations(antns_to_remove)
             for ltmp in lpair:  # replace the old cpaths with new ones using the new uids (this should be faster than translating individual uids as we go)
                 lpfos['cpaths'][ltmp] = ClusterPath(partition=utils.get_partition_from_annotation_list(lpfos['antn_lists'][ltmp]), seed_unique_id=seedid(ltmp))
         concat_lpfos = handle_concatd_heavy_chain(lp_infos)

@@ -753,7 +753,7 @@ def compare_input_tree_to_leaf_seqs(region, in_treestr, leafseqs, naive_seq):
     taxon_namespace = dendropy.TaxonNamespace()  # in order to compare two trees with the metrics below, the trees have to have the same taxon namespace
     in_dtree = get_dendro_tree(treestr=in_treestr, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True)
     seqfos = [{'name' : 't%d' % (iseq + 1), 'seq' : seq} for iseq, seq in enumerate(leafseqs)]
-    out_dtree, _, _ = run_tree_inference('fasttree', seqfos=seqfos, naive_seq=naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True)
+    out_dtree, _, _ = run_tree_inference('fasttree', input_seqfos=seqfos, naive_seq=naive_seq, taxon_namespace=taxon_namespace, suppress_internal_node_taxa=True)
     in_height = get_mean_leaf_height(tree=in_dtree)
     out_height = get_mean_leaf_height(tree=out_dtree)
     base_width = 100
