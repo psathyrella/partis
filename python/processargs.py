@@ -514,6 +514,9 @@ def process(args):
         if args.fraction_of_reads_to_remove is not None:
             assert args.fraction_of_reads_to_remove >= 0. and args.fraction_of_reads_to_remove < 1.
 
+        if args.remove_nonfunctional_seqs and args.paired_loci and not args.mutate_stop_codons:
+            print('  note: removing nonfunctional seqs with paired loci may remove a very large fraction of sequences unless you also set --mutate-stop-codons')
+
         # ----------------------------------------------------------------------------------------
         def process_corr_values(cvals, estr=''):
             if cvals is None:

@@ -817,12 +817,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print('      %s no functional seqs in family with %d seqs' % (utils.wrnstr(), len(hline['unique_ids'])))
                 antns_to_remove.append([hline, lline])
             elif len(functional_iseqs) < len(hline['unique_ids']):  # it's generally very rare for them to all be functional
-                if args.debug:
-                    print('      removing %d nonfunctional seqs (of %d)' % (len(hline['unique_ids']) - len(functional_iseqs), len(hline['unique_ids'])))
+                print('      removing %d nonfunctional seqs (of %d)' % (len(hline['unique_ids']) - len(functional_iseqs), len(hline['unique_ids'])))
                 for ltmp, tln in zip(lpair, [hline, lline]):
                     utils.restrict_to_iseqs(tln, functional_iseqs, lpfos['glfos'][ltmp])
             else:
-                print('    all seqs functional, so not removing any: %d / %d' % (len(functional_iseqs), len(line['unique_ids'])))
+                print('    all seqs functional, so not removing any: %d / %d' % (len(functional_iseqs), len(hline['unique_ids'])))
         # ----------------------------------------------------------------------------------------
         def rm_empty_annotations(antns_to_remove):
             print('    %s removing %d families with zero functional seqs' % (utils.wrnstr(), len(antns_to_remove)))
