@@ -957,7 +957,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             # --min-cluster-size 50 # 10
             #--n-procs 15
         elif method == 'igphyml':
-            cmd = './projects/igphyml-run.py --infname %s/partition%s.yaml --outdir %s --naive-seq-name %s' % (workdir, '' if glfo is None else '-'+glfo['locus'], workdir, naive_seq_name)
+            cmd = './projects/igphyml-run.py --infname %s --outdir %s --naive-seq-name %s' % (ifn(workdir), workdir, naive_seq_name)
         else:
             assert False
         return cmd
@@ -1014,8 +1014,6 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             utils.mkdir('%s/parameters'%lhindir(workdir))
             lnk_name = '%s/parameters/%s' % (lhindir(workdir), glfo['locus'])
             utils.makelink(os.path.dirname(lnk_name), os.path.abspath(parameter_dir), lnk_name)
-        elif method == 'igphyml':
-            utils.write_annotations('%s/partition%s.yaml'%(workdir, '' if glfo is None else '-'+glfo['locus']), glfo, [annotation], utils.annotation_headers)
         else:
             utils.write_fasta(ifn(workdir), input_seqfos)
             if 'gctree' in method:
@@ -1036,17 +1034,6 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                     ig += 1
             sfo['seq'] = ''.join(nseq)
             assert len(sfo['seq']) == len(padded_seq_info_list)
-    # ----------------------------------------------------------------------------------------
-    def remove_added_ambig(input_seqfos, inf_seqfos, tdbg=False):
-        input_len = utils.get_single_entry(list(set(len(s['seq']) for s in input_seqfos)))
-        for sfo in [s for s in inf_seqfos if len(s['seq']) != input_len]:
-            trimmed_seq = utils.remove_ambiguous_ends(sfo['seq'])
-            if len(trimmed_seq) == input_len:
-                if tdbg:
-                    print('    fixed %s: %d --> %d' % (sfo['name'], len(sfo['seq']), len(trimmed_seq)))
-                sfo['seq'] = trimmed_seq
-            else:
-                raise Exception('couldn\'t fix seq for %s (len %d, input len %d): %s' % (sfo['name'], len(sfo['seq']), input_len, sfo['seq']))
     # # ----------------------------------------------------------------------------------------
     # def re_add_removed_duplicates(input_seqfos, dtree):  # igphyml discards duplicate seqs, so we re-add them as zero-length leaves
     #     missing_uids = set([s['name'] for s in 
@@ -1108,8 +1095,9 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             print('      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids'])))
         elif method == 'igphyml':
             inf_seqfos = utils.read_fastx(ofn(workdir, ancestors=True))
-            remove_added_ambig(input_seqfos, inf_seqfos)
-            # re_add_removed_duplicates(input_seqfos, dtree)  # not implementing this atm, maybe we're not even really caring about igphyml
+            for sfo in [s for s in input_seqfos + inf_seqfos if 'right-pad' in s]:
+                sfo['seq'] = sfo['seq'][ : len(sfo['seq']) - sfo['right-pad']]  # remove any padding we added before running
+            # re_add_removed_duplicates(input_seqfos, dtree)  # not implementing this atm (although probably should)
         else:  # method should be in inf_anc_methods
             assert False
         if debug:
@@ -1145,6 +1133,9 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
         padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in input_seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
         for sfo in input_seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
             sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
+    if method == 'igphyml':  # have to pad seqs so lengths are a multiple of 3 (note that padded_seq_info_list is *not* used for this, it's used for *removing* partis padding
+        for sfo in input_seqfos:
+            sfo['seq'], sfo['right-pad'] = utils.pad_nuc_seq(sfo['seq'], return_n_padded=True)  # in retrospect, might've made more sense to put the padded_seq_info_list info also in the seqfos
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
         raise Exception('duplicate uid(s) in seqfos for FastTree, which\'ll make it crash: %s' % ' '.join(u for u in uid_list if uid_list.count(u) > 1))
 
