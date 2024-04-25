@@ -2749,7 +2749,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, inf_partition=None,
             dumpfo.update(tl['tree-info'])
             return dumpfo
         utils.jsdump(outfname, [dumpfo(l) for l in antn_list if 'tree-info' in l])
-    if args.tree_inference_method in ['raxml', 'linearham']+gct_methods+iqt_methods and tree_inference_outdir is not None:
+    if args.tree_inference_method in inf_anc_methods and tree_inference_outdir is not None:
         anfname = '%s/%s-annotations.yaml' % (tree_inference_outdir, args.tree_inference_method)
         print('    writing annotations with inferred ancestral sequences from %s to %s' % (args.tree_inference_method, anfname))
         utils.write_annotations(anfname, glfo, antn_list, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns) + utils.fake_paired_columns)  # NOTE these probably have the fwk insertions removed, which is probably ok?

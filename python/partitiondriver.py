@@ -1912,7 +1912,7 @@ class PartitionDriver(object):
                 os.remove(infname)
 
     # ----------------------------------------------------------------------------------------
-    def merge_all_hmm_outputs(self, n_procs, precache_all_naive_seqs):
+    def merge_all_hmm_outputs(self, n_procs, precache_all_naive_seqs):  # for search: read hmm read_hmm
         """ Merge any/all output files from subsidiary bcrham processes """
         cpath = None  # it would be nice to figure out a cleaner way to do this
         if self.current_action == 'partition':  # merge partitions from several files
@@ -2302,7 +2302,7 @@ class PartitionDriver(object):
                 line[lkey] = [gv(lkey, u) for u in uids]
 
     # ----------------------------------------------------------------------------------------
-    def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None, print_annotations=False, is_subcluster_recursed=False):
+    def read_annotation_output(self, annotation_fname, count_parameters=False, parameter_out_dir=None, print_annotations=False, is_subcluster_recursed=False):  # for search: read hmm read_hmm
         """ Read bcrham annotation output """
         # ----------------------------------------------------------------------------------------
         def check_invalid(line, hmm_failures):
