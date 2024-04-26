@@ -1095,8 +1095,9 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             print('      read linearham annotation with %d / %d seqs from internal nodes (presumably mostly inferred ancestors)' % (len(internal_ids), len(inf_antn['unique_ids'])))
         elif method == 'igphyml':
             inf_seqfos = utils.read_fastx(ofn(workdir, ancestors=True))
-            for sfo in [s for s in input_seqfos + inf_seqfos if 'right-pad' in s]:
-                sfo['seq'] = sfo['seq'][ : len(sfo['seq']) - sfo['right-pad']]  # remove any padding we added before running
+            n_right_pad = utils.get_single_entry(list(set([s['right-pad'] for s in input_seqfos])))
+            for sfo in input_seqfos + inf_seqfos:
+                sfo['seq'] = sfo['seq'][ : len(sfo['seq']) - n_right_pad]  # remove any padding we added before running
             # re_add_removed_duplicates(input_seqfos, dtree)  # not implementing this atm (although probably should)
         else:  # method should be in inf_anc_methods
             assert False
