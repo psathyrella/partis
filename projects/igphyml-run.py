@@ -64,7 +64,7 @@ def fofn(ft):
 def parse_output():
     if utils.all_outputs_exist(args, [fofn('tree'), fofn('seqs')], outlabel='final parsed'):
         return
-    utils.makelink(args.outdir, igp_ofn('seqs'), fofn('seqs'), debug=True)  # could just do this if i didn't need to fix the naive name
+    utils.makelink(args.outdir, igp_ofn('seqs'), fofn('seqs'), debug=True)  # note that these inferred seqs include non-N ambiguous bases, which atm i'm fixing in the calling code in treeutils.py
     dtree = treeutils.get_dendro_tree(treefname=igp_ofn('tree'), schema='nexus') #, debug=True, print_tree=True)
     rnode = dtree.find_node_with_taxon_label(args.naive_seq_name)
     if rnode is not dtree.seed_node:  # it seems to put the node we want as root as a leaf just below the (unlabeled) root node
