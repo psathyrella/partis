@@ -170,21 +170,4 @@ class RecombinationEvent(object):
 
     # ----------------------------------------------------------------------------------------
     def mutate_away_stop_codons(self, seq, debug=False):
-        # ----------------------------------------------------------------------------------------
-        def fix_stop(cdn):
-            while cdn in utils.codon_table['stop']:
-                imut = numpy.random.choice(range(len(cdn)))
-                new_nuc = numpy.random.choice([n for n in utils.nukes if n != cdn[imut]])
-                cdn = cdn[:imut] + new_nuc + cdn[imut + 1:]
-            return cdn
-        # ----------------------------------------------------------------------------------------
-        codons, trim_bits = utils.get_codon_list(seq, self.insertions['fv'], self.insertions['jf'], self.effective_erosions['v_5p'], debug=debug)
-        for istp in [i for i, c in enumerate(codons) if c in utils.codon_table['stop']]:
-            new_cdn = fix_stop(codons[istp])
-            if debug:
-                print('  fixed %3d: %s --> %s' % (istp, codons[istp], new_cdn))
-            codons[istp] = new_cdn
-        seq = trim_bits[0] + ''.join(codons) + trim_bits[1]
-        if debug:
-            assert not utils.is_there_a_stop_codon(seq, self.insertions['fv'], self.insertions['jf'], self.effective_erosions['v_5p'])
-        return seq
+        return utils.mutate_stop_codons(seq, self.insertions['fv'], self.insertions['jf'], self.effective_erosions['v_5p'], debug=debug)

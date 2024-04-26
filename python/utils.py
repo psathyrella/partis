@@ -2843,6 +2843,28 @@ def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False
     return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
 
 # ----------------------------------------------------------------------------------------
+def fix_stop(cdn):  # mutate codon <cdn> so it's no longer a stop codon
+    while cdn in codon_table['stop']:
+        imut = numpy.random.choice(range(len(cdn)))
+        new_nuc = numpy.random.choice([n for n in nukes if n != cdn[imut]])
+        cdn = cdn[:imut] + new_nuc + cdn[imut + 1:]
+    return cdn
+
+# ----------------------------------------------------------------------------------------
+# mutate any stop codons until there's no stop codons left
+def mutate_stop_codons(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):
+    codons, trim_bits = get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=debug)
+    for istp in [i for i, c in enumerate(codons) if c in codon_table['stop']]:
+        new_cdn = fix_stop(codons[istp])
+        if debug:
+            print('  fixed %3d: %s --> %s' % (istp, codons[istp], new_cdn))
+        codons[istp] = new_cdn
+    seq = trim_bits[0] + ''.join(codons) + trim_bits[1]
+    if debug:
+        assert not is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del)
+    return seq
+
+# ----------------------------------------------------------------------------------------
 def disambiguate_effective_insertions(bound, line, iseq, debug=False):
     # These are kinda weird names, but the distinction is important
     # If an insert state with "germline" N emits one of [ACGT], then the hmm will report this as an inserted N. Which is what we want -- we view this as a germline N which "mutated" to [ACGT].

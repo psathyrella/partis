@@ -996,7 +996,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                 n_internal += 1
             else:
                 raise Exception('was told to restrict to leaves, but found a node with unexpected name \'%s\' (expected \'leaf-\', \'int-\', \'mrca-\', or %s' % (sfo['name'], naive_seq_name))
-        if 'prep' in actions:  # this still gets run for run/read, but i don't think there's a reason to print it twice
+        if 'prep' in actions and debug:  # this still gets run for run/read, but i don't think there's a reason to print it twice
               print('        removed %d internal nodes (kept %d leaf+naive)' % (n_internal, n_kept))
         return newfos
     # ----------------------------------------------------------------------------------------
@@ -1134,6 +1134,13 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
         for sfo in input_seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
             sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
     if method == 'igphyml':  # have to pad seqs so lengths are a multiple of 3 (note that padded_seq_info_list is *not* used for this, it's used for *removing* partis padding
+        if method == 'igphyml':
+            has_naive_stop = utils.is_there_a_stop_codon(annotation['naive_seq'], annotation['fv_insertion'], '', annotation['v_5p_del'])  # don't use jf insertion since if this is a fake paired annotation it won't be there
+            if has_naive_stop:
+                print('    %s stop codon in naive sequence for cluster %s: %s' % (utils.wrnstr(), iclust, annotation['naive_seq']))  # note that iclust can be None
+                nfo = utils.get_single_entry([s for s in input_seqfos if s['name']==naive_seq_name])
+                print('       reverting stop codon')
+                nfo['seq'] = utils.mutate_stop_codons(nfo['seq'], annotation['fv_insertion'], '', annotation['v_5p_del'], debug=True)
         for sfo in input_seqfos:
             sfo['seq'], sfo['right-pad'] = utils.pad_nuc_seq(sfo['seq'], return_n_padded=True)  # in retrospect, might've made more sense to put the padded_seq_info_list info also in the seqfos
     if method == 'fasttree' and any(uid_list.count(u) > 1 for u in uid_list):
@@ -2551,12 +2558,12 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             if cfo is None:
                 continue
             dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)
-            if tree_inference_method in ['raxml'] + gct_methods + iqt_methods:  # i.e. inf_anc_methods except linearham (this comment is really just for search)
-                utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, extra_str='      iclust %d '%iclust, debug=debug)
-            elif tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
+            if tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
                 for mkey in [k for k in utils.input_metafile_keys.values() if k in line]:  # have to copy over any input meta keys
                     inf_antn[mkey] = [utils.per_seq_val(line, mkey, u, use_default=True) for u in inf_antn['unique_ids']]
                 inf_lines_to_use[iclust] = inf_antn
+            elif tree_inference_method in inf_anc_methods:
+                utils.add_seqs_to_line(line, inf_seqfos, glfo, print_added_str='%s inferred'%tree_inference_method, extra_str='      iclust %d '%iclust, debug=debug)
             addtree(iclust, dtree, tree_inference_method)
 
     print('    tree origins: %s' % ',  '.join(('%d %s' % (nfo['count'], nfo['label'])) for n, nfo in tree_origin_counts.items() if nfo['count'] > 0))

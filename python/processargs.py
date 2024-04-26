@@ -375,6 +375,7 @@ def process(args):
         args.selection_metrics_to_calculate = 'lbi'
         args.selection_metric_plot_cfg = 'lb-scatter'
         sys.argv[sys.argv.index('infer-trees')] = 'get-selection-metrics'  # sys.argv gets used for arg manipulation in paired stuff
+        print('  note: changing action \'infer-trees\' to \'get-selection-metrics\'')
     if args.action == 'get-selection-metrics' or args.get_selection_metrics:
         if args.paired_loci:
             if args.paired_outdir is None and args.selection_metric_fname is None:

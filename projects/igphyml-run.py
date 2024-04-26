@@ -65,7 +65,12 @@ def parse_output():
     if utils.all_outputs_exist(args, [fofn('tree'), fofn('seqs')], outlabel='final parsed'):
         return
     utils.makelink(args.outdir, igp_ofn('seqs'), fofn('seqs'), debug=True)  # could just do this if i didn't need to fix the naive name
-    dtree = treeutils.get_dendro_tree(treefname=igp_ofn('tree'), schema='nexus')
+    dtree = treeutils.get_dendro_tree(treefname=igp_ofn('tree'), schema='nexus') #, debug=True, print_tree=True)
+    rnode = dtree.find_node_with_taxon_label(args.naive_seq_name)
+    if rnode is not dtree.seed_node:  # it seems to put the node we want as root as a leaf just below the (unlabeled) root node
+        if rnode.edge_length > 1e-3:
+            raise Exception('don\'t want to collapse non-trivial edge, but got length %f' % rnode.edge_length)
+        treeutils.collapse_nodes(dtree, args.naive_seq_name, rnode.parent_node.taxon.label)
     with open(fofn('tree'), 'w') as tfile:
         tfile.write(dtree.as_string(schema='newick'))
 
