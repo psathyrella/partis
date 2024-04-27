@@ -411,6 +411,23 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     return dtree
 
 # ----------------------------------------------------------------------------------------
+def get_etree(dtree):
+    from ete3 import Tree
+    etree = Tree(dtree.as_string(schema='newick').replace('[&R]', '').strip(), format=1, quoted_node_names=True)
+    # print(utils.pad_lines(etree.get_ascii(show_internal=True)))
+    return etree
+
+# ----------------------------------------------------------------------------------------
+def get_ete_rf(dt1, dt2):
+    etr1, etr2 = [get_etree(t) for t in [dt1, dt2]]
+    rvals = etr1.robinson_foulds(etr2, unrooted_trees=True)
+    # the help fucking says these are the return values, but it returns one fewer than this many items so idfk what it returns, but i guess the first one is the rf distance
+    # rf, rf_max, common_attrs, names, edges_t1, edges_t2,  discarded_edges_t1, discarded_edges_t2 =
+    # print(dendropy.calculate.treecompare.weighted_robinson_foulds_distance(dts_t, dts_i), dendropy.calculate.treecompare.symmetric_difference(dts_t, dts_i), ete_rf)
+    rf = rvals[0]
+    return rf
+
+# ----------------------------------------------------------------------------------------
 def import_bio_phylo():
     if 'Bio.Phylo' not in sys.modules:
         from Bio import Phylo  # slow af to import
@@ -541,7 +558,7 @@ def sync_taxon_namespaces(dtree_a, dtree_b, only_leaves=False, debug=False):
     def new_tree(told, new_tns):
         return dendropy.Tree(seed_node=told.seed_node, taxon_namespace=new_tns)
     # ----------------------------------------------------------------------------------------
-    common_labels = get_common_labels(dtree_a, dtree_b, only_leaves=only_leaves, dbgstr='syncing taxon namespaces')
+    common_labels = get_common_labels(dtree_a, dtree_b, only_leaves=only_leaves, dbgstr='syncing taxon namespaces', debug=debug)
     new_tns = dendropy.TaxonNamespace(common_labels)
     return [new_tree(t, new_tns) for t in [dtree_a, dtree_b]]
 

@@ -174,9 +174,10 @@ for itree, atn_t in enumerate(tru_atn_list):
     if 'mrca' in args.metrics:
         jvals['mrca'].append(treeutils.mrca_dist(dtree_t, dtree_i, debug=args.debug))
     if 'rf' in args.metrics:
-        dts_t, dts_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True)
+        dts_t, dts_i = treeutils.sync_taxon_namespaces(dtree_t, dtree_i, only_leaves=True) #, debug=True)
         # this is weighted (i.e. depends on edge length), could also use unweighted (fcn symmetric_difference()) [from /loc/dralph/.local/lib/python3.6/site-packages/dendropy/calculate/treecompare.py]
         jvals['rf'].append(dendropy.calculate.treecompare.weighted_robinson_foulds_distance(dts_t, dts_i))
+        # print(treeutils.get_ete_rf(dtree_t, dtree_i)
 
 # if os.path.basename(args.inferred_tree_file).split('-')[0] == 'gctree':
 #     jvals['n-pars-trees'] = get_n_parsimony_trees(len(tru_atn_list))

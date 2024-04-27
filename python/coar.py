@@ -222,7 +222,7 @@ def align_lineages(node_t, tree_t, tree_i, inf_nodes, gap_penalty_pct=0, known_r
             print('           %s   %s  %s   %s' % (hdstr, ustr(uid_t), ustr(uid_i), str_i))
         if alignment_score % 1 != 0 or max_penalty % 1 != 0:
             raise Exception('alignment_score score %s or max_penalty %s not integers, so need to fix dbg print in next line' % (alignment_score, max_penalty))
-        print('      alignment score: %.0f   max penalty (%s): %d * %d = %d' % (alignment_score, denom_type, max_penalty / penalty_val, penalty_val, max_penalty))
+        print('      alignment score: %.0f   max penalty (%s): %.0f * %d = %d' % (alignment_score, denom_type, float('nan') if penalty_val==0 else max_penalty / penalty_val, penalty_val, max_penalty))
         if test:
             check_test_values(alignment_score, max_penalty, align_t, align_i)
 
