@@ -1023,12 +1023,15 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
         return workdir
 
     # ----------------------------------------------------------------------------------------
-    def re_insert_ambig(tmpfos, padded_seq_info_list):
+    # default: re-insert ambiguous positions that were removed before passing to methods that can't handle ambiguous bases
+    def re_insert_ambig(tmpfos, padded_seq_info_list, dont_insert=False):  # dont_insert: fix positions that were ambiguous in leaf seqs, but that igphyml made non-ambiguous in an inferred ancestral seq
         for sfo in tmpfos:
             nseq, ig = [], 0
             for pchar in padded_seq_info_list:
                 if pchar == utils.ambig_base:  # if it's an N, then we removed it from the seqs that we passed to gctree, so we need to insert an N into the inferred seq here
                     nseq.append(utils.ambig_base)
+                    if dont_insert:
+                        ig += 1
                 else:
                     nseq.append(sfo['seq'][ig])
                     ig += 1
@@ -1096,9 +1099,11 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
         elif method == 'igphyml':
             inf_seqfos = utils.read_fastx(ofn(workdir, ancestors=True))
             n_right_pad = utils.get_single_entry(list(set([s['right-pad'] for s in input_seqfos])))
-            # print('    removing %d bases from right side of all seqs' % n_right_pad)
+            if debug:
+                print('    removing %d bases from right side of all seqs' % n_right_pad)
             for sfo in input_seqfos + inf_seqfos:
                 sfo['seq'] = sfo['seq'][ : len(sfo['seq']) - n_right_pad].translate(utils.ambig_translations)  # remove any padding we added before running
+            re_insert_ambig(inf_seqfos, padded_seq_info_list, dont_insert=True)
             # re_add_removed_duplicates(input_seqfos, dtree)  # not implementing this atm (although probably should)
         else:  # method should be in inf_anc_methods
             assert False
@@ -1131,10 +1136,11 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
     padded_seq_info_list = None  # remove N padding for methods that'll barf on it
-    if method in ['linearham', 'raxml'] + gct_methods:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
+    if method in ['linearham', 'raxml', 'igphyml'] + gct_methods:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
         padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in input_seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
-        for sfo in input_seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
-            sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
+        if method != 'igphyml':  # for igphyml we want the info on which positions were ambiguous (since it makes some of them non-ambiguous in inferred ancestral nodes) but don't want to remove ambiguous positions (since it uses codon info we have to keep things in frame/as original)
+            for sfo in input_seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
+                sfo['seq'] = ''.join(c for c in sfo['seq'] if c != utils.ambig_base)
     if method == 'igphyml':  # have to pad seqs so lengths are a multiple of 3 (note that padded_seq_info_list is *not* used for this, it's used for *removing* partis padding
         if method == 'igphyml':
             has_naive_stop = utils.is_there_a_stop_codon(annotation['naive_seq'], annotation['fv_insertion'], '', annotation['v_5p_del'])  # don't use jf insertion since if this is a fake paired annotation it won't be there
@@ -1186,7 +1192,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
 
     # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
     inf_seqfos, inf_antn = read_inf_seqs(dtree, removed_nodes, padded_seq_info_list)
-    if padded_seq_info_list is not None:
+    if padded_seq_info_list is not None and method != 'igphyml':  # igphyml we don't actually remove the ambig positions from input seqs, so don't need to do anything here (we use the padded_seq_info_list info for other purposes)
         re_insert_ambig(input_seqfos, padded_seq_info_list)
     if len(inf_seqfos) > 0:
         check_lengths(input_seqfos, inf_seqfos)

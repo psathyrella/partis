@@ -64,6 +64,7 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
                 cseq_i = cseq_i.strip('N')
             else:
                 cseq_i = cseq_i.strip('N')
+                # n_lstrip, n_rstrip = len(cseq_i) - len(cseq_i.lstrip('N')), len(cseq_i) - len(cseq_i.rstrip('N'))  # if this starts causing problems again, it might be worth doing something like this to keep track of n bases removed from each side, and making sure it's the same for all seqs
                 if tch not in cs_lens:
                     cs_lens[tch] = len(cseq_i)  # keep track of the h/l seq lengths, so for inferred nodes where we don't know it, we can remove the same bases
                 assert cs_lens[tch] == len(cseq_i)  # they should all be the same
@@ -71,10 +72,11 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
             new_seq_i.append(cseq_i)
         return ''.join(new_seq_i).strip('N')
     # ----------------------------------------------------------------------------------------
-    def check_seqs(uid, seq_i, seq_t, fix_counts, force=False, dont_fix=False):
+    def check_seqs(uid, seq_i, seq_t, fix_counts, force=False, dont_fix=False):  # check/fix that any nodes that are in both trees have the same sequence
         fix_counts['total'] += 1
         if seq_t == seq_i:
             return False  # return whether we fixed it or not
+        # utils.color_mutants(seq_t, seq_i, align_if_necessary=True, print_result=True)
         seq_i = combine_chain_seqs(uid, seq_i)
         if seq_t is None:
             assert force  # for seqs that are in inferred but not true, we already know we need to fix them (and how)
@@ -87,6 +89,19 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
         seqs_i[uid] = seq_i
         fix_counts['fixed'].append(uid)
         return True
+    # ----------------------------------------------------------------------------------------
+    def check_all_lengths(seqs_t, seqs_i):  # check/fix that all seqs in both trees have the same length
+        lens_t, lens_i = [list(set(len(s) for s in slist.values())) for slist in [seqs_t, seqs_i]]
+        true_len = utils.get_single_entry(lens_t)
+        if len(lens_i) == 1 and lens_i[0] == true_len:
+            return
+        tseq = list(seqs_t.values())[0]
+        for uid in [u for u, s in seqs_i.items() if len(s) != true_len]:
+            utils.color_mutants(tseq, seqs_i[uid], align_if_necessary=True, print_result=True, extra_str='        ', ref_label='arb. true ', seq_label=uid+' ')
+            _, new_seq = utils.align_seqs(tseq, seqs_i[uid])  # i added this to fix a case that i ended up fixing a different (much better) way, but it might be useful in future, so leaving here
+            seqs_i[uid] = new_seq.replace('-', utils.ambig_base)  # UGH
+            utils.color_mutants(tseq, seqs_i[uid], align_if_necessary=True, print_result=True, extra_str='        ', ref_label='arb. true ', seq_label=uid+' ')
+        raise Exception('different sequence lengths (probably from inferred internal nodes), see previous lines')
     # ----------------------------------------------------------------------------------------
     leaf_ids_t = [l.taxon.label for l in tr_t.leaf_node_iter() if l.taxon.label in atn_t['unique_ids']]
     leaf_ids_i = [u for u in leaf_ids_t if u in atn_i['unique_ids']]  # inferred tree may swap internal/leaf nodes
@@ -105,8 +120,9 @@ def fix_seqs(atn_t, atn_i, tr_t, tr_i, seq_key='input_seqs', debug=False):  # in
     if fixed:
         for uid in [u for u in atn_i['unique_ids'] if u not in leaf_ids_i] + [naive_name]:  # need to also fix any internal/inferred nodes
             check_seqs(uid, seqs_i[uid], seqs_t.get(uid), fix_counts, force=True, dont_fix=uid==naive_name)
-    print('    no nodes needed fixing (all seqs already the same)' if len(fix_counts['fixed'])==0 else '    fixed %d / %d nodes' % (len(fix_counts['fixed']), fix_counts['total']))
-    if debug:
+    print('    no nodes needed fixing (all seqs already the same for common true/inferred nodes)' if len(fix_counts['fixed'])==0 else '    fixed %d / %d nodes' % (len(fix_counts['fixed']), fix_counts['total']))
+    check_all_lengths(seqs_t, seqs_i)
+    if debug and len(fix_counts['fixed']) > 0:
         print('      fixed seqs: %s' % ' '.join(sorted(fix_counts['fixed'])))
 
     return seqs_t, seqs_i

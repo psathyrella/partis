@@ -92,7 +92,7 @@ parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--env-label', default='igphyml')
 parser.add_argument('--naive-seq-name', default='naive', help='rename the igphyml-inferred naive sequence to this')
 parser.add_argument('--n-procs', type=int, default=1)
-parser.add_argument('--ambig-codon-threshold', type=float, default=0.9, help='partial likelihood threshold for ambiguous codons (not really sure what this does, but maybe should adjust it)')
+parser.add_argument('--ambig-codon-threshold', type=float, default=0, help='partial likelihood threshold for ambiguous codons (using very small value to avoid any ambiguous bases)')
 
 args = parser.parse_args()
 args.actions = utils.get_arg_list(args.actions, choices=['run', 'parse', 'install'])
