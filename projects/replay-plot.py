@@ -25,23 +25,25 @@ import python.plotting as plotting
 import python.hutils as hutils
 from python.hist import Hist
 import python.treeutils as treeutils
+import python.datautils as datautils
 
 colors = {
-    'data' :  plotting.default_colors[1],
+    'data' : '#cc0000',
     'data-d15' : '#006600',
-    'data-d20' : plotting.default_colors[1],
+    'data-d20' :  '#cc0000',
     'data-w10' : '#2b65ec',
-    'data-beast' : '#990012',
+    'data-beast' : '#006600',
     'simu' : '#808080',
     'simu-iqtree' : 'black',
 }
 linestyles = {
-    'simu' : '--',
-    # 'if 'simu' in l else '-' for l in labels]
+    'simu' : 'dashed',
+    # 'data-d20' : 'dashed',
 }
 linewidths = {
     'simu' : 4,
     'simu-iqtree' : 2,
+    # 'data-d20' : 4,
 }
 pltlabels = {
     'abundances' : 'abundances',
@@ -54,36 +56,6 @@ pltlabels = {
 # ----------------------------------------------------------------------------------------
 def abfn(tlab, abtype='abundances'):
     return '%s/%s/%s.csv' % (args.outdir, tlab, abtype)
-
-# ----------------------------------------------------------------------------------------
-def get_gcid(prn, mouse, gcn):
-    return 'pr-%s-m-%s-gc-%s' % (prn, mouse, gcn)
-
-# ----------------------------------------------------------------------------------------
-def read_gcreplay_metadata():
-    # ----------------------------------------------------------------------------------------
-    def readcfn(prn):
-        with open('%s/metadata.PR%s.csv' % (args.gcreplay_dir, prn)) as cfile:
-            reader = csv.DictReader(cfile)
-            for line in reader:
-                line['pr'] = prn
-                if prn == '1':
-                    line['time'] = line['imm_duration']
-                    del line['imm_duration']
-                elif prn == '2':
-                    line['time'] = 'd15'
-                    line['strain'] = 'wt'
-                else:
-                    assert False
-                gcid = get_gcid(line['pr'], line['mouse'], line['gc'])
-                assert gcid not in rpmeta
-                rpmeta[gcid] = line
-    # ----------------------------------------------------------------------------------------
-    print('  reading gcreplay meta info from %s' % args.gcreplay_dir)
-    rpmeta = {}
-    for prn in ['1', '2']:
-        readcfn(prn)
-    return rpmeta
 
 # ----------------------------------------------------------------------------------------
 def abdn_hargs(hlist):
@@ -109,10 +81,7 @@ def read_gctree_csv(all_seqfos, label):
     with open('%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
         reader = csv.DictReader(cfile)
         for line in reader:
-            prstr, prsuffix = line['PR'].split('.')
-            assert prstr[:2] == 'PR'
-            prn = prstr[2:]
-            gcid = get_gcid(prn, line['HK_key_mouse'], line['HK_key_gc'])
+            gcid = datautils.get_gcid(line['PR'].replace('PR', ''), line['HK_key_mouse'], line['HK_key_node'], line['HK_key_gc'])
             gc_counts['all'].add(gcid)
             if timestr is not None and rpmeta[gcid]['time'] != timestr:
                 gc_counts['skipped'].add(gcid)
@@ -168,7 +137,9 @@ def read_input_files(label):
             if args.min_seqs_per_gc is not None and len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc (can't be bothered, it seems more important for abundance stuff anyway)
                 n_too_small += 1
                 continue
-            gctree_dir = utils.get_single_entry(glob.glob('%s/nextflow/results/gctrees/PR%s*-%s-%s-%s-GC'%(args.gcreplay_dir, rpmeta[gcn]['pr'], rpmeta[gcn]['mouse'], rpmeta[gcn]['node'], rpmeta[gcn]['gc'])))
+            gpm = rpmeta[gcn]
+            gcidstr = datautils.get_gcid(gpm['PR'], gpm['mouse'], gpm['node'], gpm['gc'])
+            gctree_dir = '%s/nextflow/results/gctrees/%s' % (args.gcreplay_dir, gcidstr)
             dtree = treeutils.get_dendro_tree(treefname='%s/gctree.inference.1.nk'%gctree_dir)
             all_dtrees[gcn] = dtree
             nodefo = {n.taxon.label : n for n in dtree.preorder_node_iter()}
@@ -369,12 +340,12 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
     adjust = None
     if '\n' in ytitle:
         adjust = {'left' : 0.23 if hname=='abundances' else 0.18}
-    # if 'muts' in hname:  # useful for data-beast
-    #     xbounds = [-0.5, 30.5]
+    if any('beast' in l for l in labels) and 'muts' in hname:
+        xbounds = [-0.5, 20.5]
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(htype, hname), more_hists=hists, log='y' if 'abundances' in hname else '', xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],
                                plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
-                               alphas=[0.6 for _ in hists], colors=[colors[l] for l in labels], linestyles=[linestyles.get(l, '-') for l in labels], translegend=[-0.65, 0.1] if affy_like(hname) and 'abundance' not in hname else [-0.3, 0.1], write_csv=True,
+                               alphas=[0.6 for _ in hists], colors=[colors.get(l) for l in labels], linestyles=[linestyles.get(l, '-') for l in labels], translegend=[-0.65, 0.1] if affy_like(hname) and 'abundance' not in hname else [-0.3, 0.1], write_csv=True,
                                hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname, make_legend_only_plot=args.write_legend_only_plots, no_legend=args.write_legend_only_plots)
     fnames[-1].append(fn)
 

@@ -7,7 +7,7 @@ def get_gcid(prn, mouse, node, gcn):
     # print(prn, mouse, gcn)
     # sys.exit()
     # return 'pr-%s-m-%s-gc-%s' % (prn, mouse, gcn)
-    return 'PR-%s-%s-%s-%s-GC' % (prn, mouse, node, gcn)
+    return 'PR%s-%s-%s-%s-GC' % (prn, mouse, node, gcn)
 # PR%s*-%s-%s-%s-GC
 # btt-PR-1-8-1-LP-4-GC
 
@@ -23,17 +23,6 @@ def read_gcreplay_metadata(gcreplay_dir):
         with open('%s/metadata.PR%s.csv' % (gcreplay_dir, prn)) as cfile:
             reader = csv.DictReader(cfile)
             for line in reader:
-# TODO use 'PR' key from line
-# TODO add PR number to PR2 meta csv
-                line['pr'] = prn
-                print(prn)
-                pref, suff = prn.split('.')
-                if len(suff) == 1:
-# TODO add 0 in PR1 meta csv
-                    suff = '0%s' % suff
-                prn = '%s.%s' % (pref, suff)
-                print(prn)
-                sys.exit()
                 if prn == '1':
                     line['time'] = line['imm_duration']
                     del line['imm_duration']
@@ -42,7 +31,7 @@ def read_gcreplay_metadata(gcreplay_dir):
                     line['strain'] = 'wt'
                 else:
                     assert False
-                gcid = get_gcid(line['pr'], line['mouse'], line['node'], line['gc'])
+                gcid = get_gcid(line['PR'], line['mouse'], line['node'], line['gc'])
                 assert gcid not in rpmeta
                 rpmeta[gcid] = line
     # ----------------------------------------------------------------------------------------
