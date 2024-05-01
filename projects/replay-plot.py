@@ -129,6 +129,34 @@ def read_input_files(label):
                 mfos[line['name']] = line
         return mfos
     # ----------------------------------------------------------------------------------------
+    def check_seqfos_nodes():  # compare uids in seqfos vs those in dtree nodes
+        # ----------------------------------------------------------------------------------------
+        def check_gcn(gcn):
+            sfo_ids = collections.Counter(s.get('base-name', s['name']) for s in all_seqfos[gcn])
+            dtr_ids = collections.Counter(n.taxon.label for n in all_dtrees[gcn].preorder_node_iter())
+            only_sfo = set(sfo_ids) - set(dtr_ids)
+            if len(only_sfo) > 0:
+                tcts['only-seqfo'].append(len(only_sfo))
+            only_tree = set(dtr_ids) - set(sfo_ids)
+            if len(only_tree) > 0:
+                tcts['only-tree'].append(len(only_tree))
+                internal_ids = [n.taxon.label for n in all_dtrees[gcn].preorder_internal_node_iter()]
+                tcts['internal'].append(len(set(internal_ids) & only_tree))
+            for cid in set(sfo_ids) & set(dtr_ids):
+                if sfo_ids[cid] != dtr_ids[cid]:
+                    tcts['diff-count'].append('%d %d' % (sfo_ids[cid], dtr_ids[cid]))
+        # ----------------------------------------------------------------------------------------
+        tcts = {'diff-count' : [], 'only-seqfo' : [], 'only-tree' : [], 'internal' : []}
+        for gcn in all_seqfos:
+            check_gcn(gcn)
+        print('     checking tree vs seqfo ids for %d trees:' % len(all_seqfos))
+        if len(tcts['only-seqfo']) > 0:
+            print('        %d seqs (from %d trees) only in seqfos: %s' % (sum(tcts['only-seqfo']), len(tcts['only-seqfo']), ' '.join(str(c) for c in tcts['only-seqfo'])))
+        if len(tcts['only-tree']) > 0:
+            print('        %d seqs (from %d trees) only in tree (%d of these are internal nodes): %s' % (sum(tcts['only-tree']), len(tcts['only-tree']), sum(tcts['internal']), ' '.join(str(c) for c in tcts['only-tree'])))
+        if len(tcts['diff-count']) > 0:
+            print('        %d seqs had different counts in sfo vs tree: %s' % (len(tcts['diff-count']), '   '.join(tcts['diff-count'])))
+    # ----------------------------------------------------------------------------------------
     def read_gctree_data(all_seqfos, plotvals, partition, n_missing, n_tot):
         print('    reading gctree data from %s' % args.gcreplay_dir)
         read_gctree_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
@@ -143,9 +171,6 @@ def read_input_files(label):
             dtree = treeutils.get_dendro_tree(treefname='%s/gctree.inference.1.nk'%gctree_dir)
             all_dtrees[gcn] = dtree
             nodefo = {n.taxon.label : n for n in dtree.preorder_node_iter()}
-            sfo_nodes = set(s['base-name'] for s in all_seqfos[gcn])
-            if set(nodefo) != sfo_nodes:
-                print('    %s nodefo keys not equal to sfo nodes:  %d extra in nodefo (%s)   %d extra sfo (%s)' % (utils.wrnstr(), len(set(nodefo) - sfo_nodes), ' '.join(set(nodefo) - sfo_nodes), len(sfo_nodes - set(nodefo)), ' '.join(sfo_nodes - set(nodefo))))
             for sfo in all_seqfos[gcn]:
                 snode = nodefo[sfo['base-name']]
                 n_tot[nstr(snode)].append(sfo['base-name'])
@@ -176,9 +201,6 @@ def read_input_files(label):
                 n_trees += 1
                 for node in dtree.preorder_node_iter():
                     name = node.taxon.label
-                    gcn = name.split('-')[0]
-                    if gcn not in all_dtrees:
-                        all_dtrees[gcn] = dtree
                     n_tot[nstr(node)].append(name)
                     if name not in mfos or mfos[name]['affinity'] is None:
                         n_missing[nstr(node)].append(name)
@@ -229,17 +251,28 @@ def read_input_files(label):
             scale_affinities(antn_list, mfos)
         else:
             mfos = read_gcd_meta(sldir)  # this applies args.n_max_simu_trees
-            tmp_seqfos = utils.read_fastx('%s/seqs.%s'%(sldir, 'fa' if 'data' in label else 'fasta'), queries=None if 'data' in label or args.n_max_simu_trees is None else mfos.keys())
+            tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%sldir, queries=None if 'data' in label or args.n_max_simu_trees is None else mfos.keys())
             dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%sldir, n_max_trees=None if 'data' in label else args.n_max_simu_trees)]
+            if 'beast' in label:
+                gcids = [l['gcid'] for l in utils.csvlines('%s/gcids.csv'%sldir)]
+        # loop through all seqfos, setting n_muts from meta info and adding to correct gcn in all_seqfos
         for sfo in tmp_seqfos:
             if 'naive' in sfo['name']:
                 continue
             sfo['n_muts'] = int(mfos[sfo['name']]['n_muts'])
             gcn = sfo['gcn'] if args.bcr_phylo else sfo['name'].split('-')[0]
+            if 'beast' in label:  # for beast data, convert from the tree index (gcdyn simulation style) to actual gcreplay gc id
+                gcn = gcids[int(gcn)]
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
-            all_seqfos[gcn].append(sfo)
+            all_seqfos[gcn].append(sfo)  # NOTE that this gcn is just an index, not the gcreplay style gcid/gcn
+        # put trees into all_dtrees
+        for itr, dtree in enumerate(dendro_trees):
+            tnode = list(dtree.leaf_node_iter())[0]
+            gcn = gcids[itr] if 'beast' in label else tnode.taxon.label.split('-')[0]
+            all_dtrees[gcn] = dtree
         n_trees = get_affy(plotvals, label, dendro_trees, mfos)
+# TODO also use seqfos here
         partition += [[l.taxon.label for l in t.leaf_node_iter()] for t in dendro_trees]
         return n_trees
     # ----------------------------------------------------------------------------------------
@@ -268,7 +301,11 @@ def read_input_files(label):
     else:
         assert False
 
+    # NOTE that trees from gctree are genotype-collapsed, whereas those from simulation + beast have different nodes for duplicate seqs
+    #   so *always* use seqfos for anything to do with abundance/N muts, etc, only use tree nodes for checking leaf/internal, topology, etc
     add_abundances(all_seqfos)
+
+    check_seqfos_nodes()
 
     hists = {}
 
@@ -362,7 +399,7 @@ NOTE that there's other scripts that process gcreplay results for partis input h
 """
 parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
-parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v1/all-trees', help='dir with beast results on gcreplay data (same format as simulation)')
+parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v2/all-trees', help='dir with beast results on gcreplay data (same format as simulation)')
 parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/gcs with fewer than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
@@ -384,7 +421,7 @@ if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
 
 numpy.random.seed(args.random_seed)
 
-rpmeta = read_gcreplay_metadata()
+rpmeta = datautils.read_gcreplay_metadata(args.gcreplay_dir)
 
 def affy_like(tp):  # ick ( plots that get filled similarly to how affinity plots get filled, i.e. not how abundance-like stuff gets filled)
     return 'affinity' in tp or tp in ['csizes', 'leaf-muts', 'internal-muts', 'abundances', 'max-abundances']

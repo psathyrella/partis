@@ -1,11 +1,12 @@
 import csv
 import sys
 import os
+import re
+
+import python.utils as utils
 
 # ----------------------------------------------------------------------------------------
 def get_gcid(prn, mouse, node, gcn):
-    # print(prn, mouse, gcn)
-    # sys.exit()
     # return 'pr-%s-m-%s-gc-%s' % (prn, mouse, gcn)
     return 'PR%s-%s-%s-%s-GC' % (prn, mouse, node, gcn)
 # PR%s*-%s-%s-%s-GC
@@ -13,8 +14,19 @@ def get_gcid(prn, mouse, node, gcn):
 
 # ----------------------------------------------------------------------------------------
 def reverse_gcid(gcid):
-    # return 'pr-%s-m-%s-gc-%s' % (prn, mouse, gcn)
-    return prn, mouse, gcn
+    if 'btt' in gcid:  # UGH
+        gcid = fix_btt_id(gcid)
+    prstr, mouse, node, gcn, gcstr = gcid.split('-')
+    prn = prstr.replace('PR', '')
+    assert gcstr == 'GC'
+    return prn, mouse, node, gcn
+
+# ----------------------------------------------------------------------------------------
+def fix_btt_id(gcid):
+    mstr = utils.get_single_entry(re.findall('btt-PR-.-.', gcid))
+    btstr, prstr, prn1, prn2  = mstr.split('-')
+    assert btstr == 'btt' and prstr == 'PR'
+    return gcid.replace(mstr, 'PR%d.%02d' % (int(prn1), int(prn2)))
 
 # ----------------------------------------------------------------------------------------
 def read_gcreplay_metadata(gcreplay_dir):

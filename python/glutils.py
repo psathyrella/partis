@@ -7,7 +7,6 @@ import copy
 import sys
 import os
 import random
-import re
 import numpy
 import glob
 from collections import OrderedDict
