@@ -93,13 +93,15 @@ def read_gctree_csv(all_seqfos, label):
             # nmuts = int(line['n_mutations_HC']) + int(line['n_mutations_LC'])
             # print '  %2d  %2d  %s' % (hdist, nmuts, utils.color('red', '<--') if hdist!=nmuts else '')
             # print '      %s' % utils.color_mutants(NAIVE_SEQUENCE, line['IgH_nt_sequence']+line['IgK_nt_sequence'])
-            for iseq in range(max(1, int(line['abundance']))):  # internal nodes have abundance 0, but want to add them once
+            abdn = int(line['abundance'])
+            for iseq in range(max(1, abdn)):  # internal nodes have abundance 0, but want to add them once
                 all_seqfos[gcid].append({'name' : '%s-%s-%d' % (gcid, line['name'], iseq),
                                          'base-name' : line['name'],
                                          'seq' : line['IgH_nt_sequence']+line['IgK_nt_sequence'],
                                          'n_muts' : hdist,
                                          'affinity' : None if affinity == '' else float(affinity),
-                                         'abundance' : int(line['abundance']),
+                                         'abundance' : abdn,
+                                         'is-leaf' : abdn > 0,
                                          })
     print('    kept %d / %d GCs%s (skipped %d)' % (len(all_seqfos), len(gc_counts['all']), '' if timestr is None else ' at time \'%s\''%timestr, len(gc_counts['skipped'])))
 
@@ -157,7 +159,7 @@ def read_input_files(label):
         if len(tcts['diff-count']) > 0:
             print('        %d seqs had different counts in sfo vs tree: %s' % (len(tcts['diff-count']), '   '.join(tcts['diff-count'])))
     # ----------------------------------------------------------------------------------------
-    def read_gctree_data(all_seqfos, plotvals, partition, n_missing, n_tot):
+    def read_gctree_data(all_seqfos, plotvals, n_missing, n_tot):
         print('    reading gctree data from %s' % args.gcreplay_dir)
         read_gctree_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
         n_too_small = 0
@@ -182,7 +184,6 @@ def read_input_files(label):
                 if snode is dtree.seed_node:  # check --naive-seq (should really just not have it as an arg)
                     if sfo['seq'] != args.naive_seq:
                         raise Exception('--naive seq doesn\'t match seq for root node from data tree')
-            partition.append([l.taxon.label for l in dtree.leaf_node_iter()])
         if sum(len(l) for l in n_missing.values()) > 0:
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
         if n_too_small > 0:
@@ -190,7 +191,7 @@ def read_input_files(label):
         n_trees = len(all_seqfos) - n_too_small
         return n_trees
     # ----------------------------------------------------------------------------------------
-    def read_simu_like_files(all_seqfos, plotvals, partition, n_missing, n_tot):
+    def read_simu_like_files(all_seqfos, plotvals, n_missing, n_tot):
         # ----------------------------------------------------------------------------------------
         def get_affy(plotvals, label, dendro_trees, mfos):
             n_trees = 0
@@ -265,58 +266,58 @@ def read_input_files(label):
                 gcn = gcids[int(gcn)]
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
-            all_seqfos[gcn].append(sfo)  # NOTE that this gcn is just an index, not the gcreplay style gcid/gcn
-        # put trees into all_dtrees
+            all_seqfos[gcn].append(sfo)
+        # put trees into all_dtrees and fill 'is-leaf'
         for itr, dtree in enumerate(dendro_trees):
             tnode = list(dtree.leaf_node_iter())[0]
             gcn = gcids[itr] if 'beast' in label else tnode.taxon.label.split('-')[0]
             all_dtrees[gcn] = dtree
+            ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
+            for sfo in all_seqfos[gcn]:
+                sfo['is-leaf'] = ndict[sfo['name']].is_leaf()
         n_trees = get_affy(plotvals, label, dendro_trees, mfos)
-# TODO also use seqfos here
-        partition += [[l.taxon.label for l in t.leaf_node_iter()] for t in dendro_trees]
         return n_trees
     # ----------------------------------------------------------------------------------------
-    def add_abundances(all_seqfos):
+    def get_abundance_info(all_seqfos):
+        abdnvals, max_abvals, n_leaf_fos = [], [], 0
         for gcn in all_seqfos:
+            gcabvals = []
+            leaf_fos = [s for s in all_seqfos[gcn] if s['is-leaf'] and 'naive' not in s['name']]
             def kfn(s): return s['seq']
-            for tseq, sgroup in itertools.groupby(sorted(all_seqfos[gcn], key=kfn), key=kfn):
-                sfos = list(sgroup)
-                abundance = len(sfos)
-                for sfo in sfos:
-                    if 'abundance' in sfo:
-                        if sfo['abundance'] == 0:  # inferred ancestral sequence (have to skip since len(sfos) from above will be 1)
-                            continue
-                        if sfo['abundance'] != abundance:
-                            raise Exception('abundances don\'t match %d %d' % (sfo['abundance'], abundance))
-                    sfo['abundance'] = abundance
+            for tseq, sgroup in itertools.groupby(sorted(leaf_fos, key=kfn), key=kfn):
+                abundance = len(list(sgroup))
+                gcabvals.append(abundance)
+            abdnvals += gcabvals
+            max_abvals.append(max(gcabvals))
+            n_leaf_fos += len(leaf_fos)
+        return abdnvals, max_abvals, n_leaf_fos
     # ----------------------------------------------------------------------------------------
     all_seqfos, all_dtrees = collections.OrderedDict(), collections.OrderedDict()
     plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts']}
-    partition = []
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
     if 'data' in label and 'beast' not in label:
-        n_trees = read_gctree_data(all_seqfos, plotvals, partition, n_missing, n_tot)
+        n_trees = read_gctree_data(all_seqfos, plotvals, n_missing, n_tot)
     elif 'simu' in label or 'beast' in label:  # beast data is formatted like simulation
-        n_trees = read_simu_like_files(all_seqfos, plotvals, partition, n_missing, n_tot)
+        n_trees = read_simu_like_files(all_seqfos, plotvals, n_missing, n_tot)
     else:
         assert False
 
     # NOTE that trees from gctree are genotype-collapsed, whereas those from simulation + beast have different nodes for duplicate seqs
     #   so *always* use seqfos for anything to do with abundance/N muts, etc, only use tree nodes for checking leaf/internal, topology, etc
-    add_abundances(all_seqfos)
+
+    partition = [[s['name'] for s in sfos if s['is-leaf']] for sfos in all_seqfos.values()]
 
     check_seqfos_nodes()
 
     hists = {}
 
-    abdnvals = [s['abundance'] for g in all_seqfos for s in all_seqfos[g] if s['abundance']!=0]
+    abdnvals, max_abvals, n_leaf_fos = get_abundance_info(all_seqfos)
     htmp = hutils.make_hist_from_list_of_values(abdnvals, 'int', 'abundances')
-    htmp.title = '%s (%d nodes in %d trees)' % (label, len(abdnvals), n_trees)
+    htmp.title = '%s (%d nodes in %d trees)' % (label, n_leaf_fos, n_trees)
     htmp.xtitle = pltlabels['abundances']
     hists['abundances'] = {'distr' : htmp}
 
-    maxabvals = [max(s['abundance'] for s in all_seqfos[g] if s['abundance']!=0) for g in all_seqfos]
-    htmp = hutils.make_hist_from_list_of_values(maxabvals, 'int', 'max-new-abundances')
+    htmp = hutils.make_hist_from_list_of_values(max_abvals, 'int', 'max-new-abundances')
     htmp.title = '%s (%d trees)' % (label, n_trees)
     htmp.xtitle = pltlabels['max-abundances']
     hists['max-abundances'] = {'distr' : htmp}
