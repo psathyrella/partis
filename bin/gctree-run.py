@@ -99,7 +99,7 @@ def run_gctree():
             if os.path.exists(ofn) and os.stat(ofn).st_size > 0:
                 print('    dnapars output already exists, not rerunning: %s' % ofn)
             else:
-                if os.stat(ofn).st_size == 0:
+                if os.path.exists(ofn) and os.stat(ofn).st_size == 0:
                     print('    removing zero length dnapars output %s' % ofn)
                     utils.prep_dir(args.outdir, wildlings=['outfile', 'outtree'], allow_other_files=True)  # phylip barfs like a mfer if its outputs exist (probably you'll get a KeyError 'naive')
                 cmds += ['deduplicate %s --root %s --abundance_file abundances.csv --idmapfile %s > deduplicated.phylip' % (args.infname, args.root_label, idfn())]
