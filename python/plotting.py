@@ -37,7 +37,7 @@ hard_meta_colors = {'IGHM' : '#9467bd',  # purple
                     'IGHD' : 'black',
                     'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
                     'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
-                    'memory' : '#1f77b4',
+                    'memory' : '#1f77b4',  # light lime ish green
                     'naive' : '#ff7f0e',  # orange
                     'pb' : '#2ca02c',  # green
                     'prepb' : '#90e690',
@@ -48,6 +48,13 @@ hard_meta_colors = {'IGHM' : '#9467bd',  # purple
                     'd765' : '#ff7f0e',
                     'dm351' : '#006600',
                     'dm379' : '#9467bd',
+                    '8wph' : '#1f77b4',
+                    '16wph' : '#ff7f0e',  # orange
+                    'entry' : '#2ca02c',  # green
+                    'lesion' : '#9467bd',
+                    'gs' : '#1f77b4',
+                    'cx' : '#2ca02c',
+                    'a' : '#ff7f0e',
                     }
 
 # ----------------------------------------------------------------------------------------
@@ -331,7 +338,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
         hist = hists[0]
     if sum(h.integral(True) for h in hists) == 0:
         print('  %s total integral of %d hists is zero, so not plotting anything' % (utils.wrnstr(), len(hists)))
-        return 'not-plotted.svg'
+        return None
 
     multiply_by_bin_width = False
     if normalize and len(set((h.n_bins, h.xmin, h.xmax) for h in hists)) > 1:
@@ -379,7 +386,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
             htmp.write(fn)
 
     if only_csv:
-        return 'not-plotted.svg'
+        return None
 
     # this is the slow part of plotting (well, writing the svg is also slow)
     fig, ax = mpl_init(figsize=figsize)
@@ -1849,7 +1856,7 @@ def bubble_plot(plotname, plotdir, bubfos, title='', xtra_text=None, alpha=0.4):
     fig, ax = mpl_init()
     if len(bubfos) == 0:
         print('      %s no bubble positions, returning' % utils.wrnstr())
-        return 'not-plotted.svg'
+        return None
     lim = max(max(abs(bfo['x']) + bfo['r'], abs(bfo['y']) + bfo['r']) for bfo in bubfos)
     plt.xlim(-lim, lim)
     plt.ylim(-lim, lim)

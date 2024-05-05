@@ -75,7 +75,7 @@ int_metrics = ['cons-dist-aa', 'cons-dist-nuc', 'shm-aa', 'shm']  # adding this 
 # ----------------------------------------------------------------------------------------
 all_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree', 'distr', 'true-vs-inf-metrics', 'tree-mut-stats']
 default_plot_cfg = ['lb-vs-affy', 'slice', 'joy', 'lb-vs-daffy', 'lb-scatter', 'tree']
-default_inference_str = 'cluster path/fasttree'  # str describing default tree inference (atm, combination of cluster path (hier. agglom.) with fasttree refinement
+default_inference_str = 'fasttree'  # str describing default tree inference (atm, combination of cluster path (hier. agglom.) with fasttree refinement
 
 # ----------------------------------------------------------------------------------------
 def smetric_fname(fname):

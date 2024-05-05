@@ -145,6 +145,8 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def addfname(self, fnames, fname, force_new_row=False, suffix='.svg'):
+        if fname is None:
+            return
         fname += suffix
         if force_new_row or len(fnames[-1]) >= self.n_plots_per_row:
             fnames.append([fname])
@@ -807,7 +809,7 @@ class PartitionPlotter(object):
                 self.addfname(fnames, '%s-legend'%plotname)
 
             # cdr3 position info plots
-            if annotation.get('is_fake_paired', False) and cdr3fo is not None:
+            if annotation.get('is_fake_paired', False) and len(cdr3fo) > 0:
                 self.plotting.plot_legend_only(collections.OrderedDict([('%s %s'%(c, cfo), {'color' : 'blue' if c=='h' else 'green'}) for c, cfo in cdr3fo.items()]), plotdir, '%s-cdr3'%plotname, title='CDR3')
                 self.addfname(fnames, '%s-cdr3'%plotname)
 
@@ -1032,7 +1034,10 @@ class PartitionPlotter(object):
         if 'sizes' in plot_cfg:
             csfns = self.make_cluster_size_distribution()
             if 'shm-vs-size' in plot_cfg:
-                fnames[0] += csfns[0]
+                if len(fnames[0]) < 4:
+                    fnames[0] += csfns[0]
+                else:
+                    fnames.insert(1, csfns[0])
             else:
                 fnames.append(csfns[0])
 
