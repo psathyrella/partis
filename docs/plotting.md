@@ -47,9 +47,15 @@ and also per-gene, per-position, per-base mutation (e.g. showing the different r
 
 #### partition plots
 
-Plots for the partition action are written to the subdir `partitions/`, with the most important ones displayed in `docs/example-plots/partitions/overview.html`, the top of which is screenshotted here:
+Plots for the partition action are written to the subdir `partitions/`, with the most important ones displayed in `docs/example-plots/partitions/overview.html` (don't view this on github, but instead open the local file in the cloned repo with a browser), the top of which is screenshotted here:
 
 ![partitions-overview](images/partition-overview.png)
+
+You can make similar plots with the command:
+
+```
+plot-partitions --outfname test/ref-results-slow/partition-new-simu.yaml --plotdir <plotdir> --meta-info-key-to-color has_shm_indels --queries-to-include 24657795d0:6a21d28533:3a4536bf60  # you'll need to update --queries-to-include if test file changes
+```
 
 At the top are links to subdirs/html files with all the plots.
 
@@ -68,6 +74,10 @@ Only the first few of these slug plots (with the biggest clusters) is shown in `
 Next there are some cluster size histograms, again colored by shm indel status, which here indicates the fraction of families within each cluster size bin that had/didn't have shm indels (e.g. the largest bin, of clusters around size 65, is ~11% seqs with indels):
 
 ![partitions-overview](images/cluster-size.png)
+
+Next is a similar plot but with the total number of seqs in each cluster size bin for each meta info category:
+
+![partitions-overview](images/cluster-size-total.jpg)
 
 Below that are scatter plots with the mean number of SHMs vs size for all families in both linear and log scales (each family is a point).
 Next are "pairwise diversity" plots (nucleotide version shown here, amino acid version in html):

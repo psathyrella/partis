@@ -1358,7 +1358,7 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
 
 # ----------------------------------------------------------------------------------------
 # NOTE pt 'header' to line to add extra headers below the main title
-def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='foop', bgcolor='000000', new_table_each_row=False, htmlfname=None, extra_links=None):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgcolor='000000', new_table_each_row=False, htmlfname=None, extra_links=None):
     if fnames is not None:  # make sure it's formatted properly
         for rowfnames in fnames:
             if not isinstance(rowfnames, list):
