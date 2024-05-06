@@ -28,11 +28,11 @@ import python.treeutils as treeutils
 import python.datautils as datautils
 
 colors = {
-    'data' : '#cc0000',
-    'data-d15' : '#006600',
-    'data-d20' :  '#cc0000',
-    'data-w10' : '#2b65ec',
-    'data-beast' : '#006600',
+    'gct-data' : '#cc0000',
+    'gct-data-d15' : '#006600',
+    'gct-data-d20' :  '#cc0000',
+    'gct-data-w10' : '#2b65ec',
+    'bst-data' : '#006600',
     'simu' : '#808080',
     'simu-iqtree' : 'black',
 }
@@ -74,7 +74,8 @@ def read_gctree_csv(all_seqfos, label):
     gc_counts = {tk : set() for tk in ['all', 'skipped']}
     timestr = None
     if '-' in label:
-        dstr, timestr = label.split('-')
+        gstr, dstr, timestr = label.split('-')
+        assert gstr == 'gct'
         assert dstr == 'data'
         assert timestr in ['d20', 'w10', 'd15']
     print('      reading gctree node data from %s' % '%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir)
@@ -254,7 +255,7 @@ def read_input_files(label):
             mfos = read_gcd_meta(sldir)  # this applies args.n_max_simu_trees
             tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%sldir, queries=None if 'data' in label or args.n_max_simu_trees is None else mfos.keys())
             dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%sldir, n_max_trees=None if 'data' in label else args.n_max_simu_trees)]
-            if 'beast' in label:
+            if 'bst' in label:
                 gcids = [l['gcid'] for l in utils.csvlines('%s/gcids.csv'%sldir)]
         # loop through all seqfos, setting n_muts from meta info and adding to correct gcn in all_seqfos
         for sfo in tmp_seqfos:
@@ -262,7 +263,7 @@ def read_input_files(label):
                 continue
             sfo['n_muts'] = int(mfos[sfo['name']]['n_muts'])
             gcn = sfo['gcn'] if args.bcr_phylo else sfo['name'].split('-')[0]
-            if 'beast' in label:  # for beast data, convert from the tree index (gcdyn simulation style) to actual gcreplay gc id
+            if 'bst' in label:  # for beast data, convert from the tree index (gcdyn simulation style) to actual gcreplay gc id
                 gcn = gcids[int(gcn)]
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
@@ -270,7 +271,7 @@ def read_input_files(label):
         # put trees into all_dtrees and fill 'is-leaf'
         for itr, dtree in enumerate(dendro_trees):
             tnode = list(dtree.leaf_node_iter())[0]
-            gcn = gcids[itr] if 'beast' in label else tnode.taxon.label.split('-')[0]
+            gcn = gcids[itr] if 'bst' in label else tnode.taxon.label.split('-')[0]
             all_dtrees[gcn] = dtree
             ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
             for sfo in all_seqfos[gcn]:
@@ -295,9 +296,9 @@ def read_input_files(label):
     all_seqfos, all_dtrees = collections.OrderedDict(), collections.OrderedDict()
     plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts']}
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
-    if 'data' in label and 'beast' not in label:
+    if 'data' in label and 'bst' not in label:
         n_trees = read_gctree_data(all_seqfos, plotvals, n_missing, n_tot)
-    elif 'simu' in label or 'beast' in label:  # beast data is formatted like simulation
+    elif 'simu' in label or 'bst' in label:  # beast data is formatted like simulation
         n_trees = read_simu_like_files(all_seqfos, plotvals, n_missing, n_tot)
     else:
         assert False
@@ -310,20 +311,21 @@ def read_input_files(label):
     check_seqfos_nodes()
 
     hists = {}
+    lblstr = plotting.legends.get(label, label)
 
     abdnvals, max_abvals, n_leaf_fos = get_abundance_info(all_seqfos)
     htmp = hutils.make_hist_from_list_of_values(abdnvals, 'int', 'abundances')
-    htmp.title = '%s (%d nodes in %d trees)' % (label, n_leaf_fos, n_trees)
+    htmp.title = '%s (%d nodes in %d trees)' % (lblstr, n_leaf_fos, n_trees)
     htmp.xtitle = pltlabels['abundances']
     hists['abundances'] = {'distr' : htmp}
 
     htmp = hutils.make_hist_from_list_of_values(max_abvals, 'int', 'max-new-abundances')
-    htmp.title = '%s (%d trees)' % (label, n_trees)
+    htmp.title = '%s (%d trees)' % (lblstr, n_trees)
     htmp.xtitle = pltlabels['max-abundances']
     hists['max-abundances'] = {'distr' : htmp}
 
     for pkey, pvals in plotvals['affinity'].items():
-        htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=label, xtitle='%s affinity'%pkey)  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
+        htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=lblstr, xtitle='%s affinity'%pkey)  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
         htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
         hists['%s-affinity'%pkey] = {'distr' : htmp}
 
@@ -332,12 +334,12 @@ def read_input_files(label):
     dx = int((xmax - xmin) / n_bins)
     xbins = [l-0.5 for l in range(xmin, xmax + dx, dx)]
     hists['csizes'] = {'distr' : plotting.make_csize_hist(partition, n_bins=len(xbins), xbins=xbins, xtitle='N leaves')}
-    hists['csizes']['distr'].title = label
+    hists['csizes']['distr'].title = lblstr
 
     for tstr in ['leaf', 'internal']:
         htmp = hutils.make_hist_from_list_of_values(plotvals['n_muts'][tstr], 'int', '%s-muts'%tstr)
         htmp.xtitle = pltlabels['%s-muts'%tstr]
-        htmp.title = '%s (%d nodes in %d trees)' % (label, len(plotvals['n_muts'][tstr]), n_trees)
+        htmp.title = '%s (%d nodes in %d trees)' % (lblstr, len(plotvals['n_muts'][tstr]), n_trees)
         hists['%s-muts'%tstr] = {'distr' : htmp}
     return hists
 
@@ -378,7 +380,7 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
     adjust = None
     if '\n' in ytitle:
         adjust = {'left' : 0.23 if hname=='abundances' else 0.18}
-    if any('beast' in l for l in labels) and 'muts' in hname:
+    if any('bst' in l for l in labels) and 'muts' in hname:
         xbounds = [-0.5, 20.5]
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(htype, hname), more_hists=hists, log='y' if 'abundances' in hname else '', xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],
@@ -405,7 +407,7 @@ parser.add_argument('--simu-like-dir', help='Dir from which to read simulation r
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/gcs with fewer than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
 parser.add_argument('--max-seqs-per-gc', type=int, help='if set, downsample any families/gcs with more than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
-parser.add_argument('--plot-labels', default='data-d15:data-d20:data-w10:simu', help='which/both of data/simu to plot')
+parser.add_argument('--plot-labels', default='gct-data-d15:gct-data-d20:gct-data-w10:simu', help='which/both of data/simu to plot')
 parser.add_argument('--max-gc-plots', type=int, default=0, help='only plot individual (per-GC) plots for this  many GCs')
 parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--bcr-phylo', action='store_true', help='set this if you\'re using bcr-phylo (rather than gcdyn) simulation')
@@ -415,7 +417,7 @@ parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading thi
 parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")
 parser.add_argument("--default-naive-affinity", type=float, default=1./100, help="this is the default for bcr-phylo, so maybe be correct if we don\'t have an unmutated sequence")
 args = parser.parse_args()
-args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['data', 'data-d15', 'data-d20', 'data-w10', 'data-beast', 'simu', 'simu-iqtree'])
+args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['gct-data', 'gct-data-d15', 'gct-data-d20', 'gct-data-w10', 'bst-data', 'simu', 'simu-iqtree'])
 if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
     print('  note; setting --write-legend-only-plots since --plot-labels is longer than 3')
     args.write_legend_only_plots = True

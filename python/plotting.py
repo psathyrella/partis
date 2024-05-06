@@ -698,6 +698,12 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'n-trials' : 'N trees',
            'n-trees-per-expt' : 'N trees/expt.',
            'vrc01-muts' : 'N VRC01 muts',
+           'gct-data' : 'gctree',
+           'gct-data-d15' : 'gctree d15',
+           'gct-data-d20' : 'gctree d20',
+           'gct-data-w10' : 'gctree w10',
+           'bst-data' : 'beast',
+           'simu-iqtree' : 'simu (iqtree)',
            }
 
 axis_labels = {
