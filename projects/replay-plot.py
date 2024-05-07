@@ -49,9 +49,13 @@ pltlabels = {
     'abundances' : 'abundances',
     'max-abundances' : 'max abundance in each GC',
     'csizes' : 'N leaves per tree',
-    'leaf-muts' : 'N muts (leaf nodes)',
-    'internal-muts' : 'N muts (internal nodes)'
-}  # 'median SHM of seqs\nw/max abundance'}
+    'leaf-muts-nuc' : 'N muts (leaf nodes)',
+}
+tpstrs = ['affinity', 'muts-nuc', 'muts-aa']
+labelstrs = ['affinity', 'N nuc muts', 'N AA muts']
+for tstr, lbstr in zip(tpstrs, labelstrs):
+    for nstr in ['leaf', 'internal']:
+        pltlabels['%s-%s'%(nstr, tstr)] = '%s (%s nodes)' % (lbstr, nstr)
 
 # ----------------------------------------------------------------------------------------
 def abfn(tlab, abtype='abundances'):
@@ -90,16 +94,16 @@ def read_gctree_csv(all_seqfos, label):
             if gcid not in all_seqfos:
                 all_seqfos[gcid] = []
             affinity = line['delta_bind']  # _CGG_FVS_additive
-            hdist = utils.hamming_distance(args.naive_seq, line['IgH_nt_sequence']+line['IgK_nt_sequence'])  # this is different to nmuts in the next line, not yet sure why (UPDATE: one is nuc/other is AA, docs/column names maybe will be changed in gcreplay)
-            # nmuts = int(line['n_mutations_HC']) + int(line['n_mutations_LC'])
-            # print '  %2d  %2d  %s' % (hdist, nmuts, utils.color('red', '<--') if hdist!=nmuts else '')
-            # print '      %s' % utils.color_mutants(NAIVE_SEQUENCE, line['IgH_nt_sequence']+line['IgK_nt_sequence'])
+            hdist = utils.hamming_distance(args.naive_seq, line['IgH_nt_sequence']+line['IgK_nt_sequence'])
+            n_aa_muts = int(line['n_mutations_HC']) + int(line['n_mutations_LC'])
+            # print('      %2d %s' % (n_aa_muts, utils.color_mutants(utils.ltranslate(args.naive_seq), utils.ltranslate(line['IgH_nt_sequence']+line['IgK_nt_sequence']), amino_acid=True)))
             abdn = int(line['abundance'])
             for iseq in range(max(1, abdn)):  # internal nodes have abundance 0, but want to add them once
                 all_seqfos[gcid].append({'name' : '%s-%s-%d' % (gcid, line['name'], iseq),
                                          'base-name' : line['name'],
                                          'seq' : line['IgH_nt_sequence']+line['IgK_nt_sequence'],
                                          'n_muts' : hdist,
+                                         'n_muts_aa' : n_aa_muts,
                                          'affinity' : None if affinity == '' else float(affinity),
                                          'abundance' : abdn,
                                          'is-leaf' : abdn > 0,
@@ -180,7 +184,7 @@ def read_input_files(label):
                 if sfo['affinity'] is None:
                     n_missing[nstr(snode)].append(sfo['base-name'])
                     continue
-                for tk in plotvals:  # atm, fills affinity and n_muts
+                for tk in plotvals:  # atm, fills affinity, n_muts, n_muts_aa
                     plotvals[tk][nstr(snode)].append(sfo[tk])
                 if snode is dtree.seed_node:  # check --naive-seq (should really just not have it as an arg)
                     if sfo['seq'] != args.naive_seq:
@@ -209,6 +213,8 @@ def read_input_files(label):
                         continue
                     for tk in plotvals:
                         cfn = float if tk=='affinity' else int
+                        if tk not in mfos[name]:
+                            continue
                         plotvals[tk][nstr(node)].append(cfn(mfos[name][tk]))
             if sum(len(l) for l in n_missing.values()) > 0:
                 print('      %s missing/none affinity/n_muts values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
@@ -244,7 +250,7 @@ def read_input_files(label):
                         break
                 for iseq, (uid, n_muts, affy) in enumerate(zip(atn['unique_ids'], atn['n_mutations'], atn['affinities'])):
                     assert uid not in mfos  # jeez i really hope there aren't repeated uids in different trees
-                    mfos[uid] = {'n_muts' : n_muts, 'affinity' : affy}
+                    mfos[uid] = {'n_muts' : n_muts, 'n_muts_aa' : utils.shm_aa(atn, iseq=iseq), 'affinity' : affy}
                 tnsfos = utils.seqfos_from_line(atn, use_input_seqs=True) #, extra_keys=['n_mutations'])
                 for sfo in tnsfos:
                     sfo['gcn'] = itn
@@ -262,6 +268,9 @@ def read_input_files(label):
             if 'naive' in sfo['name']:
                 continue
             sfo['n_muts'] = int(mfos[sfo['name']]['n_muts'])
+            if 'n_muts_aa' not in mfos[sfo['name']]:  # gcdyn simu we need to calculate it
+                mfos[sfo['name']]['n_muts_aa'] = utils.hamming_distance(utils.ltranslate(sfo['seq']), args.naive_seq_aa, amino_acid=True)
+            sfo['n_muts_aa'] = int(mfos[sfo['name']]['n_muts_aa'])
             gcn = sfo['gcn'] if args.bcr_phylo else sfo['name'].split('-')[0]
             if 'bst' in label:  # for beast data, convert from the tree index (gcdyn simulation style) to actual gcreplay gc id
                 gcn = gcids[int(gcn)]
@@ -294,7 +303,7 @@ def read_input_files(label):
         return abdnvals, max_abvals, n_leaf_fos
     # ----------------------------------------------------------------------------------------
     all_seqfos, all_dtrees = collections.OrderedDict(), collections.OrderedDict()
-    plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts']}
+    plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts', 'n_muts_aa']}
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
     if 'data' in label and 'bst' not in label:
         n_trees = read_gctree_data(all_seqfos, plotvals, n_missing, n_tot)
@@ -325,22 +334,24 @@ def read_input_files(label):
     hists['max-abundances'] = {'distr' : htmp}
 
     for pkey, pvals in plotvals['affinity'].items():
-        htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=lblstr, xtitle='%s affinity'%pkey)  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
+        htmp = Hist(xmin=-15, xmax=10, n_bins=30, value_list=pvals, title=lblstr, xtitle=pltlabels['%s-affinity'%pkey])  # NOTE don't try to get clever about xmin/xmax since they need to be the same for all different hists
         htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
         hists['%s-affinity'%pkey] = {'distr' : htmp}
 
-    xmin, xmax = 8, 100
-    n_bins = 5
+    xmin, xmax = 8, 120  # have to be the same for all labels, so easier to just set hard coded ones
+    n_bins = 15
     dx = int((xmax - xmin) / n_bins)
     xbins = [l-0.5 for l in range(xmin, xmax + dx, dx)]
     hists['csizes'] = {'distr' : plotting.make_csize_hist(partition, n_bins=len(xbins), xbins=xbins, xtitle='N leaves')}
     hists['csizes']['distr'].title = lblstr
 
-    for tstr in ['leaf', 'internal']:
-        htmp = hutils.make_hist_from_list_of_values(plotvals['n_muts'][tstr], 'int', '%s-muts'%tstr)
-        htmp.xtitle = pltlabels['%s-muts'%tstr]
-        htmp.title = '%s (%d nodes in %d trees)' % (lblstr, len(plotvals['n_muts'][tstr]), n_trees)
-        hists['%s-muts'%tstr] = {'distr' : htmp}
+    for mut_type in ['n_muts', 'n_muts_aa']:
+        for tstr in ['leaf', 'internal']:
+            mstr = '%s-muts-%s' % (tstr, 'aa' if '_aa' in mut_type else 'nuc')
+            htmp = hutils.make_hist_from_list_of_values(plotvals[mut_type][tstr], 'int', mstr)
+            htmp.xtitle = pltlabels[mstr]
+            htmp.title = '%s (%d nodes in %d trees)' % (lblstr, len(plotvals[mut_type][tstr]), n_trees)
+            hists[mstr] = {'distr' : htmp}
     return hists
 
 # ----------------------------------------------------------------------------------------
@@ -421,6 +432,7 @@ args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['gct-data', 'gc
 if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
     print('  note; setting --write-legend-only-plots since --plot-labels is longer than 3')
     args.write_legend_only_plots = True
+args.naive_seq_aa = utils.ltranslate(args.naive_seq)
 
 numpy.random.seed(args.random_seed)
 
@@ -430,7 +442,8 @@ def affy_like(tp):  # ick ( plots that get filled similarly to how affinity plot
     return 'affinity' in tp or tp in ['csizes', 'leaf-muts', 'internal-muts', 'abundances', 'max-abundances']
 abrows = [
     ['abundances', 'max-abundances', 'csizes'],
-    ['leaf-affinity', 'internal-affinity', 'leaf-muts', 'internal-muts'],
+    ['leaf-%s'%s for s in tpstrs],
+    ['internal-%s'%s for s in tpstrs],
 ]
 abtypes = [a for arow in abrows for a in arow]
 hclists = {t : {'distr' : [], 'max' : []} for t in abtypes}
