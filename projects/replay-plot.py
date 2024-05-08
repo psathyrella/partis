@@ -32,7 +32,7 @@ colors = {
     'gct-data-d15' : '#006600',
     'gct-data-d20' :  '#cc0000',
     'gct-data-w10' : '#2b65ec',
-    'bst-data' : '#006600',
+    'bst-data-d20' : '#006600',
     'simu' : '#808080',
     'simu-iqtree' : 'black',
 }
@@ -428,7 +428,7 @@ parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading thi
 parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")
 parser.add_argument("--default-naive-affinity", type=float, default=1./100, help="this is the default for bcr-phylo, so maybe be correct if we don\'t have an unmutated sequence")
 args = parser.parse_args()
-args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['gct-data', 'gct-data-d15', 'gct-data-d20', 'gct-data-w10', 'bst-data', 'simu', 'simu-iqtree'])
+args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['gct-data', 'gct-data-d15', 'gct-data-d20', 'gct-data-w10', 'bst-data-d20', 'simu', 'simu-iqtree'])
 if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
     print('  note; setting --write-legend-only-plots since --plot-labels is longer than 3')
     args.write_legend_only_plots = True

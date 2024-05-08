@@ -180,7 +180,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         cmd = add_mamba_cmds(cmd)
     elif 'replay-plot' in action:
         #  --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61  # don't want these turned on as long as e.g. N sampled seqs is varying a lot in simulation
-        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels gct-data-d20:bst-data:simu:simu-iqtree --n-max-simu-trees 85 --normalize' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)
+        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels gct-data-d20:bst-data-d20:simu:simu-iqtree --n-max-simu-trees 85 --normalize' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
             cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), odr)

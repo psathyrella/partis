@@ -702,7 +702,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'gct-data-d15' : 'gctree d15',
            'gct-data-d20' : 'gctree d20',
            'gct-data-w10' : 'gctree w10',
-           'bst-data' : 'beast',
+           'bst-data-d20' : 'beast d20',
            'simu-iqtree' : 'simu (iqtree)',
            }
 
