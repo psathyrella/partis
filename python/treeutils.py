@@ -411,7 +411,7 @@ def get_dendro_tree(treestr=None, treefname=None, taxon_namespace=None, schema='
     return dtree
 
 # ----------------------------------------------------------------------------------------
-def get_etree(dtree):
+def get_etree(dtree):  # to reverse this call etree.write(format=1) and pass to get_dendro_tree()
     from ete3 import Tree
     etree = Tree(dtree.as_string(schema='newick').replace('[&R]', '').strip(), format=1, quoted_node_names=True)
     # print(utils.pad_lines(etree.get_ascii(show_internal=True)))
@@ -476,6 +476,97 @@ def get_n_leaves(tree):
 # ----------------------------------------------------------------------------------------
 def get_n_nodes(tree):
     return len(list(tree.preorder_node_iter()))
+
+# ----------------------------------------------------------------------------------------
+# add new node with name <child_name> with length zero below <parent_node>
+def add_zero_length_child(parent_node, dtree, child_name=None, child_taxon=None):
+    if child_taxon is None:
+        child_taxon = dendropy.Taxon(child_name)
+    if child_taxon not in dtree.taxon_namespace:
+        dtree.taxon_namespace.add_taxon(child_taxon)
+    new_node = dendropy.Node(taxon=child_taxon)
+    new_node.edge_length = 0
+    parent_node.add_child(new_node)
+
+# ----------------------------------------------------------------------------------------
+def get_binary_tree(dtree, before_seqfos, debug=False):  # remove unifurcations and multifurcations
+    # ----------------------------------------------------------------------------------------
+    def add_node(cls_node, new_node):  # add <new_node> to same class as <cls_node>
+        icls = class_indices[cls_node]
+        zlen_classes[icls].append(new_node)
+        class_indices[new_node] = icls
+        unhandled_nodes.remove(new_node)
+        if debug:
+            print('      added %s' % new_node.taxon.label)
+        check_node(new_node)
+    # ----------------------------------------------------------------------------------------
+    def check_node(tnd):
+        if tnd.parent_node is not None and tnd.parent_node in unhandled_nodes and tnd.edge.length == 0:
+            add_node(tnd, tnd.parent_node)
+        for cnode in tnd.child_node_iter():
+            if cnode in unhandled_nodes and cnode.edge.length == 0:
+                add_node(tnd, cnode)
+    # ----------------------------------------------------------------------------------------
+    original_seed_label = dtree.seed_node.taxon.label
+    etree = get_etree(dtree)
+    if debug:
+        print('  initial tree:')
+        print(utils.pad_lines(etree.get_ascii(show_internal=True)))
+    etree.resolve_polytomy()
+    potential_names, used_names = None, None
+    new_label, potential_names, used_names = utils.choose_new_uid(potential_names, used_names, initial_length=3, shuffle=True)
+    for tnode in [etree] + list(etree.iter_descendants()):
+        if tnode.name == '':
+            tnode.name, potential_names, used_names = utils.choose_new_uid(potential_names, used_names)
+    if debug:
+        print('  resolved polytomies:')
+        print(utils.pad_lines(etree.get_ascii(show_internal=True)))
+    dtree = get_dendro_tree(treestr=etree.write(format=1), print_tree=debug)
+    dtree.seed_node.taxon.label = original_seed_label  # ete doesn't label the root node in its newick output because fuck you is why, i guess
+
+    zlen_classes, class_indices, unhandled_nodes = [], {}, list(dtree.preorder_node_iter())  # zlen_classes: list of list of nodes that are connected by zero len edges, class_indices: dict mapping node to it's class index in zlen_classes
+    while len(unhandled_nodes) > 0:
+        unode = unhandled_nodes.pop()
+        if debug:
+            print('  new class: %s' % unode.taxon.label)
+        if unode not in class_indices:  # if it isn't already in a class, start a new one
+            zlen_classes.append([unode])
+            class_indices[unode] = len(zlen_classes) - 1
+        check_node(unode)
+    if debug:
+        print('  %d classes, %d longer than 1:' % (len(zlen_classes), len([c for c in zlen_classes if len(c) > 1])))
+        for tcls in zlen_classes:
+            if len(tcls) > 1:
+                print('      %d nodes: %s' % (len(tcls), ' '.join(n.taxon.label for n in tcls)))
+
+    all_before_seqs = {s['name'] : s['seq'] for s in before_seqfos}
+    new_seqfos = []
+    for tcls in zlen_classes:  # add sequences for any new nodes that etree added when resolving polytomies
+        seqs = [all_before_seqs[n.taxon.label] for n in tcls if n.taxon.label in all_before_seqs]
+        if len(seqs) == 0:
+            raise Exception('  no seqs for class with len %d: %s (available: %s)' % (len(tcls), ' '.join(n.taxon.label for n in tcls), ' '.join(sorted(all_before_seqs.keys()))))
+        elif len(set(seqs)) > 1:
+            print('  different seqs:')
+            for icnt, tseq in enumerate(seqs[1:]):  # NTOE icnt doesn't start at start of <seqs>
+                utils.color_mutants(seqs[0], tseq, print_result=True, only_print_seq=icnt>0)
+            raise Exception('see previous lines')
+        for new_node in [n for n in tcls if n.taxon.label not in all_before_seqs]:
+            new_seqfos.append({'name' : new_node.taxon.label, 'seq' : seqs[0]})
+            if debug:
+                print('        %s: adding seq' % new_node.taxon.label)
+
+    # fix unifurcations
+    for tnode in [n for n in dtree.preorder_node_iter() if n.num_child_nodes()==1]:
+        old_taxon = tnode.taxon
+        new_name, potential_names, used_names = utils.choose_new_uid(potential_names, used_names)
+        tnode.taxon = dendropy.Taxon(new_name)
+        dtree.taxon_namespace.add_taxon(tnode.taxon)
+        add_zero_length_child(tnode, dtree, child_taxon=old_taxon)
+        new_seqfos.append({'name' : new_name, 'seq' : all_before_seqs[old_taxon.label]})
+        if debug:
+            print('  moving %s to leaf with zero len branch' % old_taxon.label)
+
+    return dtree, new_seqfos
 
 # ----------------------------------------------------------------------------------------
 def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_name_node=None, debug=False):  # collapse edge between <keep_name> and <remove_name>, leaving remaining node with name <keep_name>
@@ -1035,7 +1126,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             utils.write_fasta(ifn(workdir), input_seqfos)
             if 'gctree' in method:
                 with open(mfn(workdir), 'w') as mfile:
-                    mfo = {'%s_%s'%(c, k) : annotation[c+'_'+k] for c in 'hl' for k in ['frame', 'offset']} if is_fake_paired else {'frame' : utils.get_frame(annotation)}  # don't need the frames unless v_5p_del - fv_insertion > 0 which shouldn't be possible on padded sequences ofrm the hmm, but it's maybe better to always pass it in, it's too much trouble to only pass in if needed
+                    mfo = {'%s_%s'%(c, k) : annotation[c+'_'+k] for c in 'hl' for k in ['frame', 'offset']} if is_fake_paired else {'frame' : utils.get_frame(annotation)}  # don't need the frames unless v_5p_del - fv_insertion > 0 which shouldn't be possible on padded sequences from the hmm, but it's maybe better to always pass it in, it's too much trouble to only pass in if needed
                     json.dump(mfo, mfile)
         return workdir
 

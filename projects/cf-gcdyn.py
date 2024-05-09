@@ -161,7 +161,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     if action in ['simu', 'check-dl', 'merge-simu']:
         cmd = 'gcd-simulate' if action in ['simu', 'check-dl'] else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
         if action in ['simu', 'check-dl']:
-            cmd += ' --outdir %s --tree-inference-method iqtree --debug 1' % odr  #  --debug 1
+            cmd += ' --outdir %s --tree-inference-method gctree --debug 1' % odr  #  --debug 1
             if args.test:
                 cmd += ' --test'
             cmd = add_scan_args(cmd, skip_fcn=lambda v: v not in args.scan_vars[action] or action=='check-dl' and v not in check_dl_args)

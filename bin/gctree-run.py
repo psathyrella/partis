@@ -13,6 +13,7 @@ import os
 import dendropy
 import json
 from io import open
+import random
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
 sys.path.insert(1, partis_dir) #'./python')
@@ -137,6 +138,7 @@ def parse_output():
 
     # read fasta (mostly for inferred intermediate seqs)
     seqfos = utils.read_fastx(gctofn('seqs'), look_for_tuples=True)
+    print('    read %d seqs from gctree output fasta' % len(seqfos))
     if any(s['name']=='' for s in seqfos):
         n_removed = len([s for s in seqfos if s['name']==''])
         seqfos = [s for s in seqfos if s['name']!='']
@@ -159,8 +161,9 @@ def parse_output():
     dtree = treeutils.get_dendro_tree(treefname=gctofn('tree'), debug=args.debug)
     dtree.scale_edges(1. / seq_len)
     dtree.seed_node.taxon.label = args.root_label
+    ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
     for gname, onames in idm_trns.items():
-        node = dtree.find_node_with_taxon_label(gname)
+        node = ndict[gname]
         if node is None:
             raise Exception('couldn\'t find node with name \'%s\' in tree from gctree in %s' % (gname, gctofn('tree')))
         if args.debug and len(onames) > 1:
@@ -171,30 +174,22 @@ def parse_output():
                 if args.debug and len(onames) > 1:
                     print('        setting node to %s' % onm)
                 continue
-            new_taxon = dendropy.Taxon(onm)  # add duplicates as children with zero-length edges
-            dtree.taxon_namespace.add_taxon(new_taxon)
-            new_node = dendropy.Node(taxon=new_taxon)
-            node.add_child(new_node)
-            new_node.edge_length = 0
+            treeutils.add_zero_length_child(node, dtree, child_name=onm)  # add duplicates as children with zero-length edges
             if args.debug and len(onames) > 1:
                 print('        adding child node %s' % onm)
     treeutils.translate_labels(dtree, inf_int_trns, expect_missing=True, debug=args.debug)
 
+    if args.fix_multifurcations:
+        input_seqfos = utils.read_fastx(args.infname)
+        dtree, new_seqfos = treeutils.get_binary_tree(dtree, nfos + input_seqfos + seqfos, debug=args.debug)
+        seqfos += new_seqfos
     if args.debug:
         print('    final tree:')
         print(treeutils.get_ascii_tree(dendro_tree=dtree, extra_str='      ', width=350))
     with open(fofn('tree'), 'w') as ofile:
         ofile.write('%s\n' % treeutils.as_str(dtree))
-    utils.write_fasta(fofn('seqs'), seqfos)
+    utils.write_fasta(fofn('seqs'), nfos + seqfos)
 
-# ----------------------------------------------------------------------------------------
-def convert_pickle_tree():
-    assert False  # doesn't work yet
-    cmd = '%s/bin/read-bcr-phylo-trees.py --pickle-tree-file %s --newick-tree-file %s/tree.nwk' % (utils.get_partis_dir(), args.infname, args.outdir)
-    # assert False  # this also needs updating
-    # utils.run_ete_script(cmd, None, conda_path=args.condapath, conda_env='ete3', pyversion='3')
-
-# ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='run:parse')
 parser.add_argument('--infname')
@@ -214,11 +209,15 @@ parser.add_argument('--expand-all-nodes', action='store_true', help='Gctree coll
 parser.add_argument('--run-help', action='store_true', help='run gctree help')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--dry-run', action='store_true')
+parser.add_argument('--random-seed', type=int, default=0)
+parser.add_argument('--fix-multifurcations', action='store_true', help='resolves multifurcations (by adding zero length intermediates) and move input seqs that have been extend unifurcations onto zero length branches')
 
 args = parser.parse_args()
+random.seed(args.random_seed)
+numpy.random.seed(args.random_seed)
 if args.only_write_forest and args.input_forest_dir:
     raise Exception('doesn\'t make sense to specify both')
-args.actions = utils.get_arg_list(args.actions, choices=['install', 'update', 'run', 'parse', 'convert-pickle-tree'])
+args.actions = utils.get_arg_list(args.actions, choices=['install', 'update', 'run', 'parse'])
 args.infname = utils.fpath(args.infname)
 args.outdir = utils.fpath(args.outdir)
 
@@ -230,5 +229,3 @@ if 'run' in args.actions:
     run_gctree()
 if 'parse' in args.actions:
     parse_output()
-if 'convert-pickle-tree' in args.actions:
-    convert_pickle_tree()
