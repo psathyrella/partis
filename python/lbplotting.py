@@ -1026,8 +1026,8 @@ def make_lb_vs_affinity_slice_plots(baseplotdir, lines, lb_metric, is_true_line=
                                                                                        len(avals), fstr(None if len(avals)==0 else min(avals)), fstr(None if len(avals)==0 else max(avals)) if len(avals)>1 else fstr(None),
                                                                                        '' if len(affy_val_set)>1 or len(affy_val_set)==0 else utils.color('red', '   all affinities the same'), '  '.join([fstr(a) for a in avals]) if len(avals) < 10 else ''))
         # ----------------------------------------------------------------------------------------
-        all_vals = sorted(utils.antnval(l, slvar, i) for l in lines for i in range(len(l['unique_ids'])))
-        all_vals = [v for v in all_vals if v is not None]
+        all_vals = [utils.antnval(l, slvar, i) for l in lines for i in range(len(l['unique_ids']))]
+        all_vals = sorted(v for v in all_vals if v is not None)
         if len(set(all_vals)) == 1:
             print('    all %s values the same (%f), so not making slice plots' % (slvar, list(set(all_vals))[0]))
             return

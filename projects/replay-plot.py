@@ -33,6 +33,7 @@ colors = {
     'gct-data-d20' :  '#cc0000',
     'gct-data-w10' : '#2b65ec',
     'bst-data-d20' : '#006600',
+    'iqt-data' : '#a821c7',
     'simu' : '#808080',
     'simu-iqtree' : 'black',
 }
@@ -162,7 +163,8 @@ def read_input_files(label):
         if len(tcts['only-tree']) > 0:
             print('        %d seqs (from %d trees) only in tree (%d of these are internal nodes): %s' % (sum(tcts['only-tree']), len(tcts['only-tree']), sum(tcts['internal']), ' '.join(str(c) for c in tcts['only-tree'])))
         if len(tcts['diff-count']) > 0:
-            print('        %d seqs had different counts in sfo vs tree: %s' % (len(tcts['diff-count']), '   '.join(tcts['diff-count'])))
+            def kfn(s): return int(s.split()[0])
+            print('        %d seqs had different counts in sfo vs tree: %s' % (len(tcts['diff-count']), '   '.join(sorted(tcts['diff-count'], reverse=True, key=kfn))))
     # ----------------------------------------------------------------------------------------
     def read_gctree_data(all_seqfos, plotvals, n_missing, n_tot):
         print('    reading gctree data from %s' % args.gcreplay_dir)

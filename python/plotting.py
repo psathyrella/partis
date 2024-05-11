@@ -703,6 +703,7 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'gct-data-d20' : 'gctree d20',
            'gct-data-w10' : 'gctree w10',
            'bst-data-d20' : 'beast d20',
+           'iqt-data' : 'iqtree',
            'simu-iqtree' : 'simu (iqtree)',
            }
 
@@ -1762,7 +1763,7 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
             cluster_group = sorted(list(cluster_group), key=lambda c: numpy.median(get_xval_list(c, x1key)))  # sort ties in the default sorting by median <x1key> (has no effect if x2key is set since the groups are always length 1)
         repfracstr = utils.get_repfracstr(csize, repertoire_size)
         for iclust, cluster in enumerate(cluster_group):
-            x1vals = sorted(get_xval_list(cluster, x1key))
+            x1vals = sorted([x for x in get_xval_list(cluster, x1key) if x is not None])
             median_x1 = numpy.median([v for v in x1vals if v is not None])  # maybe should use mean instead of median?
 
             if high_x_val is not None and median_x1 > high_x_val and not plot_high_x:  # if <high_x_val> is not set, we don't skip any clusters
