@@ -107,7 +107,7 @@ def read_gctree_csv(all_seqfos, label):
                                          'n_muts_aa' : n_aa_muts,
                                          'affinity' : None if affinity == '' else float(affinity),
                                          'abundance' : abdn,
-                                         'is-leaf' : abdn > 0,
+                                         'sampled' : abdn > 0,
                                          })
     print('    kept %d / %d GCs%s (skipped %d)' % (len(all_seqfos), len(gc_counts['all']), '' if timestr is None else ' at time \'%s\''%timestr, len(gc_counts['skipped'])))
 
@@ -279,14 +279,14 @@ def read_input_files(label):
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
-        # put trees into all_dtrees and fill 'is-leaf'
+        # put trees into all_dtrees and fill 'sampled'
         for itr, dtree in enumerate(dendro_trees):
             tnode = list(dtree.leaf_node_iter())[0]
             gcn = gcids[itr] if 'bst' in label else tnode.taxon.label.split('-')[0]
             all_dtrees[gcn] = dtree
             ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
             for sfo in all_seqfos[gcn]:
-                sfo['is-leaf'] = ndict[sfo['name']].is_leaf()
+                sfo['sampled'] = ndict[sfo['name']].is_leaf()  # in simulation we assume leaves are sampled, whereas in data (above) we use abundance (gctree output) (beast data, which we handle here, seems to always put sampled seqs as leaves [unlike gctree])
         n_trees = get_affy(plotvals, label, dendro_trees, mfos)
         return n_trees
     # ----------------------------------------------------------------------------------------
@@ -294,7 +294,7 @@ def read_input_files(label):
         abdnvals, max_abvals, n_leaf_fos = [], [], 0
         for gcn in all_seqfos:
             gcabvals = []
-            leaf_fos = [s for s in all_seqfos[gcn] if s['is-leaf'] and 'naive' not in s['name']]
+            leaf_fos = [s for s in all_seqfos[gcn] if s['sampled']]
             def kfn(s): return s['seq']
             for tseq, sgroup in itertools.groupby(sorted(leaf_fos, key=kfn), key=kfn):
                 abundance = len(list(sgroup))
@@ -317,7 +317,7 @@ def read_input_files(label):
     # NOTE that trees from gctree are genotype-collapsed, whereas those from simulation + beast have different nodes for duplicate seqs
     #   so *always* use seqfos for anything to do with abundance/N muts, etc, only use tree nodes for checking leaf/internal, topology, etc
 
-    partition = [[s['name'] for s in sfos if s['is-leaf']] for sfos in all_seqfos.values()]
+    partition = [[s['name'] for s in sfos if s['sampled']] for sfos in all_seqfos.values()]
 
     check_seqfos_nodes()
 
