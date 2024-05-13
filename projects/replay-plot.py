@@ -34,6 +34,9 @@ colors = {
     'gct-data-w10' : '#2b65ec',
     'bst-data-d20' : '#006600',
     'iqt-data' : '#a821c7',
+    'iqt-data-d20' : '#a821c7',
+    'iqt-data-d15' : '#a821c7',
+    'iqt-data-w10' : '#a821c7',
     'simu' : '#808080',
     'simu-iqtree' : 'black',
 }
@@ -54,6 +57,7 @@ pltlabels = {
 }
 tpstrs = ['affinity', 'muts-nuc', 'muts-aa']
 labelstrs = ['affinity', 'N nuc muts', 'N AA muts']
+all_timepoints = ['d20', 'w10', 'd15']
 for tstr, lbstr in zip(tpstrs, labelstrs):
     for nstr in ['leaf', 'internal']:
         pltlabels['%s-%s'%(nstr, tstr)] = '%s (%s nodes)' % (lbstr, nstr)
@@ -78,11 +82,11 @@ def abdn_hargs(hlist):
 def read_gctree_csv(all_seqfos, label):
     gc_counts = {tk : set() for tk in ['all', 'skipped']}
     timestr = None
-    if '-' in label:
+    if label.count('-') == 2:  # timepoint-spilt data e.g. gct-data-d20 (as opposed to e.g. gct-data)
         gstr, dstr, timestr = label.split('-')
         assert gstr == 'gct'
         assert dstr == 'data'
-        assert timestr in ['d20', 'w10', 'd15']
+        assert timestr in all_timepoints
     print('      reading gctree node data from %s' % '%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir)
     with open('%s/nextflow/results/merged-results/gctree-node-data.csv'%args.gcreplay_dir) as cfile:
         reader = csv.DictReader(cfile)
@@ -114,6 +118,10 @@ def read_gctree_csv(all_seqfos, label):
 # ----------------------------------------------------------------------------------------
 def nstr(node):
     return 'leaf' if node.is_leaf() else 'internal'
+
+# ----------------------------------------------------------------------------------------
+def isdata(label):
+    return 'bst-data' in label or 'iqt-data' in label
 
 # ----------------------------------------------------------------------------------------
 def read_input_files(label):
@@ -234,15 +242,23 @@ def read_input_files(label):
             for mfo in mfos.values():
                 mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
         # ----------------------------------------------------------------------------------------
-        if 'data' in label:
-            sldir = args.beast_dir
+        if isdata(label):
+            if 'bst-' in label:
+                sldir = args.beast_dir
+            elif 'iqt-' in label:
+                tstr = 'all' if label.count('-')==1 else label.split('-')[-1]
+                print(tstr)
+                assert tstr in ['all'] + all_timepoints
+                sldir = '%s/%s-trees' % (args.iqtree_data_dir, tstr)
+            else:
+                assert False
         elif 'simu' in label:
             sldir = args.simu_like_dir
             if '-iqtree' in label:
                 sldir += '/iqtree'
         else:
             assert False
-        print('  reading %s from %s' % ('beast data' if 'data' in label else 'simulation', sldir))
+        print('  reading %s from %s' % (('%s data'%label.split('-')[0]) if isdata(label) else 'simulation', sldir))
         if args.bcr_phylo:
             glfo, antn_list, _ = utils.read_output('%s/fake-paired-annotations.yaml' % sldir, dont_add_implicit_info=True)
             mfos, tmp_seqfos = {}, []
@@ -263,7 +279,7 @@ def read_input_files(label):
             mfos = read_gcd_meta(sldir)  # this applies args.n_max_simu_trees
             tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%sldir, queries=None if 'data' in label or args.n_max_simu_trees is None else mfos.keys())
             dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%sldir, n_max_trees=None if 'data' in label else args.n_max_simu_trees)]
-            if 'bst' in label:
+            if isdata(label):
                 gcids = [l['gcid'] for l in utils.csvlines('%s/gcids.csv'%sldir)]
         # loop through all seqfos, setting n_muts from meta info and adding to correct gcn in all_seqfos
         for sfo in tmp_seqfos:
@@ -273,16 +289,17 @@ def read_input_files(label):
             if 'n_muts_aa' not in mfos[sfo['name']]:  # gcdyn simu we need to calculate it
                 mfos[sfo['name']]['n_muts_aa'] = utils.hamming_distance(utils.ltranslate(sfo['seq']), args.naive_seq_aa, amino_acid=True)
             sfo['n_muts_aa'] = int(mfos[sfo['name']]['n_muts_aa'])
-            gcn = sfo['gcn'] if args.bcr_phylo else sfo['name'].split('-')[0]
-            if 'bst' in label:  # for beast data, convert from the tree index (gcdyn simulation style) to actual gcreplay gc id
-                gcn = gcids[int(gcn)]
+            if isdata(label):  # for beast + iqtree data, we write the gcid to the leaf meta file (it's got dashes, so too hard to add it to sequence id)
+                gcn = mfos[sfo['name']]['gc']
+            else:
+                gcn = sfo['gcn'] if args.bcr_phylo else sfo['name'].split('-')[0]
             if gcn not in all_seqfos:
                 all_seqfos[gcn] = []
             all_seqfos[gcn].append(sfo)
         # put trees into all_dtrees and fill 'sampled'
         for itr, dtree in enumerate(dendro_trees):
             tnode = list(dtree.leaf_node_iter())[0]
-            gcn = gcids[itr] if 'bst' in label else tnode.taxon.label.split('-')[0]
+            gcn = gcids[itr] if isdata(label) else tnode.taxon.label.split('-')[0]
             all_dtrees[gcn] = dtree
             ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
             for sfo in all_seqfos[gcn]:
@@ -307,9 +324,9 @@ def read_input_files(label):
     all_seqfos, all_dtrees = collections.OrderedDict(), collections.OrderedDict()
     plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts', 'n_muts_aa']}
     n_missing, n_tot = {'internal' : [], 'leaf' : []}, {'internal' : [], 'leaf' : []}  # per-seq (not per-gc) counts
-    if 'data' in label and 'bst' not in label:
+    if 'data' in label and 'bst' not in label and 'iqt' not in label:
         n_trees = read_gctree_data(all_seqfos, plotvals, n_missing, n_tot)
-    elif 'simu' in label or 'bst' in label:  # beast data is formatted like simulation
+    elif 'simu' in label or isdata(label):  # beast + iqtree data are formatted like simulation
         n_trees = read_simu_like_files(all_seqfos, plotvals, n_missing, n_tot)
     else:
         assert False
@@ -393,7 +410,7 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals):
     adjust = None
     if '\n' in ytitle:
         adjust = {'left' : 0.23 if hname=='abundances' else 0.18}
-    if any('bst' in l for l in labels) and 'muts' in hname:
+    if any(isdata(l) for l in labels) and 'muts' in hname:
         xbounds = [-0.5, 20.5]
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s'%(htype, hname), more_hists=hists, log='y' if 'abundances' in hname else '', xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],
@@ -415,7 +432,8 @@ NOTE that there's other scripts that process gcreplay results for partis input h
 """
 parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
-parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v2/all-trees', help='dir with beast results on gcreplay data (same format as simulation)')
+parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v3/all-trees', help='dir with beast results on gcreplay data (same format as simulation)')
+parser.add_argument('--iqtree-data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/iqtree-processed-data/v1', help='dir with iqtree results on gcreplay data (from datascripts/taraki-gctree-2021-10/iqtree-run.py then projects/gcdyn/scripts/data-parse.py')
 parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/gcs with fewer than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
@@ -427,10 +445,10 @@ parser.add_argument('--bcr-phylo', action='store_true', help='set this if you\'r
 parser.add_argument('--write-legend-only-plots', action='store_true', help='if set, instead of putting legends on each plot, write a separate legend-only svg for each plot')
 parser.add_argument('--naive-seq', default="GAGGTGCAGCTTCAGGAGTCAGGACCTAGCCTCGTGAAACCTTCTCAGACTCTGTCCCTCACCTGTTCTGTCACTGGCGACTCCATCACCAGTGGTTACTGGAACTGGATCCGGAAATTCCCAGGGAATAAACTTGAGTACATGGGGTACATAAGCTACAGTGGTAGCACTTACTACAATCCATCTCTCAAAAGTCGAATCTCCATCACTCGAGACACATCCAAGAACCAGTACTACCTGCAGTTGAATTCTGTGACTACTGAGGACACAGCCACATATTACTGTGCAAGGGACTTCGATGTCTGGGGCGCAGGGACCACGGTCACCGTCTCCTCAGACATTGTGATGACTCAGTCTCAAAAATTCATGTCCACATCAGTAGGAGACAGGGTCAGCGTCACCTGCAAGGCCAGTCAGAATGTGGGTACTAATGTAGCCTGGTATCAACAGAAACCAGGGCAATCTCCTAAAGCACTGATTTACTCGGCATCCTACAGGTACAGTGGAGTCCCTGATCGCTTCACAGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAATGTGCAGTCTGAAGACTTGGCAGAGTATTTCTGTCAGCAATATAACAGCTATCCTCTCACGTTCGGCTCGGGGACTAAGCTAGAAATAAAA")
 parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading this many trees from simulation')
-parser.add_argument("--random-seed", type=int, default=1, help="random seed for subsampling")
+parser.add_argument("--random-seed", type=int, default=1)
 parser.add_argument("--default-naive-affinity", type=float, default=1./100, help="this is the default for bcr-phylo, so maybe be correct if we don\'t have an unmutated sequence")
 args = parser.parse_args()
-args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['gct-data', 'gct-data-d15', 'gct-data-d20', 'gct-data-w10', 'bst-data-d20', 'simu', 'simu-iqtree'])
+args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['gct-data', 'gct-data-d15', 'gct-data-d20', 'gct-data-w10', 'bst-data-d20', 'iqt-data', 'iqt-data-d20', 'simu', 'simu-iqtree'])
 if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
     print('  note; setting --write-legend-only-plots since --plot-labels is longer than 3')
     args.write_legend_only_plots = True

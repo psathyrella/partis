@@ -66,18 +66,7 @@ def parse_output():
         return
     utils.makelink(args.outdir, igp_ofn('seqs'), fofn('seqs'), debug=True)  # note that these inferred seqs include non-N ambiguous bases, which atm i'm fixing in the calling code in treeutils.py
     dtree = treeutils.get_dendro_tree(treefname=igp_ofn('tree'), schema='nexus') #, debug=True, print_tree=True)
-    rnode = dtree.find_node_with_taxon_label(args.naive_seq_name)
-    if rnode is not dtree.seed_node:  # it seems to put the node we want as root as a leaf just below the (unlabeled) root node
-        if rnode.edge_length > 1e-3:
-            raise Exception('don\'t want to collapse non-trivial edge, but got length %f' % rnode.edge_length)
-        pnode = rnode.parent_node  # note: tried to include this stuff in the collapse nodes fcn call, but it was being too fiddly
-        assert pnode is dtree.seed_node
-        tchildren = list(pnode.child_node_iter())
-        assert len(tchildren) == 2
-        assert rnode in tchildren
-        cnode = utils.get_single_entry([c for c in tchildren if c is not rnode])  # other child node of current root, the one that we're going to keep
-        cnode.edge_length += rnode.edge_length
-        treeutils.collapse_nodes(dtree, args.naive_seq_name, rnode.parent_node.taxon.label)
+    treeutils.collapse_dangly_root_node(dtree, args.naive_seq_name)
     with open(fofn('tree'), 'w') as tfile:
         tfile.write(dtree.as_string(schema='newick'))
 

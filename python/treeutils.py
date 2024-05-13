@@ -489,7 +489,8 @@ def add_zero_length_child(parent_node, dtree, child_name=None, child_taxon=None)
     parent_node.add_child(new_node)
 
 # ----------------------------------------------------------------------------------------
-def get_binary_tree(dtree, before_seqfos, debug=False):  # remove unifurcations and multifurcations
+# pass in either dtree or etree
+def get_binary_tree(dtree, before_seqfos, etree=None, debug=False):  # remove unifurcations and multifurcations
     # ----------------------------------------------------------------------------------------
     def add_node(cls_node, new_node):  # add <new_node> to same class as <cls_node>
         icls = class_indices[cls_node]
@@ -507,8 +508,9 @@ def get_binary_tree(dtree, before_seqfos, debug=False):  # remove unifurcations 
             if cnode in unhandled_nodes and cnode.edge.length == 0:
                 add_node(tnd, cnode)
     # ----------------------------------------------------------------------------------------
-    original_seed_label = dtree.seed_node.taxon.label
-    etree = get_etree(dtree)
+    original_seed_label = dtree.seed_node.taxon.label if etree is None else etree.name
+    if etree is None:
+        etree = get_etree(dtree)
     if debug:
         print('  initial tree:')
         print(utils.pad_lines(etree.get_ascii(show_internal=True)))
@@ -567,6 +569,30 @@ def get_binary_tree(dtree, before_seqfos, debug=False):  # remove unifurcations 
             print('  moving %s to leaf with zero len branch' % old_taxon.label)
 
     return dtree, new_seqfos
+
+# ----------------------------------------------------------------------------------------
+# collapse node with label <naive_seq_name> when it's dangling off a zero length branch from root so it's the new root node
+def collapse_dangly_root_node(dtree, naive_seq_name):
+    rnode = dtree.find_node_with_taxon_label(naive_seq_name)
+    if rnode is None:
+        raise Exception('couldn\'t find naive seq with name %s' % naive_seq_name)
+    if rnode is dtree.seed_node:
+        print('    %s naive seq name already root node' % utils.wrnstr())
+        return
+    if rnode.edge_length > 1e-3:
+        raise Exception('don\'t want to collapse non-trivial edge, but got length %f' % rnode.edge_length)
+
+    pnode = rnode.parent_node  # note: tried to include this stuff in the collapse nodes fcn call, but it was being too fiddly
+    rm_node_name = pnode.taxon.label
+    assert pnode is dtree.seed_node
+    tchildren = list(pnode.child_node_iter())
+    assert len(tchildren) == 2
+    assert rnode in tchildren
+    cnode = utils.get_single_entry([c for c in tchildren if c is not rnode])  # other child node of current root, the one that we're going to keep
+    cnode.edge_length += rnode.edge_length
+    collapse_nodes(dtree, naive_seq_name, rnode.parent_node.taxon.label)
+
+    return rm_node_name
 
 # ----------------------------------------------------------------------------------------
 def collapse_nodes(dtree, keep_name, remove_name, keep_name_node=None, remove_name_node=None, debug=False):  # collapse edge between <keep_name> and <remove_name>, leaving remaining node with name <keep_name>
@@ -1017,7 +1043,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
 def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read',
                        taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None, redo=False, outfix='out', cmdfo=None,
                        glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, only_pass_leaves=False,
-                       debug=False):
+                       dont_collapse_zero_len_leaves=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def lhindir(workdir):
         return '%s/input' % workdir
@@ -1027,7 +1053,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             cmd = '%s/bin/FastTree -gtr -nt -out %s %s' % (utils.get_partis_dir(), ofn(workdir), ifn(workdir))
         elif method in iqt_methods:
             vsn = '1.6.12' if method=='iqtree' else method.split('-')[1]
-            cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix)
+            cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
             if redo:
                 cmd += ' -redo'
         elif method == 'raxml':
@@ -1294,7 +1320,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
 
     removed_nodes = None
     # fasttree, iqtree, and gctree put all observed seqs as leaves, so we sometimes want to collapse [near-]zero-length leaves onto their internal node parent
-    if not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
+    if not dont_collapse_zero_len_leaves and not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
         print('      collapsing zero length leaves')
         removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], debug=debug)
 

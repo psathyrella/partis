@@ -313,7 +313,7 @@ def plot_trees(args):
     treefo = read_input(args)
 
     treestr = treefo['treestr']
-    if len(treestr.split()) == 2 and treestr.split()[0] in ['[&U]', '[&R']:  # dumbest #$!#$#ing format in the goddamn world (ete barfs on other programs' rooting information)
+    if len(treestr.split()) == 2 and treestr.split()[0] in ['[&U]', '[&R]']:  # dumbest #$!#$#ing format in the goddamn world (ete barfs on other programs' rooting information)
         treestr = treefo['treestr'].split()[1]
     etree = ete3.Tree(treestr, format=1)  # , quoted_node_names=True)
 

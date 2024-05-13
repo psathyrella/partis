@@ -704,6 +704,9 @@ legends = {'vollmers-0.9' : 'VJ CDR3 0.9',
            'gct-data-w10' : 'gctree w10',
            'bst-data-d20' : 'beast d20',
            'iqt-data' : 'iqtree',
+           'iqt-data-d15' : 'iqtree d15',
+           'iqt-data-d20' : 'iqtree d20',
+           'iqt-data-w10' : 'iqtree w10',
            'simu-iqtree' : 'simu (iqtree)',
            }
 
