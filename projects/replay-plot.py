@@ -139,7 +139,7 @@ def read_input_files(label):
             reader = csv.DictReader(mfile)
             for line in reader:
                 itree = int(line['name'].split('-')[0])
-                if args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
+                if not isdata(label) and args.n_max_simu_trees is not None and itree > args.n_max_simu_trees - 1:
                     print('    --n-max-simu-trees: breaking after reading leaf meta for %d trees' % itree)
                     break
                 mfos[line['name']] = line
@@ -243,15 +243,10 @@ def read_input_files(label):
                 mfo['affinity'] = (mfo['affinity'] - naive_affy) / affy_std
         # ----------------------------------------------------------------------------------------
         if isdata(label):
-            if 'bst-' in label:
-                sldir = args.beast_dir
-            elif 'iqt-' in label:
-                tstr = 'all' if label.count('-')==1 else label.split('-')[-1]
-                print(tstr)
-                assert tstr in ['all'] + all_timepoints
-                sldir = '%s/%s-trees' % (args.iqtree_data_dir, tstr)
-            else:
-                assert False
+            bdirs = {'bst' : args.beast_dir, 'iqt' : args.iqtree_data_dir}
+            tstr = 'all' if label.count('-')==1 else label.split('-')[-1]
+            assert tstr in ['all'] + all_timepoints
+            sldir = '%s/%s-trees' % (bdirs[label.split('-')[0]], tstr)
         elif 'simu' in label:
             sldir = args.simu_like_dir
             if '-iqtree' in label:
@@ -277,8 +272,8 @@ def read_input_files(label):
             scale_affinities(antn_list, mfos)
         else:
             mfos = read_gcd_meta(sldir)  # this applies args.n_max_simu_trees
-            tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%sldir, queries=None if 'data' in label or args.n_max_simu_trees is None else mfos.keys())
-            dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%sldir, n_max_trees=None if 'data' in label else args.n_max_simu_trees)]
+            tmp_seqfos = utils.read_fastx('%s/seqs.fasta'%sldir, queries=None if isdata(label) or args.n_max_simu_trees is None else mfos.keys())
+            dendro_trees = [treeutils.get_dendro_tree(treestr=s) for s in treeutils.get_treestrs_from_file('%s/trees.nwk'%sldir, n_max_trees=None if isdata(label) else args.n_max_simu_trees)]
             if isdata(label):
                 gcids = [l['gcid'] for l in utils.csvlines('%s/gcids.csv'%sldir)]
         # loop through all seqfos, setting n_muts from meta info and adding to correct gcn in all_seqfos
@@ -432,7 +427,7 @@ NOTE that there's other scripts that process gcreplay results for partis input h
 """
 parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
-parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v3/all-trees', help='dir with beast results on gcreplay data (same format as simulation)')
+parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v3', help='dir with beast results on gcreplay data (same format as simulation)')
 parser.add_argument('--iqtree-data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/iqtree-processed-data/v1', help='dir with iqtree results on gcreplay data (from datascripts/taraki-gctree-2021-10/iqtree-run.py then projects/gcdyn/scripts/data-parse.py')
 parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')

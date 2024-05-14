@@ -161,7 +161,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     if action in ['simu', 'check-dl', 'merge-simu']:
         cmd = 'gcd-simulate' if action in ['simu', 'check-dl'] else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
         if action in ['simu', 'check-dl']:
-            cmd += ' --outdir %s --tree-inference-method gctree --debug 1' % odr  #  --debug 1
+            cmd += ' --outdir %s --tree-inference-method iqtree --debug 1' % odr  #  --debug 1
             if args.test:
                 cmd += ' --test'
             cmd = add_scan_args(cmd, skip_fcn=lambda v: v not in args.scan_vars[action] or action=='check-dl' and v not in check_dl_args)
@@ -180,7 +180,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         cmd = add_mamba_cmds(cmd)
     elif 'replay-plot' in action:
         #  --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61  # don't want these turned on as long as e.g. N sampled seqs is varying a lot in simulation
-        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels gct-data-d20:bst-data-d20:simu:simu-iqtree --n-max-simu-trees 85 --normalize' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)
+        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels gct-data-d20:iqt-data-d20:bst-data-d20:simu:simu-iqtree --normalize' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)  #  --n-max-simu-trees 85
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
             cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), odr)
