@@ -190,7 +190,13 @@ def parse_output():
         ofile.write('%s\n' % treeutils.as_str(dtree))
     utils.write_fasta(fofn('seqs'), nfos + seqfos)
 
-parser = argparse.ArgumentParser()
+# ----------------------------------------------------------------------------------------
+ustr = """
+Run gctree tree inference on sequences from fasta input file <--infname>.
+Output trees and sequences are written to <--outdir> as inferred-seqs.fa and tree.nwk (gctree output files are also there, but they don't have any postprocessing e.g. fixing names and/or multifurcations.
+  gctree-run.py --infname <fasta> --outdir <outdir>
+"""
+parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--actions', default='run:parse')
 parser.add_argument('--infname')
 parser.add_argument('--metafname', help='if you need --frame (v region doesn\'t start at first position) or --chain_split and --frame2 (heavy/light chain smooshed together), pass the info in json format with this arg (see code above for format).')
