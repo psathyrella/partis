@@ -237,7 +237,7 @@ for cluster in clusters_to_use:
                 cluster_annotation[ecol] = None
             for iseq in range(len(newfos)):
                 ival = cluster_annotation[ecol]
-                if ecol in utils.linekeys['per_seq']:
+                if ival is not None and ecol in utils.linekeys['per_seq']:
                     ival = ival[iseq]
                 newfos[iseq][ecol] = ival
     seqfos += newfos
