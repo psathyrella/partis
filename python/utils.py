@@ -4197,7 +4197,7 @@ def mkdir(path, isfile=False):  # adding this very late, so could use it in a lo
         os.makedirs(path)
 
 # ----------------------------------------------------------------------------------------
-def makelink(odir, target, link_name, dryrun=False, debug=False):  # <odir> is generally os.path.dirname(link_name)   for search: def link def ln
+def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False):  # <odir> is generally os.path.dirname(link_name)   for search: def link def ln
     if os.path.exists(link_name):
         if os.path.islink(link_name):
             if os.path.isdir(link_name):  # if the link we're making (well, made on a previous call) is to a dir, calling a second time will instead create a new link inside the linked-to dir (which we don't want), so we have to remove it
@@ -4210,7 +4210,7 @@ def makelink(odir, target, link_name, dryrun=False, debug=False):  # <odir> is g
         n_slashes = [x[0] for x in itertools.groupby(link_name)].count('/')  # have to collapse any adjacent /s
         target = n_slashes * '../' + target
     mkdir(odir)
-    simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, debug=debug)
+    simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, extra_str=extra_str, debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def fpath(path):  # if <path> is relative, add full path from root (path can also be None)
@@ -4959,7 +4959,7 @@ def simplerun(cmd_str, shell=False, cmdfname=None, dryrun=False, return_out_err=
         write_cmd_file(cmd_str, cmdfname, dryrun=dryrun, debug=debug)
         cmd_str = cmdfname
 
-    if debug:
+    if debug or dryrun:
         print('%s%s %s' % (extra_str, color('red', 'run'), cmd_str))
         sys.stdout.flush()
     if dryrun:
@@ -6476,7 +6476,7 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
 
 # ----------------------------------------------------------------------------------------
 # if <look_for_tuples> is set, look for uids that are actually string-converted python tuples, and add each entry in the tuple as a duplicate sequence. Can also pass in a list <tuple_info> if you need to do more with the info afterwards (this is to handle gctree writing fasta files with broken names; see usage also in datascripts/meta/taraki-XXX)
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False, tuple_info=None):
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False, tuple_info=None, quiet=False):
     if ftype is None:
         suffix = getsuffix(fname)
         if suffix == '.fa' or suffix == '.fasta':
@@ -6584,7 +6584,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 break
             if queries is not None and len(missing_queries) == 0:
                 break
-    if n_max_queries > 0:
+    if n_max_queries > 0 and not quiet:
         print('    stopped after reading %d sequences from %s' % (n_max_queries, fname))
     if queries is not None:
         print('    only looked for %d specified sequences in %s' % (len(queries), fname))
