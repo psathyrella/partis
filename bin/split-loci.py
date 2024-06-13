@@ -87,7 +87,7 @@ def run_vsearch(seqfos):  # run vsearch to see if you can get a match for each l
         print('  used rev comp for %d/%d locus results (for %d seqs)' % (n_rev_compd, n_total, len(seqfos)))
 
 # ----------------------------------------------------------------------------------------
-def write_locus_file(locus, ofos, lpair=None, extra_str='  '):
+def write_locus_file(locus, ofos, lpair=None, extra_str='  ', totstr=''):
     ofn = paircluster.paired_fn(args.outdir, locus=locus, lpair=lpair)
     if utils.output_exists(args, ofn, leave_zero_len=len(ofos)==0, offset=4):  # NOTE not really sure this does anything (or if i want it) now that I'm cleaning/looking for the whole dir at the start of this script
         return
@@ -97,7 +97,7 @@ def write_locus_file(locus, ofos, lpair=None, extra_str='  '):
         # print '%s%s: nothing to write' % (extra_str, locus)
         open(ofn, 'w').close()
         return
-    print('%s%s: %d to %s/%s' % (extra_str, locus, len(ofos), os.path.basename(os.path.dirname(ofn)), os.path.basename(ofn)))
+    print('%s%s: %d%s to %s/%s' % (extra_str, locus, len(ofos), totstr, os.path.basename(os.path.dirname(ofn)), os.path.basename(ofn)))
     with open(ofn, 'w') as lfile:
         for sfo in ofos:
             lfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
@@ -131,10 +131,14 @@ def read_meta_info(seqfos):  # read all input meta info, and add pairing info (i
 def print_pairing_info(outfos, paired_uids):
     loci_by_uid = {sfo['name'] : l for l in outfos for sfo in outfos[l]}  # locus of each sequence, just for counting below
     print_cutoff = 0.01
+    n_missing = 0
     print('            count  frac  paired with')
     for locus in utils.sub_loci(args.ig_or_tr):
         plocicounts = {}
         for sfo in outfos[locus]:
+            if sfo['name'] not in paired_uids:
+                n_missing += 1
+                continue
             plstr = ' '.join(utils.locstr(l) for l in sorted([loci_by_uid.get(pid, '?') for pid in paired_uids[sfo['name']]]))
             if plstr not in plocicounts:
                 plocicounts[plstr] = 0
@@ -148,6 +152,8 @@ def print_pairing_info(outfos, paired_uids):
             print('       %s  %6d  %5.2f   %s' % (utils.locstr(locus) if ipl==0 else ' ', counts, counts / float(total), plstr))
         if n_skipped > 0:
             print('                +%d counts skipped with <%.3f each' % (n_skipped , print_cutoff)) # utils.color('yellow', 'note
+    if n_missing > 0:
+        print('          %s %d uids missing from paired uids' % (utils.wrnstr(), n_missing))
 
 # ----------------------------------------------------------------------------------------
 args = parser.parse_args()
@@ -263,15 +269,8 @@ if len(paired_uids) == 0:
 else:
     print('writing to paired subdirs')
     for lpair in utils.locus_pairs[args.ig_or_tr]:
-        h_locus, l_locus = lpair
-        all_paired_uids = set(pid for s in outfos[l_locus] for pid in paired_uids[s['name']])  # all uids that are paired with any <l_locus> uid (note that in general not all of these are heavy chain)
-        h_outfo = [sfo for sfo in outfos[h_locus] if sfo['name'] in all_paired_uids]  # any h seq that was in a droplet with any of <l_uids>
-        # # old way of pairing with identical uids (should really remove this but too chicken atm):
-        #     l_uids = set(sfo['name'] for sfo in outfos[l_locus])
-        #     h_outfo = [sfo for sfo in outfos[h_locus] if sfo['name'] in l_uids]  # if no meta file specified, just pair up the ones with identical uids
-
-        print('    %d/%d %s seqs pair with %s%s' % (len(h_outfo), len(outfos[h_locus]), h_locus, l_locus, utils.color('yellow', ' (warning)') if len(h_outfo)==0 else ''))
-        if len(h_outfo) == 0:
-            outfos[l_locus] = []  # makes more sense to not write them if there's no heavy paired with them, since it'd just duplicate the unpaired ones in the parent dir
-        write_locus_file(h_locus, h_outfo, lpair=lpair, extra_str='      ')
-        write_locus_file(l_locus, outfos[l_locus], lpair=lpair, extra_str='      ')
+        print('    %s:' % '+'.join(lpair))
+        for l_other, ltmp in [lpair, reversed(lpair)]:
+            all_paired_uids = set(pid for s in outfos[ltmp] if s['name'] in paired_uids for pid in paired_uids[s['name']])  # all uids that are paired with any <ltmp> uid (not necessarily *correctly* paired, at this stage it likely just means they're in the same droplet)
+            other_outfo = [sfo for sfo in outfos[l_other] if sfo['name'] in all_paired_uids]  # any <l_other> locus seq that was in a droplet with an <ltmp> uid
+            write_locus_file(l_other, other_outfo, lpair=lpair, extra_str='      ', totstr=' / %s'%len(outfos[l_other]))
