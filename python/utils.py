@@ -1059,7 +1059,7 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, return_colo
     if not any(s in uid for s in did_seps):  # probably not paired data
         if debug:
             print('  %s no separators %s in uid %s' % (wrnstr(), did_seps, uid))
-        return '', '' if return_contigs else ''
+        return ('', '') if return_contigs else ''
     ulist = [uid]
     for sep in did_seps:  # recursively split by each sep character
         ulist = [s for u in ulist for s in u.split(sep)]
@@ -3961,7 +3961,7 @@ def hamming_fraction(seq1, seq2, extra_bases=None, also_return_distance=False, a
         return fraction
 
 # ----------------------------------------------------------------------------------------
-def get_mut_positions(line):
+def get_mut_positions(line):  # for each sequence, return a list of position indices at which it is mutated
     hdistfo = [hamming_distance(line['naive_seq'], mature_seq, return_mutated_positions=True) for mature_seq in line['seqs']]
     return [mps for _, mps in hdistfo]
 
