@@ -78,6 +78,8 @@ def auto_bin_expand(values, xbins, int_bins=False, debug=False):
 # ----------------------------------------------------------------------------------------
 # attempts to make <n_bins> bins with equal numbers of entries per bin (may return fewer)
 def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False):
+    if len(values) == 0:
+        raise Exception('zero length values passed to auto volume bins')
     n_per_bin = int(len(values) / float(n_bins))
     values = sorted([v for v in values if v is not None])
     if debug > 1:

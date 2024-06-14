@@ -692,7 +692,6 @@ class PartitionPlotter(object):
             fnlist.extend([lfn, bfn, bfn+'-tot'])
         # ----------------------------------------------------------------------------------------
         subd, plotdir = self.init_subd('sizes')
-        cslist = [len(c) for c in self.sclusts]
         csize_hists = {'best' : self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)}
         bfn = 'cluster-sizes'
         csize_hists['best'].write('%s/%s.csv' % (plotdir, bfn))
@@ -809,7 +808,7 @@ class PartitionPlotter(object):
                 self.addfname(fnames, '%s-legend'%plotname)
 
             # cdr3 position info plots
-            if annotation.get('is_fake_paired', False) and len(cdr3fo) > 0:
+            if annotation.get('is_fake_paired', False) and cdr3fo is not None and len(cdr3fo) > 0:
                 self.plotting.plot_legend_only(collections.OrderedDict([('%s %s'%(c, cfo), {'color' : 'blue' if c=='h' else 'green'}) for c, cfo in cdr3fo.items()]), plotdir, '%s-cdr3'%plotname, title='CDR3')
                 self.addfname(fnames, '%s-cdr3'%plotname)
 
@@ -1012,6 +1011,9 @@ class PartitionPlotter(object):
         fnames = []
         self.remove_failed_clusters(partition, annotations)
         self.sclusts, self.antn_dict, self.base_plotdir = sorted(partition, key=lambda c: len(c), reverse=True), annotations, plotdir
+        if len(self.sclusts) == 0:
+            print('    no partitions to plot')
+            return
 
         if 'shm-vs-size' in plot_cfg:
             fnames += self.make_shm_vs_cluster_size_plots()

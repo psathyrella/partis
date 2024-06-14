@@ -78,6 +78,8 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either
 
 # ----------------------------------------------------------------------------------------
 def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, debug=False):
+    if len(partition) == 0:
+        return Hist()
     cslist = [len(c) for c in partition]
     if xbins is None:
         xbins, n_bins = hutils.auto_volume_bins(cslist, n_bins, int_bins=True, debug=True)

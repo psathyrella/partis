@@ -860,10 +860,9 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # uid : pid for all uid's that have a single unique pid (which should be all of them, since we just ran pair cleaning -- otherwise we crash below) (I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this)
     unpaired_seqs = {l : {} for l in ploci.values()}  # map for each locus from the uid of each seq with no (or non-reciprocal) pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
     lp_cpaths, lp_antn_lists = {}, {}
-    print('    removing badly paired seqs%s' % ('\n' if debug else ': '), end=' ')
+    print('    removing badly + unpaired seqs%s' % ('\n' if debug else ': '), end=' ')
     sys.stdout.flush()
     if debug:
-        print('  removing bad/un-paired seqs')
         print('          N       N      no   other  non-      original')
         print('        before removed  info  light recip       cluster')
     for tch in sorted(ploci):
@@ -872,7 +871,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
             cline = antn_dicts[ploci[tch]][':'.join(cluster)]
             paired_iseqs = [i for i, pds in enumerate(cline['paired-uids']) if len(pds) > 0]
             iseqs_to_remove = []
-            n_no_info, n_other_light, n_non_reciprocal = 0, 0, 0  # just for dbg NOTE n_other_light are the only ones we *really* want to remove, since they're h seqs paired with the other light chain, whereas the other two categories we eventually want to re-add since we're not sure who they're paired with
+            n_no_info, n_other_light, n_non_reciprocal = 0, 0, 0  # just for dbg NOTE n_other_light are the only ones we *really* want to remove, since they're h seqs paired with the other light chain (e.g. we're doing h+k and they're paired with igl), whereas the other two categories we eventually want to re-add since we're not sure who they're paired with
             unpaired_to_add = []
             for iseq, uid in enumerate(cline['unique_ids']):
                 pids = cline['paired-uids'][iseq]
@@ -884,7 +883,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
                     raise Exception('multiple paired uids for \'%s\': %s' % (uid, pids))
                 else:
                     # print('        ', uid, tch, pids, all_loci[utils.get_single_entry(pids)], ploci['l'])
-                    if tch == 'h' and all_loci[utils.get_single_entry(pids)] != ploci['l']:  # if it's the other light chain
+                    if tch == 'h' and all_loci[utils.get_single_entry(pids)] != ploci['l']:  # if it's the other light chain (e.g. igl when we're doing h+k)
                         iseqs_to_remove.append(iseq)
                         n_other_light += 1
                     else:  # also remove any non-reciprocal pairings (I think this will still miss any whose partner was removed) NOTE it would be nice to enforce reciprocal pairings in pair info cleaning, but atm i think we can't look at both chains at once in that fcn UPDATE i think we do this now

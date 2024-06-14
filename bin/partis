@@ -687,6 +687,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.remove_from_arglist(clist, '--debug', has_arg=True)
             if args.guess_pairing_info and (tmpaction in ['get-selection-metrics', 'view-output'] or tmpaction in ['cache-parameters', 'annotate', 'partition'] and not joint):  # maybe should do it for other actions? UPDATE adding 'partition' here, but not totally certain i should, and don't have a quick way to test it
                 translate_locus_names(clist, lpair, ltmp)
+            if tmpaction == 'view-output' and (args.extra_print_keys is None or 'paired-uids' not in args.extra_print_keys):
+                utils.replace_in_arglist(clist, '--extra-print-keys', ':'.join(['paired-uids'] + utils.non_none([args.extra_print_keys, []])))
 
             return clist
         # ----------------------------------------------------------------------------------------
@@ -1553,7 +1555,7 @@ subargs['partition'].append({'name' : '--max-cluster-size', 'kwargs' : {'type' :
 subargs['partition'].append({'name' : '--write-additional-cluster-annotations', 'kwargs' : {'help' : 'in addition to writing annotations for each cluster in the best partition, also write annotations for all the clusters in several partitions on either side of the best partition. Specified as a pair of numbers \'m:n\' for m partitions before, and n partitions after, the best partition.'}})
 subargs['partition'].append({'name' : '--add-pairwise-clustering-metrics', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to the default purity/completeness clustering performance metrics, also write pairwise ones (as defined e.g. in mobille paper).'}})
 subargs['partition'].append({'name' : '--naive-hamming-cluster', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value. Not recommended at this point: if you want fast use --naive-vsearch. (Default clustering uses naive hamming distance enough that it\'s not much slower than this, anyway).'}})
-subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwargs' : {'type' : int, 'default' : 10000, 'help' : 'If the repertoire has more than this many seqs, --naive-vsearch (--fast) is turned on, i.e. naive vsearch is used for clustering without any likelihoods. Turn off with --no-naive-vsearch.'}})
+subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwargs' : {'type' : int, 'default' : 50000, 'help' : 'If the repertoire has more than this many seqs, --naive-vsearch (--fast) is turned on, i.e. naive vsearch is used for clustering without any likelihoods. Turn off with --no-naive-vsearch.'}})
 
 # ----------------------------------------------------------------------------------------
 # basic simulation:
