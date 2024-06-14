@@ -1010,6 +1010,8 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         raise Exception('have to set exactly 1 of n_max_queries and n_random_queries, but got %s %s ' % (n_max_queries, n_random_queries))
     idg_it = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices)
     drop_ids, drop_query_lists = zip(*[(did, list(qiter)) for did, qiter in idg_it])
+    if '' in drop_ids:
+        raise Exception('empty droplet id when grouping ids')
     if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense, but <drop_ids> is sorted alphabetically, so we're taking them in that order at least
         final_qlists = drop_query_lists[:n_max_queries]
         dbgstrs = '--n-max-queries', '(first %d, after sorting alphabetically by droplet id)' % n_max_queries
@@ -1067,6 +1069,8 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, return_colo
     # if any(i > len(ulist) - 2 for i in did_indices):
     #     raise Exception('droplet id indices %s (out of %s) greater than len-1 (%d) of list %s after splitting by separators \'%s\' for uid \'%s\'' % ([i for i in did_indices if i > len(ulist) - 2], did_indices, len(ulist) - 1, ulist, did_seps, uid))
     did = did_seps[0].join(ulist[i] for i in did_indices)  # rejoin with just the first sep (if there was more than one), since doing otherwise would be complicated and i don't think it matters
+    if did == '':
+        raise Exception('empty droplet id for uid \'%s\'' % uid)
     cid = ulist[-1] if max(did_indices) < len(ulist) - 1 else ''  # normally just set the contig id to the last element, which is correct for [current] 10x data, except when we need the last element as part of the droplet id
     # , and we don't care about it otherwise (NOTE if you change this, you'll have to update the return_colored stuff below)
     if debug:
