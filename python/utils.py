@@ -1383,29 +1383,23 @@ def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting don
 
 # ----------------------------------------------------------------------------------------
 # <reco_info> just needs to be an annotation dict with single-sequence annotations
-def synthesize_multi_seq_line_from_reco_info(uids, reco_info, dont_deep_copy=False):  # assumes you already added all the implicit info
-    # ----------------------------------------------------------------------------------------
-    def dfn(val):
-        return val if dont_deep_copy else copy.deepcopy(val)
-    # ----------------------------------------------------------------------------------------
-    def cfcn(antn, key=None):
-        if key is None:
-            return dfn(antn)
-        elif key in antn:
-            return dfn(antn[key][0])
-        else:
-            return nullval(key)
-    # ----------------------------------------------------------------------------------------
+def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, dont_deep_copy=False):  # assumes you already added all the implicit info
     assert len(uids) > 0
-    invalid = False
-    if any(reco_info[u]['invalid'] for u in uids):
-        print('    %s invalid events in synthesize_multi_seq_line_from_reco_info()' % wrnstr())
-        invalid = True
-    multifo = cfcn(reco_info[uids[0]])
-    for col in [c for c in linekeys['per_seq'] if c in multifo]:
-        if not invalid:
-            assert [len(reco_info[u][col]) for u in uids].count(1) == len(uids)  # make sure every uid's info for this column is of length 1
-        multifo[col] = [cfcn(reco_info[uid], col) for uid in uids]
+    # invalid = False
+    # if any(reco_info[u]['invalid'] for u in uids):
+    #     print('    %s invalid events in synthesize_multi_seq_line_from_reco_info()' % wrnstr())
+    #     invalid = True
+    multikeys = set(k for u in uids for k in reco_info[u])  # need to have any key that's in any annotation
+    multifo = {}
+    for col in sorted(multikeys):
+        if col in linekeys['per_seq']:
+            cval = [per_seq_val(reco_info[u], col, u, use_default=True, default_val=nullval(col)) for u in uids]
+        else:  # would be nice to use linekeys['per_family'], but not all keys are in one or the other (e.g. linekeys['sw'] aren't in either)
+            cvals = [reco_info[u][col] for u in uids if col in reco_info[u]]
+            if warn and any(v != cvals[0] for v in cvals):  # eh, maybe i don't need to raise an exception here? Although generally you sure shouldn't be merging them if they differ
+                print('    %s multiple values for key \'%s\' when synthesizing multi-seq line (just using the first one): %s' % (wrnstr(), col, cvals))
+            cval = cvals[0]
+        multifo[col] = copy.deepcopy(cval)
     return multifo
 
 # ----------------------------------------------------------------------------------------
