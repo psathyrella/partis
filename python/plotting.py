@@ -27,34 +27,39 @@ from . import treeutils
 from . import hutils
 from .clusterpath import ClusterPath
 
-#                   green    dark red  light blue  light red  sky blue  pink/purple   grey
+#                 green    dark red  light blue  light red  sky blue  pink/purple   grey
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
 default_linewidths = ['5', '3', '2', '2', '2']
 default_markersizes = ['20', '15', '8', '5', '5', '5']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
+#                     blue      orange     green
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
 hard_meta_colors = {'IGHM' : '#9467bd',  # purple
                     'IGHD' : 'black',
                     'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
                     'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
-                    'memory' : '#1f77b4',  # light lime ish green
+                    'memory' : '#1f77b4',  # blue
                     'naive' : '#ff7f0e',  # orange
                     'pb' : '#2ca02c',  # green
                     'prepb' : '#90e690',
-                    'w2' : '#1f77b4',  # ok these should clearly be passed in but i don't feel like adding a partis arg atm
-                    'w23' : '#2ca02c',
-                    'w25' : '#ff7f0e',
+                    'w2' : '#1f77b4',  # blue
+                    'w23' : '#2ca02c',  # green
+                    'w25' : '#ff7f0e',  # orange
                     'd385' : '#2b65ec',
-                    'd765' : '#ff7f0e',
-                    'dm351' : '#006600',
+                    'd765' : '#ff7f0e',  # orange
+                    'dm351' : '#006600',  # green
                     'dm379' : '#9467bd',
-                    '8wph' : '#1f77b4',
-                    '16wph' : '#ff7f0e',  # orange
-                    'entry' : '#2ca02c',  # green
-                    'lesion' : '#9467bd',
-                    'gs' : '#1f77b4',
-                    'cx' : '#2ca02c',
-                    'a' : '#ff7f0e',
+                    # anton
+                    'ph-gs' : '#1f77b4',  # blue
+                    'ph-cx' : '#6eb7e8',  # blue
+                    'ph-a' : '#6088a2',  # blue
+                    'entry-gs' : '#74a574',  # green
+                    'entry-cx' : '#006600',  # green
+                    'entry-a' : '#9cd63b',  # green
+                    'lesion-gs' : '#d62728',  # red
+                    'lesion-cx' : '#ea7979',  # red
+                    'lesion-a' : '#cc0000',  # red
+                    'None-pbmc' : '#808080',  # grey
                     }
 
 # ----------------------------------------------------------------------------------------

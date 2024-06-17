@@ -30,6 +30,13 @@ After partitioning each locus individually, it uses pairing information to merge
 This involves, for example, splitting clusters from one chain whose component sequences' paired sequences have different cdr3 lengths (in the other chain).
 You can also run the merging step by itself on existing partition output with the `merge-paired-partitions` action.
 
+Here are a sampling of options related to paired results:
+
+| option                   | description
+|--------------------------|-----------------------------------------------------------------
+| `--existing-output-run-cfg <cfg>` | A variety of actions (e.g. `get-selection-metrics`, `plot-partitions`) run on existing partition output. With paired clustering, there's several different partition outputs that we can run them on: single-chain intermediate results, paired results (in h+<l> subdirs), merged igh results, and "fake-paired" results (from smooshing h+l seqs together). This option configures which of these we run on (see --help for details).
+| `--add-unpaired-seqs-to-fake-paired-annotations` | When making the h+l "fake paired" annotation (i.e. smashing h+l seqs together) for use in selection metrics and/or partition plotting, by default we ignore unpaired seqs. This option includes them, with Ns for the missing opposite-chain sequence
+
 ### output directory
 
 The files in `--paired-outdir` are arranged in a standardized way, although not all actions create or use all files.

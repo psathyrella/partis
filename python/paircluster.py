@@ -863,8 +863,9 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     print('    removing badly + unpaired seqs%s' % ('\n' if debug else ': '), end=' ')
     sys.stdout.flush()
     if debug:
-        print('          N       N      no   other  non-      original')
-        print('        before removed  info  light recip       cluster')
+        print('            discarding unpaired: because there\'s no paired seqs in the family (it\'s all either unpaired or other light), we discard unpaired seqs, rather than keeping track of them to re-add later')
+        print('          N     N      N      no   other  non-  discarding    original')
+        print('        before kept removed  info  light recip   unpaired      cluster')
     for tch in sorted(ploci):
         new_partition, new_antn_list = [], []
         for iclust, cluster in enumerate(cpaths[ploci[tch]].best()):
@@ -891,9 +892,14 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
                             iseqs_to_remove.append(iseq)
                             unpaired_to_add.append((iseq, uid))
                             n_non_reciprocal += 1
-            if n_no_info + n_other_light < len(cluster):  # if there's seqs in the cluster that *aren't* either unpaired (n_no_info) or paired with the other light chain (n_other_light), we want to add the unpaired ones as unpaired seqs (i.e. if n_no_info + n_other_light *equals* len(cluster), we *don't* want to add them, since they should get added in/during the other light chain, and if they're added to both, they'll get deduplicated poorly later)
-                for upi, upid in unpaired_to_add:
-                    add_unpaired(cline, upi, upid, paired_iseqs)
+            # NOTE this means (more or less) we discard any unpaired seqs that are in families with no paired seqs, which i think is what we want to do?
+            if len(unpaired_to_add) > 0:
+                discarding_unpaired = True  # just for debug
+                # if there's seqs in the cluster that *aren't* either unpaired (n_no_info) or paired with the other light chain (n_other_light), we want to add the unpaired ones as unpaired seqs (i.e. if n_no_info + n_other_light *equals* len(cluster), we *don't* want to add them, since they should get added in/during the other light chain, and if they're added to both, they'll get deduplicated poorly later)
+                if n_no_info + n_other_light < len(cluster):  # NOTE don't add 'or n_other_light == 0' here, it'll add a bajillion unpaired singletons to the final partition
+                    discarding_unpaired = False
+                    for upi, upid in unpaired_to_add:
+                        add_unpaired(cline, upi, upid, paired_iseqs)
             iseqs_to_keep = [i for i in range(len(cline['unique_ids'])) if i not in iseqs_to_remove]
             process_unpaired(cline, ploci[tch], iseqs_to_keep, paired_iseqs)  # have to go back after finishing cluster since only now do we know who we ended up keeping
             if len(iseqs_to_keep) > 0:
@@ -904,7 +910,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
             if debug:
                 def fstr(v): return '' if v==0 else '%d'%v
                 nrstr = utils.color('red' if len(iseqs_to_keep)==0 else None, fstr(len(iseqs_to_remove)), width=3)
-                print('    %s   %3d    %s     %3s   %3s    %3s     %s' % (utils.locstr(ploci[tch]) if iclust==0 else ' ', len(cline['unique_ids']), nrstr, fstr(n_no_info), fstr(n_other_light), fstr(n_non_reciprocal), ' '.join(cluster)))
+                print('    %s   %3d   %3s    %s     %3s   %3s    %3s      %s     %s' % (utils.locstr(ploci[tch]) if iclust==0 else ' ', len(cline['unique_ids']), fstr(len(iseqs_to_keep)), nrstr, fstr(n_no_info), fstr(n_other_light), fstr(n_non_reciprocal), utils.color('red', 'x') if len(unpaired_to_add)>0 and discarding_unpaired else ' ', ' '.join(cluster)))
         lp_cpaths[ploci[tch]] = ClusterPath(seed_unique_id=cpaths[ploci[tch]].seed_unique_id, partition=new_partition)
         lp_antn_lists[ploci[tch]] = new_antn_list
 

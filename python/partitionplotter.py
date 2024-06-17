@@ -1036,7 +1036,7 @@ class PartitionPlotter(object):
         if 'sizes' in plot_cfg:
             csfns = self.make_cluster_size_distribution()
             if 'shm-vs-size' in plot_cfg:
-                if len(fnames[0]) < 4:
+                if len(fnames[0]) < 4 and len(csfns[0]) < 2:
                     fnames[0] += csfns[0]
                 else:
                     fnames.insert(1, csfns[0])
