@@ -50,6 +50,11 @@ hard_meta_colors = {'IGHM' : '#9467bd',  # purple
                     'dm351' : '#006600',  # green
                     'dm379' : '#9467bd',
                     # anton
+                    'al' : '#1f77b4',
+                    'aw' : '#006600',
+                    'cf' : '#ff7f0e',
+                    'kh' : '#cc0000',
+                    'lm' : '#9467bd',
                     'ph-gs' : '#1f77b4',  # blue
                     'ph-cx' : '#6eb7e8',  # blue
                     'ph-a' : '#6088a2',  # blue
@@ -1586,7 +1591,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, all_emph_vals=None, emph_colors=None, global_max_vals=None,
-                        make_legend=False, remove_none_vals=False, sortlabel='?', debug=False):
+                        make_legend=False, remove_none_vals=False, sortlabel='?', add_clone_id=False, debug=False):
     from . import lbplotting
     smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
@@ -1798,12 +1803,16 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                 fixed_xmax = add_hist(x2key, x2vals, yval, iclust, cluster, median_x1, fixed_xmax, base_alpha, repfracstr, offset='down')
 
             if cluster_indices is not None:  # add the (global) cluster index (i.e. 1 - rank) and cluster size as text on the right side of the plot
-                xtext = x1vals[-1] if plot_high_x else fixed_xmax
+                xtext = x1vals[-1] if plot_high_x else fixed_xmax  # would be nice to use fig coords and fig.text(), but we want these to be equal to the y values of the slugs
                 xtext -= 3
                 xwidth = ax.get_xlim()[1] - ax.get_xlim()[0] if plot_high_x else fixed_xmax
                 if iclust_global == 0:
+                    if add_clone_id:
+                        ax.text(0.02 * xwidth + xtext - 7, yval + 0.55, 'clone id', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                     ax.text(0.05 * xwidth + xtext - 3, yval + 0.55, 'index', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                     ax.text(0.12 * xwidth + xtext - 2, yval + 0.55, 'size', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                if add_clone_id:
+                    ax.text(0.02 * xwidth + xtext - 7, yval, utils.get_clone_id(cluster), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 ax.text(0.10 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
 

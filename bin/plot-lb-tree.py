@@ -124,6 +124,13 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
 # ----------------------------------------------------------------------------------------
 def label_node(node, root_node):
     # ----------------------------------------------------------------------------------------
+    def meta_emph():
+        if args.meta_info_to_emphasize is not None:
+            key, val = list(args.meta_info_to_emphasize.items())[0]
+            if key in args.metafo and node.name in args.metafo[key] and utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
+                return True
+        return False
+    # ----------------------------------------------------------------------------------------
     def use_name():
         if args.label_all_nodes:
             return True
@@ -133,10 +140,8 @@ def label_node(node, root_node):
             return True
         if args.label_root_node and node is root_node:
             return True
-        if args.meta_info_to_emphasize is not None:
-            key, val = list(args.meta_info_to_emphasize.items())[0]
-            if key in args.metafo and node.name in args.metafo[key] and utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
-                return True
+        if meta_emph():
+            return True
         if args.uid_translations is not None and node.name in args.uid_translations:
             return True
         return False
@@ -148,12 +153,12 @@ def label_node(node, root_node):
         return '%s\n%s' % (', '.join(blist[:len(blist)//2]), ', '.join(blist[len(blist)//2:]))
     # ----------------------------------------------------------------------------------------
     if use_name():
-        nlabel = node.name
+        nlabel, ncolor = node.name, 'red' if meta_emph() or args.meta_info_to_emphasize is None else 'black'
         if args.uid_translations is not None and nlabel in args.uid_translations:
             nlabel = args.uid_translations[nlabel]
     else:
         if 'labels' in args.metafo:
-            nlabel = ''
+            nlabel, ncolor = '', 'red'
         else:
             return
     if 'labels' in args.metafo:
@@ -180,7 +185,7 @@ def label_node(node, root_node):
             node.add_face(ete3.TextFace(blab, fsize=node_fsize, fgcolor=bcol), column=il, position='branch-bottom')
         for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):
             node.add_face(ete3.TextFace(tlab, fsize=node_fsize, fgcolor=tcol), column=il, position='branch-top')
-    tface = ete3.TextFace(' '+rename(nlabel), fsize=node_fsize, fgcolor='red')
+    tface = ete3.TextFace(' '+rename(nlabel), fsize=node_fsize, fgcolor=ncolor)
     node.add_face(tface, column=1) # position='branch-bottom')
 
 # ----------------------------------------------------------------------------------------

@@ -755,7 +755,7 @@ def get_list_of_str_list(strlist):
 # keep track of all the *@*@$!ing different keys that happen in the <line>/<hmminfo>/whatever dictionaries
 linekeys = {}
 # I think 'per_family' is pretty incomplete at this point, but I also think it isn't being used
-linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'reco_id'] + \
+linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'reco_id', 'clone_id'] + \
                          ['invalid', 'tree', 'consensus_seq', 'consensus_seq_aa', 'naive_seq_aa', 'cons_dists_nuc', 'cons_dists_aa'] + \
                          [r + '_gene' for r in regions] + \
                          [e + '_del' for e in all_erosions] + \
@@ -1853,7 +1853,7 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
     return cigarstr
 
 # ----------------------------------------------------------------------------------------
-def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_columns=None, args=None, debug=False):
+def get_airr_line(pline, iseq, extra_columns=None, skip_columns=None, args=None, debug=False):
     from . import indelutils
     # ----------------------------------------------------------------------------------------
     def getrgn(tk):  # get region from key name
@@ -1897,9 +1897,7 @@ def get_airr_line(pline, iseq, cluster_indices=None, extra_columns=None, skip_co
         elif akey == 'junction_aa':
             aline[akey] = ltranslate(aline.get('junction', get_cdr3_seq(pline, iseq)))  # should already be in there, since we're using an ordered dict and the previous elif block should've added it
         elif akey == 'clone_id':
-            if cluster_indices is None:
-                continue
-            aline[akey] = cluster_indices.get(pline['unique_ids'][iseq])
+            aline[akey] = get_clone_id(pline['unique_ids'])
         elif akey == 'locus':
             aline[akey] = get_locus(pline['v_gene']).upper()  # scoper at least requires upper case
         elif '_support' in akey and akey[0] in regions:  # NOTE not really anywhere to put the alternative annotation, which is independent of this and maybe more accurate
@@ -2003,9 +2001,6 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
         extra_columns = []
     print('   writing airr annotations to %s' % outfname)
     assert getsuffix(outfname) == '.tsv'  # already checked in processargs.py
-    cluster_indices = None
-    if cpath is not None:
-        cluster_indices = {u : i for i, c in enumerate(cpath.best()) for u in c}
     with open(outfname, csv_wmode()) as outfile:
         oheads = list(airr_headers.keys()) + extra_columns
         if skip_columns is not None:
@@ -2015,11 +2010,12 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
         if len(annotation_list) == 0 and cpath is not None:
             print('    writing partition with no annotations')
             for cluster in cpath.best():
+                clone_id = get_clone_id(cluster)
                 for uid in cluster:
-                    writer.writerow({'sequence_id' : uid, 'clone_id' : cluster_indices.get(uid)})
+                    writer.writerow({'sequence_id' : uid, 'clone_id' : clone_id})
         for line in annotation_list:
             for iseq in range(len(line['unique_ids'])):
-                aline = get_airr_line(line, iseq, cluster_indices=cluster_indices, extra_columns=extra_columns, skip_columns=skip_columns, args=args, debug=debug)
+                aline = get_airr_line(line, iseq, extra_columns=extra_columns, skip_columns=skip_columns, args=args, debug=debug)
                 writer.writerow(aline)
 
         # and write empty lines for seqs that failed either in sw or the hmm
@@ -5528,7 +5524,11 @@ def get_str_from_partition(partition):
     return partition_str
 
 # ----------------------------------------------------------------------------------------
-def get_cluster_ids(uids, partition):
+def get_clone_id(cluster):  # get unique hash id for <cluster>
+    return uidhashstr(':'.join(cluster))
+
+# ----------------------------------------------------------------------------------------
+def get_cluster_ids(uids, partition):  # return map from each uid in <uids> to the index of its cluster in <partition>
     clids = {uid : [] for uid in uids}  # almost always list of length one with index (in <partition>) of the uid's cluster
     for iclust in range(len(partition)):
         for uid in partition[iclust]:
