@@ -1008,10 +1008,7 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
 def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
     if n_max_queries != -1 and n_random_queries is not None:
         raise Exception('have to set exactly 1 of n_max_queries and n_random_queries, but got %s %s ' % (n_max_queries, n_random_queries))
-    idg_it = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices)
-    drop_ids, drop_query_lists = zip(*[(did, list(qiter)) for did, qiter in idg_it])
-    if '' in drop_ids:
-        raise Exception('empty droplet id when grouping ids')
+    _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True)
     if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense, but <drop_ids> is sorted alphabetically, so we're taking them in that order at least
         final_qlists = drop_query_lists[:n_max_queries]
         dbgstrs = '--n-max-queries', '(first %d, after sorting alphabetically by droplet id)' % n_max_queries
@@ -1026,9 +1023,23 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     return final_sfos
 
 # ----------------------------------------------------------------------------------------
-def get_droplet_groups(all_uids, droplet_id_separators, droplet_id_indices):  # group all queries into droplets
+def get_droplet_groups(all_uids, droplet_id_separators, droplet_id_indices, return_lists=False):  # group all queries into droplets
     def kfcn(u): return get_droplet_id(u, droplet_id_separators, droplet_id_indices)
-    return itertools.groupby(sorted(all_uids, key=kfcn), key=kfcn)  # iterate over result with: 'for dropid, drop_queries in '
+    idg_it = itertools.groupby(sorted(all_uids, key=kfcn), key=kfcn)  # iterate over result with: 'for dropid, drop_queries in '
+    drop_ids, drop_query_lists = [list(x) for x in zip(*[(did, list(qiter)) for did, qiter in idg_it])]
+    if '' in drop_ids:
+        n_before = len(drop_ids)
+        i_did = drop_ids.index('')
+        for qry in drop_query_lists[i_did]:
+            drop_ids.append(qry)
+            drop_query_lists.append([qry])
+        drop_ids.pop(i_did)
+        drop_query_lists.pop(i_did)
+        print('    %s found empty droplet id when grouping sequences, so using these sequences\' uid as their droplet id (added %d droplet ids)' % (wrnstr(), len(drop_ids) - n_before))
+    if return_lists:  # return separate lists
+        return drop_ids, drop_query_lists
+    else:  # return list of (droplet id, query list) pairs
+        return [(did, dql) for did, dql in zip(drop_ids, drop_query_lists)]
 
 # ----------------------------------------------------------------------------------------
 def set_did_vals(uid):  # NOTE this is a pretty shitty way to do this, but i haven't thought of anything better
@@ -1141,7 +1152,7 @@ def extract_pairing_info(seqfos, droplet_id_separators=None, droplet_id_indices=
     if debug > 1:
         print('           did       N     uids')
         max_len = max(len(u) for u in metafos)
-        dgpairs = [(did, list(dgroup)) for did, dgroup in get_droplet_groups(list(metafos.keys()), droplet_id_separators, droplet_id_indices)]
+        dgpairs = get_droplet_groups(list(metafos.keys()), droplet_id_separators, droplet_id_indices)
         for did, dgroup in sorted(dgpairs, key=lambda x: len(x[1]), reverse=True):
             print('      %10s   %3d   %s' % (did, len(dgroup), '   '.join([did_fcn(u, return_colored=True)+(max_len-len(u))*' ' for u in dgroup])))
 

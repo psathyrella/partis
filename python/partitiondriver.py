@@ -1090,7 +1090,6 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_cached_hmm_naive_seqs(self, queries=None):
-        # would be nice to merge this with self.read_hmm_cachefile()
         expected_queries = self.sw_info['queries'] if queries is None else queries
         cached_naive_seqs = {}
         with open(self.hmm_cachefname) as cachefile:
@@ -1456,9 +1455,10 @@ class PartitionDriver(object):
             for mclust in missing_clusters:
                 if len(set(mclust) - step_failures) > 0:
                     raise Exception('cluster missing from output with uids not in hmm failures: %s\n    missing uids: %s' % (skey(mclust), ' '.join(set(mclust) - step_failures)))
-                if mclust in clusters_still_to_do:  # i.e. if it's a simple/whole cluster
-                    print('      removing failed cluster for %s:' % skey(mclust))
+                if mclust in clusters_still_to_do:  # i.e. if it's a simple/whole cluster (one way this happened was when the single-seq cluster had failed when caching hmm naive seqs)
+                    print('      removing missing cluster from clusters_still_to_do: %s' % skey(mclust))
                     clusters_still_to_do.remove(mclust)
+                    all_hmm_failures |= set(mclust)
             all_hmm_failures |= step_failures
             # process each annotation that we just got back from bcrham: store inferred naive/hash seq if it's a subcluster, or add to final annotations if it's a simple/whole cluster
             n_hashed, n_whole_finished = 0, 0
@@ -1580,19 +1580,6 @@ class PartitionDriver(object):
         self.timing_info.append({'exec' : exec_time, 'total' : step_time})  # NOTE in general, includes pre-cache step
 
         return cpath, annotations, hmm_failures
-
-    # ----------------------------------------------------------------------------------------
-    def read_hmm_cachefile(self):
-        # would be nice to merge this with self.get_cached_hmm_naive_seqs()
-        cachefo = {}
-        if not os.path.exists(self.hmm_cachefname):
-            return cachefo
-        with open(self.hmm_cachefname) as cachefile:
-            reader = csv.DictReader(cachefile)
-            for line in reader:
-                utils.process_input_line(line)
-                cachefo[':'.join(line['unique_ids'])] = line
-        return cachefo
 
     # ----------------------------------------------------------------------------------------
     # compare annotations for all clusters with overlap with uids_of_interest (i.e., all the "alternative" annotations for uids_of_interest for which there's info in cluster_annotations)

@@ -1428,7 +1428,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
     # re-set 'paired-uids' key in <cline> to the pid group (which was modified in the previous cleaning steps)
     for ltmp in sorted(cpaths):
         for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
-            cline = antn_dicts[ltmp][':'.join(cluster)]
+            cline = antn_dicts[ltmp][':'.join(cluster)]  # if this kicks a key error, the annotation probably failed at some weird point (e.g. after sw, maybe in hmm)
             if any(u not in pid_groups[pid_ids[u]] for u in cline['unique_ids']):  # shouldn't be able to happen any more, but that was a really bad/dumb bug
                 raise Exception('one of unique ids %s not in its own pid group' % cline['unique_ids'])
             cline['paired-uids'] = [[p for p in pid_groups[pid_ids[u]] if p != u] for u in cline['unique_ids']]
