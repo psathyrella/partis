@@ -1864,7 +1864,7 @@ def get_airr_cigar_str(line, iseq, region, qr_gap_seq, gl_gap_seq, debug=False):
     return cigarstr
 
 # ----------------------------------------------------------------------------------------
-def get_airr_line(pline, iseq, extra_columns=None, skip_columns=None, args=None, debug=False):
+def get_airr_line(pline, iseq, extra_columns=None, skip_columns=None, args=None, glfo=None, debug=False):
     from . import indelutils
     # ----------------------------------------------------------------------------------------
     def getrgn(tk):  # get region from key name
@@ -1877,6 +1877,8 @@ def get_airr_line(pline, iseq, extra_columns=None, skip_columns=None, args=None,
 
     qr_gap_seq = pline['seqs'][iseq]
     gl_gap_seq = pline['naive_seq']
+    if 'indelfos' not in pline:  # I'm not sure exactly which cases result in <pline> missing some keys (maybe read directly from file?) but it fixes it to add implicit info, so whatevs
+        add_implicit_info(glfo, pline)
     if indelutils.has_indels(pline['indelfos'][iseq]):
         qr_gap_seq = pline['indelfos'][iseq]['qr_gap_seq']
         gl_gap_seq = pline['indelfos'][iseq]['gl_gap_seq']
@@ -2007,7 +2009,7 @@ def convert_airr_line(aline, glfo):
     return pline
 
 # ----------------------------------------------------------------------------------------
-def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, skip_columns=None, args=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
+def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None, extra_columns=None, skip_columns=None, args=None, glfo=None, debug=False):  # NOTE similarity to add_regional_alignments() (but I think i don't want to combine them, since add_regional_alignments() is for imgt-gapped aligments, whereas airr format doesn't require imgt gaps, and we really don't want to deal with imgt gaps if we don't need to)
     if extra_columns is None:
         extra_columns = []
     print('   writing airr annotations to %s' % outfname)
@@ -2026,7 +2028,7 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
                     writer.writerow({'sequence_id' : uid, 'clone_id' : clone_id})
         for line in annotation_list:
             for iseq in range(len(line['unique_ids'])):
-                aline = get_airr_line(line, iseq, extra_columns=extra_columns, skip_columns=skip_columns, args=args, debug=debug)
+                aline = get_airr_line(line, iseq, extra_columns=extra_columns, skip_columns=skip_columns, args=args, glfo=glfo, debug=debug)
                 writer.writerow(aline)
 
         # and write empty lines for seqs that failed either in sw or the hmm

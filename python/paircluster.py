@@ -179,7 +179,7 @@ def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=F
             partition_lines = cp.get_partition_lines(true_partition=None if true_outfos is None else true_outfos['merged']['cpaths'][ltmp].best(), calc_missing_values='best')
             utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
             if airr_output:
-                utils.write_airr_output(utils.replace_suffix(ofn, '.tsv'), [], cpath=cp, args=args)
+                utils.write_airr_output(utils.replace_suffix(ofn, '.tsv'), antn_lists[ltmp], cpath=cp, args=args, glfo=glfos[ltmp])
         else:
             utils.makelink(os.path.dirname(ofn), ofn_fcn(ltmp, lpair=utils.getlpair(ltmp)), ofn)
             if airr_output:
