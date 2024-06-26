@@ -167,8 +167,6 @@ if args.plotdir is not None:
         sys.exit(0)
 
 if args.paired:
-    if args.airr_output:
-        raise Exception('--airr-output not yet implemented with --paired')
     glfos, antn_lists, cpaths = paircluster.concat_heavy_chain(utils.locus_pairs['ig'], lp_infos, dont_deep_copy=True)  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
     outfos, metafos = paircluster.get_combined_outmetafos(antn_lists)
     paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%args.outfile, '%s/meta.yaml'%args.outfile, outfos, metafos)
@@ -180,6 +178,9 @@ if args.paired:
         writer.writeheader()
         for ofo in outfos:
             writer.writerow({k : ofo[k] for k in okeys})
+    if args.airr_output:
+        for ltmp in sorted(glfos):
+            utils.write_airr_output('%s/%s.tsv'%(args.outfile, ltmp), antn_lists[ltmp], cpath=cpaths[ltmp], glfo=glfos[ltmp])
     sys.exit(0)
 
 # restrict to certain partitions/clusters
