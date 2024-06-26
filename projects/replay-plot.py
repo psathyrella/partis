@@ -177,10 +177,10 @@ def read_input_files(label):
     def read_gctree_data(all_seqfos, plotvals, n_missing, n_tot):
         print('    reading gctree data from %s' % args.gcreplay_dir)
         read_gctree_csv(all_seqfos, label)  # read seqs plus affinity and mutation info from csv file (still have to read trees below to get leaf/internal info)
-        n_too_small = 0
+        too_small = []
         for gcn in all_seqfos:
             if args.min_seqs_per_gc is not None and len(all_seqfos[gcn]) < args.min_seqs_per_gc:  # NOTE not subsampling with args.max_seqs_per_gc (can't be bothered, it seems more important for abundance stuff anyway)
-                n_too_small += 1
+                too_small.append(gcn)
                 continue
             gpm = rpmeta[gcn]
             gcidstr = datautils.get_gcid(gpm['PR'], gpm['mouse'], gpm['node'], gpm['gc'])
@@ -201,9 +201,11 @@ def read_input_files(label):
                         raise Exception('--naive seq doesn\'t match seq for root node from data tree')
         if sum(len(l) for l in n_missing.values()) > 0:
             print('      %s missing/none affinity values for: %d / %d leaves, %d / %d internal' % (utils.wrnstr(), len(n_missing['leaf']), len(n_tot['leaf']), len(n_missing['internal']), len(n_tot['internal'])))
-        if n_too_small > 0:
-            print('    skipped %d / %d gcs with fewer than %d seqs' % (n_too_small, len(all_seqfos), args.min_seqs_per_gc))
-        n_trees = len(all_seqfos) - n_too_small
+        if len(too_small) > 0:
+            for gcn in too_small:
+                del all_seqfos[gcn]
+            print('    --min-seqs-per-gc: skipped %d / %d gcs with fewer than %d seqs: %s' % (len(too_small), len(all_seqfos), args.min_seqs_per_gc, ' '.join(sorted(too_small))))
+        n_trees = len(all_seqfos) - len(too_small)
         return n_trees
     # ----------------------------------------------------------------------------------------
     def read_simu_like_files(all_seqfos, plotvals, n_missing, n_tot):
@@ -261,6 +263,8 @@ def read_input_files(label):
                 if 'data' not in label and args.n_max_simu_trees is not None and itn > args.n_max_simu_trees - 1:
                         print('    --n-max-simu-trees: breaking after reading annotations for %d trees' % itn)
                         break
+                if atn.get('is_fake_paired') == True:
+                    atn['seqs'] = atn['input_seqs']  # UGH
                 for iseq, (uid, n_muts, affy) in enumerate(zip(atn['unique_ids'], atn['n_mutations'], atn['affinities'])):
                     assert uid not in mfos  # jeez i really hope there aren't repeated uids in different trees
                     mfos[uid] = {'n_muts' : n_muts, 'n_muts_aa' : utils.shm_aa(atn, iseq=iseq), 'affinity' : affy}
@@ -294,7 +298,7 @@ def read_input_files(label):
         # put trees into all_dtrees and fill 'sampled'
         for itr, dtree in enumerate(dendro_trees):
             tnode = list(dtree.leaf_node_iter())[0]
-            gcn = gcids[itr] if isdata(label) else tnode.taxon.label.split('-')[0]
+            gcn = gcids[itr] if isdata(label) else (itr if args.bcr_phylo else tnode.taxon.label.split('-')[0])
             all_dtrees[gcn] = dtree
             ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
             for sfo in all_seqfos[gcn]:
@@ -432,7 +436,7 @@ parser.add_argument('--iqtree-data-dir', default='/fh/fast/matsen_e/data/taraki-
 parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/gcs with fewer than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
-parser.add_argument('--max-seqs-per-gc', type=int, help='if set, downsample any families/gcs with more than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
+# parser.add_argument('--max-seqs-per-gc', type=int, help='if set, downsample any families/gcs with more than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
 parser.add_argument('--plot-labels', default='gct-data-d15:gct-data-d20:gct-data-w10:simu', help='which/both of data/simu to plot')
 parser.add_argument('--max-gc-plots', type=int, default=0, help='only plot individual (per-GC) plots for this  many GCs')
 parser.add_argument('--normalize', action='store_true')
