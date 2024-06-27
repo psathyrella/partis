@@ -308,17 +308,21 @@ def read_input_files(label):
     # ----------------------------------------------------------------------------------------
     def get_abundance_info(all_seqfos):
         abdnvals, max_abvals, n_leaf_fos = [], [], 0
+        unique_partition = []
         for gcn in all_seqfos:
             gcabvals = []
             leaf_fos = [s for s in all_seqfos[gcn] if s['sampled']]
             def kfn(s): return s['seq']
+            tclust = []
             for tseq, sgroup in itertools.groupby(sorted(leaf_fos, key=kfn), key=kfn):
                 abundance = len(list(sgroup))
                 gcabvals.append(abundance)
+                tclust.append(tseq)
+            unique_partition.append(tclust)
             abdnvals += gcabvals
             max_abvals.append(max(gcabvals))
             n_leaf_fos += len(leaf_fos)
-        return abdnvals, max_abvals, n_leaf_fos
+        return abdnvals, max_abvals, n_leaf_fos, unique_partition
     # ----------------------------------------------------------------------------------------
     all_seqfos, all_dtrees = collections.OrderedDict(), collections.OrderedDict()
     plotvals = {t : {k : [] for k in ['leaf', 'internal']} for t in ['affinity', 'n_muts', 'n_muts_aa']}
@@ -340,7 +344,7 @@ def read_input_files(label):
     hists = {}
     lblstr = plotting.legends.get(label, label)
 
-    abdnvals, max_abvals, n_leaf_fos = get_abundance_info(all_seqfos)
+    abdnvals, max_abvals, n_leaf_fos, unique_partition = get_abundance_info(all_seqfos)
     htmp = hutils.make_hist_from_list_of_values(abdnvals, 'int', 'abundances')
     htmp.title = '%s (%d nodes in %d trees)' % (lblstr, n_leaf_fos, n_trees)
     htmp.xtitle = pltlabels['abundances']
@@ -362,6 +366,9 @@ def read_input_files(label):
     xbins = [l-0.5 for l in range(xmin, xmax + dx, dx)]
     hists['csizes'] = {'distr' : plotting.make_csize_hist(partition, n_bins=len(xbins), xbins=xbins, xtitle='N leaves')}
     hists['csizes']['distr'].title = lblstr
+
+    hists['unique_csizes'] = {'distr' : plotting.make_csize_hist(unique_partition, n_bins=len(xbins), xbins=xbins, xtitle='N unique leaves')}
+    hists['unique_csizes']['distr'].title = lblstr
 
     for mut_type in ['n_muts', 'n_muts_aa']:
         for tstr in ['leaf', 'internal']:
@@ -458,9 +465,9 @@ numpy.random.seed(args.random_seed)
 rpmeta = datautils.read_gcreplay_metadata(args.gcreplay_dir)
 
 def affy_like(tp):  # ick ( plots that get filled similarly to how affinity plots get filled, i.e. not how abundance-like stuff gets filled)
-    return 'affinity' in tp or tp in ['csizes', 'leaf-muts', 'internal-muts', 'abundances', 'max-abundances']
+    return 'affinity' in tp or tp in ['csizes', 'unique_csizes', 'leaf-muts', 'internal-muts', 'abundances', 'max-abundances']
 abrows = [
-    ['abundances', 'max-abundances', 'csizes'],
+    ['abundances', 'max-abundances', 'csizes', 'unique_csizes'],
     ['leaf-%s'%s for s in tpstrs],
     ['internal-%s'%s for s in tpstrs],
 ]
