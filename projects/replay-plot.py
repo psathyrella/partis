@@ -299,6 +299,9 @@ def read_input_files(label):
         for itr, dtree in enumerate(dendro_trees):
             tnode = list(dtree.leaf_node_iter())[0]
             gcn = gcids[itr] if isdata(label) else (itr if args.bcr_phylo else tnode.taxon.label.split('-')[0])
+            if gcn not in all_seqfos:
+                print('        gcn \'%s\' not in all_seqfos (probably skipped with --n-max-simu-trees), so not processing its tree' % gcn)
+                continue
             all_dtrees[gcn] = dtree
             ndict = {n.taxon.label : n for n in dtree.preorder_node_iter()}
             for sfo in all_seqfos[gcn]:
