@@ -29,8 +29,8 @@ import python.datautils as datautils
 
 colors = {
     'gct-data' : '#cc0000',
-    'gct-data-d15' : '#006600',
-    'gct-data-d20' :  '#cc0000',
+    'gct-data-d15' : '#ea7979',
+    'gct-data-d20' : '#cc0000',
     'gct-data-w10' : '#2b65ec',
     'bst-data-d20' : '#006600',
     'iqt-data' : '#a821c7',
@@ -441,7 +441,7 @@ NOTE that there's other scripts that process gcreplay results for partis input h
 """
 parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
-parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v3', help='dir with beast results on gcreplay data (same format as simulation)')
+parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v4', help='dir with beast results on gcreplay data (same format as simulation)')
 parser.add_argument('--iqtree-data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/iqtree-processed-data/v1', help='dir with iqtree results on gcreplay data (from datascripts/taraki-gctree-2021-10/iqtree-run.py then projects/gcdyn/scripts/data-parse.py')
 parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
@@ -457,7 +457,7 @@ parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading thi
 parser.add_argument("--random-seed", type=int, default=1)
 parser.add_argument("--default-naive-affinity", type=float, default=1./100, help="this is the default for bcr-phylo, so maybe be correct if we don\'t have an unmutated sequence")
 args = parser.parse_args()
-args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['gct-data', 'gct-data-d15', 'gct-data-d20', 'gct-data-w10', 'bst-data-d20', 'iqt-data', 'iqt-data-d20', 'simu', 'simu-iqtree'])
+args.plot_labels = utils.get_arg_list(args.plot_labels, choices=['gct-data', 'gct-data-d15', 'gct-data-d20', 'gct-data-w10', 'bst-data-d15', 'bst-data-d20', 'iqt-data', 'iqt-data-d20', 'simu', 'simu-iqtree'])
 if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
     print('  note; setting --write-legend-only-plots since --plot-labels is longer than 3')
     args.write_legend_only_plots = True

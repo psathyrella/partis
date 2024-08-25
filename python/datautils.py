@@ -29,7 +29,7 @@ def reverse_gcid(gcid):
 
 # ----------------------------------------------------------------------------------------
 def fix_btt_id(gcid):
-    mstr = utils.get_single_entry(re.findall('btt-PR-.-.', gcid))
+    mstr = utils.get_single_entry(re.findall('btt-PR-.-[0-9][0-9]*', gcid))
     btstr, prstr, prn1, prn2  = mstr.split('-')
     assert btstr == 'btt' and prstr == 'PR'
     return gcid.replace(mstr, 'PR%d.%02d' % (int(prn1), int(prn2)))

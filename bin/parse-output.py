@@ -189,7 +189,7 @@ if cpath is None or cpath.i_best is None:
     print('  no cluster path in input file, so just using all %d sequences (in %d clusters) in annotations' % (sum(len(c) for c in clusters_to_use), len(clusters_to_use)))
 else:
     ipartition = cpath.i_best if args.partition_index is None else args.partition_index
-    print('  found %d clusters in %s' % (len(cpath.partitions[ipartition]), 'best partition' if args.partition_index is None else 'partition at index %d (of %d)' % (ipartition, len(cpath.partitions))))
+    print('  found %d clusters with %d seqs in %s' % (len(cpath.partitions[ipartition]), sum(len(c) for c in cpath.partitions[ipartition]), 'best partition' if args.partition_index is None else 'partition at index %d (of %d)' % (ipartition, len(cpath.partitions))))
     modified = False
     if args.cluster_index is None:
         clusters_to_use = cpath.partitions[ipartition]

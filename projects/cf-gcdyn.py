@@ -50,6 +50,7 @@ parser.add_argument('--n-seqs-range-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--dl-bundle-size-list', help='size of bundles during dl inference (must be equal to or less than simulation bundle size)')
 parser.add_argument('--epochs-list')
+parser.add_argument('--batch-size-list')
 parser.add_argument('--dropout-rate-list')
 parser.add_argument('--learning-rate-list')
 parser.add_argument('--ema-momentum-list')
@@ -66,11 +67,11 @@ parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.geten
 # parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 parser.add_argument('--dl-model-dir')
-parser.add_argument('--data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v0')
+parser.add_argument('--data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v4')
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-range', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
-    'dl-infer' : ['dl-bundle-size', 'epochs', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
+    'dl-infer' : ['dl-bundle-size', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
     'data' : ['data-samples'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
@@ -161,7 +162,9 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
     if action in ['simu', 'check-dl', 'merge-simu']:
         cmd = 'gcd-simulate' if action in ['simu', 'check-dl'] else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
         if action in ['simu', 'check-dl']:
-            cmd += ' --outdir %s --tree-inference-method iqtree --debug 1' % odr  #  --debug 1
+            cmd += ' --outdir %s --debug 1' % odr  #  --debug 1
+            # --make-plots
+            # --tree-inference-method iqtree
             if args.test:
                 cmd += ' --test'
             cmd = add_scan_args(cmd, skip_fcn=lambda v: v not in args.scan_vars[action] or action=='check-dl' and v not in check_dl_args)

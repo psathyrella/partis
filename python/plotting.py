@@ -27,7 +27,7 @@ from . import treeutils
 from . import hutils
 from .clusterpath import ClusterPath
 
-#                 green    dark red  light blue  light red  sky blue  pink/purple   grey
+#                   green    dark red  light blue  light red  sky blue  pink/purple   grey
 default_colors = ['#006600', '#990012', '#2b65ec', '#cc0000', '#3399ff', '#a821c7', '#808080']
 default_linewidths = ['5', '3', '2', '2', '2']
 default_markersizes = ['20', '15', '8', '5', '5', '5']
