@@ -467,6 +467,8 @@ class Hist(object):
         def sqbplot(kwargs):
             kwargs['markersize'] = 0
             for ibin in self.ibiniter(include_overflows=False):
+                if not keep_bin(self.low_edges[ibin], self.bin_contents[ibin]):  # maybe should use bin centers rather than low edges, i dunno
+                    continue
                 tplt = ax.plot([self.low_edges[ibin], self.low_edges[ibin+1]], [self.bin_contents[ibin], self.bin_contents[ibin]], **kwargs)  # horizontal line for this bin
                 kwargs['label'] = None  # make sure there's only one legend entry for each hist
                 if not no_vertical_bin_lines:
@@ -477,20 +479,6 @@ class Hist(object):
             if not no_vertical_bin_lines:
                 tplt = ax.plot([self.low_edges[ibin+1], self.low_edges[ibin+1]], [self.bin_contents[ibin], 0], **kwargs)  # vertical line for right side of last bin
             return tplt  # not sure if this gets used anywhere?
-            # TODO some oldercalls of this may require the following code, so I need to figure shit out
-            print('  %s square_bins option needs to be checked/fixed, it does not work in some cases (seems to eat bins)' % utils.wrnstr())
-            import matplotlib.pyplot as plt
-            if abs(xvals[-1] - xvals[0]) > 5:  # greater/less than five is kind of a shitty way to decide whether to int() and +/- 0.5 or not, but I'm calling it now with a range much less than 1, and I don't want the int()s, but where I call it elsewhere I do and the range is much larger, so...
-                npbins = list(numpy.arange(int(xvals[0]) - 0.5, int(xvals[-1]) - 0.5))
-                npbins.append(npbins[-1] + 1)
-            elif xvals[0] != xvals[-1]:
-                n_bins = len(xvals)  # uh, maybe?
-                npbins = list(numpy.arange(xvals[0], xvals[-1], (xvals[-1] - xvals[0]) / float(n_bins)))
-            else:
-                npbins = [0, 1]
-            kwargs = {k : kwargs[k] for k in kwargs if k not in ['marker', 'markersize']}
-            kwargs['histtype'] = 'step'
-            return plt.hist(xvals, npbins, weights=yvals, **kwargs)
         # ----------------------------------------------------------------------------------------
         if linewidth is not None:  # i'd really rather this wasn't here, but the error message mpl kicks is spectacularly uninformative so you have to catch it beforehand (when writing the svg file, it throws TypeError: Cannot cast array data from dtype('<U1') to dtype('float64') according to the rule 'safe')
             if not isinstance(linewidth, int):

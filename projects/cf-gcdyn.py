@@ -83,7 +83,7 @@ args.recurse_replace_vars = []  # scan vars that require weird more complex pars
 args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 if 'data' in args.actions:
     args.data_samples_list = ':'.join(os.path.basename(d) for d in glob.glob('%s/*' % args.data_dir))
-    print('  running on %d data samples from %s' % (len(args.data_samples_list), args.data_dir))
+    print('  running on %d data samples from %s' % (len(args.data_samples_list.split(':')), args.data_dir))
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 if args.inference_extra_args is not None:
     raise Exception('not used atm')
@@ -164,7 +164,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         if action in ['simu', 'check-dl']:
             cmd += ' --outdir %s --debug 1' % odr  #  --debug 1
             # --make-plots
-            # --tree-inference-method iqtree
+            # cmd += ' --tree-inference-method gctree' #iqtree'
             if args.test:
                 cmd += ' --test'
             cmd = add_scan_args(cmd, skip_fcn=lambda v: v not in args.scan_vars[action] or action=='check-dl' and v not in check_dl_args)
