@@ -47,7 +47,7 @@ def idfn():
 def install():
     cmds = ['#!/bin/bash']
     cmds += utils.mamba_cmds(args.env_label, only_prep=True)
-    cmds += ['micromamba create -n %s python=3.9' % args.env_label]  # 3.10 currently has problems with ete
+    cmds += ['micromamba create -n %s -c conda-forge python=3.9' % args.env_label]  # 3.10 currently has problems with ete
     cmds += ['micromamba activate %s' % args.env_label]
     cmds += ['micromamba install -c bioconda phylip']
     cmds += ['micromamba install -c conda-forge%s click' % ('' if args.no_dag else ' gctree')]
