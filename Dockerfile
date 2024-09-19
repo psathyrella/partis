@@ -5,6 +5,7 @@ RUN micromamba install -y -n base -f /tmp/env.yaml && \
 
 USER root
 RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
+  automake \
   build-essential \
   cmake \
   emacs \
