@@ -50,7 +50,9 @@ def install():
     cmds += ['micromamba create -n %s python=3.9' % args.env_label]  # 3.10 currently has problems with ete
     cmds += ['micromamba activate %s' % args.env_label]
     cmds += ['micromamba install -c bioconda phylip']
-    cmds += ['micromamba install -c conda-forge gctree click']
+    cmds += ['micromamba install -c conda-forge%s click' % ('' if args.no_dag else ' gctree')]
+    if args.no_dag:
+        cmds += ['pip install gctree==3.3.0']  # I think having --user makes it install in ~/.local (outside mamba env)
     # micromamba remove -n gctree --all  # to nuke it and start over
     utils.simplerun('\n'.join(cmds) + '\n', cmdfname='/tmp/tmprun.sh', debug=True)
 
@@ -76,7 +78,7 @@ def run_gctree():
     # ----------------------------------------------------------------------------------------
     def get_gctree_cmd():
         tcmd = '%s/bin/xvfb-run -a gctree infer outfile abundances.csv --root %s --verbose --idlabel' % (utils.get_partis_dir(), args.root_label)  # --idlabel writes the output fasta file
-        if not args.base_model:
+        if not args.base_model and not args.no_dag:
             tcmd += ' --mutability %s/HS5F_Mutability.csv --substitution %s/HS5F_Substitution.csv' % (args.data_dir, args.data_dir)
         if args.ranking_coeffs is not None:
             tcmd += ' --ranking_coeffs %s' % (' '.join(c for c in args.ranking_coeffs))
@@ -205,6 +207,7 @@ parser.add_argument('--only-write-forest', action='store_true', help='only run p
 parser.add_argument('--input-forest-dir', help='If set, skips preparatory steps (see --only-write-forest), and looks for \'abundance.csv\' and parsimony forest file (\'outfile\') in the specified dir')
 parser.add_argument('--overwrite', action='store_true')
 parser.add_argument('--base-model', action='store_true', help='By default, we pass gctree info for the s5f mutation model; if this is set, we don\'t, and it instead use the base model.')
+parser.add_argument('--no-dag', action='store_true', help='If set, use old v1 non-DAG gctree version (v3.3.0). Note that this uses a different env (see --env-label)')
 parser.add_argument('--ranking-coeffs', nargs='+', help='see gctree help')
 parser.add_argument('--branching-process-ranking-coeff', type=int, help='see gctree help')
 parser.add_argument('--env-label', default='gctree')
@@ -226,6 +229,9 @@ if args.only_write_forest and args.input_forest_dir:
 args.actions = utils.get_arg_list(args.actions, choices=['install', 'update', 'run', 'parse'])
 args.infname = utils.fpath(args.infname)
 args.outdir = utils.fpath(args.outdir)
+if args.no_dag:
+    assert not args.base_model and args.branching_process_ranking_coeff is None and args.ranking_coeffs is None
+    args.env_label = 'gctree-no-dag'
 
 if 'install' in args.actions:
     install()

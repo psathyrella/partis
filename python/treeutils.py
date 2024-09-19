@@ -45,7 +45,7 @@ typical_bcr_seq_len = 400
 # default_lb_tau = 0.0025
 # default_lbr_tau_factor = 1
 default_min_selection_metric_cluster_size = 10
-gct_methods = ['gctree', 'gctree-base', 'gctree-mut-mult']
+gct_methods = ['gctree', 'gctree-base', 'gctree-mut-mult', 'gctree-no-dag']
 iqt_methods = ['iqtree', 'iqtree-1.6.beta3', 'iqtree-2.3.1']
 inf_anc_methods = ['raxml', 'linearham', 'igphyml'] + gct_methods + iqt_methods  # methods that infer ancestors
 all_phylo_methods = ['fasttree', 'raxml', 'linearham', 'igphyml'] + gct_methods + iqt_methods
@@ -1074,6 +1074,8 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                 cmd += ' --base-model'
             if method == 'gctree-mut-mult':
                 cmd += ' --ranking-coeffs 0 -1 0 --branching-process-ranking-coeff 0'
+            if method == 'gctree-no-dag':
+                cmd += ' --no-dag'
             if only_pass_leaves:
                 cmd += ' --expand-all-nodes'  # these aren't actually the same, but if we're only passing leaves, it's probably because we want all input seqs to end up as leaves, so we want to expand all of em
         elif method == 'linearham':

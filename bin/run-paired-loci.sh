@@ -7,7 +7,7 @@ bin=./test/cf-paired-loci.py
 # methods=igblast:annotate:star-partition:partition:linearham # for test-antn imbal-v3
 # methods=partition:single-chain-partis; xstr="--combo-extra-str single-vs-joint-partis"
 # methods=scoper:single-chain-scoper; xstr="--combo-extra-str single-vs-joint-scoper"  # NOTE this is only for vs-shm (comparing single vs joint); for time-reqd you only need scoper
-methods=simu:cache-parameters:partition:write-fake-paired-annotations:replay-plot:iqtree:raxml:igphyml:gctree:gctree-base:gctree-mut-mult:tree-perf  # coar stuff cache-parameters:partition
+methods=simu:cache-parameters:partition:write-fake-paired-annotations:replay-plot:iqtree:raxml:igphyml:gctree:gctree-mut-mult:tree-perf  # coar stuff cache-parameters:partition
 astr="--actions $methods" #partition --merge-paired-partitions" #$methods"
 # astr="--actions combine-plots --plot-metrics $methods --perf-metrics precision:n-clusters"
 # astr="--actions combine-plots --plot-metrics $methods $xstr"

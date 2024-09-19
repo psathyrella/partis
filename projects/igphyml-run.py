@@ -27,7 +27,7 @@ def install():
     cmds += utils.mamba_cmds(args.env_label, only_prep=True)
     cmds += ['micromamba create -n %s' % args.env_label]
     cmds += ['micromamba activate %s' % args.env_label]  #  python= 3.6 and 3.9 failed, so i let it choose, it chose 3.5 which seems to work
-    cmds += ['micromamba install -c bioconda changeo']
+    cmds += ['micromamba install -c bioconda -c conda-forge changeo']
     # micromamba remove --all -n args.env_label  # to nuke it and start over
     cmds += ['cd packages']
     cmds += ['git clone https://bitbucket.org/kleinstein/igphyml']
