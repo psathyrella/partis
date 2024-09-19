@@ -34,6 +34,8 @@ RUN mkdir $XDG_RUNTIME_DIR
 RUN chmod 0700 $XDG_RUNTIME_DIR
 COPY --chown=$MAMBA_USER:$MAMBA_USER_GID . /partis
 WORKDIR /partis
+ENV TERM linux
+ENV TERMINFO /etc/terminfo
 RUN ./bin/build.sh
 ENV PATH /opt/conda/bin:/opt/conda/condabin:$PATH  # necessary for singularity
 CMD ./test/test.py --quick
