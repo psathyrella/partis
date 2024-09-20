@@ -47,10 +47,10 @@ def idfn():
 def install():
     cmds = ['#!/bin/bash']
     cmds += utils.mamba_cmds(args.env_label, only_prep=True)
-    cmds += ['micromamba create -n %s -c conda-forge python=3.9' % args.env_label]  # 3.10 currently has problems with ete
+    cmds += ['micromamba create -y -n %s -c conda-forge python=3.9' % args.env_label]  # 3.10 currently has problems with ete
     cmds += ['micromamba activate %s' % args.env_label]
-    cmds += ['micromamba install -c bioconda -c conda-forge phylip']
-    cmds += ['micromamba install -c conda-forge%s click' % ('' if args.no_dag else ' gctree')]
+    cmds += ['micromamba install -y -c bioconda -c conda-forge phylip']
+    cmds += ['micromamba install -y -c conda-forge%s click' % ('' if args.no_dag else ' gctree')]
     if args.no_dag:
         cmds += ['pip install gctree==3.3.0']  # I think having --user makes it install in ~/.local (outside mamba env)
     # micromamba remove -n gctree --all  # to nuke it and start over
