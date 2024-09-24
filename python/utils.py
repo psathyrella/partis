@@ -366,22 +366,20 @@ def get_var_info(args, scan_vars, action=None, debug=False):
         val_lists, valstrs = handle_var(svar, val_lists, valstrs)  # val_lists and valstrs get updated each time through
 
     if args.zip_vars is not None:
+        tzvars = [v for v in varnames if v in args.zip_vars]  # want order to come from <varnames> so it matches below
         if any(v not in varnames for v in args.zip_vars):
-            print('  %s zip var[s] %s not in varnames (%s) for %s action, so not zipping anything' % (wrnstr(), ', '.join(v for v in args.zip_vars if v not in varnames), ', '.join(varnames), action if action is not None else 'this'))
-        else:
-            assert len(args.zip_vars) == 2  # nothing wrong with more, but I don't feel like testing it right now
-            assert len(sargval(args, args.zip_vars[0])) == len(sargval(args, args.zip_vars[1]))  # doesn't make sense unless you provide a corresponding value for each
-            ok_zipvals = list(zip(sargval(args, args.zip_vars[0]), sargval(args, args.zip_vars[1])))
-            zval_lists, zvalstrs = [], []  # new ones, only containing zipped values
-            for vlist, vstrlist in zip(val_lists, valstrs):
-                zvals = tuple([vlval(args, vlist, varnames, zv) for zv in args.zip_vars])  # values for this combo of the vars we want to zip
-                if zvals in ok_zipvals and vlist not in zval_lists:  # second clause is to avoid duplicates (duh), which we get because when we're zipping vars we have to allow duplicate vals in each zip'd vars arg list, and then (above) we make combos including all those duplicate combos
-                    zval_lists.append(vlist)
-                    zvalstrs.append(vstrlist)
-            val_lists = zval_lists
-            valstrs = zvalstrs
-            if debug:
-                print('    zipped values for %s: %s    %s' % (' '.join(args.zip_vars), val_lists, valstrs))
+            print('  %s zip var[s] %s not in varnames (%s) for %s action' % (wrnstr(), ', '.join(v for v in args.zip_vars if v not in varnames), ', '.join(varnames), action if action is not None else 'this'))
+        zipvals = list(zip(*[sargval(args, zv) for zv in tzvars]))
+        assert len(set(len(vlist) for vlist in zipvals)) == 1  # doesn't make sense unless you provide a corresponding value for each
+        zval_lists, zvalstrs = [], []  # new ones, only containing zipped values
+        for vlist, vstrlist in zip(val_lists, valstrs):
+            zvals = tuple([vlval(args, vlist, varnames, zv) for zv in tzvars])  # values for this combo of the vars we want to zip
+            if zvals in zipvals and vlist not in zval_lists:  # second clause is to avoid duplicates (duh), which we get because when we're zipping vars we have to allow duplicate vals in each zip'd vars arg list, and then (above) we make combos including all those duplicate combos
+                zval_lists.append(vlist)
+                zvalstrs.append(vstrlist)
+        val_lists = zval_lists
+        valstrs = zvalstrs
+        print('    %s: zipped values for %s:  lists %s    strs %s' % (color('blue', action), ' '.join(tzvars), val_lists, valstrs))
 
     if any(valstrs.count(vstrs) > 1 for vstrs in valstrs):
         raise Exception('duplicate combinations for %s' % ' '.join(':'.join(vstr) for vstr in valstrs if valstrs.count(vstr) > 1))

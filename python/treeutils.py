@@ -1216,7 +1216,13 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                         skipped_rm_nodes.add(node)
                         continue
                     if '-' in line['State']:
-                        raise Exception('gaps in seq from %s (maybe run crashed part way through?)' % ofn(workdir, ancestors=True))
+                        print('  %s gaps in seq from %s (maybe run crashed part way through?)' % (utils.wrnstr(), ofn(workdir, ancestors=True)))
+                        if len(inf_seqfos) > 0 and len(line['State']) == len(inf_seqfos[-1]['seq']):
+                            print('    seq is same length as others despite gaps, so swapping gaps for ambig bases:\n        %s' % line['State'])
+                            line['State'] = line['State'].replace('-', utils.ambig_base)
+                            print('        %s' % line['State'])
+                        else:
+                            raise Exception('see previous line')
                     inf_seqfos.append({'name' : node, 'seq' : line['State']})
             re_insert_ambig(inf_seqfos, padded_seq_info_list)
             if len(skipped_rm_nodes) > 0:
