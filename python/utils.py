@@ -386,6 +386,8 @@ def get_var_info(args, scan_vars, action=None, debug=False):
 
     if debug:
         print('    base args: %s' % ' '.join(base_args))
+    if len(varnames) == 0:
+        print('  %s zero length varnames in get_var_info() (probably because no variables have multiple values)' % wrnstr())
     return base_args, varnames, val_lists, valstrs
 
 # ----------------------------------------------------------------------------------------

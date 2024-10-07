@@ -59,7 +59,7 @@ parser.add_argument('--dont-scale-params-list')
 parser.add_argument('--params-to-predict-list')
 parser.add_argument('--n-trees-per-expt-list', help='Number of per-tree predictions to group together and average over during the \'group-expts\' action (see also --dl-bundle-size-list)')
 parser.add_argument('--simu-bundle-size-list', help='Number of trees to simulate with each chosen set of parameter values, in each simulation subprocess (see also --n-trees-per-expt-list')
-parser.add_argument('--data-samples-list', help='List of data samples to run on. Don\'t set this, it uses glob on --data-dir')
+parser.add_argument('--data-samples-list', help='List of data samples to run on. Don\'t need to set this, it can use glob on --data-dir')
 utils.add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric='replay-plot')
 parser.add_argument('--check-dl-n-trials', type=int, default=85)
 parser.add_argument('--dl-extra-args')
@@ -67,7 +67,7 @@ parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.geten
 # parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 parser.add_argument('--dl-model-dir')
-parser.add_argument('--data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v4')
+parser.add_argument('--data-dir')
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-range', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
@@ -82,7 +82,9 @@ args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 if 'data' in args.actions:
-    args.data_samples_list = ':'.join(os.path.basename(d) for d in glob.glob('%s/*' % args.data_dir))
+    assert args.data_dir is not None
+    if args.data_samples_list is None:
+        args.data_samples_list = ':'.join(os.path.basename(d) for d in glob.glob('%s/*' % args.data_dir))
     print('  running on %d data samples from %s' % (len(args.data_samples_list.split(':')), args.data_dir))
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics)
 if args.inference_extra_args is not None:
@@ -206,9 +208,9 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         # if args.inference_extra_args is not None:
         #     cmd += ' %s' % args.inference_extra_args
     elif action == 'data':
-        assert len(vstrs) == 1  # should just one data sample in a list
+        assert len(vstrs) == 1  # should have just one data sample in a list
         smpl = vstrs[0]
-        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s' % (args.dl_model_dir, args.data_dir, smpl, odr)
+        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s --discard-extra-trees' % (args.dl_model_dir, args.data_dir, smpl, odr)
         if args.dl_bundle_size_list is not None:  # kind of weird to use it for this as well as a scan var, but whatever
             assert len(args.dl_bundle_size_list) == 1
             cmd += ' --dl-bundle-size %d' % int(args.dl_bundle_size_list[0])
@@ -233,6 +235,8 @@ def run_scan(action):
     base_args, varnames, val_lists, valstrs = utils.get_var_info(args, args.scan_vars[action], action=action)
     cmdfos = []
     print('  %s: running %d combinations of: %s' % (utils.color('blue_bkg', action), len(valstrs), ' '.join(varnames)))
+    if any(len(s)==0 for s in valstrs):
+        raise Exception('zero length val str in valstrs (probably don\'t have any variables with more than one value): %s (varnames: %s)' % (valstrs, varnames))
     if args.debug:
         print('   %s' % ' '.join(varnames))
     n_already_there, n_missing_input, ifn = 0, 0, None
