@@ -29,6 +29,7 @@ import python.clusterpath as clusterpath
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
 dl_metrics = ['%s-%s-%s' % (p, s, m) for s in ['train', 'test'] for m in ['bias', 'variance', 'mae'] for p in ['xscale', 'xshift']] + ['xscale-train-vs-test-mae']
 all_perf_metrics = ['max-abundances', 'distr-abundances', 'distr-hdists', 'all-dl', 'all-test-dl'] + dl_metrics #'precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist', 'cln-frac']  # pcfrac-*: pair info cleaning correct fraction, cln-frac: collision fraction
+# 'check-dl': make simulation using the dl-inferred parameters (so you can then run 'replay-plot-ckdl')
 after_actions = ['merge-simu', 'replay-plot', 'dl-infer', 'check-dl', 'replay-plot-ckdl', 'dl-infer-merged', 'write-partis-simu-files', 'partis']  # actions that come after simulation (e.g. partition)
 plot_actions = ['group-expts']  # these are any actions that don't require running any new action, and instead are just plotting stuff that was run by a previous action (e.g. single-chain-partis in cf-paired-loci) (note, does not include 'plot' or 'combine-plots')
 merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all scanned values at once (i.e. only run once, regardless of how many scan vars/values)
@@ -67,6 +68,7 @@ parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.geten
 # parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 parser.add_argument('--dl-model-dir')
+parser.add_argument('--tree-inference-method', choices=['iqtree', 'gctree'], help='if set, we both run tree inference with this method on simulation, and use those inferred trees during training')
 parser.add_argument('--data-dir')
 args = parser.parse_args()
 args.scan_vars = {
@@ -133,6 +135,8 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
         sfx = 'infer.csv'
     else:
         assert False
+    if args.tree_inference_method is not None and action == 'dl-infer':  # NOTE not sure which actions really want this added, but don't want to test all of them atm
+        sfx = '%s/%s' % (args.tree_inference_method, sfx)
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
 
 # ----------------------------------------------------------------------------------------
@@ -166,7 +170,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         if action in ['simu', 'check-dl']:
             cmd += ' --outdir %s --debug 1' % odr  #  --debug 1
             # --make-plots
-            # cmd += ' --tree-inference-method gctree' #iqtree'
+            if args.tree_inference_method is not None:
+                cmd += ' --tree-inference-method %s' % args.tree_inference_method
             if args.test:
                 cmd += ' --test'
             cmd = add_scan_args(cmd, skip_fcn=lambda v: v not in args.scan_vars[action] or action=='check-dl' and v not in check_dl_args)
@@ -224,11 +229,10 @@ def run_scan(action):
     # ----------------------------------------------------------------------------------------
     def init_cmd(local_varnames, vstrs, ofn, icombo):
         cmd = get_cmd(action, base_args, local_varnames, val_lists, vstrs, all_simdirs=all_simdirs)
-        # utils.simplerun(cmd, logfname='%s-%s.log'%(odir(args, local_varnames, vstrs, action), action), dryrun=args.dry)
         cmdfos.append({
             'cmd_str' : cmd,
             'outfname' : ofn,
-            'logdir' : odir(args, local_varnames, vstrs, action),
+            'logdir' : odir(args, local_varnames, vstrs, action) if args.tree_inference_method is None else os.path.dirname(ofn),
             'workdir' : '%s/partis-work/%d' % (args.workdir, icombo),
         })
     # ----------------------------------------------------------------------------------------
