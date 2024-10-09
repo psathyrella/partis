@@ -111,7 +111,7 @@ def odir(args, varnames, vstrs, action):
     return utils.svoutdir(args, varnames, vstrs, action)
 
 # ----------------------------------------------------------------------------------------
-def ofname(args, varnames, vstrs, action, ftype='npy'):
+def ofname(args, varnames, vstrs, action, ftype='npy', current_action=None):  # <action> is the action that create[ds] the file we're looking for, whereas <current_action> is the action we're now running
     if action == 'merge-simu':
         varnames = []
         vstrs = []
@@ -135,7 +135,7 @@ def ofname(args, varnames, vstrs, action, ftype='npy'):
         sfx = 'infer.csv'
     else:
         assert False
-    if args.tree_inference_method is not None and action == 'dl-infer':  # NOTE not sure which actions really want this added, but don't want to test all of them atm
+    if args.tree_inference_method is not None and 'dl-infer' in [action, current_action]:  # NOTE not sure which actions really want this added, but don't want to test all of them atm
         sfx = '%s/%s' % (args.tree_inference_method, sfx)
     return '%s/%s/%s' % (odir(args, varnames, vstrs, action), action, sfx)
 
@@ -193,7 +193,8 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels gct-data-d20:iqt-data-d20:bst-data-d20:simu:simu-iqtree --normalize' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)  #  --n-max-simu-trees 85
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
-            cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy')), odr)
+            ofn = ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy', current_action=action)
+            cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None else 'infer', os.path.dirname(ofn), odr)
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
             if args.dl_model_dir is not None:
