@@ -1094,7 +1094,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if any(l not in single_outfos['antn_lists'] or len(single_outfos['antn_lists'][l])==0 for l in lpair):
                 print('    no single chain output')
                 continue
-            lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, debug=args.debug_paired_clustering)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
+            lp_cpaths, lp_antn_lists, unpaired_seqs = paircluster.remove_badly_paired_seqs(ploci, single_outfos, keep_all_unpaired=args.keep_all_unpaired_seqs, debug=args.debug_paired_clustering)  # NOTE that if we re-annotated after doing this, we'd in general get different annotations (i.e. this is really the first step in paired clustering, while the rest of the steps happen in the next fcn call)
             if all(len(alist)==0 for alist in lp_antn_lists.values()):
                 print('    %s zero sequences remain after removing un/badly paired seqs. Maybe you\'re missing pairing info?' % utils.color('yellow', 'warning'))
                 continue
@@ -1475,6 +1475,7 @@ parent_args.append({'name' : '--no-sw-vsearch', 'kwargs' : {'action' : 'store_tr
 parent_args.append({'name' : '--collapse-similar-paired-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'if set, when cleaning heavy/light pair info we collapse highly similar sequences within droplets (i.e. extra seqs that likely result from sequencing error).'}})
 parent_args.append({'name' : '--pair-unpaired-seqs-with-paired-family', 'kwargs' : {'action' : 'store_true', 'help' : 'After finishing normal paired clustering, continue by pairing any unpaired sequences in each heavy/light family pair with the partner of their nearest paired family member. This is designed for use when you have both single cell and bulk samples, and you want to use the single seq pairing info to arrive at some approximate pair info for the bulk sample.'}})
 parent_args.append({'name' : '--add-unpaired-seqs-to-fake-paired-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'when making the fake h+l "paired" annotation (i.e. smashing h+l seqs together) for use in selection metrics and/or partition plotting, by default we ignore unpaired seqs. This option includes them, with Ns for the missing opposite-chain sequence.'}})
+parent_args.append({'name' : '--keep-all-unpaired-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'By default when paired clustering, seqs with no pair info are kept only if they\'re in a (single-chain) family with at least one paired seq (i.e. families consisting entirely of unpaired seqs are discarded). If this is set, instead we keep all unpaired seqs.'}})
 
 parent_args.append({'name' : '--max-ccf-fail-frac', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'when calculating clustering performance metrics (correct cluster fractions, purity/completeness), crash if more than this fraction of sequences are missing from the inferred partition'}})
 

@@ -817,7 +817,7 @@ def pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, a
         print('    skipped %d family pairs with no reciprocally paired seqs' % n_no_paired)
 
 # ----------------------------------------------------------------------------------------
-def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired with the other/wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
+def remove_badly_paired_seqs(ploci, outfos, keep_all_unpaired=False, debug=False):  # remove seqs paired with the other/wrong light chain, as well as those with no pairing info (the latter we keep track of so we can insert them later into the right final cluster)
     # ----------------------------------------------------------------------------------------
     def add_unpaired(cline, iseq, uid, paired_iseqs):
         nearest_uid = None
@@ -860,6 +860,7 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     all_pids = {u : pids[0] for alist in antn_lists.values() for l in alist for u, pids in zip(l['unique_ids'], l['paired-uids']) if len(pids)==1}  # uid : pid for all uid's that have a single unique pid (which should be all of them, since we just ran pair cleaning -- otherwise we crash below) (I'm pretty sure that the partition implied by the annotations is identical to the one in <cpaths>, and it's nice to loop over annotations for this)
     unpaired_seqs = {l : {} for l in ploci.values()}  # map for each locus from the uid of each seq with no (or non-reciprocal) pairing info to the nearest sequence in its family (after merging partitions we'll insert it into the family that this nearest seq ended up in)
     lp_cpaths, lp_antn_lists = {}, {}
+    total_unpaired_discarded = {c : 0 for c in ploci}  # just for debug
     print('    removing badly + unpaired seqs%s' % ('\n' if debug else ': '), end=' ')
     sys.stdout.flush()
     if debug:
@@ -896,10 +897,12 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
             if len(unpaired_to_add) > 0:
                 discarding_unpaired = True  # just for debug
                 # if there's seqs in the cluster that *aren't* either unpaired (n_no_info) or paired with the other light chain (n_other_light), we want to add the unpaired ones as unpaired seqs (i.e. if n_no_info + n_other_light *equals* len(cluster), we *don't* want to add them, since they should get added in/during the other light chain, and if they're added to both, they'll get deduplicated poorly later)
-                if n_no_info + n_other_light < len(cluster):  # NOTE don't add 'or n_other_light == 0' here, it'll add a bajillion unpaired singletons to the final partition
+                if keep_all_unpaired or n_no_info + n_other_light < len(cluster):  # NOTE don't add 'or n_other_light == 0' here, it'll add a bajillion unpaired singletons to the final partition
                     discarding_unpaired = False
                     for upi, upid in unpaired_to_add:
                         add_unpaired(cline, upi, upid, paired_iseqs)
+                if discarding_unpaired:
+                    total_unpaired_discarded[tch] += len(unpaired_to_add)
             iseqs_to_keep = [i for i in range(len(cline['unique_ids'])) if i not in iseqs_to_remove]
             process_unpaired(cline, ploci[tch], iseqs_to_keep, paired_iseqs)  # have to go back after finishing cluster since only now do we know who we ended up keeping
             if len(iseqs_to_keep) > 0:
@@ -917,7 +920,9 @@ def remove_badly_paired_seqs(ploci, outfos, debug=False):  # remove seqs paired 
     if debug:
         print('    totals before: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in cpaths[ploci[tch]].best())) for tch in sorted(ploci)))
         print('    totals after: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in lp_cpaths[ploci[tch]].best())) for tch in sorted(ploci)))
-    print('%s%d total unpaired,  %s' % ('        ' if debug else '', sum(len(s) for s in unpaired_seqs.values()), '  '.join('%s %d'%(utils.locstr(l), len(unpaired_seqs[l])) for l in sorted(unpaired_seqs))))
+    print('%skept %d total unpaired (i.e. setting aside in order to reintegrate after paired clustering): %s' % ('        ' if debug else '', sum(len(s) for s in unpaired_seqs.values()), '  '.join('%s %d'%(utils.locstr(l), len(unpaired_seqs[l])) for l in sorted(unpaired_seqs))))
+    if sum(total_unpaired_discarded.values()) > 0:
+        print('        discarded %d total unpaired (in families with no paired seqs): %s' % (sum(total_unpaired_discarded.values()), '  '.join('%s %s'%(utils.locstr(ploci[c]), total_unpaired_discarded[c]) for c in sorted(ploci))))
 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
@@ -1306,7 +1311,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         #     orig_pfams = get_pfamily_dict()
         for ltmp in sorted(cpaths):
             if debug:
-                print('%s starting pair cleaning with partition info' % utils.color('green', ltmp))
+                print('  %s starting pair cleaning with partition info' % utils.color('green', ltmp))
             for iclust, cluster in enumerate(sorted(cpaths[ltmp].best(), key=len, reverse=True)):
                 ptn_clean(ltmp, antn_dicts[ltmp][':'.join(cluster)], cluster, remove_uncertain_pids=True)
         # NOTE i would think it would help to do this twice, only removing uncertain ones the second time (or, maybe better [faster], loop over uids in order of confidence that we'll get them correct)
@@ -1320,7 +1325,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
         true_partitions = {l : true_outfos['merged']['cpaths'][l].best() for l in antn_lists}
     antn_dicts = {l : utils.get_annotation_dict(antn_lists[l], cpath=cpaths[l]) for l in antn_lists}
     all_uids = set(u for p in cpaths.values() for c in p.best() for u in c)  # all uids that occur in a partition (should I think be the same as the ones for which we have valid/non-failed annotations)
-    print('   cleaning pair info for %d seqs' % len(all_uids))
+    print('cleaning pair info for %d seqs' % len(all_uids))
     sys.stdout.flush()
 
     # first collect some information for later use
@@ -1378,7 +1383,7 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
 
     # then go through each group trying to remove as many crappy/suspicously similar ones as possible (this step has a fairly minor effect compared to the partition-based step below)
     if debug:
-        print('  cleaning %d pid groups:' % len(pid_groups))
+        print('  cleaning %d pid groups (by removing crappy/too similar seqs):' % len(pid_groups))
         def tmpincr(pgroup, cdict):
             if lgstr(pgroup) not in cdict:
                 cdict[lgstr(pgroup)] = 0
@@ -1418,10 +1423,10 @@ def clean_pair_info(args, cpaths, antn_lists, plotdir=None, performance_outdir=N
 
     if debug:
         def prcgrps(cdict, prestr):
-            print('    %s' % prestr)
+            print('    %s%s' % (prestr, '' if len(cdict)>0 else utils.color('blue', ' none')))
             for lstr, count in sorted(list(cdict.items()), key=operator.itemgetter(1), reverse=True):
                 print('      %3d  %s' % (count, lstr))
-        prcgrps(ok_groups, 'ok to start with:')
+        prcgrps(ok_groups, 'ok (less than 2 of both h and l ids) to start with:')
         prcgrps(id_removed_groups, 'removed ids from:')
         prcgrps(tried_to_fix_groups, 'after trying to fix:')
 
