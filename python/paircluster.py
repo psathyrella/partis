@@ -825,7 +825,7 @@ def remove_badly_paired_seqs(ploci, outfos, keep_all_unpaired=False, debug=False
             nearest_uid = 'NEAR'  # now that we have process_unpaired(), we don't use the actual distance that was calculated here, we just need to know if there were any paired seqs in the family (note that this could probably be cleaned up some more, e.g. synchronize definitions of 'paired' vs 'to keep' seqs, but I don't want to change things atm) 
             # sorted_hdists = sorted([(cline['unique_ids'][i], utils.hamming_distance(cline['seqs'][i], cline['seqs'][iseq])) for i in paired_iseqs if i != iseq], key=operator.itemgetter(1))
             # nearest_uid = sorted_hdists[0][0] if len(sorted_hdists) > 0 else None
-        unpaired_seqs[cline['loci'][iseq]][uid] = {'nearest' : nearest_uid}  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance NOTE this is 'nearest' while the below is 'nearest-paired', although that isn't quite accurate names
+        unpaired_seqs[cline['loci'][iseq]][uid] = {'nearest' : nearest_uid, 'nearest-paired' : None, 'single-chain-family' : None}  # unless there's no other seqs in the cluster, attach it to the nearest seq by hamming distance NOTE this is 'nearest' while the below is 'nearest-paired', although that isn't quite accurate names
     # ----------------------------------------------------------------------------------------
     def process_unpaired(cline, locus, iseqs_to_keep, paired_iseqs, compare_hamming=False):
         # ----------------------------------------------------------------------------------------
@@ -841,7 +841,8 @@ def remove_badly_paired_seqs(ploci, outfos, keep_all_unpaired=False, debug=False
         mut_positions = utils.get_mut_positions(cline)
         cline['mut_positions'] = mut_positions
         for iun, unid in [(i, u) for i, u in enumerate(cline['unique_ids']) if u in unpaired_seqs[locus]]:  # loop over unpaired seqs in <cline>
-            if unpaired_seqs[locus][unid]['nearest'] is None:  # if no paired seqs in family, don't need to do anything
+            if unpaired_seqs[locus][unid]['nearest'] is None:  # no paired seqs in family (maybe it's a singleton, maybe not)
+                unpaired_seqs[locus][unid]['single-chain-family'] = cline['unique_ids']
                 continue
             nearest_pid = None
             if len(iseqs_to_keep) > 0:
@@ -863,8 +864,11 @@ def remove_badly_paired_seqs(ploci, outfos, keep_all_unpaired=False, debug=False
     total_unpaired_discarded = {c : 0 for c in ploci}  # just for debug
     print('    removing badly + unpaired seqs%s' % ('\n' if debug else ': '), end=' ')
     sys.stdout.flush()
+    if keep_all_unpaired:
+        print('            --keep-all-unpaired-seqs: keeping even unpaired seqs in families with no (well-)paired seqs')
+    else:
+        print('            note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later')
     if debug:
-        print('            discarding unpaired: because there\'s no paired seqs in the family (it\'s all either unpaired or other light), we discard unpaired seqs, rather than keeping track of them to re-add later')
         print('          N     N      N      no   other  non-  discarding    original')
         print('        before kept removed  info  light recip   unpaired      cluster')
     for tch in sorted(ploci):
@@ -896,10 +900,11 @@ def remove_badly_paired_seqs(ploci, outfos, keep_all_unpaired=False, debug=False
             # NOTE this means (more or less) we discard any unpaired seqs that are in families with no paired seqs, which i think is what we want to do?
             if len(unpaired_to_add) > 0:
                 discarding_unpaired = True  # just for debug
-                # if there's seqs in the cluster that *aren't* either unpaired (n_no_info) or paired with the other light chain (n_other_light), we want to add the unpaired ones as unpaired seqs (i.e. if n_no_info + n_other_light *equals* len(cluster), we *don't* want to add them, since they should get added in/during the other light chain, and if they're added to both, they'll get deduplicated poorly later)
-                if keep_all_unpaired or n_no_info + n_other_light < len(cluster):  # NOTE don't add 'or n_other_light == 0' here, it'll add a bajillion unpaired singletons to the final partition
+                # first clause: if --keep-all-unpaired was set, and if all seqs in the cluster are actually unpaired (as opposed to a mix of unpaired and other chain, in which case keeping them here would screw them up when we later do the other chain)
+                # second clause: if there's paired seqs in the cluster (i.e. if the whole cluster isn't n_no_info or n_other_light), we want to add the unpaired ones as unpaired seqs (i.e. if n_no_info + n_other_light *equals* len(cluster), we *don't* want to add them, since either they're all unpaired, or they should get added in/during the other light chain, and if they're added to both, they'll get deduplicated poorly later)
+                if (keep_all_unpaired and n_no_info==len(cluster)) or n_no_info + n_other_light < len(cluster):
                     discarding_unpaired = False
-                    for upi, upid in unpaired_to_add:
+                    for upi, upid in unpaired_to_add:  # note that n_other_light seqs aren't in <unpaired_to_add>
                         add_unpaired(cline, upi, upid, paired_iseqs)
                 if discarding_unpaired:
                     total_unpaired_discarded[tch] += len(unpaired_to_add)
@@ -922,7 +927,7 @@ def remove_badly_paired_seqs(ploci, outfos, keep_all_unpaired=False, debug=False
         print('    totals after: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in lp_cpaths[ploci[tch]].best())) for tch in sorted(ploci)))
     print('%skept %d total unpaired (i.e. setting aside in order to reintegrate after paired clustering): %s' % ('        ' if debug else '', sum(len(s) for s in unpaired_seqs.values()), '  '.join('%s %d'%(utils.locstr(l), len(unpaired_seqs[l])) for l in sorted(unpaired_seqs))))
     if sum(total_unpaired_discarded.values()) > 0:
-        print('        discarded %d total unpaired (in families with no paired seqs): %s' % (sum(total_unpaired_discarded.values()), '  '.join('%s %s'%(utils.locstr(ploci[c]), total_unpaired_discarded[c]) for c in sorted(ploci))))
+        print('        discarded %d total unpaired (in families with no (well-)paired seqs): %s' % (sum(total_unpaired_discarded.values()), '  '.join('%s %s'%(utils.locstr(ploci[c]), total_unpaired_discarded[c]) for c in sorted(ploci))))
 
     return lp_cpaths, lp_antn_lists, unpaired_seqs
 
@@ -1671,7 +1676,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                         print(' %d' % ihuge, end=' ')
                         sys.stdout.flush()
                     ihuge += 1
-                if nearfo['nearest'] is None:  # it was a singleton, so keep it one
+                if nearfo['nearest'] is None and len(nearfo['single-chain-family']) == 1:  # first clause: no paired seqs in its family, second clause: actually a singleton
                     joint_partitions[tch].append([upid])
                     jp_indices[upid] = len(joint_partitions[tch]) - 1
                     n_added[tch]['singleton'] += 1
@@ -1697,10 +1702,10 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         totstr = '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in joint_partitions[tch])) for tch in sorted(ploci))
         print('    re-added unpaired seqs (%s) to give total seqs in joint partitions: %s' % (', '.join('%s %d'%(utils.locstr(ploci[tch]), sum(nfo.values())) for tch, nfo in n_added.items()), totstr))
         sys.stdout.flush()
-        # print('                          new     existing')
-        # print('            singleton   cluster    cluster')
-        # for tch in 'hl':
-        #     print('       %s      %4d     %4d     %4d' % (utils.locstr(ploci[tch]), n_added[tch]['singleton'], n_added[tch]['new-cluster'], n_added[tch]['existing-cluster']))
+        print('                          new     existing')
+        print('            singleton   cluster    cluster')
+        for tch in 'hl':
+            print('       %s      %4d     %4d     %4d' % (utils.locstr(ploci[tch]), n_added[tch]['singleton'], n_added[tch]['new-cluster'], n_added[tch]['existing-cluster']))
     # ----------------------------------------------------------------------------------------
     print('    merging %s partitions' % '+'.join(list(ploci.values())))
     sys.stdout.flush()
