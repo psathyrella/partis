@@ -1702,10 +1702,10 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
         totstr = '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in joint_partitions[tch])) for tch in sorted(ploci))
         print('    re-added unpaired seqs (%s) to give total seqs in joint partitions: %s' % (', '.join('%s %d'%(utils.locstr(ploci[tch]), sum(nfo.values())) for tch, nfo in n_added.items()), totstr))
         sys.stdout.flush()
-        print('                          new     existing')
-        print('            singleton   cluster    cluster')
+        print('                             new        existing')
+        print('            singleton      cluster       cluster')
         for tch in 'hl':
-            print('       %s      %4d     %4d     %4d' % (utils.locstr(ploci[tch]), n_added[tch]['singleton'], n_added[tch]['new-cluster'], n_added[tch]['existing-cluster']))
+            print('       %s      %7d     %7d     %7d' % (utils.locstr(ploci[tch]), n_added[tch]['singleton'], n_added[tch]['new-cluster'], n_added[tch]['existing-cluster']))
     # ----------------------------------------------------------------------------------------
     print('    merging %s partitions' % '+'.join(list(ploci.values())))
     sys.stdout.flush()

@@ -5777,6 +5777,7 @@ def collision_fraction(partition):
     return cfrac
 
 # ----------------------------------------------------------------------------------------
+# NOTE n_biggest_clusters can be a pair of numbers
 def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, iscn_denominator='max', a_label='a', b_label='b', debug=False):
     # iscn_denominator: denominator to divide intersection size of each pair of clusters ('min': min of the two sizes, 'mean': mean of the two sizes)
     """ Return matrix whose ij^th entry is the size of the intersection between <partition_a>'s i^th biggest cluster and <partition_b>'s j^th biggest, divided by the mean/min/max size of the two clusters """
@@ -5795,11 +5796,12 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, is
         else:
             assert False
     # ----------------------------------------------------------------------------------------
-    def getsclusts(ptn):
+    def getsclusts(ptn, n_big):
         sort_within_clusters(ptn)  # have to do this before taking N biggest so that when there's lots of ties in size we're more likely to get the same clusters for both methods
         srtclusts = sorted(sorted(ptn), key=len, reverse=True)
-        plot_clusts = srtclusts[ : n_biggest_clusters]
-        skip_clusts = srtclusts[n_biggest_clusters : ]
+        n_to_use = min(n_big, len(srtclusts))
+        plot_clusts = srtclusts[ : n_to_use]
+        skip_clusts = srtclusts[n_to_use : ]
         return plot_clusts, skip_clusts
     # ----------------------------------------------------------------------------------------
     def incr_clust(csize, n_common, ifrac):
@@ -5808,10 +5810,9 @@ def partition_similarity_matrix(partition_a, partition_b, n_biggest_clusters, is
         sub_fracs.append(ifrac)
     # ----------------------------------------------------------------------------------------
     check_intersection_and_complement(partition_a, partition_b, a_label=a_label, b_label=b_label, only_warn=True)
-    sort_within_clusters(partition_a)  # have to do this before taking N biggest so that when there's lots of ties in size we're more likely to get the same clusters for both methods
-    sort_within_clusters(partition_b)
-    a_clusters, a_skip_clusts = getsclusts(partition_a)
-    b_clusters, b_skip_clusts = getsclusts(partition_b)
+    n_big_a, n_big_b = n_biggest_clusters if hasattr(n_biggest_clusters, '__iter__') else (n_biggest_clusters, n_biggest_clusters)
+    a_clusters, a_skip_clusts = getsclusts(partition_a, n_big_a)
+    b_clusters, b_skip_clusts = getsclusts(partition_b, n_big_b)
 
     smatrix = [[float('nan') for _ in b_clusters] for _ in a_clusters]
     dszs, dovlps, dfracs = [], [], []

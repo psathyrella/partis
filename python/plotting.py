@@ -1270,6 +1270,17 @@ def plot_csim_matrix_from_files(plotdir, plotname, meth1, ofn1, meth2, ofn2, n_b
 # iscn_denominator: 'max' if you want to look at a method that's oversplitting since it will show how much of the larger cluster is split among various clusters in the other partition
 #                   'min'                                        overmerging, since... eh, maybe not? not sure
 def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, partition2, n_biggest_clusters, iscn_denominator='max', title='', debug=False):
+    # ----------------------------------------------------------------------------------------
+    def get_ticks(clens, n_big):
+        modulo = 2
+        # axis_max = min(len(partition1), min(n_biggest_clusters, len(partition2)))
+        axis_max = min(n_big, len(clens))
+        if axis_max > 20:
+            modulo = 3
+        if n_big > 40:
+            modulo = int(n_big / 15.)
+        return modulo, axis_max, [n - 0.5 for n in range(1, axis_max + 1, modulo)]
+    # ----------------------------------------------------------------------------------------
     # partition1 = [['4'], ['7', '8'], ['6', '5'], ['99', '3', '1']]
     # # partition2 = [['1', '2', '3'], ['4'], ['5', '6'], ['7', '8']]
     # partition2 = [['3'], ['5'], ['6'], ['7'], ['8'], ['99', '3', '4']]
@@ -1283,18 +1294,14 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
     heatmap = ax.pcolormesh(data, cmap=cmap, vmin=0., vmax=1.)
     cbar = plt.colorbar(heatmap, label='overlap / %s size' % iscn_denominator.replace('min', 'smaller').replace('max', 'larger'), pad=0.09)
     
-    modulo = 2
-    axis_max = min(len(partition1), min(n_biggest_clusters, len(partition2)))
-    if axis_max > 20:
-        modulo = 3
-    if n_biggest_clusters > 40:
-        modulo = int(n_biggest_clusters / 15.)
-    ticks = [n - 0.5 for n in range(1, axis_max + 1, modulo)]
-    xticklabels = [str(b_cluster_lengths[it]) for it in range(0, len(b_cluster_lengths), modulo)]
-    yticklabels = [str(a_cluster_lengths[it]) for it in range(0, len(a_cluster_lengths), modulo)]
+    n_big_a, n_big_b = n_biggest_clusters if hasattr(n_biggest_clusters, '__iter__') else (n_biggest_clusters, n_biggest_clusters)
+    xmod, x_axis_max, xticks = get_ticks(b_cluster_lengths, n_big_b)
+    ymod, y_axis_max, yticks = get_ticks(a_cluster_lengths, n_big_a)
+    xticklabels = [str(b_cluster_lengths[it]) for it in range(0, len(b_cluster_lengths), xmod)]
+    yticklabels = [str(a_cluster_lengths[it]) for it in range(0, len(a_cluster_lengths), ymod)]
     return mpl_finish(ax, plotdir, plotname, title=title, xlabel='%s cluster size'%legends.get(meth2, meth2), ylabel='%s cluster size'%legends.get(meth1, meth1),
-                     xticks=ticks, yticks=ticks, xticklabels=xticklabels, yticklabels=yticklabels, xticklabelsize=15, yticklabelsize=15,
-                     xbounds=(0, axis_max), ybounds=(0, axis_max), rotation='vertical')
+                     xticks=xticks, yticks=yticks, xticklabels=xticklabels, yticklabels=yticklabels, xticklabelsize=15, yticklabelsize=15,
+                     xbounds=(0, x_axis_max), ybounds=(0, y_axis_max), rotation='vertical')
 
 # ----------------------------------------------------------------------------------------
 # NOTE set unset/empty values to float('nan') to keep them transparent
