@@ -71,6 +71,7 @@ class PartitionPlotter(object):
         return title
 
     # ----------------------------------------------------------------------------------------
+    # colorfcn should return the *value* (not color), which then gets mapped to a color, e.g. viridis (note colorfcn is overridden by self.args.meta_info_key_to_color)
     def make_cluster_scatter(self, plotdir, plotname, xfcn, yfcn, clusters_to_use, repertoire_size, min_csize, dxy=0.1, log_cluster_size=False, xlabel='?', xbounds=None, repfrac_ylabel=True, colorfcn=None, leg_title=None,
                              alpha=0.65, title=''):
         # ----------------------------------------------------------------------------------------
@@ -102,16 +103,29 @@ class PartitionPlotter(object):
         xvals, yvals = zip(*[[xfcn(cluster), yfcn(cluster)] for cluster in clusters_to_use])
         if log_cluster_size:
             yvals = [math.log(yv) for yv in yvals]
-        colors = None
-        if colorfcn is not None:  # this is mostly copied from lbplotting.plot_2d_scatter()
-            colorvals = [colorfcn(c) for c in clusters_to_use]
-            smap = self.plotting.get_normalized_scalar_map(colorvals, 'viridis')
-            smfcn = lambda x: 'grey' if x is None else self.plotting.get_smap_color(smap, None, val=x)
-            colors = [smfcn(c) for c in colorvals]
-            leg_entries = self.plotting.get_leg_entries(vals=colorvals, colorfcn=smfcn)
-            self.plotting.plot_legend_only(leg_entries, plotdir, plotname+'-legend', title=leg_title, n_digits=2)
         fig, ax = self.plotting.mpl_init()
-        hb = ax.scatter(xvals, yvals, c=colors, alpha=alpha)
+        if self.args.meta_info_key_to_color is None:
+            colors = None
+            if colorfcn is not None:  # this is mostly copied from lbplotting.plot_2d_scatter()
+                colorvals = [colorfcn(c) for c in clusters_to_use]  # values (numerical/string) that will tell us which color to use
+                smap = self.plotting.get_normalized_scalar_map(colorvals, 'viridis')
+                smfcn = lambda x: 'grey' if x is None else self.plotting.get_smap_color(smap, None, val=x)
+                colors = [smfcn(c) for c in colorvals]
+                leg_entries = self.plotting.get_leg_entries(vals=colorvals, colorfcn=smfcn)
+                self.plotting.plot_legend_only(leg_entries, plotdir, plotname+'-legend', title=leg_title, n_digits=2)
+            hb = ax.scatter(xvals, yvals, c=colors, alpha=alpha)
+        else:
+            total_bubble_seqs, fake_cluster, bubfos = self.get_cluster_bubfos(clusters_to_use, min_cluster_size=min_csize, dont_sort=True)
+            for bfo in [b for b in bubfos if b['id']!='fake']:
+                iclust = int(bfo['id'])
+                assert len(clusters_to_use[iclust]) == bfo['radius']  # make sure cluster ordering in bubfos matches that in xvals/yvals
+                msize = 0.03
+                if self.args.meta_info_bkg_val is not None and any(f['label']==self.args.meta_info_bkg_val for f in bfo['fracs']):
+                    bkg_ffo = utils.get_single_entry([f for f in bfo['fracs'] if f['label']==self.args.meta_info_bkg_val])
+                    bkg_frac = bkg_ffo['fraction']
+                    if bkg_frac == 1:
+                        msize = 0.01
+                self.plotting.plot_pie_chart_marker(ax, xvals[iclust], yvals[iclust], msize, bfo['fracs'], alpha=alpha)
 
         nticks = 5
         ymin, ymax = yvals[-1], yvals[0]
@@ -254,14 +268,12 @@ class PartitionPlotter(object):
         return rfnames
 
     # ----------------------------------------------------------------------------------------
-    def make_cluster_bubble_plots(self, alpha=0.6, n_to_write_size=9999999, debug=False):
-        import matplotlib.pyplot as plt
-        subd, plotdir = self.init_subd('cluster-bubble')
+    def get_cluster_bubfos(self, clusters_to_use, n_to_write_size=9999999, n_max_bubbles=None, min_cluster_size=None, dont_sort=False):
         mekey = self.args.meta_info_key_to_color
         fake_cluster, fake_antn = [], {'unique_ids' : [], mekey : []} # make a fake cluster with all sequences from all skipped clusters (circlify is too slow to run on all the smaller clusters)
         bubfos = []
-        for iclust, cluster in enumerate(self.sclusts):
-            if iclust < self.n_max_bubbles:
+        for iclust, cluster in enumerate(clusters_to_use):
+            if n_max_bubbles is not None and iclust < n_max_bubbles or min_cluster_size is not None and len(cluster) >= min_cluster_size:
                 bubfos.append({'id' : str(iclust), 'radius' : len(cluster)})
             else:
                 fake_cluster += cluster
@@ -272,11 +284,12 @@ class PartitionPlotter(object):
         if len(fake_cluster) > 0:
             bubfos.append({'id' : 'fake', 'radius' : len(fake_cluster)})
 
-        if self.args.meta_info_key_to_color is not None:
-            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
+        if mekey is not None:
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=clusters_to_use, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
             hcolors = {v : c for v, c in emph_colors}
-        def getclust(idl): return self.sclusts[int(idl)] if idl!='fake' else fake_cluster
-        bubfos = sorted(bubfos, key=lambda b: len(getclust(b['id'])), reverse=True)
+        def getclust(idl): return clusters_to_use[int(idl)] if idl!='fake' else fake_cluster
+        if not dont_sort:
+            bubfos = sorted(bubfos, key=lambda b: len(getclust(b['id'])), reverse=True)
         for bfo in bubfos:
             cluster = getclust(bfo['id'])
             if bfo['id']=='fake' or int(bfo['id']) < n_to_write_size:
@@ -289,20 +302,28 @@ class PartitionPlotter(object):
                 emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=self.args.meta_emph_formats)
                 bfo['fracs'] = [{'label' : v, 'fraction' : f, 'color' : hcolors[v]} for v, f in emph_fracs.items()]
         total_bubble_seqs = sum(len(getclust(b['id'])) for b in bubfos if b['id']!='fake')
-        repertoire_size = sum([len(c) for c in self.sclusts])
+        return total_bubble_seqs, fake_cluster, bubfos
+
+    # ----------------------------------------------------------------------------------------
+    def make_cluster_bubble_plots(self, alpha=0.6, debug=False):
+        import matplotlib.pyplot as plt
+        subd, plotdir = self.init_subd('cluster-bubble')
+        total_bubble_seqs, fake_cluster, bubfos = self.get_cluster_bubfos(self.sclusts, n_max_bubbles=self.n_max_bubbles)
         nbub = len(bubfos)
         if len(fake_cluster) > 0:
             nbub -= 1
         xtra_text = None
         if len(fake_cluster) > 0:
             xtra_text = {'x' : 0.3, 'y' : 0.85, 'color' : 'green', 'text' : '%d seqs in %d clusters with size %d or smaller' % (len(fake_cluster), len(self.sclusts) - nbub, len(self.sclusts[self.n_max_bubbles - 1]))}
+        repertoire_size = sum([len(c) for c in self.sclusts])
         fn = self.plotting.bubble_plot('bubbles', plotdir, [b for b in bubfos if b['id']!='fake'], title='bubbles for %d largest clusters (%d/%d seqs)'%(nbub, total_bubble_seqs, repertoire_size), alpha=alpha)
         fn2 = self.plotting.bubble_plot('small-bubbles', plotdir, [b for b in bubfos if b['id']=='fake'], title='single bubble for %d smaller clusters'%(len(self.sclusts) - self.n_max_bubbles), xtra_text=xtra_text, alpha=alpha)
         fnames = [[]]
         self.addfname(fnames, fn)
         self.addfname(fnames, fn2)
-        if mekey is not None:
-            lfn = self.plotting.make_meta_info_legend(plotdir, 'cluster-bubbles', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=alpha)
+        if self.args.meta_info_key_to_color is not None:
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
+            lfn = self.plotting.make_meta_info_legend(plotdir, 'cluster-bubbles', self.args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=alpha)
             self.addfname(fnames, lfn)
 
         return [[subd + '/' + fn for fn in fnames[0]]]
