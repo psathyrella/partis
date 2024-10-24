@@ -464,10 +464,17 @@ class Hist(object):
     def mpl_plot(self, ax, ignore_overflows=False, label=None, color=None, alpha=None, linewidth=None, linestyle=None, markersize=None, errors=True, remove_empty_bins=False,
                  square_bins=False, no_vertical_bin_lines=False):
         # ----------------------------------------------------------------------------------------
+        def keep_bin(xvlist, yvlist, ib):
+            if isinstance(remove_empty_bins, list):
+                xmin, xmax = remove_empty_bins
+                if xvlist[ib] > xmin and xvlist[ib] < xmax:
+                    return True  # always keep within range
+            return yvlist[ib] != 0.
+        # ----------------------------------------------------------------------------------------
         def sqbplot(kwargs):
             kwargs['markersize'] = 0
             for ibin in self.ibiniter(include_overflows=False):
-                if not keep_bin(self.low_edges[ibin], self.bin_contents[ibin]):  # maybe should use bin centers rather than low edges, i dunno
+                if not keep_bin(self.get_bin_centers(), self.bin_contents, ibin):
                     continue
                 tplt = ax.plot([self.low_edges[ibin], self.low_edges[ibin+1]], [self.bin_contents[ibin], self.bin_contents[ibin]], **kwargs)  # horizontal line for this bin
                 kwargs['label'] = None  # make sure there's only one legend entry for each hist
@@ -514,15 +521,7 @@ class Hist(object):
         elif self.title != '':
             kwargs['label'] = self.title
         if remove_empty_bins is not False:  # NOTE can be bool, but can also be list of length two (remove bins only outside those bounds)
-            # ----------------------------------------------------------------------------------------
-            def keep_bin(ib):
-                if isinstance(remove_empty_bins, list):
-                    xmin, xmax = remove_empty_bins
-                    if xvals[ib] > xmin and xvals[ib] < xmax:
-                        return True  # always keep within range
-                return yvals[ib] != 0.
-            # ----------------------------------------------------------------------------------------
-            xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if keep_bin(iv)])
+            xvals, yvals, yerrs = zip(*[(xvals[iv], yvals[iv], yerrs[iv]) for iv in range(len(xvals)) if keep_bin(xvals, yvals, iv)])
         if errors and not square_bins:
             kwargs['yerr'] = yerrs
             return ax.errorbar(xvals, yvals, **kwargs)  #, fmt='-o')
