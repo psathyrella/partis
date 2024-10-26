@@ -1304,6 +1304,17 @@ def get_multiplicities(line):  # combines duplicates with any input meta info mu
     return [get_multiplicity(line, iseq=i) for i in range(len(line['unique_ids']))]
 
 # ----------------------------------------------------------------------------------------
+def get_abundance_info(antn_list):
+    abdnvals, max_abvals = [], []
+    for atn in antn_list:
+        tabvals = []  # abundance values for this annotation
+        for tseq, sgroup in itertools.groupby(sorted(atn['seqs'])):
+            tabvals.append(len(list(sgroup)))
+        abdnvals += tabvals
+        max_abvals.append(max(tabvals))
+    return abdnvals, max_abvals
+
+# ----------------------------------------------------------------------------------------
 # NOTE see get_non_implicit_copy() below (if you're thinking of again trying to add it here)
 
 # ----------------------------------------------------------------------------------------
