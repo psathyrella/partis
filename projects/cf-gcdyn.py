@@ -38,6 +38,7 @@ merge_actions = ['merge-simu', 'dl-infer-merged']  # actions that act on all sca
 parser = argparse.ArgumentParser()
 parser.add_argument('--actions', default='don\'t use')  # old defaults: simu:merge-simu:process:plot (partis is just to make tree plots, which aren't really slow but otoh we don't need for every seed/variable combo)
 parser.add_argument('--birth-response-list')
+parser.add_argument('--death-response-list')
 parser.add_argument('--xscale-values-list')
 parser.add_argument('--xshift-values-list')
 parser.add_argument('--xscale-range-list')
@@ -46,6 +47,7 @@ parser.add_argument('--yscale-range-list')
 parser.add_argument('--initial-birth-rate-range-list')
 parser.add_argument('--carry-cap-values-list')
 parser.add_argument('--carry-cap-range-list')
+parser.add_argument('--nonsense-phenotype-value-list')
 parser.add_argument('--init-population-list')
 parser.add_argument('--time-to-sampling-range-list')
 parser.add_argument('--n-seqs-range-list')
@@ -73,13 +75,13 @@ parser.add_argument('--tree-inference-method', choices=['iqtree', 'gctree'], hel
 parser.add_argument('--data-dir')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
+    'simu' : ['seed', 'birth-response', 'death-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
     'dl-infer' : ['dl-bundle-size', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
     'data' : ['data-samples'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
 args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['dl-infer'])
-check_dl_args = ['seed', 'birth-response', 'carry-cap-values', 'carry-cap-range', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials']  # ugh ugh ugh
+check_dl_args = ['seed', 'birth-response', 'death-response', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials']  # ugh ugh ugh
 args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['check-dl'])
 args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'init-population', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
