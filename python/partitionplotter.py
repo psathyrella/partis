@@ -39,13 +39,13 @@ class PartitionPlotter(object):
         self.n_plots_per_row = 4
 
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
-        self.min_pairwise_cluster_size = 7
+        self.min_pairwise_cluster_size = 3  # note that singletons are meaningless for pairwise diversity0
         self.min_tree_cluster_size = 5  # we also use min_selection_metric_cluster_size
         self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
         self.min_mds_cluster_size = 3
         self.laplacian_spectra_min_clusters_size = 4
-        self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size = 500  # don't apply the previous thing unless the repertoire's actually pretty large
+        self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size = 350  # don't apply the previous thing unless the repertoire's actually pretty large
 
         self.n_mds_components = 2
         self.indexing = 1  # for mutation plotting labels
@@ -72,7 +72,7 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     # colorfcn should return the *value* (not color), which then gets mapped to a color, e.g. viridis (note colorfcn is overridden by self.args.meta_info_key_to_color)
-    def make_cluster_scatter(self, plotdir, plotname, xfcn, yfcn, clusters_to_use, repertoire_size, min_csize, dxy=0.1, log_cluster_size=False, xlabel='?', xbounds=None, repfrac_ylabel=True, colorfcn=None, leg_title=None,
+    def make_cluster_scatter(self, plotdir, plotname, xfcn, yfcn, clusters_to_use, repertoire_size, min_csize, dxy=0.1, log_cluster_size=False, xlabel='?', xbounds=None, repfrac_ylabel=False, colorfcn=None, leg_title=None,
                              alpha=0.65, title=''):
         # ----------------------------------------------------------------------------------------
         def add_emph_clusters():
@@ -92,49 +92,64 @@ class PartitionPlotter(object):
                 ax.text(xval + dxy, yval + (0.01 if log_cluster_size else 0.1), ' '.join(tqtis), color='red', fontsize=8)
 
         # ----------------------------------------------------------------------------------------
-
         skipped_small_clusters = False
         if len(clusters_to_use) > self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size:  # if repertoire is really big, ignore smaller clusters to keep the plots from being huge
-            clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= min_csize]
-            skipped_small_clusters = True
+            if any(len(c) < min_csize for c in clusters_to_use):
+                clusters_to_use = [cluster for cluster in clusters_to_use if len(cluster) >= min_csize]
+                skipped_small_clusters = True
         if len(clusters_to_use) == 0:
             print('  %s no clusters to plot for cluster size scatter' % utils.color('yellow', 'warning'))
             return
         xvals, yvals = zip(*[[xfcn(cluster), yfcn(cluster)] for cluster in clusters_to_use])
+        original_yvals = yvals
         if log_cluster_size:
             yvals = [math.log(yv) for yv in yvals]
+        colors = None
+        if self.args.meta_info_key_to_color is None and colorfcn is not None:  # this is mostly copied from lbplotting.plot_2d_scatter()
+            colorvals = [colorfcn(c) for c in clusters_to_use]  # values (numerical/string) that will tell us which color to use
+            smap = self.plotting.get_normalized_scalar_map(colorvals, 'viridis')
+            smfcn = lambda x: 'grey' if x is None else self.plotting.get_smap_color(smap, None, val=x)
+            colors = [smfcn(c) for c in colorvals]
+            leg_entries = self.plotting.get_leg_entries(vals=colorvals, colorfcn=smfcn)
+            self.plotting.plot_legend_only(leg_entries, plotdir, plotname+'-legend', title=leg_title, n_digits=2)
         fig, ax = self.plotting.mpl_init()
+        import matplotlib.pyplot as plt
+        if len(clusters_to_use) >= self.min_n_clusters_to_apply_size_vs_shm_min_cluster_size:
+            hb = ax.hexbin(xvals, yvals, gridsize=8, cmap=plt.cm.Greys) #, alpha=alpha)
         if self.args.meta_info_key_to_color is None:
-            colors = None
-            if colorfcn is not None:  # this is mostly copied from lbplotting.plot_2d_scatter()
-                colorvals = [colorfcn(c) for c in clusters_to_use]  # values (numerical/string) that will tell us which color to use
-                smap = self.plotting.get_normalized_scalar_map(colorvals, 'viridis')
-                smfcn = lambda x: 'grey' if x is None else self.plotting.get_smap_color(smap, None, val=x)
-                colors = [smfcn(c) for c in colorvals]
-                leg_entries = self.plotting.get_leg_entries(vals=colorvals, colorfcn=smfcn)
-                self.plotting.plot_legend_only(leg_entries, plotdir, plotname+'-legend', title=leg_title, n_digits=2)
-            hb = ax.scatter(xvals, yvals, c=colors, alpha=alpha)
+            sct_xvals, sct_yvals = xvals, yvals
         else:
             total_bubble_seqs, fake_cluster, bubfos = self.get_cluster_bubfos(clusters_to_use, min_cluster_size=min_csize, dont_sort=True)
+            bfos_to_plot, sct_xvals, sct_yvals = [], [], []  # scatter x/y vals
             for bfo in [b for b in bubfos if b['id']!='fake']:
                 iclust = int(bfo['id'])
-                assert len(clusters_to_use[iclust]) == bfo['radius']  # make sure cluster ordering in bubfos matches that in xvals/yvals
-                msize = 0.03
+                tclust = clusters_to_use[iclust]
+                assert len(tclust) == bfo['radius']  # make sure we have the right cluster
+                bkg_frac = None
                 if self.args.meta_info_bkg_val is not None and any(f['label']==self.args.meta_info_bkg_val for f in bfo['fracs']):
                     bkg_ffo = utils.get_single_entry([f for f in bfo['fracs'] if f['label']==self.args.meta_info_bkg_val])
                     bkg_frac = bkg_ffo['fraction']
-                    if bkg_frac == 1:
-                        msize = 0.01
-                self.plotting.plot_pie_chart_marker(ax, xvals[iclust], yvals[iclust], msize, bfo['fracs'], alpha=alpha)
+                if bkg_frac == 1:
+                    sct_xvals.append(xvals[iclust])
+                    sct_yvals.append(yvals[iclust])
+                else:
+                    bfos_to_plot.append(bfo)  # have to plot them *after* making the scatter plot, so they end up on top
+        ax.scatter(sct_xvals, sct_yvals, s=(360 * 0.01)**2, marker='.', color='grey', alpha=0.4)
+        if self.args.meta_info_key_to_color is not None:
+            for bfo in bfos_to_plot:
+                iclust = int(bfo['id'])
+                self.plotting.plot_pie_chart_marker(ax, xvals[iclust], yvals[iclust], 0.03, bfo['fracs'], alpha=alpha)
 
-        nticks = 5
-        ymin, ymax = yvals[-1], yvals[0]
-        ymin = 1  # make it 1, even if we aren't plotting small clusters, to make it more obvious that we skipped them
-        yticks = [ymax + itick * (ymin - ymax) / float(nticks - 1) for itick in range(nticks)]
-        if repfrac_ylabel:
-            ytlfcn = lambda yt: utils.get_repfracstr(yt, repertoire_size)
+        ymin, ymax = min(yvals), max(yvals)
+        if yfcn == len:  # special stuff if y axis is cluster size
+            ymin = min(ymin, math.log(1) if log_cluster_size else 1)  # make ymin 1, even if we aren't plotting small clusters, to make it more obvious that we skipped them
+            yticks, _ = self.plotting.get_cluster_size_xticks(xmin=min([1] + list(original_yvals)), xmax=max(original_yvals))
+            if log_cluster_size:
+                yticks = [math.log(y) for y in yticks]
         else:
-            ytlfcn = lambda yt: ('%.0f' % yt) if yt > 5 else ('%.1f' % yt)
+            nticks = 5
+            yticks = [ymax + itick * (ymin - ymax) / float(nticks - 1) for itick in range(nticks)]
+        ytlfcn = (lambda yt: utils.get_repfracstr(yt, repertoire_size)) if repfrac_ylabel else (lambda yt: '%.0f'%yt)
         yticklabels = [ytlfcn(math.exp(yt) if log_cluster_size else yt) for yt in yticks]
 
         # if necessary, add red labels to clusters
@@ -147,7 +162,7 @@ class PartitionPlotter(object):
             plotname += '-log'
         if skipped_small_clusters:
             fig.text(0.8, 0.25, 'skipping clusters\nsmaller than %d' % min_csize, color='green', fontsize=8)
-        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=(ymin, 1.05 * ymax), yticks=yticks, yticklabels=yticklabels, title=title, leg_title=leg_title)
+        self.plotting.mpl_finish(ax, plotdir, plotname, xlabel=xlabel, ylabel=ylabel, xbounds=xbounds, ybounds=(ymin - 0.03*(ymax-ymin), 1.05 * ymax), yticks=yticks, yticklabels=yticklabels, title=title, leg_title=leg_title)
 
     # ----------------------------------------------------------------------------------------
     def make_single_hexbin_size_vs_shm_plot(self, repertoire_size, plotdir, plotname, log_cluster_size=False, debug=False):  # NOTE not using <repertoire_size> any more, but don't remember if there was a reason I should leave it
@@ -345,7 +360,9 @@ class PartitionPlotter(object):
             fname = 'mean-pairwise-hdist-%s' % tstr
             self.make_cluster_scatter(plotdir, fname, pwfcn, len, self.sclusts, repertoire_size, self.min_pairwise_cluster_size, dxy=0.003, log_cluster_size=True,
                                       xlabel='mean pairwise %s distance'%tstr, colorfcn=mean_mutations, title='pairwise %s diversity'%tstr, leg_title='N %s muts'%tstr) #, xbounds=(0, self.n_max_mutations))
-            fnlist += ['%s/%s-%s.svg' % (subd, fname, fstr) for fstr in ['legend', 'log']]
+            for fstr in ['legend', 'log']:
+                if os.path.exists('%s/%s-%s.svg'%(plotdir, fname, fstr)):
+                    fnlist.append('%s/%s-%s.svg' % (subd, fname, fstr))
         return [fnlist]
 
     # ----------------------------------------------------------------------------------------
