@@ -75,8 +75,8 @@ class PartitionPlotter(object):
     def make_cluster_scatter(self, plotdir, plotname, xfcn, yfcn, clusters_to_use, repertoire_size, min_csize, dxy=0.1, log_cluster_size=False, xlabel='?', xbounds=None, repfrac_ylabel=False, colorfcn=None, leg_title=None,
                              alpha=0.65, title=''):
         # ----------------------------------------------------------------------------------------
-        def add_emph_clusters():
-            for cluster in clusters_to_use:
+        def add_emph_clusters(xvals, yvals):
+            for iclust, cluster in enumerate(clusters_to_use):
                 tqtis = set()  # queries to emphasize in this cluster
                 if self.args.queries_to_include is not None:
                     tqtis |= set(cluster) & set(self.args.queries_to_include)
@@ -85,9 +85,7 @@ class PartitionPlotter(object):
                     tqtis.add(utils.meta_emph_str(key, val, formats=self.args.meta_emph_formats))
                 if len(tqtis) == 0:
                     continue
-                xval, yval = xfcn(cluster), yfcn(cluster)  # it kind of sucks to recalulate the x and y vals here, but by default (i.e. no emphasis) we don't keep track of which cluster goes with which x val, and it's nice to keep that simple
-                if log_cluster_size:
-                    yval = math.log(yval)
+                xval, yval = xvals[iclust], yvals[iclust]
                 ax.plot([xval], [yval], color='red', marker='.', markersize=2)
                 ax.text(xval + dxy, yval + (0.01 if log_cluster_size else 0.1), ' '.join(tqtis), color='red', fontsize=8)
 
@@ -154,7 +152,7 @@ class PartitionPlotter(object):
 
         # if necessary, add red labels to clusters
         if self.args.queries_to_include is not None or self.args.meta_info_to_emphasize is not None:
-            add_emph_clusters()
+            add_emph_clusters(xvals, yvals)
 
         ylabel = ('family size\n(frac. of %d)' % repertoire_size) if repfrac_ylabel else 'clonal family size'
         if log_cluster_size:
