@@ -1005,6 +1005,13 @@ def cluster_size_str(partition, split_strs=False, only_passing_lengths=False, cl
     return fstr
 
 # ----------------------------------------------------------------------------------------
+# avoid numpy's "ragged nested sequences" warning (since it converts everything to ndarrays)
+def np_rand_choice(tarray, size=None, replace=True, probs=None):
+    ichosen = numpy.random.choice(range(len(tarray)), size=size, replace=replace, p=probs)
+    return [tarray[i] for i in ichosen]
+
+# ----------------------------------------------------------------------------------------
+# chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
 def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
     if n_max_queries != -1 and n_random_queries is not None:
         raise Exception('have to set exactly 1 of n_max_queries and n_random_queries, but got %s %s ' % (n_max_queries, n_random_queries))
@@ -1013,7 +1020,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         final_qlists = drop_query_lists[:n_max_queries]
         dbgstrs = '--n-max-queries', '(first %d, after sorting alphabetically by droplet id)' % n_max_queries
     elif n_random_queries != -1:
-        final_qlists = numpy.random.choice(drop_query_lists, size=n_random_queries, replace=False)
+        final_qlists = np_rand_choice(drop_query_lists, size=n_random_queries, replace=False)
         dbgstrs = '--n-random-queries', '(uniform randomly)'
     else:
         assert False
