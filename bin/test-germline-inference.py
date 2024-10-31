@@ -288,7 +288,7 @@ def multiple_tests(args):
 #         seqs += [iclust for _ in range(v)]
 #         iclust += 1
 #     print seqs
-#     subseqs = numpy.random.choice(seqs, size=ntrees)
+#     subseqs = numpy.random.choice(seqs, size=ntrees, replace=False)
 #     # subseqs = seqs[:ntrees]
 #     print subseqs
 #     import itertools

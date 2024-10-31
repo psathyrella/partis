@@ -49,7 +49,7 @@ glfo, true_lines, _ = utils.read_output(args.infname, n_max_queries=args.n_max_q
 # numpy.random.seed(1)
 if args.max_family_size is not None:
     for line in [l for l in true_lines if len(l['unique_ids']) > args.max_family_size]:
-        iseqs_to_keep = numpy.random.choice(range(len(line['unique_ids'])), args.max_family_size)
+        iseqs_to_keep = numpy.random.choice(range(len(line['unique_ids'])), size=args.max_family_size, replace=False)
         utils.restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
 if args.metric_method == 'dtr':

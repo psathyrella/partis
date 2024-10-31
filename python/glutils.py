@@ -1193,7 +1193,7 @@ def generate_germline_set(glfo, args, new_allele_info=None, dont_remove_template
 
         if region == 'v' and new_allele_info is not None:
             # assert len(new_allele_info) <= len(glfo['seqs'][region])  # hmm, not actually sure why I had this here
-            template_genes = numpy.random.choice(list(glfo['seqs'][region].keys()), size=len(new_allele_info))  # (template) genes in <new_allele_info> should all be None
+            template_genes = numpy.random.choice(list(glfo['seqs'][region].keys()), size=len(new_allele_info), replace=True)  # (template) genes in <new_allele_info> should all be None
             for ig in range(len(new_allele_info)):
                 new_allele_info[ig]['gene'] = template_genes[ig]
             _ = generate_new_alleles(glfo, new_allele_info, remove_template_genes=not dont_remove_template_genes, debug=debug)

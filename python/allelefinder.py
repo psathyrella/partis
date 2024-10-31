@@ -998,7 +998,7 @@ class AlleleFinder(object):
         queries_to_use = [q for q in swfo['queries'] if not self.skip_query(q, swfo[q])]  # skip_query() also fills self.seq_info if we're not skipping the query (and sometimes also if we do skip it)
         if len(queries_to_use) > self.n_max_queries:
             print('  note: subsampling %d queries down to %d before finding alleles (yes this is a hack, it would be better to fix the issues with false positives on super large samples, but this is also fine for now)' % (len(queries_to_use), self.n_max_queries))
-            queries_to_use = numpy.random.choice(queries_to_use, size=self.n_max_queries)
+            queries_to_use = numpy.random.choice(queries_to_use, size=self.n_max_queries, replace=False)
         if len(queries_to_use) == 0:
             print('  no queries for allele finding')  # NOTE don't return here -- there's some stuff below that should happen
 

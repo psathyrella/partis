@@ -363,7 +363,7 @@ class Recombinator(object):
                     lens, probs = self.handle_options_for_correlation(bound+'_insertion', None, corr_vals, allowed_vals, parent_line, mean_max=(mean_len, 2*int(mean_len)))  # it's kind of weird to just limit it to twice the mean length here, but since handle_options_for_correlation() doesn't account for probs when choosing which to keep, if we make it bigger we choose those super large values too frequently
                     i_len = numpy.random.choice(lens, p=probs)  # maybe this should also always be 0 if mean_len is 0?
             cnt_probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
-            tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=i_len, p=cnt_probs))
+            tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=i_len, p=cnt_probs, replace=True))
 
         if debug:
             print('    erosions:  %s' % ('   '.join([('%s %d' % (e, tmpline[e + '_del'])) for e in utils.real_erosions])))

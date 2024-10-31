@@ -1013,7 +1013,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         final_qlists = drop_query_lists[:n_max_queries]
         dbgstrs = '--n-max-queries', '(first %d, after sorting alphabetically by droplet id)' % n_max_queries
     elif n_random_queries != -1:
-        final_qlists = numpy.random.choice(drop_query_lists, size=n_random_queries)
+        final_qlists = numpy.random.choice(drop_query_lists, size=n_random_queries, replace=False)
         dbgstrs = '--n-random-queries', '(uniform randomly)'
     else:
         assert False
