@@ -190,7 +190,7 @@ def process_output():
 # ----------------------------------------------------------------------------------------
 helpstr = """
 run gcdyn simulation, then process results into partis-format paired output dir, for example:
-    ./bin/read-gcdyn-simu.py --gcd-dir <gcd> --n-sub-procs 10 --seed 0 --n-trials 10 --rm-last-ighj-base
+    ./bin/gcdyn-simu-run.py --gcd-dir <gcd> --n-sub-procs 10 --seed 0 --n-trials 10 --rm-last-ighj-base
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     pass

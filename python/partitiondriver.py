@@ -676,7 +676,9 @@ class PartitionDriver(object):
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
             print('%scaching all %d naive sequences%s' % ('' if self.print_status else '  ', len(self.sw_info['queries']), '\n' if self.print_status else ''), end=' ')  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
             if self.args.synthetic_distance_based_partition:
-                self.write_fake_cache_file([[q] for q in self.sw_info['queries']])
+                self.write_bcrham_cache_file([[q] for q in self.sw_info['queries']])
+            elif self.input_partition is not None and self.args.continue_from_input_partition:
+                self.write_bcrham_cache_file(self.input_partition, ctype='sw')
             else:
                 self.run_hmm('viterbi', self.sub_param_dir, precache_all_naive_seqs=True)  # , n_procs=self.auto_nprocs(len(self.sw_info['queries']))
 
@@ -688,7 +690,7 @@ class PartitionDriver(object):
             print('  --all-seqs-simultaneous: using single cluster instead of partitioning')
             one_clust_ptn = [[u for u in self.sw_info['queries']]]
             cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, partition=one_clust_ptn)
-        elif self.input_partition is not None:
+        elif self.input_partition is not None and not self.args.continue_from_input_partition:
             print('  --input-partition-fname: using input cpath instead of running partitioning')
             cpath = self.input_cpath
         elif self.args.naive_vsearch:  # or self.args.naive_swarm:
@@ -863,12 +865,19 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def init_cpath(self, n_procs):
-        initial_nseqs = len(self.sw_info['queries'])  # NOTE um, maybe I should change this to the number of clusters, now that we're doing some preclustering here?
-        initial_nsets = utils.collapse_naive_seqs(self.synth_sw_info(self.sw_info['queries']), split_by_cdr3=True, debug=True)
-        cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
+        initial_nseqs = len(self.sw_info['queries'])  # maybe this should be the number of clusters, now that we're doing some preclustering here?
+        if self.input_partition is not None and self.args.continue_from_input_partition:
+            print('      --continue-from-input-partition: using input partition for initial cpath')
+            cpath = self.input_cpath
+            # maybe i should split by cdr3?
+            # nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)
+        else:
+            initial_nsets = utils.collapse_naive_seqs(self.synth_sw_info(self.sw_info['queries']), split_by_cdr3=True, debug=True)
+            cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
+            cpath.add_partition(initial_nsets, logprob=0., n_procs=n_procs)  # NOTE sw info excludes failed sequences (and maybe also sequences with different cdr3 length)
         os.makedirs(self.cpath_progress_dir)
         if self.args.debug:
+            print('    initial cpath:')
             cpath.print_partitions(abbreviate=self.args.abbreviate, reco_info=self.reco_info)
         return cpath, initial_nseqs
 
@@ -990,9 +999,10 @@ class PartitionDriver(object):
     #     return n_precache_procs
 
     # ----------------------------------------------------------------------------------------
+    # make new/fake annotations for <partition> using sw info (i.e. convert single-seq sw annotations to multi-seq annotations corresponding to clusters in <partition>)
     def convert_sw_annotations(self, partition=None):
         if partition is None:
-            partition = self.get_nsets('viterbi', partition)
+            partition = self.get_nsets('viterbi', None)
         antn_dict = OrderedDict()
         for cluster in partition:
             antn = utils.synthesize_multi_seq_line_from_reco_info(cluster, self.sw_info)
@@ -2027,21 +2037,35 @@ class PartitionDriver(object):
         return combo
 
     # ----------------------------------------------------------------------------------------
-    def write_fake_cache_file(self, nsets):
-        """ Write a fake cache file which, instead of the inferred naive sequences, has the *true* naive sequences. Used to generate synthetic partitions. """
-        # NOTE this will be out of sync with sw info afterwards (e.g. indel info/cdr3 length), so things may break if you do extra things (e.g. subcluster annotate, run with debug set)
-        if self.reco_info is None:
-            raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input file)')
-
-        print('    %s true naive seqs in fake cache file' % utils.color('blue_bkg', 'caching'))
-        with open(self.hmm_cachefname, utils.csv_wmode()) as fakecachefile:
-            writer = csv.DictWriter(fakecachefile, utils.partition_cachefile_headers)
+    def write_bcrham_cache_file(self, nsets, ctype='fake', antn_list=None):
+        """
+        If <ctype> is 'fake', Write a fake cache file which, instead of the inferred naive sequences, has the *true* naive sequences. Used to generate synthetic partitions.
+        If <ctype> is 'sw', use sw annotations to write the cache file.
+        """
+        # If <ctype> is 'existing', use existing annotations (e.g. from --input-partition_fname) to write the cache file.
+        if ctype == 'fake':
+            # NOTE this will be out of sync with sw info afterwards (e.g. indel info/cdr3 length), so things may break if you do extra things (e.g. subcluster annotate, run with debug set)
+            if self.reco_info is None:
+                raise Exception('can\'t write fake cache file for --synthetic-distance-based-partition unless --is-simu is specified (and there\'s sim info in the input file)')
+            dbgstr = 'true'
+            def naive_seq_fcn(query_name_list):
+                return self.get_padded_true_naive_seq(query_name_list[0])  # NOTE just using the first one... but a.t.m. I think I'll only run this fcn the first time through when they're all singletons, anyway
+        elif ctype == 'sw':
+            dbgstr = 'sw annotation'
+            antn_dict, _ = self.convert_sw_annotations(partition=nsets)  # we *have* the annotations for the input partition, which would be better, but their seqs aren't correctly padded to the same length (since they were run in different subsets/procs), and propagating the new sw padding info (sw gets re-padded when we read the subset-merged sw info) to the input partition annotations would be hard, so we just use the sw annotations to get the naive seqs here
+            def naive_seq_fcn(query_name_list):
+                return antn_dict.get(':'.join(query_name_list))['naive_seq']
+        else:
+            assert False
+        with open(self.hmm_cachefname, utils.csv_wmode()) as cachefile:
+            writer = csv.DictWriter(cachefile, utils.partition_cachefile_headers)
             writer.writeheader()
             for query_name_list in nsets:
                 writer.writerow({
                     'unique_ids' : ':'.join([qn for qn in query_name_list]),
-                    'naive_seq' : self.get_padded_true_naive_seq(query_name_list[0])  # NOTE just using the first one... but a.t.m. I think I'll only run this fcn the first time through when they're all singletons, anyway
+                    'naive_seq' : naive_seq_fcn(query_name_list),
                 })
+        print('    %s %s naive seqs in bcrham cache file (%d clusters with sizes %s)' % (utils.color('blue_bkg', 'caching'), dbgstr, len(nsets), ' '.join('%d'%len(c) for c in sorted(nsets, key=len, reverse=True))))
 
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, shuffle_input=False):

@@ -422,7 +422,7 @@ def process(args):
         raise Exception('--plotdir must be specified if plotting partitions')
     if args.input_partition_fname is not None:
         if args.action not in ['annotate', 'partition']:
-            raise Exception('--input-partition-fname only makes sense/has an effect for actions \'annotate\' and \'partition\' (at least at the moment)')
+            print('  %s --input-partition-fname only makes sense/has an effect for actions \'annotate\' and \'partition\' (at least at the moment)' % utils.wrnstr())
     if args.action == 'annotate' and args.plot_partitions and args.input_partition_fname is None:  # could set this up to use e.g. --simultaneous-true-clonal-seqs as well, but it can't atm
         print('  %s running annotate with --plot-partitions, but --input-partition-fname is not set, which likely means the partitions will be trivial/singleton partitions' % utils.color('yellow', 'warning'))
 

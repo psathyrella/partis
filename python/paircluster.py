@@ -171,8 +171,9 @@ def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=Fals
             utils.write_annotations(ofn_fcn(ltmp, lpair=lpair), glpf(lpair, 'glfos', ltmp), glpf(lpair, 'antn_lists', ltmp), headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
 
 # ----------------------------------------------------------------------------------------
+# write concatd heavy chain <glfos> and <antn_lists>, and use <ofn_fcn> to link to existing light chain files in paired subdirs
 def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_outfos=None, dont_write_git_info=False, airr_output=False, args=None):
-    for ltmp in sorted(glfos):  # not really a reason to write igh first, but i guess it's nice to be consistent
+    for ltmp in sorted(glfos):  # don't really need to write igh first, but i guess it's nice to be consistent
         ofn = ofn_fcn(ltmp, joint=True)
         if utils.has_d_gene(ltmp):
             cp = ClusterPath(partition=utils.get_partition_from_annotation_list(antn_lists[ltmp])) if cpaths is None else cpaths[ltmp]
@@ -188,9 +189,10 @@ def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=F
             work_fnames.append(ofn)
 
 # ----------------------------------------------------------------------------------------
+# merges info (keys 'glfos', 'antn_lists', and 'cpaths') for ltmp (of lpair) from <lp_infos> into <glfos>, <antn_lists>, and <joint_cpaths>
 # NOTE the deep copies can be really important, since we later deduplicate the concatd partitions + annotations (they didn't used to be there, which caused a bug/crash) [well even if we didn't deduplicate, it was fucking stupid to not deep copy them)
 # NOTE also that you'll probably have duplicates in both the partitions and annotations after this
-def concat_heavy_chain(lpairs, lp_infos, dont_deep_copy=False):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
+def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, dont_deep_copy=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def glpf(p, k, l):  # short for "get key (k) from lp_infos for lpair (p) and locus (l) NOTE duplicates code in write_lpair_output_files
         if tuple(p) not in lp_infos or lp_infos[tuple(p)][k] is None:
@@ -200,23 +202,77 @@ def concat_heavy_chain(lpairs, lp_infos, dont_deep_copy=False):  # yeah yeah thi
     def dfn(val):
         return val if dont_deep_copy else copy.deepcopy(val)
     # ----------------------------------------------------------------------------------------
+    def dbgprint():
+        if debug:
+            tlist = glpf(lpair, 'antn_lists', ltmp)
+            def nseqs(tl): return sum(len(l['unique_ids']) for l in tl)
+            print('      %s added %d annotations (%d seqs) for total %d (%d)' % (utils.locstr(ltmp), len(tlist), nseqs(tlist), len(antn_lists[ltmp]), nseqs(antn_lists[ltmp])))
+    # ----------------------------------------------------------------------------------------
+    if glpf(lpair, 'glfos', ltmp) is None:  # this lpair's output files were empty
+        return
+    if ltmp in glfos:  # originally: heavy chain second time through: merge chain glfos from those paired with igk and with igl (now more general though)
+        dbgprint()
+        glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
+        antn_lists[ltmp] += dfn(glpf(lpair, 'antn_lists', ltmp))
+        if glpf(lpair, 'cpaths', ltmp) is not None:
+            assert len(joint_cpaths[ltmp].partitions) == 1  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
+            joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + dfn(glpf(lpair, 'cpaths', ltmp).best()))
+    else:  # light + heavy chain first time through
+        glfos[ltmp] = dfn(glpf(lpair, 'glfos', ltmp))
+        antn_lists[ltmp] = dfn(glpf(lpair, 'antn_lists', ltmp))
+        if glpf(lpair, 'cpaths', ltmp) is not None:
+            joint_cpaths[ltmp] = dfn(glpf(lpair, 'cpaths', ltmp))
+
+# ----------------------------------------------------------------------------------------
+def lp_merge_final_dbg(lpair, antn_lists):
+    print('    finished with:')
+    for ltmp in lpair:
+        print('      %s: %d annotations (%d seqs)' % (utils.locstr(ltmp), len(antn_lists[ltmp]), sum(len(l) for l in antn_lists[ltmp])))
+
+# ----------------------------------------------------------------------------------------
+# similar to concat_heavy_chain(), except this merges loci only within each lpair (for 'subset-partition' action), whereas that merges heavy chains that're paired with either igk or igl
+def concat_lpair_chains(lpairs, lpfo_list, dont_deep_copy=False, debug=False):
+    # ----------------------------------------------------------------------------------------
+    debug = True
+    if debug:
+        print('  concatenating locus pair loci among %d lp_infos' % len(lpfo_list))
+    final_lp_infos = {}
+    for lpair in lpairs:
+        if debug:
+            print('   %s' % utils.lpstr(lpair))
+        glfos, antn_lists, joint_cpaths = {}, {}, {}
+        for lp_infos in lpfo_list:
+            for ltmp in lpair:
+                merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, dont_deep_copy=dont_deep_copy, debug=debug)
+        final_lp_infos[tuple(lpair)] = {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : joint_cpaths}
+        if debug:
+            lp_merge_final_dbg(lpair, antn_lists)
+    return final_lp_infos
+
+# ----------------------------------------------------------------------------------------
+# similar to concat_lpair_chains() above (see also handle_concatd_heavy_chain() below, which runs this and then does some more processing)
+def concat_heavy_chain(lpairs, lp_infos, dont_deep_copy=False, debug=False):  # yeah yeah this name sucks but i want it to be different to the one in the calling scripts
+    debug = True
+    if debug:
+        print('  concatenating heavy chain loci:')
     glfos, antn_lists, joint_cpaths = {}, {}, {}
     for lpair in lpairs:
         for ltmp in lpair:
-            if glpf(lpair, 'glfos', ltmp) is None:  # this lpair's output files were empty
-                continue
-            if ltmp in glfos:  # heavy chain, second time through: merge chain glfos from those paired with igk and with igl
-                glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
-                antn_lists[ltmp] += dfn(glpf(lpair, 'antn_lists', ltmp))
-                if glpf(lpair, 'cpaths', ltmp) is not None:
-                    assert len(joint_cpaths[ltmp].partitions) == 1  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
-                    joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + dfn(glpf(lpair, 'cpaths', ltmp).best()))
-            else:  # light + heavy chain first time through
-                glfos[ltmp] = dfn(glpf(lpair, 'glfos', ltmp))
-                antn_lists[ltmp] = dfn(glpf(lpair, 'antn_lists', ltmp))
-                if glpf(lpair, 'cpaths', ltmp) is not None:
-                    joint_cpaths[ltmp] = dfn(glpf(lpair, 'cpaths', ltmp))
+            merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, dont_deep_copy=dont_deep_copy, debug=debug)
     return glfos, antn_lists, joint_cpaths
+
+# ----------------------------------------------------------------------------------------
+# concatenate partitions + annotations for the heavy chains paired with k and l
+def handle_concatd_heavy_chain(lpairs, lp_infos, dont_deep_copy=False, ig_or_tr='ig', dont_calculate_annotations=False, seed_unique_id=None, debug=False):  # name sucks, but can't think of anything better
+    glfos, antn_lists, cpaths = concat_heavy_chain(lpairs, lp_infos, dont_deep_copy=dont_deep_copy)  # NOTE this is a pretty arbitrary way to combine the partitions for the seqs with uncertain pairing info, but whatever
+    lpfos = {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : cpaths}
+    hloc = utils.heavy_locus(ig_or_tr)
+    if len(lpfos['glfos']) == 0:
+        return lpfos
+    tmp_ptn = utils.get_deduplicated_partitions([lpfos['cpaths'][hloc].best()], antn_list=lpfos['antn_lists'][hloc] if not dont_calculate_annotations else None, glfo=lpfos['glfos'][hloc], debug=debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
+    lpfos['cpaths'][hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seed_unique_id)
+    lp_merge_final_dbg([hloc], antn_lists)
+    return lpfos
 
 # ----------------------------------------------------------------------------------------
 # somewhat similar to get_antn_pairs() and find_cluster_pairs() below, but operates on single sequences

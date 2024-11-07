@@ -127,6 +127,9 @@ def locstr(l):
     cdict = {'igh' : 'blue', 'igk' : 'purple', 'igl' : 'green'}
     return color(cdict.get(l, 'red'), l.replace('ig', ''))
 
+def lpstr(lp):
+    return '%s+%s' % (locstr(lp[0]), locstr(lp[1]))
+
 def sub_loci(ig_or_tr):  # ok i probably should have just split <loci> by ig/tr, but too late now
     return [l for l in loci if ig_or_tr in l]
 
@@ -1011,26 +1014,95 @@ def np_rand_choice(tarray, size=None, replace=True, probs=None):
     return [tarray[i] for i in ichosen]
 
 # ----------------------------------------------------------------------------------------
-# chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
-def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
-    if n_max_queries != -1 and n_random_queries is not None:
-        raise Exception('have to set exactly 1 of n_max_queries and n_random_queries, but got %s %s ' % (n_max_queries, n_random_queries))
-    _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True)
-    if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense, but <drop_ids> is sorted alphabetically, so we're taking them in that order at least
-        final_qlists = drop_query_lists[:n_max_queries]
-        dbgstrs = '--n-max-queries', '(first %d, after sorting alphabetically by droplet id)' % n_max_queries
-    elif n_random_queries != -1:
-        final_qlists = np_rand_choice(drop_query_lists, size=n_random_queries, replace=False)
-        dbgstrs = '--n-random-queries', '(uniform randomly)'
-    else:
-        assert False
-    sfdict = {s['name'] : s for s in seqfos}
-    final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
-    print('  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgstrs[0], len(final_qlists), len(drop_query_lists), dbgstrs[1], len(final_sfos), sum(len(ql) for ql in drop_query_lists)))
-    return final_sfos
+# this apportionment is basically copied from the subcluster annotation code in partitiondriver.py, although there we start with group size rather than <n_groups>
+def evenly_split_list(inlist, n_groups, dbgstr='items'):
+    n_per_group = math.floor(len(inlist) / n_groups)
+    n_seq_list = [n_per_group for _ in range(n_groups)]
+    for iextra in range(len(inlist) % n_groups):  # spread out any extra ones
+        n_seq_list[iextra] += 1
+    list_of_lists, iglobal = [], 0
+    for igroup in range(n_groups):
+        list_of_lists.append(inlist[iglobal : iglobal + n_seq_list[igroup]])
+        iglobal += n_seq_list[igroup]
+    print('  splitting %d %s into %d groups with sizes: %s' % (len(inlist), dbgstr, n_groups, ' '.join('%d'%len(g) for g in list_of_lists)))
+    assert sum(len(g) for g in list_of_lists) == len(inlist)
+    return list_of_lists
 
 # ----------------------------------------------------------------------------------------
-def get_droplet_groups(all_uids, droplet_id_separators, droplet_id_indices, return_lists=False):  # group all queries into droplets
+# chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
+# n_max_queries: take only this many (in alphabetical droplet order), n_random_queries: take this many at random, n_groups: split into this many groups
+# NOTE returns list of lists of seqfos if n_groups is set (rather than a single list of seqfos)
+def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_groups=None, input_info=None):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
+    # ----------------------------------------------------------------------------------------
+    def get_final_seqfos(final_qlists, dbgarg, dbgstr):
+        final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
+        print('  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgarg, len(final_qlists), len(drop_query_lists), dbgstr, len(final_sfos), sum(len(ql) for ql in drop_query_lists)))
+        return final_sfos
+    # ----------------------------------------------------------------------------------------
+    sfdict = {s['name'] : s for s in seqfos}
+    pvals = [n_max_queries, n_random_queries, n_groups]
+    if pvals == [-1, None, None] or pvals.count(None) + pvals.count(-1) != 2:  # not really correct (-1 isn't default for the second two) but why would you set them to that, anyway?
+        raise Exception('have to set exactly 1 of [n_max_queries, n_random_queries, n_groups], but got %s %s %s' % (n_max_queries, n_random_queries, n_groups))
+    if input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
+        _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True)
+    else:  # but if we already have pair info in <input_info>
+        _, drop_query_lists = get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet_id_indices, return_lists=True)
+    if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense, but <drop_ids> is sorted alphabetically, so we're taking them in that order at least
+        final_qlists = drop_query_lists[:n_max_queries]
+        returnfo = get_final_seqfos(final_qlists, '--n-max-queries', '(first %d, after sorting alphabetically by droplet id)' % n_max_queries)
+    elif n_random_queries is not None:
+        final_qlists = np_rand_choice(drop_query_lists, size=n_random_queries, replace=False)
+        returnfo = get_final_seqfos(final_qlists, '--n-random-queries', '(uniform randomly)')
+    elif n_groups is not None:
+        list_of_fqlists = evenly_split_list(drop_query_lists, n_groups, dbgstr='droplets')
+        returnfo = []
+        for igroup, final_qlists in enumerate(list_of_fqlists):
+            returnfo.append(get_final_seqfos(final_qlists, '  igroup %d'%igroup, 'in order, after sorting alphabetically by droplet id'))
+    else:
+        assert False
+    return returnfo
+
+# ----------------------------------------------------------------------------------------
+# NOTE duplicates code in paircluster.clean_pair_info()
+# TODO better name
+def get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet_id_indices, return_lists=False):
+    drop_ids = []   # all droplet ids
+    pid_groups = []  # list of pid groups, i.e. each element is the uids from a single droplet (for 10x)
+    pid_ids = {}  # map from each uid to the index of its pid group
+    n_no_info = 0
+    for uid, tline in input_info.items():
+        assert len(tline['unique_ids']) == 1
+        pids = tline.get('paired-uids', [[]])[0]
+        if len(pids) == 0:
+            n_no_info += 1
+        pset = set([uid] + pids)
+        found = False
+        for pd in pids:  # even if we assume the pair info from all seqs is consistent (which this more or less does), we need to do this to get the <ipg>
+            if pd in pid_ids:
+                ipg = pid_ids[pd]
+                found = True
+                pid_groups[ipg] |= pset  # don't really need this, but i guess it catches one possible way in which pair info could be inconsistent? Although we should really probably crash if so
+                break
+        if not found:
+            pid_groups.append(pset)
+            ipg = len(pid_groups) - 1
+            drop_ids.append(get_droplet_id(uid, droplet_id_separators, droplet_id_indices)) #ipg if droplet_id_separators is None else get_droplet_id(uid, droplet_id_separators, droplet_id_indices)
+        assert ipg is not None
+        for pid in pset:  # this does a lot of overwriting, but it shouldn't matter
+            pid_ids[pid] = ipg
+    print('  grouped %d input seqs into %d droplet groups using existing pair info (first few droplet ids: %s)' % (len(input_info), len(pid_groups), ' '.join(drop_ids[:3])))
+    if n_no_info > 0:
+        print('     %d/%d (%.2f) had no pair info' % (n_no_info, len(input_info), n_no_info / float(len(input_info))))
+    for ipg, pg in enumerate(pid_groups):
+        #     print '  %3d %s' % (ipg, ' '.join(pg))
+        pid_groups[ipg] = sorted(pg)  # need to sort for replicability
+    if return_lists:
+        return drop_ids, pid_groups
+    else:
+        return [(did, dql) for did, dql in zip(drop_ids, pid_groups)]
+
+# ----------------------------------------------------------------------------------------
+def get_droplet_groups(all_uids, droplet_id_separators, droplet_id_indices, return_lists=False, debug=False):  # group all queries into droplets
     def kfcn(u): return get_droplet_id(u, droplet_id_separators, droplet_id_indices)
     idg_it = itertools.groupby(sorted(all_uids, key=kfcn), key=kfcn)  # iterate over result with: 'for dropid, drop_queries in '
     drop_ids, drop_query_lists = [list(x) for x in zip(*[(did, list(qiter)) for did, qiter in idg_it])]
@@ -1043,6 +1115,8 @@ def get_droplet_groups(all_uids, droplet_id_separators, droplet_id_indices, retu
         drop_ids.pop(i_did)
         drop_query_lists.pop(i_did)
         print('    %s found empty droplet id when grouping sequences, so using these sequences\' uid as their droplet id (added %d droplet ids)' % (wrnstr(), len(drop_ids) - n_before))
+    if debug:
+        print('  grouped %d uids into %d droplet groups by splitting uids, then sorting droplet ids (first few droplet ids: %s)' % (len(all_uids), len(drop_ids), ' '.join(drop_ids[:3])))
     if return_lists:  # return separate lists
         return drop_ids, drop_query_lists
     else:  # return list of (droplet id, query list) pairs
@@ -4660,9 +4734,9 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
 
 # ----------------------------------------------------------------------------------------
 def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False):
+    from . import glutils
     merged_annotation_list = []
-    merged_cpath = None
-    ref_glfo = None
+    merged_cpath, merged_glfo = None, None
     n_event_list, n_seq_list = [], []
     for infname in yaml_list:
         glfo, annotation_list, cpath = read_yaml_output(infname, dont_add_implicit_info=True)
@@ -4677,10 +4751,10 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
                 merged_cpath.partitions[ip] += cpath.partitions[ip]  # NOTE this assumes there's no overlap between files, e.g. if it's simulation and the files are totally separate
                 merged_cpath.logprobs[ip] += cpath.logprobs[ip]  # they'll be 0 for simulation, but may as well handle it
                 # NOTE i think i don't need to mess with these, but not totally sure: self.n_procs, self.ccfs, self.we_have_a_ccf
-        if ref_glfo is None:
-            ref_glfo = glfo
-        if glfo != ref_glfo:
-            raise Exception('can only merge files with identical germline info')
+        if merged_glfo is None:
+            merged_glfo = glfo
+        else:
+            merged_glfo  = glutils.get_merged_glfo(glfo, merged_glfo)
         merged_annotation_list += annotation_list
         if cleanup:
             os.remove(infname)
@@ -4691,7 +4765,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
     outdir = '.' if os.path.dirname(outfname) == '' else os.path.dirname(outfname)
     mkdir(outdir)
 
-    write_annotations(outfname, ref_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines())
+    write_annotations(outfname, merged_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines())
 
     return n_event_list, n_seq_list
 
