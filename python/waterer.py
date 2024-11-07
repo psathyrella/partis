@@ -163,6 +163,8 @@ class Waterer(object):
             else:  # normal operation
                 if uid not in self.input_info:
                     continue
+            if self.args.ignore_sw_pair_info and 'paired-uids' in line:
+                del line['paired-uids']
             utils.add_implicit_info(self.glfo, line, aligned_gl_seqs=self.aligned_gl_seqs)
             if indelutils.has_indels_line(line, 0):
                 self.info['indels'][uid] = line['indelfos'][0]
