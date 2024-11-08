@@ -920,10 +920,6 @@ def remove_badly_paired_seqs(ploci, outfos, keep_all_unpaired=False, debug=False
     total_unpaired_discarded = {c : 0 for c in ploci}  # just for debug
     print('    removing badly + unpaired seqs%s' % ('\n' if debug else ': '), end=' ')
     sys.stdout.flush()
-    if keep_all_unpaired:
-        print('            --keep-all-unpaired-seqs: keeping even unpaired seqs in families with no (well-)paired seqs')
-    else:
-        print('            note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later')
     if debug:
         print('          N     N      N      no   other  non-  discarding    original')
         print('        before kept removed  info  light recip   unpaired      cluster')
@@ -982,6 +978,10 @@ def remove_badly_paired_seqs(ploci, outfos, keep_all_unpaired=False, debug=False
         print('    totals before: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in cpaths[ploci[tch]].best())) for tch in sorted(ploci)))
         print('    totals after: %s' % '  '.join('%s %d'%(utils.locstr(ploci[tch]), sum(len(c) for c in lp_cpaths[ploci[tch]].best())) for tch in sorted(ploci)))
     print('%skept %d total unpaired (i.e. setting aside in order to reintegrate after paired clustering): %s' % ('        ' if debug else '', sum(len(s) for s in unpaired_seqs.values()), '  '.join('%s %d'%(utils.locstr(l), len(unpaired_seqs[l])) for l in sorted(unpaired_seqs))))
+    if keep_all_unpaired:
+        print('            --keep-all-unpaired-seqs: keeping even unpaired seqs in families with no (well-)paired seqs')
+    else:
+        print('            note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later')
     if sum(total_unpaired_discarded.values()) > 0:
         print('        discarded %d total unpaired (in families with no (well-)paired seqs): %s' % (sum(total_unpaired_discarded.values()), '  '.join('%s %s'%(utils.locstr(ploci[c]), total_unpaired_discarded[c]) for c in sorted(ploci))))
 

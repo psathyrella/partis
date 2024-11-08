@@ -187,7 +187,7 @@ class ClusterPath(object):
 
             ccfs = [None, None]
             if 'ccf_under' in line and 'ccf_over' in line:  # I don't know what I want to do if there's one but not the other, but it shouldn't be possible
-                if line['ccf_under'] != '' and line['ccf_over'] != '':
+                if all(v not in ['', -1] for v in [line['ccf_under'], line['ccf_over']]):  # we shouldn't be writing any files any more with -1 set as a default value, but paired clustering used to do it in bin/partis.py, so we gotta handle it for old files
                     ccfs = [float(line['ccf_under']), float(line['ccf_over'])]
                 self.we_have_a_ccf = True
             perf_metrics = {}

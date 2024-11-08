@@ -327,7 +327,7 @@ def subset_partition(args):
             utils.replace_in_arglist(clist, '--infname', infname)
         else:
             utils.remove_from_arglist(clist, '--infname', has_arg=True)
-            clist += ['--paired-indir', merged_odir, '--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir]
+            clist += ['--paired-indir', merged_odir, '--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir, '--ignore-sw-pair-info']
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------
 # TODO also handle non-paired
@@ -898,7 +898,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             jcp.print_seed_cluster_size(queries_to_include=args.queries_to_include, lstr='joint ')
         partition_lines = jcp.get_partition_lines()
         for pln in partition_lines:
-            pln['ccf_under'], pln['ccf_over'] = (-1, -1) if ccfs is None else ccfs[ltmp]['joint']
+            if ccfs is not None:
+                pln['ccf_under'], pln['ccf_over'] = ccfs[ltmp]['joint']
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
         if not os.path.exists(getpdir(ltmp)) or args.dont_calculate_annotations:  # no parameter dir, so can't get new annotations (or we were told not to get annotations) NOTE in the former case, could maybe just subset the existing annotations according to the joint partition?
             if not os.path.exists(getpdir(ltmp)):
