@@ -16,6 +16,7 @@ import math
 import glob
 from collections import Counter
 from collections import OrderedDict
+from collections import defaultdict
 import csv
 import subprocess
 import multiprocessing
@@ -1014,25 +1015,25 @@ def np_rand_choice(tarray, size=None, replace=True, probs=None):
     return [tarray[i] for i in ichosen]
 
 # ----------------------------------------------------------------------------------------
-# this apportionment is basically copied from the subcluster annotation code in partitiondriver.py, although there we start with group size rather than <n_groups>
-def evenly_split_list(inlist, n_groups, dbgstr='items'):
-    n_per_group = math.floor(len(inlist) / n_groups)
-    n_seq_list = [n_per_group for _ in range(n_groups)]
-    for iextra in range(len(inlist) % n_groups):  # spread out any extra ones
+# this apportionment is basically copied from the subcluster annotation code in partitiondriver.py, although there we start with group size rather than <n_subsets>
+def evenly_split_list(inlist, n_subsets, dbgstr='items'):
+    n_per_group = math.floor(len(inlist) / n_subsets)
+    n_seq_list = [n_per_group for _ in range(n_subsets)]
+    for iextra in range(len(inlist) % n_subsets):  # spread out any extra ones
         n_seq_list[iextra] += 1
     list_of_lists, iglobal = [], 0
-    for igroup in range(n_groups):
-        list_of_lists.append(inlist[iglobal : iglobal + n_seq_list[igroup]])
-        iglobal += n_seq_list[igroup]
-    print('  splitting %d %s into %d groups with sizes: %s' % (len(inlist), dbgstr, n_groups, ' '.join('%d'%len(g) for g in list_of_lists)))
+    for isub in range(n_subsets):
+        list_of_lists.append(inlist[iglobal : iglobal + n_seq_list[isub]])
+        iglobal += n_seq_list[isub]
+    print('  splitting %d %s into %d groups with sizes: %s' % (len(inlist), dbgstr, n_subsets, ' '.join('%d'%len(g) for g in list_of_lists)))
     assert sum(len(g) for g in list_of_lists) == len(inlist)
     return list_of_lists
 
 # ----------------------------------------------------------------------------------------
 # chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
-# n_max_queries: take only this many (in alphabetical droplet order), n_random_queries: take this many at random, n_groups: split into this many groups
-# NOTE returns list of lists of seqfos if n_groups is set (rather than a single list of seqfos)
-def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_groups=None, input_info=None):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
+# n_max_queries: take only this many (in alphabetical droplet order), n_random_queries: take this many at random, n_subsets: split into this many groups
+# NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
+def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
     # ----------------------------------------------------------------------------------------
     def get_final_seqfos(final_qlists, dbgarg, dbgstr):
         final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
@@ -1040,9 +1041,9 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         return final_sfos
     # ----------------------------------------------------------------------------------------
     sfdict = {s['name'] : s for s in seqfos}
-    pvals = [n_max_queries, n_random_queries, n_groups]
+    pvals = [n_max_queries, n_random_queries, n_subsets]
     if pvals == [-1, None, None] or pvals.count(None) + pvals.count(-1) != 2:  # not really correct (-1 isn't default for the second two) but why would you set them to that, anyway?
-        raise Exception('have to set exactly 1 of [n_max_queries, n_random_queries, n_groups], but got %s %s %s' % (n_max_queries, n_random_queries, n_groups))
+        raise Exception('have to set exactly 1 of [n_max_queries, n_random_queries, n_subsets], but got %s %s %s' % (n_max_queries, n_random_queries, n_subsets))
     if input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
         _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True)
     else:  # but if we already have pair info in <input_info>
@@ -1053,11 +1054,11 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     elif n_random_queries is not None:
         final_qlists = np_rand_choice(drop_query_lists, size=n_random_queries, replace=False)
         returnfo = get_final_seqfos(final_qlists, '--n-random-queries', '(uniform randomly)')
-    elif n_groups is not None:
-        list_of_fqlists = evenly_split_list(drop_query_lists, n_groups, dbgstr='droplets')
+    elif n_subsets is not None:
+        list_of_fqlists = evenly_split_list(drop_query_lists, n_subsets, dbgstr='droplets')
         returnfo = []
-        for igroup, final_qlists in enumerate(list_of_fqlists):
-            returnfo.append(get_final_seqfos(final_qlists, '  igroup %d'%igroup, 'in order, after sorting alphabetically by droplet id'))
+        for isub, final_qlists in enumerate(list_of_fqlists):
+            returnfo.append(get_final_seqfos(final_qlists, '  isub %d'%isub, 'in order, after sorting alphabetically by droplet id'))
     else:
         assert False
     return returnfo
@@ -3875,7 +3876,7 @@ def separate_into_snp_groups(glfo, region, n_max_snps, genelist=None, debug=Fals
 
     if debug:
         print('separated %s genes into %d groups separated by %d snps:' % (region, len(snp_groups), n_max_snps))
-        glutils.print_glfo(glfo, gene_groups={region : [(str(igroup), {gfo['gene'] : gfo['seq'] for gfo in snp_groups[igroup]}) for igroup in range(len(snp_groups))]})
+        glutils.print_glfo(glfo, gene_groups={region : [(str(isub), {gfo['gene'] : gfo['seq'] for gfo in snp_groups[isub]}) for isub in range(len(snp_groups))]})
 
     return snp_groups  # NOTE this is a list of lists of dicts, whereas separate_into_allelic_groups() returns a dict of region-keyed dicts
 
@@ -4768,6 +4769,49 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
     write_annotations(outfname, merged_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines())
 
     return n_event_list, n_seq_list
+
+# ----------------------------------------------------------------------------------------
+# merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub> (only works with paired dir structure)
+# some things are handled nicelycorrectly, others more hackily
+def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig'):
+    from . import glutils, paircluster
+    # ----------------------------------------------------------------------------------------
+    def ptnfn(bdir, ltmp, lpair=None):
+        return paircluster.paired_fn(bdir, ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
+    # ----------------------------------------------------------------------------------------
+    print('  merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
+    for ltmp in sub_loci(ig_or_tr):
+        if os.path.exists('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp)):  # just looks for one of the last thing we would've written
+            print('     %s: subset-merged input exists, not rewriting' % locstr(ltmp))
+            continue
+        simplerun('./bin/parse-output.py %s %s/%s.fa' % (ptnfn(merged_odir, ltmp), merged_odir, ltmp))  # extract fasta from parttion files (seem to need to pass something as input to partition, although kind of shouldn't need to)
+        mkdir('%s/parameters/%s' % (merged_odir, ltmp))
+        merge_yamls('%s/parameters/%s/sw-cache.yaml'%(merged_odir, ltmp), ['%s/parameters/%s/sw-cache.yaml'%(subdfn(i), ltmp) for i in range(n_subsets)], sw_cache_headers)
+        i_dummy_param = 0
+        makelink('%s/parameters/%s/hmm' % (merged_odir, ltmp), '%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i_dummy_param), ltmp), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
+        merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
+        for isub in range(n_subsets):
+            # print('  %d: %d hmm files' % (isub, len(glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)))))
+            for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
+                makelink('%s/parameters/%s/hmm/hmms' % (merged_odir, ltmp), hfn, os.path.basename(hfn))
+            sub_glfo = glutils.read_glfo('%s/parameters/%s/hmm/germline-sets' % (subdfn(isub), ltmp), ltmp)
+            if merged_glfo is None:
+                merged_glfo = sub_glfo
+            else:
+                merged_glfo = glutils.get_merged_glfo(merged_glfo, sub_glfo)
+            for treg in regions:
+                for tline in csvlines('%s/parameters/%s/hmm/%s_gene-probs.csv' % (subdfn(isub), ltmp, treg)):
+                    merged_gene_counts[treg][tline['%s_gene'%treg]] += int(tline['count'])
+        glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo, debug=True)
+        for treg in regions:
+            with open('%s/parameters/%s/hmm/%s_gene-probs.csv' % (merged_odir, ltmp, treg), 'w') as gfile:
+                writer = csv.DictWriter(gfile, ['%s_gene'%treg, 'count'])
+                writer.writeheader()
+                for gene, count in merged_gene_counts[treg].items():
+                    writer.writerow({'%s_gene'%treg : gene, 'count' : count})
+        if include_hmm_cache_files:  # these aren't parameters, but don't want to change the name, either, oh well
+            subfns = ['%s/single-chain/persistent-cache-%s.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
+            merge_csvs('%s/single-chain/persistent-cache-%s.csv'% (merged_odir, ltmp), subfns)
 
 # ----------------------------------------------------------------------------------------
 def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
