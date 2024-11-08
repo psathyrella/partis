@@ -1265,7 +1265,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         fake_pntns, mpfo_lists, mtpys = paircluster.make_fake_hl_pair_antns(args, antn_pairs)
         return antn_pairs, fake_pntns, mpfo_lists, mtpys
     # ----------------------------------------------------------------------------------------
-    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate', 'update-meta-info', 'write-fake-paired-annotations']
+    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'subset-partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate', 'update-meta-info', 'write-fake-paired-annotations']
     if args.action not in paired_loci_actions:
         raise Exception('action %s not supported for paired loci (choose from %s)' % (args.action, paired_loci_actions))
     if args.paired_outdir is None:
@@ -1274,6 +1274,9 @@ def run_all_loci(args, ig_or_tr='ig'):
     work_fnames = []
     if args.infname is not None:
         prep_inputs()
+    if args.action == 'subset-partition':
+        subset_partition(args)
+        sys.exit(0)
     args.tree_inference_outdir = getodir()
     if args.tree_inference_subdir is not None:
         args.tree_inference_outdir = '%s/%s' % (args.tree_inference_outdir, args.tree_inference_subdir)
@@ -1566,8 +1569,7 @@ subconfig = collections.OrderedDict((
     ('cache-parameters' , {'func' : run_partitiondriver, 'help' : 'Cache parameter values and write hmm model files.'}),
     ('annotate'         , {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'}),
     ('partition'        , {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'}),
-# TODO
-    ('subset-partition' , {'func' : subset_partition, 'help' : ''}),
+    ('subset-partition' , {'func' : run_partitiondriver, 'help' : 'Split input into --n-subsets subsets, cache parameters and partition each subset individually, then partition the merged results. When combined e.g. with --small-clusters-to-ignore, this will speed up (and reduce memory usage of) partitioning on large samples.'}),
     ('simulate'         , {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'}),
     ('view-output'      , {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'}),
     ('merge-paired-partitions', {'func' : run_partitiondriver, 'help' : 'Merge the heavy and light chain partition paths from two existing output files.'}),
