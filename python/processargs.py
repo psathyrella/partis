@@ -81,6 +81,23 @@ def get_workdir(batch_system):  # split this out so we can use it in datascripts
 
 # ----------------------------------------------------------------------------------------
 def process(args):
+    if args.action == 'subset-partition':
+        if not args.paired_loci:
+            print('  note: turning on --paired-loci since \'subset-partition\' requires it (and turning on --keep-all-unpaired-seqs')
+            args.keep_all_unpaired_seqs = True
+            sys.argv.append('--keep-all-unpaired-seqs')
+            args.paired_loci = True
+            utils.insert_in_arglist(sys.argv, ['--paired-loci'], '--infname', has_arg=True, before=True)
+            if args.outfname is None:
+                raise Exception('have to set --outfname for \'subset-partition\' (or --paired-outdir and --paired-loci)')
+            args.paired_outdir = utils.getprefix(args.outfname)
+            args.outfname = None
+            utils.remove_from_arglist(sys.argv, '--outfname', has_arg=True)
+        if args.paired_outdir is None:
+            raise Exception('have to set --paired-outdir (or --outfname) for \'subset-partition\'')
+        if args.seed_unique_id is not None:  # note sure that it'd be much work, but there's much less reason to need it
+            raise Exception('--seed-unique-id is not yet supported with \'subset-partition\'')
+
     if args.outfname is None and args.paired_outdir is None and args.action in utils.existing_output_actions:
         raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
 

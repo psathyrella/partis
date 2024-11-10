@@ -225,8 +225,8 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
 
 # ----------------------------------------------------------------------------------------
 def lp_merge_final_dbg(lpair, antn_lists):
-    print('    finished with:')
-    for ltmp in lpair:
+    print('    finished with:%s' % ' zero annotations' if len(antn_lists)==0 else '')
+    for ltmp in [l for l in lpair if l in antn_lists]:
         print('      %s: %d annotations (%d seqs)' % (utils.locstr(ltmp), len(antn_lists[ltmp]), sum(len(l) for l in antn_lists[ltmp])))
 
 # ----------------------------------------------------------------------------------------

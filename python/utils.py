@@ -1154,7 +1154,7 @@ def get_droplet_id(uid, did_seps, did_indices, return_contigs=False, return_colo
     if not any(s in uid for s in did_seps):  # probably not paired data
         if debug:
             print('  %s no separators %s in uid %s' % (wrnstr(), did_seps, uid))
-        return ('', '') if return_contigs else ''
+        return (uid, uid) if return_contigs else uid
     ulist = [uid]
     for sep in did_seps:  # recursively split by each sep character
         ulist = [s for u in ulist for s in u.split(sep)]
@@ -4776,22 +4776,22 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
 def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig'):
     from . import glutils, paircluster
     # ----------------------------------------------------------------------------------------
-    def ptnfn(bdir, ltmp, lpair=None):
-        return paircluster.paired_fn(bdir, ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
-    # ----------------------------------------------------------------------------------------
-    print('  merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
+    print('    merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
     for ltmp in sub_loci(ig_or_tr):
         if os.path.exists('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp)):  # just looks for one of the last thing we would've written
-            print('     %s: subset-merged input exists, not rewriting' % locstr(ltmp))
+            print('       %s: subset-merged input exists, not rewriting' % locstr(ltmp))
             continue
-        simplerun('./bin/parse-output.py %s %s/%s.fa' % (ptnfn(merged_odir, ltmp), merged_odir, ltmp))  # extract fasta from parttion files (seem to need to pass something as input to partition, although kind of shouldn't need to)
         mkdir('%s/parameters/%s' % (merged_odir, ltmp))
-        merge_yamls('%s/parameters/%s/sw-cache.yaml'%(merged_odir, ltmp), ['%s/parameters/%s/sw-cache.yaml'%(subdfn(i), ltmp) for i in range(n_subsets)], sw_cache_headers)
+        def swfn(dname): return '%s/parameters/%s/sw-cache.yaml'%(dname, ltmp)
+        sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
+        if len(sub_swfs) == 0:
+            print('       %s: no sw cache files, skipping' % locstr(ltmp))
+            continue
+        merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers)
         i_dummy_param = 0
         makelink('%s/parameters/%s/hmm' % (merged_odir, ltmp), '%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i_dummy_param), ltmp), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         for isub in range(n_subsets):
-            # print('  %d: %d hmm files' % (isub, len(glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)))))
             for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
                 makelink('%s/parameters/%s/hmm/hmms' % (merged_odir, ltmp), hfn, os.path.basename(hfn))
             sub_glfo = glutils.read_glfo('%s/parameters/%s/hmm/germline-sets' % (subdfn(isub), ltmp), ltmp)
@@ -4802,7 +4802,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             for treg in regions:
                 for tline in csvlines('%s/parameters/%s/hmm/%s_gene-probs.csv' % (subdfn(isub), ltmp, treg)):
                     merged_gene_counts[treg][tline['%s_gene'%treg]] += int(tline['count'])
-        glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo, debug=True)
+        glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo)
         for treg in regions:
             with open('%s/parameters/%s/hmm/%s_gene-probs.csv' % (merged_odir, ltmp, treg), 'w') as gfile:
                 writer = csv.DictWriter(gfile, ['%s_gene'%treg, 'count'])
@@ -6552,7 +6552,7 @@ def replace_in_argstr(cmd, argstr, replace_with, insert_after=None, has_arg=Fals
 def insert_in_arglist(clist, new_arg_strs, argstr, has_arg=False, before=False):  # set <argstr> to None to put it at end (yeah it probably should've been a kwarg)
     i_insert = len(clist)
     if argstr is not None:
-        i_insert = clist.index(argstr) + (2 if has_arg else 1)
+        i_insert = clist.index(argstr) + (0 if before else (2 if has_arg else 1))
     clist[i_insert : i_insert] = new_arg_strs
 
 # ----------------------------------------------------------------------------------------

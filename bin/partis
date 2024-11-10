@@ -332,15 +332,12 @@ def subset_partition(args):
             clist += ['--paired-indir', merged_odir, '--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir, '--ignore-sw-pair-info']
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------
-# TODO also handle non-paired
-# TODO stop requiring --infname
+# TODO stop requiring --infname (+test all variations of input+output args)
+#  - test all variations of paired/non-paired/infname/etc (maybe already tested most of them)
 # TODO maybe move inside/near run_all_loci() (after moving that fcn somewhere) so I can use some of its sub-functions (e.g. to read true files)
     if args.infname is None:
-        raise Exception('have to pass in single input file for \'subset-partition\'')
-    if args.paired_outdir is None:
-        raise Exception('have to set --paired-outdir for \'subset-partition\'')
-    if args.seed_unique_id is not None:  # note sure that it'd be much work, but there's much less reason to need it
-        raise Exception('--seed-unique-id is not yet supported with \'subset-partition\'')
+        args.infname = '%s/all-seqs.fa' % args.paired_indir
+        utils.replace_in_arglist(sys.argv, '--infname', args.infname)  # don't really need to, but it's safer to keep them consistent
     input_info, _, _ = seqfileopener.read_sequence_file(args.infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)  # i think setting is_data=True makes sense (we don't want reco_info)
     print('%s %d seqs with %d subsets' % (utils.color('blue_bkg', 'subset partitioning'), len(input_info), args.n_subsets))
     input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
@@ -376,6 +373,16 @@ def subset_partition(args):
     outfos, metafos = paircluster.get_combined_outmetafos(locus_merged_lp_infos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
     paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%merged_odir, '%s/meta.yaml'%merged_odir, outfos, metafos)
     utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
+    if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:  # ugh
+        print('    --keep-all-unpaired-seqs: zero length paired results, so merging single chain outputs')
+        for ltmp in utils.sub_loci(args.ig_or_tr):
+            utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
+    for ltmp in utils.sub_loci(args.ig_or_tr):
+        if not os.path.exists(ptnfn(merged_odir, ltmp)):
+            print('      %s: no partition yaml file, skipping' % ltmp)
+            continue
+        utils.simplerun('./bin/parse-output.py %s %s/%s.fa' % (ptnfn(merged_odir, ltmp), merged_odir, ltmp), logfname='%s/parse-output-%s.log'%(merged_odir, ltmp), extra_str='    ')  # extract fasta from parttion files (seem to need to pass something as input to partition, although kind of shouldn't need to)
+    utils.simplerun('cat %s >%s' % (' '.join('%s/%s.fa'%(merged_odir, l) for l in utils.sub_loci(args.ig_or_tr) if os.path.exists('%s/%s.fa'%(merged_odir, l))), '%s/all-seqs.fa'%merged_odir), shell=True, extra_str='    ')
 
     final_odir = '%s/final' % args.paired_outdir
     utils.simplerun(get_cmd(None, final_odir, merged_odir=merged_odir), logfname='%s/partition.log'%final_odir, dryrun=args.dry_run)
@@ -538,6 +545,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print('  note: found \'paired-uids\' in --input-metafnames, so not extracting pairing info')
         mfname = getofn(None, joint=True, input_meta=True)
         if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
+            if utils.getsuffix(args.infname) == '.yaml':
+                new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
+                print('  note: converting input .yaml file to .fa so we can extract pairing info + split loci (new --infname: %s)' % new_fn)
+                utils.simplerun('%s/parse-output.py %s %s' % (os.path.dirname(os.path.realpath(__file__)), args.infname, new_fn), extra_str='    ')
+                args.infname = new_fn
             cmd = '%s%s/bin/extract-pairing-info.py %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
@@ -1201,6 +1213,10 @@ def run_all_loci(args, ig_or_tr='ig'):
         paircluster.write_concatd_output_files(concat_lpfos['glfos'], concat_lpfos['antn_lists'], getofn, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), use_pyyaml=args.write_full_yaml_output,
                                                work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], true_outfos=true_outfos, dont_write_git_info=args.dont_write_git_info, airr_output=args.airr_output, args=args)
         print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_lpfos['cpaths'], debug=args.debug_paired_clustering)
+        if args.keep_all_unpaired_seqs and len(lp_infos) == 0:  # ugh
+            print('    --keep-all-unpaired-seqs: zero length paired results, so copying single chain output to final/merged results dir, since otherwise there\'d be no final output files')
+            for ltmp in utils.sub_loci(ig_or_tr):
+                utils.write_annotations(getofn(ltmp, joint=True), single_outfos['glfos'][ltmp], single_outfos['antn_lists'][ltmp], utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
         # ccfs = None
         # if len(single_outfos['cpaths']['igh'].best()) > 5000:
         #     print '    not comparing single vs joint partitions to save time'
