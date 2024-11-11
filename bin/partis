@@ -321,6 +321,7 @@ def subset_partition(args):
         assert clist[1] == 'subset-partition'  # ugh, but utils.replace_in_arglist() only handles -- style arg strs
         clist[1] = 'partition'
         utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
+        utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
         utils.replace_in_arglist(clist, '--paired-outdir', outdir)
         # utils.replace_in_arglist(clist, '--persistent-cachefname', 'paired-outdir')  # probably not worth copying hmm cache files since the padding won't be right (also i'm not sure they're being read properly? would need to check more carefully)
         if args.input_metafnames is not None:
@@ -332,13 +333,7 @@ def subset_partition(args):
             clist += ['--paired-indir', merged_odir, '--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir, '--ignore-sw-pair-info']
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------
-# TODO stop requiring --infname (+test all variations of input+output args)
-#  - test all variations of paired/non-paired/infname/etc (maybe already tested most of them)
-# TODO maybe move inside/near run_all_loci() (after moving that fcn somewhere) so I can use some of its sub-functions (e.g. to read true files)
-    if args.infname is None:
-        args.infname = '%s/all-seqs.fa' % args.paired_indir
-        utils.replace_in_arglist(sys.argv, '--infname', args.infname)  # don't really need to, but it's safer to keep them consistent
-    input_info, _, _ = seqfileopener.read_sequence_file(args.infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)  # i think setting is_data=True makes sense (we don't want reco_info)
+    input_info, _, _ = seqfileopener.read_sequence_file(utils.non_none([args.infname, '%s/all-seqs.fa'%args.paired_indir]), True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)  # i think setting is_data=True makes sense (we don't want reco_info)
     print('%s %d seqs with %d subsets' % (utils.color('blue_bkg', 'subset partitioning'), len(input_info), args.n_subsets))
     input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
     sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)

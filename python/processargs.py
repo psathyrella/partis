@@ -82,14 +82,16 @@ def get_workdir(batch_system):  # split this out so we can use it in datascripts
 # ----------------------------------------------------------------------------------------
 def process(args):
     if args.action == 'subset-partition':
+        if args.infname is None and args.paired_indir is None:
+            raise Exception('have to set either --infname or --paired-indir for \'subset-partition\'')
+        if args.outfname is None and args.paired_outdir is None:
+            raise Exception('have to set either --outfname or --paired-outdir for \'subset-partition\'')
         if not args.paired_loci:
             print('  note: turning on --paired-loci since \'subset-partition\' requires it (and turning on --keep-all-unpaired-seqs')
             args.keep_all_unpaired_seqs = True
             sys.argv.append('--keep-all-unpaired-seqs')
             args.paired_loci = True
-            utils.insert_in_arglist(sys.argv, ['--paired-loci'], '--infname', has_arg=True, before=True)
-            if args.outfname is None:
-                raise Exception('have to set --outfname for \'subset-partition\' (or --paired-outdir and --paired-loci)')
+            sys.argv.append('--paired-loci')
             args.paired_outdir = utils.getprefix(args.outfname)
             args.outfname = None
             utils.remove_from_arglist(sys.argv, '--outfname', has_arg=True)
