@@ -675,6 +675,8 @@ class PartitionDriver(object):
         print('hmm')
 
         # pre-cache hmm naive seq for each single query NOTE <self.current_action> is still 'partition' for this (so that we build the correct bcrham command line)
+        if self.args.persistent_cachefname is not None:
+            print('  --persistent-cachefname: using existing hmm cache file %s' % self.args.persistent_cachefname)
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
             print('%scaching all %d naive sequences' % ('' if self.print_status else '  ', len(self.sw_info['queries'])), end='\n' if self.input_partition is not None and self.args.continue_from_input_partition else ' ')
             if self.args.synthetic_distance_based_partition:
@@ -1152,7 +1154,11 @@ class PartitionDriver(object):
             tkey = ':'.join(tclust)
             if tkey not in cached_naive_seqs:
                 raise Exception('naive sequence for %s not found in %s' % (tkey, self.hmm_cachefname))
-            naive_seq_list.append((tkey, cached_naive_seqs[tkey]))
+            tnseq = cached_naive_seqs[tkey]
+            if tnseq == '':  # ugh, not sure why this is happening, but it seems to only be from a persistent cache file from a previous step from test.py, so maybe not important
+                print('    %s empty naive seq in hmm cache for \'%s\', using sw info' % (utils.wrnstr(), tkey))
+                tnseq = self.sw_info[tkey]['naive_seq']
+            naive_seq_list.append((tkey, tnseq))
 
         nseq_map, nseq_hashes = utils.collapse_naive_seqs_with_hashes(naive_seq_list, cdr3_info)
 
@@ -1161,7 +1167,10 @@ class PartitionDriver(object):
         partition = []
         print('    running vsearch %d times (once for each cdr3 length class):' % len(nseq_map), end=' ')
         for cdr3_length, sub_naive_seqs in nseq_map.items():
-            sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold, vsearch_binary=self.args.vsearch_binary)
+            if len(sub_naive_seqs) == 1:  # no need to run clustering for one sequence
+                sub_hash_partition = [[list(sub_naive_seqs.keys())[0]]]
+            else:
+                sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold, vsearch_binary=self.args.vsearch_binary)
             sub_uid_partition = [[uid for hashstr in hashcluster for ustr in nseq_hashes[cdr3_length][hashstr] for uid in ustr.split(':')] for hashcluster in sub_hash_partition]
             partition += sub_uid_partition
             print('.', end=' ')
