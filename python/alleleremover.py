@@ -57,7 +57,8 @@ class AlleleRemover(object):
             print('  removing least likely genes with total counts %.1f%s' % (total_counts, '' if self.simglfo is None else (' (%d in simulation)' % sum(self.simcounts[regions[0]].values()))))  # should really take the average for the sim one as well
 
         for region in regions:
-            self.finalize_region(region, sorted(list(gene_counts[region].items()), key=operator.itemgetter(1), reverse=True), annotations=annotations, debug=debug)
+            sorted_gene_counts = sorted(list(gene_counts[region].items()), key=lambda x: (x[1], x[0]), reverse=True)  # sort first by count, break ties alphabetically by gene name (the latter to get a repeatable order)
+            self.finalize_region(region, sorted_gene_counts, annotations=annotations, debug=debug)
 
     # ----------------------------------------------------------------------------------------
     def separate_into_classes(self, region, sorted_gene_counts, easycounts):  # where each class contains all alleles with the same distance from start to cyst, and within a hamming distance of <self.args.n_max_snps>

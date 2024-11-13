@@ -350,10 +350,11 @@ class Tester(object):
         # ----------------------------------------------------------------------------------------
         def rm_file(fn):
             if args.dry_run:
-                print('   would remove %s' % fn)
+                files_to_rm.append(fn)
             else:
                 check_call(['rm', '-v', fn])
         # ----------------------------------------------------------------------------------------
+        files_to_rm = []  # just for dbg
         # delete any old partition cache files
         if name == 'partition-' + info['input_stype'] + '-simu':
             cachefnames = ['%s/%s' % (self.dirs('new'), f) for f in self.all_ptn_cachefns()]
@@ -368,6 +369,8 @@ class Tester(object):
                         tfns += glob.glob('%s%s/%s/iclust-*/%s' % (self.opath('partition-new-simu', st='new'), subd, tmeth, ftp))
             for ffn in [f for f in tfns if os.path.exists(f)]:
                 rm_file(ffn)
+        if len(files_to_rm) > 0:
+            print('    would rm %d tree inference working files' % len(files_to_rm))
 
         # choose a seed uid
         if name == 'seed-partition-' + info['input_stype'] + '-simu':
@@ -387,6 +390,7 @@ class Tester(object):
         if not args.dry_run:
             open(self.logfname, 'w').close()
 
+        os.environ['PYTHONHASHSEED'] = '0'  # turn off hash seed randomization for repeatable results
         for name, info in self.tests.items():
             if args.quick and name not in self.quick_tests:
                 continue
