@@ -4544,6 +4544,55 @@ def pad_nuc_seq(nseq, side='right', return_n_padded=False):  # if length not mul
     return (nseq, len(padstr)) if return_n_padded else nseq
 
 # ----------------------------------------------------------------------------------------
+# In subset-partition, we end up with hmm-inferred multi-seq annotations that were padded in their individual subset process, i.e. that in some cases aren't padded enough for the full sample.
+# Here we add any extra padding in the sw info (which will have been padded on the full sample when reading the subset-merged sw cache file)
+def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE quite similar to pad_seqs_to_same_length() in waterer.py (although there we change a lot more stuff by hand, i think because i didn't yet have remove_all_implicit_info [or maybe bc that would be slower])
+    from . import indelutils
+    # ----------------------------------------------------------------------------------------
+    def fix_atn(n_fv_pad, n_jf_pad, atn):
+        remove_all_implicit_info(atn)
+        leftstr, rightstr = [n * ambig_base for n in [n_fv_pad, n_jf_pad]]
+        atn['fv_insertion'] += leftstr
+        atn['jf_insertion'] += rightstr
+        for seqkey in ['seqs', 'input_seqs']:
+            for iseq in range(len(atn['unique_ids'])):
+                atn[seqkey][iseq] = leftstr + atn[seqkey][iseq] + rightstr
+        for iseq in [i for i in range(len(atn['unique_ids'])) if indelutils.has_indels_line(atn, i)]:
+            indelutils.pad_indelfo(atn['indelfos'][iseq], leftstr, rightstr)
+        add_implicit_info(input_glfo, atn)  # NOTE this is probably slow, i could probably save a lot of time by not recalculating e.g. n_mutations
+        if debug:
+            print('      padded with leftstr: %s rightstr: %s' % (leftstr, rightstr))
+    # ----------------------------------------------------------------------------------------
+    def has_bad_lengths(iatn):
+        return any(len(sw_info[u]['naive_seq']) != len(iatn['naive_seq']) for u in iatn['unique_ids'])
+    # ----------------------------------------------------------------------------------------
+    def print_aligned_seqs(iatn, xstr=''):
+        print('   %snaive seq length in input annotation %d different from that in sw info %s' % (xstr, len(iatn['naive_seq']), ' '.join(str(len(sw_info[u]['naive_seq'])) for u in iatn['unique_ids'])))
+        align_many_seqs([{'name' : 'input-atn', 'seq' : iatn['naive_seq']}] + [{'name' : u, 'seq' : sw_info[u]['naive_seq']} for u in iatn['unique_ids']], extra_str='        ', debug=debug)
+    # ----------------------------------------------------------------------------------------
+    if debug:
+        print()
+        print('  re-padding %d annotations' % len(input_antn_list))
+    n_padded = 0
+    for iatn in input_antn_list:
+        if not has_bad_lengths(iatn):
+            continue
+        if debug:
+            print_aligned_seqs(iatn)
+        i_sw_dummy = 0  # eh just use one of them, they should all have the same padding
+        swfo = sw_info[iatn['unique_ids'][i_sw_dummy]]
+        n_fv_pad = len(swfo['fv_insertion']) - len(iatn['fv_insertion'])
+        n_jf_pad = len(swfo['jf_insertion']) - len(iatn['jf_insertion'])
+        if n_fv_pad + n_jf_pad > 0:  # hopefully what happened is just that the subset-merged sw info added some extra padding, so we add that here now
+            fix_atn(n_fv_pad, n_jf_pad, iatn)
+            n_padded += 1
+        if has_bad_lengths(iatn):
+            print_aligned_seqs(iatn, xstr='failed to fix: ')
+            raise Exception('didn\'t manage to fix lengths (see previous lines)')
+    if debug:
+        print('    fixed padding for %d / %d annotations' % (n_padded, len(input_antn_list)))
+
+# ----------------------------------------------------------------------------------------
 def trim_nuc_seq(nseq):  # if length not multiple of three, trim extras from the right side
     if len(nseq) % 3 != 0:
         nseq = nseq[ : len(nseq) - (len(nseq) % 3)]
@@ -5630,17 +5679,17 @@ def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  #
 def collapse_naive_seqs_with_hashes(naive_seq_list, sw_info):  # this version is (atm) only used for naive vsearch clustering
     start = time.time()
     naive_seq_map = {}  # X[cdr3][hash(naive_seq)] : naive_seq
-    naive_seq_hashes = {}  # X[cdr3][hash(naive_seq)] : [uid1, uid2, uid3...]  # NOTE didn't used to be also subset by [cdr3], but it seems that they can have different cdr3 but same naive seq, which screws up untranslation
-    for uid, naive_seq in naive_seq_list:
+    naive_seq_hashes = {}  # X[cdr3][hash(naive_seq)] : [ustr1, ustr2, ustr3...]  # NOTE didn't used to be also subset by [cdr3], but it seems that they can have different cdr3 but same naive seq, which screws up untranslation
+    for ustr, naive_seq in naive_seq_list:
         hashstr = uidhashstr(naive_seq)
-        c3len = sw_info[uid]['cdr3_length']
+        c3len = sw_info[ustr]['cdr3_length']
         if c3len not in naive_seq_map:
             naive_seq_map[c3len], naive_seq_hashes[c3len] = {}, {}
         if hashstr not in naive_seq_map[c3len]:
-            naive_seq_map[c3len][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of uids with that naive sequence) instead of the uid
+            naive_seq_map[c3len][hashstr] = naive_seq  # i.e. vsearch gets a hash of the naive seq (which maps to a list of ustrs with that naive sequence) instead of the ustr
             naive_seq_hashes[c3len][hashstr] = []  # first sequence that has this naive
-        naive_seq_hashes[c3len][hashstr].append(uid)
-    print('        collapsed %d sequences into %d unique naive sequences over %d cdr3 lengths (%.1f sec)' % (len(naive_seq_list), sum(len(d) for d in naive_seq_hashes.values()), len(naive_seq_hashes), time.time() - start))
+        naive_seq_hashes[c3len][hashstr].append(ustr)
+    print('        collapsed %d sequences (%d initial naive seqs/clusters) into %d unique naive sequences over %d cdr3 lengths (%.1f sec)' % (sum(len(u.split(':')) for u, _ in naive_seq_list), len(naive_seq_list), sum(len(d) for d in naive_seq_hashes.values()), len(naive_seq_hashes), time.time() - start))
     return naive_seq_map, naive_seq_hashes
 
 # ----------------------------------------------------------------------------------------

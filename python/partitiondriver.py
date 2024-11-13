@@ -75,7 +75,9 @@ class PartitionDriver(object):
 
         self.input_partition, self.input_cpath = None, None
         if self.args.input_partition_fname is not None:
-            _, _, self.input_cpath = utils.read_yaml_output(self.args.input_partition_fname, skip_annotations=True)
+            self.input_glfo, self.input_antn_list, self.input_cpath = utils.read_yaml_output(self.args.input_partition_fname, skip_annotations=not self.args.continue_from_input_partition)
+            if self.args.continue_from_input_partition:
+                self.input_antn_dict = utils.get_annotation_dict(self.input_antn_list)
             self.input_partition = self.input_cpath.partitions[self.input_cpath.i_best if self.args.input_partition_index is None else self.args.input_partition_index]
             print('  --input-partition-fname: read %s partition with %d sequences in %d clusters from %s' % ('best' if self.args.input_partition_index is None else 'index-%d'%self.args.input_partition_index, sum(len(c) for c in self.input_partition), len(self.input_partition), self.args.input_partition_fname))
 
@@ -674,11 +676,11 @@ class PartitionDriver(object):
 
         # pre-cache hmm naive seq for each single query NOTE <self.current_action> is still 'partition' for this (so that we build the correct bcrham command line)
         if self.args.persistent_cachefname is None or not os.path.exists(self.hmm_cachefname):  # if the default (no persistent cache file), or if a not-yet-existing persistent cache file was specified
-            print('%scaching all %d naive sequences%s' % ('' if self.print_status else '  ', len(self.sw_info['queries']), '\n' if self.print_status else ''), end=' ')  # this used to be a speed optimization, but now it's so we have better naive sequences for the pre-bcrham collapse
+            print('%scaching all %d naive sequences' % ('' if self.print_status else '  ', len(self.sw_info['queries'])), end='\n' if self.input_partition is not None and self.args.continue_from_input_partition else ' ')
             if self.args.synthetic_distance_based_partition:
                 self.write_bcrham_cache_file([[q] for q in self.sw_info['queries']])
             elif self.input_partition is not None and self.args.continue_from_input_partition:
-                self.write_bcrham_cache_file(self.input_partition, ctype='sw')
+                self.write_bcrham_cache_file(self.input_partition, ctype='input')
             else:
                 self.run_hmm('viterbi', self.sub_param_dir, precache_all_naive_seqs=True)  # , n_procs=self.auto_nprocs(len(self.sw_info['queries']))
 
@@ -1100,12 +1102,18 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def get_cached_hmm_naive_seqs(self, queries=None):
-        expected_queries = self.sw_info['queries'] if queries is None else queries
+        if queries is not None:
+            expected_queries = queries
+        elif self.input_partition is not None:
+            expected_queries = [':'.join(c) for c in self.input_partition]
+        else:
+            expected_queries = self.sw_info['queries']
+
         cached_naive_seqs = {}
         with open(self.hmm_cachefname) as cachefile:
             reader = csv.DictReader(cachefile)
             for line in reader:
-                if ':' in line['unique_ids']:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
+                if ':' in line['unique_ids'] and self.input_partition is None:  # if it's a cache file left over from a previous partitioning, there'll be clusters in it, too
                     continue
                 if self.args.persistent_cachefname is not None and line['unique_ids'] not in expected_queries:  # probably can only happen if self.args.persistent_cachefname is set, and it's slow on huge samples
                     continue
@@ -1119,9 +1127,9 @@ class PartitionDriver(object):
             if len(extra) > 0:
                 print('    %s read %d extra queries from hmm cache file %s' % (utils.color('yellow', 'warning:'), len(extra), ' '.join(extra)))
             if len(missing) > 0:
-                print('    %s missing %d queries from hmm cache file (using sw naive sequence instead): %s' % (utils.color('yellow', 'warning:'), len(missing), ' '.join(missing)))
-                for uid in missing:
-                    cached_naive_seqs[uid] = self.sw_info[uid]['naive_seq']
+                print('    %s missing %d/%d queries from hmm cache file (using sw naive sequence instead): %s' % (utils.color('yellow', 'warning:'), len(missing), len(expected_queries), ' '.join(missing)))
+                for ustr in missing:
+                    cached_naive_seqs[ustr] = self.sw_info[ustr.split(':')[0]]['naive_seq']
 
         return cached_naive_seqs
 
@@ -1133,20 +1141,28 @@ class PartitionDriver(object):
         assert parameter_dir is not None
         threshold = self.get_hfrac_bounds(parameter_dir)[0]  # lo and hi are the same
         cached_naive_seqs = self.get_cached_hmm_naive_seqs()
-        for uid in self.sw_info['queries']:
-            if uid not in cached_naive_seqs:
-                raise Exception('naive sequence for %s not found in %s' % (uid, self.hmm_cachefname))
-            naive_seq_list.append((uid, cached_naive_seqs[uid]))
+        if self.input_partition is not None and self.args.continue_from_input_partition:
+            tclusters = self.input_partition
+            cdr3_info = {':'.join(c) : {'cdr3_length' : self.input_antn_dict[':'.join(c)]['cdr3_length']} for c in tclusters}  # have to make a 'fake' sw info to pass to the naive seq collapse fcn
+            print('      --continue-from-input-partition: using input partition clusters to initialize vsearch')
+        else:
+            tclusters = [[u] for u in self.sw_info['queries']]
+            cdr3_info = self.sw_info
+        for tclust in tclusters:
+            tkey = ':'.join(tclust)
+            if tkey not in cached_naive_seqs:
+                raise Exception('naive sequence for %s not found in %s' % (tkey, self.hmm_cachefname))
+            naive_seq_list.append((tkey, cached_naive_seqs[tkey]))
 
-        all_naive_seqs, naive_seq_hashes = utils.collapse_naive_seqs_with_hashes(naive_seq_list, self.sw_info)
+        nseq_map, nseq_hashes = utils.collapse_naive_seqs_with_hashes(naive_seq_list, cdr3_info)
 
         print('    using hfrac bound for vsearch %.3f' % threshold)
 
         partition = []
-        print('    running vsearch %d times (once for each cdr3 length class):' % len(all_naive_seqs), end=' ')
-        for cdr3_length, sub_naive_seqs in all_naive_seqs.items():
+        print('    running vsearch %d times (once for each cdr3 length class):' % len(nseq_map), end=' ')
+        for cdr3_length, sub_naive_seqs in nseq_map.items():
             sub_hash_partition = utils.run_vsearch('cluster', sub_naive_seqs, self.args.workdir + '/vsearch', threshold, vsearch_binary=self.args.vsearch_binary)
-            sub_uid_partition = [[uid for hashstr in hashcluster for uid in naive_seq_hashes[cdr3_length][hashstr]] for hashcluster in sub_hash_partition]
+            sub_uid_partition = [[uid for hashstr in hashcluster for ustr in nseq_hashes[cdr3_length][hashstr] for uid in ustr.split(':')] for hashcluster in sub_hash_partition]
             partition += sub_uid_partition
             print('.', end=' ')
             sys.stdout.flush()
@@ -2039,10 +2055,9 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def write_bcrham_cache_file(self, nsets, ctype='fake', antn_list=None):
         """
-        If <ctype> is 'fake', Write a fake cache file which, instead of the inferred naive sequences, has the *true* naive sequences. Used to generate synthetic partitions.
-        If <ctype> is 'sw', use sw annotations to write the cache file.
+        If <ctype> is 'fake', write a cache file which, instead of the inferred naive sequences, has the *true* naive sequences. Used to generate 'synthetic' partitions (see papers).
+        If <ctype> is 'input', use annotations from the input partition to write the cache file.
         """
-        # If <ctype> is 'existing', use existing annotations (e.g. from --input-partition_fname) to write the cache file.
         if ctype == 'fake':
             # NOTE this will be out of sync with sw info afterwards (e.g. indel info/cdr3 length), so things may break if you do extra things (e.g. subcluster annotate, run with debug set)
             if self.reco_info is None:
@@ -2050,11 +2065,15 @@ class PartitionDriver(object):
             dbgstr = 'true'
             def naive_seq_fcn(query_name_list):
                 return self.get_padded_true_naive_seq(query_name_list[0])  # NOTE just using the first one... but a.t.m. I think I'll only run this fcn the first time through when they're all singletons, anyway
-        elif ctype == 'sw':
-            dbgstr = 'sw annotation'
-            antn_dict, _ = self.convert_sw_annotations(partition=nsets)  # we *have* the annotations for the input partition, which would be better, but their seqs aren't correctly padded to the same length (since they were run in different subsets/procs), and propagating the new sw padding info (sw gets re-padded when we read the subset-merged sw info) to the input partition annotations would be hard, so we just use the sw annotations to get the naive seqs here
+        elif ctype == 'input':
+            dbgstr = 'input annotation'
+            # old version that used sw annotations (don't quite want to delete yet):
+            # antn_dict, _ = self.convert_sw_annotations(partition=nsets)  # we *have* the annotations for the input partition, which would be better, but their seqs aren't correctly padded to the same length (since they were run in different subsets/procs), and propagating the new sw padding info (sw gets re-padded when we read the subset-merged sw info) to the input partition annotations would be hard, so we just use the sw annotations to get the naive seqs here
+            # def naive_seq_fcn(query_name_list):
+            #     return antn_dict.get(':'.join(query_name_list))['naive_seq']
+            utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
             def naive_seq_fcn(query_name_list):
-                return antn_dict.get(':'.join(query_name_list))['naive_seq']
+                return self.input_antn_dict.get(':'.join(query_name_list))['naive_seq']
         else:
             assert False
         with open(self.hmm_cachefname, utils.csv_wmode()) as cachefile:
@@ -2065,7 +2084,7 @@ class PartitionDriver(object):
                     'unique_ids' : ':'.join([qn for qn in query_name_list]),
                     'naive_seq' : naive_seq_fcn(query_name_list),
                 })
-        print('    %s %s naive seqs in bcrham cache file (%d clusters with sizes %s)' % (utils.color('blue_bkg', 'caching'), dbgstr, len(nsets), ' '.join('%d'%len(c) for c in sorted(nsets, key=len, reverse=True))))
+        print('    %s %s naive seqs in bcrham cache file for %d clusters' % (utils.color('blue_bkg', 'caching'), dbgstr, len(nsets)))
 
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, shuffle_input=False):
