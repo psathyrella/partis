@@ -1730,6 +1730,8 @@ subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 
+sub_arg_groups = {'subset-partition' : ['partition']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
+
 def get_arg_names(actions):  # return set of all arg names (in the form they appear in args.__dict__) for the specified actions
     if actions == 'all':
         actions = list(subconfig.keys())
@@ -1742,6 +1744,8 @@ subparsermap = {}
 for name, vals in subconfig.items():
     subparsermap[name] = subparsers.add_parser(name, parents=[parent_parser], help=vals['help'], formatter_class=MultiplyInheritedFormatter)
     subparsermap[name].set_defaults(func=vals['func'])  # set the default fcn to run for <name> (i.e. action)
+    if name in sub_arg_groups:
+        subargs[name] += [c for n in sub_arg_groups[name] for c in subargs[n]]
     for argconf in subargs[name]:
         subparsermap[name].add_argument(argconf['name'], **argconf['kwargs'])
 
