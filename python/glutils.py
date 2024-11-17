@@ -599,14 +599,17 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate
                     print('    %s%s    %s      %s' % (' ' * leftpad, utils.color_mutants(cons_seq, seqfo['seq'], align=align, emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str))
 
 #----------------------------------------------------------------------------------------
-def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, add_dummy_name_components=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
+def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, add_dummy_name_components=False, dont_crash=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
     # NOTE <skip_pseudogenes> and <skip_orfs> only have an effect with just-downloaded imgt files (otherwise we don't in general have the functionality info)
     if not os.path.exists(gldir + '/' + locus):  # NOTE doesn't re-link it if we already made the link before
         if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
             print('    note: linking new germline dir name to old name in %s' % gldir)
             check_call('cd '  + gldir + ' && ln -sfv ' + locus[2] + ' ' + locus, shell=True)
         else:
-            raise Exception('germline set directory \'%s\' does not exist (maybe --parameter-dir is corrupted or mis-specified?)' % (gldir + '/' + locus))
+            if dont_crash:
+                return None
+            else:
+                raise Exception('germline set directory \'%s\' does not exist (maybe --parameter-dir is corrupted or mis-specified?)' % (gldir + '/' + locus))
 
     if debug:
         print('  reading %s locus glfo from %s' % (locus, gldir))

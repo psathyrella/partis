@@ -87,14 +87,15 @@ def process(args):
         if args.outfname is None and args.paired_outdir is None:
             raise Exception('have to set either --outfname or --paired-outdir for \'subset-partition\'')
         if not args.paired_loci:
-            print('  note: turning on --paired-loci since \'subset-partition\' requires it (and turning on --keep-all-unpaired-seqs')
+            print('  note: turning on --paired-loci since \'subset-partition\' requires it (and turning on --keep-all-unpaired-seqs)')
             args.keep_all_unpaired_seqs = True
             sys.argv.append('--keep-all-unpaired-seqs')
             args.paired_loci = True
             sys.argv.append('--paired-loci')
-            args.paired_outdir = utils.getprefix(args.outfname)
-            args.outfname = None
-            utils.remove_from_arglist(sys.argv, '--outfname', has_arg=True)
+            if args.paired_outdir is None:
+                args.paired_outdir = utils.getprefix(args.outfname)
+                args.outfname = None
+                utils.remove_from_arglist(sys.argv, '--outfname', has_arg=True)
         if args.paired_outdir is None:
             raise Exception('have to set --paired-outdir (or --outfname) for \'subset-partition\'')
         if args.seed_unique_id is not None:  # note sure that it'd be much work, but there's much less reason to need it
@@ -424,8 +425,8 @@ def process(args):
         args.tree_inference_outdir = utils.fpath(utils.getprefix(utils.non_none([args.outfname, args.paired_outdir])))
     if args.tree_inference_subdir is not None:
         args.tree_inference_outdir = '%s/%s' % (utils.non_none([args.tree_inference_outdir, os.getcwd()]), args.tree_inference_subdir)
-    if args.tree_inference_outdir is not None:
-        print('  note: set tree inference outdir to %s' % args.tree_inference_outdir)
+    # if args.tree_inference_outdir is not None:
+    #     print('  note: set tree inference outdir to %s' % args.tree_inference_outdir)
     if args.is_simu and args.tree_inference_method is not None:
         raise Exception('can\'t set both --is-simu and --tree-inference-method, since if --is-simu is set we use the simulation tree without inferring anything')
     args.mutation_label_cfg = utils.get_arg_list(args.mutation_label_cfg, choices=['all', 'leaf', 'mut-strs', 'short'])

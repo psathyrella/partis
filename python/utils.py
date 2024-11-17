@@ -1033,7 +1033,7 @@ def evenly_split_list(inlist, n_subsets, dbgstr='items'):
 # chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
 # n_max_queries: take only this many (in alphabetical droplet order), n_random_queries: take this many at random, n_subsets: split into this many groups
 # NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
-def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
+def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
     # ----------------------------------------------------------------------------------------
     def get_final_seqfos(final_qlists, dbgarg, dbgstr):
         final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
@@ -1045,7 +1045,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     if pvals == [-1, None, None] or pvals.count(None) + pvals.count(-1) != 2:  # not really correct (-1 isn't default for the second two) but why would you set them to that, anyway?
         raise Exception('have to set exactly 1 of [n_max_queries, n_random_queries, n_subsets], but got %s %s %s' % (n_max_queries, n_random_queries, n_subsets))
     if input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
-        _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True)
+        _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True, debug=debug)
     else:  # but if we already have pair info in <input_info>
         _, drop_query_lists = get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet_id_indices, return_lists=True)
     if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense, but <drop_ids> is sorted alphabetically, so we're taking them in that order at least
@@ -4803,7 +4803,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
                 # NOTE i think i don't need to mess with these, but not totally sure: self.n_procs, self.ccfs, self.we_have_a_ccf
         if merged_glfo is None:
             merged_glfo = glfo
-        else:
+        elif glfo is not None:  # fall through if <glfo> is None
             merged_glfo  = glutils.get_merged_glfo(glfo, merged_glfo)
         merged_annotation_list += annotation_list
         if cleanup:
@@ -4837,23 +4837,29 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
         merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers)
-        i_dummy_param = 0
-        makelink('%s/parameters/%s/hmm' % (merged_odir, ltmp), '%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i_dummy_param), ltmp), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
+        mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
+        mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
+        makelink('%s/parameters/%s/hmm' % (merged_odir, ltmp), mean_mut_fns[0], 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
+        def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
         for isub in range(n_subsets):
             for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
                 makelink('%s/parameters/%s/hmm/hmms' % (merged_odir, ltmp), hfn, os.path.basename(hfn))
-            sub_glfo = glutils.read_glfo('%s/parameters/%s/hmm/germline-sets' % (subdfn(isub), ltmp), ltmp)
+            sub_glfo = glutils.read_glfo('%s/parameters/%s/hmm/germline-sets' % (subdfn(isub), ltmp), ltmp, dont_crash=True)
             if merged_glfo is None:
                 merged_glfo = sub_glfo
-            else:
+            elif sub_glfo is not None:  # fall through if <sub_glfo> is None
                 merged_glfo = glutils.get_merged_glfo(merged_glfo, sub_glfo)
             for treg in regions:
-                for tline in csvlines('%s/parameters/%s/hmm/%s_gene-probs.csv' % (subdfn(isub), ltmp, treg)):
+                if not os.path.exists(gpfn(subdfn(isub), ltmp, treg)):
+                    continue
+                for tline in csvlines(gpfn(subdfn(isub), ltmp, treg)):
                     merged_gene_counts[treg][tline['%s_gene'%treg]] += int(tline['count'])
+        if merged_glfo is None:  # none of them exists
+            continue
         glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo)
         for treg in regions:
-            with open('%s/parameters/%s/hmm/%s_gene-probs.csv' % (merged_odir, ltmp, treg), 'w') as gfile:
+            with open(gpfn(merged_odir, ltmp, treg), 'w') as gfile:
                 writer = csv.DictWriter(gfile, ['%s_gene'%treg, 'count'])
                 writer.writeheader()
                 for gene, count in merged_gene_counts[treg].items():
@@ -6127,7 +6133,7 @@ def add_missing_uids_to_partition(partition_with_missing_uids, ref_partition, al
             print('    %sadded %d / %d missing ids as singletons to %s partition, to match ids in %s partition%s' % (wrnstr()+' ' if warn else '', len(missing_ids), sum(len(c) for c in ref_partition), miss_label, ref_label, dbgstr)) #, ' '.join(missing_ids) if len(missing_ids) < 30 else '')
         miss_frac = len(missing_ids) / float(sum(len(c) for c in ref_partition))
         if fail_frac is not None and miss_frac > fail_frac:
-            raise Exception('missing %.3f (more than %.3f)' % (miss_frac, fail_frac))
+            raise Exception('missing %.3f (more than %.3f, increase --max-ccf-fail-frac to avoid this error)' % (miss_frac, fail_frac))
     return partition_with_uids_added
 
 # ----------------------------------------------------------------------------------------

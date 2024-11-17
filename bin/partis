@@ -270,7 +270,7 @@ def read_inputs(args, actions):
             simglfo = None  # cause we'll read it from the input file
         elif args.simulation_germline_dir is not None:  # if an explicit dir was set on the command line
             simglfo = glutils.read_glfo(args.simulation_germline_dir, locus=args.locus)  # probably don't apply <args.only_genes> (?)
-        elif args.outfname is not None:
+        elif args.outfname is not None and args.infname is None:
             print('  note: setting --infname to value from --outfname since --is-simu was set and we need input simulation info')
             args.infname = args.outfname
         else:
@@ -321,66 +321,97 @@ def subset_partition(args):
         assert clist[1] == 'subset-partition'  # ugh, but utils.replace_in_arglist() only handles -- style arg strs
         clist[1] = 'partition'
         utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
-        utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
         utils.replace_in_arglist(clist, '--paired-outdir', outdir)
-        # utils.replace_in_arglist(clist, '--persistent-cachefname', 'paired-outdir')  # probably not worth copying hmm cache files since the padding won't be right (also i'm not sure they're being read properly? would need to check more carefully)
+        # utils.replace_in_arglist(clist, '--persistent-cachefname', 'paired-outdir')  # probably not worth copying hmm cache files since the padding won't be right (also i'm not sure they're being read properly? would need to check more carefully) UDPATE now i have a padding fcn that might work for this (utils.re_pad_hmm_seqs())
         if args.input_metafnames is not None:
             utils.replace_in_arglist(clist, '--input-metafnames', '%s/meta.yaml'%(os.path.dirname(infname) if merged_odir is None else merged_odir))
-        if merged_odir is None:
+        if merged_odir is None:  # subset runs
+            utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
             utils.replace_in_arglist(clist, '--infname', infname)
-        else:
+            utils.remove_from_arglist(clist, '--is-simu')  # don't want to deal with subsetting input simulation file (and dual-use of --paired-indir), so just ignore --is-simu until merged run
+        else:  # merged run
             utils.remove_from_arglist(clist, '--infname', has_arg=True)
-            clist += ['--paired-indir', merged_odir, '--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir, '--ignore-sw-pair-info']
+            if args.paired_indir is None:  # if --paired-indir wasn't set (i.e. --infname *was* set), we want to use the extract-pairing-info/split-loci output in --paired-outdir
+                clist += ['--paired-indir', merged_odir]
+            clist += ['--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir,
+                      '--ignore-sw-pair-info', '--refuse-to-cache-parameters', '--ignore-default-input-metafile']  # (don't need to ignore default input metafile for subset runs since they use --infname)
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------
-    input_info, _, _ = seqfileopener.read_sequence_file(utils.non_none([args.infname, '%s/all-seqs.fa'%args.paired_indir]), True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)  # i think setting is_data=True makes sense (we don't want reco_info)
-    print('%s %d seqs with %d subsets' % (utils.color('blue_bkg', 'subset partitioning'), len(input_info), args.n_subsets))
-    input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
-    sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
-    for igroup, sfos in enumerate(sfo_lists):
-        ofn = ptnfn(subdir(igroup), 'igh')
-        if os.path.exists(ofn):
-            print('    isub-%s output exists, skipping: %s' % (igroup, ofn))
-            continue
-        utils.write_fasta(input_fn(subdir(igroup)), sfos)
-        if args.input_metafnames is not None:
-            metafos = {}
-            for sfo in sfos:
-                assert len(input_info[sfo['name']]['unique_ids']) == 1
-                metafos[sfo['name']] = {mk : input_info[sfo['name']][lk][0] for mk, lk in utils.input_metafile_keys.items() if lk in input_info[sfo['name']]}
-            utils.jsdump('%s/meta.yaml'%subdir(igroup), metafos)
-        utils.simplerun(get_cmd(input_fn(subdir(igroup)), subdir(igroup)), logfname='%s/partition.log'%subdir(igroup), dryrun=args.dry_run)
+    def run_subsets(infname):
+        input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)  # i think setting is_data=True makes sense (we don't want reco_info)
+        print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'subset partitioning'), len(input_info), args.n_subsets, infname))
+        input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
+        sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
+        for isub, sfos in enumerate(sfo_lists):
+            ofn = ptnfn(subdir(isub), 'igh')
+            if os.path.exists(ofn):
+                print('    isub-%s output exists, skipping: %s' % (isub, ofn))
+                continue
+            utils.write_fasta(input_fn(subdir(isub)), sfos)
+            if args.input_metafnames is not None:
+                metafos = {}
+                for sfo in sfos:
+                    assert len(input_info[sfo['name']]['unique_ids']) == 1
+                    metafos[sfo['name']] = {mk : input_info[sfo['name']][lk][0] for mk, lk in utils.input_metafile_keys.items() if lk in input_info[sfo['name']]}
+                utils.jsdump('%s/meta.yaml'%subdir(isub), metafos)
+            utils.simplerun(get_cmd(input_fn(subdir(isub)), subdir(isub)), logfname='%s/partition.log'%subdir(isub), dryrun=args.dry_run, extra_str='  %s '%utils.color('blue', 'isub %d:'%isub))
+    # ----------------------------------------------------------------------------------------
+    def merge_subset_files():
+        lpfo_list = []
+        for isub in range(args.n_subsets):
+            tmp_lpfos = paircluster.read_paired_dir(subdir(isub))
+            lpfo_list.append(tmp_lpfos)
+        subset_merged_lp_infos = paircluster.concat_lpair_chains(utils.locus_pairs[args.ig_or_tr], lpfo_list, dont_deep_copy=True)
+        def seedid(x): assert args.seed_unique_id is None
+        locus_merged_lp_infos = paircluster.handle_concatd_heavy_chain(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, dont_deep_copy=True, dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=seedid('s'), debug=args.debug_paired_clustering)
 
-    lpfo_list = []
-    for igroup in range(args.n_subsets):
-        tmp_lpfos = paircluster.read_paired_dir(subdir(igroup))
-        lpfo_list.append(tmp_lpfos)
-    subset_merged_lp_infos = paircluster.concat_lpair_chains(utils.locus_pairs[args.ig_or_tr], lpfo_list, dont_deep_copy=True)
-    def seedid(x): assert args.seed_unique_id is None
-    locus_merged_lp_infos = paircluster.handle_concatd_heavy_chain(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, dont_deep_copy=True, dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=seedid('s'), debug=args.debug_paired_clustering)
+        print('   writing merged outputs from %d subsets to %s' % (args.n_subsets, merged_odir))
+        def ofn_fcn(ltmp, lpair=None, joint=None): return ptnfn(merged_odir, ltmp, lpair=lpair)  # I *think* i don't need joint
+        headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
+        paircluster.write_lpair_output_files(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
+        paircluster.write_concatd_output_files(locus_merged_lp_infos['glfos'], locus_merged_lp_infos['antn_lists'], ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, cpaths=locus_merged_lp_infos['cpaths'], dont_write_git_info=args.dont_write_git_info)
+        outfos, metafos = paircluster.get_combined_outmetafos(locus_merged_lp_infos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
+        paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%merged_odir, '%s/meta.yaml'%merged_odir, outfos, metafos, write_locus_files=True)  # need this meta file (not the original input one) to pick up pair cleaning (maybe for other reasons as well)
+        utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
+        if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:  # ugh
+            print('    --keep-all-unpaired-seqs: zero length paired results, so merging single chain outputs')
+            for ltmp in utils.sub_loci(args.ig_or_tr):
+                utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
+        # for ltmp in utils.sub_loci(args.ig_or_tr):
+        #     if not os.path.exists(ptnfn(merged_odir, ltmp)):
+        #         print('      %s: no partition yaml file, skipping' % ltmp)
+        #         continue
+        #     utils.simplerun('./bin/parse-output.py %s %s/%s.fa' % (ptnfn(merged_odir, ltmp), merged_odir, ltmp), logfname='%s/parse-output-%s.log'%(merged_odir, ltmp), extra_str='    ')  # extract fasta from parttion files (seem to need to pass something as input to partition, although kind of shouldn't need to)
+        # utils.simplerun('cat %s >%s' % (' '.join('%s/%s.fa'%(merged_odir, l) for l in utils.sub_loci(args.ig_or_tr) if os.path.exists('%s/%s.fa'%(merged_odir, l))), '%s/all-seqs.fa'%merged_odir), shell=True, extra_str='    ')
+    # ----------------------------------------------------------------------------------------
+    if args.input_metafnames is None:
+        if args.paired_indir is None:
+            args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
+        else:
+            args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
+        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
+    infname = args.infname
+    if infname is None and os.path.exists('%s/all-seqs.fa'%args.paired_indir):  # simulation has a single file
+        infname = '%s/all-seqs.fa'%args.paired_indir
+    if infname is None and any(os.path.exists('%s/%s.fa'%(args.paired_indir, l)) for l in utils.sub_loci(args.ig_or_tr)):  # UGH (data paired indir, need to cat together the per-locus .fa files into a file in the paired outdir)
+        utils.prep_dir(args.paired_outdir, allow_other_files=True)
+        utils.simplerun('cat %s >%s/input-seqs.fa' % (' '.join('%s/%s.fa'%(args.paired_indir, l) for l in utils.sub_loci(args.ig_or_tr)), args.paired_outdir), shell=True, extra_str='    ')
+        infname = '%s/input-seqs.fa' % args.paired_outdir
+    if infname is None:
+        raise Exception('couldn\'t figure out an input file')
+    if all(os.path.exists(ptnfn(subdir(i), 'igh')) for i in range(args.n_subsets)):
+        print('  all subset partitions exist (e.g. %s)' % ptnfn(subdir(0), 'igh'))
+    else:
+        run_subsets(infname)
 
     merged_odir = '%s/merged-subsets' % args.paired_outdir
-    print('   writing merged outputs from %d subsets to %s' % (args.n_subsets, merged_odir))
-    def ofn_fcn(ltmp, lpair=None, joint=None): return ptnfn(merged_odir, ltmp, lpair=lpair)  # I *think* i don't need joint
-    headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
-    paircluster.write_lpair_output_files(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
-    paircluster.write_concatd_output_files(locus_merged_lp_infos['glfos'], locus_merged_lp_infos['antn_lists'], ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, cpaths=locus_merged_lp_infos['cpaths'], dont_write_git_info=args.dont_write_git_info)
-    outfos, metafos = paircluster.get_combined_outmetafos(locus_merged_lp_infos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
-    paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%merged_odir, '%s/meta.yaml'%merged_odir, outfos, metafos)
-    utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
-    if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:  # ugh
-        print('    --keep-all-unpaired-seqs: zero length paired results, so merging single chain outputs')
-        for ltmp in utils.sub_loci(args.ig_or_tr):
-            utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
-    for ltmp in utils.sub_loci(args.ig_or_tr):
-        if not os.path.exists(ptnfn(merged_odir, ltmp)):
-            print('      %s: no partition yaml file, skipping' % ltmp)
-            continue
-        utils.simplerun('./bin/parse-output.py %s %s/%s.fa' % (ptnfn(merged_odir, ltmp), merged_odir, ltmp), logfname='%s/parse-output-%s.log'%(merged_odir, ltmp), extra_str='    ')  # extract fasta from parttion files (seem to need to pass something as input to partition, although kind of shouldn't need to)
-    utils.simplerun('cat %s >%s' % (' '.join('%s/%s.fa'%(merged_odir, l) for l in utils.sub_loci(args.ig_or_tr) if os.path.exists('%s/%s.fa'%(merged_odir, l))), '%s/all-seqs.fa'%merged_odir), shell=True, extra_str='    ')
+    if os.path.exists(ptnfn(merged_odir, 'igh')):
+        print('  merged subset files exist (e.g. %s)' % ptnfn(merged_odir, 'igh'))
+    else:
+        merge_subset_files()
 
-    final_odir = '%s/final' % args.paired_outdir
-    utils.simplerun(get_cmd(None, final_odir, merged_odir=merged_odir), logfname='%s/partition.log'%final_odir, dryrun=args.dry_run)
+    final_odir = '%s' % args.paired_outdir
+    utils.simplerun(get_cmd(infname, final_odir, merged_odir=merged_odir), logfname='%s/partition.log'%final_odir, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
@@ -505,7 +536,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             mfnames += args.input_metafnames
         elif os.path.exists(getofn(ltmp, joint=joint, lpair=lpair, input_meta=True)):
             mfnames.append(getofn(ltmp, joint=joint, lpair=lpair, input_meta=True))
-        if os.path.exists(getifn('meta')):  # look in a default-ish location to which e.g. paircluster.write_combined_fasta_and_meta() writes it
+        if not args.ignore_default_input_metafile and getifn('meta') not in mfnames and os.path.exists(getifn('meta')):  # look in a default-ish location to which e.g. paircluster.write_combined_fasta_and_meta() writes it
             if tdbg:
                 print('  note: adding input metafname from default location (%s)' % getifn('meta'))
             mfnames.append(getifn('meta'))
@@ -539,6 +570,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             if has_input_meta_pair_info:
                 print('  note: found \'paired-uids\' in --input-metafnames, so not extracting pairing info')
         mfname = getofn(None, joint=True, input_meta=True)
+        if args.action == 'subset-partition':  # UGH
+            mfname = '%s/input/%s' % (os.path.dirname(mfname), os.path.basename(mfname))
         if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
             if utils.getsuffix(args.infname) == '.yaml':
                 new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
@@ -560,6 +593,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 elines = traceback.format_exception(*sys.exc_info())
                 print(utils.pad_lines(''.join(elines)))
                 print('  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info')
+        if args.action == 'subset-partition':  # don't want loci to be split, since we pass all loci to each subset process in one file
+            return
         cmd = '%s%s/bin/split-loci.py %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
@@ -1283,11 +1318,11 @@ def run_all_loci(args, ig_or_tr='ig'):
         print('  note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).')
     utils.prep_dir(args.workdir)  # NOTE it's kind of weird to have workdir and paired_outdir, but workdir is for stuff we throw out by default, whereas paired_outdir is for stuff we save
     work_fnames = []
-    if args.infname is not None:
+    if args.infname is not None:  # if --infname is set (i.e. if there's no --paired-indir) we need to extract pair info and split loci
         prep_inputs()
     if args.action == 'subset-partition':
         subset_partition(args)
-        sys.exit(0)
+        return
     args.tree_inference_outdir = getodir()
     if args.tree_inference_subdir is not None:
         args.tree_inference_outdir = '%s/%s' % (args.tree_inference_outdir, args.tree_inference_subdir)
@@ -1469,6 +1504,7 @@ parent_args.append({'name' : '--seq-column', 'kwargs' : {'help' : 'column/key na
 parent_args.append({'name' : '--sanitize-input-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'If set, replaces unexpected characters in input sequences with supported alternatives, e.g. R --> N (only from fasta though).'}})
 parent_args.append({'name' : '--input-metafnames', 'kwargs' : {'help' : 'colon-separated list of yaml/json files, each of which has meta information for the sequences in --infname (and --queries-to-include-fname, although that file can also include its own input meta info), keyed by sequence id. If running multiple steps (e.g. cache-parameters and partition), this must be set for all steps. See https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.'}})
 parent_args.append({'name' : '--input-metafname', 'kwargs' : {'help' : 'DEPRECATED use --input-metafnames'}})
+parent_args.append({'name' : '--ignore-default-input-metafile', 'kwargs' : {'action' : 'store_true', 'help' : 'If set, do not add input meta file from default location (e.g. in --paired-indir) to --input-metafnames. Necessary e.g. for subset-partition to avoid re-reading uncleaned pair info during final merged partition step.'}})
 parent_args.append({'name' : '--input-partition-fname', 'kwargs' : {'help' : 'partis-style json/yaml file from which to read a partition for input to specified action. For \'annotate\' action, annotates sequences in --infname using the partition in this file (rather than the default of annotating each sequence individually). For \'partition\' action, by default uses the input partition instead of doing any actual partitioning (to continue partitioning starting from the input partition, set --continue-from-input-partition). Note that if you\'re using this with --paired-loci, you should specify the entire directory, rather than a single file.'}})
 parent_args.append({'name' : '--input-partition-index', 'kwargs' : {'type' : int, 'help' : 'Index of the partition to be read from --input-partition-fname (if unset, defaults to the best partition). To figure out which index you want, you probably want to run the view-output action on the file.'}})
 parent_args.append({'name' : '--outfname', 'kwargs' : {'help' : 'output file name'}})
@@ -1635,7 +1671,7 @@ subargs['partition'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'Only 
 subargs['partition'].append({'name' : '--random-seed-seq', 'kwargs' : {'action' : 'store_true', 'help' : 'choose a sequence at random from the input file, and use it as the seed for seed partitioning (as if it had been set as the --seed-unique-id)'}})
 subargs['partition'].append({'name' : '--naive-hamming-bounds', 'kwargs' : {'help' : 'Clustering bounds (lo:hi colon-separated pair) on naive sequence hamming distance. If not specified, the bounds are set based on the per-dataset mutation levels. For most purposes should be left at the defaults.'}})
 subargs['partition'].append({'name' : '--logprob-ratio-threshold', 'kwargs' : {'type' : float, 'default' : 18., 'help' : 'Reaches a min value of <this> minus five for large clusters. Do *not* change this.'}})
-subargs['partition'].append({'name' : '--paired-naive-hfrac-threshold-type', 'kwargs' : {'default' : 'naive-hamming', 'choices' : ['naive-hamming', 'likelihood'], 'help' : 'type of naive hamming fraction threshold to use for paired clustering splitting. Roughly: \'naive-hamming\' is the threshold at which seqs have equal probability of being clonal vs non-clonal, whereas, \'likelihood\' is a higher threshold above which almost sequences are non-clonal (both are calculated per-dataset based on shm frequency).'}})
+subargs['partition'].append({'name' : '--paired-naive-hfrac-threshold-type', 'kwargs' : {'default' : 'naive-hamming', 'choices' : ['naive-hamming', 'likelihood'], 'help' : 'type of naive hamming fraction threshold to use for paired clustering splitting. Roughly: \'naive-hamming\' is the threshold at which seqs have equal probability of being clonal vs non-clonal, whereas, \'likelihood\' is a higher threshold above which almost all sequences are non-clonal (both are calculated per-dataset based on shm frequency).'}})
 subargs['partition'].append({'name' : '--synthetic-distance-based-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'Use simulation truth info to create a synthetic distance-based partition (for validation). Clusters true naive sequences with vsearch, i.e. effectively removes the component of uncertainty that comes from naive sequence inference, leaving only the component from clustering itself.'}})
 subargs['partition'].append({'name' : '--cache-naive-hfracs', 'kwargs' : {'action' : 'store_true', 'help' : 'In addition to naive sequences and log probabilities, also cache naive hamming fractions between cluster pairs. Only really useful for plotting or testing.'}})
 subargs['partition'].append({'name' : '--biggest-naive-seq-cluster-to-calculate', 'kwargs' : {'type' : int, 'default' : 15, 'help' : 'start thinking about subsampling before you calculate anything if cluster is bigger than this'}})

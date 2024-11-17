@@ -24,7 +24,7 @@ def read_input_metafo(input_metafnames, annotation_list, required_keys=None, n_w
 # ----------------------------------------------------------------------------------------
 def read_single_input_metafo(input_metafname, annotation_list, required_keys=None, n_warn_print=10, debug=False):  # read input metafo from <input_metafname> and put in <annotation_list> (when we call this below, <annotation_list> is <input_info> (wait so at this point it sounds like this fcn and the next one should be merged [although that would be hard and dangerous, so i'm not doing it now)
     if not os.path.exists(input_metafname):
-        print('  %s specified input meta file %s doesn\'t exists' % (utils.wrnstr(), input_metafname))
+        print('  %s specified input meta file %s doesn\'t exist, so not reading anything' % (utils.wrnstr(), input_metafname))
         return
     # NOTE <annotation_list> doesn't need to be real annotations, it only uses the 'unique_ids' key
     metafo = utils.read_json_yaml(input_metafname)

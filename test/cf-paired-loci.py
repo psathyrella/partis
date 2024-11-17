@@ -30,7 +30,7 @@ all_perf_metrics = ['precision', 'sensitivity', 'f1', 'time-reqd', 'naive-hdist'
 pcfrac_metrics = ['pcfrac-%s%s'%(t, s) for s in ['', '-ns'] for t in ['correct', 'mispaired', 'unpaired', 'correct-family', 'near-family']]  # '-ns': non-singleton
 all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'distance-0.01', 'distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
-ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
+ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'subset-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 phylo_actions = ['iqtree', 'raxml', 'gctree', 'gctree-mut-mult', 'gctree-no-dag', 'igphyml']  # , 'iqtree-1.6.beta3', 'iqtree-2.3.1'  # , 'gctree-base'
 tree_perf_actions = ['%s-tree-perf'%a for a in phylo_actions]  # it would be really nice to run tree perf during the phylo action, but i can't figure out a good way to do that (main problem is getting access to both true and inferred annotations in a sensible way)
 after_actions = ['replay-plot', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees', 'write-fake-paired-annotations', 'tree-perf']  + ptn_actions + phylo_actions + tree_perf_actions  # actions that come after simulation (e.g. partition)
@@ -256,11 +256,11 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --subcluster-annotation-size None'
         if action not in phylo_actions:  # we want to infer the trees, so need to ignore true annotations
             cmd += ' --is-simu'
-        if action != 'cache-parameters':
+        if action not in ['cache-parameters', 'subset-partition']:
             cmd += ' --refuse-to-cache-parameters'
         if 'synth-distance-' in action or 'vjcdr3-' in action or action in ['vsearch-partition', 'partition-lthresh', 'star-partition', 'annotate']:
             cmd += ' --parameter-dir %s' % ofname(args, varnames, vstrs, 'cache-parameters')
-        if action in ptn_actions and 'vjcdr3-' not in action and not args.make_plots and not args.antn_perf and not args.calc_antns:
+        if action in ptn_actions and 'vjcdr3-' not in action and action != 'subset-partition' and not args.make_plots and not args.antn_perf and not args.calc_antns:
             cmd += ' --dont-calculate-annotations'
         if action == 'write-fake-paired-annotations':
             cmd += ' --extra-annotation-columns tree'

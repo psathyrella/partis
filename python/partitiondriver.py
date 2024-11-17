@@ -873,6 +873,7 @@ class PartitionDriver(object):
         if self.input_partition is not None and self.args.continue_from_input_partition:
             print('      --continue-from-input-partition: using input partition for initial cpath')
             cpath = self.input_cpath
+            print('             %d clusters (%d seqs)' % (len(cpath.best()), sum(len(c) for c in cpath.best())))
             # maybe i should split by cdr3?
             # nsets = utils.split_clusters_by_cdr3(nsets, self.sw_info, warn=True)
         else:
@@ -2093,7 +2094,7 @@ class PartitionDriver(object):
                     'unique_ids' : ':'.join([qn for qn in query_name_list]),
                     'naive_seq' : naive_seq_fcn(query_name_list),
                 })
-        print('    %s %s naive seqs in bcrham cache file for %d clusters' % (utils.color('blue_bkg', 'caching'), dbgstr, len(nsets)))
+        print('    %s %s naive seqs in bcrham cache file for %d clusters (%d seqs)' % (utils.color('blue_bkg', 'caching'), dbgstr, len(nsets), sum(len(c) for c in nsets)))
 
     # ----------------------------------------------------------------------------------------
     def write_to_single_input_file(self, fname, nsets, parameter_dir, shuffle_input=False):

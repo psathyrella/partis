@@ -227,7 +227,7 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
 def lp_merge_final_dbg(lpair, antn_lists):
     print('    finished with:%s' % (' zero annotations' if len(antn_lists)==0 else ''))
     for ltmp in [l for l in lpair if l in antn_lists]:
-        print('     %s: %d annotations (%d seqs)' % (utils.locstr(ltmp), len(antn_lists[ltmp]), sum(len(l) for l in antn_lists[ltmp])))
+        print('     %s: %d annotations (%d seqs)' % (utils.locstr(ltmp), len(antn_lists[ltmp]), sum(len(l['unique_ids']) for l in antn_lists[ltmp])))
 
 # ----------------------------------------------------------------------------------------
 # similar to concat_heavy_chain(), except this merges loci only within each lpair (for 'subset-partition' action), whereas that merges heavy chains that're paired with either igk or igl
@@ -713,13 +713,15 @@ def get_combined_outmetafos(antn_lists, extra_meta_headers=None):  # <extra_meta
 
 # ----------------------------------------------------------------------------------------
 # write fasta and meta file with all simulation loci together
-def write_combined_fasta_and_meta(fastafname, metafname, outfos, metafos):
+def write_combined_fasta_and_meta(fastafname, metafname, outfos, metafos, write_locus_files=False):
     print('    writing combined h/l info to fasta and meta files in %s' % os.path.dirname(fastafname))
     utils.mkdir(fastafname, isfile=True)
-    with open(fastafname, 'w') as outfile:
-        for sfo in outfos:
-            outfile.write('>%s\n%s\n' % (sfo['name'], sfo['seq']))
+    utils.write_fasta(fastafname, outfos)
     utils.jsdump(metafname, metafos)
+    if write_locus_files:  # write also single-locus fasta fiels
+        def kfcn(s): return metafos[s['name']]['locus']
+        for ltmp, lfos in itertools.groupby(sorted(outfos, key=kfcn), key=kfcn):
+            utils.write_fasta('%s/%s.fa' % (os.path.dirname(fastafname), ltmp), lfos)
 
 # ----------------------------------------------------------------------------------------
 def modify_simu_pair_info(args, outfos, metafos, lp_infos, concat_lpfos):
