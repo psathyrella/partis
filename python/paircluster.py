@@ -148,7 +148,8 @@ def read_lpair_output_files(lpairs, ofn_fcn, read_selection_metrics=False, add_s
 
 # ----------------------------------------------------------------------------------------
 # similar to read_lpair_output_files(), except you don't need to pass in the file name fcn (adding this late, so could probably use it in a lot more places)
-def read_paired_dir(pdir, debug=False):
+# if <joint>, reads joint/merged h, k, l files (rather than the files in each paired (igh+ig[kl]) subdir (NOTE output/return structure is different in the two cases)
+def read_paired_dir(pdir, joint=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def getofn(ltmp, lpair=None):
         ofn = paired_fn(pdir, ltmp, lpair=lpair, suffix='.yaml')
@@ -156,7 +157,10 @@ def read_paired_dir(pdir, debug=False):
             ofn = paired_fn(pdir, ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
         return ofn
     # ----------------------------------------------------------------------------------------
-    return read_lpair_output_files(utils.locus_pairs['ig'], getofn, debug=debug)
+    if joint:  # NOTE different return dict structure for joint vs not
+        return read_locus_output_files(utils.sub_loci('ig'), getofn, debug=debug)
+    else:
+        return read_lpair_output_files(utils.locus_pairs['ig'], getofn, debug=debug)  # NOTE both these fcns ignore a bunch of kw args, which I should probably use at some point
 
 # ----------------------------------------------------------------------------------------
 def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=False, dont_write_git_info=False):
@@ -195,6 +199,8 @@ def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=F
 def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, dont_deep_copy=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def glpf(p, k, l):  # short for "get key (k) from lp_infos for lpair (p) and locus (l) NOTE duplicates code in write_lpair_output_files
+        if p is None:  # single-locus (i.e. not paired)
+            return lp_infos[k].get(l)
         if tuple(p) not in lp_infos or lp_infos[tuple(p)][k] is None:
             return None
         return lp_infos[tuple(p)][k].get(l)
@@ -209,6 +215,8 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
             print('      %s added %d annotations (%d seqs) for total %d (%d)' % (utils.locstr(ltmp), len(tlist), nseqs(tlist), len(antn_lists[ltmp]), nseqs(antn_lists[ltmp])))
     # ----------------------------------------------------------------------------------------
     if glpf(lpair, 'glfos', ltmp) is None:  # this lpair's output files were empty
+        if debug:
+            print('      %s empty files' % utils.locstr(ltmp))
         return
     if ltmp in glfos:  # originally: heavy chain second time through: merge chain glfos from those paired with igk and with igl (now more general though)
         dbgprint()
@@ -224,16 +232,15 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
             joint_cpaths[ltmp] = dfn(glpf(lpair, 'cpaths', ltmp))
 
 # ----------------------------------------------------------------------------------------
-def lp_merge_final_dbg(lpair, antn_lists):
+def lp_merge_final_dbg(tloci, antn_lists):
     print('    finished with:%s' % (' zero annotations' if len(antn_lists)==0 else ''))
-    for ltmp in [l for l in lpair if l in antn_lists]:
+    for ltmp in [l for l in tloci if l in antn_lists]:
         print('     %s: %d annotations (%d seqs)' % (utils.locstr(ltmp), len(antn_lists[ltmp]), sum(len(l['unique_ids']) for l in antn_lists[ltmp])))
 
 # ----------------------------------------------------------------------------------------
 # similar to concat_heavy_chain(), except this merges loci only within each lpair (for 'subset-partition' action), whereas that merges heavy chains that're paired with either igk or igl
 def concat_lpair_chains(lpairs, lpfo_list, dont_deep_copy=False, debug=False):
     # ----------------------------------------------------------------------------------------
-    debug = True
     if debug:
         print('  concatenating locus pair loci among %d lp_infos' % len(lpfo_list))
     final_lp_infos = {}
@@ -248,6 +255,19 @@ def concat_lpair_chains(lpairs, lpfo_list, dont_deep_copy=False, debug=False):
         if debug:
             lp_merge_final_dbg(lpair, antn_lists)
     return final_lp_infos
+
+# ----------------------------------------------------------------------------------------
+# like concat_lpair_chains(), except doesn't subdivide by locus pairs (but unlike concat_heavy_chain(), doesn't just merge the heavy chain)
+def concat_locus_chains(tmploci, lpfo_list, dont_deep_copy=False, dbgstr='', debug=False):  # NTOE <lpfo_list> has different structure to that in concat_lpair_chains()
+    if debug:
+        print('  concatenating single-locus info among %d dicts%s' % (len(lpfo_list), dbgstr))
+    glfos, antn_lists, cpaths = {}, {}, {}
+    for lpfo in lpfo_list:
+        for ltmp in tmploci:
+            merge_locus_lpfo(glfos, antn_lists, cpaths, None, ltmp, lpfo, dont_deep_copy=dont_deep_copy, debug=debug)
+    if debug:
+        lp_merge_final_dbg(tmploci, antn_lists)
+    return {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : cpaths}  # I *think* I don't need the deduplication stuff from handle_concatd_heavy_chain() below, although I think that's only because atm I'm using this fcn for totally disjoint subsets from subset-partition (so, ugh, should add it)
 
 # ----------------------------------------------------------------------------------------
 # similar to concat_lpair_chains() above (see also handle_concatd_heavy_chain() below, which runs this and then does some more processing)
