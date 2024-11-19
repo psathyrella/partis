@@ -361,10 +361,7 @@ def subset_partition(args):
         for isub in range(args.n_subsets):
             tmp_lpfos = paircluster.read_paired_dir(subdir(isub))
             if all(tmp_lpfos[tuple(lpair)]['glfos'] is None for lpair in utils.locus_pairs[args.ig_or_tr]):  # this should mean that we're keeping all unpaired-seqs, and there were no paired annotations for this subset proc, so it copied/linked the single chain files to the joint location
-                if args.keep_all_unpaired_seqs:
-                    i_empty.append(isub)
-                else:
-                    raise Exception('i think i should only get here if --keep-all-unpaired-seqs is set?')
+                i_empty.append(isub)
                 tmp_lpfos = paircluster.read_paired_dir(subdir(isub), joint=True)
                 locus_lpfos.append(tmp_lpfos)
             else:
@@ -383,7 +380,7 @@ def subset_partition(args):
         def ofn_fcn(ltmp, lpair=None, joint=None): return ptnfn(merged_odir, ltmp, lpair=lpair)  # I *think* i don't need joint
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
         paircluster.write_lpair_output_files(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
-        paircluster.write_concatd_output_files(locus_merged_lp_infos['glfos'], locus_merged_lp_infos['antn_lists'], ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, cpaths=locus_merged_lp_infos['cpaths'], dont_write_git_info=args.dont_write_git_info)
+        paircluster.write_concatd_output_files(locus_merged_lp_infos['glfos'], locus_merged_lp_infos['antn_lists'], ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, cpaths=locus_merged_lp_infos['cpaths'], dont_write_git_info=args.dont_write_git_info, write_light_chain_files=len(locus_lpfos) > 0)
         outfos, metafos = paircluster.get_combined_outmetafos(locus_merged_lp_infos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
         paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%merged_odir, '%s/meta.yaml'%merged_odir, outfos, metafos, write_locus_files=True)  # need this meta file (not the original input one) to pick up pair cleaning (maybe for other reasons as well)
         utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
@@ -408,7 +405,7 @@ def subset_partition(args):
             utils.simplerun('cat %s >%s/input-seqs.fa' % (' '.join('%s/%s.fa'%(args.paired_indir, l) for l in utils.sub_loci(args.ig_or_tr)), args.paired_outdir), shell=True, extra_str='    ')
     if infname is None:
         raise Exception('couldn\'t figure out an input file')
-    if all(any(os.path.exists(ptnfn(subdir(i), 'ig'+l)) for l in 'hkl') for i in range(args.n_subsets)):
+    if all(any(os.path.exists(ptnfn(subdir(i), 'ig'+l)) for l in 'hkl') for i in range(args.n_subsets)):  # if e.g. keeping all unpaired seqs, we may only have an output file for one locus, hence the any() (yes this means it won't rerun if it crashes partway through writing the three files)
         print('  all subset partitions exist (e.g. %s)' % ptnfn(subdir(0), 'igh'))
     else:
         run_subsets(infname)

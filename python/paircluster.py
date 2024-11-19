@@ -176,10 +176,12 @@ def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=Fals
 
 # ----------------------------------------------------------------------------------------
 # write concatd heavy chain <glfos> and <antn_lists>, and use <ofn_fcn> to link to existing light chain files in paired subdirs
-def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_outfos=None, dont_write_git_info=False, airr_output=False, args=None):
+def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_outfos=None, dont_write_git_info=False, airr_output=False, args=None, write_light_chain_files=False):
     for ltmp in sorted(glfos):  # don't really need to write igh first, but i guess it's nice to be consistent
         ofn = ofn_fcn(ltmp, joint=True)
-        if utils.has_d_gene(ltmp):
+        if utils.has_d_gene(ltmp) or write_light_chain_files:
+            if not utils.has_d_gene(ltmp) and write_light_chain_files:
+                print('       writing (rather than linking) light chain files: %s' % ofn)
             cp = ClusterPath(partition=utils.get_partition_from_annotation_list(antn_lists[ltmp])) if cpaths is None else cpaths[ltmp]
             partition_lines = cp.get_partition_lines(true_partition=None if true_outfos is None else true_outfos['merged']['cpaths'][ltmp].best(), calc_missing_values='best')
             utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
@@ -212,7 +214,7 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
         if debug:
             tlist = glpf(lpair, 'antn_lists', ltmp)
             def nseqs(tl): return sum(len(l['unique_ids']) for l in tl)
-            print('      %s added %d annotations (%d seqs) for total %d (%d)' % (utils.locstr(ltmp), len(tlist), nseqs(tlist), len(antn_lists[ltmp]), nseqs(antn_lists[ltmp])))
+            print('      %s adding %d annotations (%d seqs) for total %d (%d)' % (utils.locstr(ltmp), len(tlist), nseqs(tlist), len(antn_lists[ltmp]), nseqs(antn_lists[ltmp])))
     # ----------------------------------------------------------------------------------------
     if glpf(lpair, 'glfos', ltmp) is None:  # this lpair's output files were empty
         if debug:
