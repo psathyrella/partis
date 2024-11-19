@@ -198,7 +198,7 @@ def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=F
 # merges info (keys 'glfos', 'antn_lists', and 'cpaths') for ltmp (of lpair) from <lp_infos> into <glfos>, <antn_lists>, and <joint_cpaths>
 # NOTE the deep copies can be really important, since we later deduplicate the concatd partitions + annotations (they didn't used to be there, which caused a bug/crash) [well even if we didn't deduplicate, it was fucking stupid to not deep copy them)
 # NOTE also that you'll probably have duplicates in both the partitions and annotations after this
-def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, dont_deep_copy=False, debug=False):
+def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, dont_deep_copy=False, dbgstr='', debug=False):
     # ----------------------------------------------------------------------------------------
     def glpf(p, k, l):  # short for "get key (k) from lp_infos for lpair (p) and locus (l) NOTE duplicates code in write_lpair_output_files
         if p is None:  # single-locus (i.e. not paired)
@@ -210,24 +210,29 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
     def dfn(val):
         return val if dont_deep_copy else copy.deepcopy(val)
     # ----------------------------------------------------------------------------------------
-    def dbgprint():
+    def dbgprint(ststr, add_tot=False):
         if debug:
             tlist = glpf(lpair, 'antn_lists', ltmp)
             def nseqs(tl): return sum(len(l['unique_ids']) for l in tl)
-            print('      %s adding %d annotations (%d seqs) for total %d (%d)' % (utils.locstr(ltmp), len(tlist), nseqs(tlist), len(antn_lists[ltmp]), nseqs(antn_lists[ltmp])))
+            totstr = ''
+            if add_tot:
+                totstr = ' for total %d (%d)' % (len(antn_lists[ltmp]), nseqs(antn_lists[ltmp]))
+            print('      %s%s %s %d annotations (%d seqs)%s' % (dbgstr, utils.locstr(ltmp), ststr, len(tlist), nseqs(tlist), totstr))
     # ----------------------------------------------------------------------------------------
     if glpf(lpair, 'glfos', ltmp) is None:  # this lpair's output files were empty
         if debug:
-            print('      %s empty files' % utils.locstr(ltmp))
+            print('      %s%s empty files' % (dbgstr, utils.locstr(ltmp)))
         return
     if ltmp in glfos:  # originally: heavy chain second time through: merge chain glfos from those paired with igk and with igl (now more general though)
-        dbgprint()
+        dbgprint('adding', add_tot=True)
         glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
         antn_lists[ltmp] += dfn(glpf(lpair, 'antn_lists', ltmp))
         if glpf(lpair, 'cpaths', ltmp) is not None:
-            assert len(joint_cpaths[ltmp].partitions) == 1  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
+            if len(joint_cpaths[ltmp].partitions) != 1:  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
+                print('        %s multiple partitions in cpath when merging loci' % utils.wrnstr())  # ugh, maybe it isn't a big deal? I'm getting longer ones now, probably from the keep all unpaired/subsetpartition stuff
             joint_cpaths[ltmp] = ClusterPath(partition=joint_cpaths[ltmp].best() + dfn(glpf(lpair, 'cpaths', ltmp).best()))
     else:  # light + heavy chain first time through
+        dbgprint('starting with')
         glfos[ltmp] = dfn(glpf(lpair, 'glfos', ltmp))
         antn_lists[ltmp] = dfn(glpf(lpair, 'antn_lists', ltmp))
         if glpf(lpair, 'cpaths', ltmp) is not None:
@@ -264,9 +269,9 @@ def concat_locus_chains(tmploci, lpfo_list, dont_deep_copy=False, dbgstr='', deb
     if debug:
         print('  concatenating single-locus info among %d dicts%s' % (len(lpfo_list), dbgstr))
     glfos, antn_lists, cpaths = {}, {}, {}
-    for lpfo in lpfo_list:
-        for ltmp in tmploci:
-            merge_locus_lpfo(glfos, antn_lists, cpaths, None, ltmp, lpfo, dont_deep_copy=dont_deep_copy, debug=debug)
+    for ilp, lpfo in enumerate(lpfo_list):
+        for iloc, ltmp in enumerate(tmploci):
+            merge_locus_lpfo(glfos, antn_lists, cpaths, None, ltmp, lpfo, dont_deep_copy=dont_deep_copy, dbgstr=('%s '%ilp) if iloc==0 else '  ', debug=debug)
     if debug:
         lp_merge_final_dbg(tmploci, antn_lists)
     return {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : cpaths}  # I *think* I don't need the deduplication stuff from handle_concatd_heavy_chain() below, although I think that's only because atm I'm using this fcn for totally disjoint subsets from subset-partition (so, ugh, should add it)

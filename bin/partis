@@ -384,10 +384,11 @@ def subset_partition(args):
         outfos, metafos = paircluster.get_combined_outmetafos(locus_merged_lp_infos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
         paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%merged_odir, '%s/meta.yaml'%merged_odir, outfos, metafos, write_locus_files=True)  # need this meta file (not the original input one) to pick up pair cleaning (maybe for other reasons as well)
         utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
-        if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:  # maybe don't need this now I've added the locus_lpfos stuff above?
-            print('    --keep-all-unpaired-seqs: zero length paired results, so merging single chain outputs')
-            for ltmp in utils.sub_loci(args.ig_or_tr):
-                utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
+        # maybe don't need this now I've added the locus_lpfos stuff above?
+        # if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:
+        #     print('    --keep-all-unpaired-seqs: zero length paired results, so merging single chain outputs')
+        #     for ltmp in utils.sub_loci(args.ig_or_tr):
+        #         utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
     # ----------------------------------------------------------------------------------------
     if args.input_metafnames is None:
         if args.paired_indir is None:
