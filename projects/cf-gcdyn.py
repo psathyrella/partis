@@ -250,6 +250,8 @@ def run_scan(action):
     n_already_there, n_missing_input, ifn = 0, 0, None
     all_simdirs = []
     for icombo, vstrs in enumerate(valstrs):
+        # if vstrs[varnames.index('n-trials')] != '100000': # or vstrs[varnames.index('simu-bundle-size')] != '1':
+        #     continue
         if args.debug:
             print('   %s' % ' '.join(vstrs))
 

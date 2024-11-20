@@ -1188,6 +1188,10 @@ class PartitionDriver(object):
             sys.stdout.flush()
         print('')
 
+        partition = utils.split_clusters_by_cdr3(partition, self.sw_info, warn=True)  # if we didn't use sw cdr3 lengths to start with here, there can be clusters with multiple sw cdr3 lengths, which then break when we go to get annotations later (it'd be too hard to avoid using sw info when getting annotations). And we don't really care which is right -- in general if we can get different cdr3 lengths for a sequence, it's absolute garbage to begin with
+        # should really also re-pad after this i think (at least i'm getting naive seq len errors when merging paired partitions cause some look un/wrongly padded)
+        # utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
+
         perf_metrics = None
         if not self.args.is_data:  # i'm no longer calculating ccfs here, so could remove/move some of this inside the pairwise clustering metric block
             queries_without_annotations = set(self.input_info) - set(self.sw_info['queries'])
