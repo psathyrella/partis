@@ -976,8 +976,7 @@ class PartitionDriver(object):
         if self.small_cluster_seqs is not None:
             missing_ids -= set(self.small_cluster_seqs)
         if len(missing_ids) > 0:
-            warnstr = 'queries missing from partition: ' + str(len(missing_ids))
-            print('  ' + utils.color('red', 'warning') + ' ' + warnstr)
+            print('  %s %d queries missing from partition' % (utils.wrnstr(), len(missing_ids)))
 
     # # ----------------------------------------------------------------------------------------
     # def auto_nprocs(self, nseqs):
@@ -1008,21 +1007,32 @@ class PartitionDriver(object):
     def convert_sw_annotations(self, partition=None):
         if partition is None:
             partition = self.get_nsets('viterbi', None)
-        antn_dict = OrderedDict()
+        antn_dict, n_failed = OrderedDict(), 0
         for cluster in partition:
-            antn = utils.synthesize_multi_seq_line_from_reco_info(cluster, self.sw_info)
+            antn = utils.synthesize_multi_seq_line_from_reco_info(cluster, self.sw_info, warn=True)
             utils.remove_all_implicit_info(antn)  # gotta remove + re-add implicit info to get the naive seq the right length (I think just to remove padding)
-            utils.add_implicit_info(self.sw_glfo, antn, reset_indel_genes=True)
+            try:
+                utils.add_implicit_info(self.sw_glfo, antn, reset_indel_genes=True)
+            except:
+                elines = traceback.format_exception(*sys.exc_info())
+                print(utils.pad_lines(''.join(elines)))
+                print('      couldn\'t convert sw annotation (implicit info adding failed, see previous lines): %s' % ':'.join(cluster))
+                n_failed += 1
+                continue
             antn_dict[':'.join(cluster)] = antn
+        if n_failed > 0:
+            print('    %s failed to convert %d/%d sw annotations' % (utils.wrnstr(), n_failed, len(partition)))
         self.glfo = self.sw_glfo  # this is ugly, but we do need to replace it (i'm just a bit worried about doing it so bluntly, but otoh the idea is that we don't really even use these annotations for anything except passing around the pair info)
         return antn_dict, set()  # maybe empty set for hmm failures makes sense since we're not actually running hmm?
 
     # ----------------------------------------------------------------------------------------
     def actually_get_annotations_for_clusters(self, clusters_to_annotate=None, n_procs=None, dont_print_annotations=False):  # yeah yeah this name sucks
-        if self.args.use_sw_annotations or self.args.naive_vsearch:
+        if self.args.use_sw_annotations: # or self.args.naive_vsearch:
             print('    using sw annotations (to make a multi-seq annotation for each cluster) instead of running hmm since either --use-sw-annotations or --naive-vsearch/--fast were set')
             all_annotations, hmm_failures = self.convert_sw_annotations(partition=clusters_to_annotate)
         else:
+            if self.args.naive_vsearch:
+                print('      calculating hmm annotations even though --fast/--naive-vsearch was set (set --use-sw-annotations to get faster, but substantially less accurate, annotations)')
             _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, partition=clusters_to_annotate, n_procs=n_procs, dont_print_annotations=dont_print_annotations)
         return all_annotations, hmm_failures
 
@@ -1178,17 +1188,16 @@ class PartitionDriver(object):
             sys.stdout.flush()
         print('')
 
-        ccfs, perf_metrics = [None, None], None
-        if not self.args.is_data:  # it's ok to always calculate this since it's only ever for one partition
+        perf_metrics = None
+        if not self.args.is_data:  # i'm no longer calculating ccfs here, so could remove/move some of this inside the pairwise clustering metric block
             queries_without_annotations = set(self.input_info) - set(self.sw_info['queries'])
             tmp_partition = copy.deepcopy(partition) + [[q, ] for q in queries_without_annotations]  # just add the missing ones as singletons
             self.check_partition(tmp_partition)
-            true_partition = utils.get_partition_from_reco_info(self.reco_info)
-            ccfs = utils.per_seq_correct_cluster_fractions(tmp_partition, true_partition, reco_info=self.reco_info)
             if self.args.add_pairwise_clustering_metrics:
+                true_partition = utils.get_partition_from_reco_info(self.reco_info)
                 perf_metrics = {'pairwise' : utils.pairwise_cluster_metrics('pairwise', tmp_partition, true_partition)}
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
-        cpath.add_partition(partition, logprob=0.0, n_procs=1, ccfs=ccfs, perf_metrics=perf_metrics)
+        cpath.add_partition(partition, logprob=0.0, n_procs=1, perf_metrics=perf_metrics)
 
         print('      vsearch time: %.1f' % (time.time()-start))
         sys.stdout.flush()

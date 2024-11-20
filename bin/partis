@@ -418,7 +418,7 @@ def subset_partition(args):
         merge_subset_files()
 
     final_odir = '%s' % args.paired_outdir
-    utils.simplerun(get_cmd(infname, final_odir, merged_odir=merged_odir), logfname='%s/partition.log'%final_odir, dryrun=args.dry_run)
+    utils.simplerun(get_cmd(infname, final_odir, merged_odir=merged_odir), logfname='%s/merged-partition.log'%final_odir, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):

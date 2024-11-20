@@ -202,6 +202,8 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
     # ----------------------------------------------------------------------------------------
     def glpf(p, k, l):  # short for "get key (k) from lp_infos for lpair (p) and locus (l) NOTE duplicates code in write_lpair_output_files
         if p is None:  # single-locus (i.e. not paired)
+            if lp_infos[k] is None:
+                return None
             return lp_infos[k].get(l)
         if tuple(p) not in lp_infos or lp_infos[tuple(p)][k] is None:
             return None

@@ -1058,7 +1058,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         list_of_fqlists = evenly_split_list(drop_query_lists, n_subsets, dbgstr='droplets')
         returnfo = []
         for isub, final_qlists in enumerate(list_of_fqlists):
-            returnfo.append(get_final_seqfos(final_qlists, '  isub %d'%isub, 'in order, after sorting alphabetically by droplet id'))
+            returnfo.append(get_final_seqfos(final_qlists, '  isub %d'%isub, 'in order (after sorting alphabetically by droplet id)'))
     else:
         assert False
     return returnfo
@@ -4579,12 +4579,14 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE 
             continue
         if debug:
             print_aligned_seqs(iatn)
-        i_sw_dummy = 0  # eh just use one of them, they should all have the same padding
-        swfo = sw_info[iatn['unique_ids'][i_sw_dummy]]
-        n_fv_pad = len(swfo['fv_insertion']) - len(iatn['fv_insertion'])
-        n_jf_pad = len(swfo['jf_insertion']) - len(iatn['jf_insertion'])
-        if n_fv_pad + n_jf_pad > 0:  # hopefully what happened is just that the subset-merged sw info added some extra padding, so we add that here now
-            fix_atn(n_fv_pad, n_jf_pad, iatn)
+        sw_vals = {i : [len(sw_info[u][i+'_insertion']) for u in iatn['unique_ids']] for i in ['fv', 'jf']}
+        for istr in sw_vals:
+            if len(set(sw_vals[istr])) > 1:
+                print('    %s multiple values for %s_insertion among sw annotations when re-padding multi-seq (e.g. input) annotation: %s' % (wrnstr(), istr, set(sw_vals[istr])))
+        max_pads = {i : max(sw_vals[i]) for i in ['fv', 'jf']}  # i dunno that taking the max padded one is really better than taking the first (like if they're different it'll probably break anyway)
+        n_pads = {i : max_pads[i] - len(iatn[i+'_insertion']) for i in max_pads}
+        if n_pads['fv'] + n_pads['jf'] > 0:  # hopefully what happened is just that the subset-merged sw info added some extra padding, so we add that here now
+            fix_atn(n_pads['fv'], n_pads['jf'], iatn)
             n_padded += 1
         if has_bad_lengths(iatn):
             print_aligned_seqs(iatn, xstr='failed to fix: ')
