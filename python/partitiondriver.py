@@ -722,11 +722,13 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def remove_small_clusters(self, old_cpath):
+        assert self.small_cluster_seqs is None  # at least for now, we want to call this only once (would otherwise need to modify it)
         big_clusters, small_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: len(cluster) not in self.args.small_clusters_to_ignore)
         self.small_cluster_seqs = [sid for sclust in small_clusters for sid in sclust]
         new_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         new_cpath.add_partition(big_clusters, -1., 1)
-        print('      removing %d sequences in %d small clusters (with sizes among %s)' % (len(self.small_cluster_seqs), len(small_clusters), ' '.join([str(sz) for sz in self.args.small_clusters_to_ignore])))
+        ntot = sum(len(c) for c in old_cpath.best())
+        print('      --small-clusters-to-ignore: removing %d / %d (%.3f) sequences in %d / %d (%.3f) clusters (with sizes among %s)' % (len(self.small_cluster_seqs), ntot, len(self.small_cluster_seqs) / ntot, len(small_clusters), len(old_cpath.best()), len(small_clusters) / len(old_cpath.best()), ' '.join([str(sz) for sz in self.args.small_clusters_to_ignore])))
         return new_cpath
 
     # ----------------------------------------------------------------------------------------
@@ -1032,7 +1034,7 @@ class PartitionDriver(object):
             all_annotations, hmm_failures = self.convert_sw_annotations(partition=clusters_to_annotate)
         else:
             if self.args.naive_vsearch:
-                print('      calculating hmm annotations even though --fast/--naive-vsearch was set (set --use-sw-annotations to get faster, but substantially less accurate, annotations)')
+                print('      calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)')
             _, all_annotations, hmm_failures = self.run_hmm('viterbi', self.sub_param_dir, count_parameters=self.args.count_parameters, parameter_out_dir=self.final_multi_paramdir, partition=clusters_to_annotate, n_procs=n_procs, dont_print_annotations=dont_print_annotations)
         return all_annotations, hmm_failures
 
@@ -1202,6 +1204,8 @@ class PartitionDriver(object):
                 perf_metrics = {'pairwise' : utils.pairwise_cluster_metrics('pairwise', tmp_partition, true_partition)}
         cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         cpath.add_partition(partition, logprob=0.0, n_procs=1, perf_metrics=perf_metrics)
+        if self.args.small_clusters_to_ignore is not None:  # maybe should do this a few lines higher? but this is where we're making the cpath atm
+            cpath = self.remove_small_clusters(cpath)
 
         print('      vsearch time: %.1f' % (time.time()-start))
         sys.stdout.flush()
