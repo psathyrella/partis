@@ -39,9 +39,10 @@ class Hist(object):
         if value_list is not None:
             if any(math.isnan(v) for v in value_list):
                 raise Exception('nan value in value_list: %s' % value_list)
-            if any(v < xmin or v >= xmax for v in value_list):  # probably because you forgot that xmax is low edge of overflow bin, so it's included in that
+            if any(v < xmin or v >= xmax for v in value_list):  # maybe because you forgot that xmax is low edge of overflow bin, so it's included in that
                 # NOTE it would be nice to integrate this with hutils.make_hist_from_list_of_values() and hutils.make_hist_from_dict_of_counts()
-                print('  %s value[s] %s outside bounds [%s, %s] in hist list fill' % (utils.color('yellow', 'warning'), [v for v in value_list if v < xmin or v >= xmax], xmin, xmax))
+                obvals = sorted([v for v in value_list if v < xmin or v >= xmax])
+                print('  %s %d values outside bounds [%s, %s] in hist list fill: %s' % (utils.color('yellow', 'warning'), len(obvals), xmin, xmax, ' '.join('%.2f'%v for v in obvals)))
             self.list_fill(value_list, weight_list=weight_list)
 
     # ----------------------------------------------------------------------------------------

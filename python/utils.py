@@ -4544,34 +4544,58 @@ def pad_nuc_seq(nseq, side='right', return_n_padded=False):  # if length not mul
     return (nseq, len(padstr)) if return_n_padded else nseq
 
 # ----------------------------------------------------------------------------------------
+# duplicates some code in waterer.get_padding_parameters() (NOTE the version there doesn't include the jf insertion length)
+def get_pad_parameters(line, glfo, iseq):
+    fvstuff = max(0, len(line['fv_insertion']) - line['v_5p_del'])  # we always want to pad out to the entire germline sequence, so don't let this go negative
+    gl_cpos = glfo['cyst-positions'][line['v_gene']] + fvstuff
+    cpos = line['codon_positions']['v']  # cyst position in query sequence (as opposed to gl_cpos, which is in germline allele)
+    gl_cpos_to_j_end = len(line['seqs'][iseq]) - cpos + line['j_3p_del'] - len(line['jf_insertion'])
+    return gl_cpos, gl_cpos_to_j_end  # when using these return values, call them (ldist, rdist)
+
+# ----------------------------------------------------------------------------------------
 # In subset-partition, we end up with hmm-inferred multi-seq annotations that were padded in their individual subset process, i.e. that in some cases aren't padded enough for the full sample.
 # Here we add any extra padding in the sw info (which will have been padded on the full sample when reading the subset-merged sw cache file)
+# UPDATE: actually also need to *trim* padding in input annotations, at least for the case we're subset partitioning and ignoring small clusters, in which case sw padding in the merge process will be missing all the sequences from small clusters, so it can end up with less padding than the original sw (and thus input annotation)
 def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE quite similar to pad_seqs_to_same_length() in waterer.py (although there we change a lot more stuff by hand, i think because i didn't yet have remove_all_implicit_info [or maybe bc that would be slower])
     from . import indelutils
     # ----------------------------------------------------------------------------------------
-    def fix_atn(n_fv_pad, n_jf_pad, atn):
+    def fix_atn(n_fv_pad, n_jf_pad, atn):  # NTOE both N pads can be negative (yeah, probably should rename them now)
         remove_all_implicit_info(atn)
-        leftstr, rightstr = [n * ambig_base for n in [n_fv_pad, n_jf_pad]]
-        atn['fv_insertion'] += leftstr
-        atn['jf_insertion'] += rightstr
+        padstrs, n_trims = {'fv' : '', 'jf' : ''}, {'fv' : 0, 'jf' : 0}
+        for istr, n_pad in [['fv', n_fv_pad], ['jf', n_jf_pad]]:
+            if n_pad == 0:
+                continue
+            elif n_pad > 0:  # actually pad with Ns
+                padstrs[istr] = n_pad * ambig_base
+                atn[istr+'_insertion'] += padstrs[istr]
+            else:  # trim it
+                assert abs(n_pad) <= len(atn[istr+'_insertion'])  # don't trim off more than there is
+                n_trims[istr] = abs(n_pad)
+                atn[istr+'_insertion'] = atn[istr+'_insertion'][ : len(atn[istr+'_insertion']) - n_trims[istr]]
         for seqkey in ['seqs', 'input_seqs']:
-            for iseq in range(len(atn['unique_ids'])):
-                atn[seqkey][iseq] = leftstr + atn[seqkey][iseq] + rightstr
+            for iseq in range(len(atn['unique_ids'])):  # only 2 of the 4 numbers should be set, but I don't think i really need to check that
+                atn[seqkey][iseq] = atn[seqkey][iseq][n_trims['fv'] : len(atn[seqkey][iseq]) - n_trims['jf']]
+                atn[seqkey][iseq] = padstrs['fv'] + atn[seqkey][iseq] + padstrs['jf']
         for iseq in [i for i in range(len(atn['unique_ids'])) if indelutils.has_indels_line(atn, i)]:
-            indelutils.pad_indelfo(atn['indelfos'][iseq], leftstr, rightstr)
+            if len(padstrs['fv']) > 0 or len(padstrs['jf']) > 0:
+                indelutils.pad_indelfo(atn['indelfos'][iseq], padstrs['fv'], padstrs['jf'])
+            if any(n>0 for n in n_trims.values()):
+                indelutils.trim_padding_from_indelfo(atn['indelfos'][iseq], n_trims['fv'], n_trims['jf'])
         add_implicit_info(input_glfo, atn)  # NOTE this is probably slow, i could probably save a lot of time by not recalculating e.g. n_mutations
         if debug:
-            print('      padded with leftstr: %s rightstr: %s' % (leftstr, rightstr))
+            if len(padstrs['fv']) > 0 or len(padstrs['jf']) > 0:
+                print('      padded with leftstr: %s rightstr: %s' % (padstrs['fv'], padstrs['jf']))
+            if any(n>0 for n in n_trims.values()):
+                print('      trimmed with fv: %d jf: %d' % (n_trims['fv'], n_trims['jf']))
     # ----------------------------------------------------------------------------------------
     def has_bad_lengths(iatn):
         return any(len(sw_info[u]['naive_seq']) != len(iatn['naive_seq']) for u in iatn['unique_ids'])
     # ----------------------------------------------------------------------------------------
-    def print_aligned_seqs(iatn, xstr=''):
+    def print_aligned_seqs(iatn, xstr='', extra_str='        '):
         print('   %snaive seq length in input annotation %d different from that in sw info %s' % (xstr, len(iatn['naive_seq']), ' '.join(str(len(sw_info[u]['naive_seq'])) for u in iatn['unique_ids'])))
-        align_many_seqs([{'name' : 'input-atn', 'seq' : iatn['naive_seq']}] + [{'name' : u, 'seq' : sw_info[u]['naive_seq']} for u in iatn['unique_ids']], extra_str='        ', debug=debug)
+        align_many_seqs([{'name' : 'input-atn', 'seq' : iatn['naive_seq']}] + [{'name' : u, 'seq' : sw_info[u]['naive_seq']} for u in iatn['unique_ids']], extra_str=extra_str, debug=debug)
     # ----------------------------------------------------------------------------------------
     if debug:
-        print()
         print('  re-padding %d annotations' % len(input_antn_list))
     n_padded = 0
     for iatn in input_antn_list:
@@ -4579,17 +4603,17 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE 
             continue
         if debug:
             print_aligned_seqs(iatn)
-        sw_vals = {i : [len(sw_info[u][i+'_insertion']) for u in iatn['unique_ids']] for i in ['fv', 'jf']}
-        for istr in sw_vals:
-            if len(set(sw_vals[istr])) > 1:
-                print('    %s multiple values for %s_insertion among sw annotations when re-padding multi-seq (e.g. input) annotation: %s' % (wrnstr(), istr, set(sw_vals[istr])))
-        max_pads = {i : max(sw_vals[i]) for i in ['fv', 'jf']}  # i dunno that taking the max padded one is really better than taking the first (like if they're different it'll probably break anyway)
-        n_pads = {i : max_pads[i] - len(iatn[i+'_insertion']) for i in max_pads}
-        if n_pads['fv'] + n_pads['jf'] > 0:  # hopefully what happened is just that the subset-merged sw info added some extra padding, so we add that here now
-            fix_atn(n_pads['fv'], n_pads['jf'], iatn)
+        sw_ldists, sw_rdists = zip(*[get_pad_parameters(sw_info[iatn['unique_ids'][i]], input_glfo, 0) for i, u in enumerate(iatn['unique_ids'])])
+        sw_ldist, sw_rdist = [get_single_entry(list(set(l))) for l in [sw_ldists, sw_rdists]]
+        ia_ldist, ia_rdiist = get_pad_parameters(iatn, input_glfo, 0)  # they should all be the same, so can use 0 (?)
+        leftpad, rightpad = sw_ldist - ia_ldist, sw_rdist - ia_rdiist
+        if leftpad == 0 and rpad == 0:
+            print('    %s lengths don\'t match when re-padding hmm seqs, but padding parameters are the same (will probably crash just below)' % wrnstr())
+        else:
+            fix_atn(leftpad, rightpad, iatn)
             n_padded += 1
         if has_bad_lengths(iatn):
-            print_aligned_seqs(iatn, xstr='failed to fix: ')
+            print_aligned_seqs(iatn, xstr='    failed to fix: ', extra_str='            ')
             raise Exception('didn\'t manage to fix lengths (see previous lines)')
     if debug:
         print('    fixed padding for %d / %d annotations' % (n_padded, len(input_antn_list)))

@@ -389,11 +389,18 @@ def get_indelfo_from_cigar(cigarstr, full_qrseq, qrbounds, full_glseq, glbounds,
 # ----------------------------------------------------------------------------------------
 def pad_indelfo(indelfo, leftstr, rightstr):
     assert indelfo['qr_gap_seq'] != '' and indelfo['gl_gap_seq'] != ''  # not sure how or why, but it means something's broken
-    indelfo['qr_gap_seq'] = leftstr + indelfo['qr_gap_seq'] + rightstr
-    indelfo['gl_gap_seq'] = leftstr + indelfo['gl_gap_seq'] + rightstr
-    indelfo['reversed_seq'] = leftstr + indelfo['reversed_seq'] + rightstr
+    for tkey in ['qr_gap_seq', 'gl_gap_seq', 'reversed_seq']:
+        indelfo[tkey] = leftstr + indelfo[tkey] + rightstr
     for indel in indelfo['indels']:
         indel['pos'] += len(leftstr)
+
+# ----------------------------------------------------------------------------------------
+def trim_padding_from_indelfo(indelfo, n_left, n_right):
+    assert indelfo['qr_gap_seq'] != '' and indelfo['gl_gap_seq'] != ''  # not sure how or why, but it means something's broken
+    for tkey in ['qr_gap_seq', 'gl_gap_seq', 'reversed_seq']:
+        indelfo[tkey] = indelfo[tkey][n_left : len(indelfo[tkey]) - n_right]
+    for indel in indelfo['indels']:
+        indel['pos'] -= n_left
 
 # ----------------------------------------------------------------------------------------
 def trim_indel_info(line, iseq, fv_insertion_to_remove, jf_insertion_to_remove, v_5p_to_remove, j_3p_to_remove):
