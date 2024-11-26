@@ -80,6 +80,12 @@ class PartitionDriver(object):
                 self.input_antn_dict = utils.get_annotation_dict(self.input_antn_list)
             self.input_partition = self.input_cpath.partitions[self.input_cpath.i_best if self.args.input_partition_index is None else self.args.input_partition_index]
             print('  --input-partition-fname: read %s partition with %d sequences in %d clusters from %s' % ('best' if self.args.input_partition_index is None else 'index-%d'%self.args.input_partition_index, sum(len(c) for c in self.input_partition), len(self.input_partition), self.args.input_partition_fname))
+            input_partition_queries = set(u for c in self.input_partition for u in c)
+            ids_to_rm = set(self.input_info) - input_partition_queries
+            for uid in ids_to_rm:
+                del self.input_info[uid]
+            if len(ids_to_rm) > 0:
+                print('    removed %d/%d queries from input info that were absent from input partition' % (len(ids_to_rm), len(self.input_info) + len(ids_to_rm)))
 
         self.deal_with_persistent_cachefile()
 

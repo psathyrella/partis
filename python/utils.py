@@ -4559,7 +4559,7 @@ def get_pad_parameters(line, glfo, iseq):
 def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE quite similar to pad_seqs_to_same_length() in waterer.py (although there we change a lot more stuff by hand, i think because i didn't yet have remove_all_implicit_info [or maybe bc that would be slower])
     from . import indelutils
     # ----------------------------------------------------------------------------------------
-    def fix_atn(n_fv_pad, n_jf_pad, atn):  # NTOE both N pads can be negative (yeah, probably should rename them now)
+    def fix_atn(n_fv_pad, n_jf_pad, atn):  # NOTE both N pads can be negative (yeah, probably should rename them now)
         remove_all_implicit_info(atn)
         padstrs, n_trims = {'fv' : '', 'jf' : ''}, {'fv' : 0, 'jf' : 0}
         for istr, n_pad in [['fv', n_fv_pad], ['jf', n_jf_pad]]:
