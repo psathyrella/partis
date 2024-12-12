@@ -1271,20 +1271,24 @@ def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotatio
                 print('          extra annotation with size %d overlaps with the following %s clusters (overlap/size): %s' % (len(eline['unique_ids']), pfcn, '  '.join('%d/%d'%(len(set(eline['unique_ids']) & set(c)), len(c)) for c in overlap_clusts)))
 
 # ----------------------------------------------------------------------------------------
-def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=None, use_last=False):
-    annotation_dict = OrderedDict()
+def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=None, use_last=False, ignore_duplicates=False):
+    annotation_dict, dup_keys = OrderedDict(), []
     for line in annotation_list:
         uidstr = ':'.join(line['unique_ids'])
         if uidstr in annotation_dict or duplicate_resolution_key is not None:  # if <duplicate_resolution_key> was specified, but it wasn't specified properly (e.g. if it's not sufficient to resolve duplicates), then <uidstr> won't be in <annotation_dict>
-            if duplicate_resolution_key is None:
+            if ignore_duplicates:
+                dup_keys.append(uidstr)
+            elif duplicate_resolution_key is None:
                 print('  %s multiple annotations for the same cluster, but no duplication resolution key was specified, so returning None for annotation dict (which is fine, as long as you\'re not then trying to use it)' % color('yellow', 'warning'))
                 return None
             else:
                 uidstr = '%s-%s' % (uidstr, line[duplicate_resolution_key])
                 if uidstr in annotation_dict:
                     raise Exception('duplicate key even after adding duplicate resolution key: \'%s\'' % uidstr)
-        assert uidstr not in annotation_dict
+        assert ignore_duplicates or uidstr not in annotation_dict
         annotation_dict[uidstr] = line
+    if len(dup_keys) > 0:
+        print('    %d duplicate annotations when getting annotation dict (ignore_duplicates was set, so this is probably fine)' % len(dup_keys))
 
     if cpath is not None:  # check that all the clusters in <cpath>.best() are in the annotation dict
         if len(cpath.best()) > 10000:
@@ -1513,8 +1517,8 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, do
 # ----------------------------------------------------------------------------------------
 # add seqs in <seqfos_to_add> to the annotation in <line>, aligning new seqs against <line>'s naive seq with mafft if necessary (see bin/add-seqs-to-outputs.py)
 # NOTE see also replace_seqs_in_line()
-# NOTE also that there's no way to add shm indels for seqs in <seqfos_to_add>
-def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, print_added_str='', extra_str='      ', debug=False):
+# NOTE also that there's no way to add shm indels (or other additional keys) for seqs in <seqfos_to_add>, you have to replace the info afterwards (see e.g. combine_events())
+def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse_to_align=False, print_added_str='', extra_str='      ', dont_print=False, debug=False):
     from . import indelutils
     # ----------------------------------------------------------------------------------------
     def align_sfo_seqs(sfos_to_align):
@@ -1549,7 +1553,7 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             return sfo['seq']
 
     # ----------------------------------------------------------------------------------------
-    original_len = len(line['unique_ids'])
+    original_len, original_uids = len(line['unique_ids']), copy.copy(line['unique_ids'])
     trimmed_seqfos, sfos_to_align = {}, {}
     if try_to_fix_padding:
         for sfo in [s for s in seqfos_to_add if len(s['seq']) > len(line['naive_seq'])]:
@@ -1568,13 +1572,16 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
         remove_all_implicit_info(line)
 
     add_per_seq_keys(line)
-    for key in set(line) & set(linekeys['per_seq']):
+    for key in sorted(set(line) & set(linekeys['per_seq'])):
         if key == 'unique_ids':
             line[key] += [s['name'] for s in aligned_seqfos]
         elif key == 'input_seqs' or key == 'seqs':  # i think elsewhere these end up pointing to the same list of string objects, but i think that doesn't matter? UPDATE of fuck yes it does
             assert len(line[key]) in [original_len, original_len + len(aligned_seqfos)]
             if len(line[key]) == original_len:  # if they're pointing at the same list, make sure to only add em once (yes this sucks, and yes they shouldn't be pointing at the same list, but if it does happen this keeps it from being a disaster)
-                line[key] += [s['seq'] for s in aligned_seqfos]
+                dup_ids = [s['name'] for s in aligned_seqfos if s['name'] in original_uids]
+                if len(dup_ids) > 0:  # not really sure i need this dups stuff (didn't need it for the case for which I implemented it), but leaving in, which may be dangerous, hence the warning
+                    print('    %s duplicate ids in aligned seqfos (should be handled, but also shouldn\'t happen, i.e. should fix eventually)' % wrnstr())
+                line[key] += [s['seq'] for s in aligned_seqfos if s['name'] not in original_uids]
         elif key == 'duplicates':
             line[key] += [[] for _ in aligned_seqfos]
         elif key == 'multiplicities':
@@ -1585,6 +1592,9 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
             line[key] += [indelutils.get_empty_indel() for _ in aligned_seqfos]
         else:  # I think this should only be for input meta keys like multiplicities, affinities, and timepoints, and hopefully they can all handle None?
             line[key] += [None for _ in aligned_seqfos]
+        if len(line[key]) != original_len + len(aligned_seqfos):
+            print(key, original_len, len(line[key]), original_len + len(aligned_seqfos))
+            raise Exception('value for key \'%s\' not correct length when adding seqs to line (see previous line)' % key)
 
     if line.get('is_fake_paired', False):
         if 'seqs_aa' in line:  # fill in the Nones that will have been added above
@@ -1600,8 +1610,8 @@ def add_seqs_to_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, refuse
 
     if print_added_str:
         print('%sadded %d %s seqs to line (originally with %d)%s' % (extra_str, len(seqfos_to_add), print_added_str, original_len, '' if len(seqfos_to_add)>16 else ': %s' % ' '.join(s['name'] for s in seqfos_to_add)))
-    if debug and not line.get('is_fake_paired', False):
-        print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str='      ', queries_to_emphasize=[s['name'] for s in aligned_seqfos])
+    if debug and not line.get('is_fake_paired', False) and not dont_print:  # dont_print sucks, but combine_events() needs to be able to not print here (since we haven't yet fixed some keys, e.g. indel info)
+        print_reco_event(line, label='after adding %d seq%s:'%(len(aligned_seqfos), plural(len(aligned_seqfos))), extra_str=extra_str, queries_to_emphasize=[s['name'] for s in aligned_seqfos])
 
 # ----------------------------------------------------------------------------------------
 # same as add_seqs_to_line(), except this removes all existing seqs first, so the final <line> only contains the seqs in <seqfos_to_add>
@@ -1613,21 +1623,32 @@ def replace_seqs_in_line(line, seqfos_to_add, glfo, try_to_fix_padding=False, re
     restrict_to_iseqs(line, iseqs_to_keep, glfo)
 
 # ----------------------------------------------------------------------------------------
-# NOTE doesn't handle indels UPDATE maybe it does now? needs testing
-def combine_events(glfo, evt_list, meta_keys=None, debug=False):  # combine events in <evt_list> into a single annotation (could also [used to] pass in meta info values, but don't need it atm)
+def combine_events(glfo, evt_list, meta_keys=None, extra_str='      ', debug=False):  # combine events in <evt_list> into a single annotation (could also [used to] pass in meta info values, but don't need it atm)
     from . import indelutils
-    if any(indelutils.has_indels_line(l, i) for l in evt_list for i in range(len(l['unique_ids']))):
-        raise Exception('can\'t handle indels (needs implementing')
     combo_evt = get_full_copy(evt_list[0], glfo)
-    seqfos_to_add = [{'name' : u, 'seq' : s} for l in evt_list[1:] for u, s in zip(l['unique_ids'], l['seqs'])]
-    add_seqs_to_line(combo_evt, seqfos_to_add, glfo, debug=debug)
-    for tkey in set(combo_evt) & set(linekeys['per_seq']) - set(implicit_linekeys) - set(['unique_ids', 'seqs']):
-        combo_evt[tkey] = [copy.deepcopy(v) for l in evt_list for v in l[tkey]]  # ick, would be nice to avoid the deepcopy
+    if debug:
+        print('%scombining %d annotations:' % (extra_str, len(evt_list)))
+        for tevt in evt_list:
+            print_reco_event(tevt, label='before:', extra_str=extra_str, extra_print_keys=['fv_insertion', 'jf_insertion'])
+    seqfos_to_add, added_atn_indices, added_uids = [], [], []  # handle uids that appear in more than one event
+    for ia, atn in enumerate(evt_list[1:]):
+        for uid, seq in zip(atn['unique_ids'], atn['seqs']):
+            if uid in combo_evt['unique_ids'] or uid in added_uids:
+                continue
+            seqfos_to_add.append({'name' : uid, 'seq' : seq})
+            added_atn_indices.append(ia + 1)  # NOTE <ia> is first *added* event, i.e. not combo_evt (hence +1)
+            added_uids.append(uid)
+    # NOTE add_seqs_to_line() just adds *seqs* while assuming they have no associated extra info (e.g. indel info), which is wrong here, so we have to fix (replace the default info that is added) afterward (in the next lines)
+    add_seqs_to_line(combo_evt, seqfos_to_add, glfo, extra_str=extra_str, dont_print=True, debug=debug)
+    for tkey in set(combo_evt) & set(linekeys['per_seq']) - set(implicit_linekeys) - set(['unique_ids', 'seqs']):  # TODO this doesn't account for if we align stuff in add_seqs_to_line()
+        combo_evt[tkey] = evt_list[0][tkey] + [per_seq_val(evt_list[i], tkey, u) for i, u in zip(added_atn_indices, added_uids)]  # NOTE i here is index in <evt_list> (see note above)
     if meta_keys is not None:
         for mkey in meta_keys:
             combo_evt[mkey] = [v for l in evt_list for v in l[mkey]]
     if 'tree' in combo_evt:  # would not be easy to merge the trees from different events, so give up for now
         combo_evt['tree'] = None
+    if debug:
+        print_reco_event(combo_evt, label='after adding %d seq%s:'%(len(seqfos_to_add), plural(len(seqfos_to_add))), extra_str=extra_str, queries_to_emphasize=[s['name'] for s in seqfos_to_add])
     return combo_evt
 
 # ----------------------------------------------------------------------------------------
@@ -3639,6 +3660,9 @@ def get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_lab
 
 # ----------------------------------------------------------------------------------------
 def print_reco_event(line, extra_str='', label='', post_label='', uid_extra_strs=None, uid_extra_str_label=None, extra_print_keys=None, queries_to_emphasize=None):
+    if line['invalid']:
+        print('%s%s %s tried to print invalid event' % (extra_str, label, wrnstr()))
+        return
     from . import prutils
     if extra_print_keys is not None:
         uid_extra_strs, uid_extra_str_label = get_uid_extra_strs(line, extra_print_keys, uid_extra_strs, uid_extra_str_label)
@@ -5816,6 +5840,57 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
             n_singletons = dbg_strs.count('1/1')  # NOTE similarity to utils.cluster_size_str()
             print('           removed uids/from clusters with size: %s (+%d singletons)' % ('  '.join(s for s in dbg_strs if s!='1/1'), n_singletons))
     return new_partitions
+
+# ----------------------------------------------------------------------------------------
+# return a new list of partitions where any clusters that share uids have been merged (including, if set, fixing antn_list to match)
+def merge_overlapping_clusters(partitions, antn_list=None, glfo=None, debug=True):  # similar to deduplicating fcn above
+    # ----------------------------------------------------------------------------------------
+    def try_to_update_annotations(cluster_i, cluster_j, newclust):
+        if newclust not in [cluster_i, cluster_j]:  # if needed, get the new annotation
+            antn_i, antn_j = antn_dict[':'.join(cluster_i)], antn_dict[':'.join(cluster_j)]  # if it crashes here, the annotations aren't sync'd with the partition
+            antn_dict[':'.join(newclust)] = combine_events(glfo, [antn_i, antn_j], extra_str='                        ', debug=debug)
+        for tclust in [cluster_i, cluster_j]:
+            if tclust != newclust and ':'.join(tclust) in antn_dict:  # maybe should warn if they're missing, but it's probably ok, there's lots of reasons clusters and annotations aren't synced
+                del antn_dict[':'.join(tclust)]
+    # ----------------------------------------------------------------------------------------
+    from . import clusterpath
+    if antn_list is not None:
+        antn_dict = get_annotation_dict(antn_list, ignore_duplicates=True)
+    if debug:
+        print('    merging overlapping clusters in %d partition%s' % (len(partitions), plural(len(partitions))))
+    new_partitions = []
+    for ipart in range(len(partitions)):
+        if debug:
+            unique_uids, total_uids = len(set(u for c in partitions[ipart] for u in c)), sum(len(c) for c in partitions[ipart])
+            print('      ipart %d with %d clusters: %d unique vs %d total uids' % (ipart, len(partitions[ipart]), unique_uids, total_uids))
+        newptn = [copy.copy(c) for c in partitions[ipart]]
+        if debug:
+            clusterpath.ptnprint(partitions[ipart], abbreviate=False)
+            print('          i   j   len(i) len(j) len(new)  common  (%s)' % color('red', 'same as new cluster'))
+        for iclust in range(len(newptn)):
+            for jclust in range(iclust + 1, len(newptn)):
+                cluster_i, cluster_j = newptn[iclust], newptn[jclust]
+                if cluster_i is None or cluster_j is None:  # when we merge two clusters, the merged cluster goes where one was, and the other is replaced by None
+                    continue
+                overlap_ids = sorted(set(cluster_i) & set(cluster_j))
+                if len(overlap_ids) == 0:
+                    continue
+                newptn[iclust] = cluster_i + [u for u in cluster_j if u not in overlap_ids]  # keep order in i^th cluster, remove common ids from j^th cluster (NOTE this corresponds to the ordering in combine_events())
+                if debug:
+                    print('        %3d %3d   %s   %s   %4d     %4d   %s' % (iclust, jclust,
+                                                                              color('red' if cluster_i==newptn[iclust] else None, str(len(cluster_i)), width=4),
+                                                                              color('red' if cluster_j==newptn[iclust] else None, str(len(cluster_j)), width=4),
+                                                                              len(newptn[iclust]), len(overlap_ids), ' '.join(sorted(overlap_ids))))
+                assert set(newptn[iclust]) == set(cluster_i) | set(cluster_j)
+                if antn_list is not None:
+                    try_to_update_annotations(cluster_i, cluster_j, newptn[iclust])
+                newptn[jclust] = None
+        newptn = [c for c in newptn if c is not None]
+        new_partitions.append(newptn)
+        if debug:
+            clusterpath.ptnprint(newptn, abbreviate=False)
+    # return new_partitions, [antn_dict[':'.join(c)] for p in new_partitions for c in p if ':'.join(c) in antn_dict]  # maybe it's worth putting the annotations in some order?
+    return new_partitions, antn_dict.values() if antn_list is not None else None
 
 # ----------------------------------------------------------------------------------------
 def build_dummy_reco_info(true_partition):
