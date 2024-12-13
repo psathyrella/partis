@@ -1033,11 +1033,20 @@ def evenly_split_list(inlist, n_subsets, dbgstr='items'):
 # chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
 # n_max_queries: take only this many (in alphabetical droplet order), n_random_queries: take this many at random, n_subsets: split into this many groups
 # NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
-def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
+def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None,
+                          seed_unique_ids=None, queries_to_include=None, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
     # ----------------------------------------------------------------------------------------
     def get_final_seqfos(final_qlists, dbgarg, dbgstr):
         final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
         print('  %s: chose %d / %d droplets %s which had %d / %d seqs' % (dbgarg, len(final_qlists), len(drop_query_lists), dbgstr, len(final_sfos), sum(len(ql) for ql in drop_query_lists)))
+        if seed_unique_ids is not None:  # kind of similar to seqfileopener.post_process()
+            missing_ids = sorted(set(seed_unique_ids) - set(s['name'] for s in final_sfos))
+            final_sfos += [sfdict[u] for u in missing_ids]
+            print('      --seed-unique-id: added %d/%d seed ids (others already there)' % (len(missing_ids), len(seed_unique_ids)))
+        if queries_to_include is not None:
+            missing_ids = sorted(set(queries_to_include) - set(s['name'] for s in final_sfos))
+            final_sfos += [sfdict[u] for u in missing_ids]
+            print('      --queries-to-include: added %d/%d queries (others already there)' % (len(missing_ids), len(queries_to_include)))
         return final_sfos
     # ----------------------------------------------------------------------------------------
     sfdict = {s['name'] : s for s in seqfos}
@@ -1636,7 +1645,7 @@ def combine_events(glfo, evt_list, meta_keys=None, extra_str='      ', debug=Fal
     if debug:
         print('%scombining %d annotations:' % (extra_str, len(evt_list)))
         for tevt in evt_list:
-            print_reco_event(tevt, label='before:', extra_str=extra_str, extra_print_keys=['fv_insertion', 'jf_insertion'])
+            print_reco_event(tevt, label=color('yellow', 'before:'), extra_str=extra_str)
     seqfos_to_add, added_atn_indices, added_uids = [], [], []  # handle uids that appear in more than one event
     for ia, atn in enumerate(evt_list[1:]):
         for uid, seq in zip(atn['unique_ids'], atn['seqs']):
@@ -1655,7 +1664,7 @@ def combine_events(glfo, evt_list, meta_keys=None, extra_str='      ', debug=Fal
     if 'tree' in combo_evt:  # would not be easy to merge the trees from different events, so give up for now
         combo_evt['tree'] = None
     if debug:
-        print_reco_event(combo_evt, label='after adding %d seq%s:'%(len(seqfos_to_add), plural(len(seqfos_to_add))), extra_str=extra_str, queries_to_emphasize=[s['name'] for s in seqfos_to_add])
+        print_reco_event(combo_evt, label='%s adding %d seq%s:'%(color('green', 'after'), len(seqfos_to_add), plural(len(seqfos_to_add))), extra_str=extra_str, queries_to_emphasize=[s['name'] for s in seqfos_to_add])
     return combo_evt
 
 # ----------------------------------------------------------------------------------------
@@ -5853,10 +5862,13 @@ def get_deduplicated_partitions(partitions, antn_list=None, glfo=None, debug=Fal
 
 # ----------------------------------------------------------------------------------------
 # return a new list of partitions where any clusters that share uids have been merged (including, if set, fixing antn_list to match)
-def merge_overlapping_clusters(partitions, antn_list=None, glfo=None, debug=True):  # similar to deduplicating fcn above
+def merge_overlapping_clusters(partitions, antn_list=None, glfo=None, dbgstr='', debug=False):  # similar to deduplicating fcn above
     # ----------------------------------------------------------------------------------------
     def try_to_update_annotations(cluster_i, cluster_j, newclust):
         if newclust not in [cluster_i, cluster_j]:  # if needed, get the new annotation
+            if any(':'.join(c) not in antn_dict for c in [cluster_i, cluster_j]):
+                print('      %s missing annotation for cluster[s] when trying to update annotations, so skipping: %s' % (wrnstr(), ', '.join([':'.join(c) for c in [cluster_i, cluster_j] if ':'.join(c) not in antn_dict])))
+                return
             antn_i, antn_j = antn_dict[':'.join(cluster_i)], antn_dict[':'.join(cluster_j)]  # if it crashes here, the annotations aren't sync'd with the partition
             antn_dict[':'.join(newclust)] = combine_events(glfo, [antn_i, antn_j], extra_str='                        ', debug=debug)
         for tclust in [cluster_i, cluster_j]:
@@ -5865,9 +5877,9 @@ def merge_overlapping_clusters(partitions, antn_list=None, glfo=None, debug=True
     # ----------------------------------------------------------------------------------------
     from . import clusterpath
     if antn_list is not None:
-        antn_dict = get_annotation_dict(antn_list, ignore_duplicates=True)
+        antn_dict = get_annotation_dict(antn_list, ignore_duplicates=True)  # , cpath=clusterpath.ClusterPath(partition=partitions[0])
     if debug:
-        print('    merging overlapping clusters in %d partition%s' % (len(partitions), plural(len(partitions))))
+        print('    %smerging overlapping clusters in %d partition%s' % (dbgstr, len(partitions), plural(len(partitions))))
     new_partitions = []
     for ipart in range(len(partitions)):
         if debug:

@@ -338,10 +338,14 @@ def subset_partition(args):
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------
     def run_subsets(infname):
+        tmp_seed_id = args.seed_unique_id  # UGH (have to unset seed id before reading input file since a) we don't need it here and b) it'll still be a list of length two here, which'll break when it tries to treat it as a single sequence id)
+        args.seed_unique_id = None
         input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)  # i think setting is_data=True makes sense (we don't want reco_info)
+        args.seed_unique_id = tmp_seed_id
         print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'subset partitioning'), len(input_info), args.n_subsets, infname))
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
-        sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
+        sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
+                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
         for isub, sfos in enumerate(sfo_lists):
             ofn = ptnfn(subdir(isub), 'igh')
             if os.path.exists(ofn):
@@ -354,6 +358,7 @@ def subset_partition(args):
                     assert len(input_info[sfo['name']]['unique_ids']) == 1
                     metafos[sfo['name']] = {mk : input_info[sfo['name']][lk][0] for mk, lk in utils.input_metafile_keys.items() if lk in input_info[sfo['name']]}
                 utils.jsdump('%s/meta.yaml'%subdir(isub), metafos)
+            # NOTE to get args.seed_unique_id working, I'd need to run parameter caching as a separate step here (probably calling remove_action_specific_args()) (plus other stuff below)
             utils.simplerun(get_cmd(input_fn(subdir(isub)), subdir(isub)), logfname='%s/partition.log'%subdir(isub), dryrun=args.dry_run, extra_str='  %s '%utils.color('blue', 'isub %d:'%isub))
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
@@ -369,12 +374,23 @@ def subset_partition(args):
         if len(i_empty) > 0:
             print('    --keep-all-unpaired-seqs: using joint partition files for %d/%d empty paired subdir annotations (indices %s)' % (len(i_empty), args.n_subsets, ' '.join(str(i) for i in i_empty)))
 
+        # <subset_merged_lp_infos>: just has subsets merged (i.e. still split into lpairs)
+        # <locus_merged_lp_infos>: also has merged heavy chain
         subset_merged_lp_infos = paircluster.concat_lpair_chains(utils.locus_pairs[args.ig_or_tr], lpair_lpfos, dont_deep_copy=True)
         def seedid(x): assert args.seed_unique_id is None
-        locus_merged_lp_infos = paircluster.handle_concatd_heavy_chain(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, dont_deep_copy=True, dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=seedid('s'), debug=True) #args.debug_paired_clustering)
+        # if seed id or queries to include is set, we *need* to keep the duplicates so we can merge overlapping clusters below
+        locus_merged_lp_infos = paircluster.handle_concatd_heavy_chain(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, dont_deep_copy=True, dont_calculate_annotations=args.dont_calculate_annotations,
+                                                                       seed_unique_id=seedid('s'), dont_deduplicate=args.seed_unique_id is not None or args.queries_to_include is not None, debug=True) #args.debug_paired_clustering)
 
         if len(locus_lpfos) > 0:
-            locus_merged_lp_infos = paircluster.concat_locus_chains(utils.sub_loci(args.ig_or_tr), [locus_merged_lp_infos] + locus_lpfos, dont_deep_copy=True, dbgstr=' (from single-chain results due to --keep-all-unpaired-seqs)', debug=True) #args.debug_paired_clustering)
+            locus_merged_lp_infos = paircluster.concat_locus_chains(utils.sub_loci(args.ig_or_tr), [locus_merged_lp_infos] + locus_lpfos, dont_deep_copy=True, dbgstr=' (from single-chain results due to --keep-all-unpaired-seqs)', debug=args.debug_paired_clustering)
+
+        if args.seed_unique_id is not None or args.queries_to_include is not None:  # these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
+            for lpair in subset_merged_lp_infos:
+                for ltmp in lpair:
+                    utils.merge_overlapping_clusters(subset_merged_lp_infos[lpair]['cpaths'][ltmp].partitions, glfo=subset_merged_lp_infos[lpair]['glfos'][ltmp], antn_list=subset_merged_lp_infos[lpair]['antn_lists'][ltmp], dbgstr='%s: '%utils.locstr(ltmp))
+            for ltmp in utils.sub_loci(args.ig_or_tr):
+                utils.merge_overlapping_clusters(locus_merged_lp_infos['cpaths'][ltmp].partitions, glfo=locus_merged_lp_infos['glfos'][ltmp], antn_list=locus_merged_lp_infos['antn_lists'][ltmp], dbgstr='%s: '%utils.locstr(ltmp))
 
         print('   writing merged outputs from %d subsets to %s' % (args.n_subsets, merged_odir))
         def ofn_fcn(ltmp, lpair=None, joint=None): return ptnfn(merged_odir, ltmp, lpair=lpair)  # I *think* i don't need joint
