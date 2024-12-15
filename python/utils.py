@@ -4605,7 +4605,9 @@ def re_pad_atn(n_fv_pad, n_jf_pad, atn, glfo, extra_str='      ', debug=False): 
             padstrs[istr] = n_pad * ambig_base
             atn[istr+'_insertion'] += padstrs[istr]
         else:  # trim it
-            assert abs(n_pad) <= len(atn[istr+'_insertion'])  # don't trim off more than there is
+            if abs(n_pad) > len(atn[istr+'_insertion']):  # don't trim off more than there is
+                print('    %s tried to trim %s %d more than there was %d when re-padding annotation for %s' % (wrnstr(), istr, n_pad, len(atn[istr+'_insertion']), ':'.join(atn['unique_ids'])))
+                n_pad = -len(atn[istr+'_insertion'])
             n_trims[istr] = abs(n_pad)
             atn[istr+'_insertion'] = atn[istr+'_insertion'][ : len(atn[istr+'_insertion']) - n_trims[istr]]
     for seqkey in ['seqs', 'input_seqs']:
@@ -4628,6 +4630,7 @@ def re_pad_atn(n_fv_pad, n_jf_pad, atn, glfo, extra_str='      ', debug=False): 
 # In subset-partition, we end up with hmm-inferred multi-seq annotations that were padded in their individual subset process, i.e. that in some cases aren't padded enough for the full sample.
 # Here we add any extra padding in the sw info (which will have been padded on the full sample when reading the subset-merged sw cache file)
 # UPDATE: actually also need to *trim* padding in input annotations, at least for the case we're subset partitioning and ignoring small clusters, in which case sw padding in the merge process will be missing all the sequences from small clusters, so it can end up with less padding than the original sw (and thus input annotation)
+# NOTE that in most cases this just modifies elements in <input_antn_list>, but sometimes also modifies the list, so in general you need to e.g. remake any associated annotation dict from the calling fcn
 def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE quite similar to pad_seqs_to_same_length() in waterer.py (although there we change a lot more stuff by hand, i think because i didn't yet have remove_all_implicit_info [or maybe bc that would be slower])
     from . import indelutils
     # ----------------------------------------------------------------------------------------
@@ -4636,12 +4639,12 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE 
     # ----------------------------------------------------------------------------------------
     def print_aligned_seqs(iatn, xstr='', extra_str='        '):
         print('   %snaive seq length in input annotation %d different from that in sw info %s' % (xstr, len(iatn['naive_seq']), ' '.join(str(len(sw_info[u]['naive_seq'])) for u in iatn['unique_ids'])))
-        align_many_seqs([{'name' : 'input-atn', 'seq' : iatn['naive_seq']}] + [{'name' : u, 'seq' : sw_info[u]['naive_seq']} for u in iatn['unique_ids']], extra_str=extra_str, debug=debug)
+        align_many_seqs([{'name' : 'input-atn', 'seq' : iatn['naive_seq']}] + [{'name' : u, 'seq' : sw_info[u]['naive_seq']} for u in iatn['unique_ids']], extra_str=extra_str, debug=True)
     # ----------------------------------------------------------------------------------------
     if debug:
         print('  re-padding %d annotations' % len(input_antn_list))
     n_padded = 0
-    for iatn in input_antn_list:
+    for ia, iatn in enumerate(input_antn_list):
         if not has_bad_lengths(iatn):
             continue
         if debug:
@@ -4657,7 +4660,9 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE 
             n_padded += 1
         if has_bad_lengths(iatn):
             print_aligned_seqs(iatn, xstr='    failed to fix: ', extra_str='            ')
-            raise Exception('didn\'t manage to fix lengths (see previous lines)')
+            print('        %s didn\'t manage to fix lengths for %s (see previous lines)' % (wrnstr(), ':'.join(iatn['unique_ids'])))
+            print('           so giving up and making multi-seq line from sw info')
+            input_antn_list[ia] = synthesize_multi_seq_line_from_reco_info(iatn['unique_ids'], sw_info)  # this is the only place we modify the annotation list (rather than just modifying annotations)
     if debug:
         print('    fixed padding for %d / %d annotations' % (n_padded, len(input_antn_list)))
 

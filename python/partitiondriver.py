@@ -2106,6 +2106,7 @@ class PartitionDriver(object):
             # def naive_seq_fcn(query_name_list):
             #     return antn_dict.get(':'.join(query_name_list))['naive_seq']
             utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
+            self.input_antn_dict = utils.get_annotation_dict(self.input_antn_list)  # fcn in previous line only replaces elements in list (rather than modifying those elements) in very rare cases, but for cases when it does, whe have to replace the associated dict
             def naive_seq_fcn(query_name_list):
                 if ':'.join(query_name_list) not in self.input_antn_dict:
                     print('    %s annotation for %s not in input annotation dict, so looking for overlapping clusters (something is probably wrong, maybe to do with --queries-to-include duplicate removal)' % (utils.wrnstr(), ':'.join(query_name_list)))
