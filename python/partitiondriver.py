@@ -731,6 +731,18 @@ class PartitionDriver(object):
     def remove_small_clusters(self, old_cpath):
         assert self.small_cluster_seqs is None  # at least for now, we want to call this only once (would otherwise need to modify it)
         big_clusters, small_clusters = utils.split_partition_with_criterion(old_cpath.partitions[old_cpath.i_best_minus_x], lambda cluster: len(cluster) not in self.args.small_clusters_to_ignore)
+        if self.args.seed_unique_id is not None:  # should probably be implemented at some point
+            print('  %s not specifically keeping --seed-unique-id sequence when removing small clusters' % utils.wrnstr())
+        if self.args.queries_to_include is not None:
+            kept_clusts = []
+            for ism, sclust in enumerate(small_clusters):
+                if any(q in sclust for q in self.args.queries_to_include):
+                    small_clusters[ism] = None
+                    big_clusters.append(sclust)
+                    kept_clusts.append(sclust)
+            small_clusters = [c for c in small_clusters if c is not None]
+            if len(kept_clusts) > 0:
+                print('    --queries-to-include: keeping %d small clusters that include specified queries with sizes: %s' % (len(kept_clusts), ' '.join(str(len(c)) for c in sorted(kept_clusts, reverse=True))))
         self.small_cluster_seqs = [sid for sclust in small_clusters for sid in sclust]
         new_cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id)
         new_cpath.add_partition(big_clusters, -1., 1)
