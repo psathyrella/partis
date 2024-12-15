@@ -613,18 +613,18 @@ def check_single_sequence_indels(line, iseq, print_on_err=True, debug=False):
 
     if set(new_indelfo['genes']) != set(indelfo['genes']):
         if print_on_err:
-            print('%s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((list(indelfo['genes'].keys()))), ' '.join(list(new_indelfo['genes'].keys()))))
+            print('        %s different indel regions before %s and after %s reconstruction' % (utils.color('red', 'error'), ' '.join((list(indelfo['genes'].keys()))), ' '.join(list(new_indelfo['genes'].keys()))))
         consistent = False
     else:
         for region in indelfo['genes']:
             if new_indelfo['genes'][region] != indelfo['genes'][region]:
                 if print_on_err:
-                    print('%s different indel genes before %s and after %s reconstruction' % (utils.color('red', 'error'), utils.color_gene(indelfo['genes'][region]), utils.color_gene(new_indelfo['genes'][region])))
+                    print('        %s different indel genes before %s and after %s reconstruction' % (utils.color('red', 'error'), utils.color_gene(indelfo['genes'][region]), utils.color_gene(new_indelfo['genes'][region])))
                 consistent = False
 
     if len(new_indelfo['indels']) != len(indelfo['indels']):
         if print_on_err:
-            print('%s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(indelfo['indels']), len(new_indelfo['indels'])))
+            print('        %s different number of indels before %d and after %d reconstruction' % (utils.color('red', 'error'), len(indelfo['indels']), len(new_indelfo['indels'])))
         consistent = False
 
     old_indel_list, new_indel_list = copy.deepcopy(indelfo['indels']), copy.deepcopy(new_indelfo['indels'])
@@ -648,11 +648,11 @@ def check_single_sequence_indels(line, iseq, print_on_err=True, debug=False):
 
     if not consistent:
         if print_on_err:
-            print('%s inconsistent indel info for %s (see previous lines)' % (utils.color('red', 'error'), ':'.join(line['unique_ids'])))
-            print('       original:')
-            print(utils.pad_lines(get_dbg_str(indelfo), 8))
-            print('       reconstructed:')
-            print(utils.pad_lines(get_dbg_str(new_indelfo), 8))
+            print('        %s inconsistent indel info for %s (see previous lines)' % (utils.color('red', 'error'), ':'.join(line['unique_ids'])))
+            print('           original:')
+            print(utils.pad_lines(get_dbg_str(indelfo), 12))
+            print('           reconstructed:')
+            print(utils.pad_lines(get_dbg_str(new_indelfo), 12))
 
 # ----------------------------------------------------------------------------------------
 def combine_indels(regional_indelfos, full_qrseq, qrbounds, uid=None, debug=False):

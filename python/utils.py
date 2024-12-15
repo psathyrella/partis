@@ -1272,15 +1272,15 @@ def check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotatio
     for mclust in miss_clusts:
         overlap_antns = [l for l in annotation_list if len(set(mclust) & set(l['unique_ids'])) > 0]
         if len(overlap_antns) > 0:
-            print('          missing \'%s\' cluster with size %d overlaps with the following (overlap/size): %s' % (pfcn, len(mclust), '  '.join('%d/%d'%(len(set(mclust) & set(ol['unique_ids'])), len(ol['unique_ids'])) for ol in overlap_antns)))
+            print('          missing \'%s\' cluster with size %d %s overlaps with the following (overlap/size): %s   (%s)' % (pfcn, len(mclust), ':'.join(mclust), '  '.join('%d/%d'%(len(set(mclust) & set(ol['unique_ids'])), len(ol['unique_ids'])) for ol in overlap_antns), ', '.join(':'.join(l['unique_ids']) for l in overlap_antns)))
     if len(miss_clusts) > 0:  # don't really care about extra ones unless there's missing ones that we might want to account for
         for eline in extra_antns:
             overlap_clusts = [c for c in partition if len(set(eline['unique_ids']) & set(c)) > 0]
             if len(overlap_clusts) > 0:
-                print('          extra annotation with size %d overlaps with the following %s clusters (overlap/size): %s' % (len(eline['unique_ids']), pfcn, '  '.join('%d/%d'%(len(set(eline['unique_ids']) & set(c)), len(c)) for c in overlap_clusts)))
+                print('          extra annotation with size %d %s overlaps with the following %s clusters (overlap/size): %s   (%s)' % (len(eline['unique_ids']), ':'.join(eline['unique_ids']), pfcn, '  '.join('%d/%d'%(len(set(eline['unique_ids']) & set(c)), len(c)) for c in overlap_clusts), ' '.join(':'.join(c) for c in overlap_clusts)))
 
 # ----------------------------------------------------------------------------------------
-def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=None, use_last=False, ignore_duplicates=False):
+def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=None, use_last=False, ignore_duplicates=False, quiet=False):
     annotation_dict, dup_keys = OrderedDict(), []
     for line in annotation_list:
         uidstr = ':'.join(line['unique_ids'])
@@ -1296,7 +1296,7 @@ def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=No
                     raise Exception('duplicate key even after adding duplicate resolution key: \'%s\'' % uidstr)
         assert ignore_duplicates or uidstr not in annotation_dict
         annotation_dict[uidstr] = line
-    if len(dup_keys) > 0:
+    if len(dup_keys) > 0 and not quiet:
         print('    %d duplicate annotations when getting annotation dict (ignore_duplicates was set, so this is probably fine)' % len(dup_keys))
 
     if cpath is not None:  # check that all the clusters in <cpath>.best() are in the annotation dict
@@ -1640,9 +1640,9 @@ def combine_events(glfo, evt_list, meta_keys=None, extra_str='      ', debug=Fal
             print('            different padding parameters (left dists %s  right dists %s) when combining events, so padding out to max on each side' % (ldists, rdists))
         for ia, tatn in enumerate(evt_list):  # pad all the annotations to the max padding (on each side) from any annotation
             leftpad, rightpad = max(ldists) - ldists[ia], max(rdists) - rdists[ia]
-            re_pad_atn(leftpad, rightpad, tatn, glfo, extra_str='              ', debug=debug)
+            re_pad_atn(leftpad, rightpad, tatn, glfo, extra_str='              ') #, debug=debug)
     combo_evt = get_full_copy(evt_list[0], glfo)
-    if debug:
+    if debug > 1:
         print('%scombining %d annotations:' % (extra_str, len(evt_list)))
         for tevt in evt_list:
             print_reco_event(tevt, label=color('yellow', 'before:'), extra_str=extra_str)
@@ -1663,7 +1663,7 @@ def combine_events(glfo, evt_list, meta_keys=None, extra_str='      ', debug=Fal
             combo_evt[mkey] = [v for l in evt_list for v in l[mkey]]
     if 'tree' in combo_evt:  # would not be easy to merge the trees from different events, so give up for now
         combo_evt['tree'] = None
-    if debug:
+    if debug > 1:
         print_reco_event(combo_evt, label='%s adding %d seq%s:'%(color('green', 'after'), len(seqfos_to_add), plural(len(seqfos_to_add))), extra_str=extra_str, queries_to_emphasize=[s['name'] for s in seqfos_to_add])
     return combo_evt
 
@@ -4852,13 +4852,17 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
         return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False):
     from . import glutils
-    merged_annotation_list = []
+    merged_annotation_list, merged_keys = [], set()
     merged_cpath, merged_glfo = None, None
     n_event_list, n_seq_list = [], []
     for infname in yaml_list:
         glfo, annotation_list, cpath = read_yaml_output(infname, dont_add_implicit_info=True)
+        if remove_duplicates:  # NOTE this doesn't catch duplicates *within* each subfile, but atm I'm only worried about the case where they appear at most once in each subfile, so oh well
+            annotation_list = [l for l in annotation_list if ':'.join(l['unique_ids']) not in merged_keys]
+            for ptn in cpath.partitions:
+                ptn = [c for c in ptn if ':'.join(c) not in merged_keys]
         n_event_list.append(len(annotation_list))
         n_seq_list.append(sum(len(l['unique_ids']) for l in annotation_list))
         if merged_cpath is None:
@@ -4875,6 +4879,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
         elif glfo is not None:  # fall through if <glfo> is None
             merged_glfo  = glutils.get_merged_glfo(glfo, merged_glfo)
         merged_annotation_list += annotation_list
+        merged_keys |= set(':'.join(l['unique_ids']) for l in annotation_list)
         if cleanup:
             os.remove(infname)
             os.rmdir(os.path.dirname(infname))
@@ -4905,7 +4910,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
-        merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers)
+        merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
         mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
         mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
         makelink('%s/parameters/%s/hmm' % (merged_odir, ltmp), mean_mut_fns[0], 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
@@ -5875,20 +5880,8 @@ def merge_overlapping_clusters(partitions, antn_list=None, glfo=None, dbgstr='',
             if tclust != newclust and ':'.join(tclust) in antn_dict:  # maybe should warn if they're missing, but it's probably ok, there's lots of reasons clusters and annotations aren't synced
                 del antn_dict[':'.join(tclust)]
     # ----------------------------------------------------------------------------------------
-    from . import clusterpath
-    if antn_list is not None:
-        antn_dict = get_annotation_dict(antn_list, ignore_duplicates=True)  # , cpath=clusterpath.ClusterPath(partition=partitions[0])
-    if debug:
-        print('    %smerging overlapping clusters in %d partition%s' % (dbgstr, len(partitions), plural(len(partitions))))
-    new_partitions = []
-    for ipart in range(len(partitions)):
-        if debug:
-            unique_uids, total_uids = len(set(u for c in partitions[ipart] for u in c)), sum(len(c) for c in partitions[ipart])
-            print('      ipart %d with %d clusters: %d unique vs %d total uids' % (ipart, len(partitions[ipart]), unique_uids, total_uids))
-        newptn = [copy.copy(c) for c in partitions[ipart]]
-        if debug:
-            clusterpath.ptnprint(partitions[ipart], abbreviate=False)
-            print('          i   j   len(i) len(j) len(new)  common  (%s)' % color('red', 'same as new cluster'))
+    def process_partition(newptn):
+        n_changes = 0  # note that this the number of changes made, which in general can be much larger than the number of clusters
         for iclust in range(len(newptn)):
             for jclust in range(iclust + 1, len(newptn)):
                 cluster_i, cluster_j = newptn[iclust], newptn[jclust]
@@ -5899,20 +5892,48 @@ def merge_overlapping_clusters(partitions, antn_list=None, glfo=None, dbgstr='',
                     continue
                 newptn[iclust] = cluster_i + [u for u in cluster_j if u not in overlap_ids]  # keep order in i^th cluster, remove common ids from j^th cluster (NOTE this corresponds to the ordering in combine_events())
                 if debug:
-                    print('        %3d %3d   %s   %s   %4d     %4d   %s' % (iclust, jclust,
-                                                                              color('red' if cluster_i==newptn[iclust] else None, str(len(cluster_i)), width=4),
-                                                                              color('red' if cluster_j==newptn[iclust] else None, str(len(cluster_j)), width=4),
-                                                                              len(newptn[iclust]), len(overlap_ids), ' '.join(sorted(overlap_ids))))
+                    print('        %3d %3d   %s   %s   %4d     %4d   %s   %s' % (iclust, jclust,
+                                                                                 color('red' if cluster_i==newptn[iclust] else None, str(len(cluster_i)), width=4),
+                                                                                 color('red' if cluster_j==newptn[iclust] else None, str(len(cluster_j)), width=4),
+                                                                                 len(newptn[iclust]), len(overlap_ids),
+                                                                                 ':'.join(color('red' if u in overlap_ids else None, u) for u in cluster_i),
+                                                                                 ':'.join(color('red' if u in overlap_ids else None, u) for u in cluster_j)))
                 assert set(newptn[iclust]) == set(cluster_i) | set(cluster_j)
                 if antn_list is not None:
                     try_to_update_annotations(cluster_i, cluster_j, newptn[iclust])
                 newptn[jclust] = None
+                n_changes += 1
+        return n_changes
+    # ----------------------------------------------------------------------------------------
+    from . import clusterpath
+    if antn_list is not None:
+        antn_dict = get_annotation_dict(antn_list, ignore_duplicates=True, quiet=True)  # we expect lots of duplicates so don't need it to print the duplicate warning
+    if debug:
+        print('    %smerging overlapping clusters in %d partition%s' % (dbgstr, len(partitions), plural(len(partitions))))
+    new_partitions = []
+    for ipart in range(len(partitions)):
+        if debug:
+            unique_uids, total_uids = len(set(u for c in partitions[ipart] for u in c)), sum(len(c) for c in partitions[ipart])
+            print('      ipart %d with %d clusters: %d unique vs %d total uids' % (ipart, len(partitions[ipart]), unique_uids, total_uids))
+        newptn = [copy.copy(c) for c in partitions[ipart]]
+        if debug:
+            clusterpath.ptnprint(partitions[ipart], abbreviate=False)
+            print('               (%s)             (%s)' % (color('red', 'same as new cluster'), color('red', 'uids in common')))
+            print('          i   j   len(i) len(j) len(new)  common')
+        n_changes = None
+        while n_changes is None or n_changes > 0:
+            if debug and n_changes is not None:
+                print('      overlap merging: re-processing partition since previous n_changes %d > 0' % n_changes)
+            n_changes = process_partition(newptn)
         newptn = [c for c in newptn if c is not None]
         new_partitions.append(newptn)
         if debug:
             clusterpath.ptnprint(newptn, abbreviate=False)
+        print('    merged overlapping annotations in partition (N clusters %d --> %d, total cluster size %d --> %d, N unique seqs %d --> %d)' % (len(partitions[ipart]), len(newptn), sum(len(c) for c in partitions[ipart]), sum(len(c) for c in newptn), len(set(u for c in partitions[ipart] for u in c)), len(set(u for c in newptn for u in c))))
     # return new_partitions, [antn_dict[':'.join(c)] for p in new_partitions for c in p if ':'.join(c) in antn_dict]  # maybe it's worth putting the annotations in some order?
-    return new_partitions, antn_dict.values() if antn_list is not None else None
+    if antn_list is not None:
+        check_concordance_of_cpath_and_annotations(clusterpath.ClusterPath(partition=new_partitions[0]), antn_dict.values(), antn_dict)
+    return new_partitions, list(antn_dict.values()) if antn_list is not None else None
 
 # ----------------------------------------------------------------------------------------
 def build_dummy_reco_info(true_partition):

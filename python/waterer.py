@@ -48,6 +48,7 @@ class Waterer(object):
         self.simglfo = simglfo
         self.parameter_out_dir = parameter_out_dir
         self.duplicates = {} if duplicates is None else duplicates
+        self.already_added_queries = []  # this is confusing since I'm adding it very late, but just want to keep track of queries that occur more than once in cache file (which somehow seems not to have come up before now)
         self.debug = self.args.debug if self.args.sw_debug is None else self.args.sw_debug
         self.aligned_gl_seqs = aligned_gl_seqs
         self.vs_info = vs_info
@@ -232,6 +233,10 @@ class Waterer(object):
                             utils.print_reco_event(self.reco_info[qry], extra_str='      ', label='true:')
 
             assert len(self.info['queries']) + len(self.skipped_unproductive_queries) + len(self.skipped_in_frame_queries) + len(self.info['failed-queries']) == len(self.input_info)
+
+        if len(self.already_added_queries) > 0:
+            count_str = ' '.join('%d'%len(list(ugroup)) for uid, ugroup in itertools.groupby(sorted(self.already_added_queries)))
+            print('      %s %s %d queries more than once (counts: %s)' % (utils.wrnstr(), 'read' if just_read_cachefile else 'found', len(set(self.already_added_queries)), count_str))
 
         if self.count_parameters:
             pcounter = ParameterCounter(self.glfo, self.args, count_correlations=self.args.count_correlations)
@@ -924,6 +929,9 @@ class Waterer(object):
     def add_to_info(self, line):
         assert len(line['unique_ids'])
         qname = line['unique_ids'][0]
+        if qname in self.info:  # i didn't end up needing this for the case I impelemented it, but it still seems worth having
+            self.already_added_queries.append(qname)
+            return
 
         self.info['passed-queries'].add(qname)
         self.info[qname] = line

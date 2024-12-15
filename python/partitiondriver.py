@@ -77,8 +77,9 @@ class PartitionDriver(object):
         if self.args.input_partition_fname is not None:
             self.input_glfo, self.input_antn_list, self.input_cpath = utils.read_yaml_output(self.args.input_partition_fname, skip_annotations=not self.args.continue_from_input_partition)
             if self.args.continue_from_input_partition:
-                self.input_antn_dict = utils.get_annotation_dict(self.input_antn_list)
+                self.input_antn_dict = utils.get_annotation_dict(self.input_antn_list, ignore_duplicates=True)  # NOTE not really sure ignore_duplicates should be set, but when we're reading merged subset partitions it's nice to avoid the warnings, and in general duplicates doesn't seem like a big problem
             self.input_partition = self.input_cpath.partitions[self.input_cpath.i_best if self.args.input_partition_index is None else self.args.input_partition_index]
+            # print('    %s input partition has duplicates: sum of cluster sizes %d vs %d unique queries' % (utils.wrnstr(), sum(len(c) for c in self.input_partition), len(set(u for c in self.input_partition for u in c))))
             print('  --input-partition-fname: read %s partition with %d sequences in %d clusters from %s' % ('best' if self.args.input_partition_index is None else 'index-%d'%self.args.input_partition_index, sum(len(c) for c in self.input_partition), len(self.input_partition), self.args.input_partition_fname))
             input_partition_queries = set(u for c in self.input_partition for u in c)
             ids_to_rm = set(self.input_info) - input_partition_queries
@@ -2106,6 +2107,8 @@ class PartitionDriver(object):
             #     return antn_dict.get(':'.join(query_name_list))['naive_seq']
             utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
             def naive_seq_fcn(query_name_list):
+                if ':'.join(query_name_list) not in self.input_antn_dict:
+                    print('    %s annotation for %s not in input annotation dict, so looking for overlapping clusters (something is probably wrong, maybe to do with --queries-to-include duplicate removal)' % (utils.wrnstr(), ':'.join(query_name_list)))
                 return self.input_antn_dict.get(':'.join(query_name_list))['naive_seq']
         else:
             assert False

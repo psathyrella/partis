@@ -362,6 +362,16 @@ def subset_partition(args):
             utils.simplerun(get_cmd(input_fn(subdir(isub)), subdir(isub)), logfname='%s/partition.log'%subdir(isub), dryrun=args.dry_run, extra_str='  %s '%utils.color('blue', 'isub %d:'%isub))
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
+        # ----------------------------------------------------------------------------------------
+        def print_dup_warning(ptn, wstr):
+            n_tot, n_uniq = sum(len(c) for c in ptn), len(set(u for c in ptn for u in c))
+            if n_tot != n_uniq:
+                print('    %s %s has duplicates in partition: sum of cluster sizes %d vs %d unique queries' % (utils.wrnstr(), wstr, n_tot, n_uniq))
+        # ----------------------------------------------------------------------------------------
+        def handle_overlap_merge(lpfos, tmp):
+            lpfos['cpaths'][ltmp].partitions, lpfos['antn_lists'][ltmp] = utils.merge_overlapping_clusters(lpfos['cpaths'][ltmp].partitions, glfo=lpfos['glfos'][ltmp], antn_list=lpfos['antn_lists'][ltmp], dbgstr='%s: '%utils.locstr(ltmp), debug=args.debug_paired_clustering)
+            print_dup_warning(lpfos['cpaths'][ltmp].best(), 'after')
+        # ----------------------------------------------------------------------------------------
         lpair_lpfos, locus_lpfos, i_empty = [], [], []
         for isub in range(args.n_subsets):
             tmp_lpfos = paircluster.read_paired_dir(subdir(isub))
@@ -377,6 +387,11 @@ def subset_partition(args):
         # <subset_merged_lp_infos>: just has subsets merged (i.e. still split into lpairs)
         # <locus_merged_lp_infos>: also has merged heavy chain
         subset_merged_lp_infos = paircluster.concat_lpair_chains(utils.locus_pairs[args.ig_or_tr], lpair_lpfos, dont_deep_copy=True)
+        if args.seed_unique_id is not None or args.queries_to_include is not None:  # these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
+            print('  merging overlaps in subset merged lp_infos')
+            for lpair in subset_merged_lp_infos:
+                for ltmp in lpair:
+                    handle_overlap_merge(subset_merged_lp_infos[lpair], ltmp)
         def seedid(x): assert args.seed_unique_id is None
         # if seed id or queries to include is set, we *need* to keep the duplicates so we can merge overlapping clusters below
         locus_merged_lp_infos = paircluster.handle_concatd_heavy_chain(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, dont_deep_copy=True, dont_calculate_annotations=args.dont_calculate_annotations,
@@ -386,11 +401,9 @@ def subset_partition(args):
             locus_merged_lp_infos = paircluster.concat_locus_chains(utils.sub_loci(args.ig_or_tr), [locus_merged_lp_infos] + locus_lpfos, dont_deep_copy=True, dbgstr=' (from single-chain results due to --keep-all-unpaired-seqs)', debug=args.debug_paired_clustering)
 
         if args.seed_unique_id is not None or args.queries_to_include is not None:  # these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
-            for lpair in subset_merged_lp_infos:
-                for ltmp in lpair:
-                    utils.merge_overlapping_clusters(subset_merged_lp_infos[lpair]['cpaths'][ltmp].partitions, glfo=subset_merged_lp_infos[lpair]['glfos'][ltmp], antn_list=subset_merged_lp_infos[lpair]['antn_lists'][ltmp], dbgstr='%s: '%utils.locstr(ltmp))
+            print('  merging overlaps in locus merged lp_infos')
             for ltmp in utils.sub_loci(args.ig_or_tr):
-                utils.merge_overlapping_clusters(locus_merged_lp_infos['cpaths'][ltmp].partitions, glfo=locus_merged_lp_infos['glfos'][ltmp], antn_list=locus_merged_lp_infos['antn_lists'][ltmp], dbgstr='%s: '%utils.locstr(ltmp))
+                handle_overlap_merge(locus_merged_lp_infos, ltmp)
 
         print('   writing merged outputs from %d subsets to %s' % (args.n_subsets, merged_odir))
         def ofn_fcn(ltmp, lpair=None, joint=None): return ptnfn(merged_odir, ltmp, lpair=lpair)  # I *think* i don't need joint
