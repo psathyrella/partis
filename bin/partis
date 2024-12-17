@@ -206,24 +206,28 @@ def run_simulation(args):
 def read_qti_file(args):
     if args.queries_to_include_fname is None:
         return None
+    uid_only_sfos = []
     if utils.getsuffix(args.queries_to_include_fname) == '.yaml':  # this is pretty ugly, but i'm not sure there's a better way given current constraints
         seqfos = utils.read_seqfos(args.queries_to_include_fname)
         if args.locus is not None and any('locus' in s for s in seqfos):  # remove any that have locus info that doesn't match args.locus (if args.locus is None, we're combining loci)
             seqfos = [s for s in seqfos if 'locus' not in s or s['locus'] == args.locus]
-        more_input_info = collections.OrderedDict([(s['name'], {'unique_ids' : [s['name']], 'seqs' : [s['seq']]}) for s in seqfos])
+        full_sfos = [s for s in seqfos if s['seq'] is not None]
+        uid_only_sfos = [s for s in seqfos if s['seq'] is None]
+        more_input_info = collections.OrderedDict([(s['name'], {'unique_ids' : [s['name']], 'seqs' : [s['seq']]}) for s in full_sfos])
         utils.add_input_meta_keys(set(k for sfo in seqfos for k in sfo))
-        for sfo in seqfos:
+        for sfo in full_sfos:
             for mkey in set(utils.input_metafile_keys) & set(sfo):
                 lkey = utils.input_metafile_keys[mkey]
                 more_input_info[sfo['name']][lkey] = [sfo[mkey]]
     else:
         more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data, args=args)
-    print('  --queries-to-include-fname: adding %d extra sequence%s from %s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname))
+    print('  --queries-to-include-fname: adding %d extra sequence%s from %s%s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname, '' if len(uid_only_sfos)==0 else ' (plus %d uid-only queries)'%len(uid_only_sfos)))
+    queries_to_add = list(more_input_info.keys()) + [s['name'] for s in uid_only_sfos]
     if args.queries_to_include is None:
         args.queries_to_include = []
-    if len(set(more_input_info) & set(args.queries_to_include)) > 0:  # could be actual overlap, or could be we've called this fcn twice
-        print('  %s overlap between --queries-to-include and extra input meta info in %s (maybe accidentally called this fcn more than once?): %s' % (utils.wrnstr(), args.queries_to_include_fname, ' '.join(set(more_input_info) & set(args.queries_to_include))))
-    args.queries_to_include += [k for k in more_input_info.keys() if k not in args.queries_to_include]  # whatever, just remove any duplicates
+    if len(set(queries_to_add) & set(args.queries_to_include)) > 0:  # could be actual overlap, or could be we've called this fcn twice
+        print('  %s overlap between --queries-to-include and extra input meta info in %s (maybe accidentally called this fcn more than once?): %s' % (utils.wrnstr(), args.queries_to_include_fname, ' '.join(set(queries_to_add) & set(args.queries_to_include))))
+    args.queries_to_include += [k for k in queries_to_add if k not in args.queries_to_include]  # whatever, just remove any duplicates
     return more_input_info
 
 # ----------------------------------------------------------------------------------------
