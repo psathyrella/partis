@@ -221,7 +221,7 @@ def read_qti_file(args):
                 more_input_info[sfo['name']][lkey] = [sfo[mkey]]
     else:
         more_input_info, _, _ = seqfileopener.read_sequence_file(args.queries_to_include_fname, args.is_data, args=args)
-    print('  --queries-to-include-fname: adding %d extra sequence%s from %s%s' % (len(more_input_info), utils.plural(len(more_input_info)), args.queries_to_include_fname, '' if len(uid_only_sfos)==0 else ' (plus %d uid-only queries)'%len(uid_only_sfos)))
+    print('  --queries-to-include-fname: adding %d extra sequence%s%s from %s' % (len(more_input_info), utils.plural(len(more_input_info)), '' if len(uid_only_sfos)==0 else ' (plus %d uid-only queries)'%len(uid_only_sfos), args.queries_to_include_fname))
     queries_to_add = list(more_input_info.keys()) + [s['name'] for s in uid_only_sfos]
     if args.queries_to_include is None:
         args.queries_to_include = []
@@ -390,7 +390,7 @@ def subset_partition(args):
 
         # <subset_merged_lp_infos>: just has subsets merged (i.e. still split into lpairs)
         # <locus_merged_lp_infos>: also has merged heavy chain
-        subset_merged_lp_infos = paircluster.concat_lpair_chains(utils.locus_pairs[args.ig_or_tr], lpair_lpfos, dont_deep_copy=True)
+        subset_merged_lp_infos = paircluster.concat_lpair_chains(utils.locus_pairs[args.ig_or_tr], lpair_lpfos, dont_deep_copy=True)  # i think it's ok to not deep copy here, since this fcn doesn't deduplicate anything, and once we merge these subset lpfos, we don't use the originals for anything
         if args.seed_unique_id is not None or args.queries_to_include is not None:  # these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
             print('  merging overlaps in subset merged lp_infos')
             for lpair in subset_merged_lp_infos:
@@ -398,8 +398,8 @@ def subset_partition(args):
                     handle_overlap_merge(subset_merged_lp_infos[lpair], ltmp)
         def seedid(x): assert args.seed_unique_id is None
         # if seed id or queries to include is set, we *need* to keep the duplicates so we can merge overlapping clusters below
-        locus_merged_lp_infos = paircluster.handle_concatd_heavy_chain(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, dont_deep_copy=True, dont_calculate_annotations=args.dont_calculate_annotations,
-                                                                       seed_unique_id=seedid('s'), dont_deduplicate=args.seed_unique_id is not None or args.queries_to_include is not None, debug=True) #args.debug_paired_clustering)
+        locus_merged_lp_infos = paircluster.handle_concatd_heavy_chain(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, dont_calculate_annotations=args.dont_calculate_annotations,
+                                                                       seed_unique_id=seedid('s'), dont_deduplicate=args.seed_unique_id is not None or args.queries_to_include is not None, debug=True) #args.debug_paired_clustering)  # note that we need to deep copy here, since e.g. if we deduplicate the merged igh antn list, we don't want that to change the annotations in the original lists
 
         if len(locus_lpfos) > 0:
             locus_merged_lp_infos = paircluster.concat_locus_chains(utils.sub_loci(args.ig_or_tr), [locus_merged_lp_infos] + locus_lpfos, dont_deep_copy=True, dbgstr=' (from single-chain results due to --keep-all-unpaired-seqs)', debug=args.debug_paired_clustering)

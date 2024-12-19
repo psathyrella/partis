@@ -276,7 +276,7 @@ def concat_locus_chains(tmploci, lpfo_list, dont_deep_copy=False, dbgstr='', deb
             merge_locus_lpfo(glfos, antn_lists, cpaths, None, ltmp, lpfo, dont_deep_copy=dont_deep_copy, dbgstr=('%s '%ilp) if iloc==0 else '  ', debug=debug)
     if debug:
         lp_merge_final_dbg(tmploci, antn_lists)
-    return {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : cpaths}  # I *think* I don't need the deduplication stuff from handle_concatd_heavy_chain() below, although I think that's only because atm I'm using this fcn for totally disjoint subsets from subset-partition (so, ugh, should add it)
+    return {'glfos' : glfos, 'antn_lists' : antn_lists, 'cpaths' : cpaths}  # I *think* I don't need the deduplication stuff from heavy chain concat fcn below, although I think that's only because atm I'm using this fcn for totally disjoint subsets from subset-partition (so, ugh, should add it)
 
 # ----------------------------------------------------------------------------------------
 # similar to concat_lpair_chains() above (see also handle_concatd_heavy_chain() below, which runs this and then does some more processing)
@@ -299,7 +299,7 @@ def handle_concatd_heavy_chain(lpairs, lp_infos, dont_deep_copy=False, ig_or_tr=
     if len(lpfos['glfos']) == 0:
         return lpfos
     if not dont_deduplicate:
-        tmp_ptn = utils.get_deduplicated_partitions([copy.deepcopy(lpfos['cpaths'][hloc].best())], antn_list=copy.deepcopy(lpfos['antn_lists'][hloc]) if not dont_calculate_annotations else None, glfo=copy.deepcopy(lpfos['glfos'][hloc]), debug=debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
+        tmp_ptn = utils.get_deduplicated_partitions([lpfos['cpaths'][hloc].best()], antn_list=lpfos['antn_lists'][hloc] if not dont_calculate_annotations else None, glfo=lpfos['glfos'][hloc], debug=debug)[0]  # have to remove duplicates from heavy partitions and annotations (since seqs that we don't have good pairing info for get put in both light chain dirs, so appear twice in concat'd heavy chain)
         lpfos['cpaths'][hloc] = ClusterPath(partition=tmp_ptn, seed_unique_id=seed_unique_id)
     lp_merge_final_dbg([hloc], antn_lists)
     return lpfos
