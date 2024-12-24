@@ -728,13 +728,22 @@ class PartitionPlotter(object):
             fnlist.extend([lfn, bfn, bfn+'-tot'])
         # ----------------------------------------------------------------------------------------
         subd, plotdir = self.init_subd('sizes')
+
         csize_hists = {'best' : self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)}
         bfn = 'cluster-sizes'
         csize_hists['best'].write('%s/%s.csv' % (plotdir, bfn))
         self.plotting.plot_cluster_size_hists(plotdir, bfn, csize_hists)
         fnlist = [bfn]
-        if self.args.meta_info_key_to_color is not None:
+
+        if True: #weight_by_n_seqs:
+            shist = self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins, weight_by_n_seqs=True)
+            sfn = 'seqs-in-cluster-sizes'
+            self.plotting.plot_cluster_size_hists(plotdir, sfn, {'best' : shist}, ytitle='total N seqs')
+            fnlist.append(sfn)
+
+        if self.args.meta_info_key_to_color is not None:  # would need to update this function to weight by N seqs
             plot_me_color_hists()
+
         return [['%s/%s.svg' % (subd, f) for f in fnlist]]
 
     # ----------------------------------------------------------------------------------------

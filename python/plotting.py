@@ -87,7 +87,7 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either
     return xticks, [tstr(xt) for xt in xticks]
 
 # ----------------------------------------------------------------------------------------
-def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, debug=False):
+def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, weight_by_n_seqs=False, debug=False):
     if len(partition) == 0:
         return Hist(n_bins=n_bins, xmin=0, xmax=100)  # ugh, have to set some values
     cslist = [len(c) for c in partition]
@@ -104,7 +104,8 @@ def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, debug=False):
         if min(cslist) < xbins[0]:  # same for underflow
             raise Exception('cluster size %d would fall in underflow bin (see previous lines)' % min(cslist))
         n_bins = len(xbins) - 1
-    thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=cslist) #, xtitle=vlabel(tkey), title=str(mval))
+    thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=cslist,
+                 weight_list=cslist if weight_by_n_seqs else None, sumw2=weight_by_n_seqs) #, xtitle=vlabel(tkey), title=str(mval))
     for ib in range(1, thist.n_bins + 1):
         lo, hi = thist.low_edges[ib], thist.low_edges[ib+1]
         ivals = [i for i in range(int(math.ceil(lo)), int(math.floor(hi)) + 1)]
@@ -340,7 +341,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
                  linewidths=None, plottitle=None, csv_fname=None, stats='', print_stats=False, translegend=(0., 0.), rebin=None,
                  xtitle=None, ytitle=None, markersizes=None, no_labels=False, only_csv=False, alphas=None, remove_empty_bins=False,
                  square_bins=False, xticks=None, xticklabels=None, yticks=None, yticklabels=None, leg_title=None, no_legend=False, hfile_labels=None,
-                 text_dict=None, adjust=None, make_legend_only_plot=False):
+                 text_dict=None, adjust=None, make_legend_only_plot=False, rotation=None):
     assert os.path.exists(plotdir)
 
     hists = [hist,] if hist is not None else []  # use <hist> if it's set (i.e. backwards compatibility for old calls), otherwise <hist> should be None if <more_hists> is set
@@ -511,7 +512,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
                     ybounds=[ymin, 1.15*ymax],
                     leg_loc=(0.72 + translegend[0], 0.7 + translegend[1]),
                     log=log, xticks=xticks, xticklabels=xticklabels, yticks=yticks, yticklabels=yticklabels,
-                    no_legend=(no_legend or len(hists) <= 1), adjust=default_adjust, leg_title=leg_title)
+                    no_legend=(no_legend or len(hists) <= 1), adjust=default_adjust, leg_title=leg_title, rotation=rotation)
 
     if make_legend_only_plot:
         plot_legend_only(None, plotdir, plotname+'-legend', ax=ax, title=tmpxtitle)
@@ -896,6 +897,10 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         xticks = hist.get_bin_centers()
         xticklabels = hist.bin_labels
 
+    rotation = None
+    if any(len(t) > 5 for t in xticklabels):
+        rotation = 'vertical'
+
     if len(hist_list) == 0:
         return
 
@@ -920,11 +925,11 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
         for ih, thist in enumerate(hist_list):
             ax.bar(thist.bin_labels, thist.bin_contents, label=thist.title, bottom=base_vals, alpha=alphas[ih], color=tmpcolors[ih], linewidth=0)
             base_vals = [(base_vals[i] if base_vals is not None else 0) + c for i, c in enumerate(thist.bin_contents)]
-        return mpl_finish(ax, plotdir, plotname, xbounds=(0.5, thist.n_bins + 0.5), xlabel='cluster size', ylabel=ytitle, no_legend=no_legend, log=log) #, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
+        return mpl_finish(ax, plotdir, plotname, xbounds=(0.5, thist.n_bins + 0.5), xlabel='cluster size', ylabel=ytitle, no_legend=no_legend, log=log, rotation=rotation) #, leg_loc=(0.1, 0.2), xbounds=(xticks[0], xticks[-1]), ybounds=(ymin, 1.01), title=title, xlabel=xlabel, ylabel='metric value')
     else:
         return draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
                             bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8],
-                            no_legend=no_legend, errors=True)
+                            no_legend=no_legend, errors=True, rotation=rotation)
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_mut_stats(args, plotdir, antn_list, is_simu, only_leaves=False, only_csv=False, fnames=None):

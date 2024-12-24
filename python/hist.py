@@ -498,11 +498,11 @@ class Hist(object):
         if ignore_overflows:
             xvals = self.get_bin_centers()[1:-1]
             yvals = self.bin_contents[1:-1]
-            yerrs = self.errors[1:-1]
+            yerrs = self.errors[1:-1] if self.errors is not None else [math.sqrt(w) for w in self.sum_weights_squared[1:-1]]
         else:
             xvals = self.get_bin_centers()
             yvals = self.bin_contents
-            yerrs = self.errors
+            yerrs = self.errors if self.errors is not None else [math.sqrt(w) for w in self.sum_weights_squared]
 
         defaults = {'color' : 'black',
                     'alpha' : 0.6,

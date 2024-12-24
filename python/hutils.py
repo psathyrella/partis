@@ -117,7 +117,7 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
         dxmin, dxmax = [abs(float(xbins[ist+1] - xbins[ist])) for ist in (0, len(xbins) - 2)]  # width of (first, last) bin [not under/overflows]
         xbins[0], xbins[-1] = get_expanded_bounds(values, dxmin, dxmax=dxmax)
     if len(set(xbins)) != len(xbins):
-        print('    %s duplicate xbins in auto volume bins, so removing duplicates (and reducing n_bins)' % utils.wrnstr())
+        print('    %s %d duplicate xbins in auto volume bins, so removing duplicates (and reducing n_bins): %s' % (utils.wrnstr(), len(xbins) - len(set(xbins)), ' '.join('%.1f'%b for b in xbins)))
         xbins = sorted(set(xbins))
         n_bins = len(xbins) - 1
     if debug:
