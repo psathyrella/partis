@@ -425,11 +425,12 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals, log='', irow=
         xbounds = [-0.5, 20.5]
     if 'affinity' in hname and log == '':
         xbounds = [-5.5, 3]
+    shift_overflows = True  # 'muts' in hname or 'affinity' in hname
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s%s'%(htype, hname, '' if log=='' else '-log'), more_hists=hists, log=log, xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],
                                plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
                                alphas=[0.6 for _ in hists], colors=[colors.get(l) for l in labels], linestyles=[linestyles.get(l, '-') for l in labels], translegend=[-0.65, 0.1] if affy_like(hname) and 'abundance' not in hname else [-0.3, 0.1], write_csv=True,
-                               hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname, make_legend_only_plot=args.write_legend_only_plots, no_legend=args.write_legend_only_plots)
+                               hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname, make_legend_only_plot=args.write_legend_only_plots, no_legend=args.write_legend_only_plots, shift_overflows=shift_overflows)
     fnames[irow].append(fn)
 
     # hdict = {l : h for l, h in zip(labels, hists)}

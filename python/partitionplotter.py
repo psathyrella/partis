@@ -78,7 +78,7 @@ class PartitionPlotter(object):
         def add_emph_clusters(xvals, yvals):
             for iclust, cluster in enumerate(clusters_to_use):
                 tqtis = set()  # queries to emphasize in this cluster
-                if self.args.queries_to_include is not None:
+                if self.args.queries_to_include is not None and not self.args.dont_label_queries_to_include:
                     tqtis |= set(cluster) & set(self.args.queries_to_include)
                 if self.args.meta_info_to_emphasize is not None and self.any_meta_emph(cluster):
                     key, val = list(self.args.meta_info_to_emphasize.items())[0]
@@ -241,7 +241,7 @@ class PartitionPlotter(object):
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
             high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, self.antn_dict, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations,
                                                                         queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, all_emph_vals=all_emph_vals, emph_colors=emph_colors,
-                                                                        make_legend=self.args.meta_info_key_to_color is not None, add_clone_id=True, debug=debug)  # have to make legend for every plot
+                                                                        make_legend=self.args.meta_info_key_to_color is not None, add_clone_id=True, dont_label_queries_to_include=self.args.dont_label_queries_to_include, debug=debug)  # have to make legend for every plot
             if len(fnd['joy']) < self.n_joyplots_in_html['shm-vs-size']:
                 fnd['joy'].append(get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
@@ -251,7 +251,7 @@ class PartitionPlotter(object):
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
             self.plotting.make_single_joyplot(high_mutation_clusters, self.antn_dict, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations,
                                               high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, all_emph_vals=all_emph_vals, emph_colors=emph_colors,
-                                              make_legend=self.args.meta_info_key_to_color is not None, add_clone_id=True, debug=debug)
+                                              make_legend=self.args.meta_info_key_to_color is not None, add_clone_id=True, dont_label_queries_to_include=self.args.dont_label_queries_to_include, debug=debug)
             fnd['high'] = [get_fname(high_mutation=True)]
 
         # size vs shm hexbin plots
