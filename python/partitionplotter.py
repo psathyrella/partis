@@ -208,7 +208,7 @@ class PartitionPlotter(object):
         return False  # falls through if <iclust> is too big, or if there's no --queries-to-include (which includes the seed)
 
     # ----------------------------------------------------------------------------------------
-    def make_shm_vs_cluster_size_plots(self, debug=False):
+    def make_shm_vs_cluster_size_plots(self, no_slug=False, debug=False):
         def get_fname(iclustergroup=None, high_mutation=False, hexbin=False):
             if iclustergroup is not None:  # index of this group of clusters
                 return 'size-vs-shm-%d' % iclustergroup
@@ -235,6 +235,8 @@ class PartitionPlotter(object):
             all_emph_vals, emph_colors = self.plotting.meta_emph_init(self.args.meta_info_key_to_color, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats)
         for subclusters in sorted_cluster_groups:
             if iclustergroup > self.n_max_joy_plots:  # note that when this is activated, the high mutation plot is no longer guaranteed to have every high mutation cluster (but it should have every high mutation cluster that was bigger than the cluster size when we started skipping here)
+                continue
+            if no_slug:
                 continue
             if debug:
                 print('    %d: making joyplot with %d clusters' % (iclustergroup, len(subclusters)))
@@ -1061,7 +1063,7 @@ class PartitionPlotter(object):
             return
 
         if 'shm-vs-size' in plot_cfg:
-            fnames += self.make_shm_vs_cluster_size_plots()
+            fnames += self.make_shm_vs_cluster_size_plots(no_slug='no-slug' in plot_cfg)
         if 'diversity' in plot_cfg:
             fnames += self.make_pairwise_diversity_plots()
         if 'cluster-bubble' in plot_cfg:
