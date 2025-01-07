@@ -55,6 +55,7 @@ pltlabels = {
     'max-abundances' : 'max abundance in each GC',
     'csizes' : 'N leaves per tree',
     'leaf-muts-nuc' : 'N muts (leaf nodes)',
+    'n_stops' : 'N stop codons',
 }
 tpstrs = ['affinity', 'muts-nuc', 'muts-aa']
 labelstrs = ['affinity', 'N nuc muts', 'N AA muts']
@@ -289,6 +290,7 @@ def read_input_files(label):
             if 'n_muts_aa' not in mfos[sfo['name']]:  # gcdyn simu we need to calculate it
                 mfos[sfo['name']]['n_muts_aa'] = utils.hamming_distance(utils.ltranslate(sfo['seq']), args.naive_seq_aa, amino_acid=True)
             sfo['n_muts_aa'] = int(mfos[sfo['name']]['n_muts_aa'])
+            sfo['n_stops'] = utils.is_there_a_stop_codon(sfo['seq'], '', '', 0, return_n_stops=True)
             if isdata(label):  # for beast + iqtree data, we write the gcid to the leaf meta file (it's got dashes, so too hard to add it to sequence id)
                 gcn = mfos[sfo['name']]['gc']
             else:
@@ -382,6 +384,11 @@ def read_input_files(label):
             htmp.xtitle = pltlabels[mstr]
             htmp.title = lblstr if args.short_legends else '%s (%d nodes in %d trees)' % (lblstr, len(plotvals[mut_type][tstr]), n_trees)
             hists[mstr] = {'distr' : htmp}
+
+    n_stop_list = [s['n_stops'] for sfos in all_seqfos.values() for s in sfos]
+    hists['n_stops'] = {'distr' : hutils.make_hist_from_list_of_values(n_stop_list, 'int', 'n_stops')}
+    hists['n_stops']['distr'].xtitle = pltlabels['n_stops']
+
     return hists
 
 # ----------------------------------------------------------------------------------------
@@ -409,6 +416,8 @@ def hist_distance(h1, h2, dbgstr='hist', weighted=False, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def compare_plots(htype, plotdir, hists, labels, hname, diff_vals, log='', irow=-1):
+    if hname == 'n_stops':
+        log = 'y'
     ytitle = hists[0].ytitle
     if args.normalize:
         # print('  %s I\'m not really sure it makes sense to normalize the mean hists (maybe could just skip them)' % utils.wrnstr())
@@ -446,7 +455,7 @@ NOTE that there's other scripts that process gcreplay results for partis input h
 """
 parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
-parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v4', help='dir with beast results on gcreplay data (same format as simulation)')
+parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v5', help='dir with beast results on gcreplay data (same format as simulation)')
 parser.add_argument('--iqtree-data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/iqtree-processed-data/v2', help='dir with iqtree results on gcreplay data (from datascripts/taraki-gctree-2021-10/iqtree-run.py then projects/gcdyn/scripts/data-parse.py')
 parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
@@ -475,13 +484,13 @@ numpy.random.seed(args.random_seed)
 rpmeta = datautils.read_gcreplay_metadata(args.gcreplay_dir)
 
 def affy_like(tp):  # ick ( plots that get filled similarly to how affinity plots get filled, i.e. not how abundance-like stuff gets filled)
-    return 'affinity' in tp or tp in ['csizes', 'unique_csizes', 'leaf-muts', 'internal-muts', 'abundances', 'max-abundances']
+    return 'affinity' in tp or tp in ['csizes', 'unique_csizes', 'leaf-muts', 'internal-muts', 'abundances', 'max-abundances', 'n_stops']
 abrows = [
     ['abundances', 'max-abundances', 'leaf-affinity', 'internal-affinity'],
     [],
     ['leaf-muts-nuc', 'internal-muts-nuc', 'leaf-muts-aa', 'internal-muts-aa'],
     [],
-    ['csizes', 'unique_csizes'],
+    ['csizes', 'unique_csizes', 'n_stops'],
     [],
 ]
 abtypes = [a for arow in abrows if len(arow)>0 for a in arow]

@@ -2973,12 +2973,15 @@ def get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):  # N
     return codons, [seq[:istart], seq[istop:]]
 
 #----------------------------------------------------------------------------------------
-def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):
+def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, return_n_stops=False, debug=False):
     """ true if there's a stop codon in frame with respect to the start of the V """
     codons, _ = get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=debug)
     if debug:
         print('    %d stop codon%s'  % (len(set(codons) & set(codon_table['stop'])), plural(len(set(codons) & set(codon_table['stop'])))))
-    return len(set(codons) & set(codon_table['stop'])) > 0  # true if any of the stop codons from <codon_table> are present in <codons>
+    if return_n_stops:
+        return len([c for c in codons if c in codon_table['stop']])
+    else:
+        return len(set(codons) & set(codon_table['stop'])) > 0
 
 # ----------------------------------------------------------------------------------------
 def fix_stop(cdn):  # mutate codon <cdn> so it's no longer a stop codon
