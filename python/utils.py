@@ -1031,7 +1031,7 @@ def evenly_split_list(inlist, n_subsets, dbgstr='items'):
 
 # ----------------------------------------------------------------------------------------
 # chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
-# n_max_queries: take only this many (in alphabetical droplet order), n_random_queries: take this many at random, n_subsets: split into this many groups
+# n_max_queries: take only this many (after random shuffling, see notes below), n_random_queries: take this many at random, n_subsets: split into this many groups
 # NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
 def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None,
                           seed_unique_ids=None, queries_to_include=None, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
@@ -1057,9 +1057,10 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True, debug=debug)
     else:  # but if we already have pair info in <input_info>
         _, drop_query_lists = get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet_id_indices, return_lists=True)
-    if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense, but <drop_ids> is sorted alphabetically, so we're taking them in that order at least
+    random.shuffle(drop_query_lists)  # we always want to shuffle, since sometimes e.g. all unpaired igh are first when alphabetized by droplet id
+    if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense
         final_qlists = drop_query_lists[:n_max_queries]
-        returnfo = get_final_seqfos(final_qlists, '--n-max-queries', '(first %d, after sorting alphabetically by droplet id)' % n_max_queries)
+        returnfo = get_final_seqfos(final_qlists, '--n-max-queries', '(first %d, after random shuffling)' % n_max_queries)
     elif n_random_queries is not None:
         final_qlists = np_rand_choice(drop_query_lists, size=n_random_queries, replace=False)
         returnfo = get_final_seqfos(final_qlists, '--n-random-queries', '(uniform randomly)')
@@ -1067,7 +1068,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         list_of_fqlists = evenly_split_list(drop_query_lists, n_subsets, dbgstr='droplets')
         returnfo = []
         for isub, final_qlists in enumerate(list_of_fqlists):
-            returnfo.append(get_final_seqfos(final_qlists, '  isub %d'%isub, 'in order (after sorting alphabetically by droplet id)'))
+            returnfo.append(get_final_seqfos(final_qlists, '  isub %d'%isub, 'in order (after random shuffling)'))
     else:
         assert False
     return returnfo
