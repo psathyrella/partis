@@ -454,8 +454,8 @@ NOTE that there's other scripts that process gcreplay results for partis input h
   replay-plot.py --simu-like-dir <dir> --outdir <dir>
 """
 parser = argparse.ArgumentParser(usage=ustr)
-parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')
-parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v5', help='dir with beast results on gcreplay data (same format as simulation)')
+parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/shared/replay/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')  # old location: /fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay
+parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v6', help='dir with beast results on gcreplay data (same format as simulation)')
 parser.add_argument('--iqtree-data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/iqtree-processed-data/v2', help='dir with iqtree results on gcreplay data (from datascripts/taraki-gctree-2021-10/iqtree-run.py then projects/gcdyn/scripts/data-parse.py')
 parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')

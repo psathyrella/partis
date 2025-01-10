@@ -29,19 +29,22 @@ def reverse_gcid(gcid):
 
 # ----------------------------------------------------------------------------------------
 def fix_btt_id(gcid):
+    if 'btt-' not in gcid:
+        return gcid
     mstr = utils.get_single_entry(re.findall('btt-PR-.-[0-9][0-9]*', gcid))
     btstr, prstr, prn1, prn2  = mstr.split('-')
     assert btstr == 'btt' and prstr == 'PR'
     return gcid.replace(mstr, 'PR%d.%02d' % (int(prn1), int(prn2)))
 
 # ----------------------------------------------------------------------------------------
-def read_gcreplay_metadata(gcreplay_dir):
+def read_gcreplay_metadata(gcreplay_dir, old_style=False):
     # ----------------------------------------------------------------------------------------
-    def readcfn(prn):
-        with open('%s/metadata.PR%s.csv' % (gcreplay_dir, prn)) as cfile:
+    def readcfn(prn=None):
+        mfn = ('%s/gc_metadata.csv'%gcreplay_dir) if prn is None else '%s/metadata.PR%s.csv' % (gcreplay_dir, prn)
+        with open(mfn) as cfile:
             reader = csv.DictReader(cfile)
             for line in reader:
-                if prn == '1':
+                if prn in ['1', None]:
                     line['time'] = line['imm_duration']
                     del line['imm_duration']
                 elif prn == '2':
@@ -49,13 +52,19 @@ def read_gcreplay_metadata(gcreplay_dir):
                     line['strain'] = 'wt'
                 else:
                     assert False
-                gcid = get_gcid(line['PR'], line['mouse'], line['node'], line['gc'])
+                if prn is None:  # new style file
+                    gcid = line['uid']
+                else:
+                    gcid = get_gcid(line['PR'], line['mouse'], line['node'], line['gc'])
                 assert gcid not in rpmeta
                 rpmeta[gcid] = line
     # ----------------------------------------------------------------------------------------
     print('  reading gcreplay meta info from %s' % gcreplay_dir)
     rpmeta = {}
-    for prn in ['1', '2']:
-        readcfn(prn)
+    if old_style:  # UGH
+        for prn in ['1', '2']:
+            readcfn(prn=prn)
+    else:
+        readcfn()
     return rpmeta
 
