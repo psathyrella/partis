@@ -371,6 +371,7 @@ class PartitionDriver(object):
                 self.write_output(None, set(), write_sw=True)  # note that if you're auto-parameter caching, this will just be rewriting an sw output file that's already there from parameter caching, but oh, well. If you're setting --only-smith-waterman and not using cache-parameters, you have only yourself to blame
             return
         print('hmm')
+        self.added_extra_clusters_to_annotate = False  # ugh (see other places this gets set, and fcn in next line gets called)
         annotations, hmm_failures = self.actually_get_annotations_for_clusters(clusters_to_annotate=self.input_partition)
         if self.args.get_selection_metrics:
             self.calc_tree_metrics(annotations)  # adds tree metrics to <annotations>
@@ -1467,6 +1468,9 @@ class PartitionDriver(object):
             self.sw_info[hashid] = swhfo
             if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
                 existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
+                if len(existing_cdr3_lengths) > 1:
+                    print('    %s multiple existing cdr3 lengths when adding hash seq in subcluster annotation: %s' % (utils.wrnstr(), existing_cdr3_lengths))
+                    return
                 # raise Exception('added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths)))
                 print('  %s added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (utils.color('yellow', 'warning'), hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths)))
                 self.sw_info[hashid]['cdr3_length'] = utils.get_single_entry(existing_cdr3_lengths)  # I'm not totally sure that this fix makes sense
@@ -1526,7 +1530,7 @@ class PartitionDriver(object):
                 print('    missing %d annotations' % len(missing_clusters))
             for mclust in missing_clusters:
                 if len(set(mclust) - step_failures) > 0:
-                    raise Exception('cluster missing from output with uids not in hmm failures: %s\n    missing uids: %s' % (skey(mclust), ' '.join(set(mclust) - step_failures)))
+                    print('  %s cluster missing from output with uids not in hmm failures: %s\n    missing uids: %s' % (utils.wrnstr(), skey(mclust), ' '.join(set(mclust) - step_failures)))
                 if mclust in clusters_still_to_do:  # i.e. if it's a simple/whole cluster (one way this happened was when the single-seq cluster had failed when caching hmm naive seqs)
                     print('      removing missing cluster from clusters_still_to_do: %s' % skey(mclust))
                     clusters_still_to_do.remove(mclust)
@@ -1577,8 +1581,10 @@ class PartitionDriver(object):
             istep += 1
 
         for uid in subcluster_hash_seqs:
-            del self.sw_info[uid]
-            del self.input_info[uid]
+            if uid in self.sw_info[uid]:
+                del self.sw_info[uid]
+            if uid in self.input_info:
+                del self.input_info[uid]
             if self.reco_info is not None and uid in self.reco_info:
                 del self.reco_info[uid]
 

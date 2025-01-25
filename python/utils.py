@@ -188,9 +188,9 @@ def pass_fcn(val):  # dummy function for conversions (see beloww)
 
 # ----------------------------------------------------------------------------------------
 # NOTE returns *all* lines as list by default, i.e. will read entire file at once before returning
-def csvlines(fn, n_max_queries=None):  # for search: csv_lines()
+def csvlines(fn, n_max_queries=None, delimiter=','):  # for search: csv_lines()
     with open(fn) as cfile:
-        reader = csv.DictReader(filter(lambda l: l[0]!='#', cfile))
+        reader = csv.DictReader(filter(lambda l: l[0]!='#', cfile), delimiter=delimiter)
         if n_max_queries is None:
             return list(reader)
         else:  # ick, this seems overly verbose
@@ -719,7 +719,7 @@ def make_unicode_translation(str1, str2):
 
 forbidden_characters = set([':', ';', ','])  # strings that are not allowed in sequence ids
 forbidden_character_translations = make_unicode_translation(':;,', 'csm')
-warn_chars = set('()')
+warn_chars = set('()=')  # these may cause issues with phylo inference programs
 ambig_translations = make_unicode_translation(all_ambiguous_bases, ambig_base * len(all_ambiguous_bases))
 
 functional_columns = ['mutated_invariants', 'in_frames', 'stops']
@@ -1519,7 +1519,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, do
         else:  # would be nice to use linekeys['per_family'], but not all keys are in one or the other (e.g. linekeys['sw'] aren't in either)
             cvals = [reco_info[u][col] for u in uids if col in reco_info[u]]
             if warn and any(v != cvals[0] for v in cvals):  # eh, maybe i don't need to raise an exception here? Although generally you sure shouldn't be merging them if they differ
-                print('    %s multiple values for key \'%s\' when synthesizing multi-seq line (just using the first one): %s' % (wrnstr(), col, cvals))
+                print('    %s multiple values for key \'%s\' when synthesizing multi-seq line (just using the first one): %s' % (wrnstr(), col, '')) #cvals))
             cval = cvals[0]
         multifo[col] = copy.deepcopy(cval)
     return multifo

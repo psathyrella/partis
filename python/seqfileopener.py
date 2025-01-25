@@ -206,14 +206,17 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     if suffix in delimit_info:
         seqfile = open(infname)  # closes on function exit. no, this isn't the best way to do this
         reader = csv.DictReader(seqfile, delimiter=delimit_info[suffix])
+        sanitize_uids = True
     elif suffix in ['.fa', '.fasta', '.fq', '.fastq', '.fastx']:
         add_info = args is not None and args.name_column is not None and 'fasta-info-index' in args.name_column
         reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=add_info, sanitize_uids=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
                                   queries=(args.queries if (args is not None and not args.abbreviate) else None), sanitize_seqs=args.sanitize_input_seqs)  # NOTE also can't filter on args.queries here if we're also translating
+        sanitize_uids = False  # already did it, so don't need to do it below
     elif suffix == '.yaml':
         yaml_glfo, reader, _ = utils.read_yaml_output(infname, n_max_queries=n_max_queries, synth_single_seqs=True, dont_add_implicit_info=True)  # not really sure that long term I want to synthesize single seq lines, but for backwards compatibility it's nice a.t.m.
         if not is_data:
             simglfo = yaml_glfo  # doesn't replace the contents, of course, which is why we return it
+        sanitize_uids = True
     else:
         raise Exception('unhandled file extension \'%s\' on file \'%s\'' % (suffix, infname))
 
@@ -222,7 +225,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     if not is_data:
         reco_info = OrderedDict()
     n_duplicate_uids = 0
-    printed_simu_mismatch_warning = False
+    printed_simu_mismatch_warning, already_printed_forbidden_character_warning = False, False
     n_queries_added = 0
     found_seed = False
     potential_names, used_names = None, None  # for abbreviating
@@ -260,6 +263,11 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         if len(line['unique_ids']) > 1:
             raise Exception('can\'t yet handle multi-seq csv input files')
         uid = line['unique_ids'][0]
+        if sanitize_uids and any(fc in uid for fc in utils.forbidden_characters):
+            if not already_printed_forbidden_character_warning:
+                print('  %s: found a forbidden character (one of %s) in sequence id \'%s\'. This means we\'ll be replacing each of these forbidden characters with a single letter from their name (in this case %s). If this will cause problems you should replace the characters with something else beforehand.' % (utils.color('yellow', 'warning'), ' '.join(["'" + fc + "'" for fc in utils.forbidden_characters]), uid, uid.translate(utils.forbidden_character_translations)))
+                already_printed_forbidden_character_warning = True
+            uid = uid.translate(utils.forbidden_character_translations)
         if uid in input_info:
             uid, n_duplicate_uids = utils.choose_non_dup_id(uid, n_duplicate_uids, input_info)
         inseq = line['input_seqs'][0]

@@ -205,6 +205,8 @@ class PartitionPlotter(object):
             return True
         if self.args.queries_to_include is not None and len(set(self.args.queries_to_include) & set(self.sclusts[iclust])) > 0:  # seed is added to <args.queries_to_include> in bin/partis
             return True
+        if plottype == 'trees' and len(self.sclusts[iclust]) >= self.args.min_selection_metric_cluster_size:  # ok, ugh, it sucks to have this twice in both directions
+            return True
         return False  # falls through if <iclust> is too big, or if there's no --queries-to-include (which includes the seed)
 
     # ----------------------------------------------------------------------------------------
