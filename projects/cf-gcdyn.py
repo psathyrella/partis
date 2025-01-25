@@ -53,6 +53,7 @@ parser.add_argument('--time-to-sampling-range-list')
 parser.add_argument('--n-seqs-range-list')
 parser.add_argument('--n-trials-list')
 parser.add_argument('--dl-bundle-size-list', help='size of bundles during dl inference (must be equal to or less than simulation bundle size)')
+parser.add_argument('--model-type-list')
 parser.add_argument('--epochs-list')
 parser.add_argument('--batch-size-list')
 parser.add_argument('--dropout-rate-list')
@@ -76,7 +77,7 @@ parser.add_argument('--data-dir')
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'death-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
-    'dl-infer' : ['dl-bundle-size', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
+    'dl-infer' : ['dl-bundle-size', 'model-type', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
     'data' : ['data-samples'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
@@ -193,7 +194,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         cmd = add_mamba_cmds(cmd)
     elif 'replay-plot' in action:
         #  --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61  # don't want these turned on as long as e.g. N sampled seqs is varying a lot in simulation
-        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels iqt-data:bst-data:simu:simu-iqtree --normalize --short-legends --n-max-simu-trees 120 --write-legend-only-plots' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)  #  --n-max-simu-trees 85
+        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels iqt-data:simu:simu-iqtree --normalize --short-legends --n-max-simu-trees 120 --write-legend-only-plots' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)  #  --n-max-simu-trees 85  # :bst-data
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
             ofn = ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy', current_action=action)
