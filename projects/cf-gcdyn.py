@@ -48,7 +48,7 @@ parser.add_argument('--initial-birth-rate-range-list')
 parser.add_argument('--carry-cap-values-list')
 parser.add_argument('--carry-cap-range-list')
 parser.add_argument('--nonsense-phenotype-value-list')
-parser.add_argument('--init-population-list')
+parser.add_argument('--init-population-values-list')
 parser.add_argument('--time-to-sampling-range-list')
 parser.add_argument('--n-seqs-range-list')
 parser.add_argument('--n-trials-list')
@@ -76,15 +76,15 @@ parser.add_argument('--tree-inference-method', choices=['iqtree', 'gctree'], hel
 parser.add_argument('--data-dir')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'death-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
+    'simu' : ['seed', 'birth-response', 'death-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
     'dl-infer' : ['dl-bundle-size', 'model-type', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
-    'data' : ['data-samples'],
+    'data' : ['data-samples', 'model-type'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
 args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['dl-infer'])
-check_dl_args = ['seed', 'birth-response', 'death-response', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials']  # ugh ugh ugh
+check_dl_args = ['seed', 'birth-response', 'death-response', 'carry-cap-values', 'carry-cap-range', 'init-population-values', 'nonsense-phenotype-value', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials']  # ugh ugh ugh
 args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['check-dl'])
-args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'init-population', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'init-population-values', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 if 'data' in args.actions:
@@ -221,7 +221,11 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, all_simdirs=None):
         assert len(vstrs) == 1  # should have just one data sample in a list
         smpl = vstrs[0]
         cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s --discard-extra-trees' % (args.dl_model_dir, args.data_dir, smpl, odr)
+        cmd = add_scan_args(cmd, skip_fcn=lambda v: v in ['data-samples'])
+        if args.dl_extra_args is not None:
+            cmd += ' %s' % args.dl_extra_args
         if args.dl_bundle_size_list is not None:  # kind of weird to use it for this as well as a scan var, but whatever
+            assert False  # I *think* this is now handled by adding the add_scan_args() call just above, but it needs to be checked
             assert len(args.dl_bundle_size_list) == 1
             cmd += ' --dl-bundle-size %d' % int(args.dl_bundle_size_list[0])
     else:
