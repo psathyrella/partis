@@ -284,7 +284,7 @@ def add_to_scan_cmd(args, vname, vstr, cmd, replacefo=None):
         if replacefo[vname][vstr] is None:
             return cmd
         vname, vstr = replacefo[vname][vstr]
-    return cmd + ' --%s %s' % (vname, vstr)
+    return cmd + ' --%s%s' % (vname, '' if vstr=='' else ' '+vstr)
 
 # ----------------------------------------------------------------------------------------
 def svoutdir(args, varnames, valstrs, svtype):
@@ -338,7 +338,7 @@ def vlval(args, vlists, varnames, vname):  # ok this name also sucks, but they'r
 # <args.str_list_vars>: vars that are lists of lists of strs, rather than simple lists of strs
 def get_var_info(args, scan_vars, action=None, debug=False):
     # ----------------------------------------------------------------------------------------
-    def handle_var(svar, val_lists, valstrs):
+    def handle_var(svar, val_lists, valstrs, force_val=False):  # force_val: this is the last var, and we haven't yet gotten one with more than one value, so we need to put one in or there won't be any, and things will crash later on
         # convert_fcn = (lambda vlist: ':'.join(str(v) for v in vlist)) if svar in args.str_list_vars else str  # old version, leaving here cause i'm chicken that i messed something up
         convert_fcn = str
         if svar in args.str_list_vars:
@@ -350,14 +350,19 @@ def get_var_info(args, scan_vars, action=None, debug=False):
         sargv = sargval(args, svar)
         if sargv is None:  # no default value, and it wasn't set on the command line
             pass
-        elif len(sargv) > 1 or (svar == 'seed' and args.iseeds is not None):  # if --iseeds is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
+        elif len(sargv) > 1 or force_val or (svar == 'seed' and args.iseeds is not None):  # if --iseeds is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
             varnames.append(svar)
             val_lists = [vlist + [sv] for vlist in val_lists for sv in sargv]
             valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in sargv]
             if debug:
                 print('    %30s  %4s    %s    %s' % (svar, 'y' if svar in args.str_list_vars else '-', val_lists, valstrs))
         else:
-            base_args.append('--%s %s' % (svar, convert_fcn(sargv[0])))
+            if hasattr(args, 'bool_args') and svar in args.bool_args:  # duplicates code in add_to_scan_cmd()
+                assert sargv[0] in ['0', '1']
+                if sargv[0] == '1':
+                    base_args.append('--%s'%svar)
+            else:
+                base_args.append('--%s %s' % (svar, convert_fcn(sargv[0])))
         return val_lists, valstrs
 
     # ----------------------------------------------------------------------------------------
@@ -366,8 +371,8 @@ def get_var_info(args, scan_vars, action=None, debug=False):
     val_lists, valstrs = [[]], [[]]  # these are both lists in which each entry is a combination of each of the vars in <varnames> that we want to run; in the former they're all lists, whereas in the latter they're strings, i.e. colon-separated lists (e.g. [[[10, 20], 0], [[10, 20], 1], [[10, 20], 2], [[50, 100], 0], [[50, 100], 1], [[50, 100], 2]] and [['10:20', '0'], ['10:20', '1'], ['10:20', '2'], ['50:100', '0'], ['50:100', '1'], ['50:100', '2']])
     if debug:
         print('                             name    list   val_lists              valstrs')
-    for svar in scan_vars:
-        val_lists, valstrs = handle_var(svar, val_lists, valstrs)  # val_lists and valstrs get updated each time through
+    for iv, svar in enumerate(scan_vars):
+        val_lists, valstrs = handle_var(svar, val_lists, valstrs, force_val=iv==len(scan_vars)-1 and len(varnames)==0)  # val_lists and valstrs get updated each time through
 
     if args.zip_vars is not None:
         tzvars = [v for v in varnames if v in args.zip_vars]  # want order to come from <varnames> so it matches below
@@ -390,7 +395,7 @@ def get_var_info(args, scan_vars, action=None, debug=False):
 
     if debug:
         print('    base args: %s' % ' '.join(base_args))
-    if len(varnames) == 0:
+    if len(varnames) == 0:  # shouldn't need this any more, but don't want to remove it yet
         print('  %s zero length varnames in get_var_info() (probably because no variables have multiple values)' % wrnstr())
     return base_args, varnames, val_lists, valstrs
 
