@@ -293,7 +293,9 @@ def svoutdir(args, varnames, valstrs, svtype):
     if hasattr(args, 'version'):
         outdir.append(args.version)
     for vn, vstr in zip(varnames, valstrs):
-        if vn not in args.scan_vars[svtype]:  # e.g. lb tau, which is only for lb calculation
+        if vn not in args.scan_vars[svtype]:
+            continue
+        if len(varnames)==1 and vstr is None:  # used force_val when getting var info
             continue
         outdir.append('%s-%s' % (vn, vstr))
     return '/'.join(outdir)
@@ -325,10 +327,10 @@ def sargval(args, sv):  # ick this name sucks
         return args.__dict__[dkey(sv)]
 
 # ----------------------------------------------------------------------------------------
-def vlval(args, vlists, varnames, vname):  # ok this name also sucks, but they're doing complicated things while also needing really short names...
-    # NOTE I think <vlist> would be more appropriate than <vlists>
+# return value in <vlist> corresponding to <vname> using index of <vname> in <varnames>
+def vlval(args, vlist, varnames, vname):  # ok this name also sucks, but they're doing complicated things while also needing really short names...
     if vname in varnames:
-        return vlists[varnames.index(vname)]
+        return vlist[varnames.index(vname)]
     else:
         assert len(sargval(args, vname))  # um, I think?
         return sargval(args, vname)[0]
@@ -350,13 +352,19 @@ def get_var_info(args, scan_vars, action=None, debug=False):
         sargv = sargval(args, svar)
         if sargv is None:  # no default value, and it wasn't set on the command line
             pass
-        elif len(sargv) > 1 or force_val or (svar == 'seed' and args.iseeds is not None):  # if --iseeds is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
+        elif len(sargv) > 1 or (svar == 'seed' and args.iseeds is not None):  # if --iseeds is set, then we know there must be more than one replicate, but/and we also know the fcn will only be returning one of 'em
             varnames.append(svar)
             val_lists = [vlist + [sv] for vlist in val_lists for sv in sargv]
             valstrs = [vlist + [convert_fcn(sv)] for vlist in valstrs for sv in sargv]
             if debug:
                 print('    %30s  %4s    %s    %s' % (svar, 'y' if svar in args.str_list_vars else '-', val_lists, valstrs))
         else:
+            if force_val:
+                if debug:
+                    print('    force_val: setting %s val str to None' % svar)
+                varnames.append(svar)  # this adds it to the list of <varnames> (so the calling script has something to loop over) but sets the val str to None (so it knows not to e.g. include it in the output dir name)
+                val_lists = [[None]]
+                valstrs = [[None]]
             if hasattr(args, 'bool_args') and svar in args.bool_args:  # duplicates code in add_to_scan_cmd()
                 assert sargv[0] in ['0', '1']
                 if sargv[0] == '1':
@@ -371,8 +379,9 @@ def get_var_info(args, scan_vars, action=None, debug=False):
     val_lists, valstrs = [[]], [[]]  # these are both lists in which each entry is a combination of each of the vars in <varnames> that we want to run; in the former they're all lists, whereas in the latter they're strings, i.e. colon-separated lists (e.g. [[[10, 20], 0], [[10, 20], 1], [[10, 20], 2], [[50, 100], 0], [[50, 100], 1], [[50, 100], 2]] and [['10:20', '0'], ['10:20', '1'], ['10:20', '2'], ['50:100', '0'], ['50:100', '1'], ['50:100', '2']])
     if debug:
         print('                             name    list   val_lists              valstrs')
-    for iv, svar in enumerate(scan_vars):
-        val_lists, valstrs = handle_var(svar, val_lists, valstrs, force_val=iv==len(scan_vars)-1 and len(varnames)==0)  # val_lists and valstrs get updated each time through
+    non_null_vars = [v for v in scan_vars if sargval(args, v) is not None]
+    for iv, svar in enumerate(non_null_vars):
+        val_lists, valstrs = handle_var(svar, val_lists, valstrs, force_val=iv==len(non_null_vars)-1 and len(varnames)==0)  # val_lists and valstrs get updated each time through
 
     if args.zip_vars is not None:
         tzvars = [v for v in varnames if v in args.zip_vars]  # want order to come from <varnames> so it matches below
@@ -454,8 +463,10 @@ def add_scanvar_args(parser, script_base, all_perf_metrics, default_plot_metric=
     parser.add_argument('--single-light-locus')
 
 # ----------------------------------------------------------------------------------------
-def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics):
+def process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics, data_actions=None):
     for act in after_actions + plot_actions:  # actions that happen after simu need to have all the simu scan vars included in them
+        if data_actions is not None and act in data_actions:
+            continue
         if act not in args.scan_vars:
             args.scan_vars[act] = []
         args.scan_vars[act] = args.scan_vars['simu'] + args.scan_vars[act]

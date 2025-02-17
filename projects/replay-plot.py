@@ -367,8 +367,8 @@ def read_input_files(label):
             htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
         hists['%s-affinity'%pkey] = {'distr' : htmp}
 
-    xmin, xmax = 8, 120  # have to be the same for all labels, so easier to just set hard coded ones
-    n_bins = 15
+    xmin, xmax = 5, 120  # have to be the same for all labels, so easier to just set hard coded ones
+    n_bins = 16
     dx = int((xmax - xmin) / n_bins)
     xbins = [l-0.5 for l in range(xmin, xmax + dx, dx)]
     hists['csizes'] = {'distr' : plotting.make_csize_hist(partition, n_bins=len(xbins), xbins=xbins, xtitle='N leaves')}
@@ -433,7 +433,7 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals, log='', irow=
     if any(isdata(l) for l in labels) and 'muts' in hname:
         xbounds = [-0.5, 20.5]
     if 'affinity' in hname and log == '':
-        xbounds = [-5.5, 3]
+        xbounds = [-3, 3]
     shift_overflows = True  # 'muts' in hname or 'affinity' in hname
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s%s'%(htype, hname, '' if log=='' else '-log'), more_hists=hists, log=log, xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],
@@ -456,7 +456,8 @@ NOTE that there's other scripts that process gcreplay results for partis input h
 parser = argparse.ArgumentParser(usage=ustr)
 parser.add_argument('--gcreplay-dir', default='/fh/fast/matsen_e/shared/replay/gcreplay', help='dir with gctree results on gcreplay data from which we read seqs, affinity, mutation info, and trees)')  # old location: /fh/fast/matsen_e/data/taraki-gctree-2021-10/gcreplay
 parser.add_argument('--beast-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/beast-processed-data/v6', help='dir with beast results on gcreplay data (same format as simulation)')
-parser.add_argument('--iqtree-data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/iqtree-processed-data/v3', help='dir with iqtree results on gcreplay data (from datascripts/taraki-gctree-2021-10/iqtree-run.py then projects/gcdyn/scripts/data-parse.py')
+parser.add_argument('--iqtree-version', default='test')
+parser.add_argument('--iqtree-data-dir', default='/fh/fast/matsen_e/data/taraki-gctree-2021-10/iqtree-processed-data', help='dir with iqtree results on gcreplay data (from datascripts/taraki-gctree-2021-10/iqtree-run.py then projects/gcdyn/scripts/data-parse.py')
 parser.add_argument('--simu-like-dir', help='Dir from which to read simulation results, either from gcdyn or bcr-phylo (if the latter, set --bcr-phylo)')
 parser.add_argument('--outdir')
 parser.add_argument('--min-seqs-per-gc', type=int, help='if set, skip families/gcs with fewer than this many seqs NOTE doesn\'t [yet] apply to affinity plots')
@@ -478,6 +479,10 @@ if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
     print('  note: setting --write-legend-only-plots since --plot-labels is longer than 3')
     args.write_legend_only_plots = True
 args.naive_seq_aa = utils.ltranslate(args.naive_seq)
+args.iqtree_data_dir += '/' + args.iqtree_version
+
+if not os.path.exists(args.iqtree_data_dir):
+    raise Exception('<--iqtree-data-dir>/<--iqtree-version> %s doesn\'t exist (probably need to set --iqtree-version)' % args.iqtree_data_dir)
 
 numpy.random.seed(args.random_seed)
 
