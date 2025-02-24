@@ -386,7 +386,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
 
     if shift_overflows:
         if '_vs_per_gene_support' in plotname or '_fraction_correct_vs_mute_freq' in plotname or plotname in [r + '_gene' for r in utils.regions]:
-            print('%s overriding overflow shifting for %s' % (utils.color('yellow', 'warning'), plotname))
+            print(        '%s overriding overflow shifting for %s' % (utils.color('yellow', 'warning'), plotname))
         else:
             shift_hist_overflows(hists, xmin, xmax)
         # assert '_vs_per_gene_support' not in plotname and '_fraction_correct_vs_mute_freq' not in plotname and plotname.find('_gene') != 1  # really, really, really don't want to shift overflows for these

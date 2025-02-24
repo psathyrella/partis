@@ -42,7 +42,7 @@ class Hist(object):
             if any(v < xmin or v >= xmax for v in value_list):  # maybe because you forgot that xmax is low edge of overflow bin, so it's included in that
                 # NOTE it would be nice to integrate this with hutils.make_hist_from_list_of_values() and hutils.make_hist_from_dict_of_counts()
                 obvals = sorted([v for v in value_list if v < xmin or v >= xmax])
-                print('  %s %d values outside bounds [%s, %s] in hist list fill: %s' % (utils.color('yellow', 'warning'), len(obvals), xmin, xmax, ' '.join('%.2f'%v for v in obvals)))
+                print('        %s %d values outside bounds [%s, %s] in hist list fill: %s' % (utils.color('yellow', 'warning'), len(obvals), xmin, xmax, ' '.join('%.2f'%v for v in obvals)))
             self.list_fill(value_list, weight_list=weight_list)
 
     # ----------------------------------------------------------------------------------------

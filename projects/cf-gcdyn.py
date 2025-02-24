@@ -41,6 +41,7 @@ parser.add_argument('--birth-response-list')
 parser.add_argument('--death-response-list')
 parser.add_argument('--xscale-values-list')
 parser.add_argument('--xshift-values-list')
+parser.add_argument('--yscale-values-list')
 parser.add_argument('--xscale-range-list')
 parser.add_argument('--xshift-range-list')
 parser.add_argument('--yscale-range-list')
@@ -75,20 +76,21 @@ parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.geten
 parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
 parser.add_argument('--dl-model-dir')
 parser.add_argument('--dl-model-label-str')
+parser.add_argument('--dl-model-vars')
 parser.add_argument('--tree-inference-method', choices=['iqtree', 'gctree'], help='if set, we both run tree inference with this method on simulation, and use those inferred trees during training')
 parser.add_argument('--data-dir')
 parser.add_argument('--iqtree-version', default='test')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'death-response', 'xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
+    'simu' : ['seed', 'birth-response', 'death-response', 'xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
     'dl-infer' : ['dl-bundle-size', 'model-type', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'non-sigmoid-input', 'dont-scale-params', 'params-to-predict'],
     'data' : ['data-samples', 'model-type', 'non-sigmoid-input', 'carry-cap-values', 'init-population-values'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
-args.scan_vars['check-dl'] = [v for a in ['data', 'dl-infer'] for v in args.scan_vars[a]]
+args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['data']) + [v for v in args.scan_vars['dl-infer'] if v not in args.scan_vars['data']]
 check_dl_args = ['seed', 'birth-response', 'death-response', 'carry-cap-values', 'carry-cap-range', 'init-population-values', 'nonsense-phenotype-value', 'init-population', 'time-to-sampling-range', 'n-seqs-range', 'n-trials']  # ugh ugh ugh
-args.scan_vars['replay-plot-ckdl'] = [v for a in ['data', 'dl-infer'] for v in args.scan_vars[a]]
-args.str_list_vars = ['xscale-values', 'xshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'init-population-values', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['check-dl'])
+args.str_list_vars = ['xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'init-population-values', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = ['dont-scale-params', 'non-sigmoid-input']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 if 'data' in args.actions:
@@ -97,6 +99,7 @@ if 'data' in args.actions:
         args.data_samples_list = ':'.join(os.path.basename(d) for d in glob.glob('%s/*' % args.data_dir) if os.path.isdir(d))
     print('  running on %d data sample%s from %s' % (len(args.data_samples_list.split(':')), utils.plural(len(args.data_samples_list.split(':'))), args.data_dir))
 utils.process_scanvar_args(args, after_actions, plot_actions, all_perf_metrics, data_actions=['data', 'check-dl', 'replay-plot-ckdl'])
+args.dl_model_vars = utils.get_arg_list(args.dl_model_vars)
 if args.inference_extra_args is not None:
     raise Exception('not used atm')
 if 'all-dl' in args.perf_metrics:
@@ -178,6 +181,18 @@ def get_cmd(action, base_args, varnames, vstrs, all_simdirs=None):
             cmd = utils.add_to_scan_cmd(args, vname, vstr, cmd)
         return cmd
     # ----------------------------------------------------------------------------------------
+    def add_model_dir(cmd):
+        if args.dl_model_dir is not None:
+            cmd += ' --model-dir %s' % args.dl_model_dir
+        if args.dl_model_label_str is not None:
+            tvnames, tvstrs = varnames, vstrs
+            if args.dl_model_vars is not None:
+                tvnames, tvstrs = zip(*[(v, s) for v, s in zip(varnames, vstrs) if v in args.dl_model_vars])
+            tmpdir = os.path.dirname(ofname(args, tvnames, tvstrs, 'dl-infer'))  # location at which we'd write dl training results if we were training here
+            assert '%s/%s'%(args.label, args.version) in tmpdir
+            cmd += ' --model-dir %s' % tmpdir.replace('%s/%s'%(args.label, args.version), args.dl_model_label_str)
+        return cmd
+    # ----------------------------------------------------------------------------------------
     odr = os.path.dirname(ofname(args, varnames, vstrs, action))  # NOTE that this isn't the same as odir() (ugh)
     if action in ['simu', 'check-dl', 'merge-simu']:
         cmd = 'gcd-simulate' if action in ['simu', 'check-dl'] else 'python %s/scripts/%s.py' % (args.gcddir, 'combine-simu-files.py')
@@ -206,18 +221,15 @@ def get_cmd(action, base_args, varnames, vstrs, all_simdirs=None):
     elif 'replay-plot' in action:
         #  --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61  # don't want these turned on as long as e.g. N sampled seqs is varying a lot in simulation
         cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels iqt-data:simu:simu-iqtree --iqtree-version --normalize --short-legends --n-max-simu-trees 120 --write-legend-only-plots' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr, args.iqtree_version)  #  --n-max-simu-trees 85  # :bst-data
-    elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']: # NOTE use 'dl-infer' with --dl-model-dir or --dl-model-label-str if the *input* simulation is the same as the *output* label, #   but use 'data' (with --data-dir and either --dl-model-dir or --dl-model-label-str) if they're different, i.e. you have three dirs: one for model, one for input, and one for output
+    elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
+        # NOTE use 'dl-infer' with --dl-model-dir or --dl-model-label-str if the *input* simulation is the same as the *output* label (but different label for model)
+        #   but use 'data' below (with --data-dir and either --dl-model-dir or --dl-model-label-str) if they're different, i.e. you have three dirs: one for model, one for input, and one for output
         if 'dl-infer' in action:  # could be 'dl-infer' or 'dl-infer-merged'
             ofn = ofname(args, varnames, vstrs, 'merge-simu' if action=='dl-infer-merged' else 'simu', ftype='npy', current_action=action)
             cmd = 'gcd-dl %s --is-simu --indir %s --outdir %s' % ('train' if args.dl_model_dir is None and args.dl_model_label_str is None else 'infer', os.path.dirname(ofn), odr)
             if args.dl_extra_args is not None:
                 cmd += ' %s' % args.dl_extra_args
-            if args.dl_model_dir is not None:
-                cmd += ' --model-dir %s' % args.dl_model_dir
-            if args.dl_model_label_str is not None:
-                tmpdir = os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer'))  # location at which we'd write dl training results if we were training here
-                assert '%s/%s'%(args.label, args.version) in tmpdir
-                cmd += ' --model-dir %s' % tmpdir.replace('%s/%s'%(args.label, args.version), args.dl_model_label_str)
+            cmd = add_model_dir(cmd)
         else:
             cmd = 'python %s/scripts/group-gcdyn-expts.py --indir %s --outdir %s' % (args.gcddir, os.path.dirname(ofname(args, varnames, vstrs, 'dl-infer')), odr)
             cmd = add_mamba_cmds(cmd)
@@ -233,7 +245,8 @@ def get_cmd(action, base_args, varnames, vstrs, all_simdirs=None):
         # if args.inference_extra_args is not None:
         #     cmd += ' %s' % args.inference_extra_args
     elif action == 'data':
-        cmd = 'gcd-dl infer --model-dir %s --indir %s/%s --outdir %s --discard-extra-trees' % (args.dl_model_dir, args.data_dir, utils.vlval(args, vstrs, varnames, 'data-samples'), odr)
+        cmd = 'gcd-dl infer --indir %s/%s --outdir %s --discard-extra-trees' % (args.data_dir, utils.vlval(args, vstrs, varnames, 'data-samples'), odr)
+        cmd = add_model_dir(cmd)
         cmd = add_scan_args(cmd, skip_fcn=lambda v: v in ['data-samples'])
         if args.dl_extra_args is not None:
             cmd += ' %s' % args.dl_extra_args
@@ -290,7 +303,7 @@ def run_scan(action):
                 all_simdirs.append(os.path.dirname(ifn))
                 continue
         if action in ['check-dl', 'replay-plot-ckdl'] and utils.vlval(args, vstrs, varnames, 'model-type') != 'sigmoid':
-            print('    skipping %s for non-sigmoid model' % action)
+            # print('    skipping %s for non-sigmoid model' % action)
             continue
 
         init_cmd(varnames, vstrs, ofn, icombo)
