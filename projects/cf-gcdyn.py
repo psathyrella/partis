@@ -220,7 +220,7 @@ def get_cmd(action, base_args, varnames, vstrs, all_simdirs=None):
         cmd = add_mamba_cmds(cmd)
     elif 'replay-plot' in action:
         #  --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61  # don't want these turned on as long as e.g. N sampled seqs is varying a lot in simulation
-        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels iqt-data:simu:simu-iqtree --iqtree-version --normalize --short-legends --n-max-simu-trees 120 --write-legend-only-plots' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr, args.iqtree_version)  #  --n-max-simu-trees 85  # :bst-data
+        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels iqt-data:simu:simu-iqtree --iqtree-version %s --normalize --short-legends --n-max-simu-trees 120 --write-legend-only-plots' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr, args.iqtree_version)  #  --n-max-simu-trees 85  # :bst-data
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         # NOTE use 'dl-infer' with --dl-model-dir or --dl-model-label-str if the *input* simulation is the same as the *output* label (but different label for model)
         #   but use 'data' below (with --data-dir and either --dl-model-dir or --dl-model-label-str) if they're different, i.e. you have three dirs: one for model, one for input, and one for output
@@ -281,7 +281,7 @@ def run_scan(action):
     n_already_there, n_missing_input, ifn = 0, 0, None
     all_simdirs = []
     for icombo, vstrs in enumerate(valstrs):
-        # if vstrs[varnames.index('n-trials')] != '50000': # or vstrs[varnames.index('simu-bundle-size')] != '1':
+        # if vstrs[varnames.index('n-trials')] != '5000': # or vstrs[varnames.index('simu-bundle-size')] != '1':
         #     continue
         # if vstrs[varnames.index('seed')] != '0': # or vstrs[varnames.index('simu-bundle-size')] != '1':
         if 'data-samples' in varnames and vstrs[varnames.index('data-samples')] != 'combo-trees': # or vstrs[varnames.index('simu-bundle-size')] != '1':
@@ -302,7 +302,7 @@ def run_scan(action):
             if action in merge_actions:
                 all_simdirs.append(os.path.dirname(ifn))
                 continue
-        if action in ['check-dl', 'replay-plot-ckdl'] and utils.vlval(args, vstrs, varnames, 'model-type') != 'sigmoid':
+        if action in ['check-dl', 'replay-plot-ckdl'] and utils.vlval(args, vstrs, varnames, 'model-type') != 'sigmoid':  # 'replay-plot-ckdl' doesn't actually get here cause it's missing input, so is skipped above
             # print('    skipping %s for non-sigmoid model' % action)
             continue
 

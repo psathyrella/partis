@@ -248,8 +248,8 @@ def read_input_files(label):
         # ----------------------------------------------------------------------------------------
         if isdata(label):
             bdirs = {'bst' : args.beast_dir, 'iqt' : args.iqtree_data_dir}
-            tstr = 'all' if label.count('-')==1 else label.split('-')[-1]
-            assert tstr in ['all'] + all_timepoints
+            tstr = 'combo' if label.count('-')==1 else label.split('-')[-1]
+            assert tstr in ['combo'] + all_timepoints
             sldir = '%s/%s-trees' % (bdirs[label.split('-')[0]], tstr)
         elif 'simu' in label:
             sldir = args.simu_like_dir
@@ -432,8 +432,8 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals, log='', irow=
         adjust = {'left' : 0.23 if hname=='abundances' else 0.18}
     if any(isdata(l) for l in labels) and 'muts' in hname:
         xbounds = [-0.5, 20.5]
-    if 'affinity' in hname and log == '':
-        xbounds = [-3, 3]
+    if 'affinity' in hname: # and log == '':
+        xbounds = [-9 if log=='y' else -3, 3]
     shift_overflows = True  # 'muts' in hname or 'affinity' in hname
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s%s'%(htype, hname, '' if log=='' else '-log'), more_hists=hists, log=log, xtitle=hists[0].xtitle, ytitle=ytitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],

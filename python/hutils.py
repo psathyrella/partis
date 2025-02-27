@@ -2,9 +2,11 @@ from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import math
 import sys
+import collections
 
 from .hist import Hist
 from . import utils
+from . import plotting
 
 # ----------------------------------------------------------------------------------------
 def get_expanded_bounds(values, dxmin, dxmax=None, only_down=False):  # NOTE see also plotting.expand_bounds()
@@ -86,7 +88,7 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
         print('  trying to divide %d values%s from %s to %s into %d bins (%d per bin) %s' % (len(values), ' (with int bins)' if int_bins else '', values[0], values[-1], n_bins, n_per_bin, values if len(values) < 150 else ''))
     if int_bins:
         if len(set(values)) < n_bins:
-            print('    %s SHOULD PROBABLY MAYBE reduce n_bins %d to the number of different values %d' % (utils.wrnstr(), n_bins, len(set(values))))
+            print('        %s n_bins %d should probably be reduced to the number of different values %d in auto volumne bins' % (utils.wrnstr(), n_bins, len(set(values))))
         xbins = [values[0] - 0.5]
         n_this_bin = 0
         for iv, val in enumerate(values):  # similar to the ibins = below, but we have to deal with ties here
@@ -110,14 +112,14 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
             ibins = [min(i * n_per_bin, len(values) - 1) for i in range(n_bins + 1)]  # indices (in sorted values) of bin boundaries that have ~equal entries per bin
             xbins = [values[i] for i in ibins]
         else:
-            print('    %s number of distinct values %d less than or equal to requested number of bins %d, so using one bin (n_bins = 2) in/instead of auto volume bins' % (utils.wrnstr(), len(set(values)), n_bins))
+            print('        %s number of distinct values %d less than or equal to requested number of bins %d, so using one bin (n_bins = 2) in/instead of auto volume bins' % (utils.wrnstr(), len(set(values)), n_bins))
             xbins = [values[0], values[-1]]
             n_bins = 1
             debug = True  # turn debug on just to make more clear what's going on
         dxmin, dxmax = [abs(float(xbins[ist+1] - xbins[ist])) for ist in (0, len(xbins) - 2)]  # width of (first, last) bin [not under/overflows]
         xbins[0], xbins[-1] = get_expanded_bounds(values, dxmin, dxmax=dxmax)
     if len(set(xbins)) != len(xbins):
-        print('    %s %d duplicate xbins in auto volume bins, so removing duplicates (and reducing n_bins): %s' % (utils.wrnstr(), len(xbins) - len(set(xbins)), ' '.join('%.1f'%b for b in xbins)))
+        print('        %s %d duplicate xbins in auto volume bins, so removing duplicates (and reducing n_bins): %s' % (utils.wrnstr(), len(xbins) - len(set(xbins)), ' '.join('%.1f'%b for b in xbins)))
         xbins = sorted(set(xbins))
         n_bins = len(xbins) - 1
     if debug:
@@ -152,7 +154,7 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
     elif var_type == 'string':
         n_bins = len(values)
     else:
-        n_bins = bin_labels[-1] - bin_labels[0] + 1 if not is_log_x else default_n_bins
+        n_bins = int(bin_labels[-1]) - int(bin_labels[0]) + 1 if not is_log_x else default_n_bins
 
     hist = None
     xbins = [0. for _ in range(n_bins+1)]  # NOTE the +1 is 'cause you need the lower edge of the overflow bin (hist.scratch_init() adds low edge of underflow)
@@ -187,6 +189,58 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
         raise Exception('overflows in ' + hist_label)
 
     return hist
+
+# ----------------------------------------------------------------------------------------
+var_types = {
+    'v_gene' : 'string',
+    'd_gene' : 'string',
+    'j_gene' : 'string',
+    'cdr3_length' : 'int',
+    'abundance' : 'int',
+    'max-abundance' : 'int',
+    'cluster-size' : 'cluster-size',
+    'mean-muts' : 'float',
+    'diversity' : 'int',
+}
+
+# ----------------------------------------------------------------------------------------
+# call fcn above repeatedly for each list of values in <value_lists> dict, but first finding the OR of all the bins required, so all returned hists can have the same binning
+# atm this is only really used in datascripts/meta/anton-hsv/plot-partition-overlaps.py
+def make_hists_from_lists_of_values(value_lists, var_name, var_type=None, is_log_x=False, n_bins=10):
+    if var_type is None:
+        var_type = var_types[var_name]  # if this crashes, you need to either pass in var_type, or add var_name to var_types above
+    assert var_type in ['string', 'int', 'float', 'cluster-size']
+    xbins = set()
+    for label, vlist in value_lists.items():
+        if var_type == 'cluster-size':
+            htmp = plotting.make_csize_hist(vlist, n_bins=n_bins)
+        elif var_type in ['string', 'int']:
+            htmp = make_hist_from_list_of_values(vlist, var_type, label, is_log_x=is_log_x)
+        if var_type == 'string':
+            xbins |= set(vlist)
+        elif var_type in ['int', 'cluster-size']:
+            xbins |= set(htmp.low_edges)
+        elif var_type == 'float':
+            xbins = [mfn(vlist+([xbins[i]] if len(xbins)>0 else [])) for i, mfn in enumerate([min, max])]  # xbins is just (min, max) for 'float'
+        else:
+            assert False
+    xbins = sorted(xbins)
+    if var_type == 'float':
+        xbins = plotting.expand_bounds(xbins)
+    rhists = collections.OrderedDict()
+    for label, values in value_lists.items():
+        hfcn = make_hist_from_list_of_values
+        if var_type == 'string':
+            hfcn = make_hist_from_dict_of_counts
+            values = {v : values.count(v) for v in set(values)}
+            values.update({v : 0 for v in set(xbins) - set(values)})  # add any that are missing from this hist (with zero counts)
+        if var_type == 'cluster-size':
+            rhists[label] = plotting.make_csize_hist(values, xbins=xbins)
+        elif var_type == 'float':
+            rhists[label] = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[1], value_list=values)
+        else:
+            rhists[label] = hfcn(values, var_type, label, is_log_x=is_log_x, arg_bins=None if var_type=='string' else xbins)
+    return rhists
 
 # ----------------------------------------------------------------------------------------
 def multi_hist_filled_bin_xbounds(hists):

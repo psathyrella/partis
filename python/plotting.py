@@ -87,12 +87,12 @@ def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either
     return xticks, [tstr(xt) for xt in xticks]
 
 # ----------------------------------------------------------------------------------------
-def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, weight_by_n_seqs=False, debug=False):
+def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, weight_by_n_seqs=False, debug=False):  # would be nice to combine with plot_cluster_size_hists() but I'm not sure it really makes sense
     if len(partition) == 0:
         return Hist(n_bins=n_bins, xmin=0, xmax=100)  # ugh, have to set some values
     cslist = [len(c) for c in partition]
     if xbins is None:
-        xbins, n_bins = hutils.auto_volume_bins(cslist, n_bins, int_bins=True, debug=True)
+        xbins, n_bins = hutils.auto_volume_bins(cslist, n_bins, int_bins=True, debug=debug)
     else:
         if debug:
             print('   using user specified bins %s:' % xbins)
@@ -104,12 +104,11 @@ def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, weight_by_n_s
         if min(cslist) < xbins[0]:  # same for underflow
             raise Exception('cluster size %d would fall in underflow bin (see previous lines)' % min(cslist))
         n_bins = len(xbins) - 1
-    thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=cslist,
-                 weight_list=cslist if weight_by_n_seqs else None, sumw2=weight_by_n_seqs) #, xtitle=vlabel(tkey), title=str(mval))
-    for ib in range(1, thist.n_bins + 1):
+    thist = Hist(n_bins=n_bins, xmin=xbins[0], xmax=xbins[-1], xbins=xbins, value_list=cslist, weight_list=cslist if weight_by_n_seqs else None, sumw2=weight_by_n_seqs)
+    for ib in range(1, thist.n_bins + 1):  # set bin labels
         lo, hi = thist.low_edges[ib], thist.low_edges[ib+1]
-        ivals = [i for i in range(int(math.ceil(lo)), int(math.floor(hi)) + 1)]
-        thist.bin_labels[ib] = str(ivals[0]) if len(ivals)==1 else '%d-%d'%(ivals[0], ivals[-1])
+        ivals = [i for i in range(int(math.ceil(lo)), int(math.floor(hi)) + 1)]  # integers that fall in this bin
+        thist.bin_labels[ib] = str(ivals[0]) if len(ivals)==1 else '%d-%d'%(ivals[0], ivals[-1])  # set bin label to min/max of integers in this bin
     if xtitle is not None:
         thist.xtitle = xtitle
     return thist
@@ -300,8 +299,11 @@ def add_bin_labels_not_in_all_hists(hists):
     return finalhists
 
 # ----------------------------------------------------------------------------------------
+# returns new hists with under/overflow bins shifted to adjacent bins (within plot range)
 def shift_hist_overflows(hists, xmin, xmax):
-    for htmp in hists:
+    new_hists = []
+    for ihist in range(len(hists)):
+        htmp = copy.deepcopy(hists[ihist])
         if htmp is None:
             continue
         underflows, overflows = 0., 0.
@@ -333,6 +335,8 @@ def shift_hist_overflows(hists, xmin, xmax):
         htmp.set_ibin(last_shown_bin,
                       overflows + htmp.bin_contents[last_shown_bin],
                       error=math.sqrt(over_err2 + htmp.errors[last_shown_bin]**2))
+        new_hists.append(htmp)
+    return new_hists
 
 # ----------------------------------------------------------------------------------------
 # NOTE now you should set <hist> to None if you have more than one hist
@@ -388,7 +392,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
         if '_vs_per_gene_support' in plotname or '_fraction_correct_vs_mute_freq' in plotname or plotname in [r + '_gene' for r in utils.regions]:
             print(        '%s overriding overflow shifting for %s' % (utils.color('yellow', 'warning'), plotname))
         else:
-            shift_hist_overflows(hists, xmin, xmax)
+            hists = shift_hist_overflows(hists, xmin, xmax)
         # assert '_vs_per_gene_support' not in plotname and '_fraction_correct_vs_mute_freq' not in plotname and plotname.find('_gene') != 1  # really, really, really don't want to shift overflows for these
 
     if write_csv:
@@ -861,17 +865,12 @@ def label_bullshit_transform(label):
 def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=None, log='xy', normalize=False, hcolors=None, ytitle=None, fnames=None, translegend=None, alphas=None,
                             stacked_bars=False, no_legend=False):
     if fnames is not None:
+        # NOTE this hasn't really been tested (with new hutils fcn)
         assert hists is None
-        xbins = set()
-        cslists = {}
+        cslists = collections.OrderedDict()
         for label, fn in fnames.items():
             cslists[label] = [len(c) for c in ClusterPath(fname=fn).best()]
-            hist = hutils.make_hist_from_list_of_values(cslists[label], 'int', label, is_log_x=True)
-            xbins |= set(hist.low_edges)
-        xbins = sorted(xbins)
-        hists = collections.OrderedDict()
-        for label in fnames:
-            hists[label] = hutils.make_hist_from_list_of_values(cslists[label], 'int', label, is_log_x=True, arg_bins=xbins)
+        hists = hutils.make_hists_from_lists_of_values(cslists, 'cluster-size', is_log_x=True)
 
     hist_list, tmpcolors = [], []
     for ih, (name, hist) in enumerate(hists.items()):
