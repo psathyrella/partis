@@ -48,6 +48,7 @@ parser.add_argument('--xscale-range-list')
 parser.add_argument('--xshift-range-list')
 parser.add_argument('--yscale-range-list')
 parser.add_argument('--x-ceil-start-range-list')
+parser.add_argument('--x-ceil-start-values-list')
 parser.add_argument('--initial-birth-rate-range-list')
 parser.add_argument('--carry-cap-values-list')
 parser.add_argument('--carry-cap-range-list')
@@ -84,7 +85,7 @@ parser.add_argument('--check-dl-input', action='store_true', help='for actions t
 parser.add_argument('--iqtree-version', default='test')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'death-response', 'death-values', 'death-range', 'xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
+    'simu' : ['seed', 'birth-response', 'death-response', 'death-values', 'death-range', 'xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'x-ceil-start-values', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
     'dl-infer' : ['dl-bundle-size', 'model-type', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
     'data' : ['data-samples', 'model-type', 'carry-cap-values', 'init-population-values'],
 }
@@ -92,7 +93,7 @@ args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
 args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['data']) + [v for v in args.scan_vars['dl-infer'] if v not in args.scan_vars['data']]
 check_dl_args = [v for v in args.scan_vars['simu'] if not any(p in v for p in ['xscale', 'xshift', 'yscale', 'x-ceil'])]  # UGH
 args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['check-dl'])
-args.str_list_vars = ['xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'init-population-values', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'x-ceil-start-values', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'init-population-values', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 if 'data' in args.actions:

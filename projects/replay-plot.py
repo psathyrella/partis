@@ -15,6 +15,8 @@ import json
 import itertools
 import numpy
 import collections
+import matplotlib as mpl
+mpl.rcParams["mathtext.default"] = 'regular'
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
@@ -58,11 +60,11 @@ pltlabels = {
     'n_stops' : 'N stop codons',
 }
 tpstrs = ['affinity', 'muts-nuc', 'muts-aa']
-labelstrs = ['affinity', 'N nuc muts', 'N AA muts']
+labelstrs = ['affinity ($ -\Delta log_{10} K_D $)', 'N nuc muts', 'N AA muts']
 all_timepoints = ['d20', 'w10', 'd15']
 for tstr, lbstr in zip(tpstrs, labelstrs):
     for nstr in ['leaf', 'internal']:
-        pltlabels['%s-%s'%(nstr, tstr)] = '%s (%s nodes)' % (lbstr, nstr)
+        pltlabels['%s-%s'%(nstr, tstr)] = lbstr
 
 # ----------------------------------------------------------------------------------------
 def abfn(tlab, abtype='abundances'):
@@ -418,7 +420,7 @@ def hist_distance(h1, h2, dbgstr='hist', weighted=False, debug=False):
 def compare_plots(htype, plotdir, hists, labels, hname, diff_vals, log='', irow=-1):
     if hname == 'n_stops':
         log = 'y'
-    ytitle = hists[0].ytitle
+    ytitle, plottitle = hists[0].ytitle, ''
     if args.normalize:
         # print('  %s I\'m not really sure it makes sense to normalize the mean hists (maybe could just skip them)' % utils.wrnstr())
         for htmp in hists:
@@ -434,10 +436,11 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals, log='', irow=
         xbounds = [-0.5, 20.5]
     if 'affinity' in hname: # and log == '':
         xbounds = [-9 if log=='y' else -3, 3]
+    if 'internal' in hname or 'leaf' in hname:
+        plottitle = '%s nodes' % ('internal' if 'internal' in hname else 'leaf')
     shift_overflows = True  # 'muts' in hname or 'affinity' in hname
-    fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s%s'%(htype, hname, '' if log=='' else '-log'), more_hists=hists, log=log, xtitle=hists[0].xtitle, ytitle=ytitle,
+    fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s%s'%(htype, hname, '' if log=='' else '-log'), more_hists=hists, log=log, xtitle=hists[0].xtitle, ytitle=ytitle, plottitle=plottitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],
-                               plottitle='mean distr. over GCs' if 'N seqs in bin' in ytitle else '',  # this is a shitty way to identify the mean_hdistr hists, but best i can come up with atm
                                alphas=[0.6 for _ in hists], colors=[colors.get(l) for l in labels], linestyles=[linestyles.get(l, '-') for l in labels], translegend=[-0.65, 0.1] if affy_like(hname) and 'abundance' not in hname else [-0.3, 0.1], write_csv=True,
                                hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname, make_legend_only_plot=args.write_legend_only_plots, no_legend=args.write_legend_only_plots, shift_overflows=shift_overflows)
     fnames[irow].append(fn)
