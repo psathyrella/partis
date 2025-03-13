@@ -82,7 +82,8 @@ parser.add_argument('--dl-model-vars')
 parser.add_argument('--tree-inference-method', choices=['iqtree', 'gctree'], help='if set, we both run tree inference with this method on simulation, and use those inferred trees during training')
 parser.add_argument('--data-dir')
 parser.add_argument('--check-dl-input', action='store_true', help='for actions that would normally use input from \'simu\' action (e.g. dl-infer), instead use the simulation from \'check-dl\' action')
-parser.add_argument('--iqtree-version', default='test')
+parser.add_argument('--iqtree-version')
+parser.add_argument('--gcreplay-dir')
 args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'death-response', 'death-values', 'death-range', 'xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'x-ceil-start-values', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
@@ -227,7 +228,11 @@ def get_cmd(action, base_args, varnames, vstrs, all_simdirs=None):
         cmd = add_mamba_cmds(cmd)
     elif 'replay-plot' in action:
         #  --min-seqs-per-gc 70 --max-seqs-per-gc 70 --n-max-simu-trees 61  # don't want these turned on as long as e.g. N sampled seqs is varying a lot in simulation
-        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels iqt-data:simu:simu-iqtree --iqtree-version %s --normalize --short-legends --n-max-simu-trees 120 --write-legend-only-plots' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr, args.iqtree_version)  #  --n-max-simu-trees 85  # :bst-data
+        cmd = './projects/replay-plot.py --simu-like-dir %s --outdir %s --plot-labels iqt-data:simu:simu-iqtree --normalize --short-legends --n-max-simu-trees 120 --write-legend-only-plots' % (os.path.dirname(ofname(args, varnames, vstrs, 'check-dl' if action=='replay-plot-ckdl' else 'simu')), odr)  #  --n-max-simu-trees 85  # :bst-data
+        if args.iqtree_version is not None:
+            cmd += ' --iqtree-version %s' % args.iqtree_version
+        if args.gcreplay_dir is not None:
+            cmd += ' --gcreplay-dir %s' % args.gcreplay_dir
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         # NOTE use 'dl-infer' with --dl-model-dir or --dl-model-label-str if the *input* simulation is the same as the *output* label (but different label for model)
         #   but use 'data' below (with --data-dir and either --dl-model-dir or --dl-model-label-str) if they're different, i.e. you have three dirs: one for model, one for input, and one for output
