@@ -439,10 +439,16 @@ def compare_plots(htype, plotdir, hists, labels, hname, diff_vals, log='', irow=
     if 'internal' in hname or 'leaf' in hname:
         plottitle = '%s nodes' % ('internal' if 'internal' in hname else 'leaf')
     shift_overflows = True  # 'muts' in hname or 'affinity' in hname
+    make_legend_only_plot, no_legend = args.write_legend_only_plots, args.write_legend_only_plots
+    if args.legend_plots is not None:
+        if hname in args.legend_plots:
+            make_legend_only_plot, no_legend = args.write_legend_only_plots, args.write_legend_only_plots
+        else:
+            make_legend_only_plot, no_legend = False, True
     fn = plotting.draw_no_root(None, plotdir=plotdir, plotname='%s-%s%s'%(htype, hname, '' if log=='' else '-log'), more_hists=hists, log=log, xtitle=hists[0].xtitle, ytitle=ytitle, plottitle=plottitle,
                                bounds=xbounds, ybounds=ybounds, xticks=xticks, yticks=yticks, yticklabels=yticklabels, errors=htype!='max', square_bins=htype=='max', linewidths=[linewidths.get(l, 3) for l in labels],
                                alphas=[0.6 for _ in hists], colors=[colors.get(l) for l in labels], linestyles=[linestyles.get(l, '-') for l in labels], translegend=[-0.65, 0.1] if affy_like(hname) and 'abundance' not in hname else [-0.3, 0.1], write_csv=True,
-                               hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname, make_legend_only_plot=args.write_legend_only_plots, no_legend=args.write_legend_only_plots, shift_overflows=shift_overflows)
+                               hfile_labels=labels, text_dict=text_dict, adjust=adjust, remove_empty_bins='csize' in hname, make_legend_only_plot=make_legend_only_plot, no_legend=no_legend, shift_overflows=shift_overflows)
     fnames[irow].append(fn)
 
     # hdict = {l : h for l, h in zip(labels, hists)}
@@ -471,6 +477,7 @@ parser.add_argument('--normalize', action='store_true')
 parser.add_argument('--short-legends', action='store_true', help='if set, don\'t add N trees/N nodes stuff to legends')
 parser.add_argument('--bcr-phylo', action='store_true', help='set this if you\'re using bcr-phylo (rather than gcdyn) simulation')
 parser.add_argument('--write-legend-only-plots', action='store_true', help='if set, instead of putting legends on each plot, write a separate legend-only svg for each plot')
+parser.add_argument('--legend-plots', help='colon-separated list of plots on which to include legends (if set to \'all\', add legends to all plots)')
 parser.add_argument('--naive-seq', default="GAGGTGCAGCTTCAGGAGTCAGGACCTAGCCTCGTGAAACCTTCTCAGACTCTGTCCCTCACCTGTTCTGTCACTGGCGACTCCATCACCAGTGGTTACTGGAACTGGATCCGGAAATTCCCAGGGAATAAACTTGAGTACATGGGGTACATAAGCTACAGTGGTAGCACTTACTACAATCCATCTCTCAAAAGTCGAATCTCCATCACTCGAGACACATCCAAGAACCAGTACTACCTGCAGTTGAATTCTGTGACTACTGAGGACACAGCCACATATTACTGTGCAAGGGACTTCGATGTCTGGGGCGCAGGGACCACGGTCACCGTCTCCTCAGACATTGTGATGACTCAGTCTCAAAAATTCATGTCCACATCAGTAGGAGACAGGGTCAGCGTCACCTGCAAGGCCAGTCAGAATGTGGGTACTAATGTAGCCTGGTATCAACAGAAACCAGGGCAATCTCCTAAAGCACTGATTTACTCGGCATCCTACAGGTACAGTGGAGTCCCTGATCGCTTCACAGGCAGTGGATCTGGGACAGATTTCACTCTCACCATCAGCAATGTGCAGTCTGAAGACTTGGCAGAGTATTTCTGTCAGCAATATAACAGCTATCCTCTCACGTTCGGCTCGGGGACTAAGCTAGAAATAAAA")
 parser.add_argument('--n-max-simu-trees', type=int, help='stop after reading this many trees from simulation')
 parser.add_argument("--random-seed", type=int, default=1)
@@ -478,8 +485,9 @@ parser.add_argument("--default-naive-affinity", type=float, default=1./100, help
 args = parser.parse_args()
 all_choices = ['gct-data', 'gct-data-d15', 'gct-data-d20', 'gct-data-w10', 'bst-data', 'bst-data-d15', 'bst-data-d20', 'iqt-data', 'iqt-data-d20', 'simu', 'simu-iqtree']
 args.plot_labels = utils.get_arg_list(args.plot_labels, choices=all_choices)
-if len(args.plot_labels) > 3 and not args.write_legend_only_plots:
-    print('  note: setting --write-legend-only-plots since --plot-labels is longer than 3')
+args.legend_plots = utils.get_arg_list(args.legend_plots)
+if len(args.plot_labels) > 4 and not args.write_legend_only_plots:
+    print('  note: setting --write-legend-only-plots since --plot-labels is longer than 4')
     args.write_legend_only_plots = True
 args.naive_seq_aa = utils.ltranslate(args.naive_seq)
 if args.iqtree_version is not None:
