@@ -82,6 +82,7 @@ parser.add_argument('--dl-model-vars')
 parser.add_argument('--tree-inference-method', choices=['iqtree', 'gctree'], help='if set, we both run tree inference with this method on simulation, and use those inferred trees during training')
 parser.add_argument('--data-dir')
 parser.add_argument('--check-dl-input', action='store_true', help='for actions that would normally use input from \'simu\' action (e.g. dl-infer), instead use the simulation from \'check-dl\' action')
+parser.add_argument('--iqtree-data-dir')
 parser.add_argument('--iqtree-version')
 parser.add_argument('--gcreplay-dir')
 args = parser.parse_args()
@@ -163,8 +164,9 @@ def ofname(args, varnames, vstrs, action, ftype='npy', current_action=None):  # 
 
 # ----------------------------------------------------------------------------------------
 def add_mamba_cmds(cmd):
-    cmd = utils.mamba_cmds('gcdyn') + [cmd]
-    cmd = ' && '.join(cmd)
+    if os.getenv('CONDA_PREFIX') is None:  # if we're already in a conda/mamba env, shouldn't need to add the commands
+        cmd = utils.mamba_cmds('gcdyn') + [cmd]
+        cmd = ' && '.join(cmd)
     return cmd
 
 # ----------------------------------------------------------------------------------------
@@ -233,6 +235,8 @@ def get_cmd(action, base_args, varnames, vstrs, all_simdirs=None):
             cmd += ' --iqtree-version %s' % args.iqtree_version
         if args.gcreplay_dir is not None:
             cmd += ' --gcreplay-dir %s' % args.gcreplay_dir
+        if args.iqtree_data_dir is not None:
+            cmd += ' --iqtree-data-dir %s' % args.iqtree_data_dir
     elif action in ['dl-infer', 'dl-infer-merged', 'group-expts']:
         # NOTE use 'dl-infer' with --dl-model-dir or --dl-model-label-str if the *input* simulation is the same as the *output* label (but different label for model)
         #   but use 'data' below (with --data-dir and either --dl-model-dir or --dl-model-label-str) if they're different, i.e. you have three dirs: one for model, one for input, and one for output
