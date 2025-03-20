@@ -70,10 +70,10 @@ def run_vsearch(seqfos):  # run vsearch to see if you can get a match for each l
     n_rev_compd, n_total = 0, 0
     for locus in utils.sub_loci(args.ig_or_tr):
         lglfo = glutils.read_glfo(args.germline_dir, locus)
-        annotations = utils.run_vsearch_with_duplicate_uids('search', seqfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='   %s  fwd:'%utils.color('blue', locus) if args.reverse_negative_strands else '    %s: '%locus)
+        annotations = utils.run_vsearch_with_duplicate_uids('search', seqfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='   %s  fwd:'%utils.color('blue', locus) if args.reverse_negative_strands else '    %s: '%locus) #, debug=args.debug>1)
         assert len(annotations) == len(seqfos)
         if args.reverse_negative_strands:  # it might be nicer to user vsearch options to run on both senses at once, but otoh this might be nicer
-            revnotations = utils.run_vsearch_with_duplicate_uids('search', revfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='        rev:')
+            revnotations = utils.run_vsearch_with_duplicate_uids('search', revfos, args.workdir + '/vsearch', args.vsearch_threshold, glfo=lglfo, print_time=True, vsearch_binary=args.vsearch_binary, get_annotations=True, expect_failure=True, extra_str='        rev:') #, debug=args.debug>1)
             assert len(revnotations) == len(seqfos)
         for il, (sfo, line) in enumerate(zip(seqfos, annotations)):
             assert sfo['name'] == line['unique_ids'][0]  # note that they're not full annotations, they just have a couple keys
@@ -227,7 +227,9 @@ if args.guess_pairing_info:
         raise Exception('can\'t/shouldn\'t guess pairing info if we already have it from elsewhere')
     for locus in outfos:
         for ofo in outfos[locus]:
-            new_name = ofo['name'] + '-' + locus
+            new_name = ofo['name']
+            if '-' not in new_name or ofo['name'].split('-')[-1] != locus:  # add locus (e.g. '-igh') to name, unless it's already there
+                new_name = ofo['name'] + '-' + locus
             if ofo['name'] in input_metafos:
                 input_metafos[new_name] = input_metafos[ofo['name']]
                 del input_metafos[ofo['name']]

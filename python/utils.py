@@ -7146,6 +7146,8 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
     annotations = OrderedDict()  # NOTE this is *not* a complete vdj annotation, it's just the info we have for an alignment to one region (presumably v)
     imatch = 0  # they all have the same score at this point, so just take the first one
     if get_annotations:  # it probably wouldn't really be much slower to just always do this
+        if debug:
+            print('      gene     score  mfreq  indels')
         for query in query_info:
             matchfo = query_info[query][imatch]
             v_indelfo = indelutils.get_indelfo_from_cigar(matchfo['cigar'], seqdict[query], matchfo['qrbounds'], glfo['seqs'][region][matchfo['gene']], matchfo['glbounds'], {'v' : matchfo['gene']}, vsearch_conventions=True, uid=query)
@@ -7180,6 +7182,9 @@ def read_vsearch_search_file(fname, userfields, seqdict, glfo, region, get_annot
                 'glbounds' : {region : matchfo['glbounds']},
                 'indelfo' : combined_indelfo,
             }
+            if debug:
+                atn = annotations[query]
+                print('    %s  %3d   %5.2f  %s  %s' % (color_gene(matchfo['gene'], width=10), matchfo['ids'], atn[region+'_mut_freq'], color('red', 'indel') if indelutils.has_indels(atn['indelfo']) else '     ', query))
 
     return {'gene-counts' : gene_counts, 'annotations' : annotations, 'failures' : failed_queries}
 
@@ -7202,7 +7207,7 @@ def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwarg
 
 # ----------------------------------------------------------------------------------------
 # NOTE use the previous fcn if you expect duplicate uids
-def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:'):
+def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:', debug=False):
     from . import clusterpath
     from . import glutils
     # note: '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
@@ -7296,7 +7301,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
     if action == 'cluster':
         returnfo = read_vsearch_cluster_file(outfname)
     elif action == 'search':
-        returnfo = read_vsearch_search_file(outfname, userfields, seqdict, glfo, region, get_annotations=get_annotations)
+        returnfo = read_vsearch_search_file(outfname, userfields, seqdict, glfo, region, get_annotations=get_annotations, debug=debug)
         glutils.remove_glfo_files(dbdir, glfo['locus'])
         succ_frac = sum(returnfo['gene-counts'].values()) / float(n_seqs)
         if succ_frac < expected_success_fraction and not expect_failure:
