@@ -44,14 +44,17 @@ parser.add_argument('--death-range-list')
 parser.add_argument('--xscale-values-list')
 parser.add_argument('--xshift-values-list')
 parser.add_argument('--yscale-values-list')
+parser.add_argument('--yshift-values-list')
 parser.add_argument('--xscale-range-list')
 parser.add_argument('--xshift-range-list')
 parser.add_argument('--yscale-range-list')
+parser.add_argument('--yshift-range-list')
 parser.add_argument('--x-ceil-start-range-list')
 parser.add_argument('--x-ceil-start-values-list')
 parser.add_argument('--initial-birth-rate-range-list')
 parser.add_argument('--carry-cap-values-list')
 parser.add_argument('--carry-cap-range-list')
+parser.add_argument('--capacity-method-list')
 parser.add_argument('--nonsense-phenotype-value-list')
 parser.add_argument('--init-population-values-list')
 parser.add_argument('--time-to-sampling-range-list')
@@ -87,7 +90,7 @@ parser.add_argument('--iqtree-version')
 parser.add_argument('--gcreplay-dir')
 args = parser.parse_args()
 args.scan_vars = {
-    'simu' : ['seed', 'birth-response', 'death-response', 'death-values', 'death-range', 'xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'x-ceil-start-values', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
+    'simu' : ['seed', 'birth-response', 'death-response', 'death-values', 'death-range', 'xscale-values', 'xshift-values', 'yscale-values', 'yshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'yshift-range', 'x-ceil-start-range', 'x-ceil-start-values', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'capacity-method', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
     'dl-infer' : ['dl-bundle-size', 'model-type', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
     'data' : ['data-samples', 'model-type', 'carry-cap-values', 'init-population-values'],
 }
@@ -95,7 +98,7 @@ args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
 args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['data']) + [v for v in args.scan_vars['dl-infer'] if v not in args.scan_vars['data']]
 check_dl_args = [v for v in args.scan_vars['simu'] if not any(p in v for p in ['xscale', 'xshift', 'yscale', 'x-ceil'])]  # UGH
 args.scan_vars['replay-plot-ckdl'] = copy.deepcopy(args.scan_vars['check-dl'])
-args.str_list_vars = ['xscale-values', 'xshift-values', 'yscale-values', 'xscale-range', 'xshift-range', 'yscale-range', 'x-ceil-start-range', 'x-ceil-start-values', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'init-population-values', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
+args.str_list_vars = ['death-values', 'death-range', 'xscale-values', 'xshift-values', 'yscale-values', 'yshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'yshift-range', 'x-ceil-start-range', 'x-ceil-start-values', 'initial-birth-rate-range', 'time-to-sampling-range', 'carry-cap-values', 'carry-cap-range', 'capacity-method', 'init-population-values', 'n-seqs-range', 'params-to-predict']  #  scan vars that are colon-separated lists (e.g. allowed-cdr3-lengths)
 args.recurse_replace_vars = []  # scan vars that require weird more complex parsing (e.g. allowed-cdr3-lengths, see cf-paired-loci.py)
 args.bool_args = ['dont-scale-params']  # need to keep track of bool args separately (see utils.add_to_scan_cmd())
 if 'data' in args.actions:
@@ -299,7 +302,7 @@ def run_scan(action):
     n_already_there, n_missing_input, ifn = 0, 0, None
     all_simdirs = []
     for icombo, vstrs in enumerate(valstrs):
-        # if vstrs[varnames.index('n-trials')] != '5000': # or vstrs[varnames.index('simu-bundle-size')] != '1':
+        # if vstrs[varnames.index('n-trials')] != '50000': # or vstrs[varnames.index('simu-bundle-size')] != '1':
         #     continue
         # if vstrs[varnames.index('seed')] != '0': # or vstrs[varnames.index('simu-bundle-size')] != '1':
         if 'data-samples' in varnames and vstrs[varnames.index('data-samples')] != 'combo-trees': # or vstrs[varnames.index('simu-bundle-size')] != '1':

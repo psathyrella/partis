@@ -369,7 +369,7 @@ def read_input_files(label):
             htmp.title += ' (%d nodes in %d trees)' % (len(pvals), n_trees)
         hists['%s-affinity'%pkey] = {'distr' : htmp}
 
-    xmin, xmax = 5, 120  # have to be the same for all labels, so easier to just set hard coded ones
+    xmin, xmax = 1, 150  # have to be the same for all labels, so easier to just set hard coded ones
     n_bins = 16
     dx = int((xmax - xmin) / n_bins)
     xbins = [l-0.5 for l in range(xmin, xmax + dx, dx)]
