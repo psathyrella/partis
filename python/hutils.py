@@ -134,25 +134,27 @@ def make_hist_from_list_of_values(vlist, var_type, hist_label, is_log_x=False, x
 
 # ----------------------------------------------------------------------------------------
 # <values> is of form {<bin 1>:<counts 1>, <bin 2>:<counts 2>, ...}
-def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False, no_sort=False, default_n_bins=30, arg_bins=None):  # default_n_bins is only used if is_log_x set we're doing auto log bins
+def make_hist_from_dict_of_counts(valdict, var_type, hist_label, is_log_x=False, xmin_force=0.0, xmax_force=0.0, sort_by_counts=False, no_sort=False, default_n_bins=30, arg_bins=None):  # default_n_bins is only used if is_log_x set we're doing auto log bins
     """ Fill a histogram with values from a dictionary (each key will correspond to one bin) """
     assert var_type == 'int' or var_type == 'string'  # floats should be handled by Hist class in hist.py
+# TODO rename values to value_dict or something
 
-    if len(values) == 0:
+    if len(valdict) == 0:
         print('WARNING no values for %s in make_hist' % hist_label)
         return Hist(1, 0, 1)
 
+    # get <bin_labels>, which are the labels (if 'string') or values (otherwise) for each bin
     if not no_sort:
-        bin_labels = sorted(values)  # by default sort by keys in dict (i.e. these aren't usually actually string "labels")
+        bin_labels = sorted(valdict)  # by default sort by keys in dict (i.e. these aren't usually actually string "labels")
     else:
-        bin_labels = list(values.keys())
+        bin_labels = list(valdict.keys())
     if sort_by_counts:  # instead sort by counts
-        bin_labels = sorted(values, key=values.get, reverse=True)
+        bin_labels = sorted(valdict, key=valdict.get, reverse=True)
 
     if arg_bins is not None:
         n_bins = len(arg_bins) - 1
     elif var_type == 'string':
-        n_bins = len(values)
+        n_bins = len(valdict)
     else:
         n_bins = int(bin_labels[-1]) - int(bin_labels[0]) + 1 if not is_log_x else default_n_bins
 
@@ -173,14 +175,24 @@ def make_hist_from_dict_of_counts(values, var_type, hist_label, is_log_x=False, 
     else:
       hist = Hist(n_bins, xmin_force, xmax_force)
 
-    for ival in range(len(values)):
+    filled_bins = set()  # kind of weird to keep track of this, but it's nice to use set_ibin() for the (vast majority of) cases where we only set/fill each bin once
+    for ival, lbl in enumerate(bin_labels):  # <lbl> is only really a label for 'string', otherwise it's e.g. the value of the bin's low edge
         if var_type == 'string':
-            label = bin_labels[ival]
+            label = lbl
             ibin = ival + 1
         else:
             label = ''
-            ibin = hist.find_bin(bin_labels[ival])
-        hist.set_ibin(ibin, values[bin_labels[ival]], error=math.sqrt(values[bin_labels[ival]]), label=label)
+            ibin = hist.find_bin(lbl)
+        fill_val = valdict[lbl]
+        if ibin in filled_bins:  # if we've already filled this bin (probably uncommon, e.g. if <rebin> is set in calling fcn)
+            if fill_val == int(fill_val):  # if it's an integer, it's better to fill it N times
+                for _ in range(int(fill_val)):
+                    hist.fill_ibin(ibin)
+            else:  # this may kick a warning about errors, which you should probably do something about, but really, don't call this fcn if you have non-integer bin values
+                hist.fill_ibin(ibin, weight=fill_val)
+        else:
+            hist.set_ibin(ibin, fill_val, error=math.sqrt(fill_val), label=label)
+        filled_bins.add(ibin)
 
     # make sure there's no overflows
     if hist.bin_contents[0] != 0.0 or hist.bin_contents[-1] != 0.0:
@@ -206,7 +218,7 @@ var_types = {
 # ----------------------------------------------------------------------------------------
 # call fcn above repeatedly for each list of values in <value_lists> dict, but first finding the OR of all the bins required, so all returned hists can have the same binning
 # atm this is only really used in datascripts/meta/anton-hsv/plot-partition-overlaps.py
-def make_hists_from_lists_of_values(value_lists, var_name, var_type=None, is_log_x=False, n_bins=10):
+def make_hists_from_lists_of_values(value_lists, var_name, var_type=None, is_log_x=False, n_bins=10, rebin=None):
     if var_type is None:
         var_type = var_types[var_name]  # if this crashes, you need to either pass in var_type, or add var_name to var_types above
     assert var_type in ['string', 'int', 'float', 'cluster-size']
@@ -216,6 +228,7 @@ def make_hists_from_lists_of_values(value_lists, var_name, var_type=None, is_log
             htmp = plotting.make_csize_hist(vlist, n_bins=n_bins)
         elif var_type in ['string', 'int']:
             htmp = make_hist_from_list_of_values(vlist, var_type, label, is_log_x=is_log_x)
+
         if var_type == 'string':
             xbins |= set(vlist)
         elif var_type in ['int', 'cluster-size']:
@@ -224,7 +237,10 @@ def make_hists_from_lists_of_values(value_lists, var_name, var_type=None, is_log
             xbins = [mfn(vlist+([xbins[i]] if len(xbins)>0 else [])) for i, mfn in enumerate([min, max])]  # xbins is just (min, max) for 'float'
         else:
             assert False
+
     xbins = sorted(xbins)
+    if rebin is not None:  # keep first and last edge, otherwise keep only every 1/<rebin>th edge
+        xbins = [l for i, l in enumerate(xbins) if i==0 or i==len(xbins)-1 or i%rebin==0]
     if var_type == 'float':
         xbins = plotting.expand_bounds(xbins)
     rhists = collections.OrderedDict()

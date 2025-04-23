@@ -92,7 +92,7 @@ args = parser.parse_args()
 args.scan_vars = {
     'simu' : ['seed', 'birth-response', 'death-response', 'death-values', 'death-range', 'xscale-values', 'xshift-values', 'yscale-values', 'yshift-values', 'xscale-range', 'xshift-range', 'yscale-range', 'yshift-range', 'x-ceil-start-range', 'x-ceil-start-values', 'initial-birth-rate-range', 'carry-cap-values', 'carry-cap-range', 'capacity-method', 'nonsense-phenotype-value', 'init-population-values', 'time-to-sampling-range', 'n-seqs-range', 'n-trials', 'simu-bundle-size'],
     'dl-infer' : ['dl-bundle-size', 'model-type', 'epochs', 'batch-size', 'dropout-rate', 'learning-rate', 'ema-momentum', 'prebundle-layer-cfg', 'dont-scale-params', 'params-to-predict'],
-    'data' : ['data-samples', 'model-type', 'carry-cap-values', 'init-population-values'],
+    'data' : ['data-samples', 'model-type', 'carry-cap-values', 'init-population-values', 'death-values'],
 }
 args.scan_vars['group-expts'] = copy.deepcopy(args.scan_vars['dl-infer'])
 args.scan_vars['check-dl'] = copy.deepcopy(args.scan_vars['data']) + [v for v in args.scan_vars['dl-infer'] if v not in args.scan_vars['data']]
