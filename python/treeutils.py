@@ -1329,7 +1329,8 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
     removed_nodes = None
     # fasttree, iqtree, and gctree put all observed seqs as leaves, so we sometimes want to collapse [near-]zero-length leaves onto their internal node parent
     if not dont_collapse_zero_len_leaves and not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
-        print('      collapsing zero length leaves')
+        if debug:
+            print('      collapsing zero length leaves')
         removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], debug=debug)
 
     # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)

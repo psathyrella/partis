@@ -108,7 +108,8 @@ def make_csize_hist(partition, n_bins=10, xbins=None, xtitle=None, weight_by_n_s
     for ib in range(1, thist.n_bins + 1):  # set bin labels
         lo, hi = thist.low_edges[ib], thist.low_edges[ib+1]
         ivals = [i for i in range(int(math.ceil(lo)), int(math.floor(hi)) + 1)]  # integers that fall in this bin
-        thist.bin_labels[ib] = str(ivals[0]) if len(ivals)==1 else '%d-%d'%(ivals[0], ivals[-1])  # set bin label to min/max of integers in this bin
+        if len(ivals) > 0:  # if there aren't any values in this bin, the bins really suck, but I just want it to not crash here
+            thist.bin_labels[ib] = str(ivals[0]) if len(ivals)==1 else '%d-%d'%(ivals[0], ivals[-1])  # set bin label to min/max of integers in this bin
     if xtitle is not None:
         thist.xtitle = xtitle
     return thist

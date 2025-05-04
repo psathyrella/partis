@@ -787,7 +787,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'shm_aa', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'cdr3_seqs_aa', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
                        'leader_seqs', 'c_gene_seqs',  'leaders', 'c_genes', # these are kind of replacing fv/jf insertions, and the latter probably should just be removed, since they're really more per-seq things, but i don't know if it'd really work, and it'd for sure be hard, so whatever (otoh, maybe fv/jf insertions are necessary for padding to same length in sw? not sure atm)
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices',
-                       'min_target_distances', 'vrc01-muts', 'mut_positions'] + \
+                       'min_target_distances', 'vrc01-muts', 'mut_positions', 'subjects'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -4141,16 +4141,21 @@ def get_mut_codes(naive_seq, obs_seq, amino_acid=False, debug=False):  # return 
     return mcodes
 
 # ----------------------------------------------------------------------------------------
-def mean_pairwise_hfrac(seqlist, amino_acid=False):
-    if len(seqlist) < 2:
-        return 0.
-    return numpy.mean([hamming_fraction(s1, s2, amino_acid=amino_acid) for s1, s2 in itertools.combinations(seqlist, 2)])
+def mean_pairwise_hfrac(seqlist, amino_acid=False, n_max_seqs=None):
+    return mean_pairwise_dist(seqlist, hamming_fraction, amino_acid=amino_acid, n_max_seqs=n_max_seqs)
 
 # ----------------------------------------------------------------------------------------
-def mean_pairwise_hdist(seqlist, amino_acid=False):
+def mean_pairwise_hdist(seqlist, amino_acid=False, n_max_seqs=None):
+    return mean_pairwise_dist(seqlist, hamming_distance, amino_acid=amino_acid, n_max_seqs=n_max_seqs)
+
+# ----------------------------------------------------------------------------------------
+def mean_pairwise_dist(seqlist, dfcn, amino_acid=False, n_max_seqs=None):
     if len(seqlist) < 2:
         return 0.
-    return numpy.mean([hamming_distance(s1, s2, amino_acid=amino_acid) for s1, s2 in itertools.combinations(seqlist, 2)])
+    if n_max_seqs is not None and len(seqlist) > n_max_seqs:
+        old_len = len(seqlist)
+        seqlist = numpy.random.choice(seqlist, n_max_seqs, replace=False)
+    return numpy.mean([dfcn(s1, s2, amino_acid=amino_acid) for s1, s2 in itertools.combinations(seqlist, 2)])
 
 # ----------------------------------------------------------------------------------------
 def lev_dist(s1, s2, aa=False):  # NOTE does *not* handle ambiguous characters correctly (also NOTE <aa> has no effect

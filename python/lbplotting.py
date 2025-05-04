@@ -1607,7 +1607,7 @@ def plot_lb_trees(args, metric_methods, baseplotdir, lines, base_workdir, is_tru
             if treestr is None:
                 print('    None type tree')
                 continue
-            qtis = None if args.queries_to_include is None else [q for q in args.queries_to_include if q in line['unique_ids']]  # NOTE make sure to *not* modify args.queries_to_include
+            qtis = None if args.queries_to_include is None or args.dont_label_queries_to_include else [q for q in args.queries_to_include if q in line['unique_ids']]  # NOTE make sure to *not* modify args.queries_to_include
             altids = [(u, au) for u, au in zip(line['unique_ids'], line['alternate-uids']) if au is not None] if 'alternate-uids' in line else None
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
             metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
