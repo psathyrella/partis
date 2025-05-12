@@ -9,6 +9,8 @@ import argparse
 import operator
 import colored_traceback.always
 import collections
+import copy
+from collections import defaultdict
 import random
 import numpy
 from io import open
@@ -46,6 +48,8 @@ parser.add_argument('--guess-pairing-info', action='store_true', help=utils.did_
 parser.add_argument('--droplet-id-separators', help=utils.did_help['seps'])
 parser.add_argument('--droplet-id-indices', help=utils.did_help['indices'])
 parser.add_argument('--fasta-info-index', type=int, help='zero-based index in fasta info/meta string of sequence name/uid (e.g. if name line is \'>stuff more-stuff NAME extra-stuff\' the index should be 2)')
+parser.add_argument('--allowed-contigs-per-droplet', help='if set, discard sequences from droplets that contain any number of contigs not in this colon-separated list')
+parser.add_argument('--allowed-meta-keys-values', help='if set, require that the kept contigs from --allowed-contigs-per-droplet have these key:value pairs (colon-separated list of comma-separated key:value pairs)')
 parser.add_argument('--input-metafname', help='yaml file with meta information keyed by sequence id. See same argument in main partis help, and https://github.com/psathyrella/partis/blob/master/docs/subcommands.md#input-meta-info for an example.')
 parser.add_argument('--for-testing-n-max-queries', type=int, default=-1, help='only for testing, applied when reading initial fasta file, just in case it\'s huge and you want to run quickly without having to read the whole file')
 parser.add_argument('--n-max-queries', type=int, default=-1, help='see partis help (although here it applies to droplets, not individual seqs)')
@@ -164,6 +168,8 @@ if os.path.dirname(args.fname) == '':
 if args.outdir is None:
     args.outdir = utils.getprefix(args.fname)
 args.droplet_id_indices = utils.get_arg_list(args.droplet_id_indices, intify=True)
+args.allowed_contigs_per_droplet = utils.get_arg_list(args.allowed_contigs_per_droplet, intify=True)
+args.allowed_meta_keys_values = utils.get_arg_list(args.allowed_meta_keys_values, key_val_pairs=True)
 args.input_metafname = utils.fpath(args.input_metafname)
 
 if any(os.path.exists(ofn) for ofn in paircluster.paired_dir_fnames(args.outdir)):
@@ -239,6 +245,36 @@ if args.guess_pairing_info:
         guessed_metafos[uid].update(input_metafos[uid])
     for uid, mfo in guessed_metafos.items():
         paired_uids[uid] = mfo['paired-uids']
+
+if args.allowed_contigs_per_droplet is not None:
+    new_outfos = collections.OrderedDict(((l, []) for l in utils.sub_loci(args.ig_or_tr)))
+    for locus in outfos:
+        n_ctg_removed, n_meta_removed, n_meta_added = defaultdict(int), 0, 0
+        for ofo in outfos[locus]:
+            skip = False
+            n_contigs = len(paired_uids[ofo['name']]) + 1  # total n contigs in the droplet
+            if args.allowed_meta_keys_values is not None:
+                mv_uids = [ofo['name']] + copy.copy(paired_uids[ofo['name']])  # uids in this droplet that have the required meta info values
+                for mkey, mval in args.allowed_meta_keys_values.items():
+                    mv_uids = [u for u in mv_uids if guessed_metafos[u][mkey] == mval]  # reduce mv_uids to the uids that have the required meta value
+                if len(mv_uids) != n_contigs:
+                    # print('    reducing n_contigs with %s=%s: %d %d (%s  -->  %s)' % (mkey, mval, n_contigs, len(mv_uids), [guessed_metafos[u][mkey] for u in [ofo['name']] + paired_uids[ofo['name']]], [guessed_metafos[u][mkey] for u in mv_uids]))
+                    if n_contigs in args.allowed_contigs_per_droplet and len(mv_uids) not in args.allowed_contigs_per_droplet:
+                        n_meta_removed += 1  # keep track of how many were removed only because of the meta info requirements
+                    if n_contigs not in args.allowed_contigs_per_droplet and len(mv_uids) in args.allowed_contigs_per_droplet:
+                        n_meta_added += 1  # and how many were added only because of the meta info requirements
+                    n_contigs = len(mv_uids)  # n contigs that have the required meta values
+            if n_contigs in args.allowed_contigs_per_droplet:
+                new_outfos[locus].append(ofo)
+            else:
+                # n_ctg_removed += len(paired_uids[ofo['name']]) + 1
+                n_ctg_removed[n_contigs] += 1
+                del paired_uids[ofo['name']]
+        if sum(n_ctg_removed.values()) > 0:
+            print('    %s --allowed-contigs-per-droplet: removed %d / %d contigs that were in droplets that didn\'t have an allowed number of contigs (%s): %s' % (utils.locstr(locus), sum(n_ctg_removed.values()), len(outfos[locus]), ' '.join(str(n) for n in args.allowed_contigs_per_droplet), '  '.join('%s: %d'%(k, v) for k, v in n_ctg_removed.items())))
+            if args.allowed_meta_keys_values is not None and n_meta_removed > 0:
+                print('          --allowed-meta-keys-values: %d were removed (and %d were kept) because of the meta info requirements: %s' % (n_meta_removed, n_meta_added, args.allowed_meta_keys_values))
+    outfos = new_outfos
 
 # remove failed uids from paired_uids
 failed_uids = set(s['name'] for s in failed_seqs)
