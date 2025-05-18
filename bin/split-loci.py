@@ -14,6 +14,7 @@ from collections import defaultdict
 import random
 import numpy
 from io import open
+import time
 
 # if you move this script, you'll need to change this method of getting the imports
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
@@ -246,6 +247,7 @@ if args.guess_pairing_info:
     for uid, mfo in guessed_metafos.items():
         paired_uids[uid] = mfo['paired-uids']
 
+removed_uids = set()
 if args.allowed_contigs_per_droplet is not None:
     new_outfos = collections.OrderedDict(((l, []) for l in utils.sub_loci(args.ig_or_tr)))
     for locus in outfos:
@@ -256,7 +258,7 @@ if args.allowed_contigs_per_droplet is not None:
             if args.allowed_meta_keys_values is not None:
                 mv_uids = [ofo['name']] + copy.copy(paired_uids[ofo['name']])  # uids in this droplet that have the required meta info values
                 for mkey, mval in args.allowed_meta_keys_values.items():
-                    mv_uids = [u for u in mv_uids if guessed_metafos[u][mkey] == mval]  # reduce mv_uids to the uids that have the required meta value
+                    mv_uids = [u for u in mv_uids if input_metafos[u][mkey] == mval]  # reduce mv_uids to the uids that have the required meta value
                 if len(mv_uids) != n_contigs:
                     # print('    reducing n_contigs with %s=%s: %d %d (%s  -->  %s)' % (mkey, mval, n_contigs, len(mv_uids), [guessed_metafos[u][mkey] for u in [ofo['name']] + paired_uids[ofo['name']]], [guessed_metafos[u][mkey] for u in mv_uids]))
                     if n_contigs in args.allowed_contigs_per_droplet and len(mv_uids) not in args.allowed_contigs_per_droplet:
@@ -267,24 +269,24 @@ if args.allowed_contigs_per_droplet is not None:
             if n_contigs in args.allowed_contigs_per_droplet:
                 new_outfos[locus].append(ofo)
             else:
-                # n_ctg_removed += len(paired_uids[ofo['name']]) + 1
                 n_ctg_removed[n_contigs] += 1
-                del paired_uids[ofo['name']]
+                removed_uids.add(ofo['name'])
         if sum(n_ctg_removed.values()) > 0:
             print('    %s --allowed-contigs-per-droplet: removed %d / %d contigs that were in droplets that didn\'t have an allowed number of contigs (%s): %s' % (utils.locstr(locus), sum(n_ctg_removed.values()), len(outfos[locus]), ' '.join(str(n) for n in args.allowed_contigs_per_droplet), '  '.join('%s: %d'%(k, v) for k, v in n_ctg_removed.items())))
             if args.allowed_meta_keys_values is not None and n_meta_removed > 0:
                 print('          --allowed-meta-keys-values: %d were removed (and %d were kept) because of the meta info requirements: %s' % (n_meta_removed, n_meta_added, args.allowed_meta_keys_values))
     outfos = new_outfos
 
-# remove failed uids from paired_uids
-failed_uids = set(s['name'] for s in failed_seqs)
-n_removed = 0
-for fid in failed_uids:
-    if fid in paired_uids:
-        del paired_uids[fid]
-        n_removed += 1
-paired_uids = {uid : list(set(paired_uids[uid]) - failed_uids) for uid in paired_uids}
-print('  removed %d failed uids from paired_uids' % n_removed)
+removed_uids |= set(s['name'] for s in failed_seqs)
+if len(removed_uids) > 0:
+    start = time.time()
+    n_removed = 0
+    for fid in removed_uids:
+        if fid in paired_uids:
+            del paired_uids[fid]
+            n_removed += 1
+    paired_uids = {uid : sorted(set(paired_uids[uid]) - removed_uids) for uid in paired_uids}
+    print('  removed %d uids from paired_uids (%d failed, %d removed b/c of disallowed N contigs) in %.1fs' % (n_removed, len(failed_seqs), len(removed_uids) - len(failed_seqs), time.time() - start))
 
 if args.debug and len(paired_uids) > 0:
     print_pairing_info(outfos, paired_uids)

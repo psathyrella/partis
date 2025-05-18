@@ -1073,6 +1073,9 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True, debug=debug)
     else:  # but if we already have pair info in <input_info>
         _, drop_query_lists = get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet_id_indices, return_lists=True)
+    if any(u not in sfdict for ql in drop_query_lists for u in ql):  # shouldn't happen any more (split loci wasn't properly removing uids), but probably still a good check to have
+        missing_ids = [u for ql in drop_query_lists for u in ql if u not in sfdict]
+        raise Exception('%d drop query list uid[s] missing from sfdict (size %d): %s' % (len(missing_ids), len(sfdict), ' '.join(missing_ids)))
     random.shuffle(drop_query_lists)  # we always want to shuffle, since sometimes e.g. all unpaired igh are first when alphabetized by droplet id
     if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense
         final_qlists = drop_query_lists[:n_max_queries]
@@ -1100,6 +1103,10 @@ def get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet
     for uid, tline in input_info.items():
         assert len(tline['unique_ids']) == 1
         pids = tline.get('paired-uids', [[]])[0]
+        if any(p not in input_info for p in pids):  # make sure there aren't any ids in paired-uids that don't have their own entry in input_info (probably they were incompletely removed when e.g. they failed an alignment/quality control step)
+            miss_pids = [p for p in pids if p not in input_info]
+            pids = [p for p in pids if p in input_info]
+            # print('    ignoring %d pids not in input info: %s' % (len(miss_pids), ' '.join(miss_pids)))
         if len(pids) == 0:
             n_no_info += 1
         pset = set([uid] + pids)
@@ -1122,7 +1129,7 @@ def get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet
         print('     %d/%d (%.2f) had no pair info' % (n_no_info, len(input_info), n_no_info / float(len(input_info))))
     for ipg, pg in enumerate(pid_groups):
         #     print '  %3d %s' % (ipg, ' '.join(pg))
-        pid_groups[ipg] = sorted(pg)  # need to sort for replicability
+        pid_groups[ipg] = sorted(pg)  # need to sort (and convert from set to list) for replicability
     if return_lists:
         return drop_ids, pid_groups
     else:
