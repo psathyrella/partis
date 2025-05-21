@@ -34,6 +34,19 @@ default_markersizes = ['20', '15', '8', '5', '5', '5']
 pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotlib default colors
 #                     blue      orange     green
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
+legend_groups = {  # replace <key> by <value> when making legend (i.e. group several together). Colors shoud be the same if they share a legend entry, otherwise it'll be a random one of the colors
+    '0' : None,
+    'ASC_1' : 'ASC',
+    'ASC_2' : 'ASC',
+    'ASC_3' : 'ASC',
+    'ASC_4' : 'ASC',
+    'ASC_5' : 'ASC',
+    'ASC_T' : 'T',
+    'B_1' : 'B',
+    'B_2' : 'B',
+    'Bcell_2' : 'B',
+    'B_3' : 'B',
+}
 hard_meta_colors = {'IGHM' : '#9467bd',  # purple
                     'IGHD' : 'black',
                     'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
@@ -65,6 +78,17 @@ hard_meta_colors = {'IGHM' : '#9467bd',  # purple
                     'lesion-cx' : '#ea7979',  # red
                     'lesion-a' : '#cc0000',  # red
                     'None-pbmc' : '#808080',  # grey
+                    '0' : 'grey',
+                    'ASC_1' : '#1f77b4',
+                    'ASC_2' : '#1f77b4',
+                    'ASC_3' : '#1f77b4',
+                    'ASC_4' : '#1f77b4',
+                    'ASC_5' : '#1f77b4',
+                    'ASC_T' : '#be4f48',
+                    'B_1' : '#006600',
+                    'B_2' : '#006600',
+                    'Bcell_2' : '#006600',
+                    'B_3' : '#006600',
                     }
 
 # ----------------------------------------------------------------------------------------
@@ -149,7 +173,7 @@ def make_meta_info_legend(plotdir, plotname, meta_info_key_to_color, emph_colors
     if any(c==title for c, _ in emph_colors):  # if it's actually a color (i.e. probably a bool) no point in adding title)
         title = None
     lfn = plotname + '-legend'
-    plot_legend_only({l : {'color' : c, 'alpha' : alpha} for l, c in emph_colors}, plotdir, lfn, title=title)
+    plot_legend_only({legend_groups.get(l, l) : {'color' : c, 'alpha' : alpha} for l, c in emph_colors}, plotdir, lfn, title=title)
     return lfn
 
 # # ----------------------------------------------------------------------------------------

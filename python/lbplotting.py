@@ -1558,7 +1558,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, subworkdir, metafo=N
         cmdstr += ' --metafname %s' % metafname
     if queries_to_include is not None and len(queries_to_include) > 0:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
-    if uid_translations is not None:
+    if uid_translations is not None and len(uid_translations) > 0:
         cmdstr += ' --uid-translations %s' % ':'.join('%s,%s'%(u, au) for u, au in uid_translations)
     if label_all_nodes:
         cmdstr += ' --label-all-nodes'

@@ -144,6 +144,8 @@ def label_node(node, root_node):
             return True
         if args.uid_translations is not None and node.name in args.uid_translations:
             return True
+        if args.node_label_regex is not None and len(re.findall(args.node_label_regex, node.name)) > 0:
+            return True
         return False
     # ----------------------------------------------------------------------------------------
     def split_line(lstr):  # split into two rows if more than 3 entries
@@ -156,6 +158,10 @@ def label_node(node, root_node):
         nlabel, ncolor = node.name, 'red' if meta_emph() or args.meta_info_to_emphasize is None else 'black'
         if args.uid_translations is not None and nlabel in args.uid_translations:
             nlabel = args.uid_translations[nlabel]
+        if args.node_label_regex is not None:
+            mstrs = re.findall(args.node_label_regex, nlabel)
+            if len(mstrs) > 0:
+                nlabel = '+'.join(mstrs)
     else:
         if 'labels' in args.metafo:
             nlabel, ncolor = '', 'red'
@@ -185,17 +191,8 @@ def label_node(node, root_node):
             node.add_face(ete3.TextFace(blab, fsize=node_fsize, fgcolor=bcol), column=il, position='branch-bottom')
         for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):
             node.add_face(ete3.TextFace(tlab, fsize=node_fsize, fgcolor=tcol), column=il, position='branch-top')
-    tface = ete3.TextFace(' '+rename(nlabel), fsize=node_fsize, fgcolor=ncolor)
+    tface = ete3.TextFace(' '+nlabel, fsize=node_fsize, fgcolor=ncolor)
     node.add_face(tface, column=1) # position='branch-bottom')
-
-# ----------------------------------------------------------------------------------------
-def rename(name):
-    if args.node_label_regex is None:
-        return name
-    mstrs = re.findall(args.node_label_regex, name)
-    if len(mstrs) == 0:
-        return name
-    return '+'.join(mstrs)
 
 # ----------------------------------------------------------------------------------------
 def set_lb_styles(args, etree, tstyle):
@@ -382,8 +379,9 @@ args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pair
 utils.meta_emph_arg_process(args)
 args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
 if args.node_label_regex is not None and not args.label_all_nodes and not args.label_leaf_nodes:
-    print('  note: turning on --label-all-nodes')
-    args.label_all_nodes = True
+    print('  note: --node-label-regex set, but not neither --label-all-nodes nor --label-leaf-nodes were set, so they may not actually get labeled')
+    # print('  --node-label-regex: turning on --label-all-nodes')
+    # args.label_all_nodes = True
 
 args.queries_to_include = utils.get_arg_list(args.queries_to_include)
 args.metafo = None
