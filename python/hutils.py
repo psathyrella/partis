@@ -88,7 +88,8 @@ def auto_volume_bins(values, n_bins, int_bins=False, min_xdist=None, debug=False
         print('  trying to divide %d values%s from %s to %s into %d bins (%d per bin) %s' % (len(values), ' (with int bins)' if int_bins else '', values[0], values[-1], n_bins, n_per_bin, values if len(values) < 150 else ''))
     if int_bins:
         if len(set(values)) < n_bins:
-            print('        %s n_bins %d should probably be reduced to the number of different values %d in auto volumne bins' % (utils.wrnstr(), n_bins, len(set(values))))
+            print('        %s reducing n_bins from %d to the number of different values %d in auto volume bins' % (utils.wrnstr(), n_bins, len(set(values))))
+            n_bins = len(set(values))
         xbins = [values[0] - 0.5]
         n_this_bin = 0
         for iv, val in enumerate(values):  # similar to the ibins = below, but we have to deal with ties here
@@ -232,7 +233,7 @@ def make_hists_from_lists_of_values(value_lists, var_name, var_type=None, is_log
         if var_type == 'string':
             xbins |= set(vlist)
         elif var_type in ['int', 'cluster-size']:
-            xbins |= set(htmp.low_edges)
+            xbins |= set(htmp.low_edges[1:])  # don't include the underflow's low edge
         elif var_type == 'float':
             xbins = [mfn(vlist+([xbins[i]] if len(xbins)>0 else [])) for i, mfn in enumerate([min, max])]  # xbins is just (min, max) for 'float'
         else:

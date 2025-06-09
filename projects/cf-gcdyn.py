@@ -78,7 +78,7 @@ parser.add_argument('--check-dl-n-trials', type=int, default=120)
 parser.add_argument('--dl-extra-args')
 parser.add_argument('--gcddir', default='%s/work/partis/projects/gcdyn'%os.getenv('HOME'))
 # parser.add_argument('--gcreplay-data-dir', default='/fh/fast/matsen_e/%s/gcdyn/gcreplay-observed'%os.getenv('USER'))
-parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')
+parser.add_argument('--gcreplay-germline-dir', default='datascripts/meta/taraki-gctree-2021-10/germlines')  # only used for partis partition step, which I'm not using atm
 parser.add_argument('--dl-model-dir')
 parser.add_argument('--dl-model-label-str')
 parser.add_argument('--dl-model-vars')
@@ -302,7 +302,11 @@ def run_scan(action):
     n_already_there, n_missing_input, ifn = 0, 0, None
     all_simdirs = []
     for icombo, vstrs in enumerate(valstrs):
-        # if vstrs[varnames.index('n-trials')] != '50000': # or vstrs[varnames.index('simu-bundle-size')] != '1':
+        # if vstrs[varnames.index('n-trials')] != '1000': # or vstrs[varnames.index('model-type')] != 'sigmoid':
+        #     continue
+        # if vstrs[varnames.index('model-type')] != 'sigmoid': # or vstrs[varnames.index('yscale-values')] not in ['5', '10', '20']:
+        #     continue
+        # if vstrs[varnames.index('carry-cap-values')] != '500': # or vstrs[varnames.index('yscale-values')] not in ['5', '10', '20']:
         #     continue
         # if vstrs[varnames.index('seed')] != '0': # or vstrs[varnames.index('simu-bundle-size')] != '1':
         if 'data-samples' in varnames and vstrs[varnames.index('data-samples')] != 'combo-trees': # or vstrs[varnames.index('simu-bundle-size')] != '1':

@@ -309,6 +309,10 @@ def default_parameter_dir(args):
     return '_output/%s' % utils.getprefix(instr).replace('/', '_')
 
 # ----------------------------------------------------------------------------------------
+def is_subset_action(action):
+    return action in ['subset-partition', 'subset-annotate']
+
+# ----------------------------------------------------------------------------------------
 def subset_partition(args):
     # ----------------------------------------------------------------------------------------
     def subdir(igroup):
@@ -322,8 +326,8 @@ def subset_partition(args):
     # ----------------------------------------------------------------------------------------
     def get_cmd(infname, outdir, merged_odir=None):
         clist = copy.deepcopy(sys.argv)
-        assert clist[1] == 'subset-partition'  # ugh, but utils.replace_in_arglist() only handles -- style arg strs
-        clist[1] = 'partition'
+        assert is_subset_action(clist[1])  # ugh, but utils.replace_in_arglist() only handles -- style arg strs
+        clist[1] = args.action.split('-')[1]
         utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
         utils.replace_in_arglist(clist, '--paired-outdir', outdir)
         # utils.replace_in_arglist(clist, '--persistent-cachefname', 'paired-outdir')  # probably not worth copying hmm cache files since the padding won't be right (also i'm not sure they're being read properly? would need to check more carefully) UDPATE now i have a padding fcn that might work for this (utils.re_pad_hmm_seqs())
@@ -346,7 +350,7 @@ def subset_partition(args):
         args.seed_unique_id = None
         input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)  # i think setting is_data=True makes sense (we don't want reco_info)
         args.seed_unique_id = tmp_seed_id
-        print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'subset partitioning'), len(input_info), args.n_subsets, infname))
+        print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'running %s'%args.action), len(input_info), args.n_subsets, infname))
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
         sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
                                                 seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
@@ -451,7 +455,12 @@ def subset_partition(args):
         merge_subset_files()
 
     final_odir = '%s' % args.paired_outdir
-    utils.simplerun(get_cmd(infname, final_odir, merged_odir=merged_odir), logfname='%s/merged-partition.log'%final_odir, dryrun=args.dry_run)
+    if args.action == 'subset-partition':
+        utils.simplerun(get_cmd(infname, final_odir, merged_odir=merged_odir), logfname='%s/merged-partition.log'%final_odir, dryrun=args.dry_run)
+    else:  # for 'subset-annotate' just link the merged dir
+        print('  linking merged outputs to final dir')
+        for ltmp in utils.sub_loci(args.ig_or_tr):
+            utils.makelink(final_odir, ptnfn(merged_odir, ltmp), ptnfn(final_odir, ltmp), dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):
@@ -610,7 +619,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if has_input_meta_pair_info:
                 print('  note: found \'paired-uids\' in --input-metafnames, so not extracting pairing info')
         mfname = getofn(None, joint=True, input_meta=True)
-        if args.action == 'subset-partition':  # UGH
+        if is_subset_action(args.action):  # UGH
             mfname = '%s/input/%s' % (os.path.dirname(mfname), os.path.basename(mfname))
         if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
             if utils.getsuffix(args.infname) == '.yaml':
@@ -633,7 +642,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 elines = traceback.format_exception(*sys.exc_info())
                 print(utils.pad_lines(''.join(elines)))
                 print('  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info')
-        if args.action == 'subset-partition':  # don't want loci to be split, since we pass all loci to each subset process in one file
+        if is_subset_action(args.action):  # don't want loci to be split, since we pass all loci to each subset process in one file
             return
         cmd = '%s%s/bin/split-loci.py %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, getodir())
         if args.reverse_negative_strands:
@@ -1354,7 +1363,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         fake_pntns, mpfo_lists, mtpys = paircluster.make_fake_hl_pair_antns(args, antn_pairs)
         return antn_pairs, fake_pntns, mpfo_lists, mtpys
     # ----------------------------------------------------------------------------------------
-    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'subset-partition', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate', 'update-meta-info', 'write-fake-paired-annotations']
+    paired_loci_actions = ['cache-parameters', 'annotate', 'partition', 'subset-partition', 'subset-annotate', 'merge-paired-partitions', 'get-selection-metrics', 'plot-partitions', 'view-output', 'simulate', 'update-meta-info', 'write-fake-paired-annotations']
     if args.action not in paired_loci_actions:
         raise Exception('action %s not supported for paired loci (choose from %s)' % (args.action, paired_loci_actions))
     if args.paired_outdir is None:
@@ -1363,7 +1372,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     work_fnames = []
     if args.infname is not None:  # if --infname is set (i.e. if there's no --paired-indir) we need to extract pair info and split loci
         prep_inputs()
-    if args.action == 'subset-partition':
+    if is_subset_action(args.action):
         subset_partition(args)
         return
     args.tree_inference_outdir = getodir()
@@ -1661,6 +1670,7 @@ subconfig = collections.OrderedDict((
     ('annotate'         , {'func' : run_partitiondriver, 'help' : 'Annotate sequences in input file, i.e. run the viterbi algorithm, using pre-existing parameter directory.'}),
     ('partition'        , {'func' : run_partitiondriver, 'help' : 'Partition sequences in input file into clonally-related families using pre-existing parameter directory.'}),
     ('subset-partition' , {'func' : run_partitiondriver, 'help' : 'Split input into --n-subsets subsets, cache parameters and partition each subset individually, then partition the merged results. When combined e.g. with --small-clusters-to-ignore, this will speed up (and reduce memory usage of) partitioning on large samples.'}),
+    ('subset-annotate'  , {'func' : run_partitiondriver, 'help' : 'Same as \'subset-partition\', but annotate instead of partition.'}),
     ('simulate'         , {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'}),
     ('view-output'      , {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'}),
     ('merge-paired-partitions', {'func' : run_partitiondriver, 'help' : 'Merge the heavy and light chain partition paths from two existing output files.'}),
@@ -1733,6 +1743,7 @@ subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwa
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
+subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
 # basic simulation:
@@ -1810,7 +1821,7 @@ subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 
-sub_arg_groups = {'subset-partition' : ['partition']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
+sub_arg_groups = {'subset-partition' : ['partition'], 'subset-annotate' : ['annotate']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
 
 def get_arg_names(actions):  # return set of all arg names (in the form they appear in args.__dict__) for the specified actions
     if actions == 'all':

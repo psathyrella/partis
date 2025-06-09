@@ -81,9 +81,13 @@ def read_single_input_metafo(input_metafname, annotation_list, required_keys=Non
             print('     %15s   %3d      %3d       %3d    %3d' % (lk, len(usets['no-info'][lk]), len(usets['added'][lk]), len(llists['no-info'][lk]), len(llists['added'][lk])))
 
 # ----------------------------------------------------------------------------------------
-def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_max_warn_print=10, debug=False):  # transfer input metafo from <input_info> (i.e. what was in --input-metafnames) to <annotation_list>
+def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_max_warn_print=10, overwrite_all=False, debug=False):  # transfer input metafo from <input_info> (i.e. what was in --input-metafnames) to <annotation_list>
     # NOTE this input meta info stuff is kind of nasty, just because there's so many ways that/steps at which we want to be able to specify it: from --input-metafnames, from <input_info>, from <sw_info>. If it's all consistent it's fine, and if it isn't consistent it'll print the warning, so should also be fine.
     # NOTE <keys_not_to_overwrite> should be the *line* key
+    # overwrite_all: by default, for each meta key, this ignores <line>s in <annotation_list> that don't have any info for that meta key in <input_info>.
+    #    If <overwrite_all> is set, this instead overwrites all <line>s for all meta keys, even if they have no info in <input_info>.
+    #    Used e.g. when updating meta info in existing output files where the meta info has changed (if the meta info is consistent, there's no reason to look at keys/lines that have no info in <input_info>)
+    # NOTE may need to add <overwrite_all> to some more calls (only added it to the one that I was sure of)
     # ----------------------------------------------------------------------------------------
     def incr(itp, line_key, uids):
         usets[itp][line_key]['seqs'] |= set(uids)  # it's a little weird to use a set, but the same uid is sometimes in different <line>s, and i guess maybe it'd be better to treat them separately, this way is probably simpler
@@ -101,7 +105,8 @@ def add_input_metafo(input_info, annotation_list, keys_not_to_overwrite=None, n_
             n_with_info = len([u for u in uids if line_key in inpfo(u)])  # NOTE there can be info in <line> but *not* in <input_info>, e.g. if we added multiplicity information in waterer.
             if n_with_info == 0:
                 incr('no-info', line_key, uids)  # it's a little weird to use a set, but the same uid is sometimes in different <line>s, and i guess maybe it'd be better to treat them separately, this way is probably simpler
-                continue
+                if not overwrite_all:
+                    continue
             incr('with-info', line_key, uids)  # it's a little weird to use a set, but the same uid is sometimes in different <line>s, and i guess maybe it'd be better to treat them separately, this way is probably simpler
             mvals = [inpfo(u)[line_key][0] if line_key in inpfo(u) else utils.input_metafile_defaults(line_key) for u in uids]
 
