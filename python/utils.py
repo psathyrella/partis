@@ -4385,6 +4385,9 @@ def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False): 
     mkdir(odir)
     simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, extra_str=extra_str, debug=debug)
 
+    if not os.path.exists(target if target==fpath(target) else odir+'/'+target):
+        raise Exception('linked to missing file in %s (%s)' % (odir, target))
+
 # ----------------------------------------------------------------------------------------
 def fpath(path):  # if <path> is relative, add full path from root (path can also be None)
     if path is None or path[0] == '/':
@@ -4950,12 +4953,12 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
         mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
         mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
-        makelink('%s/parameters/%s/hmm' % (merged_odir, ltmp), mean_mut_fns[0], 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
+        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
         for isub in range(n_subsets):
             for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
-                makelink('%s/parameters/%s/hmm/hmms' % (merged_odir, ltmp), hfn, os.path.basename(hfn))
+                makelink('%s/parameters/%s/hmm/hmms' % (fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
             sub_glfo = glutils.read_glfo('%s/parameters/%s/hmm/germline-sets' % (subdfn(isub), ltmp), ltmp, dont_crash=True)
             if merged_glfo is None:
                 merged_glfo = sub_glfo

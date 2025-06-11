@@ -414,7 +414,7 @@ def subset_partition(args):
                 handle_overlap_merge(locus_merged_lp_infos, ltmp)
 
         print('   writing merged outputs from %d subsets to %s' % (args.n_subsets, merged_odir))
-        def ofn_fcn(ltmp, lpair=None, joint=None): return ptnfn(merged_odir, ltmp, lpair=lpair)  # I *think* i don't need joint
+        def ofn_fcn(ltmp, lpair=None, joint=None): return ptnfn(utils.fpath(merged_odir), ltmp, lpair=lpair)  # I *think* i don't need joint
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
         paircluster.write_lpair_output_files(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
         paircluster.write_concatd_output_files(locus_merged_lp_infos['glfos'], locus_merged_lp_infos['antn_lists'], ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, cpaths=locus_merged_lp_infos['cpaths'], dont_write_git_info=args.dont_write_git_info, write_light_chain_files=len(locus_lpfos) > 0)
@@ -1290,7 +1290,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             seqfileopener.read_input_metafo(args.input_metafnames, [])
         concat_lpfos = paircluster.handle_concatd_heavy_chain(spairs(), lp_infos, dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=seedid(utils.heavy_locus(ig_or_tr)), debug=args.debug_paired_clustering)
         paircluster.write_concatd_output_files(concat_lpfos['glfos'], concat_lpfos['antn_lists'], getofn, utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns), use_pyyaml=args.write_full_yaml_output,
-                                               work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], true_outfos=true_outfos, dont_write_git_info=args.dont_write_git_info, airr_output=args.airr_output, args=args)
+                                               work_fnames=work_fnames if args.paired_outdir is None else None, cpaths=concat_lpfos['cpaths'], true_outfos=true_outfos, dont_write_git_info=args.dont_write_git_info, airr_output=args.airr_output, args=args, fail_frac=args.max_ccf_fail_frac if args.seed_unique_id is None else None)
         print_joint_vs_input(single_outfos['cpaths'], single_outfos['antn_lists'], concat_lpfos['cpaths'], debug=args.debug_paired_clustering)
         if args.keep_all_unpaired_seqs and len(lp_infos) == 0:  # ugh
             print('    --keep-all-unpaired-seqs: zero length paired results, so linking single chain output to final/merged results dir, since otherwise there\'d be no final output files')

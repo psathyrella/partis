@@ -168,20 +168,20 @@ class Tester(object):
 
         self.tests = OrderedDict()
 
+        # ----------------------------------------------------------------------------------------
         def add_inference_tests(input_stype):  # if input_stype is 'ref', infer on old simulation and parameters, if it's 'new' use the new ones
             if not args.paired:
-                self.tests['annotate-' + input_stype + '-simu']          = {'extras' : ['--plot-annotation-performance', ]}
-                self.tests['multi-annotate-' + input_stype + '-simu']    = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
-            self.tests['partition-' + input_stype + '-simu']         = {'extras' : [
-                '--plot-annotation-performance',
-                '--max-ccf-fail-frac', '0.10',
-                # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
-            ]}
-            self.tests['seed-partition-' + input_stype + '-simu']    = {'extras' : ['--max-ccf-fail-frac', '0.10']}
+                self.tests['annotate-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', ]}
+                self.tests['multi-annotate-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
+            self.tests['partition-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--max-ccf-fail-frac', '0.10']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
+            self.tests['subset-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
+            # this runs ok, but i's need to modify some things so its output is actually checked self.tests['subset-annotate-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
+            self.tests['seed-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
-                self.tests['vsearch-partition-' + input_stype + '-simu'] = {'extras' : ['--naive-vsearch']}
-            self.tests['get-selection-metrics-' + input_stype + '-simu'] = {'extras' : ['--existing-output-run-cfg', 'paired'] + self.cluster_size_args()}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
+                self.tests['vsearch-partition-%s-simu'%input_stype] = {'extras' : ['--naive-vsearch']}
+            self.tests['get-selection-metrics-%s-simu'%input_stype] = {'extras' : ['--existing-output-run-cfg', 'paired'] + self.cluster_size_args()}  # NOTE this runs on simulation, but it's checking the inferred selection metrics
 
+        # ----------------------------------------------------------------------------------------
         if args.quick:
             self.tests['cache-parameters-quick-new-simu'] =  {'extras' : ['--n-max-queries', str(self.nqr('quick'))]}
         else:
@@ -295,7 +295,8 @@ class Tester(object):
             argfo['parameter-dir'] = self.paramdir(input_stype, 'data')
         else:
             argfo['inpath'] = self.inpath('new' if args.bust_cache else 'ref', input_dtype)
-            argfo['parameter-dir'] = self.paramdir(input_stype, input_dtype)
+            if ptest.find('subset-') != 0:
+                argfo['parameter-dir'] = self.paramdir(input_stype, input_dtype)
             if not args.paired:
                 argfo['sw-cachefname'] = self.paramdir(input_stype, input_dtype) + '/sw-cache.yaml'
         if ptest != 'simulate' and input_dtype == 'simu' and not args.quick:
@@ -313,6 +314,9 @@ class Tester(object):
             argfo['action'] = 'cache-parameters'
         else:
             argfo['action'] = ptest
+        if ptest.find('subset-') == 0:
+            argfo['action'] = 'subset-%s' % argfo['action']
+            argfo['extras'] += ['--n-subsets', '2']
 
         if '--plot-annotation-performance' in argfo['extras']:
             self.perfdirs[ptest] = ptest + '-annotation-performance'
@@ -341,14 +345,14 @@ class Tester(object):
     def prepare_to_run(self, args, name, info):
         """ Pre-run stuff that you don't want to do until *right* before you actually run. """
         # ----------------------------------------------------------------------------------------
-        def clean_old_seed_dir(sdir):  # rm whole seed dir to make sure the dir for the previous seed id doesn't hang around
+        def clean_dir(sdir):  # rm whole seed dir to make sure the dir for the previous seed id doesn't hang around
             if args.dry_run:
                 print('    would rm %s' % sdir)
             else:  # maybe i should just rm the output dir for every test before running? although it might get complicated since some of them i think share dirs
                 print('    removing %s' % sdir)
                 shutil.rmtree(sdir)
         # ----------------------------------------------------------------------------------------
-        def rm_file(fn):
+        def rm_file(fn):  # for search: remove
             if args.dry_run:
                 files_to_rm.append(fn)
             else:
@@ -381,9 +385,12 @@ class Tester(object):
                 info['extras'] += ['--seed-unique-id', ':'.join(seed_uid), '--seed-loci', ':'.join(seed_loci)]
                 sdir = '%s/seeds' % self.opath(name, st=info['input_stype'])
                 if os.path.exists(sdir):
-                    clean_old_seed_dir(sdir)
+                    clean_dir(sdir)
             else:
                 info['extras'] += ['--seed-unique-id', seed_uid]
+
+        if name.find('subset-') == 0:
+            clean_dir(self.opath(name, st='new'))
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
@@ -641,7 +648,7 @@ class Tester(object):
         # ----------------------------------------------------------------------------------------
         print('  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype)
         all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'multi-annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
-        all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-']]
+        all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-', 'subset-']]
         annotation_ptests = [pt for pt in all_annotation_ptests if pt in self.perf_info['ref'][input_stype]]
         partition_ptests = [pt for pt in all_partition_ptests if pt in self.perf_info['ref'][input_stype]]
         selection_metric_tests = ['get-selection-metrics-'+input_stype+'-simu']

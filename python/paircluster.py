@@ -176,14 +176,14 @@ def write_lpair_output_files(lpairs, lp_infos, ofn_fcn, headers, use_pyyaml=Fals
 
 # ----------------------------------------------------------------------------------------
 # write concatd heavy chain <glfos> and <antn_lists>, and use <ofn_fcn> to link to existing light chain files in paired subdirs
-def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_outfos=None, dont_write_git_info=False, airr_output=False, args=None, write_light_chain_files=False):
+def write_concatd_output_files(glfos, antn_lists, ofn_fcn, headers, use_pyyaml=False, work_fnames=None, cpaths=None, true_outfos=None, dont_write_git_info=False, airr_output=False, args=None, write_light_chain_files=False, fail_frac=None):
     for ltmp in sorted(glfos):  # don't really need to write igh first, but i guess it's nice to be consistent
         ofn = ofn_fcn(ltmp, joint=True)
         if utils.has_d_gene(ltmp) or write_light_chain_files:
             if not utils.has_d_gene(ltmp) and write_light_chain_files:
                 print('       writing (rather than linking) light chain files: %s' % ofn)
             cp = ClusterPath(partition=utils.get_partition_from_annotation_list(antn_lists[ltmp])) if cpaths is None else cpaths[ltmp]
-            partition_lines = cp.get_partition_lines(true_partition=None if true_outfos is None else true_outfos['merged']['cpaths'][ltmp].best(), calc_missing_values='best')
+            partition_lines = cp.get_partition_lines(true_partition=None if true_outfos is None else true_outfos['merged']['cpaths'][ltmp].best(), calc_missing_values='best', fail_frac=fail_frac)
             utils.write_annotations(ofn, glfos[ltmp], antn_lists[ltmp], headers, partition_lines=partition_lines, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
             if airr_output:
                 utils.write_airr_output(utils.replace_suffix(ofn, '.tsv'), antn_lists[ltmp], cpath=cp, args=args, glfo=glfos[ltmp])
