@@ -6,9 +6,11 @@
     - [fast (naive vsearch)](#--fast-synonym---naive-vsearch)
     - [subsampling](#subsampling)
     - [ignore small clusters](#ignore-smaller-clusters)
+    - [subset-partition](#partition-in-subsets)
     - [limit maximum cluster size](#limit-maximum-cluster-size)
     - [deliberate over-clustering](#deliberate-over-clustering)
 	- [progress file](#progress-file)
+  - [subset-partition](#subset-partition)
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
     - [choosing antibodies](#choosing-antibodies)
@@ -83,7 +85,11 @@ Ignores sequences that are not clonally related to the sequence specified by `<i
 
 ##### ignore smaller clusters
 
-If you're mostly interested in larger clonal families, you can tell it to cluster as normal for several partitition steps, then discard smaller families (for a description of partition steps, see the paper). Any large families will have accumulated appreciable size within the first few partition steps, and since most real repertoires are dominated by smaller clusters, this will dramatically decrease the remaining sample size. This is turned on by setting `--small-clusters-to-ignore <sizes>`, where `<sizes>` is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or an inclusive range of sizes (e.g. `1-10`). The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters <n>` (default 3).
+If you're mostly interested in larger clonal families, you can tell it to cluster as normal for several partition steps, then discard smaller families (for a description of partition steps, see the paper). Any large families will have accumulated appreciable size within the first few partition steps, and since most real repertoires are dominated by smaller clusters, this will dramatically decrease the remaining sample size. This is turned on by setting `--small-clusters-to-ignore <sizes>`, where `<sizes>` is either a colon-separated list of clusters sizes (e.g. `1:2:3`) or an inclusive range of sizes (e.g. `1-10`). The number of steps after which these small clusters are removed is set with `--n-steps-after-which-to-ignore-small-clusters <n>` (default 3).
+
+##### partition in subsets
+
+See section [below](#subset-partition) on the `subset-partition` action, which first splits the sample into subsets, partitions each one, then merges the resulting partitions together.
 
 ##### limit maximum cluster size
 
@@ -128,6 +134,17 @@ The columns are:
   * total number of viterbi, forward, and naive hamming fraction calculations that have so far been made
   * total number of cluster merges that have so far been performed, broken down into hamming fraction merges and likelihood ratio (i.e. forward calculation) merges
   * a list of all cluster sizes in the current partition
+
+### subset-partition
+
+This action splits the input into `--n-subsets` subsets, caches parameters and partitions each subset individually, then partitions the merged results.
+When combined e.g. with `--small-clusters-to-ignore`, this substantially speeds up (and reduces memory usage of) partitioning on large samples, since each subset's process will discard many smaller clusters, reducing the computational load on the final, merging process.
+Even when run with default arguments it is often faster, since the subset processes do much of the merging in a smaller (and thus more efficient) subset of the input.
+
+### subset-annotate
+
+Same as `subset-partition`, but just performs annotation with subsets, rather than partitioning.
+Since normal annotation, unlike partitioning, is easily split up into independent processes, this is less important than `subset-partition`; nevertheless it probably still uses substantially less memory.
 
 ### merge-paired-partitions
 

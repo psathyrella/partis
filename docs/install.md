@@ -8,7 +8,7 @@ Partis can be installed either [with Docker](#installation-with-docker) or [from
 
 Installing [without Docker](#installation-from-scratch), on the other hand, will require more effort to install, but once installed it'll be easier to use. The closer your system is to the latest Debian/Ubuntu, the easier this process will be (RHEL variants and macOS typically work without too much trouble).
 
-If you want to make simulated samples, you'll also need to [install some R packages](#simulation).
+If you want to make simulated samples, you'll probably also need to [install some R packages](#simulation).
 
 #### Installation with Docker
 
@@ -16,13 +16,14 @@ Docker can be installed using the instructions [here](https://docs.docker.com). 
 
 ```
 sudo docker pull quay.io/matsengrp/partis
-sudo docker run -it --name container-1 -v ~:/host/home quay.io/matsengrp/partis /bin/bash
+sudo docker run -it --user=root --name container-1 -v ~:/host/home quay.io/matsengrp/partis /bin/bash
 ```
 The `sudo` may not be necessary for some systems. With `docker run`, we create a new container from (i.e. instance of) the partis image. The `-v` mounts your home directory on the host machine to the path `/host/home` inside the container, so we can easily extract results.
+The `--user=root` is a temporary fix: mamba uses the `mambauser` user inside docker, but it is difficult to mount the host filesystem in a way such that it is writeable by the mambauser.
 
 Docker's default escape key is ctrl-p, which unfortunately conflicts with common command line shortcuts. To change this put`{"detachKeys": "ctrl-q,q"}` into the file `~/.docker/config.json` which will swap it to ctrl-q.
 
-When finished, you _don't_ want to just exit and `docker run` again -- this will create a new container.
+When finished, you probably don't want to just exit and `docker run` again -- this will create a new container from scratch, whereas you usually want to re-enter the previous container.
 One solution is to run Docker inside [tmux](https://hackernoon.com/a-gentle-introduction-to-tmux-8d784c404340?gi=70388a0228fb) in which case you can just leave the container open.
 Alternatively, you can detach from the container with `ctrl-q q` (or whatever you've remapped ctrl-p q to).
 To then reattach to this running container, run `docker attach container-1`.
