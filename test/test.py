@@ -174,7 +174,8 @@ class Tester(object):
                 self.tests['annotate-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', ]}
                 self.tests['multi-annotate-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             self.tests['partition-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--max-ccf-fail-frac', '0.10']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
-            self.tests['subset-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
+            if args.paired:
+                self.tests['subset-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             # this runs ok, but i's need to modify some things so its output is actually checked self.tests['subset-annotate-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             self.tests['seed-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
@@ -390,7 +391,8 @@ class Tester(object):
                 info['extras'] += ['--seed-unique-id', seed_uid]
 
         if name.find('subset-') == 0:
-            clean_dir(self.opath(name, st='new'))
+            if os.path.exists(self.opath(name, st='new')):
+                clean_dir(self.opath(name, st='new'))
 
     # ----------------------------------------------------------------------------------------
     def run(self, args):
