@@ -1,0 +1,34 @@
+!!python/object:python.hmmwriter.HMM
+extras:
+  gene_prob: 1.0
+  overall_mute_freq: 0.007222222222222222
+  per_gene_mute_freq: 0.1
+name: IGKDx-x_star_x
+states:
+- !!python/object:python.hmmwriter.State
+  emissions: null
+  extras: {}
+  name: init
+  transitions:
+    IGKDx-x_star_x_0: 1.0
+- !!python/object:python.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9
+      C: 0.03333333333333333
+      G: 0.03333333333333333
+      T: 0.03333333333333333
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGKDx-x_star_x_0
+  transitions:
+    end: 1.0
+tracks:
+  nukes:
+  - A
+  - C
+  - G
+  - T
