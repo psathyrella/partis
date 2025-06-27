@@ -59,8 +59,6 @@ def read_input(args):
     return {'treestr' : treestr}
 
 # ----------------------------------------------------------------------------------------
-min_size = 1.5
-max_size = 10
 opacity = 0.65
 node_fsize = 7
 
@@ -80,7 +78,10 @@ def set_delta_affinities(etree, affyfo):  # set change in affinity from parent f
 def get_size(vmin, vmax, val):
     if vmin == vmax:
         return 0
-    return min_size + (val - vmin) * (max_size - min_size) / float(vmax - vmin)
+    if args.use_node_area:
+        val = math.sqrt(val)
+    rfsize = args.min_face_size + (val - vmin) * (args.max_face_size - args.min_face_size) / float(vmax - vmin)
+    return rfsize
 
 # ----------------------------------------------------------------------------------------
 def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):  # NOTE very similar to add_smap_legend() in plot_2d_scatter() in python/lbplotting.py
@@ -187,12 +188,13 @@ def label_node(node, root_node):
             blabels[1] = split_line(blabels[1])
         else:
             tlabels[0] = mlabel
-        for il, (blab, bcol) in enumerate(zip(blabels, bcolors)):
+        for il, (blab, bcol) in enumerate(zip(blabels, bcolors)):  # blabels are branch bottom labels
             node.add_face(ete3.TextFace(blab, fsize=node_fsize, fgcolor=bcol), column=il, position='branch-bottom')
-        for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):
+        for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):  # branch top labels
             node.add_face(ete3.TextFace(tlab, fsize=node_fsize, fgcolor=tcol), column=il, position='branch-top')
-    tface = ete3.TextFace(' '+nlabel, fsize=node_fsize, fgcolor=ncolor)
-    node.add_face(tface, column=1) # position='branch-bottom')
+    if nlabel != '':
+        tface = ete3.TextFace(' '+nlabel, fsize=node_fsize, fgcolor=ncolor)  # <nlabel> is usually the uid/sequence name
+        node.add_face(tface, column=1) # position='branch-bottom')
 
 # ----------------------------------------------------------------------------------------
 def set_lb_styles(args, etree, tstyle):
@@ -283,6 +285,8 @@ def set_meta_styles(args, etree, tstyle):
     if args.node_size_key is not None:
         nsvals = set(args.metafo[args.node_size_key].values()) - set([None])
         min_nsval, max_nsval = [mfcn(nsvals) for mfcn in [min, max]]
+        if args.use_node_area:
+            min_nsval, max_nsval = [math.sqrt(v) for v in [min_nsval, max_nsval]]
     if args.branch_color_key is not None:
         bcvals = args.metafo[args.branch_color_key]
         smvals = [v for v in bcvals.values() if v is not None]
@@ -294,13 +298,19 @@ def set_meta_styles(args, etree, tstyle):
         node.img_style['size'] = 0
         rfsize = 5
         if args.node_size_key is not None:
-            rfsize = get_size(min_nsval, max_nsval, args.metafo[args.node_size_key][node.name])
+            rfsize = get_size(min_nsval, max_nsval, args.metafo[args.node_size_key].get(node.name, min_nsval))
         bgcolor = plotting.getgrey()
         if args.meta_info_key_to_color is not None and node.name in mvals:
             bgcolor = mcolors.get(mvals[node.name], bgcolor)
 
         label_node(node, etree.get_tree_root())
-        rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
+        ftypes = {'rect' : ete3.RectFace, 'circle' : ete3.CircleFace}
+        if args.face_type == 'rect':
+            rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
+        elif args.face_type == 'circle':
+            rface = ete3.CircleFace(radius=rfsize, color=bgcolor)
+        else:
+            assert False
         rface.opacity = opacity
         node.add_face(rface, column=0)
 
@@ -361,8 +371,14 @@ parser.add_argument('--meta-info-to-emphasize', help='see partis help')
 parser.add_argument('--meta-info-key-to-color', help='see partis help')
 parser.add_argument('--meta-emph-formats', help='see partis help')
 parser.add_argument('--node-size-key', help='annotation key with which to scale the node size')
+parser.add_argument('--use-node-area', action='store_true', help='for --node-size-key scale by area rather than edge/radius')
 parser.add_argument('--branch-color-key', help='annotation key with which to scale the branch length color')
+parser.add_argument('--face-type', choices=['rect', 'circle'], default='rect', help='shape of symbol for each node')
+parser.add_argument('--min-face-size', type=float, default=1.5, help='min size for node symbol')
+parser.add_argument('--max-face-size', type=float, default=15, help='min size for node symbol')
 args = parser.parse_args()
+if args.meta_info_key_to_color is None and not args.meta_info_to_emphasize:  # it'd be nice to move this stuff, but whatevs
+    print('  note: if neither --meta-info-key-to-color or --meta-info-to-emphasize are set, other style attributes may not be set')
 
 sys.path.insert(1, args.partis_dir) # + '/python')
 try:
@@ -379,7 +395,7 @@ args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pair
 utils.meta_emph_arg_process(args)
 args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
 if args.node_label_regex is not None and not args.label_all_nodes and not args.label_leaf_nodes:
-    print('  note: --node-label-regex set, but not neither --label-all-nodes nor --label-leaf-nodes were set, so they may not actually get labeled')
+    print('  note: --node-label-regex set, but neither --label-all-nodes nor --label-leaf-nodes were set, so they may not actually get labeled')
     # print('  --node-label-regex: turning on --label-all-nodes')
     # args.label_all_nodes = True
 

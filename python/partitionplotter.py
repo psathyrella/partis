@@ -817,6 +817,14 @@ class PartitionPlotter(object):
                 annotation['vrc01-muts'] = [vmuts(vc_muts, self.mut_info[iclust]['aa_muts'], u) for u in annotation['unique_ids']]
             for tk in [k for k in tklist if k is not None and k in annotation]:
                 metafo[tk] = {u : f for u, f in zip(annotation['unique_ids'], annotation[tk])}
+            if 'multiplicities' in tklist and self.args.infer_trees_with_collapsed_duplicate_seqs:
+                if 'multiplicities' in metafo:  # if it was in the actual annotation
+                   assert False  # needs implementing (probably can add together any existing multiplicity to the new values)
+                else:
+                    collapsed_seqfos = utils.collapse_seqfos_with_identical_seqs(utils.seqfos_from_line(annotation), debug=True)
+                    metafo['multiplicities'] = {s['name'] : s['multiplicity'] for s in collapsed_seqfos}
+                assert 'labels' not in metafo  # would need to add the new labels to the old ones, or something
+                metafo['labels'] = {u : str(n) for u, n in metafo['multiplicities'].items() if n > 1}
             if self.args.mutation_label_cfg is not None:
                 add_mut_labels(annotation, metafo, iclust)
                 if annotation.get('is_fake_paired', False):

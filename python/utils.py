@@ -5771,7 +5771,7 @@ def split_partition_with_criterion(partition, criterion_fcn):  # this would prob
     return true_clusters, false_clusters
 
 # ----------------------------------------------------------------------------------------
-def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
+def group_seqs_by_value(queries, keyfunc, return_values=False):  # <queries> don't have to be related to seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
     vals, groups = zip(*[(val, sorted(list(group))) for val, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)])  # NOTE sorted() around list(group) is so [in python 3] we'll get the same list order in reruns
     if return_values:
         return list(zip(*(vals, groups)))
@@ -5779,6 +5779,20 @@ def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to
         return list(groups)
 
 # ----------------------------------------------------------------------------------------
+def collapse_seqfos_with_identical_seqs(input_seqfos, debug=False):
+    newfos = []
+    sfo_dict = {s['name'] : s for s in input_seqfos}
+    for tseq, uids in group_seqs_by_value(sorted(sfo_dict.keys()), lambda u: sfo_dict[u]['seq'], return_values=True):
+        extra_keys = set(k for u in uids for k in sfo_dict[u] if k not in ['name', 'seq', 'multiplicity'])
+        if len(extra_keys) > 0:  # should really just check if the values are the same in all the seqfos we're merging, and if they are then copy values
+            print('    %s extra keys (beyond name, seq, multiplicity) found in seqfos to merge, new seqfos won\'t have them: %s' % (wrnstr(), ' '.join(extra_keys)))
+        newfos.append({'name' : uids[0], 'seq' : tseq, 'multiplicity' : len(uids)})
+    if debug:
+        print('    collapsed %d total seqs (with duplicates) into %d unique seqs before running tree inference' % (len(input_seqfos), len(newfos)))
+    return newfos
+
+# ----------------------------------------------------------------------------------------
+# takes sw info (or any dict keyed by uid with 'naive_seq' key in each uid's dict) and returns a partition of uids, where each cluster contains all uids with the same nave seq
 def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  # <split_by_cdr3> is only needed when we're getting synthetic sw info that's a mishmash of hmm and sw annotations
     start = time.time()
     if queries is None:

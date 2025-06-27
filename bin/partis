@@ -370,6 +370,7 @@ def subset_partition(args):
             utils.simplerun(get_cmd(input_fn(subdir(isub)), subdir(isub)), logfname='%s/partition.log'%subdir(isub), dryrun=args.dry_run, extra_str='  %s '%utils.color('blue', 'isub %d:'%isub))
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
+        # NOTE it would be nice to merge duplicates in here (from --collapse-duplicate-sequences, but jeez it seems like it'll be a bit fiddly to implement it
         # ----------------------------------------------------------------------------------------
         def print_dup_warning(ptn, wstr):
             n_tot, n_uniq = sum(len(c) for c in ptn), len(set(u for c in ptn for u in c))
@@ -1627,6 +1628,7 @@ parent_args.append({'name' : '--treefname', 'kwargs' : {'help' : 'newick-formatt
 parent_args.append({'name' : '--tree-inference-method', 'kwargs' : {'choices' : ['fasttree', 'iqtree', 'iqtree-1.6.beta3', 'iqtree-2.3.1', 'raxml', 'gctree', 'gctree-base', 'gctree-mut-mult', 'gctree-no-dag', 'linearham', 'igphyml', 'cpath'], 'help' : 'Method to use when inferring trees (default: fasttree)'}})
 parent_args.append({'name' : '--tree-inference-subdir', 'kwargs' : {'help' : 'Subdirectory of the (automatically-set) tree inference workdir to which to write tree inference output files. By default, these are written to a subdir of --outfname/--paired-outdir with the name of the inference method, but this argument allows multiple versions, as with --sub-plotdir.'}})
 parent_args.append({'name' : '--infer-trees-with-only-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Discard internal nodes in true trees when inferring phylogenetic trees.'}})
+parent_args.append({'name' : '--infer-trees-with-collapsed-duplicate-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'collapse identical sequences when inferring trees (and then again when plotting them, since unfortunately it\'s really hard to pass the information between those two scripts). Yes, it sucks having both this and --collapse-duplicate-sequences (which acts during smith-waterman), but sometimes we can\'t use that, e.g. with queries to include or subset partitioning (at least without more work).'}})
 parent_args.append({'name' : '--selection-metrics-to-calculate', 'kwargs' : {'default' : 'lbi:lbr:aa-lbi:aa-lbr:cons-dist-aa', 'help' : 'colon-separated list of selection metrics to calculate.'}})
 parent_args.append({'name' : '--selection-metric-plot-cfg', 'kwargs' : {'default' : ':'.join(treeutils.default_plot_cfg), 'help' : 'colon-separated list of plot types to make for selection metrics (see treeutils.plot_tree_metrics()). Choices: %s.' % ' '.join(treeutils.all_plot_cfg)}})
 parent_args.append({'name' : '--extra-daffy-metrics', 'kwargs' : {'help' : 'colon-separated list of extra metrics (beyond defaults of %s) for which to make delta-affinity performance plots'%':'.join(treeutils.daffy_metrics)}})

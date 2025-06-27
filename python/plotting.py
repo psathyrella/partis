@@ -149,7 +149,8 @@ plot_ratios = {
 # specify either all_emph_vals or clusters and antn_dict
 def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_emph_vals=None, formats=None):
     # tme_colors = alt_colors + [c for c in frozen_pltcolors if c not in alt_colors]
-    tme_colors = [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
+    def get_tcols(): return [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
+    tme_colors = get_tcols()
     if all_emph_vals is None:
         all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats) for c in clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [None for _ in c]))  # set of all possible values that this meta info key takes on in any cluster
     else:  # NOTE all_emph_vals needs to be a set if you pass it in
@@ -161,6 +162,9 @@ def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_em
         emph_colors.append((val, cfcn(iv, val)))
         if tcol in tme_colors:
             tme_colors.remove(tcol)
+        if len(tme_colors) == 0:
+            print('  %s ran out of colors, re-adding all of them' % utils.wrnstr())
+            tme_colors = get_tcols()
     emph_colors += [('None', 'grey'), (None, 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
     return all_emph_vals, emph_colors
 

@@ -1552,7 +1552,7 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, subworkdir, metafo=N
         os.makedirs(subworkdir)
     with open(treefname, utils.csv_wmode()) as treefile:
         treefile.write(treestr)
-    cmdstr = '%s/bin/plot-lb-tree.py --treefname %s' % (utils.get_partis_dir(), treefname)
+    cmdstr = '%s/bin/plot-lb-tree.py --use-node-area --treefname %s' % (utils.get_partis_dir(), treefname)
     if metafo is not None:
         utils.jsdump(metafname, metafo) # had this here, but it was having a crash from a quoting bug (was using " when it should have used '): yaml.dump , Dumper=Dumper)
         cmdstr += ' --metafname %s' % metafname
@@ -1611,6 +1611,8 @@ def plot_lb_trees(args, metric_methods, baseplotdir, lines, base_workdir, is_tru
             altids = [(u, au) for u, au in zip(line['unique_ids'], line['alternate-uids']) if au is not None] if 'alternate-uids' in line else None
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
             metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
+            if self.args.infer_trees_with_collapsed_duplicate_seqs:
+                print('    %s --infer-trees-with-collapsed-duplicate-seqs was set, but lb tree plotting doesn\'t yet handle multiplicity/collapse info (see how partitionplotter does it' % utils.wrnstr())
             if affy_key in line:  # either 'affinities' or 'relative_affinities'
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
