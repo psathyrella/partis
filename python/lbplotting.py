@@ -1545,7 +1545,7 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_leaf_nodes=False, label_root_node=False, seq_len=None,
-                    meta_info_key_to_color=None, meta_info_to_emphasize=None, node_size_key=None, branch_color_key=None, uid_translations=None, node_label_regex=None):
+                    meta_info_key_to_color=None, meta_info_to_emphasize=None, node_size_key=None, branch_color_key=None, uid_translations=None, node_label_regex=None, min_face_size=None, max_face_size=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
@@ -1586,6 +1586,10 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, subworkdir, metafo=N
         cmdstr += ' --branch-color-key %s' % branch_color_key
     if node_label_regex is not None:
         cmdstr += ' --node-label-regex %s' % node_label_regex
+    if min_face_size is not None:
+        cmdstr += ' --min-face-size %d' % min_face_size
+    if max_face_size is not None:
+        cmdstr += ' --max-face-size %d' % max_face_size
     cmdstr = utils.run_ete_script(cmdstr, return_for_cmdfos=True, extra_str='        ')
 
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}

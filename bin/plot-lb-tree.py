@@ -77,7 +77,7 @@ def set_delta_affinities(etree, affyfo):  # set change in affinity from parent f
 # ----------------------------------------------------------------------------------------
 def get_size(vmin, vmax, val):
     if vmin == vmax:
-        return 0
+        return args.min_face_size
     if args.use_node_area:
         val = math.sqrt(val)
     rfsize = args.min_face_size + (val - vmin) * (args.max_face_size - args.min_face_size) / float(vmax - vmin)
