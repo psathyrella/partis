@@ -5786,9 +5786,10 @@ def collapse_seqfos_with_identical_seqs(input_seqfos, debug=False):
         extra_keys = set(k for u in uids for k in sfo_dict[u] if k not in ['name', 'seq', 'multiplicity'])
         if len(extra_keys) > 0:  # should really just check if the values are the same in all the seqfos we're merging, and if they are then copy values
             print('    %s extra keys (beyond name, seq, multiplicity) found in seqfos to merge, new seqfos won\'t have them: %s' % (wrnstr(), ' '.join(extra_keys)))
-        newfos.append({'name' : uids[0], 'seq' : tseq, 'multiplicity' : len(uids)})
+        newfos.append({'name' : uids[0], 'seq' : tseq, 'multiplicity' : len(uids), 'duplicates' : uids[1:]})
     if debug:
         print('    collapsed %d total seqs (with duplicates) into %d unique seqs before running tree inference' % (len(input_seqfos), len(newfos)))
+        print('         removed seqs: %s' % sorted(set(sfo_dict) - set(s['name'] for s in newfos)))
     return newfos
 
 # ----------------------------------------------------------------------------------------

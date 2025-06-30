@@ -823,6 +823,7 @@ class PartitionPlotter(object):
                 else:
                     collapsed_seqfos = utils.collapse_seqfos_with_identical_seqs(utils.seqfos_from_line(annotation), debug=True)
                     metafo['multiplicities'] = {s['name'] : s['multiplicity'] for s in collapsed_seqfos}
+                    metafo['duplicates'] = {s['name'] : s['duplicates'] for s in collapsed_seqfos}
                 assert 'labels' not in metafo  # would need to add the new labels to the old ones, or something
                 metafo['labels'] = {u : str(n) for u, n in metafo['multiplicities'].items() if n > 1}
             if self.args.mutation_label_cfg is not None:
@@ -858,7 +859,7 @@ class PartitionPlotter(object):
             mfo, cdr3fo = get_metafo(annotation, iclust)
             cfo = lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=mfo,
                                              queries_to_include=None if self.args.dont_label_queries_to_include else qtis, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_info_to_emphasize=self.args.meta_info_to_emphasize, uid_translations=altids,
-                                             label_all_nodes=self.args.label_tree_nodes, label_leaf_nodes=self.args.label_leaf_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, branch_color_key=self.args.branch_color_key, node_label_regex=self.args.node_label_regex)
+                                             label_all_nodes=self.args.label_tree_nodes, label_leaf_nodes=self.args.label_leaf_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, branch_color_key=self.args.branch_color_key, node_label_regex=self.args.node_label_regex, min_face_size=self.args.min_face_size, max_face_size=self.args.max_face_size)
             cmdfos.append(cfo)
             self.addfname(fnames, plotname)
             if self.args.meta_info_key_to_color is not None:

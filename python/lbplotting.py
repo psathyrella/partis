@@ -1559,6 +1559,9 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, subworkdir, metafo=N
     if queries_to_include is not None and len(queries_to_include) > 0:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
     if uid_translations is not None and len(uid_translations) > 0:
+        tnodes = [n.label for n in treeutils.get_dendro_tree(treestr=treestr)]
+        if any(u not in tnodes for u, _ in uid_translations):
+            print('  %s %d uid translations missing from tree: %s' % (utils.wrnstr(), len([u for u, _ in uid_translations if u not in tnodes]), ' '.join(u for u, _ in uid_translations if u not in tnodes)))
         cmdstr += ' --uid-translations %s' % ':'.join('%s,%s'%(u, au) for u, au in uid_translations)
     if label_all_nodes:
         cmdstr += ' --label-all-nodes'

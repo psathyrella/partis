@@ -123,29 +123,29 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         tstyle.legend.add_face(ete3.TextFace(tfstr, fsize=fsize), column=start_column + 2)
 
 # ----------------------------------------------------------------------------------------
-def label_node(node, root_node):
+def label_node(lnode, root_node):
     # ----------------------------------------------------------------------------------------
-    def meta_emph():
+    def meta_emph(tname):
         if args.meta_info_to_emphasize is not None:
             key, val = list(args.meta_info_to_emphasize.items())[0]
-            if key in args.metafo and node.name in args.metafo[key] and utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
+            if key in args.metafo and tname in args.metafo[key] and utils.meta_info_equal(key, val, args.metafo[key][tname], formats=args.meta_emph_formats):
                 return True
         return False
     # ----------------------------------------------------------------------------------------
-    def use_name():
+    def use_node_name(tname, tnode=None):
         if args.label_all_nodes:
             return True
-        if args.label_leaf_nodes and node.is_leaf():
+        if tnode is not None and args.label_leaf_nodes and tnode.is_leaf():
             return True
-        if args.queries_to_include is not None and node.name in args.queries_to_include:
+        if args.queries_to_include is not None and tname in args.queries_to_include:
             return True
-        if args.label_root_node and node is root_node:
+        if tnode is not None and args.label_root_node and tnode is root_node:
             return True
-        if meta_emph():
+        if meta_emph(tname):
             return True
-        if args.uid_translations is not None and node.name in args.uid_translations:
+        if args.uid_translations is not None and tname in args.uid_translations:
             return True
-        if args.node_label_regex is not None and len(re.findall(args.node_label_regex, node.name)) > 0:
+        if args.node_label_regex is not None and len(re.findall(args.node_label_regex, tname)) > 0:
             return True
         return False
     # ----------------------------------------------------------------------------------------
@@ -155,21 +155,38 @@ def label_node(node, root_node):
         blist = lstr.split(', ')
         return '%s\n%s' % (', '.join(blist[:len(blist)//2]), ', '.join(blist[len(blist)//2:]))
     # ----------------------------------------------------------------------------------------
-    if use_name():
-        nlabel, ncolor = node.name, 'red' if meta_emph() or args.meta_info_to_emphasize is None else 'black'
+    def get_nlabel(tname):
+        if not use_node_name(tname):
+            return None
+        nlabel = tname
         if args.uid_translations is not None and nlabel in args.uid_translations:
             nlabel = args.uid_translations[nlabel]
         if args.node_label_regex is not None:
             mstrs = re.findall(args.node_label_regex, nlabel)
             if len(mstrs) > 0:
                 nlabel = '+'.join(mstrs)
+        return nlabel
+    # ----------------------------------------------------------------------------------------
+    def get_ncolor(tname):
+        return 'red' if meta_emph(tname) or args.meta_info_to_emphasize is None else 'black'
+    # ----------------------------------------------------------------------------------------
+    use_name = use_node_name(lnode.name, tnode=lnode)
+    if 'duplicates' in args.metafo and lnode.name in args.metafo['duplicates']:
+        use_name |= any(use_node_name(n) for n in args.metafo['duplicates'][lnode.name])
+    if use_name:
+        nlabels, ncolors = [[tfn(lnode.name)] for tfn in (get_nlabel, get_ncolor)]
+        if 'duplicates' in args.metafo and lnode.name in args.metafo['duplicates']:
+            nlabels += [get_nlabel(n) for n in args.metafo['duplicates'][lnode.name]]
+            ncolors += [get_ncolor(n) for n in args.metafo['duplicates'][lnode.name]]
+        nlabel = ', '.join(sorted(set(l for l in nlabels if l is not None)))
+        ncolor = 'red' if 'red' in ncolors else 'black'
     else:
         if 'labels' in args.metafo:
             nlabel, ncolor = '', 'red'
         else:
             return
     if 'labels' in args.metafo:
-        mlabel = args.metafo['labels'].get(node.name, '')
+        mlabel = args.metafo['labels'].get(lnode.name, '')
         blabels, tlabels, tcolors, bcolors = ['', ''], ['', ''], ['black' for _ in range(2)], ['black' for _ in range(2)]
         label_list = mlabel.split('\n')
         if 'h:' in mlabel or 'l:' in mlabel:
@@ -189,12 +206,12 @@ def label_node(node, root_node):
         else:
             tlabels[0] = mlabel
         for il, (blab, bcol) in enumerate(zip(blabels, bcolors)):  # blabels are branch bottom labels
-            node.add_face(ete3.TextFace(blab, fsize=node_fsize, fgcolor=bcol), column=il, position='branch-bottom')
+            lnode.add_face(ete3.TextFace(blab, fsize=node_fsize, fgcolor=bcol), column=il, position='branch-bottom')
         for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):  # branch top labels
-            node.add_face(ete3.TextFace(tlab, fsize=node_fsize, fgcolor=tcol), column=il, position='branch-top')
+            lnode.add_face(ete3.TextFace(tlab, fsize=node_fsize, fgcolor=tcol), column=il, position='branch-top')
     if nlabel != '':
         tface = ete3.TextFace(' '+nlabel, fsize=node_fsize, fgcolor=ncolor)  # <nlabel> is usually the uid/sequence name
-        node.add_face(tface, column=1) # position='branch-bottom')
+        lnode.add_face(tface, column=1) # position='branch-bottom')
 
 # ----------------------------------------------------------------------------------------
 def set_lb_styles(args, etree, tstyle):
@@ -394,6 +411,7 @@ args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, ke
 args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
 utils.meta_emph_arg_process(args)
 args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
+
 if args.node_label_regex is not None and not args.label_all_nodes and not args.label_leaf_nodes:
     print('  note: --node-label-regex set, but neither --label-all-nodes nor --label-leaf-nodes were set, so they may not actually get labeled')
     # print('  --node-label-regex: turning on --label-all-nodes')
