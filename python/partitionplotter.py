@@ -41,6 +41,7 @@ class PartitionPlotter(object):
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
         self.min_pairwise_cluster_size = 3  # note that singletons are meaningless for pairwise diversity0
         self.min_tree_cluster_size = 5  # we also use min_selection_metric_cluster_size
+        self.n_max_tree_plots = 30  # don't put more than this many in the overview html (the rest will still be in trees.html)
         self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
         self.min_mds_cluster_size = 3
@@ -54,9 +55,9 @@ class PartitionPlotter(object):
         self.sclusts, self.antn_dict, self.treefos, self.mut_info, self.base_plotdir = None, None, None, None, None
 
     # ----------------------------------------------------------------------------------------
-    def init_subd(self, subd):
+    def init_subd(self, subd, allow_other_files=False):
         plotdir = self.base_plotdir + '/' + subd
-        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg', '*.png'])
+        utils.prep_dir(plotdir, wildlings=['*.csv', '*.svg', '*.png'], allow_other_files=allow_other_files)
         return subd, plotdir
 
     # ----------------------------------------------------------------------------------------
@@ -245,7 +246,7 @@ class PartitionPlotter(object):
             title = 'per-family SHM (%d / %d)' % (iclustergroup + 1, len(sorted_cluster_groups))  # NOTE it's important that this denominator is still right even when we don't make plots for all the clusters (which it is, now)
             high_mutation_clusters += self.plotting.make_single_joyplot(subclusters, self.antn_dict, repertoire_size, plotdir, get_fname(iclustergroup=iclustergroup), cluster_indices=cluster_indices, title=title, high_x_val=self.n_max_mutations,
                                                                         queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, all_emph_vals=all_emph_vals, emph_colors=emph_colors,
-                                                                        make_legend=self.args.meta_info_key_to_color is not None, add_clone_id=True, dont_label_queries_to_include=self.args.dont_label_queries_to_include, debug=debug)  # have to make legend for every plot
+                                                                        make_legend=self.args.meta_info_key_to_color is not None, dont_label_queries_to_include=self.args.dont_label_queries_to_include, debug=debug)  # add_clone_id=True, add_index=True have to make legend for every plot
             if len(fnd['joy']) < self.n_joyplots_in_html['shm-vs-size']:
                 fnd['joy'].append(get_fname(iclustergroup=iclustergroup))
             iclustergroup += 1
@@ -255,7 +256,7 @@ class PartitionPlotter(object):
             high_mutation_clusters = [cluster for cluster in high_mutation_clusters if len(cluster) > self.min_high_mutation_cluster_size]
             self.plotting.make_single_joyplot(high_mutation_clusters, self.antn_dict, repertoire_size, plotdir, get_fname(high_mutation=True), plot_high_x=True, cluster_indices=cluster_indices, title='families with mean > %d mutations' % self.n_max_mutations,
                                               high_x_val=self.n_max_mutations, queries_to_include=self.args.queries_to_include, meta_info_to_emphasize=self.args.meta_info_to_emphasize, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_emph_formats=self.args.meta_emph_formats, all_emph_vals=all_emph_vals, emph_colors=emph_colors,
-                                              make_legend=self.args.meta_info_key_to_color is not None, add_clone_id=True, dont_label_queries_to_include=self.args.dont_label_queries_to_include, debug=debug)
+                                              make_legend=self.args.meta_info_key_to_color is not None, dont_label_queries_to_include=self.args.dont_label_queries_to_include, debug=debug) # add_clone_id=True, add_index=True
             fnd['high'] = [get_fname(high_mutation=True)]
 
         # size vs shm hexbin plots
@@ -310,7 +311,7 @@ class PartitionPlotter(object):
         for bfo in bubfos:
             cluster = getclust(bfo['id'])
             if bfo['id']=='fake' or int(bfo['id']) < n_to_write_size:
-                tstr, fsize, tcol, dx = ('small clusters', 12, 'red', -0.3) if bfo['id']=='fake' else (len(cluster), 8, 'black', -0.04)
+                tstr, fsize, tcol, dx = ('small clusters', 12, 'red', -0.3) if bfo['id']=='fake' else (len(cluster), 5, 'black', -0.04)
                 bfo['texts'] = [{'tstr' : tstr, 'fsize' : fsize, 'tcol' : tcol, 'dx' : dx}]
             antn = self.antn_dict.get(':'.join(cluster)) if bfo['id'] != 'fake' else fake_antn
             if antn is None or mekey is None:
@@ -318,6 +319,9 @@ class PartitionPlotter(object):
             else:
                 emph_fracs = utils.get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=self.args.meta_emph_formats)
                 bfo['fracs'] = [{'label' : v, 'fraction' : f, 'color' : hcolors[v]} for v, f in emph_fracs.items()]
+            if bfo['id']!='fake' and self.any_meta_emph(cluster):
+                mkey, mval = list(self.args.meta_info_to_emphasize.items())[0]
+                bfo['texts'].append({'tstr' : utils.meta_emph_str(mkey, mval, formats=self.args.meta_emph_formats), 'fsize' : 5, 'tcol' : 'red', 'dx' : -0.04, 'dy' : -0.03})
         total_bubble_seqs = sum(len(getclust(b['id'])) for b in bubfos if b['id']!='fake')
         return total_bubble_seqs, fake_cluster, bubfos
 
@@ -731,7 +735,7 @@ class PartitionPlotter(object):
             lfn = self.plotting.make_meta_info_legend(plotdir, bfn, self.args.meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.6)
             fnlist.extend([lfn, bfn, bfn+'-tot'])
         # ----------------------------------------------------------------------------------------
-        subd, plotdir = self.init_subd('sizes')
+        subd, plotdir = self.init_subd('sizes', allow_other_files=True)  # it's too hard to rm the cluster-size-fractions subdirs
 
         csize_hists = {'best' : self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)}
         bfn = 'cluster-sizes'
@@ -885,7 +889,12 @@ class PartitionPlotter(object):
                     utils.makelink(plotdir, fn, '%s/%s'%(plotdir, os.path.basename(fn)))  # ok this is two levels of links, which kind of sucks but oh well
                     self.addfname(fnames, utils.getprefix(os.path.basename(fn)), suffix='.png')
 
-        return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for fnl in fnames]
+        if not self.args.only_csv_plots:
+            self.plotting.make_html(plotdir, fnames=fnames, extra_links=[('all tree plots', subd)], bgcolor='#FFFFFF')  # , new_table_each_row=True
+
+        assert fnames[0][0] == 'header'
+        fnames[0][1] = '%d / %d %s' % (self.n_max_tree_plots - self.n_max_tree_plots%self.n_plots_per_row, len(cmdfos), fnames[0][1])
+        return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for il, fnl in enumerate(fnames) if il*self.n_plots_per_row < self.n_max_tree_plots]
 
     # ----------------------------------------------------------------------------------------
     def make_mut_bubble_plots(self, min_n_muts=3, debug=False):

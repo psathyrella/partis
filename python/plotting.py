@@ -35,61 +35,106 @@ pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotl
 #                     blue      orange     green
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
 legend_groups = {  # replace <key> by <value> when making legend (i.e. group several together). Colors shoud be the same if they share a legend entry, otherwise it'll be a random one of the colors
-    '0' : None,
-    'ASC_1' : 'ASC',
-    'ASC_2' : 'ASC',
-    'ASC_3' : 'ASC',
-    'ASC_4' : 'ASC',
-    'ASC_5' : 'ASC',
-    'ASC_T' : 'T',
-    'B_1' : 'B',
-    'B_2' : 'B',
-    'Bcell_2' : 'B',
-    'B_3' : 'B',
+    '0' : 'None',
+    None : 'None',
+    'ASC_1' : 'GS ASC',
+    'ASC_2' : 'GS ASC',
+    'ASC_3' : 'GS ASC',
+    'ASC_4' : 'GS ASC',
+    'ASC_5' : 'GS ASC',
+    'ASC_T' : 'GS ASC',
+    'ASC/T' : 'GS ASC',
+    'B_1' : 'GS B',
+    'B_2' : 'GS B',
+    'B_3' : 'GS B',
+    'B_4' : 'GS B',
+    'Bcell_2' : 'GS B',
+    'B/T' : 'GS B',
+    '8wph-gs' : 'containment',
+    '16wph-gs' : 'containment',
+    'entry-gs' : 'containment',
+    'ctmt-gs' : 'containment',
+    '8wph-gs' : 'containment',
+    'lesion-gs' : 'lesion',
+    'None-pbmc' : 'PBMC',
+    'asc' : 'PBMC',
+    'mbc' : 'PBMC',
+    'naive' : 'PBMC',
+    'total' : 'PBMC',
 }
-hard_meta_colors = {'IGHM' : '#9467bd',  # purple
-                    'IGHD' : 'black',
-                    'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
-                    'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
-                    'memory' : '#1f77b4',  # blue
-                    'naive' : '#ff7f0e',  # orange
-                    'pb' : '#2ca02c',  # green
-                    'prepb' : '#90e690',
-                    'w2' : '#1f77b4',  # blue
-                    'w23' : '#2ca02c',  # green
-                    'w25' : '#ff7f0e',  # orange
-                    'd385' : '#2b65ec',
-                    'd765' : '#ff7f0e',  # orange
-                    'dm351' : '#006600',  # green
-                    'dm379' : '#9467bd',
-                    # anton
-                    'al' : '#1f77b4',
-                    'aw' : '#006600',
-                    'cf' : '#ff7f0e',
-                    'kh' : '#cc0000',
-                    'lm' : '#9467bd',
-                    'ph-gs' : '#1f77b4',  # blue
-                    'ph-cx' : '#6eb7e8',  # blue
-                    'ph-a' : '#6088a2',  # blue
-                    'entry-gs' : '#74a574',  # green
-                    'entry-cx' : '#006600',  # green
-                    'entry-a' : '#9cd63b',  # green
-                    'lesion-gs' : '#d62728',  # red
-                    'lesion-cx' : '#ea7979',  # red
-                    'lesion-a' : '#cc0000',  # red
-                    'None-pbmc' : '#808080',  # grey
-                    '0' : 'grey',
-                    'ASC_1' : '#1f77b4',
-                    'ASC_2' : '#1f77b4',
-                    'ASC_3' : '#1f77b4',
-                    'ASC_4' : '#1f77b4',
-                    'ASC_5' : '#1f77b4',
-                    'ASC_T' : '#be4f48',
-                    'B_1' : '#006600',
-                    'B_2' : '#006600',
-                    'Bcell_2' : '#006600',
-                    'B_3' : '#006600',
-                    }
+
+legend_labels = {
+    'pbmc' : 'PBMC',
+    'gs' : 'GS',
+    'timepoint-tissues' : 'timepoint',
+    'cell-types' : 'cell type',
+}
+
+hard_meta_colors = {
+    # # leslie goo:
+    # 'IGHM' : '#9467bd',  # purple
+    # 'IGHD' : 'black',
+    # 'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
+    # 'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
+    # 'memory' : '#1f77b4',  # blue
+    # 'naive' : '#ff7f0e',  # orange
+    # 'pb' : '#2ca02c',  # green
+    # 'prepb' : '#90e690',
+    # 'w2' : '#1f77b4',  # blue
+    # 'w23' : '#2ca02c',  # green
+    # 'w25' : '#ff7f0e',  # orange
+    # 'd385' : '#2b65ec',
+    # 'd765' : '#ff7f0e',  # orange
+    # 'dm351' : '#006600',  # green
+    # 'dm379' : '#9467bd',
+    # anton
+    # TODO update subjects
+    # 'al' : '#1f77b4',
+    # 'aw' : '#006600',
+    # 'cf' : '#ff7f0e',
+    # 'kh' : '#be4f48', #'#cc0000',
+    # 'lm' : '#9467bd',
+    # 'gs' : '#1f77b4',  # blue
+    # # 'pbmc' : '#006600',  # green
+    # # 'lesion' : '#be4f48',  # red
+    'pbmc' : '#1f77b4',
+    'gs' : '#ff7f0e',
+    'entry' : '#006600',  # green
+    '0' : 'grey',
+    'ASC_1' : '#006600',
+    'ASC_2' : '#006600',
+    'ASC_3' : '#006600',
+    'ASC_4' : '#006600',
+    'ASC_5' : '#006600',
+    'ASC_T' : '#006600',
+    'ASC/T' : '#006600',
+    'B_1' : '#ff7f0e',
+    'B_2' : '#ff7f0e',
+    'Bcell_2' : '#ff7f0e',
+    'B_3' : '#ff7f0e',
+    'B_4' : '#ff7f0e',
+    'B/T' : '#ff7f0e',
+    'asc' : 'grey',
+    'mbc' : 'grey',
+    'naive' : 'grey',
+    'total' : 'grey',
+    '8wph-gs' : '#1f77b4',
+    '16wph-gs' : '#1f77b4',
+    'entry-gs' : '#1f77b4',
+    'ctmt-gs' : '#1f77b4',
+    '8wph-gs' : '#1f77b4',
+    'lesion-gs' : '#ff7f0e',
+    'None-pbmc' : 'grey',
+}
+
+# check for inconsistencies in the legend groups:
+tlist = [(legend_groups.get(l, l), l, c) for l, c in hard_meta_colors.items()]
+def kfn(p): return p[0]
+for lgrp, y in utils.group_seqs_by_value(tlist, kfn, return_values=True):
+    # print('  %20s     %s' % (lgrp, y))
+    lgroups, labels, colors = zip(*y)
+    if len(set(colors)) > 1:
+        raise Exception('multiple colors specified for legend group %s:\n    %s\n    %s' % (lgrp, labels, colors))
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either xmin and xmax, or hlist NOTE pretty similar to get_auto_y_ticks() (for search: log_bins log bins)
@@ -172,12 +217,14 @@ def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_em
 def make_meta_info_legend(plotdir, plotname, meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=None, alpha=None):
     title = meta_info_key_to_color
     if meta_emph_formats is not None and meta_emph_formats.get(meta_info_key_to_color) not in ['len', None]:
-        title = meta_emph_formats[meta_info_key_to_color]
+        title = meta_emph_formats[meta_info_key_to_color].replace('@', ' ')
+    elif title in legend_labels:
+        title = legend_labels[title]
     emph_colors = [(v, c) for v, c in emph_colors if v in all_emph_vals]  # remove 'None' if there weren't any in the actual annotations
     if any(c==title for c, _ in emph_colors):  # if it's actually a color (i.e. probably a bool) no point in adding title)
         title = None
     lfn = plotname + '-legend'
-    plot_legend_only({legend_groups.get(l, l) : {'color' : c, 'alpha' : alpha} for l, c in emph_colors}, plotdir, lfn, title=title)
+    plot_legend_only({legend_groups.get(l, legend_labels.get(l, l)) : {'color' : c, 'alpha' : alpha} for l, c in emph_colors}, plotdir, lfn, title=title)
     return lfn
 
 # # ----------------------------------------------------------------------------------------
@@ -1641,7 +1688,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, all_emph_vals=None, emph_colors=None, global_max_vals=None,
-                        make_legend=False, remove_none_vals=False, sortlabel='?', add_clone_id=False, dont_label_queries_to_include=False, debug=False):
+                        make_legend=False, remove_none_vals=False, sortlabel='?', add_clone_id=False, add_index=False, dont_label_queries_to_include=False, debug=False):
     from . import lbplotting
     smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
@@ -1859,11 +1906,13 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                 if iclust_global == 0:
                     if add_clone_id:
                         ax.text(0.02 * xwidth + xtext - 7, yval + 0.55, 'clone id', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
-                    ax.text(0.05 * xwidth + xtext - 3, yval + 0.55, 'index', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                    if add_index:
+                        ax.text(0.05 * xwidth + xtext - 3, yval + 0.55, 'index', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                     ax.text(0.12 * xwidth + xtext - 2, yval + 0.55, 'size', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 if add_clone_id:
                     ax.text(0.02 * xwidth + xtext - 7, yval, utils.get_clone_id(cluster), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
-                ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                if add_index:
+                    ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 ax.text(0.10 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
 
             iclust_global += 1

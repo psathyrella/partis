@@ -899,8 +899,13 @@ def meta_emph_str(key, val, formats=None):  # ick
     if formats is not None and key in formats:
         if formats[key] == 'len':
             use_len = True
+        # elif formats[key] == 'translate':  # ugh, something like this would be better
+        elif '=' in formats[key]:
+            old_val, new_val = formats[key].split('=')
+            if val == old_val:
+                val = new_val
         else:
-            kstr = formats[key]
+            kstr = formats[key].replace('@', ' ')
     if use_len:
         return 'None' if val is None else '%d' % len(val)
     elif isinstance(val, float):
@@ -5789,7 +5794,7 @@ def collapse_seqfos_with_identical_seqs(input_seqfos, debug=False):
         newfos.append({'name' : uids[0], 'seq' : tseq, 'multiplicity' : len(uids), 'duplicates' : uids[1:]})
     if debug:
         print('    collapsed %d total seqs (with duplicates) into %d unique seqs before running tree inference' % (len(input_seqfos), len(newfos)))
-        print('         removed seqs: %s' % sorted(set(sfo_dict) - set(s['name'] for s in newfos)))
+        # print('         removed seqs: %s' % sorted(set(sfo_dict) - set(s['name'] for s in newfos)))
     return newfos
 
 # ----------------------------------------------------------------------------------------
