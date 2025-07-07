@@ -29,6 +29,8 @@ class PartitionPlotter(object):
         self.glfo = glfo
         from . import plotting
         self.plotting = sys.modules['python.plotting']
+        from . import lbplotting
+        self.lbplotting = sys.modules['python.lbplotting']
 
         self.n_clusters_per_joy_plot = 50 if self.args.meta_info_key_to_color is None else 30
         self.n_max_joy_plots = 12
@@ -133,7 +135,7 @@ class PartitionPlotter(object):
                     sct_yvals.append(yvals[iclust])
                 else:
                     bfos_to_plot.append(bfo)  # have to plot them *after* making the scatter plot, so they end up on top
-        ax.scatter(sct_xvals, sct_yvals, s=(360 * 0.01)**2, marker='.', color='grey', alpha=0.4)
+        ax.scatter(sct_xvals, sct_yvals, s=(360 * 0.01)**2, marker='.', color='grey', alpha=0.4)  # colors  # eh, turning off colors for now
         if self.args.meta_info_key_to_color is not None:
             for bfo in bfos_to_plot:
                 iclust = int(bfo['id'])
@@ -350,7 +352,7 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_pairwise_diversity_plots(self):
+    def make_pairwise_diversity_plots(self, individual_plots=True):
         def antn(c): return self.antn_dict[':'.join(c)]
         subd, plotdir = self.init_subd('diversity')
 
@@ -358,18 +360,62 @@ class PartitionPlotter(object):
         for cluster in self.sclusts:
             utils.add_seqs_aa(antn(cluster))
 
-        fnlist = []
+        mekey = self.args.meta_info_key_to_color
+        if mekey is not None:
+            all_emph_vals, emph_colors = self.plotting.meta_emph_init(mekey, clusters=self.sclusts, antn_dict=self.antn_dict, formats=self.args.meta_emph_formats, lgroups=self.plotting.legend_groups)
+            hcolors = {v : c for v, c in emph_colors}
+
+        fnames = [[]]
+        subfns = [[]] if individual_plots else None
         for tstr in ['nuc', 'aa']:
             skey = '' if tstr=='nuc' else '_aa'
             def pwfcn(c): return utils.mean_pairwise_hdist(antn(c)['seqs%s'%skey], amino_acid=tstr=='aa')
+
+            # 2d scatter plots with diversity vs mutation/size:
             def mean_mutations(c): return numpy.mean(antn(c)['n_mutations'] if tstr=='nuc' else [utils.shm_aa(antn(c), iseq=i) for i in range(len(antn(c)['unique_ids']))])
             fname = 'mean-pairwise-hdist-%s' % tstr
             self.make_cluster_scatter(plotdir, fname, pwfcn, len, self.sclusts, repertoire_size, self.min_pairwise_cluster_size, dxy=0.003, log_cluster_size=True,
                                       xlabel='mean pairwise %s distance'%tstr, colorfcn=mean_mutations, title='pairwise %s diversity'%tstr, leg_title='N %s muts'%tstr) #, xbounds=(0, self.n_max_mutations))
             for fstr in ['legend', 'log']:
                 if os.path.exists('%s/%s-%s.svg'%(plotdir, fname, fstr)):
-                    fnlist.append('%s/%s-%s.svg' % (subd, fname, fstr))
-        return [fnlist]
+                    self.lbplotting.add_fn(fnames, fn='%s/%s-%s.svg' % (subd, fname, fstr))
+
+            if mekey is not None:
+                if 'seaborn' not in sys.modules:
+                    import seaborn
+                sns = sys.modules['seaborn']
+                thist = self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)
+                xticklabels = thist.bin_labels
+                ytitle = 'mean pairwise %s distance' % tstr
+                plotvals = {v : [[] for _ in thist.bin_contents] for v in all_emph_vals}
+                for tclust in self.sclusts:
+                    pdist = pwfcn(tclust)
+                    ibin = thist.find_bin(len(tclust))
+                    def psfcn(u): return utils.meta_emph_str(mekey, utils.per_seq_val(antn(tclust), mekey, u, use_default=True), formats=self.args.meta_emph_formats, legend_groups=self.plotting.legend_groups)
+                    me_vals = [psfcn(u) for u in tclust]  # meta info values for the uids in this cluster
+                    for v_emph in all_emph_vals:
+                        if v_emph in me_vals:
+                            plotvals[v_emph][ibin].append(pdist)
+                mean_pvals = {}
+                for v_emph in all_emph_vals:
+                    mvals = [0 if len(pvals)==0 else numpy.mean(pvals) for pvals in plotvals[v_emph]]  # average over clusters in this bin
+                    mean_pvals[v_emph] = mvals
+                    # ax = sns.boxplot(data=plotvals[v_emph], color=hcolors[v_emph], boxprops={'alpha' : 0.4}, whiskerprops={'color' : hcolors[v_emph]}, flierprops={'markerfacecolor' : hcolors[v_emph]}, medianprops={'color' : hcolors[v_emph]})
+                    ax = sns.swarmplot(data=plotvals[v_emph], color=hcolors[v_emph], size=10, alpha=0.4)
+                    ax.set_xticklabels(xticklabels) #, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
+                    if individual_plots:
+                        fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s-%s'%(tstr, v_emph), xlabel='family size', ylabel=ytitle) #, yticks=xticks  # , xticklabels=xticklabels
+                        self.lbplotting.add_fn(subfns, fn=fn)
+                # # uncomment this to get the swarm/box plots for each color overlaid on each other (as opposed to in separate files)
+                # fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s'%tstr, xlabel='family size', ylabel=ytitle) #, yticks=xticks  # , xticklabels=xticklabels
+                # self.lbplotting.add_fn(fnames, fn=fn)
+                fn = self.plotting.stack_meta_hists('diveristy-stacked-%s'%tstr, plotdir, mekey, mean_pvals, template_hist=thist, is_bin_contents=True, log='x', figsize=(8, 5), ytitle=ytitle)
+                self.lbplotting.add_fn(fnames, fn=fn)
+
+                if individual_plots:
+                    self.plotting.make_html(plotdir, fnames=subfns, extra_links=[('individual diversity plots', subd)], bgcolor='#FFFFFF')  # , new_table_each_row=True
+
+        return fnames
 
     # ----------------------------------------------------------------------------------------
     def make_mds_plots(self, max_cluster_size=10000, reco_info=None, color_rule=None, run_in_parallel=False, aa=False, debug=False):

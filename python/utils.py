@@ -894,7 +894,7 @@ def meta_emph_arg_process(args):
         add_input_meta_keys([args.meta_info_key_to_color], are_line_keys=True)
 
 # ----------------------------------------------------------------------------------------
-def meta_emph_str(key, val, formats=None):  # ick
+def meta_emph_str(key, val, formats=None, legend_groups=None):  # ick
     kstr, use_len = key.rstrip('s'), False  # (rstrip removes plural, and yes will probably break something at some point)
     if formats is not None and key in formats:
         if formats[key] == 'len':
@@ -913,7 +913,7 @@ def meta_emph_str(key, val, formats=None):  # ick
     elif isinstance(val, bool) or val in ['True', 'False']:
         return kstr if val else 'nope'  # not sure what to do if it's False, but probably you'll only call it asking for True?
     else:
-        return str(val)
+        return str(val) if legend_groups is None else legend_groups.get(val, val)
 
 # ----------------------------------------------------------------------------------------
 def meta_info_equal(key, val1, val2, formats=None):  # also ick (don't have another way to convert the value from the command line arg to the proper thing [the values coming from yaml file will be properly converted)

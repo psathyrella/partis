@@ -101,6 +101,7 @@ hard_meta_colors = {
     'gs' : '#ff7f0e',
     'entry' : '#006600',  # green
     '0' : 'grey',
+    'GS ASC' : '#006600',
     'ASC_1' : '#006600',
     'ASC_2' : '#006600',
     'ASC_3' : '#006600',
@@ -108,12 +109,14 @@ hard_meta_colors = {
     'ASC_5' : '#006600',
     'ASC_T' : '#006600',
     'ASC/T' : '#006600',
+    'GS B' : '#ff7f0e',
     'B_1' : '#ff7f0e',
     'B_2' : '#ff7f0e',
     'Bcell_2' : '#ff7f0e',
     'B_3' : '#ff7f0e',
     'B_4' : '#ff7f0e',
     'B/T' : '#ff7f0e',
+    'PBMC' : 'grey',
     'asc' : 'grey',
     'mbc' : 'grey',
     'naive' : 'grey',
@@ -192,12 +195,12 @@ plot_ratios = {
 
 # ----------------------------------------------------------------------------------------
 # specify either all_emph_vals or clusters and antn_dict
-def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_emph_vals=None, formats=None):
+def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_emph_vals=None, formats=None, lgroups=None):
     # tme_colors = alt_colors + [c for c in frozen_pltcolors if c not in alt_colors]
     def get_tcols(): return [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
     tme_colors = get_tcols()
     if all_emph_vals is None:
-        all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats) for c in clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [None for _ in c]))  # set of all possible values that this meta info key takes on in any cluster
+        all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats, legend_groups=lgroups) for c in clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [None for _ in c]))  # set of all possible values that this meta info key takes on in any cluster
     else:  # NOTE all_emph_vals needs to be a set if you pass it in
         assert clusters is None and antn_dict is None
     def cfcn(i, v): return 'grey' if v in [None, 'None'] else hard_meta_colors.get(v, tme_colors[i%len(tme_colors)])
@@ -609,15 +612,19 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
             raise Exception('need to specify template_hist if no_hist isn\'t set')
         hdict = collections.OrderedDict()
         for meval in all_emph_vals:
-            hdict[meval] = Hist(value_list=plotvals[meval], template_hist=template_hist, title=str(meval), xtitle=xtitle)
+            hdict[meval] = Hist(value_list=None if is_bin_contents else plotvals[meval], template_hist=template_hist, title=str(meval), xtitle=xtitle)
+            if is_bin_contents:
+                hdict[meval].bin_contents = plotvals[meval]
         mcolors = {v : c for v, c in emph_colors}
         hist_list, hist_colors = zip(*[(h, mcolors[m]) for m, h in hdict.items()])
         hfile_labels = [h.title for h in hist_list]
         for htmp in hist_list:
             htmp.title = '%s (%s)' % (htmp.title, utils.round_to_n_digits(htmp.get_mean(), 2))
-        draw_no_root(None, more_hists=list(hist_list), plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
+        if ytitle is None:
+            ytitle = 'fraction of total' if normalize else 'counts'
+        fn = draw_no_root(None, more_hists=list(hist_list), plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
                      shift_overflows=True, leg_title='%s (mean)'%mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, #square_bins=True, #errors=True,
-                     remove_empty_bins=True, ytitle='fraction of total' if normalize else 'counts', plottitle='') # , normalize=True
+                     remove_empty_bins=True, ytitle=ytitle, plottitle='', log=log, figsize=figsize) # , normalize=True
 
     if violin_plots or swarm_plots:
         mvals, vlnvals = zip(*[(v, plotvals[v]) for v in all_emph_vals if v in plotvals])  # get order right
@@ -628,7 +635,7 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
     if violin_plots:
         ax = sns.violinplot(data=vlnvals)
         xticklabels = [str(v) for v in mvals]
-        mpl_finish(ax, plotdir, 'violin-'+plotname, xticklabels=xticklabels, xlabel=mekey.rstrip('s'), ylabel=xtitle)
+        fn = mpl_finish(ax, plotdir, 'violin-'+plotname, xticklabels=xticklabels, xlabel=mekey.rstrip('s'), ylabel=xtitle)
 
     if swarm_plots:
         ax = sns.swarmplot(data=vlnvals)
@@ -638,7 +645,9 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
                 swrm.set_facecolors(colors[mval])
         xticklabels = [str(v) for v in mvals]
         ax.set_xticklabels(xticklabels) #, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
-        mpl_finish(ax, plotdir, 'swarm-'+plotname, xlabel=mekey.rstrip('s'), ylabel=xtitle, yticks=xticks)  # , xticklabels=xticklabels
+        fn = mpl_finish(ax, plotdir, 'swarm-'+plotname, xlabel=mekey.rstrip('s'), ylabel=xtitle, yticks=xticks)  # , xticklabels=xticklabels
+
+    return fn
 
 # ----------------------------------------------------------------------------------------
 def get_unified_bin_hist(hists):
