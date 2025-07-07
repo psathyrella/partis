@@ -4391,7 +4391,7 @@ def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False): 
     simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, extra_str=extra_str, debug=debug)
 
     if not os.path.exists(target if target==fpath(target) else odir+'/'+target):
-        raise Exception('linked to missing file in %s (%s)' % (odir, target))
+        raise Exception('linked to missing file in odir %s (target %s)' % (odir, target if target==fpath(target) else odir+'/'+target))
 
 # ----------------------------------------------------------------------------------------
 def fpath(path):  # if <path> is relative, add full path from root (path can also be None)

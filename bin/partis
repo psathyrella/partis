@@ -1337,7 +1337,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if utils.has_d_gene(ltmp):
                     run_step(tmpaction, ltmp, joint=True)
                 else:
-                    if tmpaction!='update-meta-info' and os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):  # light chain in the paired subdirs is the same, so for plotting just link the results
+                    # adding 'plot-partitions' late because something's wrong with the link call (it's crashing), and maybe i just shouldn't make the link for 'plot-partitions'?
+                    if tmpaction not in ['update-meta-info', 'plot-partitions'] and os.path.exists(getplotdir(ltmp, lpair=utils.getlpair(ltmp))):  # light chain in the paired subdirs is the same, so for plotting just link the results
                         utils.makelink(getodir(), getplotdir(ltmp, lpair=utils.getlpair(ltmp)), getplotdir(ltmp), dryrun=args.dry_run)
         if tmpaction=='plot-partitions' and args.plotdir is not None and args.sub_plotdir is None:  # if --sub-plotdir is set, we presumably already plotted these, and atm they don't get put in the sub plotdir anyway so we'd just be overwriting them with the same thing
             cfpdir = '%s/cf-plots' % getodir(is_plotting=True)

@@ -191,6 +191,8 @@ class PartitionPlotter(object):
 
     # ----------------------------------------------------------------------------------------
     def any_meta_emph(self, cluster):
+        if self.args.meta_info_to_emphasize is None:
+            return False
         return any(self.meta_emph(cluster, u) for u in cluster)
 
     # ----------------------------------------------------------------------------------------
