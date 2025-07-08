@@ -354,8 +354,8 @@ class PartitionPlotter(object):
         return [[subd + '/' + fn for fn in fnames[0]]]
 
     # ----------------------------------------------------------------------------------------
-    def make_pairwise_diversity_plots(self, individual_plots=True):
-        def antn(c): return self.antn_dict[':'.join(c)]
+    def make_pairwise_diversity_plots(self, individual_plots=True, n_max_seqs=50):
+        def antn(c): return self.antn_dict.get(':'.join(c))
         subd, plotdir = self.init_subd('diversity')
 
         repertoire_size = sum([len(c) for c in self.sclusts])
@@ -369,12 +369,17 @@ class PartitionPlotter(object):
 
         fnames = [[]]
         subfns = [[]] if individual_plots else None
-        for tstr in ['nuc', 'aa']:
+        for tstr in ['nuc']: #, 'aa']:
             skey = '' if tstr=='nuc' else '_aa'
-            def pwfcn(c): return utils.mean_pairwise_hdist(antn(c)['seqs%s'%skey], amino_acid=tstr=='aa')
+            def pwfcn(tclust, slist=None):
+                if slist is None:
+                    slist = antn(tclust)['seqs%s'%skey]
+                return utils.mean_pairwise_hdist(slist, amino_acid=tstr=='aa', n_max_seqs=n_max_seqs)
 
             # 2d scatter plots with diversity vs mutation/size:
             def mean_mutations(c): return numpy.mean(antn(c)['n_mutations'] if tstr=='nuc' else [utils.shm_aa(antn(c), iseq=i) for i in range(len(antn(c)['unique_ids']))])
+
+            start = time.time()
             fname = 'mean-pairwise-hdist-%s' % tstr
             self.make_cluster_scatter(plotdir, fname, pwfcn, len, self.sclusts, repertoire_size, self.min_pairwise_cluster_size, dxy=0.003, log_cluster_size=True,
                                       xlabel='mean pairwise %s distance'%tstr, colorfcn=mean_mutations, title='pairwise %s diversity'%tstr, leg_title='N %s muts'%tstr) #, xbounds=(0, self.n_max_mutations))
@@ -382,40 +387,50 @@ class PartitionPlotter(object):
                 if os.path.exists('%s/%s-%s.svg'%(plotdir, fname, fstr)):
                     self.lbplotting.add_fn(fnames, fn='%s/%s-%s.svg' % (subd, fname, fstr))
 
-            if mekey is not None:
-                if 'seaborn' not in sys.modules:
-                    import seaborn
-                sns = sys.modules['seaborn']
-                thist = self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)
-                xticklabels = thist.bin_labels
-                ytitle = 'mean pairwise %s distance' % tstr
-                plotvals = {v : [[] for _ in thist.bin_contents] for v in all_emph_vals}
-                for tclust in self.sclusts:
-                    pdist = pwfcn(tclust)
-                    ibin = thist.find_bin(len(tclust))
+            if 'seaborn' not in sys.modules:
+                import seaborn
+            sns = sys.modules['seaborn']
+            thist = self.plotting.make_csize_hist(self.sclusts, xbins=self.args.cluster_size_bins)
+            xticklabels = thist.bin_labels
+            ytitle = 'mean pairwise %s distance' % tstr
+            def hblist(): return [[] for _ in thist.bin_contents]
+            if mekey is None:
+                plotvals = hblist()
+                for iclust, tclust in enumerate(self.sclusts):
+                    plotvals[thist.find_bin(len(tclust))].append(pwfcn(tclust))
+                ax = sns.boxplot(data=plotvals, color='grey')
+                ax.set_xticklabels(xticklabels, rotation='vertical', size=15)
+                fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s'%tstr, xlabel='family size', ylabel=ytitle) #, yticks=xticks  # , xticklabels=xticklabels
+                self.lbplotting.add_fn(fnames, fn=fn)
+            else:
+                plotvals = {v : hblist() for v in all_emph_vals}
+                for iclust, tclust in enumerate(self.sclusts):
                     def psfcn(u): return utils.meta_emph_str(mekey, utils.per_seq_val(antn(tclust), mekey, u, use_default=True), formats=self.args.meta_emph_formats, legend_groups=self.plotting.legend_groups)
-                    me_vals = [psfcn(u) for u in tclust]  # meta info values for the uids in this cluster
-                    for v_emph in all_emph_vals:
-                        if v_emph in me_vals:
-                            plotvals[v_emph][ibin].append(pdist)
-                mean_pvals = {}
-                for v_emph in all_emph_vals:
-                    mvals = [0 if len(pvals)==0 else numpy.mean(pvals) for pvals in plotvals[v_emph]]  # average over clusters in this bin
-                    mean_pvals[v_emph] = mvals
-                    # ax = sns.boxplot(data=plotvals[v_emph], color=hcolors[v_emph], boxprops={'alpha' : 0.4}, whiskerprops={'color' : hcolors[v_emph]}, flierprops={'markerfacecolor' : hcolors[v_emph]}, medianprops={'color' : hcolors[v_emph]})
-                    ax = sns.swarmplot(data=plotvals[v_emph], color=hcolors[v_emph], size=10, alpha=0.4)
-                    ax.set_xticklabels(xticklabels) #, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
+                    # NOTE that the scatter plots above use the *whole* cluster, incorporating all seqs, whereas here we split the cluster apart by meta info key (so e.g. separate [sub-]clusters for pbmc and skin)
+                    for v_emph, vgroup in utils.group_seqs_by_value(tclust, psfcn, return_values=True):
+                        vgroup = list(vgroup)  # some fcns i might pass it to might iterate more than once
+                        pdist = pwfcn(None, slist=[antn(tclust)['seqs%s'%skey][antn(tclust)['unique_ids'].index(u)] for u in vgroup])
+                        plotvals[v_emph][thist.find_bin(len(tclust))].append(pdist)
+                median_pvals = {}
+                for v_emph in sorted(all_emph_vals):
+                    mvals = [None if len(pvals)==0 else numpy.median(pvals) for pvals in plotvals[v_emph]]  # average over clusters in this bin
+                    print(v_emph, mvals, [len(pvals) for pvals in plotvals[v_emph]])
+                    median_pvals[v_emph] = mvals
+                    ax = sns.boxplot(data=plotvals[v_emph], color=hcolors[v_emph], boxprops={'alpha' : 0.4}, whiskerprops={'color' : hcolors[v_emph]}, flierprops={'markerfacecolor' : hcolors[v_emph]}, medianprops={'color' : hcolors[v_emph]})
+                    # ax = sns.stripplot(data=plotvals[v_emph], color=hcolors[v_emph], size=10, alpha=0.4)
+                    ax.set_xticklabels(xticklabels, rotation='vertical', size=15)
                     if individual_plots:
-                        fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s-%s'%(tstr, v_emph), xlabel='family size', ylabel=ytitle) #, yticks=xticks  # , xticklabels=xticklabels
-                        self.lbplotting.add_fn(subfns, fn=fn)
+                        fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s-%s'%(tstr, v_emph), xlabel='family size', ylabel=ytitle, title='%s-only seqs'%v_emph) #, yticks=xticks  # , xticklabels=xticklabels
+                        self.lbplotting.add_fn(fnames, fn=fn)
                 # # uncomment this to get the swarm/box plots for each color overlaid on each other (as opposed to in separate files)
                 # fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s'%tstr, xlabel='family size', ylabel=ytitle) #, yticks=xticks  # , xticklabels=xticklabels
                 # self.lbplotting.add_fn(fnames, fn=fn)
-                fn = self.plotting.stack_meta_hists('diveristy-stacked-%s'%tstr, plotdir, mekey, mean_pvals, template_hist=thist, is_bin_contents=True, log='x', figsize=(8, 5), ytitle=ytitle)
-                self.lbplotting.add_fn(fnames, fn=fn)
+                # fn = self.plotting.stack_meta_hists('diveristy-stacked-%s'%tstr, plotdir, mekey, median_pvals, template_hist=thist, is_bin_contents=True, log='x', figsize=(8, 5), ytitle='%s\n(median over clusters)'%ytitle, rotation='vertical', plottitle='diversity (within seqs with each %s)'%mekey, remove_empty_bins=False)
+                # self.lbplotting.add_fn(fnames, fn=fn)
+                # if individual_plots:
+                #     self.plotting.make_html(plotdir, fnames=subfns, extra_links=[('individual diversity plots', subd)], bgcolor='#FFFFFF')  # , new_table_each_row=True
 
-                if individual_plots:
-                    self.plotting.make_html(plotdir, fnames=subfns, extra_links=[('individual diversity plots', subd)], bgcolor='#FFFFFF')  # , new_table_each_row=True
+            print('    calculated %s pairwise diversity on %d clusters%s (%.1f sec)' % (tstr, len(self.sclusts), '' if n_max_seqs is None else ', subsampling each cluster to %d seqs'%n_max_seqs, time.time() - start))
 
         return fnames
 

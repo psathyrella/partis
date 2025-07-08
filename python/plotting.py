@@ -623,8 +623,8 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
         if ytitle is None:
             ytitle = 'fraction of total' if normalize else 'counts'
         fn = draw_no_root(None, more_hists=list(hist_list), plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
-                     shift_overflows=True, leg_title='%s (mean)'%mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, #square_bins=True, #errors=True,
-                     remove_empty_bins=True, ytitle=ytitle, plottitle='', log=log, figsize=figsize) # , normalize=True
+                          shift_overflows=True, leg_title='%s (mean)'%mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, #square_bins=True, #errors=True,
+                          remove_empty_bins=remove_empty_bins, ytitle=ytitle, log=log, figsize=figsize, rotation=rotation, plottitle=plottitle) # , normalize=True
 
     if violin_plots or swarm_plots:
         mvals, vlnvals = zip(*[(v, plotvals[v]) for v in all_emph_vals if v in plotvals])  # get order right
@@ -1292,9 +1292,11 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
         plt.yticks(yticks)
     if xticklabels is not None:
         # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
-        median_length = numpy.median([len(str(xl)) for xl in xticklabels])
-        if median_length > 4:
-            ax.set_xticklabels(xticklabels, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
+        # median_length = numpy.median([len(str(xl)) for xl in xticklabels])
+        # print([len(str(xl)) for xl in xticklabels], median_length)
+        # if median_length > 4:
+        if any(len(str(l)) > 6 for l in xticklabels):
+            ax.set_xticklabels(xticklabels, rotation='vertical', size=14 if xticklabelsize is None else xticklabelsize)
         else:
             ax.set_xticklabels(xticklabels, size=xticklabelsize, rotation=rotation)
     if xbounds is not None and xbounds[0] != xbounds[1]:
