@@ -2066,7 +2066,7 @@ class PartitionDriver(object):
             uids_and_lengths = {q : self.sw_info[q]['cdr3_length'] for q in query_names}
             uids_and_lengths = sorted(list(uids_and_lengths.items()), key=operator.itemgetter(1))
             uids, lengths = zip(*uids_and_lengths)
-            raise Exception('cdr3 lengths not all the same (%s) for %s (probably need to add more criteria for call to utils.split_clusters_by_cdr3())' % (' '.join([str(c) for c in lengths])), ' '.join(uids))
+            raise Exception('cdr3 lengths not all the same (%s) for %s (probably need to add more criteria for call to utils.split_clusters_by_cdr3())' % (' '.join([str(c) for c in lengths]), ' '.join(uids)))
         combo['cdr3_length'] = cdr3_lengths[0]
 
         combo['k_v'] = {'min' : 99999, 'max' : -1}

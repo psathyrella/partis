@@ -603,7 +603,12 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
     return fn
 
 # ----------------------------------------------------------------------------------------
-def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, colors=None, formats=None, only_csv=False, xtitle=None, normalize=False, swarm_plots=False, violin_plots=False, no_hist=False, xticks=None):
+# I'm not sure that the name of this function makes sense, for instance
+#   - I don't think the violin and swarm options are really stacking anything
+# need to describe what form <plotvals> should have
+# i think you're supposed to either 1) set template_hist or 2) set no_hist and either swarm_plots or violin_plots
+def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, colors=None, formats=None, only_csv=False, xtitle=None, normalize=False, swarm_plots=False, violin_plots=False, no_hist=False, xticks=None, is_bin_contents=False,
+                     log='', figsize=None, ytitle=None, rotation=None, plottitle='', remove_empty_bins=True):
     all_emph_vals, emph_colors = meta_emph_init(mekey, formats=formats, all_emph_vals=set(plotvals))
     all_emph_vals = sorted(all_emph_vals, key=str)
 
@@ -1013,7 +1018,7 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
     else:
         return draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
                             bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8],
-                            no_legend=no_legend, errors=True, rotation=rotation)
+                            no_legend=no_legend, errors=True, rotation=rotation, figsize=(6, 4))
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_mut_stats(args, plotdir, antn_list, is_simu, only_leaves=False, only_csv=False, fnames=None):
@@ -1291,14 +1296,20 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if yticks is not None:
         plt.yticks(yticks)
     if xticklabels is not None:
-        # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
-        # median_length = numpy.median([len(str(xl)) for xl in xticklabels])
-        # print([len(str(xl)) for xl in xticklabels], median_length)
-        # if median_length > 4:
-        if any(len(str(l)) > 6 for l in xticklabels):
+        # xticklabels = [str(i) for i, _ in enumerate(xticklabels)]
+        ax.set_xticklabels(xticklabels, size=xticklabelsize, rotation=rotation)
+        if fig is None:
+            fig = ax.get_figure()
+        renderer = fig.canvas.get_renderer()
+        bboxes = []
+        for xlab in ax.get_xticklabels():
+            if xlab.get_text():  # skip empty labels
+                # print(xlab.get_text(), xlab.get_window_extent(renderer))
+                bbox = xlab.get_window_extent(renderer)
+                bboxes.append(bbox)
+        # print([bboxes[i].overlaps(bboxes[i + 1]) for i in range(len(bboxes) - 1)])
+        if any(bboxes[i].overlaps(bboxes[i + 1]) for i in range(len(bboxes) - 1)):
             ax.set_xticklabels(xticklabels, rotation='vertical', size=14 if xticklabelsize is None else xticklabelsize)
-        else:
-            ax.set_xticklabels(xticklabels, size=xticklabelsize, rotation=rotation)
     if xbounds is not None and xbounds[0] != xbounds[1]:
         plt.xlim(xbounds[0], xbounds[1])
     if ybounds is not None and ybounds[0] != ybounds[1]:

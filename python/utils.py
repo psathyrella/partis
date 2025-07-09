@@ -4527,7 +4527,7 @@ def process_input_line(info, skip_literal_eval=False):
             info[key] = info[key][0]
             info[key] = [ast.literal_eval(v) for v in info[key]]  # specifically, in get_line_for_output() 'lists' was first in the if/else block, so the list of duplicates for each sequence was str() converted rather than being converted to colon/semicolon separated string
         if len(info[key]) != len(info['unique_ids']):
-            raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
+            raise Exception('list length %d for %s not the same as for unique_ids %d\n  uids: %s\n  %s: %s' % (len(info[key]), key, len(info['unique_ids']), info['unique_ids'], key, info[key]))
 
 # ----------------------------------------------------------------------------------------
 def revcomp(nuc_seq):
