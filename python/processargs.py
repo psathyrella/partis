@@ -193,6 +193,7 @@ def process(args):
 
     args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
     args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
+    args.meta_info_bkg_vals = utils.get_arg_list(args.meta_info_bkg_vals)
     utils.meta_emph_arg_process(args)
 
     args.reco_ids = utils.get_arg_list(args.reco_ids)

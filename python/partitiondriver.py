@@ -1032,7 +1032,7 @@ class PartitionDriver(object):
             partition = self.get_nsets('viterbi', None)
         antn_dict, n_failed = OrderedDict(), 0
         for cluster in partition:
-            antn = utils.synthesize_multi_seq_line_from_reco_info(cluster, self.sw_info, warn=True)
+            antn = utils.synthesize_multi_seq_line_from_reco_info(cluster, self.sw_info, warn=False)  # can't really warn on different values from different single-seq annotations, there's way too many that do
             utils.remove_all_implicit_info(antn)  # gotta remove + re-add implicit info to get the naive seq the right length (I think just to remove padding)
             try:
                 utils.add_implicit_info(self.sw_glfo, antn, reset_indel_genes=True)

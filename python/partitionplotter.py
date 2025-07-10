@@ -43,7 +43,7 @@ class PartitionPlotter(object):
         self.size_vs_shm_min_cluster_size = 3  # don't plot singletons and pairs for really big repertoires
         self.min_pairwise_cluster_size = 3  # note that singletons are meaningless for pairwise diversity0
         self.min_tree_cluster_size = 5  # we also use min_selection_metric_cluster_size
-        self.n_max_tree_plots = 30  # don't put more than this many in the overview html (the rest will still be in trees.html)
+        # self.n_max_tree_plots = 30  # don't put more than this many in the overview html (the rest will still be in trees.html)
         self.n_max_bubbles = 100  # circlify is really slow
         self.mds_max_cluster_size = 50000  # it's way tf too slow NOTE also max_cluster_size in make_mds_plots() (should combine them or at least put them in the same place)
         self.min_mds_cluster_size = 3
@@ -127,8 +127,8 @@ class PartitionPlotter(object):
                 tclust = clusters_to_use[iclust]
                 assert len(tclust) == bfo['radius']  # make sure we have the right cluster
                 bkg_frac = None
-                if self.args.meta_info_bkg_val is not None and any(f['label']==self.args.meta_info_bkg_val for f in bfo['fracs']):
-                    bkg_ffo = utils.get_single_entry([f for f in bfo['fracs'] if f['label']==self.args.meta_info_bkg_val])
+                if self.args.meta_info_bkg_vals is not None and any(f['label'] in self.args.meta_info_bkg_vals for f in bfo['fracs']):
+                    bkg_ffo = utils.get_single_entry([f for f in bfo['fracs'] if f['label'] in self.args.meta_info_bkg_vals])
                     bkg_frac = bkg_ffo['fraction']
                 if bkg_frac == 1:
                     sct_xvals.append(xvals[iclust])
@@ -902,6 +902,7 @@ class PartitionPlotter(object):
                         cdr3fo[tch] = '[%d - %d]' % tuple(cbounds)
             return metafo, cdr3fo
         # ----------------------------------------------------------------------------------------
+        mekey = self.args.meta_info_key_to_color
         if len(self.sclusts) == 0:
             print('  %s no clusters to plot' % utils.wrnstr())
             return [['x.svg']]
@@ -914,28 +915,39 @@ class PartitionPlotter(object):
         workdir = '%s/ete3-plots' % self.args.workdir
         fnames = [['header', '%s trees'%utils.non_none([self.args.tree_inference_method, treeutils.default_inference_str])], []]  # header for html file
         cmdfos = []
+        n_skipped = {'not-to-plot' : 0, 'too-small' : 0, 'bkg-val' : 0}
         for iclust in range(len(self.sclusts)):
             if not self.plot_this_cluster(iclust, plottype='trees'):
+                n_skipped['not-to-plot'] += 1  # this fcn has a ton of clauses, so can't really summarize it well
                 continue
             annotation = self.antn_dict[':'.join(self.sclusts[iclust])]
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
+                n_skipped['too-small'] += 1
                 continue
+            if self.args.meta_info_bkg_vals is not None and self.args.meta_info_key_to_color in annotation:
+                if all(any(utils.meta_info_equal(mekey, bval, mval) for bval in self.args.meta_info_bkg_vals) for mval in annotation[mekey]):  # if the cluster is entirely made up of any bkg val, skip it
+                    n_skipped['bkg-val'] += 1
+                    continue
             plotname = 'tree-iclust-%d-%s' % (iclust, utils.get_clone_id(annotation['unique_ids']))
             qtis = None if self.args.queries_to_include is None else [q for q in self.args.queries_to_include if q in annotation['unique_ids']]  # NOTE make sure to *not* modify args.queries_to_include
             altids = [(u, au) for u, au in zip(annotation['unique_ids'], annotation['alternate-uids']) if au is not None] if 'alternate-uids' in annotation else None
             mfo, cdr3fo = get_metafo(annotation, iclust)
             cfo = lbplotting.get_lb_tree_cmd(self.get_treestr(iclust), '%s/%s.svg'%(plotdir, plotname), None, None, '%s/sub-%d'%(workdir, len(cmdfos)), metafo=mfo,
-                                             queries_to_include=None if self.args.dont_label_queries_to_include else qtis, meta_info_key_to_color=self.args.meta_info_key_to_color, meta_info_to_emphasize=self.args.meta_info_to_emphasize, uid_translations=altids,
+                                             queries_to_include=None if self.args.dont_label_queries_to_include else qtis, meta_info_key_to_color=mekey, meta_info_to_emphasize=self.args.meta_info_to_emphasize, uid_translations=altids,
                                              label_all_nodes=self.args.label_tree_nodes, label_leaf_nodes=self.args.label_leaf_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, branch_color_key=self.args.branch_color_key, node_label_regex=self.args.node_label_regex, min_face_size=self.args.min_face_size, max_face_size=self.args.max_face_size)
             cmdfos.append(cfo)
             self.addfname(fnames, plotname)
-            if self.args.meta_info_key_to_color is not None:
+            if mekey is not None:
                 self.addfname(fnames, '%s-legend'%plotname)
 
             # cdr3 position info plots
             if annotation.get('is_fake_paired', False) and cdr3fo is not None and len(cdr3fo) > 0:
                 self.plotting.plot_legend_only(collections.OrderedDict([('%s %s'%(c, cfo), {'color' : 'blue' if c=='h' else 'green'}) for c, cfo in cdr3fo.items()]), plotdir, '%s-cdr3'%plotname, title='CDR3')
                 self.addfname(fnames, '%s-cdr3'%plotname)
+        if sum(n_skipped.values()) > 0:
+            skip_dbg_strs = {'bkg-val' : 'entirely --meta-info-bkg-vals %s' % self.args.meta_info_bkg_vals}
+            skstrs = ',  '.join('%d (%s)'%(n_skipped[k], skip_dbg_strs.get(k, k)) for k in [k for k in sorted(n_skipped) if n_skipped[k]>0])
+            print('      skipped %d / %d trees: %s' % (sum(n_skipped.values()), len(self.sclusts), skstrs))
 
         if len(cmdfos) > 0:
             start = time.time()
@@ -956,8 +968,25 @@ class PartitionPlotter(object):
             self.plotting.make_html(plotdir, fnames=fnames, extra_links=[('all tree plots', subd)], bgcolor='#FFFFFF')  # , new_table_each_row=True
 
         assert fnames[0][0] == 'header'
-        fnames[0][1] = '%d / %d %s' % (self.n_max_tree_plots - self.n_max_tree_plots%self.n_plots_per_row, len(cmdfos), fnames[0][1])
-        return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for il, fnl in enumerate(fnames) if il*self.n_plots_per_row < self.n_max_tree_plots]
+        # # shenanigans to put fewer trees in the main html file, maybe not worth the trouble, but also don't want to delete quite yet:
+        # shorter_fnames, n_tot = [], 0  # UGH
+        # for fnl in fnames:
+        #     if 'header' in fnl:
+        #         shorter_fnames.append(fnl)
+        #     else:
+        #         new_fnl = []
+        #         for fn in fnl:
+        #             new_fnl.append(subd+'/'+fn)
+        #             if 'legend' not in fn:
+        #                 n_tot += 1
+        #             if n_tot > self.n_max_tree_plots:
+        #                 break
+        #         shorter_fnames.append(new_fnl)
+        #         if n_tot > self.n_max_tree_plots:
+        #             break
+        # fnames[0][1] = '%d / %d %s' % (self.n_max_tree_plots, len(cmdfos), fnames[0][1])
+        # fnames = [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for il, fnl in enumerate(fnames) if il*self.n_plots_per_row < self.n_max_tree_plots]
+        return [fnl if 'header' in fnl else [subd + '/' + fn for fn in fnl] for fnl in fnames]
 
     # ----------------------------------------------------------------------------------------
     def make_mut_bubble_plots(self, min_n_muts=3, debug=False):

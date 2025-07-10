@@ -921,12 +921,16 @@ def meta_info_equal(key, val1, val2, formats=None):  # also ick (don't have anot
         if formats is not None and formats.get(key) == 'len':
             return len
         for tname in [bool, float, int]:
-            if any(isinstance(v, tname) for v in [val1, val2]):
-                bstrs = ['True', 'False']
-                if tname == bool and any(str(v) not in bstrs for v in [val1, val2]):
-                    raise Exception('bool string[s] %s not among %s' % ([v for v in [val1, val2] if str(v) not in bstrs], bstrs))
-                return tname
+            if any(isinstance(v, tname) for v in [val1, val2]):  # if either value is float/int convert both values to float/int (for bool use str)
+                if tname == bool:
+                    bstrs = ['True', 'False']
+                    if any(str(v) not in bstrs for v in [val1, val2]):
+                        raise Exception('bool string[s] %s not among %s' % ([v for v in [val1, val2] if str(v) not in bstrs], bstrs))
+                    return str
+                else:
+                    return tname
         return lambda x: x
+    # ----------------------------------------------------------------------------------------
     return cfcn()(val1) == cfcn()(val2)
 
 # ----------------------------------------------------------------------------------------
