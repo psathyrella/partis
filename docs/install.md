@@ -42,6 +42,7 @@ On other distros, or on macOS, you'll have to figure out the equivalent package 
 In place of `COPY`, you should clone the partis repo and init/update its submodules:
 ```
 git clone git@github.com:psathyrella/partis
+cd partis
 git submodule update --init --recursive
 ```
 `ARG` lines should be `export` commands, and substitute the line `WORKDIR /partis` with `cd partis/`.
