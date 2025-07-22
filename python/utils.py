@@ -2679,9 +2679,10 @@ def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False, add_
         else:  # add it once, but with the 'multiplicity' key in the sfo
             seqfos.append({'name' : uid, 'seq' : seq, 'multiplicity' : mtp if mtp is not None else 1})
     if extra_keys is not None:
-        for iseq, sfo in enumerate(seqfos):
+        for sfo in seqfos:
+            iseq = None if sfo['name']==naive_name else line['unique_ids'].index(sfo['name'])
             for ekey in extra_keys:
-                sfo[ekey] = line[ekey][iseq] if ekey in line else None
+                sfo[ekey] = line[ekey][iseq] if ekey in line and iseq is not None else None
     return seqfos
 
 # ----------------------------------------------------------------------------------------
@@ -5788,16 +5789,30 @@ def group_seqs_by_value(queries, keyfunc, return_values=False):  # <queries> don
         return list(groups)
 
 # ----------------------------------------------------------------------------------------
-def collapse_seqfos_with_identical_seqs(input_seqfos, debug=False):
+def collapse_seqfos_with_identical_seqs(input_seqfos, keys_not_to_collapse=None, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def kfcn(u):
+        rstr = sfo_dict[u]['seq']
+        if keys_not_to_collapse is not None:
+            def kstr(v): return str(plotting.legend_groups.get(v, v))
+            rstr = '-@-'.join([rstr] + [kstr(sfo_dict[u][k]) for k in keys_not_to_collapse])
+        return rstr
+    # ----------------------------------------------------------------------------------------
+    if keys_not_to_collapse is not None:
+        if any(k not in sfo for sfo in input_seqfos for k in keys_not_to_collapse):
+            raise Exception('found at least one seqfo without one of the keys_not_to_collapse %s' % keys_not_to_collapse)
+        from . import plotting  # UGH
     newfos = []
     sfo_dict = {s['name'] : s for s in input_seqfos}
-    for tseq, uids in group_seqs_by_value(sorted(sfo_dict.keys()), lambda u: sfo_dict[u]['seq'], return_values=True):
-        extra_keys = set(k for u in uids for k in sfo_dict[u] if k not in ['name', 'seq', 'multiplicity'])
+    for uids in group_seqs_by_value(sorted(sfo_dict.keys()), kfcn):
+        tseq = sfo_dict[uids[0]]['seq']
+        extra_keys = set(k for u in uids for k in sfo_dict[u] if k not in ['name', 'seq', 'multiplicity'] + non_none([keys_not_to_collapse, []]))
         if len(extra_keys) > 0:  # should really just check if the values are the same in all the seqfos we're merging, and if they are then copy values
             print('    %s extra keys (beyond name, seq, multiplicity) found in seqfos to merge, new seqfos won\'t have them: %s' % (wrnstr(), ' '.join(extra_keys)))
         newfos.append({'name' : uids[0], 'seq' : tseq, 'multiplicity' : len(uids), 'duplicates' : uids[1:]})
     if debug:
-        print('    collapsed %d total seqs (with duplicates) into %d unique seqs before running tree inference' % (len(input_seqfos), len(newfos)))
+        estr = '' if keys_not_to_collapse is None else ' (used also keys: %s)' % ' '.join(keys_not_to_collapse)
+        print('    collapsed %d total seqs (with duplicates) into %d unique seqs before running tree inference%s' % (len(input_seqfos), len(newfos), estr))
         # print('         removed seqs: %s' % sorted(set(sfo_dict) - set(s['name'] for s in newfos)))
     return newfos
 

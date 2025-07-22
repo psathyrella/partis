@@ -35,21 +35,22 @@ pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotl
 #                     blue      orange     green
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
 legend_groups = {  # replace <key> by <value> when making legend (i.e. group several together). Colors shoud be the same if they share a legend entry, otherwise it'll be a random one of the colors
-    '0' : 'None',
     None : 'None',
-    'ASC_1' : 'GS ASC',
-    'ASC_2' : 'GS ASC',
-    'ASC_3' : 'GS ASC',
-    'ASC_4' : 'GS ASC',
-    'ASC_5' : 'GS ASC',
-    'ASC_T' : 'GS ASC',
-    'ASC/T' : 'GS ASC',
-    'B_1' : 'GS B',
-    'B_2' : 'GS B',
-    'B_3' : 'GS B',
-    'B_4' : 'GS B',
-    'Bcell_2' : 'GS B',
-    'B/T' : 'GS B',
+    'ASC_1-gs' : 'GS ASC',
+    'ASC_2-gs' : 'GS ASC',
+    'ASC_3-gs' : 'GS ASC',
+    'ASC_4-gs' : 'GS ASC',
+    'ASC_5-gs' : 'GS ASC',
+    'ASC_T-gs' : 'GS ASC',
+    'ASC/T-gs' : 'GS ASC',
+    'B_1-gs' : 'GS B',
+    'B_2-gs' : 'GS B',
+    'B_3-gs' : 'GS B',
+    'B_4-gs' : 'GS B',
+    'Bcell_2-gs' : 'GS B',
+    'B/T-gs' : 'GS B',
+    'None-gs' : 'GS n/a',
+    '0-gs' : 'GS n/a',
     '8wph-gs' : 'containment',
     '16wph-gs' : 'containment',
     'entry-gs' : 'containment',
@@ -57,10 +58,10 @@ legend_groups = {  # replace <key> by <value> when making legend (i.e. group sev
     '8wph-gs' : 'containment',
     'lesion-gs' : 'lesion',
     'None-pbmc' : 'PBMC',
-    'asc' : 'PBMC',
-    'mbc' : 'PBMC',
-    'naive' : 'PBMC',
-    'total' : 'PBMC',
+    'asc-pbmc' : 'PBMC',
+    'mbc-pbmc' : 'PBMC',
+    'naive-pbmc' : 'PBMC',
+    'total-pbmc' : 'PBMC',
 }
 
 legend_labels = {
@@ -68,7 +69,13 @@ legend_labels = {
     'gs' : 'GS',
     'timepoint-tissues' : 'timepoint',
     'cell-types' : 'cell type',
+    'cell-type-tissues' : 'cell type',
+    'None' : 'inf. ancest.',
 }
+
+asc_col = '#d62728'
+na_col = '#006600'
+pbmc_col = '#2b65ec'
 
 hard_meta_colors = {
     # # leslie goo:
@@ -98,36 +105,39 @@ hard_meta_colors = {
     # # 'pbmc' : '#006600',  # green
     # # 'lesion' : '#be4f48',  # red
     'pbmc' : '#1f77b4',
+    'PBMC' : '#2b65ec',
     'gs' : '#ff7f0e',
     'entry' : '#006600',  # green
-    '0' : 'grey',
-    'GS ASC' : '#006600',
-    'ASC_1' : '#006600',
-    'ASC_2' : '#006600',
-    'ASC_3' : '#006600',
-    'ASC_4' : '#006600',
-    'ASC_5' : '#006600',
-    'ASC_T' : '#006600',
-    'ASC/T' : '#006600',
+    'None-gs' : na_col,
+    'GS n/a' : na_col,
+    '0-gs' : na_col,
+    'GS ASC' : asc_col,
+    'ASC_1-gs' : asc_col,
+    'ASC_2-gs' : asc_col,
+    'ASC_3-gs' : asc_col,
+    'ASC_4-gs' : asc_col,
+    'ASC_5-gs' : asc_col,
+    'ASC_T-gs' : asc_col,
+    'ASC/T-gs' : asc_col,
     'GS B' : '#ff7f0e',
-    'B_1' : '#ff7f0e',
-    'B_2' : '#ff7f0e',
-    'Bcell_2' : '#ff7f0e',
-    'B_3' : '#ff7f0e',
-    'B_4' : '#ff7f0e',
-    'B/T' : '#ff7f0e',
-    'PBMC' : 'grey',
-    'asc' : 'grey',
-    'mbc' : 'grey',
-    'naive' : 'grey',
-    'total' : 'grey',
+    'B_1-gs' : '#ff7f0e',
+    'B_2-gs' : '#ff7f0e',
+    'Bcell_2-gs' : '#ff7f0e',
+    'B_3-gs' : '#ff7f0e',
+    'B_4-gs' : '#ff7f0e',
+    'B/T-gs' : '#ff7f0e',
+    'PBMC-gs' : pbmc_col,
+    'asc-pbmc' : pbmc_col,
+    'mbc-pbmc' : pbmc_col,
+    'naive-pbmc' : pbmc_col,
+    'total-pbmc' : pbmc_col,
+    'None-pbmc' : pbmc_col,
     '8wph-gs' : '#1f77b4',
     '16wph-gs' : '#1f77b4',
     'entry-gs' : '#1f77b4',
     'ctmt-gs' : '#1f77b4',
     '8wph-gs' : '#1f77b4',
     'lesion-gs' : '#ff7f0e',
-    'None-pbmc' : 'grey',
 }
 
 # check for inconsistencies in the legend groups:
@@ -1499,7 +1509,7 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
 
 # ----------------------------------------------------------------------------------------
 # NOTE pt 'header' to line to add extra headers below the main title
-def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgcolor='000000', new_table_each_row=False, htmlfname=None, extra_links=None):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgcolor='000000', new_table_each_row=False, htmlfname=None, extra_links=None, subdname=None):
     if fnames is not None:  # make sure it's formatted properly
         for rowfnames in fnames:
             if not isinstance(rowfnames, list):
@@ -1535,8 +1545,8 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgco
         lines += startlines
     def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
         fname = fullfname.replace(plotdir, '').lstrip('/')
-        if htmlfname is None:  # dirname screws it up if we're specifying htmlfname explicitly, since then the files are in a variety of different subdirs
-            fname = dirname + '/' + fname
+        if htmlfname is None or subdname is not None:
+            fname = '%s/%s' % (utils.non_none([subdname, dirname]) , fname)  # if specifying htmlfname, the calling function needs to either add the subdirs/<dirname> to each fname, or set subdname)
         line = '<td><a target="_blank" href="' + fname + '"><img src="' + fname + '" alt="' + fname + '" width="100%"></a></td>'
         lines.append(line)
 

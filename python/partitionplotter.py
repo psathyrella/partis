@@ -128,8 +128,8 @@ class PartitionPlotter(object):
                 assert len(tclust) == bfo['radius']  # make sure we have the right cluster
                 bkg_frac = None
                 if self.args.meta_info_bkg_vals is not None and any(f['label'] in self.args.meta_info_bkg_vals for f in bfo['fracs']):
-                    bkg_ffo = utils.get_single_entry([f for f in bfo['fracs'] if f['label'] in self.args.meta_info_bkg_vals])
-                    bkg_frac = bkg_ffo['fraction']
+                    bkg_ffos = [f for f in bfo['fracs'] if f['label'] in self.args.meta_info_bkg_vals]
+                    bkg_frac = sum(f['fraction'] for f in bkg_ffos)
                 if bkg_frac == 1:
                     sct_xvals.append(xvals[iclust])
                     sct_yvals.append(yvals[iclust])
@@ -414,13 +414,12 @@ class PartitionPlotter(object):
                 median_pvals = {}
                 for v_emph in sorted(all_emph_vals):
                     mvals = [None if len(pvals)==0 else numpy.median(pvals) for pvals in plotvals[v_emph]]  # average over clusters in this bin
-                    print(v_emph, mvals, [len(pvals) for pvals in plotvals[v_emph]])
                     median_pvals[v_emph] = mvals
                     ax = sns.boxplot(data=plotvals[v_emph], color=hcolors[v_emph], boxprops={'alpha' : 0.4}, whiskerprops={'color' : hcolors[v_emph]}, flierprops={'markerfacecolor' : hcolors[v_emph]}, medianprops={'color' : hcolors[v_emph]})
                     # ax = sns.stripplot(data=plotvals[v_emph], color=hcolors[v_emph], size=10, alpha=0.4)
                     ax.set_xticklabels(xticklabels, rotation='vertical', size=15)
                     if individual_plots:
-                        fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s-%s'%(tstr, v_emph), xlabel='family size', ylabel=ytitle, title='%s-only seqs'%v_emph) #, yticks=xticks  # , xticklabels=xticklabels
+                        fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s-%s'%(tstr, v_emph.replace('/', '_slash_')), xlabel='family size', ylabel=ytitle, title='%s-only seqs'%v_emph) #, yticks=xticks  # , xticklabels=xticklabels
                         self.lbplotting.add_fn(fnames, fn=fn)
                 # # uncomment this to get the swarm/box plots for each color overlaid on each other (as opposed to in separate files)
                 # fn = self.plotting.mpl_finish(ax, plotdir, 'diversity-box-%s'%tstr, xlabel='family size', ylabel=ytitle) #, yticks=xticks  # , xticklabels=xticklabels
@@ -429,6 +428,8 @@ class PartitionPlotter(object):
                 # self.lbplotting.add_fn(fnames, fn=fn)
                 # if individual_plots:
                 #     self.plotting.make_html(plotdir, fnames=subfns, extra_links=[('individual diversity plots', subd)], bgcolor='#FFFFFF')  # , new_table_each_row=True
+                fn = self.plotting.make_meta_info_legend(plotdir, 'diversity', mekey, emph_colors, all_emph_vals, meta_emph_formats=self.args.meta_emph_formats, alpha=0.4)
+                self.lbplotting.add_fn(fnames, fn='%s/%s.svg'%(subd, fn))
 
             print('    calculated %s pairwise diversity on %d clusters%s (%.1f sec)' % (tstr, len(self.sclusts), '' if n_max_seqs is None else ', subsampling each cluster to %d seqs'%n_max_seqs, time.time() - start))
 
@@ -888,7 +889,7 @@ class PartitionPlotter(object):
                 if 'multiplicities' in metafo:  # if it was in the actual annotation
                    assert False  # needs implementing (probably can add together any existing multiplicity to the new values)
                 else:
-                    collapsed_seqfos = utils.collapse_seqfos_with_identical_seqs(utils.seqfos_from_line(annotation), debug=True)
+                    collapsed_seqfos = utils.collapse_seqfos_with_identical_seqs(utils.seqfos_from_line(annotation, extra_keys=[self.args.meta_info_key_to_color]), keys_not_to_collapse=[self.args.meta_info_key_to_color], debug=True)
                     metafo['multiplicities'] = {s['name'] : s['multiplicity'] for s in collapsed_seqfos}
                     metafo['duplicates'] = {s['name'] : s['duplicates'] for s in collapsed_seqfos}
                 assert 'labels' not in metafo  # would need to add the new labels to the old ones, or something
@@ -914,6 +915,7 @@ class PartitionPlotter(object):
             return [['x.svg']]
         workdir = '%s/ete3-plots' % self.args.workdir
         fnames = [['header', '%s trees'%utils.non_none([self.args.tree_inference_method, treeutils.default_inference_str])], []]  # header for html file
+        bkgfns = [[]]  # for extra html file
         cmdfos = []
         n_skipped = {'not-to-plot' : 0, 'too-small' : 0, 'bkg-val' : 0}
         for iclust in range(len(self.sclusts)):
@@ -924,10 +926,13 @@ class PartitionPlotter(object):
             if len(annotation['unique_ids']) < self.min_tree_cluster_size:
                 n_skipped['too-small'] += 1
                 continue
+            fnlist = fnames
+            # find clusters that are entirely made up of any bkg val (used to skip them, now putting in different html file)
             if self.args.meta_info_bkg_vals is not None and self.args.meta_info_key_to_color in annotation:
-                if all(any(utils.meta_info_equal(mekey, bval, mval) for bval in self.args.meta_info_bkg_vals) for mval in annotation[mekey]):  # if the cluster is entirely made up of any bkg val, skip it
-                    n_skipped['bkg-val'] += 1
-                    continue
+                if all(any(utils.meta_info_equal(mekey, bval, mval) for bval in self.args.meta_info_bkg_vals) for mval in annotation[mekey]):
+                    fnlist = bkgfns
+                    # n_skipped['bkg-val'] += 1
+                    # continue
             plotname = 'tree-iclust-%d-%s' % (iclust, utils.get_clone_id(annotation['unique_ids']))
             qtis = None if self.args.queries_to_include is None else [q for q in self.args.queries_to_include if q in annotation['unique_ids']]  # NOTE make sure to *not* modify args.queries_to_include
             altids = [(u, au) for u, au in zip(annotation['unique_ids'], annotation['alternate-uids']) if au is not None] if 'alternate-uids' in annotation else None
@@ -936,24 +941,27 @@ class PartitionPlotter(object):
                                              queries_to_include=None if self.args.dont_label_queries_to_include else qtis, meta_info_key_to_color=mekey, meta_info_to_emphasize=self.args.meta_info_to_emphasize, uid_translations=altids,
                                              label_all_nodes=self.args.label_tree_nodes, label_leaf_nodes=self.args.label_leaf_nodes, label_root_node=self.args.label_root_node, node_size_key=self.args.node_size_key, branch_color_key=self.args.branch_color_key, node_label_regex=self.args.node_label_regex, min_face_size=self.args.min_face_size, max_face_size=self.args.max_face_size)
             cmdfos.append(cfo)
-            self.addfname(fnames, plotname)
+            self.addfname(fnlist, plotname)
             if mekey is not None:
-                self.addfname(fnames, '%s-legend'%plotname)
+                self.addfname(fnlist, '%s-legend'%plotname)
 
             # cdr3 position info plots
             if annotation.get('is_fake_paired', False) and cdr3fo is not None and len(cdr3fo) > 0:
                 self.plotting.plot_legend_only(collections.OrderedDict([('%s %s'%(c, cfo), {'color' : 'blue' if c=='h' else 'green'}) for c, cfo in cdr3fo.items()]), plotdir, '%s-cdr3'%plotname, title='CDR3')
-                self.addfname(fnames, '%s-cdr3'%plotname)
+                self.addfname(fnlist, '%s-cdr3'%plotname)
         if sum(n_skipped.values()) > 0:
             skip_dbg_strs = {'bkg-val' : 'entirely --meta-info-bkg-vals %s' % self.args.meta_info_bkg_vals}
             skstrs = ',  '.join('%d (%s)'%(n_skipped[k], skip_dbg_strs.get(k, k)) for k in [k for k in sorted(n_skipped) if n_skipped[k]>0])
-            print('      skipped %d / %d trees: %s' % (sum(n_skipped.values()), len(self.sclusts), skstrs))
+            print('      skipped %d / %d trees (ran %d): %s' % (sum(n_skipped.values()), len(self.sclusts), len(cmdfos), skstrs))
 
+        clean_up = False
         if len(cmdfos) > 0:
+# TODO keep all i/o files, save command line
+            # sys.exit()
             start = time.time()
-            utils.run_cmds(cmdfos, clean_on_success=True, shell=True, n_max_procs=utils.auto_n_procs(), proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
+            utils.run_cmds(cmdfos, clean_on_success=clean_up, shell=True, n_max_procs=utils.auto_n_procs(), proc_limit_str='plot-lb-tree.py')  # I'm not sure what the max number of procs is, but with 21 it's crashing with some of them not able to connect to the X server, and I don't see a big benefit to running them all at once anyways
             print('    made %d ete tree plots (%.1fs)' % (len(cmdfos), time.time() - start))
-        if os.path.exists(workdir):
+        if clean_up and os.path.exists(workdir):
             os.rmdir(workdir)
 
         if self.args.tree_inference_method == 'linearham' and self.args.outfname is not None:
@@ -966,6 +974,8 @@ class PartitionPlotter(object):
 
         if not self.args.only_csv_plots:
             self.plotting.make_html(plotdir, fnames=fnames, extra_links=[('all tree plots', subd)], bgcolor='#FFFFFF')  # , new_table_each_row=True
+            if any(len(fnl)>0 for fnl in bkgfns):
+                self.plotting.make_html(plotdir, fnames=bkgfns, extra_links=[('all tree plots', subd)], bgcolor='#FFFFFF', htmlfname='%s/meta-bkg.html'%os.path.dirname(plotdir), subdname='trees')  # , new_table_each_row=True
 
         assert fnames[0][0] == 'header'
         # # shenanigans to put fewer trees in the main html file, maybe not worth the trouble, but also don't want to delete quite yet:
