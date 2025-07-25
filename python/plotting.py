@@ -55,7 +55,6 @@ legend_groups = {  # replace <key> by <value> when making legend (i.e. group sev
     '16wph-gs' : 'containment',
     'entry-gs' : 'containment',
     'ctmt-gs' : 'containment',
-    '8wph-gs' : 'containment',
     'lesion-gs' : 'lesion',
     'None-pbmc' : 'PBMC',
     'asc-pbmc' : 'PBMC',
@@ -76,6 +75,7 @@ legend_labels = {
 asc_col = '#d62728'
 na_col = '#006600'
 pbmc_col = '#2b65ec'
+ctmt_col = na_col
 
 hard_meta_colors = {
     # # leslie goo:
@@ -132,11 +132,11 @@ hard_meta_colors = {
     'naive-pbmc' : pbmc_col,
     'total-pbmc' : pbmc_col,
     'None-pbmc' : pbmc_col,
-    '8wph-gs' : '#1f77b4',
-    '16wph-gs' : '#1f77b4',
-    'entry-gs' : '#1f77b4',
-    'ctmt-gs' : '#1f77b4',
-    '8wph-gs' : '#1f77b4',
+    '8wph-gs' : ctmt_col,
+    '16wph-gs' : ctmt_col,
+    'entry-gs' : ctmt_col,
+    'ctmt-gs' : ctmt_col,
+    '8wph-gs' : ctmt_col,
     'lesion-gs' : '#ff7f0e',
 }
 
