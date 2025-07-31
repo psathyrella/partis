@@ -59,8 +59,6 @@ def read_input(args):
     return {'treestr' : treestr}
 
 # ----------------------------------------------------------------------------------------
-min_size = 1.5
-max_size = 10
 opacity = 0.65
 node_fsize = 7
 
@@ -79,8 +77,11 @@ def set_delta_affinities(etree, affyfo):  # set change in affinity from parent f
 # ----------------------------------------------------------------------------------------
 def get_size(vmin, vmax, val):
     if vmin == vmax:
-        return 0
-    return min_size + (val - vmin) * (max_size - min_size) / float(vmax - vmin)
+        return args.min_face_size
+    if args.use_node_area:
+        val = math.sqrt(val)
+    rfsize = args.min_face_size + (val - vmin) * (args.max_face_size - args.min_face_size) / float(vmax - vmin)
+    return rfsize
 
 # ----------------------------------------------------------------------------------------
 def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=False, add_sign=None, reverse_log=False, n_entries=5, fsize=4, no_opacity=False):  # NOTE very similar to add_smap_legend() in plot_2d_scatter() in python/lbplotting.py
@@ -122,29 +123,29 @@ def add_legend(tstyle, varname, all_vals, smap, info, start_column, add_missing=
         tstyle.legend.add_face(ete3.TextFace(tfstr, fsize=fsize), column=start_column + 2)
 
 # ----------------------------------------------------------------------------------------
-def label_node(node, root_node):
+def label_node(lnode, root_node):
     # ----------------------------------------------------------------------------------------
-    def meta_emph():
+    def meta_emph(tname):
         if args.meta_info_to_emphasize is not None:
             key, val = list(args.meta_info_to_emphasize.items())[0]
-            if key in args.metafo and node.name in args.metafo[key] and utils.meta_info_equal(key, val, args.metafo[key][node.name], formats=args.meta_emph_formats):
+            if key in args.metafo and tname in args.metafo[key] and utils.meta_info_equal(key, val, args.metafo[key][tname], formats=args.meta_emph_formats):
                 return True
         return False
     # ----------------------------------------------------------------------------------------
-    def use_name():
+    def use_node_name(tname, tnode=None):
         if args.label_all_nodes:
             return True
-        if args.label_leaf_nodes and node.is_leaf():
+        if tnode is not None and args.label_leaf_nodes and tnode.is_leaf():
             return True
-        if args.queries_to_include is not None and node.name in args.queries_to_include:
+        if args.queries_to_include is not None and tname in args.queries_to_include:
             return True
-        if args.label_root_node and node is root_node:
+        if tnode is not None and args.label_root_node and tnode is root_node:
             return True
-        if meta_emph():
+        if meta_emph(tname):
             return True
-        if args.uid_translations is not None and node.name in args.uid_translations:
+        if args.uid_translations is not None and tname in args.uid_translations:
             return True
-        if args.node_label_regex is not None and len(re.findall(args.node_label_regex, node.name)) > 0:
+        if args.node_label_regex is not None and len(re.findall(args.node_label_regex, tname)) > 0:
             return True
         return False
     # ----------------------------------------------------------------------------------------
@@ -154,21 +155,38 @@ def label_node(node, root_node):
         blist = lstr.split(', ')
         return '%s\n%s' % (', '.join(blist[:len(blist)//2]), ', '.join(blist[len(blist)//2:]))
     # ----------------------------------------------------------------------------------------
-    if use_name():
-        nlabel, ncolor = node.name, 'red' if meta_emph() or args.meta_info_to_emphasize is None else 'black'
+    def get_nlabel(tname):
+        if not use_node_name(tname):
+            return None
+        nlabel = tname
         if args.uid_translations is not None and nlabel in args.uid_translations:
             nlabel = args.uid_translations[nlabel]
         if args.node_label_regex is not None:
             mstrs = re.findall(args.node_label_regex, nlabel)
             if len(mstrs) > 0:
                 nlabel = '+'.join(mstrs)
+        return nlabel
+    # ----------------------------------------------------------------------------------------
+    def get_ncolor(tname):
+        return 'red' if meta_emph(tname) or args.meta_info_to_emphasize is None else 'black'
+    # ----------------------------------------------------------------------------------------
+    use_name = use_node_name(lnode.name, tnode=lnode)
+    if 'duplicates' in args.metafo and lnode.name in args.metafo['duplicates']:
+        use_name |= any(use_node_name(n) for n in args.metafo['duplicates'][lnode.name])
+    if use_name:
+        nlabels, ncolors = [[tfn(lnode.name)] for tfn in (get_nlabel, get_ncolor)]
+        if 'duplicates' in args.metafo and lnode.name in args.metafo['duplicates']:
+            nlabels += [get_nlabel(n) for n in args.metafo['duplicates'][lnode.name]]
+            ncolors += [get_ncolor(n) for n in args.metafo['duplicates'][lnode.name]]
+        nlabel = ', '.join(sorted(set(l for l in nlabels if l is not None)))
+        ncolor = 'red' if 'red' in ncolors else 'black'
     else:
         if 'labels' in args.metafo:
             nlabel, ncolor = '', 'red'
         else:
             return
     if 'labels' in args.metafo:
-        mlabel = args.metafo['labels'].get(node.name, '')
+        mlabel = args.metafo['labels'].get(lnode.name, '')
         blabels, tlabels, tcolors, bcolors = ['', ''], ['', ''], ['black' for _ in range(2)], ['black' for _ in range(2)]
         label_list = mlabel.split('\n')
         if 'h:' in mlabel or 'l:' in mlabel:
@@ -187,12 +205,13 @@ def label_node(node, root_node):
             blabels[1] = split_line(blabels[1])
         else:
             tlabels[0] = mlabel
-        for il, (blab, bcol) in enumerate(zip(blabels, bcolors)):
-            node.add_face(ete3.TextFace(blab, fsize=node_fsize, fgcolor=bcol), column=il, position='branch-bottom')
-        for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):
-            node.add_face(ete3.TextFace(tlab, fsize=node_fsize, fgcolor=tcol), column=il, position='branch-top')
-    tface = ete3.TextFace(' '+nlabel, fsize=node_fsize, fgcolor=ncolor)
-    node.add_face(tface, column=1) # position='branch-bottom')
+        for il, (blab, bcol) in enumerate(zip(blabels, bcolors)):  # blabels are branch bottom labels
+            lnode.add_face(ete3.TextFace(blab, fsize=node_fsize, fgcolor=bcol), column=il, position='branch-bottom')
+        for il, (tlab, tcol) in enumerate(zip(tlabels, tcolors)):  # branch top labels
+            lnode.add_face(ete3.TextFace(tlab, fsize=node_fsize, fgcolor=tcol), column=il, position='branch-top')
+    if nlabel != '':
+        tface = ete3.TextFace(' '+nlabel, fsize=node_fsize, fgcolor=ncolor)  # <nlabel> is usually the uid/sequence name
+        lnode.add_face(tface, column=1) # position='branch-bottom')
 
 # ----------------------------------------------------------------------------------------
 def set_lb_styles(args, etree, tstyle):
@@ -283,6 +302,8 @@ def set_meta_styles(args, etree, tstyle):
     if args.node_size_key is not None:
         nsvals = set(args.metafo[args.node_size_key].values()) - set([None])
         min_nsval, max_nsval = [mfcn(nsvals) for mfcn in [min, max]]
+        if args.use_node_area:
+            min_nsval, max_nsval = [math.sqrt(v) for v in [min_nsval, max_nsval]]
     if args.branch_color_key is not None:
         bcvals = args.metafo[args.branch_color_key]
         smvals = [v for v in bcvals.values() if v is not None]
@@ -294,13 +315,19 @@ def set_meta_styles(args, etree, tstyle):
         node.img_style['size'] = 0
         rfsize = 5
         if args.node_size_key is not None:
-            rfsize = get_size(min_nsval, max_nsval, args.metafo[args.node_size_key][node.name])
+            rfsize = get_size(min_nsval, max_nsval, args.metafo[args.node_size_key].get(node.name, min_nsval))
         bgcolor = plotting.getgrey()
         if args.meta_info_key_to_color is not None and node.name in mvals:
             bgcolor = mcolors.get(mvals[node.name], bgcolor)
 
         label_node(node, etree.get_tree_root())
-        rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
+        ftypes = {'rect' : ete3.RectFace, 'circle' : ete3.CircleFace}
+        if args.face_type == 'rect':
+            rface = ete3.RectFace(width=rfsize, height=rfsize, bgcolor=bgcolor, fgcolor=None)
+        elif args.face_type == 'circle':
+            rface = ete3.CircleFace(radius=rfsize, color=bgcolor)
+        else:
+            assert False
         rface.opacity = opacity
         node.add_face(rface, column=0)
 
@@ -361,8 +388,14 @@ parser.add_argument('--meta-info-to-emphasize', help='see partis help')
 parser.add_argument('--meta-info-key-to-color', help='see partis help')
 parser.add_argument('--meta-emph-formats', help='see partis help')
 parser.add_argument('--node-size-key', help='annotation key with which to scale the node size')
+parser.add_argument('--use-node-area', action='store_true', help='for --node-size-key scale by area rather than edge/radius')
 parser.add_argument('--branch-color-key', help='annotation key with which to scale the branch length color')
+parser.add_argument('--face-type', choices=['rect', 'circle'], default='rect', help='shape of symbol for each node')
+parser.add_argument('--min-face-size', type=float, default=1.5, help='min size for node symbol')
+parser.add_argument('--max-face-size', type=float, default=15, help='min size for node symbol')
 args = parser.parse_args()
+if args.meta_info_key_to_color is None and not args.meta_info_to_emphasize:  # it'd be nice to move this stuff, but whatevs
+    print('  note: if neither --meta-info-key-to-color or --meta-info-to-emphasize are set, other style attributes may not be set')
 
 sys.path.insert(1, args.partis_dir) # + '/python')
 try:
@@ -378,8 +411,9 @@ args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, ke
 args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
 utils.meta_emph_arg_process(args)
 args.uid_translations = utils.get_arg_list(args.uid_translations, key_val_pairs=True)
+
 if args.node_label_regex is not None and not args.label_all_nodes and not args.label_leaf_nodes:
-    print('  note: --node-label-regex set, but not neither --label-all-nodes nor --label-leaf-nodes were set, so they may not actually get labeled')
+    print('  note: --node-label-regex set, but neither --label-all-nodes nor --label-leaf-nodes were set, so they may not actually get labeled')
     # print('  --node-label-regex: turning on --label-all-nodes')
     # args.label_all_nodes = True
 

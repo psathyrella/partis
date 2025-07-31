@@ -35,61 +35,119 @@ pltcolors = plt.rcParams['axes.prop_cycle'].by_key()['color']  # pyplot/matplotl
 #                     blue      orange     green
 frozen_pltcolors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']  # default colors from version 2.2.4 (so we don't get different colors on different machines/installs)
 legend_groups = {  # replace <key> by <value> when making legend (i.e. group several together). Colors shoud be the same if they share a legend entry, otherwise it'll be a random one of the colors
-    '0' : None,
-    'ASC_1' : 'ASC',
-    'ASC_2' : 'ASC',
-    'ASC_3' : 'ASC',
-    'ASC_4' : 'ASC',
-    'ASC_5' : 'ASC',
-    'ASC_T' : 'T',
-    'B_1' : 'B',
-    'B_2' : 'B',
-    'Bcell_2' : 'B',
-    'B_3' : 'B',
+    None : 'None',
+    'ASC_1-gs' : 'GS ASC',
+    'ASC_2-gs' : 'GS ASC',
+    'ASC_3-gs' : 'GS ASC',
+    'ASC_4-gs' : 'GS ASC',
+    'ASC_5-gs' : 'GS ASC',
+    'ASC_T-gs' : 'GS ASC',
+    'ASC/T-gs' : 'GS ASC',
+    'B_1-gs' : 'GS B',
+    'B_2-gs' : 'GS B',
+    'B_3-gs' : 'GS B',
+    'B_4-gs' : 'GS B',
+    'Bcell_2-gs' : 'GS B',
+    'B/T-gs' : 'GS B',
+    'None-gs' : 'GS n/a',
+    '0-gs' : 'GS n/a',
+    '8wph-gs' : 'containment',
+    '16wph-gs' : 'containment',
+    'entry-gs' : 'containment',
+    'ctmt-gs' : 'containment',
+    'lesion-gs' : 'lesion',
+    'None-pbmc' : 'PBMC',
+    'asc-pbmc' : 'PBMC',
+    'mbc-pbmc' : 'PBMC',
+    'naive-pbmc' : 'PBMC',
+    'total-pbmc' : 'PBMC',
 }
-hard_meta_colors = {'IGHM' : '#9467bd',  # purple
-                    'IGHD' : 'black',
-                    'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
-                    'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
-                    'memory' : '#1f77b4',  # blue
-                    'naive' : '#ff7f0e',  # orange
-                    'pb' : '#2ca02c',  # green
-                    'prepb' : '#90e690',
-                    'w2' : '#1f77b4',  # blue
-                    'w23' : '#2ca02c',  # green
-                    'w25' : '#ff7f0e',  # orange
-                    'd385' : '#2b65ec',
-                    'd765' : '#ff7f0e',  # orange
-                    'dm351' : '#006600',  # green
-                    'dm379' : '#9467bd',
-                    # anton
-                    'al' : '#1f77b4',
-                    'aw' : '#006600',
-                    'cf' : '#ff7f0e',
-                    'kh' : '#cc0000',
-                    'lm' : '#9467bd',
-                    'ph-gs' : '#1f77b4',  # blue
-                    'ph-cx' : '#6eb7e8',  # blue
-                    'ph-a' : '#6088a2',  # blue
-                    'entry-gs' : '#74a574',  # green
-                    'entry-cx' : '#006600',  # green
-                    'entry-a' : '#9cd63b',  # green
-                    'lesion-gs' : '#d62728',  # red
-                    'lesion-cx' : '#ea7979',  # red
-                    'lesion-a' : '#cc0000',  # red
-                    'None-pbmc' : '#808080',  # grey
-                    '0' : 'grey',
-                    'ASC_1' : '#1f77b4',
-                    'ASC_2' : '#1f77b4',
-                    'ASC_3' : '#1f77b4',
-                    'ASC_4' : '#1f77b4',
-                    'ASC_5' : '#1f77b4',
-                    'ASC_T' : '#be4f48',
-                    'B_1' : '#006600',
-                    'B_2' : '#006600',
-                    'Bcell_2' : '#006600',
-                    'B_3' : '#006600',
-                    }
+
+legend_labels = {
+    'pbmc' : 'PBMC',
+    'gs' : 'GS',
+    'timepoint-tissues' : 'timepoint',
+    'cell-types' : 'cell type',
+    'cell-type-tissues' : 'cell type',
+    'None' : 'inf. ancest.',
+}
+
+asc_col = '#d62728'
+na_col = '#006600'
+pbmc_col = '#2b65ec'
+ctmt_col = na_col
+
+hard_meta_colors = {
+    # # leslie goo:
+    # 'IGHM' : '#9467bd',  # purple
+    # 'IGHD' : 'black',
+    # 'IGHG1' : '#1f77b4', 'IGHG2' : '#6eb7e8', 'IGHG3' : '#6088a2', 'IGHG4' : '#1c47bb',  # shades of blue
+    # 'IGHA1' : '#d62728', 'IGHA2' : '#ea7979',  # shades of red
+    # 'memory' : '#1f77b4',  # blue
+    # 'naive' : '#ff7f0e',  # orange
+    # 'pb' : '#2ca02c',  # green
+    # 'prepb' : '#90e690',
+    # 'w2' : '#1f77b4',  # blue
+    # 'w23' : '#2ca02c',  # green
+    # 'w25' : '#ff7f0e',  # orange
+    # 'd385' : '#2b65ec',
+    # 'd765' : '#ff7f0e',  # orange
+    # 'dm351' : '#006600',  # green
+    # 'dm379' : '#9467bd',
+    # anton
+    # TODO update subjects
+    # 'al' : '#1f77b4',
+    # 'aw' : '#006600',
+    # 'cf' : '#ff7f0e',
+    # 'kh' : '#be4f48', #'#cc0000',
+    # 'lm' : '#9467bd',
+    # 'gs' : '#1f77b4',  # blue
+    # # 'pbmc' : '#006600',  # green
+    # # 'lesion' : '#be4f48',  # red
+    'pbmc' : '#1f77b4',
+    'PBMC' : '#2b65ec',
+    'gs' : '#ff7f0e',
+    'entry' : '#006600',  # green
+    'None-gs' : na_col,
+    'GS n/a' : na_col,
+    '0-gs' : na_col,
+    'GS ASC' : asc_col,
+    'ASC_1-gs' : asc_col,
+    'ASC_2-gs' : asc_col,
+    'ASC_3-gs' : asc_col,
+    'ASC_4-gs' : asc_col,
+    'ASC_5-gs' : asc_col,
+    'ASC_T-gs' : asc_col,
+    'ASC/T-gs' : asc_col,
+    'GS B' : '#ff7f0e',
+    'B_1-gs' : '#ff7f0e',
+    'B_2-gs' : '#ff7f0e',
+    'Bcell_2-gs' : '#ff7f0e',
+    'B_3-gs' : '#ff7f0e',
+    'B_4-gs' : '#ff7f0e',
+    'B/T-gs' : '#ff7f0e',
+    'PBMC-gs' : pbmc_col,
+    'asc-pbmc' : pbmc_col,
+    'mbc-pbmc' : pbmc_col,
+    'naive-pbmc' : pbmc_col,
+    'total-pbmc' : pbmc_col,
+    'None-pbmc' : pbmc_col,
+    '8wph-gs' : ctmt_col,
+    '16wph-gs' : ctmt_col,
+    'entry-gs' : ctmt_col,
+    'ctmt-gs' : ctmt_col,
+    '8wph-gs' : ctmt_col,
+    'lesion-gs' : '#ff7f0e',
+}
+
+# check for inconsistencies in the legend groups:
+tlist = [(legend_groups.get(l, l), l, c) for l, c in hard_meta_colors.items()]
+def kfn(p): return p[0]
+for lgrp, y in utils.group_seqs_by_value(tlist, kfn, return_values=True):
+    # print('  %20s     %s' % (lgrp, y))
+    lgroups, labels, colors = zip(*y)
+    if len(set(colors)) > 1:
+        raise Exception('multiple colors specified for legend group %s:\n    %s\n    %s' % (lgrp, labels, colors))
 
 # ----------------------------------------------------------------------------------------
 def get_cluster_size_xticks(xmin=None, xmax=None, hlist=None):  # pass in either xmin and xmax, or hlist NOTE pretty similar to get_auto_y_ticks() (for search: log_bins log bins)
@@ -147,11 +205,12 @@ plot_ratios = {
 
 # ----------------------------------------------------------------------------------------
 # specify either all_emph_vals or clusters and antn_dict
-def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_emph_vals=None, formats=None):
+def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_emph_vals=None, formats=None, lgroups=None):
     # tme_colors = alt_colors + [c for c in frozen_pltcolors if c not in alt_colors]
-    tme_colors = [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
+    def get_tcols(): return [c for c in frozen_pltcolors if c not in ['#d62728', '#7f7f7f']]  # can't use red or grey
+    tme_colors = get_tcols()
     if all_emph_vals is None:
-        all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats) for c in clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [None for _ in c]))  # set of all possible values that this meta info key takes on in any cluster
+        all_emph_vals = set(utils.meta_emph_str(meta_info_key_to_color, v, formats=formats, legend_groups=lgroups) for c in clusters for v in antn_dict.get(':'.join(c), {}).get(meta_info_key_to_color, [None for _ in c]))  # set of all possible values that this meta info key takes on in any cluster
     else:  # NOTE all_emph_vals needs to be a set if you pass it in
         assert clusters is None and antn_dict is None
     def cfcn(i, v): return 'grey' if v in [None, 'None'] else hard_meta_colors.get(v, tme_colors[i%len(tme_colors)])
@@ -161,6 +220,9 @@ def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_em
         emph_colors.append((val, cfcn(iv, val)))
         if tcol in tme_colors:
             tme_colors.remove(tcol)
+        if len(tme_colors) == 0:
+            print('  %s ran out of colors, re-adding all of them' % utils.wrnstr())
+            tme_colors = get_tcols()
     emph_colors += [('None', 'grey'), (None, 'grey')]  # want to make sure None is last, so it's at the bottom of the legend
     return all_emph_vals, emph_colors
 
@@ -168,12 +230,14 @@ def meta_emph_init(meta_info_key_to_color, clusters=None, antn_dict=None, all_em
 def make_meta_info_legend(plotdir, plotname, meta_info_key_to_color, emph_colors, all_emph_vals, meta_emph_formats=None, alpha=None):
     title = meta_info_key_to_color
     if meta_emph_formats is not None and meta_emph_formats.get(meta_info_key_to_color) not in ['len', None]:
-        title = meta_emph_formats[meta_info_key_to_color]
+        title = meta_emph_formats[meta_info_key_to_color].replace('@', ' ')
+    elif title in legend_labels:
+        title = legend_labels[title]
     emph_colors = [(v, c) for v, c in emph_colors if v in all_emph_vals]  # remove 'None' if there weren't any in the actual annotations
     if any(c==title for c, _ in emph_colors):  # if it's actually a color (i.e. probably a bool) no point in adding title)
         title = None
     lfn = plotname + '-legend'
-    plot_legend_only({legend_groups.get(l, l) : {'color' : c, 'alpha' : alpha} for l, c in emph_colors}, plotdir, lfn, title=title)
+    plot_legend_only({legend_groups.get(l, legend_labels.get(l, l)) : {'color' : c, 'alpha' : alpha} for l, c in emph_colors}, plotdir, lfn, title=title)
     return lfn
 
 # # ----------------------------------------------------------------------------------------
@@ -549,7 +613,12 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
     return fn
 
 # ----------------------------------------------------------------------------------------
-def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, colors=None, formats=None, only_csv=False, xtitle=None, normalize=False, swarm_plots=False, violin_plots=False, no_hist=False, xticks=None):
+# I'm not sure that the name of this function makes sense, for instance
+#   - I don't think the violin and swarm options are really stacking anything
+# need to describe what form <plotvals> should have
+# i think you're supposed to either 1) set template_hist or 2) set no_hist and either swarm_plots or violin_plots
+def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, colors=None, formats=None, only_csv=False, xtitle=None, normalize=False, swarm_plots=False, violin_plots=False, no_hist=False, xticks=None, is_bin_contents=False,
+                     log='', figsize=None, ytitle=None, rotation=None, plottitle='', remove_empty_bins=True):
     all_emph_vals, emph_colors = meta_emph_init(mekey, formats=formats, all_emph_vals=set(plotvals))
     all_emph_vals = sorted(all_emph_vals, key=str)
 
@@ -558,15 +627,19 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
             raise Exception('need to specify template_hist if no_hist isn\'t set')
         hdict = collections.OrderedDict()
         for meval in all_emph_vals:
-            hdict[meval] = Hist(value_list=plotvals[meval], template_hist=template_hist, title=str(meval), xtitle=xtitle)
+            hdict[meval] = Hist(value_list=None if is_bin_contents else plotvals[meval], template_hist=template_hist, title=str(meval), xtitle=xtitle)
+            if is_bin_contents:
+                hdict[meval].bin_contents = plotvals[meval]
         mcolors = {v : c for v, c in emph_colors}
         hist_list, hist_colors = zip(*[(h, mcolors[m]) for m, h in hdict.items()])
         hfile_labels = [h.title for h in hist_list]
         for htmp in hist_list:
             htmp.title = '%s (%s)' % (htmp.title, utils.round_to_n_digits(htmp.get_mean(), 2))
-        draw_no_root(None, more_hists=list(hist_list), plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
-                     shift_overflows=True, leg_title='%s (mean)'%mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, #square_bins=True, #errors=True,
-                     remove_empty_bins=True, ytitle='fraction of total' if normalize else 'counts', plottitle='') # , normalize=True
+        if ytitle is None:
+            ytitle = 'fraction of total' if normalize else 'counts'
+        fn = draw_no_root(None, more_hists=list(hist_list), plotname=plotname, colors=list(hist_colors), plotdir=plotdir, write_csv=True, only_csv=only_csv, hfile_labels=hfile_labels,
+                          shift_overflows=True, leg_title='%s (mean)'%mekey.rstrip('s'), alphas=[0.7 for _ in hist_list], linewidths=[5, 3, 3], markersizes=[15, 10, 8], errors=True, #square_bins=True, #errors=True,
+                          remove_empty_bins=remove_empty_bins, ytitle=ytitle, log=log, figsize=figsize, rotation=rotation, plottitle=plottitle) # , normalize=True
 
     if violin_plots or swarm_plots:
         mvals, vlnvals = zip(*[(v, plotvals[v]) for v in all_emph_vals if v in plotvals])  # get order right
@@ -577,7 +650,7 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
     if violin_plots:
         ax = sns.violinplot(data=vlnvals)
         xticklabels = [str(v) for v in mvals]
-        mpl_finish(ax, plotdir, 'violin-'+plotname, xticklabels=xticklabels, xlabel=mekey.rstrip('s'), ylabel=xtitle)
+        fn = mpl_finish(ax, plotdir, 'violin-'+plotname, xticklabels=xticklabels, xlabel=mekey.rstrip('s'), ylabel=xtitle)
 
     if swarm_plots:
         ax = sns.swarmplot(data=vlnvals)
@@ -587,7 +660,9 @@ def stack_meta_hists(plotname, plotdir, mekey, plotvals, template_hist=None, col
                 swrm.set_facecolors(colors[mval])
         xticklabels = [str(v) for v in mvals]
         ax.set_xticklabels(xticklabels) #, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
-        mpl_finish(ax, plotdir, 'swarm-'+plotname, xlabel=mekey.rstrip('s'), ylabel=xtitle, yticks=xticks)  # , xticklabels=xticklabels
+        fn = mpl_finish(ax, plotdir, 'swarm-'+plotname, xlabel=mekey.rstrip('s'), ylabel=xtitle, yticks=xticks)  # , xticklabels=xticklabels
+
+    return fn
 
 # ----------------------------------------------------------------------------------------
 def get_unified_bin_hist(hists):
@@ -953,7 +1028,7 @@ def plot_cluster_size_hists(plotdir, plotname, hists, title='', xmin=None, xmax=
     else:
         return draw_no_root(None, more_hists=hist_list, plotdir=plotdir, plotname=plotname, log=log, normalize=normalize, remove_empty_bins=True, colors=tmpcolors, xticks=xticks, xticklabels=xticklabels,
                             bounds=(xmin, xmax), ybounds=ybounds, plottitle=title, xtitle='cluster size', ytitle=ytitle, alphas=alphas, translegend=translegend, linewidths=[5, 2], markersizes=[20, 8],
-                            no_legend=no_legend, errors=True, rotation=rotation)
+                            no_legend=no_legend, errors=True, rotation=rotation, figsize=(6, 4))
 
 # ----------------------------------------------------------------------------------------
 def plot_tree_mut_stats(args, plotdir, antn_list, is_simu, only_leaves=False, only_csv=False, fnames=None):
@@ -1231,12 +1306,20 @@ def mpl_finish(ax, plotdir, plotname, title='', xlabel='', ylabel='', xbounds=No
     if yticks is not None:
         plt.yticks(yticks)
     if xticklabels is not None:
-        # mean_length = float(sum([len(xl) for xl in xticklabels])) / len(xticklabels)
-        median_length = numpy.median([len(str(xl)) for xl in xticklabels])
-        if median_length > 4:
-            ax.set_xticklabels(xticklabels, rotation='vertical', size=8 if xticklabelsize is None else xticklabelsize)
-        else:
-            ax.set_xticklabels(xticklabels, size=xticklabelsize, rotation=rotation)
+        # xticklabels = [str(i) for i, _ in enumerate(xticklabels)]
+        ax.set_xticklabels(xticklabels, size=xticklabelsize, rotation=rotation)
+        if fig is None:
+            fig = ax.get_figure()
+        renderer = fig.canvas.get_renderer()
+        bboxes = []
+        for xlab in ax.get_xticklabels():
+            if xlab.get_text():  # skip empty labels
+                # print(xlab.get_text(), xlab.get_window_extent(renderer))
+                bbox = xlab.get_window_extent(renderer)
+                bboxes.append(bbox)
+        # print([bboxes[i].overlaps(bboxes[i + 1]) for i in range(len(bboxes) - 1)])
+        if any(bboxes[i].overlaps(bboxes[i + 1]) for i in range(len(bboxes) - 1)):
+            ax.set_xticklabels(xticklabels, rotation='vertical', size=14 if xticklabelsize is None else xticklabelsize)
     if xbounds is not None and xbounds[0] != xbounds[1]:
         plt.xlim(xbounds[0], xbounds[1])
     if ybounds is not None and ybounds[0] != ybounds[1]:
@@ -1426,7 +1509,7 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
 
 # ----------------------------------------------------------------------------------------
 # NOTE pt 'header' to line to add extra headers below the main title
-def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgcolor='000000', new_table_each_row=False, htmlfname=None, extra_links=None):
+def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgcolor='000000', new_table_each_row=False, htmlfname=None, extra_links=None, subdname=None):
     if fnames is not None:  # make sure it's formatted properly
         for rowfnames in fnames:
             if not isinstance(rowfnames, list):
@@ -1462,8 +1545,8 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgco
         lines += startlines
     def add_fname(lines, fullfname):  # NOTE <fullname> may, or may not, be a base name (i.e. it might have a subdir tacked on the left side)
         fname = fullfname.replace(plotdir, '').lstrip('/')
-        if htmlfname is None:  # dirname screws it up if we're specifying htmlfname explicitly, since then the files are in a variety of different subdirs
-            fname = dirname + '/' + fname
+        if htmlfname is None or subdname is not None:
+            fname = '%s/%s' % (utils.non_none([subdname, dirname]) , fname)  # if specifying htmlfname, the calling function needs to either add the subdirs/<dirname> to each fname, or set subdname)
         line = '<td><a target="_blank" href="' + fname + '"><img src="' + fname + '" alt="' + fname + '" width="100%"></a></td>'
         lines.append(line)
 
@@ -1637,7 +1720,7 @@ def plot_laplacian_spectra(plotdir, plotname, eigenvalues, title):
 # if <high_x_val> is set, clusters with median x above <high_x_val> get skipped by default and returned, the idea being that you call this fcn again at the end with <plot_high_x> set just on the thereby-returned high-x clusters
 def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, plotname, x1key='n_mutations', x1label='N mutations', x2key=None, x2label=None, high_x_val=None, plot_high_x=False,
                         cluster_indices=None, title=None, queries_to_include=None, meta_info_to_emphasize=None, meta_info_key_to_color=None, meta_emph_formats=None, all_emph_vals=None, emph_colors=None, global_max_vals=None,
-                        make_legend=False, remove_none_vals=False, sortlabel='?', add_clone_id=False, dont_label_queries_to_include=False, debug=False):
+                        make_legend=False, remove_none_vals=False, sortlabel='?', add_clone_id=False, add_index=False, dont_label_queries_to_include=False, debug=False):
     from . import lbplotting
     smetrics = treeutils.affy_metrics + treeutils.daffy_metrics  # treeutils.lb_metrics.keys() + treeutils.dtr_metrics
     # NOTE <xvals> must be sorted
@@ -1855,11 +1938,13 @@ def make_single_joyplot(sorted_clusters, annotations, repertoire_size, plotdir, 
                 if iclust_global == 0:
                     if add_clone_id:
                         ax.text(0.02 * xwidth + xtext - 7, yval + 0.55, 'clone id', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
-                    ax.text(0.05 * xwidth + xtext - 3, yval + 0.55, 'index', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                    if add_index:
+                        ax.text(0.05 * xwidth + xtext - 3, yval + 0.55, 'index', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                     ax.text(0.12 * xwidth + xtext - 2, yval + 0.55, 'size', color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 if add_clone_id:
                     ax.text(0.02 * xwidth + xtext - 7, yval, utils.get_clone_id(cluster), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
-                ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
+                if add_index:
+                    ax.text(0.05 * xwidth + xtext, yval, str(cluster_indices[':'.join(cluster)]), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
                 ax.text(0.10 * xwidth + xtext, yval, str(csize), color=base_color, fontsize=6, alpha=base_alpha, fontdict={'weight' : 'bold'})
 
             iclust_global += 1

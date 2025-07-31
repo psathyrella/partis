@@ -1002,10 +1002,10 @@ def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=
         print(utils.pad_lines(get_ascii_tree(treestr=lline['tree'])))
 
 # ----------------------------------------------------------------------------------------
-def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence_uids> is uids for which we have actual sequences (i.e. not internal nodes inferred by the tree program without sequences)
+def collapse_zero_length_leaves(dtree, sequence_uids, dont_warn=False, debug=False):  # <sequence_uids> is uids for which we have actual sequences (i.e. not internal nodes inferred by the tree program without sequences)
     min_len = 1./(2*typical_bcr_seq_len)  # if distance corresponds to less than one mutation, it's probably (always?) just fasttree/iqtree dangling an internal node as a leaf NOTE this shouldn't really use typical_bcr_seq_len any more since we have h seqs, l seqs, and h+l seqs
     missing_seq_ids = set(sequence_uids) - set([n.taxon.label for n in dtree.preorder_node_iter()])
-    if len(missing_seq_ids) > 0:  # ok maybe i don't need this, but once i missed a translation step, so <sequence_uids> didn't correspond to the node labels, which meant i was collapsing a bunch of things i didn't want (i.e. removing from the tree) to with no other warning.
+    if len(missing_seq_ids) > 0 and not dont_warn:  # ok maybe i don't need this, but once i missed a translation step, so <sequence_uids> didn't correspond to the node labels, which meant i was collapsing a bunch of things i didn't want (i.e. removing from the tree) to with no other warning.
         print('    %s %d / %d sequence ids weren\'t found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you\'re running this on a tree from something other than fasttree/iqtree?): %s' % (utils.wrnstr(), len(missing_seq_ids), len(sequence_uids), ' '.join(sorted(missing_seq_ids))))
     if debug:
         nlen = max(len(n.taxon.label) for n in dtree.preorder_node_iter())
@@ -1043,7 +1043,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, debug=False):  # <sequence
 def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read',
                        taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None, redo=False, outfix='out', cmdfo=None,
                        glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, only_pass_leaves=False,
-                       dont_collapse_zero_len_leaves=False, debug=False):
+                       collapse_duplicate_seqs=False, keys_not_to_collapse=None, dont_collapse_zero_len_leaves=False, debug=False):
     # ----------------------------------------------------------------------------------------
     def lhindir(workdir):
         return '%s/input' % workdir
@@ -1157,7 +1157,6 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                     mfo = {'%s_%s'%(c, k) : annotation[c+'_'+k] for c in 'hl' for k in ['frame', 'offset']} if is_fake_paired else {'frame' : utils.get_frame(annotation)}  # don't need the frames unless v_5p_del - fv_insertion > 0 which shouldn't be possible on padded sequences from the hmm, but it's maybe better to always pass it in, it's too much trouble to only pass in if needed
                     json.dump(mfo, mfile)
         return workdir
-
     # ----------------------------------------------------------------------------------------
     # default: re-insert ambiguous positions that were removed before passing to methods that can't handle ambiguous bases
     def re_insert_ambig(tmpfos, padded_seq_info_list, dont_insert=False):  # dont_insert: fix positions that were ambiguous in leaf seqs, but that igphyml made non-ambiguous in an inferred ancestral seq
@@ -1261,13 +1260,15 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
     is_fake_paired = annotation is not None and annotation.get('is_fake_paired', False)
     if input_seqfos is None:
         assert naive_seq is None  # can't specify it two ways
-        input_seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, add_sfos_for_multiplicity='gctree' in method)
+        input_seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, extra_keys=keys_not_to_collapse, add_sfos_for_multiplicity='gctree' in method)
     elif naive_seq is not None:
         input_seqfos = [{'name' : naive_seq_name, 'seq' : naive_seq}] + input_seqfos
     elif not no_naive:  # force calling fcn to affirmatively indicate it doesn't want the naive sequence in the tree (since at one point we forget to add it, with bad consequences)
         raise Exception('not adding naive seq to input_seqfos (need to set no_naive)')
     if only_pass_leaves:
         input_seqfos = restrict_to_leaf_sfos(input_seqfos)
+    if collapse_duplicate_seqs:
+        input_seqfos = utils.collapse_seqfos_with_identical_seqs(input_seqfos, keys_not_to_collapse=keys_not_to_collapse, debug='prep' in actions and debug)
     uid_list = [sfo['name'] for sfo in input_seqfos]
     if method in iqt_methods:  # iqtree silently replaces + with _, so we have to do some translation
         translations = {}
@@ -1331,7 +1332,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
     if not dont_collapse_zero_len_leaves and not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
         if debug:
             print('      collapsing zero length leaves')
-        removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], debug=debug)
+        removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], dont_warn=collapse_duplicate_seqs, debug=debug)
 
     # read inferred ancestral sequences (have to do it afterward so we can skip collapsed zero length leaves) (the linearham ones get added by test/linearham-run.py)
     inf_seqfos, inf_antn = read_inf_seqs(dtree, removed_nodes, padded_seq_info_list)
@@ -2600,14 +2601,15 @@ def get_treefos(args, antn_list, glfo=None, debug=False):  # note that <antn_lis
     else:
         treefos = get_trees_for_annotations(antn_list, treefname=args.treefname, workdir=args.workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
                                             inf_outdir=args.tree_inference_outdir, glfo=glfo, min_cluster_size=args.min_selection_metric_cluster_size, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir,
-                                            linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, only_pass_leaves=args.infer_trees_with_only_leaves, debug=debug)
+                                            linearham_dir=args.linearham_dir, seed_id=args.seed_unique_id, only_pass_leaves=args.infer_trees_with_only_leaves,
+                                            collapse_duplicate_seqs=args.infer_trees_with_collapsed_duplicate_seqs, keys_not_to_collapse=[args.meta_info_key_to_color], debug=debug)
     return treefos
 
 # ----------------------------------------------------------------------------------------
 # gets new tree for each specified annotation, and adds a new 'tree-info' key for each (overwriting any that's already there)
 # NOTE <inf_lines_to_use> should be *all* your annotations (so the subclust workdirs are correct), *not* just one cluster at a time
 def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None,
-                              glfo=None, parameter_dir=None, linearham_dir=None, min_cluster_size=4, seed_id=None, only_pass_leaves=False, debug=False):
+                              glfo=None, parameter_dir=None, linearham_dir=None, min_cluster_size=4, seed_id=None, only_pass_leaves=False, collapse_duplicate_seqs=False, keys_not_to_collapse=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def addtree(iclust, dtree, origin):
         treefos[iclust] = {'tree' : dtree, 'origin' : origin}
@@ -2677,7 +2679,8 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         elif tree_inference_method in all_phylo_methods + [None]:
             if tree_inference_method is None:
                 tree_inference_method = 'fasttree'  # ick
-            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
+            # NOTE if you add an arg here, you probably also need to add it to the 'read' call of the same fcn below
+            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, only_pass_leaves=only_pass_leaves, collapse_duplicate_seqs=collapse_duplicate_seqs, keys_not_to_collapse=keys_not_to_collapse, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
             dtree = None
             origin = tree_inference_method
         else:
@@ -2708,7 +2711,7 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         for iclust, (line, cfo) in enumerate(zip(inf_lines_to_use, cmdfos)):
             if cfo is None:
                 continue
-            dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, debug=debug)
+            dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, collapse_duplicate_seqs=collapse_duplicate_seqs, keys_not_to_collapse=keys_not_to_collapse, debug=debug)
             if tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
                 for mkey in [k for k in utils.input_metafile_keys.values() if k in line]:  # have to copy over any input meta keys
                     inf_antn[mkey] = [utils.per_seq_val(line, mkey, u, use_default=True) for u in inf_antn['unique_ids']]

@@ -193,6 +193,7 @@ def process(args):
 
     args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
     args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
+    args.meta_info_bkg_vals = utils.get_arg_list(args.meta_info_bkg_vals)
     utils.meta_emph_arg_process(args)
 
     args.reco_ids = utils.get_arg_list(args.reco_ids)
@@ -386,7 +387,7 @@ def process(args):
         args.n_partitions_to_write = 999  # need to make sure to get all the ones after the best partition, and this is a somewhat hackey way to do that
         print('  note: setting --n-partitions-to-write to 999 since either --min-largest-cluster-size or --n-final-clusters was set')  # bcrham argument parser barfs if you use sys.maxint
 
-    args.existing_output_run_cfg = utils.get_arg_list(args.existing_output_run_cfg, choices=['single', 'paired', 'merged'])
+    args.existing_output_run_cfg = utils.get_arg_list(args.existing_output_run_cfg, choices=['single', 'paired', 'merged', 'no-fake-paired'])
     if args.existing_output_run_cfg is None:
         args.existing_output_run_cfg = []
 

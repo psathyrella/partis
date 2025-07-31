@@ -894,13 +894,18 @@ def meta_emph_arg_process(args):
         add_input_meta_keys([args.meta_info_key_to_color], are_line_keys=True)
 
 # ----------------------------------------------------------------------------------------
-def meta_emph_str(key, val, formats=None):  # ick
+def meta_emph_str(key, val, formats=None, legend_groups=None):  # ick
     kstr, use_len = key.rstrip('s'), False  # (rstrip removes plural, and yes will probably break something at some point)
     if formats is not None and key in formats:
         if formats[key] == 'len':
             use_len = True
+        # elif formats[key] == 'translate':  # ugh, something like this would be better
+        elif '=' in formats[key]:
+            old_val, new_val = formats[key].split('=')
+            if val == old_val:
+                val = new_val
         else:
-            kstr = formats[key]
+            kstr = formats[key].replace('@', ' ')
     if use_len:
         return 'None' if val is None else '%d' % len(val)
     elif isinstance(val, float):
@@ -908,7 +913,7 @@ def meta_emph_str(key, val, formats=None):  # ick
     elif isinstance(val, bool) or val in ['True', 'False']:
         return kstr if val else 'nope'  # not sure what to do if it's False, but probably you'll only call it asking for True?
     else:
-        return str(val)
+        return str(val) if legend_groups is None else legend_groups.get(val, val)
 
 # ----------------------------------------------------------------------------------------
 def meta_info_equal(key, val1, val2, formats=None):  # also ick (don't have another way to convert the value from the command line arg to the proper thing [the values coming from yaml file will be properly converted)
@@ -916,12 +921,16 @@ def meta_info_equal(key, val1, val2, formats=None):  # also ick (don't have anot
         if formats is not None and formats.get(key) == 'len':
             return len
         for tname in [bool, float, int]:
-            if any(isinstance(v, tname) for v in [val1, val2]):
-                bstrs = ['True', 'False']
-                if tname == bool and any(str(v) not in bstrs for v in [val1, val2]):
-                    raise Exception('bool string[s] %s not among %s' % ([v for v in [val1, val2] if str(v) not in bstrs], bstrs))
-                return tname
+            if any(isinstance(v, tname) for v in [val1, val2]):  # if either value is float/int convert both values to float/int (for bool use str)
+                if tname == bool:
+                    bstrs = ['True', 'False']
+                    if any(str(v) not in bstrs for v in [val1, val2]):
+                        raise Exception('bool string[s] %s not among %s' % ([v for v in [val1, val2] if str(v) not in bstrs], bstrs))
+                    return str
+                else:
+                    return tname
         return lambda x: x
+    # ----------------------------------------------------------------------------------------
     return cfcn()(val1) == cfcn()(val2)
 
 # ----------------------------------------------------------------------------------------
@@ -2670,9 +2679,10 @@ def seqfos_from_line(line, aa=False, extra_keys=None, use_input_seqs=False, add_
         else:  # add it once, but with the 'multiplicity' key in the sfo
             seqfos.append({'name' : uid, 'seq' : seq, 'multiplicity' : mtp if mtp is not None else 1})
     if extra_keys is not None:
-        for iseq, sfo in enumerate(seqfos):
+        for sfo in seqfos:
+            iseq = None if sfo['name']==naive_name else line['unique_ids'].index(sfo['name'])
             for ekey in extra_keys:
-                sfo[ekey] = line[ekey][iseq] if ekey in line else None
+                sfo[ekey] = line[ekey][iseq] if ekey in line and iseq is not None else None
     return seqfos
 
 # ----------------------------------------------------------------------------------------
@@ -4386,7 +4396,7 @@ def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False): 
     simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, extra_str=extra_str, debug=debug)
 
     if not os.path.exists(target if target==fpath(target) else odir+'/'+target):
-        raise Exception('linked to missing file in %s (%s)' % (odir, target))
+        raise Exception('linked to missing file in odir %s (target %s)' % (odir, target if target==fpath(target) else odir+'/'+target))
 
 # ----------------------------------------------------------------------------------------
 def fpath(path):  # if <path> is relative, add full path from root (path can also be None)
@@ -4522,7 +4532,7 @@ def process_input_line(info, skip_literal_eval=False):
             info[key] = info[key][0]
             info[key] = [ast.literal_eval(v) for v in info[key]]  # specifically, in get_line_for_output() 'lists' was first in the if/else block, so the list of duplicates for each sequence was str() converted rather than being converted to colon/semicolon separated string
         if len(info[key]) != len(info['unique_ids']):
-            raise Exception('list length %d for %s not the same as for unique_ids %d\n  contents: %s' % (len(info[key]), key, len(info['unique_ids']), info[key]))
+            raise Exception('list length %d for %s not the same as for unique_ids %d\n  uids: %s\n  %s: %s' % (len(info[key]), key, len(info['unique_ids']), info['unique_ids'], key, info[key]))
 
 # ----------------------------------------------------------------------------------------
 def revcomp(nuc_seq):
@@ -5771,7 +5781,7 @@ def split_partition_with_criterion(partition, criterion_fcn):  # this would prob
     return true_clusters, false_clusters
 
 # ----------------------------------------------------------------------------------------
-def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to be related seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
+def group_seqs_by_value(queries, keyfunc, return_values=False):  # <queries> don't have to be related to seqs at all, only requirement is that the things in the iterable <queries> have to be valid arguments to <keyfunc()>
     vals, groups = zip(*[(val, sorted(list(group))) for val, group in itertools.groupby(sorted(queries, key=keyfunc), key=keyfunc)])  # NOTE sorted() around list(group) is so [in python 3] we'll get the same list order in reruns
     if return_values:
         return list(zip(*(vals, groups)))
@@ -5779,6 +5789,35 @@ def group_seqs_by_value(queries, keyfunc, return_values=False):  # don't have to
         return list(groups)
 
 # ----------------------------------------------------------------------------------------
+def collapse_seqfos_with_identical_seqs(input_seqfos, keys_not_to_collapse=None, debug=False):
+    # ----------------------------------------------------------------------------------------
+    def kfcn(u):
+        rstr = sfo_dict[u]['seq']
+        if keys_not_to_collapse is not None:
+            def kstr(v): return str(plotting.legend_groups.get(v, v))
+            rstr = '-@-'.join([rstr] + [kstr(sfo_dict[u][k]) for k in keys_not_to_collapse])
+        return rstr
+    # ----------------------------------------------------------------------------------------
+    if keys_not_to_collapse is not None:
+        if any(k not in sfo for sfo in input_seqfos for k in keys_not_to_collapse):
+            raise Exception('found at least one seqfo without one of the keys_not_to_collapse %s' % keys_not_to_collapse)
+        from . import plotting  # UGH
+    newfos = []
+    sfo_dict = {s['name'] : s for s in input_seqfos}
+    for uids in group_seqs_by_value(sorted(sfo_dict.keys()), kfcn):
+        tseq = sfo_dict[uids[0]]['seq']
+        extra_keys = set(k for u in uids for k in sfo_dict[u] if k not in ['name', 'seq', 'multiplicity'] + non_none([keys_not_to_collapse, []]))
+        if len(extra_keys) > 0:  # should really just check if the values are the same in all the seqfos we're merging, and if they are then copy values
+            print('    %s extra keys (beyond name, seq, multiplicity) found in seqfos to merge, new seqfos won\'t have them: %s' % (wrnstr(), ' '.join(extra_keys)))
+        newfos.append({'name' : uids[0], 'seq' : tseq, 'multiplicity' : len(uids), 'duplicates' : uids[1:]})
+    if debug:
+        estr = '' if keys_not_to_collapse is None else ' (used also keys: %s)' % ' '.join(keys_not_to_collapse)
+        print('    collapsed %d total seqs (with duplicates) into %d unique seqs before running tree inference%s' % (len(input_seqfos), len(newfos), estr))
+        # print('         removed seqs: %s' % sorted(set(sfo_dict) - set(s['name'] for s in newfos)))
+    return newfos
+
+# ----------------------------------------------------------------------------------------
+# takes sw info (or any dict keyed by uid with 'naive_seq' key in each uid's dict) and returns a partition of uids, where each cluster contains all uids with the same nave seq
 def collapse_naive_seqs(swfo, queries=None, split_by_cdr3=False, debug=None):  # <split_by_cdr3> is only needed when we're getting synthetic sw info that's a mishmash of hmm and sw annotations
     start = time.time()
     if queries is None:

@@ -1545,20 +1545,23 @@ def plot_cons_seq_accuracy(baseplotdir, lines, n_total_bin_size=10000, fnames=No
 
 # ----------------------------------------------------------------------------------------
 def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, subworkdir, metafo=None, tree_style=None, queries_to_include=None, label_all_nodes=False, label_leaf_nodes=False, label_root_node=False, seq_len=None,
-                    meta_info_key_to_color=None, meta_info_to_emphasize=None, node_size_key=None, branch_color_key=None, uid_translations=None, node_label_regex=None):
+                    meta_info_key_to_color=None, meta_info_to_emphasize=None, node_size_key=None, branch_color_key=None, uid_translations=None, node_label_regex=None, min_face_size=None, max_face_size=None):
     treefname = '%s/tree.nwk' % subworkdir
     metafname = '%s/meta.yaml' % subworkdir
     if not os.path.exists(subworkdir):
         os.makedirs(subworkdir)
     with open(treefname, utils.csv_wmode()) as treefile:
         treefile.write(treestr)
-    cmdstr = '%s/bin/plot-lb-tree.py --treefname %s' % (utils.get_partis_dir(), treefname)
+    cmdstr = '%s/bin/plot-lb-tree.py --use-node-area --treefname %s' % (utils.get_partis_dir(), treefname)
     if metafo is not None:
         utils.jsdump(metafname, metafo) # had this here, but it was having a crash from a quoting bug (was using " when it should have used '): yaml.dump , Dumper=Dumper)
         cmdstr += ' --metafname %s' % metafname
     if queries_to_include is not None and len(queries_to_include) > 0:
         cmdstr += ' --queries-to-include %s' % ':'.join(queries_to_include)
     if uid_translations is not None and len(uid_translations) > 0:
+        tnodes = [n.label for n in treeutils.get_dendro_tree(treestr=treestr)]
+        if any(u not in tnodes for u, _ in uid_translations):
+            print('  %s %d uid translations missing from tree: %s' % (utils.wrnstr(), len([u for u, _ in uid_translations if u not in tnodes]), ' '.join(u for u, _ in uid_translations if u not in tnodes)))
         cmdstr += ' --uid-translations %s' % ':'.join('%s,%s'%(u, au) for u, au in uid_translations)
     if label_all_nodes:
         cmdstr += ' --label-all-nodes'
@@ -1586,6 +1589,10 @@ def get_lb_tree_cmd(treestr, outfname, lb_metric, affy_key, subworkdir, metafo=N
         cmdstr += ' --branch-color-key %s' % branch_color_key
     if node_label_regex is not None:
         cmdstr += ' --node-label-regex %s' % node_label_regex
+    if min_face_size is not None:
+        cmdstr += ' --min-face-size %d' % min_face_size
+    if max_face_size is not None:
+        cmdstr += ' --max-face-size %d' % max_face_size
     cmdstr = utils.run_ete_script(cmdstr, return_for_cmdfos=True, extra_str='        ')
 
     return {'cmd_str' : cmdstr, 'workdir' : subworkdir, 'outfname' : outfname, 'workfnames' : [treefname, metafname]}
@@ -1611,6 +1618,8 @@ def plot_lb_trees(args, metric_methods, baseplotdir, lines, base_workdir, is_tru
             altids = [(u, au) for u, au in zip(line['unique_ids'], line['alternate-uids']) if au is not None] if 'alternate-uids' in line else None
             affy_key = 'affinities'  # turning off possibility of using relative affinity for now
             metafo = copy.deepcopy(line['tree-info']['lb'])  # NOTE there's lots of entries in the lb info that aren't observed (i.e. aren't in line['unique_ids'])
+            if self.args.infer_trees_with_collapsed_duplicate_seqs:
+                print('    %s --infer-trees-with-collapsed-duplicate-seqs was set, but lb tree plotting doesn\'t yet handle multiplicity/collapse info (see how partitionplotter does it' % utils.wrnstr())
             if affy_key in line:  # either 'affinities' or 'relative_affinities'
                 metafo[utils.reversed_input_metafile_keys[affy_key]] = {uid : affy for uid, affy in zip(line['unique_ids'], line[affy_key])}
             outfname = '%s/%s-tree-iclust-%d%s.svg' % (plotdir, lb_metric, iclust, '-relative' if 'relative' in affy_key else '')
