@@ -2,13 +2,71 @@
 
 ### Installation
 
-Partis can be installed either [with Docker](#installation-with-docker) or [from scratch](#installation-from-scratch).
+Partis can be installed via [pip](#installation-with-pip), [with Docker](#installation-with-docker), or [from scratch](#installation-from-scratch).
+
+[Using pip](#installation-with-pip) provides a quick way to install partis with its core functionality, including the compiled C++ components, in a standard Python environment.
 
 [Using Docker](#installation-with-docker) makes the installation process much easier, because it installs specific versions of each dependency in a controlled environment. The process of running, however, is then less convenient since you're inside Docker (the use of batch systems, for instance, will be difficult).
 
-Installing [without Docker](#installation-from-scratch), on the other hand, will require more effort to install, but once installed it'll be easier to use. The closer your system is to the latest Debian/Ubuntu, the easier this process will be (RHEL variants and macOS typically work without too much trouble).
+Installing [from scratch](#installation-from-scratch), on the other hand, will require more effort to install, but once installed it'll be easier to use. The closer your system is to the latest Debian/Ubuntu, the easier this process will be (RHEL variants and macOS typically work without too much trouble).
 
 If you want to make simulated samples, you'll probably also need to [install some R packages](#simulation).
+
+#### Installation with pip
+
+So far only handles basic functionality, e.g. no simulation.
+
+##### Prerequisites
+
+Install system dependencies:
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install python3 python3-pip python3-venv build-essential cmake libgsl-dev libyaml-cpp-dev scons
+
+# macOS (with Homebrew)
+brew install python3 cmake gsl yaml-cpp scons
+# Note: pip and python3-venv are included with Homebrew's python3
+```
+
+##### Basic installation
+
+Install from PyPI (when available):
+```bash
+python -m venv partis-env
+source partis-env/bin/activate  # On Windows: partis-env\Scripts\activate
+pip install partis
+```
+
+Or install from source:
+```bash
+git clone https://github.com/psathyrella/partis.git
+cd partis
+
+# Initialize essential submodule (required for core functionality)
+git submodule update --init packages/ham
+
+# Optional: Initialize simulation submodules (only needed for simulation features)
+git submodule update --init --recursive packages/bpp-newlik packages/bcr-phylo-benchmark
+
+# Create virtual environment and install
+python -m venv partis-env
+source partis-env/bin/activate  # On Windows: partis-env\Scripts\activate
+pip install -e .
+```
+
+##### Testing the installation
+
+```bash
+# Test basic functionality
+partis --help
+
+# Run quick test
+./test/test.py --quick
+
+# Test paired functionality (takes a few minutes)
+./test/test.py --paired
+```
 
 #### Installation with Docker
 
