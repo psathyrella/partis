@@ -1,0 +1,40 @@
+# Include essential files
+include README.md
+include LICENSE
+include COPYING
+include *.md
+include *.txt
+include *.yaml
+include *.yml
+
+# Include the main partis script
+include bin/partis
+include bin/*.py
+include bin/*.sh
+
+# Include all data files
+recursive-include data *
+
+# Include source packages that need to be compiled
+recursive-include packages/ham *
+recursive-include packages/ig-sw *
+recursive-exclude packages/ham *.o
+recursive-exclude packages/ig-sw *.o
+
+# Include documentation
+recursive-include docs *
+
+# Include tests
+recursive-include test *
+
+# Exclude compiled binaries initially (they'll be built during install)
+exclude packages/ham/bcrham
+exclude packages/ig-sw/src/ig_align/ig-sw
+
+# Exclude build artifacts
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *~
+global-exclude .DS_Store
+global-exclude *.so
+recursive-exclude **/__pycache__ *

@@ -933,6 +933,7 @@ parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
 args = parser.parse_args()
 assert not (args.quick and args.slow)  # it just doesn't make sense
+assert not (args.quick and args.paired)  # --quick ignores --paired, which is confusing
 
 random.seed(0)
 numpy.random.seed(0)
