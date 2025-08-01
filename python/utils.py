@@ -4568,6 +4568,29 @@ def add_naive_seq_aa(line):
     line['naive_seq_aa'] = ltranslate(pad_seq_for_translation(line, line['naive_seq']))
 
 # ----------------------------------------------------------------------------------------
+# return naive sequence with uncertain bases (e.g. non-templated insertions) replace with Ns
+# n_fuzz: number of bases by which to expand non-templated insertions (set to negative value to mask entire cdr3 [excluding conserved codons])
+def get_cdr3_masked_naive(antn, n_fuzz=3, debug=True):
+    if antn.get('is_fake_paired', False):
+        raise Exception('can\'t mask fake paired annotation')
+    masked_seq = antn['naive_seq']
+    if n_fuzz < 0:
+        cdr3_start, cdr3_end = [antn['codon_positions'][r] for r in 'vj']
+        masked_seq = masked_seq[ : cdr3_start + 3] + ambig_base * (cdr3_end - cdr3_start - 3) + masked_seq[cdr3_end : ]
+    else:
+        for tbound in boundaries:
+            nti_start, nti_end = [antn['regional_bounds'][r][i] for r, i in zip(tbound, (1, 0))]  # (1, 0) takes the end of first region but start of second, e.g. for vd boundary we want end of v, start of d
+            nti_start -= n_fuzz
+            nti_end += n_fuzz
+            masked_seq = masked_seq[ : nti_start] + ambig_base * (nti_end - nti_start) + masked_seq[nti_end : ]
+    if debug:
+        print('    masked %s:' % ('entire cdr3, excluding conserved codons' if n_fuzz < 0 else 'non-templated insertions with fuzz %d'%n_fuzz))
+        # print_reco_event(antn)
+        print(color_mutants(antn['naive_seq'], masked_seq, extra_str='        '))
+
+    return masked_seq
+
+# ----------------------------------------------------------------------------------------
 def pad_seq_for_translation(line, tseq, return_n_padded=False, debug=False):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
     # NOTE this duplicates [is reverse of?] code in n_variable_ambig() (but not really sure how to clean up/combine them)
     # NOTE also duplicates some of get_codon_list()
