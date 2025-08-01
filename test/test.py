@@ -199,7 +199,8 @@ class Tester(object):
             add_inference_tests('new')
             if not args.bust_cache:  # normally (if we're not cache busting) we want to run these last, to make it super clear that the inference tests are running on the *reference* simulation file
                 self.tests['cache-parameters-data'] = pcache_data_args
-                self.tests['simulate'] = simulate_args
+                if not args.no_simu:
+                    self.tests['simulate'] = simulate_args
 
         self.quick_tests = ['cache-parameters-quick-new-simu']  # this is kind of dumb to keep track of what the quick tests are in two different ways, but I only just started not adding the non-quick tests if --quick is set, and I don't want to mess with all the other places that use <self.quick_tests>
 
@@ -217,7 +218,9 @@ class Tester(object):
             return
         self.compare_production_results(['cache-parameters-simu'])
         self.compare_stuff(input_stype='new')
-        self.compare_production_results(['cache-parameters-data', 'simulate'])
+        self.compare_production_results(['cache-parameters-data'])
+        if not args.no_simu:
+            self.compare_production_results(['simulate'])
         self.compare_run_times()
 
     # ----------------------------------------------------------------------------------------
@@ -926,6 +929,7 @@ parser.add_argument('--bust-cache', action='store_true', help='overwrite current
 parser.add_argument('--only-bust-current', action='store_true', help='only bust cache for current command line args (as opposed to the default of busting caches for both slow and non-slow, paired and non-paired)')
 parser.add_argument('--paired', action='store_true', help='run paired tests, i.e. with --paired-loci. Note that this doesn\'t test all the things (e.g. seed partitioning) that non-paired does.')
 parser.add_argument('--run-all', action='store_true', help='run all four combinations of tests: paired/non-paired and slow/non-slow (by default only runs one). *Not* for use with --bust-cache, which runs all of them by default.')
+parser.add_argument('--no-simu', action='store_true', help='don\'t run simulation, e.g. if using a minimal install')
 parser.add_argument('--ig-or-tr', default='ig')
 parser.add_argument('--print-width', type=int, default=300, help='set to 0 for infinite')
 

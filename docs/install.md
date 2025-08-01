@@ -16,8 +16,6 @@ If you want to make simulated samples, you'll probably also need to [install som
 
 So far only handles basic functionality, e.g. no simulation.
 
-##### Prerequisites
-
 Install system dependencies:
 ```bash
 # Ubuntu/Debian
@@ -29,24 +27,21 @@ brew install python3 cmake gsl yaml-cpp scons
 # Note: pip and python3-venv are included with Homebrew's python3
 ```
 
-##### Basic installation
-
-Install from PyPI (when available):
+Install from PyPI (not yet available):
 ```bash
 python -m venv partis-env
 source partis-env/bin/activate  # On Windows: partis-env\Scripts\activate
 pip install partis
 ```
-
-Or install from source:
+Install from source:
 ```bash
 git clone https://github.com/psathyrella/partis.git
 cd partis
 
-# Initialize essential submodule (required for core functionality)
+# Initialize essential submodule
 git submodule update --init packages/ham
 
-# Optional: Initialize simulation submodules (only needed for simulation features)
+# Optional: Initialize submodules only needed for simulation
 git submodule update --init --recursive packages/bpp-newlik packages/bcr-phylo-benchmark
 
 # Create virtual environment and install
