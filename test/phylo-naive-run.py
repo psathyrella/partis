@@ -21,7 +21,7 @@ from python.performanceplotter import PerformancePlotter
 
 # ----------------------------------------------------------------------------------------
 helpstr = """
-Run 'infer-trees' with --phylo-naive-inference set to get phyl-inferred naive sequence (i.e. mask uncertain bits of partis naive with Ns, then pass with observed seqs to phylo method.
+Run 'infer-trees' with --phylo-naive-inference-fuzz set to get phyl-inferred naive sequence (i.e. mask uncertain bits of partis naive with Ns, then pass with observed seqs to phylo method.
 Then read resulting annotation, which has desired sequence as an observed seq called 'phylo-naive', and compare to simulation truth (if set).
 """
 class MultiplyInheritedFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
@@ -31,6 +31,7 @@ parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, des
 parser.add_argument('--input-partition-dir', required=True, help='dir with partis partition output')
 parser.add_argument('--outdir', required=True, help='if set, read simulation from this file and compare to results')
 parser.add_argument('--simdir', help='if set, read simulation from this file and compare to results')
+parser.add_argument('--phylo-naive-inference-fuzz')
 parser.add_argument('--tree-inference-method', required=True)
 parser.add_argument('--n-procs')  # not used atm
 parser.add_argument('--debug', action='store_true')
@@ -49,7 +50,7 @@ for ltmp in utils.sub_loci('ig'):
         continue
     cmd = './bin/partis partition --simultaneous-true-clonal-seqs --is-simu --infname %s --parameter-dir %s/parameters/%s --outfname %s --locus %s' % (tfn, args.input_partition_dir, ltmp, pfn, ltmp)
     utils.simplerun(cmd)
-    cmd = './bin/partis infer-trees --outfname %s --tree-inference-method %s --phylo-naive-inference -1' % (pfn, args.tree_inference_method)
+    cmd = './bin/partis infer-trees --debug 1 --outfname %s --tree-inference-method %s --phylo-naive-inference-fuzz %s' % (pfn, args.tree_inference_method, args.phylo_naive_inference_fuzz)
     utils.simplerun(cmd)
 
     glfo, inf_antns, cpath = utils.read_output(phylo_inf_fname)
@@ -65,6 +66,8 @@ for ltmp in utils.sub_loci('ig'):
         printed_true_naives = set()
         for inf_line in inf_antns:
             phylo_naive_seq = utils.per_seq_val(inf_line, 'seqs', 'phylo-naive')
+            if phylo_naive_seq is None:
+                raise Exception('couldn\'t find phylo naive seq')
             tline = reco_info[inf_line['unique_ids'][0]]  # first one usually always be there since inferred ancestral seqs are appended
             if args.debug and phylo_naive_seq != inf_line['naive_seq'] and tline['naive_seq'] not in printed_true_naives:
                 utils.print_reco_event(tline, extra_str='         ')

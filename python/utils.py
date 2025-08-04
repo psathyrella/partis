@@ -4570,7 +4570,7 @@ def add_naive_seq_aa(line):
 # ----------------------------------------------------------------------------------------
 # return naive sequence with uncertain bases (e.g. non-templated insertions) replace with Ns
 # n_fuzz: number of bases by which to expand non-templated insertions (set to negative value to mask entire cdr3 [excluding conserved codons])
-def get_cdr3_masked_naive(antn, n_fuzz=3, debug=True):
+def get_cdr3_masked_naive(antn, n_fuzz=1, debug=True):
     if antn.get('is_fake_paired', False):
         raise Exception('can\'t mask fake paired annotation')
     masked_seq = antn['naive_seq']

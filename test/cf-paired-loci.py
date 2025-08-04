@@ -33,7 +33,7 @@ synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'dist
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'subset-partition', 'vsearch-subset-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 phylo_actions = ['iqtree', 'raxml', 'gctree', 'gctree-mut-mult', 'gctree-no-dag', 'igphyml']  # , 'iqtree-1.6.beta3', 'iqtree-2.3.1'  # , 'gctree-base'
 tree_perf_actions = ['%s-tree-perf'%a for a in phylo_actions]  # it would be really nice to run tree perf during the phylo action, but i can't figure out a good way to do that (main problem is getting access to both true and inferred annotations in a sensible way)
-phylo_naive_actions = ['phylo-naive-iqtree']
+phylo_naive_actions = ['phylo-naive-iqtree', 'phylo-naive-iqtree-fuzz-0', 'phylo-naive-iqtree-fuzz-1', 'phylo-naive-iqtree-fuzz-2']
 after_actions = ['replay-plot', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees', 'write-fake-paired-annotations', 'tree-perf']  + ptn_actions + phylo_actions + tree_perf_actions + phylo_naive_actions  # actions that come after simulation (e.g. partition)
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
@@ -145,6 +145,8 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         ofn = '%s/fake-paired-annotations.yaml' % outdir
     elif action == 'replay-plot':
         ofn = '%s/diff-vals.yaml' % outdir
+    elif 'phylo-naive' in action:  # duplicates naive-hdist bit above
+        ofn = '%s/%s/mutation/hamming_to_true_naive.csv' % (outdir, locus)
     else:
         ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or is_single_chain(action))
     return ofn
@@ -196,7 +198,14 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             cmd += ' --partis-outdir %s --n-sim-events %d' % (odir(args, varnames, vstrs, 'partition'), int(utils.vlval(args, vlists, varnames, 'n-sim-events')))
             cmd += ' --docker --local-docker-image'
         if 'phylo-naive' in action:
-            cmd += ' --input-partition-dir %s --tree-inference-method %s' % (odir(args, varnames, vstrs, 'partition'), action.replace('phylo-naive-', ''))
+            tree_inf_method = action.replace('phylo-naive-', '')
+            if 'fuzz-' in action:
+                tree_inf_method = '-'.join(tree_inf_method.split('-')[:-2])
+            import python.treeutils as treeutils
+            assert tree_inf_method in treeutils.all_phylo_methods
+            cmd += ' --input-partition-dir %s --tree-inference-method %s' % (odir(args, varnames, vstrs, 'partition'), tree_inf_method)
+            if 'fuzz' in action:
+                cmd += ' --phylo-naive-inference-fuzz %s' % action.split('-')[-1]
         if args.n_sub_procs > 1:
             cmd += ' --n-procs %d' % args.n_sub_procs
         if args.prep:
