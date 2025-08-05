@@ -174,7 +174,7 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
 version = '1.0.0'
 
 setup(
-    name='partis',
+    name='partis-bcr',
     version=version,
     description='B- and T-cell receptor sequence annotation, simulation, clonal family and germline inference',
     long_description=long_description,
