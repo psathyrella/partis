@@ -16,7 +16,8 @@ import itertools
 import yaml
 from io import open
 
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+from pathlib import Path
+partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 import python.utils as utils
 import python.indelutils as indelutils

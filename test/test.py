@@ -16,10 +16,9 @@ import copy
 import colored_traceback.always
 import sys
 from io import open
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
+from pathlib import Path
+partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
-if os.getcwd() != partis_dir:
-    raise Exception('need to run test.py from main partis dir %s' % partis_dir)
 import yaml
 
 from python.baseutils import get_extra_str

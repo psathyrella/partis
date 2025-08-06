@@ -19,6 +19,7 @@ import math
 import re
 from io import open
 import ete3
+from pathlib import Path
 
 # ----------------------------------------------------------------------------------------
 scolors = {
@@ -380,7 +381,7 @@ parser.add_argument('--label-leaf-nodes', action='store_true')
 parser.add_argument('--label-root-node', action='store_true')
 parser.add_argument('--node-label-regex', help='portion of node label to keep (rest is discarded if regex is found, if no regex label is left unchanged). E.g. \'ig.\' reduces them all to the locus')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
-parser.add_argument('--partis-dir', default=os.path.dirname(os.path.realpath(__file__)).replace('/bin', ''), help='path to main partis install dir')
+parser.add_argument('--partis-dir', default=str(Path(__file__)).parent.parent), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
 parser.add_argument('--seq-len', type=int)
 parser.add_argument('--uid-translations', help='colon-separated list of comma-separated pairs of uid:translated-id pairs')

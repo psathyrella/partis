@@ -8,7 +8,8 @@ import copy
 import collections
 import colored_traceback.always
 
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+from pathlib import Path
+partis_dir = str(Path(__file__).parent.parent)
 if not os.path.exists(partis_dir):
     print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
 sys.path.insert(1, partis_dir) # + '/python')
