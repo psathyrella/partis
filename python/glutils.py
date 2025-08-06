@@ -46,7 +46,7 @@ def functionality_fname(species=None, gldir=None):  # _not_ generally present (b
         species = 'human'
         print('  %s using default species %s for functionality file' % (utils.color('yellow', 'warning'), species))
     if gldir is None:
-        gldir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
+        gldir = utils.get_partis_dir()
     return '%s/data/germlines/%s/functionalities.csv' % (gldir, species)
 
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']

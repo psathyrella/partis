@@ -29,6 +29,7 @@ import operator
 import yaml
 import six
 import hashlib
+from pathlib import Path
 from io import open
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -50,7 +51,7 @@ def csv_wmode(mode='w'):
 
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
-    return os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
+    return str(Path(__file__).resolve().parent.parent)
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -7320,13 +7321,13 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
 
     # figure out which vsearch binary to use
     if vsearch_binary is None:
-        vsearch_binary = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin'
         if platform.system() == 'Linux':
-            vsearch_binary += '/vsearch-2.4.3-linux-x86_64'
+            binstr = 'linux'
         elif platform.system() == 'Darwin':
-            vsearch_binary += '/vsearch-2.4.3-macos-x86_64'
+            binstr += 'macos'
         else:
             raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
+        vsearch_binary = '%s/bin/vsearch-2.4.3-%s-x86_64' % (get_partis_dir(), binstr)
 
     # build command
     cmd = vsearch_binary
@@ -7416,7 +7417,7 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
         for name, seq in seqs.items():
             fastafile.write('>%s_%d\n%s\n' % (name, dummy_abundance, remove_ambiguous_ends(seq).replace('N', 'A')))
 
-    cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/swarm-2.1.13-linux-x86_64 ' + infname
+    cmd = '%s/bin/swarm-2.1.13-linux-x86_64 %s' % (get_partis_dir(), infname)
     cmd += ' --differences ' + str(differences)
     if differences == 1:
         cmd += ' --fastidious'
@@ -7531,7 +7532,13 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 
 # ----------------------------------------------------------------------------------------
 def get_version_info(debug=False):
-    git_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/.git')
+    git_dir = '%s/.git' % get_partis_dir()
+    if not os.path.exists(git_dir):
+        try:
+            from importlib.metadata import version
+            return {'tag': version('partis-bcr'), 'commit': 'installed'}
+        except ImportError:
+            return {'tag': 'unknown', 'commit': 'installed'}
     vinfo = {}
     vinfo['commit'] = subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD'], universal_newlines=True).strip()
     if debug:

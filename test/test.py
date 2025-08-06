@@ -126,9 +126,9 @@ class Tester(object):
                 '--min-paired-cluster-size-to-read', str(self.min_smetric_cluster_size())]
     # ----------------------------------------------------------------------------------------
     def __init__(self):
-        self.partis = '%s/bin/partis' % utils.get_partis_dir()
+        self.partis_path = 'partis' if shutil.which('partis') else '%s/bin/partis' % utils.get_partis_dir()  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
         if args.prepend_coverage:
-            self.partis = 'coverage3 run --append %s' % self.partis
+            self.partis_path = 'coverage3 run --append %s' % self.partis_path
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         # generate paired data dir with: UPDATE i cat'd the ig?.fa files into all-seqs.fa (in the same dir) so extract-pair-info and split-loci get run
         #  - ./bin/split-loci.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta --outdir test/paired-data --input-metafname /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml --n-max-queries 100 >test/paired-data/split-loci.log
@@ -292,7 +292,7 @@ class Tester(object):
     def fiddle_with_arguments(self, ptest, argfo):
         input_stype, input_dtype = self.get_stypes(ptest)
         argfo['input_stype'] = input_stype
-        argfo['bin'] = self.partis
+        argfo['bin'] = self.partis_path
 
         if ptest == 'simulate':
             argfo['parameter-dir'] = self.paramdir(input_stype, 'data')

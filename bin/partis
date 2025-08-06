@@ -88,6 +88,8 @@ def run_simulation(args):
         for iproc in range(args.n_procs):
             n_sub_events = get_sub_events(iproc)
             clist = copy.deepcopy(sys.argv)
+            if shutil.which('partis'):  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
+                clist[0] = 'partis'
             utils.replace_in_arglist(clist, '--n-procs', '1')
             clist.append('--im-a-subproc')
             utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
@@ -328,6 +330,8 @@ def subset_partition(args):
     # ----------------------------------------------------------------------------------------
     def get_cmd(infname, outdir, merged_odir=None):
         clist = copy.deepcopy(sys.argv)
+        if shutil.which('partis'):  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
+            clist[0] = 'partis'
         assert is_subset_action(clist[1])  # ugh, but utils.replace_in_arglist() only handles -- style arg strs
         clist[1] = args.action.split('-')[1]
         utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
@@ -628,7 +632,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if utils.getsuffix(args.infname) == '.yaml':
                 new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
                 print('  note: converting input .yaml file to .fa so we can extract pairing info + split loci (new --infname: %s)' % new_fn)
-                utils.simplerun('%s/parse-output.py %s %s' % (os.path.dirname(os.path.realpath(__file__)), args.infname, new_fn), extra_str='    ')
+                utils.simplerun('%s/bin/parse-output.py %s %s' % (utils.get_partis_dir(), args.infname, new_fn), extra_str='    ')
                 args.infname = new_fn
             cmd = '%s%s/bin/extract-pairing-info.py %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, mfname)
             if args.n_max_queries > 0:
@@ -714,6 +718,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         # ----------------------------------------------------------------------------------------
         def prep_args(ltmp):
             clist = copy.deepcopy(sys.argv)
+            if shutil.which('partis'):  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
+                clist[0] = 'partis'
             if any('=' in a for a in clist):  # arg (have to handle --arg=val style syntax)
                 new_clist = []
                 for cstr in clist:

@@ -1053,13 +1053,14 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             cmd = '%s/bin/FastTree -gtr -nt -out %s %s' % (utils.get_partis_dir(), ofn(workdir), ifn(workdir))
         elif method in iqt_methods:
             vsn = '1.6.12' if method=='iqtree' else method.split('-')[1]
-            cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
+            cmd = '%s/bin/iqtree-%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
+            # cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
             if redo:
                 cmd += ' -redo'
         elif method == 'raxml':
             rcmds = ['#!/bin/bash']
-            rcmds += ['%s/packages/raxml/raxml-ng --model GTR+G --msa %s --msa-format FASTA' % (utils.get_partis_dir(), ifn(workdir))]
-            rcmds += ['%s/packages/raxml/raxml-ng --model GTR+G --msa %s --msa-format FASTA --ancestral --tree %s' % (utils.get_partis_dir(), ifn(workdir), ofn(workdir))]
+            rcmds += ['%s/bin/raxml-ng --model GTR+G --msa %s --msa-format FASTA' % (utils.get_partis_dir(), ifn(workdir))]
+            rcmds += ['%s/bin/raxml-ng --model GTR+G --msa %s --msa-format FASTA --ancestral --tree %s' % (utils.get_partis_dir(), ifn(workdir), ofn(workdir))]
             utils.write_cmd_file('\n'.join(rcmds) + '\n', '%s/run.sh'%workdir)
             cmd = '%s/run.sh'%workdir
         elif 'gctree' in method:
@@ -2338,7 +2339,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
 # ----------------------------------------------------------------------------------------
 def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=None, phylip_treefile=None, phylip_seqfile=None, seed=1, debug=False):
     if lonr_code_file is None:
-        lonr_code_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/bin/lonr.r')
+        lonr_code_file = '%s/bin/lonr.r' % utils.get_partis_dir()
     if not os.path.exists(lonr_code_file):
         raise Exception('lonr code file %s d.n.e.' % lonr_code_file)
     if tree_method not in ('dnapars', 'neighbor'):
@@ -3213,7 +3214,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     cmdlines = [
         'library(ape, quiet=TRUE)',
         # 'library(RPANDA, quiet=TRUE)',  # old way, before I had to modify the source code because the CRAN version removes all eigenvalues <1 (for method="standard" -- with method="normal" it's <0, which is probably better, but it also seems to smoosh all the eigenvalues to be almost exactly 1)
-        'library("RPANDA", lib.loc="%s/packages/RPANDA/lib", quiet=TRUE)' % os.path.dirname(os.path.realpath(__file__)).replace('/python', ''),
+        'library("RPANDA", lib.loc="%s/packages/RPANDA/lib", quiet=TRUE)' % utils.get_partis_dir(),
         'tree <- read.tree(text = "%s")' % treestr,
         # 'print(tree)',
         'specvals <- spectR(tree, method=c("standard"))',  # compute eigenvalues (and some metrics describing the distribution, e.g. skewness, kurtosis, eigengap)
