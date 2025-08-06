@@ -197,9 +197,9 @@ setup(
     ],
     keywords='immunology bioinformatics bcr tcr antibody sequence-analysis',
     
-    # Packages and package data
-    packages=['partis', 'partis.cache'],
-    package_dir={'partis': 'python'},
+    # Packages and package data - keep the original 'python' module name for compatibility
+    packages=['python', 'python.cache'],
+    package_dir={'python': 'python'},
     python_requires='>=3.7',
     
     # Dependencies
@@ -248,10 +248,22 @@ setup(
         ],
     },
     
+    # Install Python scripts to PATH
+    scripts=[
+        'bin/cf-germlines.py',
+        'bin/cf-alleles.py',
+        'bin/extract-pairing-info.py',
+        'bin/split-loci.py',
+        'bin/gctree-run.py',
+        'bin/parse-output.py',
+        'test/test.py',
+    ],
+
     # Include data files
     include_package_data=True,
     package_data={
-        'partis': [
+        'python': [
+            '../bin/*',
             '../data/**/*',
             '../packages/ham/bcrham',
             '../packages/ig-sw/src/ig_align/ig-sw',

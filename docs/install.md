@@ -16,18 +16,16 @@ First install system dependencies:
 ```bash
 # Ubuntu/Debian
 sudo apt-get update
-sudo apt-get install python3 python3-pip python3-venv python-is-python3 build-essential cmake libgsl-dev libyaml-cpp-dev scons
+sudo apt-get install python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons
 
 # macOS (with Homebrew)
-brew install python3 cmake gsl yaml-cpp scons
-# Note: pip and python3-venv are included with Homebrew's python3
+brew install python3 pipx cmake gsl yaml-cpp scons
+# Note: pip is included with Homebrew's python3
 ```
 
 Install from PyPI (recommended):
 ```bash
-python -m venv partis-env
-source partis-env/bin/activate  # On Windows: partis-env\Scripts\activate
-pip install partis-bcr
+pipx install partis-bcr
 ```
 Alternatively, you can install from source if you think you'll want to modify the source code:
 ```bash
