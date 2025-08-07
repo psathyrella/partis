@@ -152,7 +152,7 @@ For instance, after running [bin/compare-plotdirs.py](#comparison-plots) we can 
 ```
 pdir=docs/example-plots
 subd=annotation-performance
-./bin/compare-plotdirs.py --outdir $pdir/comparisons/$subd --plotdirs $pdir/$subd/sw:$pdir/$subd/hmm --names sw:multi-hmm --normalize --performance-plots
+compare-plotdirs.py --outdir $pdir/comparisons/$subd --plotdirs $pdir/$subd/sw:$pdir/$subd/hmm --names sw:multi-hmm --normalize --performance-plots
 ```
 Which looks like this for two of the (many) resulting plots:
 
@@ -168,7 +168,7 @@ We demonstrate its use by comparing some of the smith-waterman, hmm, and multi-h
 ```
 pdir=docs/example-plots
 subd=overall #mute-freqs/overall
-./bin/compare-plotdirs.py --outdir $pdir/comparisons --plotdirs $pdir/sw/$subd:$pdir/hmm/$subd:$pdir/multi-hmm/$subd --names sw:hmm:multi-hmm --normalize
+compare-plotdirs.py --outdir $pdir/comparisons --plotdirs $pdir/sw/$subd:$pdir/hmm/$subd:$pdir/multi-hmm/$subd --names sw:hmm:multi-hmm --normalize
 ```
 
 With the result, say for d 5' deletion and v gene call showing the multi-hmm's significantly different (and improved) performance:

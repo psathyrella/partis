@@ -5,11 +5,12 @@
 While there are many different partis [subcommands](subcommands.md), likely the first thing you want to do is run `partition` on a fasta input file `/path/to/yourseqs.fa`.
 The following command will first infer a set of parameters (including germline genes) on the sample, then group sequences into clonal families and annotate each family with V gene, naive sequence, etc:
 
-```/path/to/<partis_dir>/bin/partis partition --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.yaml```.
+```partis partition --infname /path/to/yourseqs.fa --outfname /path/to/yourseqs-partition.yaml```.
 
+If partis is not installed in your path, you will need to use the full path in this command.
 This by default assumes input of single-chain positive sense human igh.
 If you have another species or locus, set the `--species {human,mouse,macaque,c57bl,balbc}` (details [here](../data/germlines/README.md)) and/or `--locus {tra,trb,trd,trg,igl,igk,igh}` options.
-If you have different loci mixed together, you'll need to either set `--paired-loci`, or first run `./bin/split-loci.py`, both of which split different loci into separate files (the former runs the latter in the course of handling data with pairing information).
+If you have different loci mixed together, you'll need to either set `--paired-loci`, or first run `split-loci.py`, both of which split different loci into separate files (the former runs the latter in the course of handling data with pairing information).
 Both of these take the argument `--reverse-negative-strands` if you have a mix of positive and negative sense sequences.
 If you have heavy/light pairing information, for instance from 10x single cell data, it is important to incorporate it as described [here](paired-loci.md) in order to take advantage of (among other things) dramatically improved partitioning accuracy.
 If you're using Docker, and you mounted your host filesystem as described [here](install.md#installation-with-docker), you should replace `/path/to` with the appropriate host mount point within Docker.

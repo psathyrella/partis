@@ -21,4 +21,4 @@ if [ "$*" == "with-simulation" ]; then
 fi
 
 echo -e "\n--> test"
-./test/test.py --quick
+test.py --quick  # may need to specify full path if not using pip[x] install

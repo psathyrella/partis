@@ -113,8 +113,8 @@ For instance running the former in a terminal in which I've backgrounded the par
 ```
   PID COMMAND
  2677 -bash
- 4685   python ./bin/partis partition --infname test/reference-results/test/simu.yaml
- 4734     /home/dralph/work/partis/packages/ham/bcrham --algorithm forward --hmmdir /home/dralph/work/partis/_output/test_reference-results_test_simu/hmm/hmms --datadir /tmp/dralph/hmms/902992/germline-sets --infile /tmp/dralph/hmms/902992/hmm_input.csv --outfile /tmp/dralph/hmms/902992/hmm_output.csv --locus igh --random-seed 1554239923 --input-cachefname /tmp/dralph/hmms/902992/hmm_cached_info.csv --output-cachefname /tmp/dralph/hmms/902992/hmm_cached_info.csv --partition --max-logprob-drop 5.0 --hamming-fraction-bound-lo 0.015 --hamming-fraction-bound-hi 0.0711739130435 --logprob-ratio-threshold 18.0 --biggest-naive-seq-cluster-to-calculate 15 --biggest-logprob-cluster-to-calculate 15 --n-partitions-to-write 10 --write-logprob-for-each-partition --ambig-base N
+ 4685   python partis partition --infname test/reference-results/test/simu.yaml
+ 4734     bcrham --algorithm forward --hmmdir /home/dralph/work/partis/_output/test_reference-results_test_simu/hmm/hmms --datadir /tmp/dralph/hmms/902992/germline-sets --infile /tmp/dralph/hmms/902992/hmm_input.csv --outfile /tmp/dralph/hmms/902992/hmm_output.csv --locus igh --random-seed 1554239923 --input-cachefname /tmp/dralph/hmms/902992/hmm_cached_info.csv --output-cachefname /tmp/dralph/hmms/902992/hmm_cached_info.csv --partition --max-logprob-drop 5.0 --hamming-fraction-bound-lo 0.015 --hamming-fraction-bound-hi 0.0711739130435 --logprob-ratio-threshold 18.0 --biggest-naive-seq-cluster-to-calculate 15 --biggest-logprob-cluster-to-calculate 15 --n-partitions-to-write 10 --write-logprob-for-each-partition --ambig-base N
  6836   ps -Ho pid,args
 ```
 
@@ -299,19 +299,19 @@ There is, however, a wealth of information that can be used to get a good sense 
 There are also two utility scripts for comparing germline sequences (`bin/cf-alleles.py`) and sets (`bin/cf-germlines.py`).
 To compare all sequences in a particular germline set:
 ```
-./bin/cf-alleles.py --bases all | less -RS
+cf-alleles.py --bases all | less -RS
 ```
 which by default looks at igh genes in the default location, and aligns all alleles within each primary gene version together, e.g. for D:
 ![cf-alleles](images/cf-alleles-d.jpg)
 
 Whereas to compare only the alleles of a specific V gene, for instance, you could run:
 ```
-./bin/cf-alleles.py --bases 1-18 --region v --ref-allele 03
+cf-alleles.py --bases 1-18 --region v --ref-allele 03
 ```
 To compare two different germline sets, on the other hand, use `bin/cf-germlimes.py`.
 For instance the following would compare human and macaque igh:
 ```
-./bin/cf-germlines.py data/germlines/human data/germlines/macaque | less -RS
+cf-germlines.py data/germlines/human data/germlines/macaque | less -RS
 ```
 and display a rundown of alleles in common and unique to each set, as well as aligning them against the nearest allele in the other set:
 ![cf-germlines](images/cf-germlines.jpg)
@@ -439,7 +439,7 @@ Details of the generated germline set will be printed to stdout, and after simul
 **Generating novel alleles:**
 
 There are also several ways to generate novel alleles, i.e. alleles that are not in an existing germline set.
-Because this is somewhat complicated, we describe these options using the helper script `bin/test-germline-inference.py`, which automates a simulation run and subsequent partis germline inference on that simulation (run `./bin/test-germline-inference.py --help` for examples).
+Because this is somewhat complicated, we describe these options using the helper script `bin/test-germline-inference.py`, which automates a simulation run and subsequent partis germline inference on that simulation (run `test-germline-inference.py --help` for examples).
 
 You first need to either give it an explicit list of genes to use, or tell it to generate a germline set from scratch:
 
@@ -536,7 +536,7 @@ The same calculations are made for alternative gene calls, zoomed in on here:
 The script `bin/get-naive-probabilities.py` is designed to answer the question "What is the probability of a particular rearrangement in this sample?".
 It uses the `all-probs.csv` file that is written to each parameter directory, which contains a line counting how many times we saw each unique rearrangement in that sample.
 Using a yaml config file, you can have the script use a variety of criteria, for instance, find the probability of rearrangements that use any IGHV1 family gene, and that have CDR3 length of 60, 63, or 66.
-For more details run `./bin/get-naive-probabilities.py --help`.
+For more details run `get-naive-probabilities.py --help`.
 
 ##### input meta info
 

@@ -14,7 +14,7 @@ from setuptools.command.egg_info import egg_info
 
 def check_system_dependencies():
     """Check that required system dependencies are available."""
-    required_commands = ['scons', 'gcc', 'g++', 'python3', 'pip']
+    required_commands = ['scons', 'gcc', 'g++', 'python3', 'pip', 'mafft']
     missing = []
     
     for cmd in required_commands:
@@ -36,10 +36,10 @@ ERROR: Missing required system dependencies: {', '.join(missing)}
 Please install the following packages:
 
 Ubuntu/Debian:
-    sudo apt-get install python3 python3-pip python3-venv build-essential scons libgsl-dev libyaml-cpp-dev
+    sudo apt-get install python3 python3-pip python3-venv build-essential scons libgsl-dev libyaml-cpp-dev mafft
 
 macOS (with Homebrew):
-    brew install python3 scons gsl yaml-cpp
+    brew install python3 scons gsl yaml-cpp mafft
     # Note: pip and python3-venv are included with Homebrew's python3
 
 Then try the installation again.
@@ -171,7 +171,7 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Version
-version = '1.0.3'
+version = '1.0.4'
 
 setup(
     name='partis-bcr',
@@ -254,6 +254,8 @@ setup(
         'bin/cf-alleles.py',
         'bin/extract-pairing-info.py',
         'bin/split-loci.py',
+        'bin/get-naive-probabilities.py',
+        'bin/compare-plotdirs.py',
         'bin/gctree-run.py',
         'bin/parse-output.py',
         'test/test.py',

@@ -16,10 +16,10 @@ First install system dependencies:
 ```bash
 # Ubuntu/Debian
 sudo apt-get update
-sudo apt-get install python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons
+sudo apt-get install python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft
 
 # macOS (with Homebrew)
-brew install python3 pipx cmake gsl yaml-cpp scons
+brew install python3 pipx cmake gsl yaml-cpp scons mafft
 # Note: pip is included with Homebrew's python3
 ```
 
@@ -45,11 +45,11 @@ pip install -e .
 
 ```bash
 # Run quick test
-./test/test.py --quick
+test.py --quick
 
 # Run more complete test (still without simulation, since the base/pip install above doesn't install simulation requirements)
-./test/test.py --no-simu
-./test/test.py --paired --no-simu
+test.py --no-simu
+test.py --paired --no-simu
 ```
 
 #### Installation with Docker
