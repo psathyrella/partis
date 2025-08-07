@@ -1043,7 +1043,7 @@ def collapse_zero_length_leaves(dtree, sequence_uids, dont_warn=False, debug=Fal
 def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=None, naive_seq_name='XnaiveX', no_naive=False, actions='prep:run:read',
                        taxon_namespace=None, suppress_internal_node_taxa=False, persistent_workdir=None, redo=False, outfix='out', cmdfo=None,
                        glfo=None, parameter_dir=None, use_docker=False, linearham_dir=None, iclust=None, seed_id=None, only_pass_leaves=False,
-                       collapse_duplicate_seqs=False, keys_not_to_collapse=None, dont_collapse_zero_len_leaves=False, debug=False):
+                       collapse_duplicate_seqs=False, keys_not_to_collapse=None, dont_collapse_zero_len_leaves=False, phylo_naive_inference_fuzz=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def lhindir(workdir):
         return '%s/input' % workdir
@@ -1053,13 +1053,14 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             cmd = '%s/bin/FastTree -gtr -nt -out %s %s' % (utils.get_partis_dir(), ofn(workdir), ifn(workdir))
         elif method in iqt_methods:
             vsn = '1.6.12' if method=='iqtree' else method.split('-')[1]
-            cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
+            cmd = '%s/bin/iqtree-%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
+            # cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
             if redo:
                 cmd += ' -redo'
         elif method == 'raxml':
             rcmds = ['#!/bin/bash']
-            rcmds += ['%s/packages/raxml/raxml-ng --model GTR+G --msa %s --msa-format FASTA' % (utils.get_partis_dir(), ifn(workdir))]
-            rcmds += ['%s/packages/raxml/raxml-ng --model GTR+G --msa %s --msa-format FASTA --ancestral --tree %s' % (utils.get_partis_dir(), ifn(workdir), ofn(workdir))]
+            rcmds += ['%s/bin/raxml-ng --model GTR+G --msa %s --msa-format FASTA' % (utils.get_partis_dir(), ifn(workdir))]
+            rcmds += ['%s/bin/raxml-ng --model GTR+G --msa %s --msa-format FASTA --ancestral --tree %s' % (utils.get_partis_dir(), ifn(workdir), ofn(workdir))]
             utils.write_cmd_file('\n'.join(rcmds) + '\n', '%s/run.sh'%workdir)
             cmd = '%s/run.sh'%workdir
         elif 'gctree' in method:
@@ -1256,11 +1257,18 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
     assert actions in ['prep:run:read', 'prep', 'read']  # other combinations could make sense, but don't need them atm
     if method == 'linearham' and glfo is None:
         raise Exception('need to pass in glfo in order to run linearham (e.g. linearham can\'t work on the fake h/l annotations')
+    if phylo_naive_inference_fuzz is not None:
+        assert method in iqt_methods  # needs implementing for other methods
 
     is_fake_paired = annotation is not None and annotation.get('is_fake_paired', False)
     if input_seqfos is None:
         assert naive_seq is None  # can't specify it two ways
         input_seqfos = utils.seqfos_from_line(annotation, prepend_naive=True, naive_name=naive_seq_name, extra_keys=keys_not_to_collapse, add_sfos_for_multiplicity='gctree' in method)
+        if phylo_naive_inference_fuzz is not None:
+            assert input_seqfos[0]['name'] == naive_seq_name
+            masked_seq = utils.get_cdr3_masked_naive(annotation, n_fuzz=phylo_naive_inference_fuzz)
+            input_seqfos[0]['seq'] = masked_seq  # replace naive seq with masked seq
+            input_seqfos.insert(0, {'name' : 'masked-%s-1'%naive_seq_name, 'seq' : masked_seq})  # add masked seq as new seqfo
     elif naive_seq is not None:
         input_seqfos = [{'name' : naive_seq_name, 'seq' : naive_seq}] + input_seqfos
     elif not no_naive:  # force calling fcn to affirmatively indicate it doesn't want the naive sequence in the tree (since at one point we forget to add it, with bad consequences)
@@ -1329,7 +1337,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
 
     removed_nodes = None
     # fasttree, iqtree, and gctree put all observed seqs as leaves, so we sometimes want to collapse [near-]zero-length leaves onto their internal node parent
-    if not dont_collapse_zero_len_leaves and not only_pass_leaves and not suppress_internal_node_taxa:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
+    if not dont_collapse_zero_len_leaves and not only_pass_leaves and not suppress_internal_node_taxa and phylo_naive_inference_fuzz is None:  # only_pass_leaves means we're probably caring about tree inference accuracy, so want all initial leaves to end up as final leaves to ease comparisons, while suppress_internal_node_taxa has to do with clusterpath tree method
         if debug:
             print('      collapsing zero length leaves')
         removed_nodes = collapse_zero_length_leaves(dtree, uid_list + [naive_seq_name], dont_warn=collapse_duplicate_seqs, debug=debug)
@@ -1340,6 +1348,14 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
         re_insert_ambig(input_seqfos, padded_seq_info_list)
     if len(inf_seqfos) > 0:
         check_lengths(input_seqfos, inf_seqfos)
+    if phylo_naive_inference_fuzz is not None:
+        assert inf_antn is None  # just needs to be implemented for the methods that return inf_antn rather than inf_seqfos
+        root_dists = [(s, dtree.find_node_with_taxon_label(s['name']).distance_from_root()) for s in inf_seqfos]  # (seqfo, distance) pairs
+        nearfo, neardist = sorted(root_dists, key=operator.itemgetter(1))[0]
+        print('    setting phylo-naive to node %s with distance %.2f (*%d = %d) from root' % (nearfo['name'], neardist, len(nearfo['seq']), neardist * len(nearfo['seq'])))
+        translate_labels(dtree, [(nearfo['name'], 'phylo-naive')], expect_missing=True)
+        # utils.translate_uids()  # will I think need to use this for inf_antn
+        nearfo['name'] = 'phylo-naive'
 
     if debug:
         print(utils.pad_lines(get_ascii_tree(dendro_tree=dtree)))
@@ -2323,7 +2339,7 @@ def parse_lonr(outdir, input_seqfos, naive_seq_name, reco_info=None, debug=False
 # ----------------------------------------------------------------------------------------
 def run_lonr(input_seqfos, naive_seq_name, workdir, tree_method, lonr_code_file=None, phylip_treefile=None, phylip_seqfile=None, seed=1, debug=False):
     if lonr_code_file is None:
-        lonr_code_file = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/bin/lonr.r')
+        lonr_code_file = '%s/bin/lonr.r' % utils.get_partis_dir()
     if not os.path.exists(lonr_code_file):
         raise Exception('lonr code file %s d.n.e.' % lonr_code_file)
     if tree_method not in ('dnapars', 'neighbor'):
@@ -2609,7 +2625,8 @@ def get_treefos(args, antn_list, glfo=None, debug=False):  # note that <antn_lis
 # gets new tree for each specified annotation, and adds a new 'tree-info' key for each (overwriting any that's already there)
 # NOTE <inf_lines_to_use> should be *all* your annotations (so the subclust workdirs are correct), *not* just one cluster at a time
 def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, workdir=None, cluster_indices=None, tree_inference_method=None, inf_outdir=None,
-                              glfo=None, parameter_dir=None, linearham_dir=None, min_cluster_size=4, seed_id=None, only_pass_leaves=False, collapse_duplicate_seqs=False, keys_not_to_collapse=None, debug=False):
+                              glfo=None, parameter_dir=None, linearham_dir=None, min_cluster_size=4, seed_id=None, only_pass_leaves=False, collapse_duplicate_seqs=False,
+                              keys_not_to_collapse=None, phylo_naive_inference_fuzz=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def addtree(iclust, dtree, origin):
         treefos[iclust] = {'tree' : dtree, 'origin' : origin}
@@ -2680,7 +2697,9 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
             if tree_inference_method is None:
                 tree_inference_method = 'fasttree'  # ick
             # NOTE if you add an arg here, you probably also need to add it to the 'read' call of the same fcn below
-            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir, linearham_dir=linearham_dir, seed_id=seed_id, only_pass_leaves=only_pass_leaves, collapse_duplicate_seqs=collapse_duplicate_seqs, keys_not_to_collapse=keys_not_to_collapse, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
+            cmdfos[iclust] = run_tree_inference(tree_inference_method, annotation=line, actions='prep', persistent_workdir=perswdir(iclust), glfo=glfo, iclust=iclust, parameter_dir=parameter_dir,
+                                                linearham_dir=linearham_dir, seed_id=seed_id, only_pass_leaves=only_pass_leaves, collapse_duplicate_seqs=collapse_duplicate_seqs,
+                                                keys_not_to_collapse=keys_not_to_collapse, phylo_naive_inference_fuzz=phylo_naive_inference_fuzz, debug=debug)  # this'll still return the cmdfo if the output exists (since we need it for parsing below), but we won't actually rerun it
             dtree = None
             origin = tree_inference_method
         else:
@@ -2711,7 +2730,9 @@ def get_trees_for_annotations(inf_lines_to_use, treefname=None, cpath=None, work
         for iclust, (line, cfo) in enumerate(zip(inf_lines_to_use, cmdfos)):
             if cfo is None:
                 continue
-            dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id, only_pass_leaves=only_pass_leaves, collapse_duplicate_seqs=collapse_duplicate_seqs, keys_not_to_collapse=keys_not_to_collapse, debug=debug)
+            dtree, inf_seqfos, inf_antn = run_tree_inference(tree_inference_method, annotation=line, actions='read', persistent_workdir=perswdir(iclust), cmdfo=cfo, glfo=glfo, seed_id=seed_id,
+                                                             only_pass_leaves=only_pass_leaves, collapse_duplicate_seqs=collapse_duplicate_seqs, keys_not_to_collapse=keys_not_to_collapse,
+                                                             phylo_naive_inference_fuzz=phylo_naive_inference_fuzz, debug=debug)
             if tree_inference_method == 'linearham':  # NOTE linearham infers the whole annotation, not just ancestral seqs (also note this annotation will have all of its sampled trees in l['tree-info']['linearham']['trees'], and logprob in ['logprob']
                 for mkey in [k for k in utils.input_metafile_keys.values() if k in line]:  # have to copy over any input meta keys
                     inf_antn[mkey] = [utils.per_seq_val(line, mkey, u, use_default=True) for u in inf_antn['unique_ids']]
@@ -2786,7 +2807,7 @@ def add_smetrics(args, metrics_to_calc, annotations, lb_tau, inf_partition=None,
         if 'tree' in args.selection_metric_plot_cfg or any(m in metrics_to_calc for m in ['lbi', 'lbr', 'lbf', 'aa-lbi', 'aa-lbr', 'aa-lbf']):  # get the tree if we're making tree plots or if any of the requested metrics need a tree
             treefos = get_trees_for_annotations(inf_lines_to_use, treefname=args.treefname, workdir=workdir, cluster_indices=args.cluster_indices, tree_inference_method=args.tree_inference_method,
                                                 inf_outdir=tree_inference_outdir, glfo=glfo, parameter_dir=args.paired_outdir if args.paired_loci else args.parameter_dir, linearham_dir=args.linearham_dir,
-                                                seed_id=args.seed_unique_id, only_pass_leaves=args.infer_trees_with_only_leaves, debug=debug)
+                                                seed_id=args.seed_unique_id, only_pass_leaves=args.infer_trees_with_only_leaves, phylo_naive_inference_fuzz=args.phylo_naive_inference_fuzz, debug=debug)
         check_cluster_indices(args.cluster_indices, n_after, inf_lines_to_use)
         n_already_there, n_skipped_uid = 0, 0
         final_inf_lines = []
@@ -3193,7 +3214,7 @@ def run_laplacian_spectra(treestr, workdir=None, plotdir=None, plotname=None, ti
     cmdlines = [
         'library(ape, quiet=TRUE)',
         # 'library(RPANDA, quiet=TRUE)',  # old way, before I had to modify the source code because the CRAN version removes all eigenvalues <1 (for method="standard" -- with method="normal" it's <0, which is probably better, but it also seems to smoosh all the eigenvalues to be almost exactly 1)
-        'library("RPANDA", lib.loc="%s/packages/RPANDA/lib", quiet=TRUE)' % os.path.dirname(os.path.realpath(__file__)).replace('/python', ''),
+        'library("RPANDA", lib.loc="%s/packages/RPANDA/lib", quiet=TRUE)' % utils.get_partis_dir(),
         'tree <- read.tree(text = "%s")' % treestr,
         # 'print(tree)',
         'specvals <- spectR(tree, method=c("standard"))',  # compute eigenvalues (and some metrics describing the distribution, e.g. skewness, kurtosis, eigengap)

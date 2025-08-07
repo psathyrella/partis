@@ -13,7 +13,8 @@ import colored_traceback.always
 
 from subprocess import check_call
 sys.path.insert(1, '.') #'./python')
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+from pathlib import Path
+partis_dir = str(Path(__file__).parent.parent)
 
 import python.utils as utils
 import python.glutils as glutils

@@ -53,7 +53,7 @@ In paired simulation output directories, there will also be `all-seqs.fa`, which
 
 An example parsing script can be found [here](../bin/parse-output.py), for instance this command:
 ```
-./bin/parse-output.py --paired test/paired/ref-results/partition-new-simu simple/out/dir
+parse-output.py --paired test/paired/ref-results/partition-new-simu simple/out/dir
 ```
 will read a partis paired output directory, and write a few simplified output files (fasta, csv, yaml) with sequences and pairing info, but without annotation or partition information.
 You can also use the `fake-paired-annotations` action to write "fake" annotations created by concatenating heavy/light chain sequences together (useful e.g. for phylo method input).

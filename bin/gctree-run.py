@@ -14,8 +14,9 @@ import dendropy
 import json
 from io import open
 import random
+from pathlib import Path
 
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) #'./python')
 import python.utils as utils
 import python.glutils as glutils

@@ -13,9 +13,10 @@ import json
 import operator
 import random
 import numpy
+from pathlib import Path
 
 # if you move this script, you'll need to change this method of getting the imports
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 
 import python.utils as utils

@@ -14,7 +14,7 @@ from setuptools.command.egg_info import egg_info
 
 def check_system_dependencies():
     """Check that required system dependencies are available."""
-    required_commands = ['scons', 'gcc', 'g++', 'python3', 'pip']
+    required_commands = ['scons', 'gcc', 'g++', 'python3', 'pip', 'mafft']
     missing = []
     
     for cmd in required_commands:
@@ -36,10 +36,10 @@ ERROR: Missing required system dependencies: {', '.join(missing)}
 Please install the following packages:
 
 Ubuntu/Debian:
-    sudo apt-get install python3 python3-pip python3-venv build-essential scons libgsl-dev libyaml-cpp-dev
+    sudo apt-get install python3 python3-pip python3-venv build-essential scons libgsl-dev libyaml-cpp-dev mafft
 
 macOS (with Homebrew):
-    brew install python3 scons gsl yaml-cpp
+    brew install python3 scons gsl yaml-cpp mafft
     # Note: pip and python3-venv are included with Homebrew's python3
 
 Then try the installation again.
@@ -171,10 +171,10 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Version
-version = '1.0.0'
+version = '1.0.4'
 
 setup(
-    name='partis',
+    name='partis-bcr',
     version=version,
     description='B- and T-cell receptor sequence annotation, simulation, clonal family and germline inference',
     long_description=long_description,
@@ -197,9 +197,9 @@ setup(
     ],
     keywords='immunology bioinformatics bcr tcr antibody sequence-analysis',
     
-    # Packages and package data
-    packages=['partis', 'partis.cache'],
-    package_dir={'partis': 'python'},
+    # Packages and package data - keep the original 'python' module name for compatibility
+    packages=['python', 'python.cache'],
+    package_dir={'python': 'python'},
     python_requires='>=3.7',
     
     # Dependencies
@@ -248,10 +248,24 @@ setup(
         ],
     },
     
+    # Install Python scripts to PATH
+    scripts=[
+        'bin/cf-germlines.py',
+        'bin/cf-alleles.py',
+        'bin/extract-pairing-info.py',
+        'bin/split-loci.py',
+        'bin/get-naive-probabilities.py',
+        'bin/compare-plotdirs.py',
+        'bin/gctree-run.py',
+        'bin/parse-output.py',
+        'test/test.py',
+    ],
+
     # Include data files
     include_package_data=True,
     package_data={
-        'partis': [
+        'python': [
+            '../bin/*',
             '../data/**/*',
             '../packages/ham/bcrham',
             '../packages/ig-sw/src/ig_align/ig-sw',

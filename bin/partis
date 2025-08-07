@@ -22,7 +22,9 @@ import csv
 import operator
 import glob
 from collections import defaultdict
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/bin', '')
+from pathlib import Path
+import shutil
+partis_dir = str(Path(__file__).parent.parent)
 if not os.path.exists(partis_dir):
     print('%s partis dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
 sys.path.insert(1, partis_dir) # + '/python')
@@ -38,6 +40,15 @@ import python.paircluster as paircluster
 from python.parametercounter import ParameterCounter
 from python.corrcounter import CorrCounter
 from python.waterer import Waterer
+
+# ----------------------------------------------------------------------------------------
+def find_cmd(cmd):
+    if shutil.which(os.path.basename(cmd)):  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
+        return os.path.basename(cmd)
+    elif os.path.exists(cmd):
+        return cmd
+    else:
+        return '%s/bin/%s' % (partis_dir, os.path.basename(cmd))
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -86,6 +97,7 @@ def run_simulation(args):
         for iproc in range(args.n_procs):
             n_sub_events = get_sub_events(iproc)
             clist = copy.deepcopy(sys.argv)
+            clist[0] = find_cmd(clist[0])
             utils.replace_in_arglist(clist, '--n-procs', '1')
             clist.append('--im-a-subproc')
             utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
@@ -103,7 +115,7 @@ def run_simulation(args):
             cmdstr = ' '.join(clist)
             if args.debug:
                 print('  %s %s' % (utils.color('red', 'run'), cmdstr))
-            cmdfos.append({'cmd_str' : cmdstr, 'workdir' : get_workdir(iproc), 'logdir' : args.workdir+'/log-'+str(iproc), 'outfname' : get_outfname(iproc)})  # logdirs have to be different than <workdirs> since ./bin/partis (rightfully) barfs if its workdir already exists
+            cmdfos.append({'cmd_str' : cmdstr, 'workdir' : get_workdir(iproc), 'logdir' : args.workdir+'/log-'+str(iproc), 'outfname' : get_outfname(iproc)})  # logdirs have to be different than <workdirs> since partis (rightfully) barfs if its workdir already exists
 
         utils.run_cmds(cmdfos, batch_system=args.batch_system, batch_options=args.batch_options, batch_config_fname=args.batch_config_fname, debug='print')
         file_list = [cmdfos[i]['outfname'] for i in range(args.n_procs)]
@@ -326,6 +338,7 @@ def subset_partition(args):
     # ----------------------------------------------------------------------------------------
     def get_cmd(infname, outdir, merged_odir=None):
         clist = copy.deepcopy(sys.argv)
+        clist[0] = find_cmd(clist[0])
         assert is_subset_action(clist[1])  # ugh, but utils.replace_in_arglist() only handles -- style arg strs
         clist[1] = args.action.split('-')[1]
         utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
@@ -626,9 +639,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             if utils.getsuffix(args.infname) == '.yaml':
                 new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
                 print('  note: converting input .yaml file to .fa so we can extract pairing info + split loci (new --infname: %s)' % new_fn)
-                utils.simplerun('%s/parse-output.py %s %s' % (os.path.dirname(os.path.realpath(__file__)), args.infname, new_fn), extra_str='    ')
+                utils.simplerun('%s %s %s' % (find_cmd('parse-output.py'), args.infname, new_fn), extra_str='    ')
                 args.infname = new_fn
-            cmd = '%s%s/bin/extract-pairing-info.py %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, mfname)
+            cmd = '%s%s %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', find_cmd('extract-pairing-info.py'), args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
             if args.n_random_queries is not None:
@@ -645,7 +658,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print('  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info')
         if is_subset_action(args.action):  # don't want loci to be split, since we pass all loci to each subset process in one file
             return
-        cmd = '%s%s/bin/split-loci.py %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', args.partis_dir, args.infname, getodir())
+        cmd = '%s%s %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', find_cmd('split-loci.py'), args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
         if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
@@ -712,6 +725,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # ----------------------------------------------------------------------------------------
         def prep_args(ltmp):
             clist = copy.deepcopy(sys.argv)
+            clist[0] = find_cmd(clist[0])
             if any('=' in a for a in clist):  # arg (have to handle --arg=val style syntax)
                 new_clist = []
                 for cstr in clist:
@@ -1317,7 +1331,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         titlestr = ltmp
         # if ccfs is not None and ltmp in ccfs:
         #     titlestr += ':@specif.%.2f'%ccfs[ltmp][0]
-        cmdstr = '%s/bin/compare-plotdirs.py --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (args.partis_dir, cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
+        cmdstr = '%s --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (find_cmd('compare-plotdirs.py'), cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
         cmdstr += ' --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % titlestr
         utils.simplerun(cmdstr, dryrun=args.dry_run)
 
@@ -1630,6 +1644,7 @@ parent_args.append({'name' : '--tree-inference-method', 'kwargs' : {'choices' : 
 parent_args.append({'name' : '--tree-inference-subdir', 'kwargs' : {'help' : 'Subdirectory of the (automatically-set) tree inference workdir to which to write tree inference output files. By default, these are written to a subdir of --outfname/--paired-outdir with the name of the inference method, but this argument allows multiple versions, as with --sub-plotdir.'}})
 parent_args.append({'name' : '--infer-trees-with-only-leaves', 'kwargs' : {'action' : 'store_true', 'help' : 'Discard internal nodes in true trees when inferring phylogenetic trees.'}})
 parent_args.append({'name' : '--infer-trees-with-collapsed-duplicate-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'collapse identical sequences when inferring trees (and then again when plotting them, since unfortunately it\'s really hard to pass the information between those two scripts). Yes, it sucks having both this and --collapse-duplicate-sequences (which acts during smith-waterman), but sometimes we can\'t use that, e.g. with queries to include or subset partitioning (at least without more work).'}})
+parent_args.append({'name' : '--phylo-naive-inference-fuzz', 'kwargs' : {'type' : int, 'help' : 'when inferring trees, replace the original inferred naive seq with the inferred root from the phylo program. When passing the naive seq/root to the phylo program, we replace uncertain positions (e.g. non-templated insertions) with Ns in the naive sequence before passing to tree inference. The phylo-inferred naive sequence is added to the annotation as an observed sequence named \'phylo-naive\'.'}})
 parent_args.append({'name' : '--selection-metrics-to-calculate', 'kwargs' : {'default' : 'lbi:lbr:aa-lbi:aa-lbr:cons-dist-aa', 'help' : 'colon-separated list of selection metrics to calculate.'}})
 parent_args.append({'name' : '--selection-metric-plot-cfg', 'kwargs' : {'default' : ':'.join(treeutils.default_plot_cfg), 'help' : 'colon-separated list of plot types to make for selection metrics (see treeutils.plot_tree_metrics()). Choices: %s.' % ' '.join(treeutils.all_plot_cfg)}})
 parent_args.append({'name' : '--extra-daffy-metrics', 'kwargs' : {'help' : 'colon-separated list of extra metrics (beyond defaults of %s) for which to make delta-affinity performance plots'%':'.join(treeutils.daffy_metrics)}})
@@ -1846,7 +1861,7 @@ for name, vals in subconfig.items():
         subparsermap[name].add_argument(argconf['name'], **argconf['kwargs'])
 
 # ----------------------------------------------------------------------------------------
-args = parser.parse_args()
+args = parser.parse_args() if len(sys.argv) > 1 else parser.parse_args(['--help'])
 
 # add OR of all arguments to all subparsers to <args>, as None (to avoid having to rewrite a *##!(%ton of other code)
 for missing_arg in get_arg_names('all') - set(args.__dict__):  # NOTE see also remove_action_specific_args() above, which kind of does similar things, at least if i rewrote this all from scratch only one (or neither...) would exist

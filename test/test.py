@@ -16,10 +16,9 @@ import copy
 import colored_traceback.always
 import sys
 from io import open
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
+from pathlib import Path
+partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
-if os.getcwd() != partis_dir:
-    raise Exception('need to run test.py from main partis dir %s' % partis_dir)
 import yaml
 
 from python.baseutils import get_extra_str
@@ -127,9 +126,9 @@ class Tester(object):
                 '--min-paired-cluster-size-to-read', str(self.min_smetric_cluster_size())]
     # ----------------------------------------------------------------------------------------
     def __init__(self):
-        self.partis = '%s/bin/partis' % utils.get_partis_dir()
+        self.partis_path = 'partis' if shutil.which('partis') else '%s/bin/partis' % utils.get_partis_dir()  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
         if args.prepend_coverage:
-            self.partis = 'coverage3 run --append %s' % self.partis
+            self.partis_path = 'coverage3 run --append %s' % self.partis_path
         self.datafname = 'test/mishmash.fa'  # some data from adaptive, chaim, and vollmers
         # generate paired data dir with: UPDATE i cat'd the ig?.fa files into all-seqs.fa (in the same dir) so extract-pair-info and split-loci get run
         #  - ./bin/split-loci.py /fh/fast/matsen_e/data/10x-examples/data/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig.fasta --outdir test/paired-data --input-metafname /fh/fast/matsen_e/data/10x-examples/processed-data/v0/sc5p_v2_hs_B_prevax_10k_5gex_B_vdj_b_filtered_contig/meta.yaml --n-max-queries 100 >test/paired-data/split-loci.log
@@ -199,7 +198,8 @@ class Tester(object):
             add_inference_tests('new')
             if not args.bust_cache:  # normally (if we're not cache busting) we want to run these last, to make it super clear that the inference tests are running on the *reference* simulation file
                 self.tests['cache-parameters-data'] = pcache_data_args
-                self.tests['simulate'] = simulate_args
+                if not args.no_simu:
+                    self.tests['simulate'] = simulate_args
 
         self.quick_tests = ['cache-parameters-quick-new-simu']  # this is kind of dumb to keep track of what the quick tests are in two different ways, but I only just started not adding the non-quick tests if --quick is set, and I don't want to mess with all the other places that use <self.quick_tests>
 
@@ -217,7 +217,9 @@ class Tester(object):
             return
         self.compare_production_results(['cache-parameters-simu'])
         self.compare_stuff(input_stype='new')
-        self.compare_production_results(['cache-parameters-data', 'simulate'])
+        self.compare_production_results(['cache-parameters-data'])
+        if not args.no_simu:
+            self.compare_production_results(['simulate'])
         self.compare_run_times()
 
     # ----------------------------------------------------------------------------------------
@@ -290,7 +292,7 @@ class Tester(object):
     def fiddle_with_arguments(self, ptest, argfo):
         input_stype, input_dtype = self.get_stypes(ptest)
         argfo['input_stype'] = input_stype
-        argfo['bin'] = self.partis
+        argfo['bin'] = self.partis_path
 
         if ptest == 'simulate':
             argfo['parameter-dir'] = self.paramdir(input_stype, 'data')
@@ -926,6 +928,7 @@ parser.add_argument('--bust-cache', action='store_true', help='overwrite current
 parser.add_argument('--only-bust-current', action='store_true', help='only bust cache for current command line args (as opposed to the default of busting caches for both slow and non-slow, paired and non-paired)')
 parser.add_argument('--paired', action='store_true', help='run paired tests, i.e. with --paired-loci. Note that this doesn\'t test all the things (e.g. seed partitioning) that non-paired does.')
 parser.add_argument('--run-all', action='store_true', help='run all four combinations of tests: paired/non-paired and slow/non-slow (by default only runs one). *Not* for use with --bust-cache, which runs all of them by default.')
+parser.add_argument('--no-simu', action='store_true', help='don\'t run simulation, e.g. if using a minimal install')
 parser.add_argument('--ig-or-tr', default='ig')
 parser.add_argument('--print-width', type=int, default=300, help='set to 0 for infinite')
 

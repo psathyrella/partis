@@ -44,10 +44,10 @@ The yaml output file contains four top-level headers:
 In order to quickly extract sequences (plus limited other info) from partis output files to fasta or csv/tsv, you can use `bin/parse-output.py`.
 For example
 ```
-./bin/parse-output.py test/reference-results/partition-new-simu.yaml <tmp.csv|tmp.fa> --extra-columns cdr3_length:naive_seq
+parse-output.py test/reference-results/partition-new-simu.yaml <tmp.csv|tmp.fa> --extra-columns cdr3_length:naive_seq
 ```
 will write input sequences, together with inferred naive sequences and cdr3 lengths, to `tmp.csv` or `tmp.fa`.
-See `./bin/parse-output.py --help` for details.
+See `parse-output.py --help` for details.
 
 The ClusterPath class, which represents a series of partitions, is useful for handling partitions.
 This snippet reads a cluster path from a file, prints an ascii summary, and gets the best partition:

@@ -14,7 +14,8 @@ import operator
 import random
 from io import open
 
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/test', '')
+from pathlib import Path
+partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 import python.utils as utils
 import python.paircluster as paircluster
@@ -33,7 +34,8 @@ synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'dist
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'subset-partition', 'vsearch-subset-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 phylo_actions = ['iqtree', 'raxml', 'gctree', 'gctree-mut-mult', 'gctree-no-dag', 'igphyml']  # , 'iqtree-1.6.beta3', 'iqtree-2.3.1'  # , 'gctree-base'
 tree_perf_actions = ['%s-tree-perf'%a for a in phylo_actions]  # it would be really nice to run tree perf during the phylo action, but i can't figure out a good way to do that (main problem is getting access to both true and inferred annotations in a sensible way)
-after_actions = ['replay-plot', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees', 'write-fake-paired-annotations', 'tree-perf']  + ptn_actions + phylo_actions + tree_perf_actions  # actions that come after simulation (e.g. partition)
+phylo_naive_actions = ['phylo-naive-iqtree', 'phylo-naive-iqtree-fuzz-0', 'phylo-naive-iqtree-fuzz-1', 'phylo-naive-iqtree-fuzz-2']
+after_actions = ['replay-plot', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees', 'write-fake-paired-annotations', 'tree-perf']  + ptn_actions + phylo_actions + tree_perf_actions + phylo_naive_actions  # actions that come after simulation (e.g. partition)
 plot_actions = ['single-chain-partis', 'single-chain-scoper']
 def is_single_chain(action):
     return 'synth-' in action or 'vjcdr3-' in action or 'single-chain-' in action or action in ['mobille', 'igblast', 'linearham']
@@ -127,7 +129,10 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
     elif pmetr is not None and 'pcfrac-' in pmetr:
         ofn = '%s/true-pair-clean-performance.csv' % outdir #, pmetr.replace('pcfrac', '').replace('-ns', '') if 'pcfrac-' in pmetr else '')
     elif pmetr is not None and pmetr == 'naive-hdist':
-        ofn = '%s/single-chain/plots/%s/hmm/mutation/hamming_to_true_naive.csv' % (outdir, locus)
+        if 'phylo-naive' in action:
+            ofn = '%s/%s/mutation/hamming_to_true_naive.csv' % (outdir, locus)
+        else:
+            ofn = '%s/single-chain/plots/%s/hmm/mutation/hamming_to_true_naive.csv' % (outdir, locus)
     elif action == 'cache-parameters':
         ofn = '%s/%s' % (outdir, locus)
         if single_file:
@@ -141,6 +146,8 @@ def ofname(args, varnames, vstrs, action, locus=None, single_chain=False, single
         ofn = '%s/fake-paired-annotations.yaml' % outdir
     elif action == 'replay-plot':
         ofn = '%s/diff-vals.yaml' % outdir
+    elif 'phylo-naive' in action:  # duplicates naive-hdist bit above
+        ofn = '%s/%s/mutation/hamming_to_true_naive.csv' % (outdir, locus)
     else:
         ofn = paircluster.paired_fn(outdir, locus, suffix='.yaml', actstr=None if action=='simu' else 'partition', single_chain=single_chain or is_single_chain(action))
     return ofn
@@ -175,8 +182,10 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
     if action == 'scoper':
         cmd = './test/scoper-run.py --indir %s --outdir %s --simdir %s' % (ofname(args, varnames, vstrs, 'cache-parameters'), odir(args, varnames, vstrs, action), odir(args, varnames, vstrs, 'simu'))
         return cmd
-    if action in ['mobille', 'igblast', 'linearham', 'enclone'] + tree_perf_actions:
+    if action in ['mobille', 'igblast', 'linearham', 'enclone'] + tree_perf_actions + phylo_naive_actions:
         binstr = 'mobille-igblast' if action in ['mobille', 'igblast'] else ('tree-perf' if action in tree_perf_actions else action)
+        if action in phylo_naive_actions:
+            binstr = 'phylo-naive'
         if action in tree_perf_actions:
             cmd = './bin/%s-run.py --true-tree-file %s --inferred-tree-file %s' % (binstr, ofname(args, varnames, vstrs, 'write-fake-paired-annotations', single_file=True), ofname(args, varnames, vstrs, action.replace('-tree-perf', ''), single_file=True))
         else:
@@ -189,6 +198,15 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
                 raise Exception('running linearham action without --antn-perf set, which means you likely also didn\'t set it for the partition action (although it has on direct effect on the linearham action)')
             cmd += ' --partis-outdir %s --n-sim-events %d' % (odir(args, varnames, vstrs, 'partition'), int(utils.vlval(args, vlists, varnames, 'n-sim-events')))
             cmd += ' --docker --local-docker-image'
+        if 'phylo-naive' in action:
+            tree_inf_method = action.replace('phylo-naive-', '')
+            if 'fuzz-' in action:
+                tree_inf_method = '-'.join(tree_inf_method.split('-')[:-2])
+            import python.treeutils as treeutils
+            assert tree_inf_method in treeutils.all_phylo_methods
+            cmd += ' --input-partition-dir %s --tree-inference-method %s' % (odir(args, varnames, vstrs, 'partition'), tree_inf_method)
+            if 'fuzz' in action:
+                cmd += ' --phylo-naive-inference-fuzz %s' % action.split('-')[-1]
         if args.n_sub_procs > 1:
             cmd += ' --n-procs %d' % args.n_sub_procs
         if args.prep:

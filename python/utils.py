@@ -29,6 +29,7 @@ import operator
 import yaml
 import six
 import hashlib
+from pathlib import Path
 from io import open
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -50,7 +51,7 @@ def csv_wmode(mode='w'):
 
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
-    return os.path.dirname(os.path.realpath(__file__)).replace('/python', '')
+    return str(Path(__file__).resolve().parent.parent)
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -4568,6 +4569,29 @@ def add_naive_seq_aa(line):
     line['naive_seq_aa'] = ltranslate(pad_seq_for_translation(line, line['naive_seq']))
 
 # ----------------------------------------------------------------------------------------
+# return naive sequence with uncertain bases (e.g. non-templated insertions) replace with Ns
+# n_fuzz: number of bases by which to expand non-templated insertions (set to negative value to mask entire cdr3 [excluding conserved codons])
+def get_cdr3_masked_naive(antn, n_fuzz=1, debug=True):
+    if antn.get('is_fake_paired', False):
+        raise Exception('can\'t mask fake paired annotation')
+    masked_seq = antn['naive_seq']
+    if n_fuzz < 0:
+        cdr3_start, cdr3_end = [antn['codon_positions'][r] for r in 'vj']
+        masked_seq = masked_seq[ : cdr3_start + 3] + ambig_base * (cdr3_end - cdr3_start - 3) + masked_seq[cdr3_end : ]
+    else:
+        for tbound in boundaries:
+            nti_start, nti_end = [antn['regional_bounds'][r][i] for r, i in zip(tbound, (1, 0))]  # (1, 0) takes the end of first region but start of second, e.g. for vd boundary we want end of v, start of d
+            nti_start -= n_fuzz
+            nti_end += n_fuzz
+            masked_seq = masked_seq[ : nti_start] + ambig_base * (nti_end - nti_start) + masked_seq[nti_end : ]
+    if debug:
+        print('    masked %s:' % ('entire cdr3, excluding conserved codons' if n_fuzz < 0 else 'non-templated insertions with fuzz %d'%n_fuzz))
+        # print_reco_event(antn)
+        print(color_mutants(antn['naive_seq'], masked_seq, extra_str='        '))
+
+    return masked_seq
+
+# ----------------------------------------------------------------------------------------
 def pad_seq_for_translation(line, tseq, return_n_padded=False, debug=False):  # this duplicates the arithmetic in waterer that pads things to the same length, but we do that after a bunch of places where we might call this fcn, so we need to check for it here as well
     # NOTE this duplicates [is reverse of?] code in n_variable_ambig() (but not really sure how to clean up/combine them)
     # NOTE also duplicates some of get_codon_list()
@@ -7297,13 +7321,13 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
 
     # figure out which vsearch binary to use
     if vsearch_binary is None:
-        vsearch_binary = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin'
         if platform.system() == 'Linux':
-            vsearch_binary += '/vsearch-2.4.3-linux-x86_64'
+            binstr = 'linux'
         elif platform.system() == 'Darwin':
-            vsearch_binary += '/vsearch-2.4.3-macos-x86_64'
+            binstr += 'macos'
         else:
             raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
+        vsearch_binary = '%s/bin/vsearch-2.4.3-%s-x86_64' % (get_partis_dir(), binstr)
 
     # build command
     cmd = vsearch_binary
@@ -7393,7 +7417,7 @@ def run_swarm(seqs, workdir, differences=1, n_procs=1):
         for name, seq in seqs.items():
             fastafile.write('>%s_%d\n%s\n' % (name, dummy_abundance, remove_ambiguous_ends(seq).replace('N', 'A')))
 
-    cmd = os.path.dirname(os.path.realpath(__file__)).replace('/python', '') + '/bin/swarm-2.1.13-linux-x86_64 ' + infname
+    cmd = '%s/bin/swarm-2.1.13-linux-x86_64 %s' % (get_partis_dir(), infname)
     cmd += ' --differences ' + str(differences)
     if differences == 1:
         cmd += ' --fastidious'
@@ -7508,7 +7532,13 @@ def get_chimera_max_abs_diff(line, iseq, chunk_len=75, max_ambig_frac=0.1, debug
 
 # ----------------------------------------------------------------------------------------
 def get_version_info(debug=False):
-    git_dir = os.path.dirname(os.path.realpath(__file__)).replace('/python', '/.git')
+    git_dir = '%s/.git' % get_partis_dir()
+    if not os.path.exists(git_dir):
+        try:
+            from importlib.metadata import version
+            return {'tag': version('partis-bcr'), 'commit': 'installed'}
+        except ImportError:
+            return {'tag': 'unknown', 'commit': 'installed'}
     vinfo = {}
     vinfo['commit'] = subprocess.check_output(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD'], universal_newlines=True).strip()
     if debug:
