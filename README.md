@@ -14,7 +14,7 @@ Since they do quite different things, it's best if you can cite the specific pap
   * [Clonal family inference](http://dx.doi.org/10.1371/journal.pcbi.1005086) Ralph, DK, & Matsen IV, FA (2016). _Likelihood-based Inference of B-cell Clonal Families._ PLoS Computational Biology, 12(10), e1005086.
   * [HMM framework and BCR annotation](http://doi.org/10.1371/journal.pcbi.1004409) Ralph, DK, & Matsen IV, FA (2016). _Consistency of \[...\] Enables Accurate B Cell Receptor Sequence Annotation._ PLoS Computational Biology, 12(1), e1004409.
 
-The best place to start reading the manual is either the [quick start](docs/quick-start.md) or [table of contents](docs/contents.md).
+The best place to start reading the manual is either [installation](docs/install.md) or [quick start](docs/quick-start.md), but there's also a [table of contents](docs/contents.md).
 Details on the many options not documented there may be found by running each subcommand's help, for instance `partis cache-parameters --help` or `partis simulate --help`.
 
 To ask questions about how to run or how things work, please use the [google group](https://groups.google.com/g/partis).
