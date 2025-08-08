@@ -21,4 +21,8 @@ if [ "$*" == "with-simulation" ]; then
 fi
 
 echo -e "\n--> test"
-test.py --quick  # may need to specify full path if not using pip[x] install
+if which test.py; then
+    test.py --quick  # pip[x]
+else
+    ./test/test.py --quick  # from source/docker build
+fi
