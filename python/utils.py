@@ -7324,7 +7324,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
         if platform.system() == 'Linux':
             binstr = 'linux'
         elif platform.system() == 'Darwin':
-            binstr += 'macos'
+            binstr = 'macos'
         else:
             raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
         vsearch_binary = '%s/bin/vsearch-2.4.3-%s-x86_64' % (get_partis_dir(), binstr)
