@@ -45,11 +45,11 @@ pip install -e .
 
 ```bash
 # Run quick test
-test.py --quick
+partis-test.py --quick
 
 # Run more complete test (still without simulation, since the base/pip install above doesn't install simulation requirements)
-test.py --no-simu
-test.py --paired --no-simu
+partis-test.py --no-simu
+partis-test.py --paired --no-simu
 ```
 
 #### Installation with Docker

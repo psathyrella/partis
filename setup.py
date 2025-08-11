@@ -258,7 +258,7 @@ setup(
         'bin/compare-plotdirs.py',
         'bin/gctree-run.py',
         'bin/parse-output.py',
-        'test/test.py',
+        'bin/partis-test.py',
     ],
 
     # Include data files
