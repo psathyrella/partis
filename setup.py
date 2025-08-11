@@ -30,21 +30,7 @@ def check_system_dependencies():
         missing.append('python3-venv')
     
     if missing:
-        error_msg = f"""
-ERROR: Missing required system dependencies: {', '.join(missing)}
-
-Please install the following packages:
-
-Ubuntu/Debian:
-    sudo apt-get install python3 python3-pip python3-venv build-essential scons libgsl-dev libyaml-cpp-dev mafft
-
-macOS (with Homebrew):
-    brew install python3 scons gsl yaml-cpp mafft
-    # Note: pip and python3-venv are included with Homebrew's python3
-
-Then try the installation again.
-"""
-        raise RuntimeError(error_msg)
+        raise RuntimeError('Missing required system dependencies: %s. Please install all packages listed in the manual (docs/install.md#installation-with-pip), then try the installation again.' % ', '.join(missing))
 
 
 def build_compiled_components():
@@ -194,6 +180,7 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
     ],
     keywords='immunology bioinformatics bcr tcr antibody sequence-analysis',
     

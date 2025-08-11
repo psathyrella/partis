@@ -1,10 +1,13 @@
-name: build
+name: Build and Test
+
 on:
   push:
-    branches:
-      - 'main'
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
 jobs:
-  build:
+  docker:
     runs-on: ubuntu-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
@@ -26,3 +29,63 @@ jobs:
       run: docker build . -t quay.io/matsengrp/partis:$TAG
     # - name: Run tests in the Docker image  # eh, would need to install simulation stuff to do this, and not worth it at the moment (the quick test is run at the end of the docker build above)
     #   run: docker run quay.io/matsengrp/partis:$TAG /bin/bash -c "/partis/test/test.py --run-all"
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.7', '3.12']  # , '3.8', '3.9', '3.10', '3.11', 
+        install-method: ['pip', 'pipx']
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Checkout ham submodule
+      if: matrix.install-method == 'pip'
+      run: |
+        git submodule update --init packages/ham
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install python3 pipx cmake gsl yaml-cpp scons mafft
+
+    - name: Install with pip
+      if: matrix.install-method == 'pip'
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -e .
+
+    - name: Install with pipx
+      if: matrix.install-method == 'pipx'
+      run: |
+        pipx install partis-bcr
+
+    - name: Test partis help
+      run: |
+        partis --help
+
+    - name: Test scripts work
+      run: |
+        split-loci.py --help
+
+    - name: Run quick test
+      run: |
+        partis-test.py --quick
+
+    - name: Run full test
+      run: |
+        partis-test.py --paired
