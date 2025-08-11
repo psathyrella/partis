@@ -16,7 +16,7 @@ First install system dependencies:
 ```bash
 # Ubuntu/Debian
 sudo apt-get update
-sudo apt-get install python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft
+sudo apt-get install python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft ncurses-base ncurses-bin
 
 # macOS (with Homebrew)
 brew install python3 pipx cmake gsl yaml-cpp scons mafft
