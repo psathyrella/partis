@@ -14,7 +14,7 @@ from setuptools.command.egg_info import egg_info
 
 def check_system_dependencies():
     """Check that required system dependencies are available."""
-    required_commands = ['scons', 'gcc', 'g++', 'python3', 'pip', 'mafft']
+    required_commands = ['scons', 'gcc', 'g++', 'python3', 'mafft']
     missing = []
     
     for cmd in required_commands:
@@ -171,7 +171,7 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Version
-version = '1.0.4'
+version = '1.0.5'
 
 setup(
     name='partis-bcr',
@@ -267,6 +267,7 @@ setup(
         'python': [
             '../bin/*',
             '../data/**/*',
+            '../test/**/*',
             '../packages/ham/bcrham',
             '../packages/ig-sw/src/ig_align/ig-sw',
         ],
