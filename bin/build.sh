@@ -21,8 +21,8 @@ if [ "$*" == "with-simulation" ]; then
 fi
 
 echo -e "\n--> test"
-if which test.py; then
-    test.py --quick  # pip[x]
+if which run-test.py; then
+    run-test.py --quick  # pip[x]
 else
     ./test/test.py --quick  # from source/docker build
 fi
