@@ -171,7 +171,7 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Version
-version = '1.0.5'
+version = '1.0.6'
 
 setup(
     name='partis-bcr',

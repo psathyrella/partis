@@ -33,7 +33,10 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def dirs(self, tstr, force_paired=False):
         assert tstr in ['ref', 'new']
-        return 'test%s/%s-results%s' % ('/paired' if (args.paired or force_paired) else '', tstr, '-slow' if args.slow else '')
+        bdir = 'test%s' % ('/paired' if (args.paired or force_paired) else '')
+        if not os.path.exists(bdir):
+            bdir = '%s/%s' % (utils.get_partis_dir(), bdir)
+        return '%s/%s-results%s' % (bdir, tstr, '-slow' if args.slow else '')
     # ----------------------------------------------------------------------------------------
     def nqr(self, act):
         if act == 'quick':  # bears no relation to the others, so makes sense to handle it differently
