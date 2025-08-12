@@ -19,10 +19,3 @@ if [ "$*" == "with-simulation" ]; then
     cd $basedir/packages/bpp-newlik/ && ./install.sh  # the bpp-phyl step is really really incredibly slow
     cd $basedir/
 fi
-
-echo -e "\n--> test"
-if which run-test.py; then
-    run-test.py --quick  # pip[x]
-else
-    ./test/test.py --quick  # from source/docker build
-fi

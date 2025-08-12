@@ -168,12 +168,11 @@ setup(
     url='https://github.com/psathyrella/partis',
     author='Duncan Ralph',
     author_email='dkralph@gmail.com',
-    license='GPL-3.0',
+    license='GPL-3.0-or-later',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
-        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',

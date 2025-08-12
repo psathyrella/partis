@@ -65,6 +65,7 @@ jobs:
       if: startsWith(matrix.os, 'macos')
       run: |
         brew install python3 pipx cmake gsl yaml-cpp scons mafft
+        brew install --cask font-lato
 
     - name: Install with pip
       if: matrix.install-method == 'pip'
