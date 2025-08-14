@@ -1053,7 +1053,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             cmd = '%s/bin/FastTree-%s -gtr -nt -out %s %s' % (utils.get_partis_dir(), utils.get_platform_binstr(), ofn(workdir), ifn(workdir))
         elif method in iqt_methods:
             vsn = '3' if method=='iqtree' else method.split('-')[1]
-            cmd = '%s/bin/iqtree-%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
+            cmd = '%s/bin/iqtree-%s-%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, utils.get_platform_binstr(), ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
             # cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
             if redo:
                 cmd += ' -redo'
