@@ -156,12 +156,9 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-# Version
-version = '1.0.7'
-
 setup(
     name='partis-bcr',
-    version=version,
+    use_scm_version=True,
     description='B- and T-cell receptor sequence annotation, simulation, clonal family and germline inference',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -208,6 +205,7 @@ setup(
     # Build requirements
     setup_requires=[
         'scons',
+        'setuptools-scm',
     ],
     
     # Optional dependencies

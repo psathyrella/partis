@@ -44,6 +44,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
     - name: Checkout ham submodule
       if: matrix.install-method == 'pip'
@@ -92,6 +94,18 @@ jobs:
 
     - name: Run full test
       run: |
-        # partis-test.py --paired --no-simu
-        partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/ref-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
+        # temporarily, have to run 'partis partition' outside of test.py to see the ham error in the github build logs (the same command is then run by partis-test.py)
         partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/ref-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/partition-new-simu
+        partis-test.py --paired --no-simu
+        # partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/ref-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
+
+    - name: Build and publish to PyPI
+      if: matrix.install-method == 'pip' && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        python -m pip install build twine
+        python -m build
+        python -m twine check dist/*
+        python -m twine upload dist/*
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
