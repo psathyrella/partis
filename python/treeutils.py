@@ -1050,17 +1050,17 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
     # ----------------------------------------------------------------------------------------
     def getcmd(workdir):
         if method == 'fasttree':
-            cmd = '%s/bin/FastTree -gtr -nt -out %s %s' % (utils.get_partis_dir(), ofn(workdir), ifn(workdir))
+            cmd = '%s/bin/FastTree-%s -gtr -nt -out %s %s' % (utils.get_partis_dir(), utils.get_platform_binstr(), ofn(workdir), ifn(workdir))
         elif method in iqt_methods:
-            vsn = '1.6.12' if method=='iqtree' else method.split('-')[1]
+            vsn = '3' if method=='iqtree' else method.split('-')[1]
             cmd = '%s/bin/iqtree-%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
             # cmd = '%s/packages/iqtree-%s-Linux/bin/iqtree%s -asr -s %s -pre %s/%s -o %s' % (utils.get_partis_dir(), vsn, '2' if vsn[0]=='2' else '', ifn(workdir), os.path.dirname(ifn(workdir)), outfix, naive_seq_name)
             if redo:
                 cmd += ' -redo'
         elif method == 'raxml':
             rcmds = ['#!/bin/bash']
-            rcmds += ['%s/bin/raxml-ng --model GTR+G --msa %s --msa-format FASTA' % (utils.get_partis_dir(), ifn(workdir))]
-            rcmds += ['%s/bin/raxml-ng --model GTR+G --msa %s --msa-format FASTA --ancestral --tree %s' % (utils.get_partis_dir(), ifn(workdir), ofn(workdir))]
+            rcmds += ['%s/bin/raxml-ng-%s --model GTR+G --msa %s --msa-format FASTA' % (utils.get_partis_dir(), utils.get_platform_binstr(), ifn(workdir))]
+            rcmds += ['%s/bin/raxml-ng-%s --model GTR+G --msa %s --msa-format FASTA --ancestral --tree %s' % (utils.get_partis_dir(), utils.get_platform_binstr(), ifn(workdir), ofn(workdir))]
             utils.write_cmd_file('\n'.join(rcmds) + '\n', '%s/run.sh'%workdir)
             cmd = '%s/run.sh'%workdir
         elif 'gctree' in method:

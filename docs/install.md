@@ -20,7 +20,6 @@ sudo apt-get install python3 python3-pip python-is-python3 pipx build-essential 
 
 # macOS (with Homebrew)
 brew install python3 pipx cmake gsl yaml-cpp scons mafft
-# Note: pip is included with Homebrew's python3
 ```
 
 Install from PyPI (recommended):

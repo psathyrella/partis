@@ -96,7 +96,9 @@ jobs:
       run: |
         # temporarily, have to run 'partis partition' outside of test.py to see the ham error in the github build logs (the same command is then run by partis-test.py)
         partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/ref-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/partition-new-simu
+        partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method fasttree
         partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method iqtree
+        partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method raxml
         partis-test.py --paired --no-simu
         # partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/ref-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
 

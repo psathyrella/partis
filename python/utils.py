@@ -7284,6 +7284,15 @@ def run_vsearch_with_duplicate_uids(action, seqlist, workdir, threshold, **kwarg
     return annotation_list  # eh, probably don't need this:, returnfo['gene-counts']  # NOTE both annotation_list and <failures> can have duplicate uids in them
 
 # ----------------------------------------------------------------------------------------
+def get_platform_binstr():
+    if platform.system() == 'Linux':
+        return 'linux'
+    elif platform.system() == 'Darwin':
+        return 'macos'
+    else:
+        raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
+
+# ----------------------------------------------------------------------------------------
 # NOTE use the previous fcn if you expect duplicate uids
 def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:', debug=False):
     from . import clusterpath
@@ -7321,13 +7330,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
 
     # figure out which vsearch binary to use
     if vsearch_binary is None:
-        if platform.system() == 'Linux':
-            binstr = 'linux'
-        elif platform.system() == 'Darwin':
-            binstr = 'macos'
-        else:
-            raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
-        vsearch_binary = '%s/bin/vsearch-2.4.3-%s-x86_64' % (get_partis_dir(), binstr)
+        vsearch_binary = '%s/bin/vsearch-2.4.3-%s-x86_64' % (get_partis_dir(), get_platform_binstr())
 
     # build command
     cmd = vsearch_binary
