@@ -36,7 +36,7 @@ jobs:
       matrix:
         os: [macos-13] #[ubuntu-latest, macos-13]
         python-version: ['3.12']
-        install-method: ['pip'] #, 'pipx']
+        install-method: ['pip', 'pipx']
       fail-fast: false
 
     env:
@@ -106,7 +106,7 @@ jobs:
       if: matrix.install-method == 'pip' && github.event_name == 'push'  #  && github.ref == 'refs/heads/main'  #  && matrix.os == 'ubuntu-latest'
       run: |
         python -m pip install build twine
-        python -m build 2>&1 | grep -v 'adding .test/'
+        python -m build 2>&1 | grep -v 'adding .test/\|adding .data/'
         python -m twine check dist/*
         python -m twine upload dist/*  #  --verbose
       env:
