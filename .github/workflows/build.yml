@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-13] #[ubuntu-latest, macos-13]
+        os: [ubuntu-latest, macos-13]
         python-version: ['3.12']
         install-method: ['pip', 'pipx']
       fail-fast: false
@@ -95,17 +95,17 @@ jobs:
     - name: Run full test
       run: |
         partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/ref-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/partition-new-simu
-        # partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method fasttree
-        # partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method iqtree
-        # partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method raxml
+        partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method fasttree
+        partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method iqtree
+        partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --outfname test/ref-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml --tree-inference-method raxml
         partis-test.py --paired --no-simu
-        # partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/ref-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
+        partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/ref-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10
 
     - name: Build and publish to PyPI
       if: matrix.install-method == 'pip' && github.event_name == 'push'  #  && github.ref == 'refs/heads/main'  #  && matrix.os == 'ubuntu-latest'
       run: |
         python -m pip install build twine
-        python -m build 2>&1 | grep -v 'adding .test/\|adding .data/\|creating partis_bcr.*/test/\|copying docs/\|copying data/'
+        python -m build 2>&1 | grep -v 'adding .test/\|adding .data/\|creating partis_bcr.*/test/\|copying docs/\|copying data/\|copying packages/\|copying python/.*/test/'
         python -m twine check dist/*
         python -m twine upload dist/*  #  --verbose
       env:
