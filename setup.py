@@ -10,6 +10,7 @@ from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
 from setuptools.command.install import install
 from setuptools.command.egg_info import egg_info
+from setuptools.dist import Distribution
 
 
 def check_system_dependencies():
@@ -151,6 +152,12 @@ class CustomEggInfo(egg_info):
         egg_info.run(self)
 
 
+class BinaryDistribution(Distribution):
+    """Distribution which always forces a binary package with platform name"""
+    def has_ext_modules(self):
+        return True
+
+
 # Read the README file
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -264,6 +271,9 @@ setup(
         'install': CustomInstall,
         'egg_info': CustomEggInfo,
     },
+    
+    # Force binary distribution
+    distclass=BinaryDistribution,
     
     # URLs
     project_urls={
