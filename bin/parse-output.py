@@ -130,7 +130,7 @@ if args.paired:
 else:
     assert utils.getsuffix(args.outfile) in ['.csv', '.tsv', '.fa', '.fasta', '.yaml'] # or args.airr_input and utils.getsuffix(args.outfile) == '.yaml'
 
-default_glfo_dir = partis_dir + '/data/germlines/human'
+default_glfo_dir = utils.get_partis_dir() + '/data/germlines/human'
 if utils.getsuffix(args.infile) in ['.csv', '.tsv'] and args.glfo_dir is None:
     print('  note: reading csv/tsv format without germline info, so need to get germline info from a separate directory; --glfo-dir was not set, so using default %s. If it doesn\'t crash, it\'s probably ok.' % default_glfo_dir)
     args.glfo_dir = default_glfo_dir
@@ -181,7 +181,7 @@ if args.paired:
             writer.writerow({k : ofo[k] for k in okeys})
     if args.airr_output:
         for ltmp in sorted(glfos):
-            utils.write_airr_output('%s/%s.tsv'%(args.outfile, ltmp), antn_lists[ltmp], cpath=cpaths[ltmp], glfo=glfos[ltmp])
+            utils.write_airr_output('%s/%s.tsv'%(args.outfile, ltmp), antn_lists[ltmp], cpath=cpaths[ltmp], glfo=glfos[ltmp], extra_columns=args.extra_columns)
     sys.exit(0)
 
 # restrict to certain partitions/clusters

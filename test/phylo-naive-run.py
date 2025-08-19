@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser(formatter_class=MultiplyInheritedFormatter, des
 parser.add_argument('--input-partition-dir', required=True, help='dir with partis partition output')
 parser.add_argument('--outdir', required=True, help='if set, read simulation from this file and compare to results')
 parser.add_argument('--simdir', help='if set, read simulation from this file and compare to results')
-parser.add_argument('--phylo-naive-inference-fuzz')
+parser.add_argument('--phylo-naive-inference-fuzz', type=int, default=1)
 parser.add_argument('--tree-inference-method', required=True)
 parser.add_argument('--n-procs')  # not used atm
 parser.add_argument('--debug', action='store_true')
