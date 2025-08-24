@@ -299,8 +299,10 @@ class Tester(object):
 
         if ptest == 'simulate':
             argfo['parameter-dir'] = self.paramdir(input_stype, 'data')
-            if args.no_tree_gen:
-                argfo['extras'] += ['--input-simulation-treefname', '%s/test/trees.nwk'%utils.get_partis_dir()]
+            # if args.no_tree_gen:
+            #     argfo['extras'] += ['--input-simulation-treefname', '%s/test/trees.nwk'%utils.get_partis_dir()]
+            if args.no_per_base_mutation:
+                argfo['extras'] += ['--no-per-base-mutation']
         else:
             argfo['inpath'] = self.inpath('new' if args.bust_cache else 'ref', input_dtype)
             if ptest.find('subset-') != 0:
@@ -934,7 +936,8 @@ parser.add_argument('--only-bust-current', action='store_true', help='only bust 
 parser.add_argument('--paired', action='store_true', help='run paired tests, i.e. with --paired-loci. Note that this doesn\'t test all the things (e.g. seed partitioning) that non-paired does.')
 parser.add_argument('--run-all', action='store_true', help='run all four combinations of tests: paired/non-paired and slow/non-slow (by default only runs one). *Not* for use with --bust-cache, which runs all of them by default.')
 parser.add_argument('--no-simu', action='store_true', help='don\'t run simulation, e.g. if using a minimal install')
-parser.add_argument('--no-tree-gen', action='store_true', help='if set, use the pre-generated newick file instead of generating trees with R/TreeSim')
+# parser.add_argument('--no-tree-gen', action='store_true', help='if set, use the pre-generated newick file instead of generating trees with R/TreeSim (to avoid R installation)')
+parser.add_argument('--no-per-base-mutation', action='store_true', help='use simpler, non-per-base mutation model (to avoid bpp-newlik compilation)')
 parser.add_argument('--ig-or-tr', default='ig')
 parser.add_argument('--print-width', type=int, default=300, help='set to 0 for infinite')
 
