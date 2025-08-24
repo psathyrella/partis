@@ -3,20 +3,17 @@
 ### Installation methods
 
 Partis can be installed via: 
-  - [pip](#installation-with-pip): recommended, but only supports core functions (no simulation or plotting)
+  - [pip and pipx](#installation-with-pip): recommended
+  - [additional steps for simulation installation](#simulation)
   - [with Docker](#installation-with-docker)
-  - [from scratch](#installation-from-scratch)
-  - additional steps for simulation installation:
-    - [install some R packages](#simulation)
 
-#### Installation with pip
+#### Installation with pip or pipx
 
-This is the recommended method unless you want to run simulation or plotting.
 First install system dependencies:
 ```bash
 # Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft ncurses-base ncurses-bin
+sudo apt update
+sudo apt install python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft ncurses-base ncurses-bin
 
 # macOS (with Homebrew)
 brew install python3 pipx cmake gsl yaml-cpp scons mafft
@@ -50,6 +47,43 @@ partis-test.py --quick
 partis-test.py --no-simu
 partis-test.py --paired --no-simu
 ```
+#### Simulation
+
+A variety of partis simulation options will work using the base install described above; however for full functionality you'll need to install R and some R packages, as well as potentially compile bio++.
+An overview of simulation options is [here](subcommands.md#simulate), and further information is available by running `partis simulate --help`.
+Briefly, partis simulation can generate trees using the R packages TreeSim and TreeSimGM, which requires installing them (along with R).
+Alternatively, if you have a list of your own newick trees in a file you can pass this in with `--input-simulation-treefname`, in which case you can avoid R installation entirely.
+To install R, one option is:
+
+```
+# Ubuntu/Debian
+sudo apt install r-base
+
+# macOS (with Homebrew)
+brew install r
+```
+To then install the R packages run:
+```
+R --slave -e 'dir.create(c(Sys.getenv("R_LIBS_USER")), recursive=TRUE); install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE, lib=c(Sys.getenv("R_LIBS_USER")))'
+```
+This command creates a directory for local libraries in the user's home  in order to avoid system-wide install.
+
+The full/default mutation model also requires compilation of an updated (development) version of bpp whose source code is in `packages/bpp-newlik/`.
+However, if you don't much care about mutation model accuracy (in particular, if you don't care about modeling different rates between different bases e.g. A->C vs A->T), you can set `--no-per-base-mutation` and it'll instead use an older, already-compiled bpp version in `packages/bpp`.
+To use the full mutation model first install some dependencies:
+
+```
+# Ubuntu/Debian
+sudo apt install libblas-dev liblapack-dev libboost-all-dev libeigen3-dev libsuitesparse-dev libfftw3-dev
+
+# macOS (with Homebrew)
+brew install openblas lapack boost eigen suite-sparse fftw
+
+```
+And then compile the bpp newlik version from source:
+```
+./bin/build.sh with-simulation  # this is usually slow, maybe 30 minutes
+```
 
 #### Installation with Docker
 
@@ -70,59 +104,6 @@ Alternatively, you can detach from the container with `ctrl-q q` (or whatever yo
 To then reattach to this running container, run `docker attach container-1`.
 If you don't plan on reattaching to a container, you should run with `--rm` so it is removed when you exit; otherwise you'll use up a lot of disk space with accumulated old containers (view with `sudo docker ps -a`).
 
-#### Installation from scratch
-
-To install without Docker, you basically need to run the commands in the [Dockerfile](../Dockerfile), starting by installing [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html) (essentially an alternate flavor of conda).
-You can probably ignore the `$MAMBA_USER` stuff.
-Because mamba/conda and pip do not play well with each other, if you've used pip in the past but are going to now use conda, and you won't need pip in the future, you should completely remove `~/.local`.
-If you might need pip in the future, you should expect some difficulty with having both conda and pip on the same system.
-In most cases you can prevent conda from finding the packages in `~/.local` (and consequently breaking) by setting `export PYTHONNOUSERSITE=True` (see [this issue](https://github.com/conda/conda/issues/448) for some context).
-You may also need to `unset LD_LIBRARY_PATH`.
-If you're on a debian variant, run the apt-get install as written.
-On other distros, or on macOS, you'll have to figure out the equivalent package names, but after that just swap yum/brew for apt-get.
-In place of `COPY`, you should clone the partis repo and init/update its submodules:
-```
-git clone git@github.com:psathyrella/partis
-cd partis
-git submodule update --init --recursive
-```
-`ARG` lines should be `export` commands, and substitute the line `WORKDIR /partis` with `cd partis/`.
-
-In order to avoid polluting your environment, we do not automatically add partis to your path.
-Several methods of accomplishing this are described [here](subcommands.md#subcommands).
-
-#### Simulation
-
-By default, partis simulation generates trees using the R packages TreeSim and TreeSimGM, so if not already present they'll need to be installed (along with R).
-Alternatively, if you have a list of your own newick trees in a file you can pass this in with `--input-simulation-treefname`, in which case you can avoid R installation entirely.
-One way to install R on debian/ubuntu (and thus also within a partis container) is:
-```
-apt-get install -y dirmngr apt-transport-https ca-certificates software-properties-common gnupg2
-# UPDATE maybe should be keyserver.ubuntu.com?
-apt-key adv --keyserver keys.gnupg.net --recv-key 'E19F5F87128899B192B1A2C2AD5F960A256A04AF'  # this R installation stuff was in the Dockerfile for a while, but this line was crashing on dockerhub, and it appears that keyservers are just too flakey to use in docker files
-add-apt-repository 'deb https://cloud.r-project.org/bin/linux/debian stretch-cran35/'  # this will have to change when anaconda changes debian releases, but the tree sim packages require a more recent version of r than is in the debian repos
-apt-get update && apt-get install -y r-base
-# UPDATE maybe should have this here somewhere https://mirror.las.iastate.edu/CRAN/
-```
-Note that TreeSim/TreeSimGM may require a more recent R version than is in the default repos (check with `apt get show r-base-core`, then compare to requirements in TreeSim/TreeSimGM cran pages).
-Note also that if you instead install R with conda, it replaces your entire compiler toolchain (e.g. screws up where your system looks for gcc) so you probably won't be able to compile anything afterwards.
-
-You can then install the required R packages with the interactive R command:
-```
-> install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE)
-```
-If necessary, you will probably want to follow the prompts for installing to a personal (rather than system-wide) library location.
-If you instead install from the command line with:
-```
-R --vanilla --slave -e 'install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE)'
-```
-You may need to run with `sudo -i` in front, and the resulting library permissions may cause problems.
-The default mutation model also requires compilation of an updated (development) version of bpp that's in `packages/bpp-newlik/`:
-```
-./bin/build.sh with-simulation  # this takes a while, maybe 20-60 minutes
-```
-However, if you don't much care about mutation model accuracy (in particular, if you don't care about modeling different rates between different bases e.g. A->C vs A->T), you can set `--no-per-base-mutation` and it'll fall back to an older, already-compiled bpp version in `packages/bpp`.
-
 #### MDS Plotting
 
 In order to make the [MDS plots](plotting.md#partition-plots), you need R and the bios2mds package installed:
@@ -133,3 +114,4 @@ conda install -y -cr r-rgl r-essentials
 unset R_LIBS_SITE
 R --vanilla --slave -e 'install.packages(c("class", "bios2mds"), dependencies=T, repos="http://cran.rstudio.com/")'  # this may be all the deps: c("picante", "pspline", "deSolve", "igraph", "TESS", "fpc", "pvclust", "corpcor", "phytools", "mvMORPH", "geiger", "mvtnorm", "glassoFast", "Rmpfr")
 ```
+

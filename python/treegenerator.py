@@ -204,7 +204,7 @@ class TreeGenerator(object):
                 os.remove(outfname)
             utils.run_r(cmd_lines, workdir, print_time='tree generation' if self.args.debug else None, remove_cmdfile=True)
 
-        with open(outfname) as treefile:
+        with open(outfname) as treefile:  # NOTE atm <outfname> by default is .yaml (set in recombinator.py) since it later gets used as yaml, but stupidly here we temporarily use it as a multi-line nwk here (since, here, it used to be nwk), but don't want to change atm since it's invisible and internal and works fine
             for itree, tstr in enumerate(treestrs):
                 if tstr is None:
                     treestrs[itree] = treefile.readline().strip()
