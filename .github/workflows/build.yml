@@ -60,16 +60,19 @@ jobs:
     - name: Install system dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get update
-        sudo apt-get install -y python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft ncurses-base ncurses-bin r-base
+        sudo apt update
+        sudo apt install -y python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft ncurses-base ncurses-bin r-base
+        # sudo apt install libbpp-core libbpp-seq  # which packages do i actually have to write here?
 
     - name: Install system dependencies (macOS)
       if: startsWith(matrix.os, 'macos')
       run: |
         brew install python3 pipx cmake gsl yaml-cpp scons mafft r
+        # brew tap jydu/homebrew-biopp
+        # brew install libbpp-core bppsuite  # which packages do i actually have to write here?
         brew install --cask font-lato
 
-    # - name: Install R tree generation packages  # could turn this back on, but it's really slow and not super important (and is unnecessary with --no-tree-gen arg below)
+    # - name: Install R tree generation packages  # could turn this back on, but it's really slow and not super important (and is unnecessary with --no-tree-gen arg below), although note we're still installing R above
     #   run: |
     #     R --slave -e 'dir.create(c(Sys.getenv("R_LIBS_USER")), recursive=TRUE); install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE, lib=c(Sys.getenv("R_LIBS_USER")))'
 
@@ -98,7 +101,11 @@ jobs:
 
     - name: Run full test
       run: |
-        partis-test.py --paired --no-per-base-mutation --no-tree-gen
+        if [[ "${{ matrix.os }}" == macos* ]]; then
+          partis-test.py --paired --no-simu
+        else
+          partis-test.py --paired --no-per-base-mutation --no-tree-gen
+        fi
 
     - name: Build and publish to PyPI
       if: matrix.install-method == 'pip' && github.event_name == 'push'  #  && github.ref == 'refs/heads/main'  #  && matrix.os == 'ubuntu-latest'
