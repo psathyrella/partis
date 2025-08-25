@@ -69,9 +69,9 @@ jobs:
         brew install python3 pipx cmake gsl yaml-cpp scons mafft r
         brew install --cask font-lato
 
-    - name: Install R tree generation packages
-      run: |
-        R --slave -e 'dir.create(c(Sys.getenv("R_LIBS_USER")), recursive=TRUE); install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE, lib=c(Sys.getenv("R_LIBS_USER")))'
+    # - name: Install R tree generation packages  # could turn this back on, but it's really slow and not super important (and is unnecessary with --no-tree-gen arg below)
+    #   run: |
+    #     R --slave -e 'dir.create(c(Sys.getenv("R_LIBS_USER")), recursive=TRUE); install.packages(c("TreeSim", "TreeSimGM", "geiger", "MASS"), repos="http://cran.rstudio.com/", dependencies=TRUE, lib=c(Sys.getenv("R_LIBS_USER")))'
 
     - name: Install with pip
       if: matrix.install-method == 'pip'
@@ -98,8 +98,7 @@ jobs:
 
     - name: Run full test
       run: |
-        partis-test.py --no-per-base-mutation  #  --no-tree-gen
-        partis-test.py --paired --no-per-base-mutation  #  --no-tree-gen
+        partis-test.py --paired --no-per-base-mutation --no-tree-gen
 
     - name: Build and publish to PyPI
       if: matrix.install-method == 'pip' && github.event_name == 'push'  #  && github.ref == 'refs/heads/main'  #  && matrix.os == 'ubuntu-latest'
