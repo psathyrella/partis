@@ -261,6 +261,7 @@ setup(
             '../test/**/*',
             '../packages/ham/bcrham',
             '../packages/ig-sw/src/ig_align/ig-sw',
+            '../packages/bpp/bin/bppseqgen',
         ],
     },
     
