@@ -102,7 +102,7 @@ jobs:
     - name: Run full test
       run: |
         # if [[ "${{ matrix.install-method }}" == "pipx" || "${{ matrix.os }}" == macos* ]]; then
-        if "${{ matrix.os }}" == macos* ]]; then
+        if [[ "${{ matrix.os }}" == macos* ]]; then
           partis-test.py --no-simu
           partis-test.py --paired --no-simu
         else
