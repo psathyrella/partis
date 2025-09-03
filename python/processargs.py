@@ -466,6 +466,9 @@ def process(args):
             print('  note: no %s specified, so nothing will be written to disk' % ('--paired-outdir' if args.paired_loci else '--outfname'))
             args.outfname = get_dummy_outfname(args.workdir)  # hackey, but otherwise I have to rewrite the whole run_simulation() in bin/partis to handle None type outfname
 
+        if args.airr_output:
+            raise Exception('--airr-output isn\'t implemented for \'simulate\', but you can instead convert to airr tsv afterwards with for instance \'parse-output simu.yaml simu.tsv --airr-output\' or \'parse-output --paired <paired-simu-dir> <paired-simu-dir> --airr-output\'')
+
         if args.simulate_from_scratch:
             args.rearrange_from_scratch = True
             args.mutate_from_scratch = True
