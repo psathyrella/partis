@@ -67,7 +67,7 @@ jobs:
     - name: Install system dependencies (macOS)
       if: startsWith(matrix.os, 'macos')
       run: |
-        brew install python3 pipx cmake gsl yaml-cpp scons mafft r
+        brew install gsl yaml-cpp scons mafft r
         # brew tap jydu/homebrew-biopp
         # brew install libbpp-core bppsuite  # which packages do i actually have to write here?
         brew install --cask font-lato
