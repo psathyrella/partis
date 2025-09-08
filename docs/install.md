@@ -32,8 +32,8 @@ cd partis
 git submodule update --init packages/ham
 
 # Create virtual environment and install
-python -m venv partis-env
-source partis-env/bin/activate  # On Windows: partis-env\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: partis-env\Scripts\activate
 pip install -e .
 ```
 
