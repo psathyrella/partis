@@ -721,7 +721,8 @@ class Recombinator(object):
 
         full_seq = reco_event.recombined_seq
         if not self.args.no_per_base_mutation:
-            print('      using bpp per-base mutation with path %s' % bpp_path)
+            if self.args.debug:
+                print('      using bpp per-base mutation with path %s' % bpp_path)
             paramfname = workdir + '/cfg.bpp'  # docs: http://biopp.univ-montp2.fr/apidoc/bpp-phyl/html/index.html that page is too darn hard to google
             workfnames.append(paramfname)
             plines = ['alphabet = DNA']
@@ -775,7 +776,8 @@ class Recombinator(object):
                 pfile.write('\n'.join(plines))
             command = '%s param=%s --seed=%d' % (bpp_binary, paramfname, seed)  # not sure how to set the seed in the param file, but this works, so oh well
         else:
-            print('      using bpp uniform mutation with path %s' % bpp_path)
+            if self.args.debug:
+                print('      using bpp uniform mutation with path %s' % bpp_path)
             command = bpp_binary  # NOTE should I use the "equilibrium frequencies" option?
             command += ' alphabet=DNA'
             command += ' --seed=' + str(seed)

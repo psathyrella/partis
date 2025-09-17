@@ -187,9 +187,9 @@ setup(
     ],
     keywords='immunology bioinformatics bcr tcr antibody sequence-analysis',
     
-    # Packages and package data - keep the original 'python' module name for compatibility
-    packages=['python', 'python.cache'],
-    package_dir={'python': 'python'},
+    # Packages and package data
+    packages=['partis', 'partis.cache'],
+    package_dir={'partis': 'partis'},
     python_requires='>=3.7',
     
     # Dependencies
@@ -235,7 +235,7 @@ setup(
     # Entry points
     entry_points={
         'console_scripts': [
-            'partis=python.main:main',
+            'partis=partis.main:main',
         ],
     },
     
@@ -255,7 +255,7 @@ setup(
     # Include data files
     include_package_data=True,
     package_data={
-        'python': [
+        'partis': [
             '../bin/*',
             '../data/**/*',
             '../test/**/*',
