@@ -19,11 +19,11 @@ from io import open
 from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
-import python.utils as utils
-import python.indelutils as indelutils
-import python.treeutils as treeutils
-from python.event import RecombinationEvent
-import python.paircluster as paircluster
+import partis.utils as utils
+import partis.indelutils as indelutils
+import partis.treeutils as treeutils
+from partis.event import RecombinationEvent
+import partis.paircluster as paircluster
 
 bcr_phylo_path = os.getenv('PWD') + '/packages/bcr-phylo-benchmark'
 ig_or_tr = 'ig'
@@ -568,7 +568,7 @@ def simulate(igcr=None):
         write_simulation(glfos, mutated_events, unsampled=args.tpsample)
 
     if not args.only_csv_plots:
-        import python.lbplotting as lbplotting
+        import partis.lbplotting as lbplotting
         for ievent, outdir in enumerate(outdirs):
             if args.paired_loci:
                 lpair = [l['loci'][0] for l in mutated_events[ievent]]

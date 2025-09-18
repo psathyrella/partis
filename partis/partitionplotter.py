@@ -28,9 +28,9 @@ class PartitionPlotter(object):
         self.args = args
         self.glfo = glfo
         from . import plotting
-        self.plotting = sys.modules['python.plotting']
+        self.plotting = sys.modules['partis.plotting']
         from . import lbplotting
-        self.lbplotting = sys.modules['python.lbplotting']
+        self.lbplotting = sys.modules['partis.lbplotting']
 
         self.n_clusters_per_joy_plot = 50 if self.args.meta_info_key_to_color is None else 30
         self.n_max_joy_plots = 12
@@ -880,7 +880,7 @@ class PartitionPlotter(object):
             if self.args.meta_info_to_emphasize is not None:
                 tklist.append(list(self.args.meta_info_to_emphasize.items())[0][0])
             if 'vrc01-muts' in tklist:  # have to set the values, and don't want to incorporate into utils.py since it's complicated and requires the tree
-                import python.vrc01 as vrc01
+                import partis.vrc01 as vrc01
                 vc_muts = vrc01.vrc01_class_mutation_set()  # somehow this is way faster if i don't put it in the fcn call in the next line???
                 annotation['vrc01-muts'] = [vmuts(vc_muts, self.mut_info[iclust]['aa_muts'], u) for u in annotation['unique_ids']]
             for tk in [k for k in tklist if k is not None and k in annotation]:

@@ -21,12 +21,12 @@ partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 import yaml
 
-from python.baseutils import get_extra_str
-import python.utils as utils
-import python.glutils as glutils
-from python.hist import Hist
-from python.clusterpath import ClusterPath
-import python.paircluster as paircluster
+from partis.baseutils import get_extra_str
+import partis.utils as utils
+import partis.glutils as glutils
+from partis.hist import Hist
+from partis.clusterpath import ClusterPath
+import partis.paircluster as paircluster
 
 # ----------------------------------------------------------------------------------------
 class Tester(object):

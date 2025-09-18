@@ -16,7 +16,7 @@ from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
+import partis.utils as utils
 
 # ----------------------------------------------------------------------------------------
 def is_acceptable(scol, acceptable_values, lval):
@@ -94,7 +94,7 @@ with open(args.infname) as csvfile:
         counts_used += int(line['count'])
 
 # ----------------------------------------------------------------------------------------
-import python.fraction_uncertainty as fraction_uncertainty
+import partis.fraction_uncertainty as fraction_uncertainty
 def frac_err(obs, total):
     lo, hi = fraction_uncertainty.err(obs, total)
     return 0.5 * (hi - lo)

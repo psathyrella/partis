@@ -15,12 +15,12 @@ from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
-import python.glutils as glutils
-from python.clusterpath import ClusterPath
-import python.seqfileopener as seqfileopener
-import python.indelutils as indelutils
-import python.treeutils as treeutils
+import partis.utils as utils
+import partis.glutils as glutils
+from partis.clusterpath import ClusterPath
+import partis.seqfileopener as seqfileopener
+import partis.indelutils as indelutils
+import partis.treeutils as treeutils
 
 # ----------------------------------------------------------------------------------------
 def addseq(ltmp, tline, uid, iclust):
@@ -105,7 +105,7 @@ for iclust, hclust in enumerate(sorted_hclusters):
     print('      %3s  %4d' % (l_locus, len(lclust)), end=' ')
 
     # add aa-cdist (it's probably usually already there, but it's easy to add, and should always end up the same)
-    import python.treeutils as treeutils
+    import partis.treeutils as treeutils
     tmpids = {}
     for ltmp, tline in zip(('igh', l_locus), (hline, lline)):
         tline['tree-info'] = {'lb' : {}}

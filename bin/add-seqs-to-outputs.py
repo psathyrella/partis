@@ -15,9 +15,9 @@ from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
-import python.glutils as glutils
-from python.clusterpath import ClusterPath
+import partis.utils as utils
+import partis.glutils as glutils
+from partis.clusterpath import ClusterPath
 
 dstr = """
 Add seqs from the fasta file --new-seq-file to an annotation from --partis-output-file.

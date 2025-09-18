@@ -13,10 +13,10 @@ if not os.path.exists(partis_dir):
     print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
-from python.hist import Hist
-import python.plotting as plotting
-import python.glutils as glutils
+import partis.utils as utils
+from partis.hist import Hist
+import partis.plotting as plotting
+import partis.glutils as glutils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('infile')

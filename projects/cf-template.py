@@ -13,11 +13,11 @@ import yaml
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
 sys.path.insert(1, partis_dir) # + '/python')
-import python.utils as utils
-import python.paircluster as paircluster
-import python.scanplot as scanplot
-import python.plotting as plotting
-import python.clusterpath as clusterpath
+import partis.utils as utils
+import partis.paircluster as paircluster
+import partis.scanplot as scanplot
+import partis.plotting as plotting
+import partis.clusterpath as clusterpath
 
 # ----------------------------------------------------------------------------------------
 # This is the template/minimal implementation (not necessarily functional) for scan scripts, final versions of which include test/{cf-{germline-inference,paired-loci,tree-metrics}.py and projects/cf-gcdyn.py

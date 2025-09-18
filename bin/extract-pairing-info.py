@@ -19,7 +19,7 @@ from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
+import partis.utils as utils
 
 dstr = """
 Extract heavy/light chain pairing info from fasta file <infname> and write it to yaml/json file <outfname>.

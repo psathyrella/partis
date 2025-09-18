@@ -17,9 +17,9 @@ partis_dir = str(Path(__file__).parent.parent)
 # partis_dir = os.getcwd()
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
-import python.glutils as glutils
-from python.clusterpath import ClusterPath
+import partis.utils as utils
+import partis.glutils as glutils
+from partis.clusterpath import ClusterPath
 
 parser = argparse.ArgumentParser()
 # NOTE to compare multiple output runs see  datascripts/meta/qa013-synth/read-lh-cf.py

@@ -12,12 +12,12 @@ from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.plotconfig as plotconfig
-import python.plotting as plotting
-import python.utils as utils
-import python.glutils as glutils
-from python.hist import Hist
-import python.treeutils as treeutils
+import partis.plotconfig as plotconfig
+import partis.plotting as plotting
+import partis.utils as utils
+import partis.glutils as glutils
+from partis.hist import Hist
+import partis.treeutils as treeutils
 
 xtitledict = copy.deepcopy(plotting.legends)
 xtitledict.update(plotconfig.xtitles)

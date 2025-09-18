@@ -21,11 +21,11 @@ from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
-import python.paircluster as paircluster
-import python.glutils as glutils
-from python.clusterpath import ClusterPath
-import python.seqfileopener as seqfileopener
+import partis.utils as utils
+import partis.paircluster as paircluster
+import partis.glutils as glutils
+from partis.clusterpath import ClusterPath
+import partis.seqfileopener as seqfileopener
 
 # ----------------------------------------------------------------------------------------
 dstr = """

@@ -11,8 +11,8 @@ if not os.path.exists(partis_dir):
     print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
-import python.glutils as glutils
+import partis.utils as utils
+import partis.glutils as glutils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--bases', required=True, help='colon-separated list of the bits before the stars, e.g. 1-18:2-2 (set to \'all\' to print entire germline set)')

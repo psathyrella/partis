@@ -400,11 +400,11 @@ if args.meta_info_key_to_color is None and not args.meta_info_to_emphasize:  # i
 
 sys.path.insert(1, args.partis_dir) # + '/python')
 try:
-    import python.utils as utils
-    import python.treeutils as treeutils
-    import python.glutils as glutils
-    import python.plotting as plotting
-    import python.lbplotting as lbplotting
+    import partis.utils as utils
+    import partis.treeutils as treeutils
+    import partis.glutils as glutils
+    import partis.plotting as plotting
+    import partis.lbplotting as lbplotting
 except ImportError as e:
     print(e)
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)

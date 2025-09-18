@@ -18,11 +18,11 @@ from io import open
 from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir)
-import python.utils as utils
-import python.glutils as glutils
-import python.paircluster as paircluster
-from python.clusterpath import ClusterPath
-import python.treeutils as treeutils
+import partis.utils as utils
+import partis.glutils as glutils
+import partis.paircluster as paircluster
+from partis.clusterpath import ClusterPath
+import partis.treeutils as treeutils
 
 docker_path = '/linearham/work'
 ig_or_tr = 'ig'

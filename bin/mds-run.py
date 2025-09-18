@@ -11,8 +11,8 @@ from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir)  # + '/python')
 
-import python.utils as utils
-import python.mds as mds
+import partis.utils as utils
+import partis.mds as mds
 
 # ----------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()

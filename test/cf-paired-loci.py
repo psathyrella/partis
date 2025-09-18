@@ -17,12 +17,12 @@ from io import open
 from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
-import python.utils as utils
-import python.paircluster as paircluster
-import python.scanplot as scanplot
-import python.plotting as plotting
-import python.clusterpath as clusterpath
-import python.glutils as glutils
+import partis.utils as utils
+import partis.paircluster as paircluster
+import partis.scanplot as scanplot
+import partis.plotting as plotting
+import partis.clusterpath as clusterpath
+import partis.glutils as glutils
 
 # ----------------------------------------------------------------------------------------
 script_base = os.path.basename(__file__).replace('cf-', '').replace('.py', '')
@@ -203,7 +203,7 @@ def get_cmd(action, base_args, varnames, vlists, vstrs, synth_frac=None):
             tree_inf_method = action.replace('phylo-naive-', '')
             if 'fuzz-' in action:
                 tree_inf_method = '-'.join(tree_inf_method.split('-')[:-2])
-            import python.treeutils as treeutils
+            import partis.treeutils as treeutils
             assert tree_inf_method in treeutils.all_phylo_methods
             cmd += ' --input-partition-dir %s --tree-inference-method %s' % (odir(args, varnames, vstrs, 'partition'), tree_inf_method)
             if 'fuzz' in action:
@@ -356,7 +356,7 @@ def imbalfname(ibval):
 def parse_linearham_trees():
     # downloaded from here https://zenodo.org/record/3746832, then cat'd together all the trees
     # here we sort by the imbalance, then put in separated files rounded to second decimal place
-    import python.treeutils as treeutils
+    import partis.treeutils as treeutils
     ibtrees, ibvals = {}, []
     with open('/fh/local/dralph/partis/paired-loci/linearham-simulation/simulation_trees/all.trees') as tfile:
         for line in tfile:

@@ -15,8 +15,8 @@ partis_dir = str(Path(__file__).parent.parent)
 if not os.path.exists(partis_dir):
     print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
 sys.path.insert(1, partis_dir) # + '/python')
-import python.utils as utils
-import python.seqfileopener as seqfileopener
+import partis.utils as utils
+import partis.seqfileopener as seqfileopener
 
 parser = argparse.ArgumentParser()
 parser.add_argument('infile')

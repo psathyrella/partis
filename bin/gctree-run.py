@@ -18,9 +18,9 @@ from pathlib import Path
 
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) #'./python')
-import python.utils as utils
-import python.glutils as glutils
-import python.treeutils as treeutils
+import partis.utils as utils
+import partis.glutils as glutils
+import partis.treeutils as treeutils
 
 # ----------------------------------------------------------------------------------------
 def get_inf_int_name(gname):  # <gname> is just an integer, which won't be unique and will break things

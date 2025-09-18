@@ -494,9 +494,9 @@ args = parser.parse_args()
 
 sys.path.insert(1, args.partis_dir) # + '/python')
 try:
-    import python.utils as utils
-    import python.glutils as glutils
-    import python.plotting as plotting
+    import partis.utils as utils
+    import partis.glutils as glutils
+    import partis.plotting as plotting
 except ImportError as e:
     print(e)
     raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)

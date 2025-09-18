@@ -22,12 +22,12 @@ mpl.rcParams["mathtext.default"] = 'regular'
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
 sys.path.insert(1, partis_dir)
 
-import python.utils as utils
-import python.plotting as plotting
-import python.hutils as hutils
-from python.hist import Hist
-import python.treeutils as treeutils
-import python.datautils as datautils
+import partis.utils as utils
+import partis.plotting as plotting
+import partis.hutils as hutils
+from partis.hist import Hist
+import partis.treeutils as treeutils
+import partis.datautils as datautils
 
 colors = {
     'bst-data' : '#cc0000', #'black',

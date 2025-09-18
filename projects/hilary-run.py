@@ -16,10 +16,10 @@ from io import open
 
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
 sys.path.insert(1, partis_dir) #'./python')
-import python.utils as utils
-import python.glutils as glutils
-import python.treeutils as treeutils
-from python.clusterpath import ClusterPath
+import partis.utils as utils
+import partis.glutils as glutils
+import partis.treeutils as treeutils
+from partis.clusterpath import ClusterPath
 
 # ----------------------------------------------------------------------------------------
 def install():

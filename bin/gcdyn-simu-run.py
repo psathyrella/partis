@@ -17,13 +17,13 @@ from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 sys.path.insert(1, partis_dir) # + '/python')
 
-import python.utils as utils
-import python.paircluster as paircluster
-import python.glutils as glutils
-from python.clusterpath import ClusterPath
-import python.treeutils as treeutils
-import python.indelutils as indelutils
-from python.event import RecombinationEvent
+import partis.utils as utils
+import partis.paircluster as paircluster
+import partis.glutils as glutils
+from partis.clusterpath import ClusterPath
+import partis.treeutils as treeutils
+import partis.indelutils as indelutils
+from partis.event import RecombinationEvent
 
 # ----------------------------------------------------------------------------------------
 def get_replay_naive_antn(glfos, ltmp, add_empty_mature_keys=False, debug=False):

@@ -16,9 +16,9 @@ sys.path.insert(1, '.') #'./python')
 from pathlib import Path
 partis_dir = str(Path(__file__).parent.parent)
 
-import python.utils as utils
-import python.glutils as glutils
-import python.processargs as processargs
+import partis.utils as utils
+import partis.glutils as glutils
+import partis.processargs as processargs
 
 # ----------------------------------------------------------------------------------------
 def cov_cmd():

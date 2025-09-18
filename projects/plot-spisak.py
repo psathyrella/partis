@@ -19,9 +19,9 @@ import math
 partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
 sys.path.insert(1, partis_dir + '/python')
 
-import python.utils as utils
-import python.glutils as glutils
-import python.hutils as hutils
+import partis.utils as utils
+import partis.glutils as glutils
+import partis.hutils as hutils
 
 # NOTE see also reviews/spisak-2023/notes.txt in github papers repo
 
