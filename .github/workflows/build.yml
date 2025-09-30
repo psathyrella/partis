@@ -52,6 +52,11 @@ jobs:
       run: |
         git submodule update --init packages/ham
 
+    - name: Checkout ig-sw submodule
+      if: matrix.install-method == 'pip'
+      run: |
+        git submodule update --init packages/ig-sw
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:

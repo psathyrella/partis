@@ -35,7 +35,7 @@ def check_system_dependencies():
 
 
 def build_compiled_components():
-    """Build the required C++ components using the original build script."""
+    """Build the required C++ components using the build script."""
     print("Building partis compiled components (ig-sw and ham)...")
     
     # Check system dependencies first
@@ -44,74 +44,17 @@ def build_compiled_components():
     base_dir = Path(__file__).parent.absolute()
     build_script = base_dir / "bin" / "build.sh"
     
-    if build_script.exists():
-        print("Compiling C++ components...")
-        try:
-            # Run the original build script but suppress test failure
-            result = subprocess.run([str(build_script)], 
-                                  cwd=str(base_dir),
-                                  capture_output=True,
-                                  text=True)
-            
-            # Print stdout/stderr for debugging
-            if result.stdout:
-                print("Build output:", result.stdout[-1000:])  # Last 1000 chars
-            if result.stderr:
-                print("Build errors:", result.stderr[-1000:])  # Last 1000 chars
-            
-            # Check if the important binaries were created
-            ig_sw_binary = base_dir / "packages" / "ig-sw" / "src" / "ig_align" / "ig-sw"
-            ham_binary = base_dir / "packages" / "ham" / "bcrham"
-            
-            if ig_sw_binary.exists() and ham_binary.exists():
-                print("✓ Successfully built ig-sw and ham binaries")
-            else:
-                missing = []
-                if not ig_sw_binary.exists():
-                    missing.append("ig-sw")
-                if not ham_binary.exists():
-                    missing.append("ham")
-                print(f"Warning: Missing binaries: {', '.join(missing)}")
-                # Don't fail the installation if tests fail, but binaries exist
-                if ig_sw_binary.exists() or ham_binary.exists():
-                    print("Continuing with partial build...")
-                else:
-                    raise Exception("Failed to build required binaries")
-                    
-        except Exception as e:
-            print(f"Build script failed: {e}")
-            # Try to fall back to manual scons build
-            print("Attempting manual build...")
-            try:
-                build_with_scons(base_dir)
-            except Exception as e2:
-                print(f"Manual build also failed: {e2}")
-                raise Exception("Could not build required C++ components")
-    else:
-        print(f"Build script not found at {build_script}, attempting manual build...")
-        build_with_scons(base_dir)
+    if not build_script.exists():
+        raise Exception(f"Build script not found at {build_script}")
+    
+    print("Compiling C++ components...")
+    result = subprocess.run([str(build_script)], cwd=str(base_dir))
+    
+    if result.returncode != 0:
+        raise Exception(f"Build script failed with exit code {result.returncode}")
+    
+    print("✓ Successfully built ig-sw and ham binaries")
 
-
-def build_with_scons(base_dir):
-    """Fallback build using SCons directly."""
-    original_dir = os.getcwd()
-    try:
-        # Build ig-sw
-        ig_sw_dir = base_dir / "packages" / "ig-sw" / "src" / "ig_align"
-        if ig_sw_dir.exists():
-            print("Building ig-sw...")
-            os.chdir(str(ig_sw_dir))
-            subprocess.check_call(['scons'])
-        
-        # Build ham
-        ham_dir = base_dir / "packages" / "ham"
-        if ham_dir.exists():
-            print("Building ham...")
-            os.chdir(str(ham_dir))
-            subprocess.check_call(['scons', 'bcrham'])
-            
-    finally:
-        os.chdir(original_dir)
 
 
 class CustomBuildPy(build_py):
