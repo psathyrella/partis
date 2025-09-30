@@ -76,6 +76,12 @@ jobs:
         # brew tap jydu/homebrew-biopp
         # brew install libbpp-core bppsuite  # which packages do i actually have to write here?
         brew install --cask font-lato
+        
+    - name: Set Homebrew paths for ARM64 Mac
+      if: matrix.os == 'macos-14'
+      run: |
+        echo "CPPFLAGS=-I/opt/homebrew/include" >> $GITHUB_ENV
+        echo "LDFLAGS=-L/opt/homebrew/lib" >> $GITHUB_ENV
 
     # - name: Install R tree generation packages  # could turn this back on, but it's really slow and not super important (and is unnecessary with --no-tree-gen arg below), although note we're still installing R above
     #   run: |
