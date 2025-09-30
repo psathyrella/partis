@@ -112,6 +112,9 @@ class Waterer(object):
             sys.stdout.flush()
             self.execute_commands(base_infname, base_outfname, mismatches, gap_opens)
 
+            # Force filesystem to flush all pending writes before reading SAM files (fixes ARM64 truncated file issues)
+            os.sync()
+
             processing_start = time.time()
             self.read_output(base_outfname, len(mismatches))
 
