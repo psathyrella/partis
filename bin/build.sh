@@ -18,7 +18,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then  # FastTree only has linux+windows binarie
     echo -e "\n--> building FastTree"
     cd $basedir/packages/FastTree/ && gcc -O3 -fopenmp-simd -funsafe-math-optimizations -march=native -o FastTree FastTree.c -lm
     cd $basedir/
-    ln -sv $basedir/packages/FastTree/FastTree bin/FastTree-macos
+    ln -sfv $basedir/packages/FastTree/FastTree bin/FastTree-macos
 fi
 
 if [ "$*" == "with-simulation" ]; then

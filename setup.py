@@ -34,8 +34,17 @@ def check_system_dependencies():
         raise RuntimeError('Missing required system dependencies: %s. Please install all packages listed in the manual (docs/install.md#installation-with-pip), then try the installation again.' % ', '.join(missing))
 
 
+# Global flag to track if we've already built components
+_components_built = False
+
 def build_compiled_components():
     """Build the required C++ components using the build script."""
+    global _components_built
+    
+    if _components_built:
+        print("C++ components already built, skipping...")
+        return
+    
     print("Building partis compiled components (ig-sw and ham)...")
     
     # Check system dependencies first
@@ -54,6 +63,7 @@ def build_compiled_components():
         raise Exception(f"Build script failed with exit code {result.returncode}")
     
     print("✓ Successfully built ig-sw and ham binaries")
+    _components_built = True
 
 
 
