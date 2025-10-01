@@ -18,14 +18,14 @@ sudo apt install python3 python3-pip python-is-python3 pipx build-essential cmak
 # macOS (with Homebrew)
 brew install python3 pipx cmake gsl yaml-cpp scons mafft
 ```
+Note, however, that macOS 14 or newer (ARM64) cannot run or compile the ig-sw dependency due to incompatibility with emmintrin/SSE2.
+Until we've managed to resolve this, then, you'll unfortunately be limited to either Linux or macOS 13 or older.
 
 Install from PyPI (recommended):
 ```bash
 pipx install partis-bcr
 ```
 Alternatively, you can install from source if you think you'll want to modify the source code.
-Note, however, that macOS 14 or newer (ARM64) cannot compile the ig-sw dependency due to incompatibility with emmintrin/SSE2.
-For these systems you will thus need to install with pipx (which uses binaries compiled on macOS 13).
 ```bash
 git clone https://github.com/psathyrella/partis.git
 cd partis
