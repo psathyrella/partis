@@ -37,6 +37,10 @@ jobs:
         os: [ubuntu-latest, macos-13, macos-14]  # macos-13: Intel, macos-14: ARM64 (Apple Silicon)
         python-version: ['3.12']
         install-method: ['pip', 'pipx']
+        exclude:
+          # Only test pipx installation on macos-14 (ARM64) to avoid compilation issues
+          - os: macos-14
+            install-method: 'pip'
       fail-fast: false
 
     env:
@@ -77,7 +81,7 @@ jobs:
         # brew install libbpp-core bppsuite  # which packages do i actually have to write here?
         brew install --cask font-lato
         
-    - name: Set Homebrew paths for ARM64 Mac
+    - name: Set Homebrew paths for ARM64 Mac  # not used atm, but we'll want these if we manage to fix the emmintrin.h/SSE2 issue, so leaving in
       if: matrix.os == 'macos-14'
       run: |
         echo "CPPFLAGS=-I/opt/homebrew/include" >> $GITHUB_ENV

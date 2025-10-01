@@ -23,7 +23,9 @@ Install from PyPI (recommended):
 ```bash
 pipx install partis-bcr
 ```
-Alternatively, you can install from source if you think you'll want to modify the source code:
+Alternatively, you can install from source if you think you'll want to modify the source code.
+Note, however, that macOS 14 or newer (ARM64) cannot compile the ig-sw dependency due to incompatibility with emmintrin/SSE2.
+For these systems you will thus need to install with pipx (which uses binaries compiled on macOS 13).
 ```bash
 git clone https://github.com/psathyrella/partis.git
 cd partis
