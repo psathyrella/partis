@@ -58,7 +58,7 @@ def compare_directories(args, plotdirlist, outdir):
         hlist = [allhists[dname].get(varname, Hist(1, 0, 1, title='null')) for dname in allhists]
         plot_single_variable(args, varname, hlist, outdir, pathnameclues=plotdirlist[0])
 
-    plotting.make_html(outdir, n_columns=4)
+    plotting.make_html(outdir, n_columns=4, new_table_each_row=True)
 
 # ----------------------------------------------------------------------------------------
 def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
@@ -295,4 +295,4 @@ for dlist, outdir in zip(listof_plotdirlists, listof_outdirs):
 
 if args.make_parent_html:  # didn't really test this very well
     fnoutstr, _ = utils.simplerun('find %s -type f -name *.svg' % args.outdir, return_out_err=True)
-    plotting.make_html(args.outdir, fnames=[fnoutstr.strip().split('\n')])
+    plotting.make_html(args.outdir, fnames=[fnoutstr.strip().split('\n')], new_table_each_row=True)

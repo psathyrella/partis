@@ -398,6 +398,9 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
     n_skipped = {k : 0 for k in required_keys + ['zero-len-paired-uids', 'too-small']}
     unpaired_l_clusts = [c for c in l_part]
     for h_clust in h_part:
+        if ':'.join(h_clust) not in h_atn_dict:  # note sure if this really avoids it, and i wish i knew how it could be missing, but don't have time right now to track it down
+            print('    %s cluster %s missing from h_atn_dict, skipping' % (utils.wrnstr(), ':'.join(h_clust)))
+            continue
         h_atn = h_atn_dict[':'.join(h_clust)]
         h_pids = getpids(h_atn)
 
