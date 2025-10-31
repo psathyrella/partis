@@ -165,24 +165,23 @@ for name, bounds in list(true_vs_inferred_hard_bounds.items()):
 
 default_hard_bounds = {
     # 'hamming_to_true_naive' : (-0.5, 19.5),
-    'hamming_to_true_naive' : (-0.5, 25),
-    'cdr3_hamming_to_true_naive' : (-0.5, 25),
+    'hamming_to_true_naive' : (-0.5, 25.5),
+    'cdr3_hamming_to_true_naive' : (-0.5, 25.5),
     'v_hamming_to_true_naive' : (-0.5, 8.5),
     'd_hamming_to_true_naive' : (-0.5, 10.5),
     'j_hamming_to_true_naive' : (-0.5, 12.5),
-    'd_3p_del' : (-1, 18),
-    'd_5p_del' : (-1, 20),
-    'dj_insertion' : (-1, 22),
-    'jf_insertion' : (-1, 13),
-    'fv_insertion' : (-1, 13),
-    'j_5p_del' : (-1, 17),
+    'd_3p_del' : (-0.5, 18.5),
+    'd_5p_del' : (-0.5, 20.5),
+    'dj_insertion' : (-0.5, 22.5),
+    'jf_insertion' : (-0.5, 13.5),
+    'fv_insertion' : (-0.5, 13.5),
+    'j_5p_del' : (-0.5, 17.5),
     'all-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
     'v-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
     'd-mean-freq' : (0.0, 0.5),  # NOTE make sure you know where the decimal place is here!
     'j-mean-freq' : (0.0, 0.4),  # NOTE make sure you know where the decimal place is here!
-    'v_3p_del' : (-1, 6),
-    'vd_insertion' : (-1, 18),
-    'all_insertions' : (-0.5, 20),
+    'v_3p_del' : (-0.5, 8.5),
+    'vd_insertion' : (-0.5, 17.5),
     'IGHJ6*02' : (-0.5, 39.5),
     'IGHJ3*02' : (-0.5, 26),
     'IGHJ1*01' : (-0.5, 28),

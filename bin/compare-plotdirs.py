@@ -30,13 +30,15 @@ ptitledict.update(treeutils.legtexts)
 # ----------------------------------------------------------------------------------------
 def get_hists_from_dir(dirname, histname, string_to_ignore=None):
     hists = {}
-    for fname in glob.glob('%s/%s' % (dirname, args.file_glob_str)):
-        varname = os.path.basename(fname)
-        for rstr in args.file_replace_strs:
-            varname = varname.replace(rstr, '')
-        if string_to_ignore is not None:
-            varname = varname.replace(string_to_ignore, '')
-        hists[varname] = Hist(fname=fname, title=histname)
+    file_patterns = args.file_glob_str.split(',')
+    for pattern in file_patterns:
+        for fname in glob.glob('%s/%s' % (dirname, pattern)):
+            varname = os.path.basename(fname)
+            for rstr in args.file_replace_strs:
+                varname = varname.replace(rstr, '')
+            if string_to_ignore is not None:
+                varname = varname.replace(string_to_ignore, '')
+            hists[varname] = Hist(fname=fname, title=histname)
     if len(hists) == 0:
         print('    no csvs found%s in %s' % ('' if args.file_glob_str is None else ' with --file-glob-str \'%s\''%args.file_glob_str, dirname))
     return hists
@@ -113,8 +115,6 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     else:
         if bounds is None:
             bounds = plotconfig.default_hard_bounds.setdefault(varname, None)
-        if bounds is None and 'insertion' in varname:
-            bounds = plotconfig.default_hard_bounds.setdefault('all_insertions', None)
         if varname in plotconfig.gene_usage_columns:
             # no_labels = True  # not sure why i wanted these labels turned off?
             if 'j_' not in varname:
@@ -159,6 +159,12 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                 args.log = 'xy'
             xticks = [1, 2, 3, 5, 10, 15, 20]
             xticklabels = ['1', '2', '3', '5', '10', '15', '20']
+    if bounds is not None and any(h.xmin > bounds[1] or h.xmax < bounds[0] for h in hlist):  # if any hist is entirely outside of <bounds>, widen the <bounds>
+        hist_bounds = [h.get_filled_bin_xbounds() for h in hlist]
+        overall_min, overall_max = [f(vals+(b,)) for f, vals, b in zip([min, max], zip(*hist_bounds), bounds)]
+        if overall_min < bounds[0] or overall_max > bounds[1]:
+            print('    %s (%s) overriding bounds %s with filled hist bounds to get %s' % (utils.wrnstr(), varname, bounds, (overall_min, overall_max)))
+        bounds = (overall_min, overall_max)
 
     if xtitle is None:
         xtitle = xtitledict.get(varname)
@@ -187,7 +193,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds, ybounds=args.ybounds,
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle if args.xtitle is None else args.xtitle, ytitle=ytitle if args.ytitle is None else args.ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                          linewidths=linewidths, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
+                          linewidths=linewidths, linestyles=args.linestyles, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins)
 
     if args.swarm_meta_key is not None:
@@ -211,6 +217,7 @@ parser.add_argument('--colors', default=':'.join(plotting.default_colors), help=
 parser.add_argument('--alphas')
 parser.add_argument('--linewidths', default=':'.join(plotting.default_linewidths), help='colon-separated list of linewidths to cycle through')
 parser.add_argument('--markersizes', default=':'.join(plotting.default_markersizes), help='colon-separated list of linewidths to cycle through')
+parser.add_argument('--linestyles', help='colon-separated list of linestyles to cycle through')
 parser.add_argument('--gldirs', help='On plots showing mutation vs individual gene positions, if you\'d like a dashed veritcal line showing conserved codon positions, set this as a colon-separated list of germline info dirs corresponding to each plotdir') #, default=['data/germlines/human'])
 parser.add_argument('--locus', default='igh')
 parser.add_argument('--normalize', action='store_true', help='If set, the histograms from each plotdir are normalized (each bin contents divided by the integral) before making the comparison (e.g. for comparing different size samples).')
@@ -219,7 +226,7 @@ parser.add_argument('--translegend', help='colon-separated list of x, y values w
 parser.add_argument('--log', default='', help='Display these axes on a log scale, set to either \'x\', \'y\', or \'xy\'')
 parser.add_argument('--make-parent-html', action='store_true', help='after doing everything within subdirs, make a single html in the main/parent dir with all plots from subdirs')
 parser.add_argument('--add-to-title', help='string to append to existing title (use @ as space)')
-parser.add_argument('--file-glob-str', default='*.csv', help='shell glob style regex for matching plot files')
+parser.add_argument('--file-glob-str', default='*.csv', help='Shell glob style regex for matching plot files. Separate multiple patterns with \',\' (and no curly braces {})')
 parser.add_argument('--file-replace-strs', default='.csv', help='colon-separated list of strings to remove frome file base name to get variable name')
 parser.add_argument('--xbounds')
 parser.add_argument('--ybounds')
@@ -238,6 +245,7 @@ args.names = utils.get_arg_list(args.names)
 args.alphas = utils.get_arg_list(args.alphas, floatify=True)
 args.colors = utils.get_arg_list(args.colors)
 args.linewidths = utils.get_arg_list(args.linewidths, intify=True)
+args.linestyles = utils.get_arg_list(args.linestyles)
 args.markersizes = utils.get_arg_list(args.markersizes, intify=True)
 args.gldirs = utils.get_arg_list(args.gldirs)
 args.translegend = utils.get_arg_list(args.translegend, floatify=True)

@@ -418,6 +418,8 @@ def shift_hist_overflows(hists, xmin, xmax):
             else:
                 break
 
+        if first_shown_bin == -1 or last_shown_bin == -1:
+            raise RuntimeError(f"Can\'t shift overflows for hist '{htmp.title}' since it has no bins within shift range {xmin}, {xmax} (hist range: {htmp.xmin}, {htmp.xmax})")
         htmp.set_ibin(first_shown_bin,
                       underflows + htmp.bin_contents[first_shown_bin],
                       error=math.sqrt(under_err2 + htmp.errors[first_shown_bin]**2))
@@ -448,7 +450,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
 
     multiply_by_bin_width = False
     if normalize and len(set((h.n_bins, h.xmin, h.xmax) for h in hists)) > 1:
-        print('    %s normalizing hists with different bins, which will *not* work/look right if there\'s empty bins (turn on square_bins to see)' % utils.wrnstr())
+        print('    %s (%s) normalizing hists with different bins, which will *not* work/look right if there\'s empty bins (turning on square_bins should better show this)' % (utils.wrnstr(), plotname))
         multiply_by_bin_width = True
 
     xmin, xmax, ymin, ymax = None, None, None, None
@@ -505,7 +507,7 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
     while len(tmpcolors) < len(hists):
         tmpcolors += tmpcolors
 
-    tmplinestyles = [] if linestyles is None or len(linestyles) < len(hists) else copy.deepcopy(linestyles)
+    tmplinestyles = [] if linestyles is None else copy.deepcopy(linestyles)
     itmp = 0
     availstyles = ['-', '--', '-.', ':']
     while len(tmplinestyles) < len(hists):
