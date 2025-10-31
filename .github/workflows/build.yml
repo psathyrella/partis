@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-13] #, macos-14]  # macos-13: Intel, macos-14: ARM64 (Apple Silicon)
+        os: [ubuntu-latest, macos-15-intel] # this is the last intel build, will be deprecated dec 2027, and atm we can't run on non-intel macs: https://github.com/psathyrella/partis/issues/330
         python-version: ['3.12']
         install-method: ['pip', 'pipx']
       fail-fast: false
