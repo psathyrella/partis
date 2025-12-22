@@ -4926,13 +4926,15 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
         return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, debug=False):
     from . import glutils
     merged_annotation_list, merged_keys = [], set()
     merged_cpath, merged_glfo = None, None
     n_event_list, n_seq_list = [], []
     for infname in yaml_list:
         glfo, annotation_list, cpath = read_yaml_output(infname, dont_add_implicit_info=True)
+        if debug:
+            print('        %d sequences in %d clusters from %s' % (sum(len(l['unique_ids']) for l in annotation_list), len(annotation_list), infname))
         if remove_duplicates:  # NOTE this doesn't catch duplicates *within* each subfile, but atm I'm only worried about the case where they appear at most once in each subfile, so oh well
             annotation_list = [l for l in annotation_list if ':'.join(l['unique_ids']) not in merged_keys]
             for ptn in cpath.partitions:
@@ -4964,6 +4966,9 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
     mkdir(outdir)
 
     write_annotations(outfname, merged_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines())
+
+    if debug:
+        print('      read %d total seqs from %d yaml files' % (sum(n_seq_list), len(yaml_list)))
 
     return n_event_list, n_seq_list
 

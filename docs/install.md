@@ -23,6 +23,8 @@ Until we've managed to resolve this, then, you'll unfortunately be limited to ei
 
 Install from PyPI (recommended):
 ```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: partis-env\Scripts\activate
 pipx install partis-bcr
 ```
 Alternatively, you can install from source if you think you'll want to modify the source code.
