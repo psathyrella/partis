@@ -3,7 +3,6 @@
 import os
 import sys
 import subprocess
-import shutil
 from pathlib import Path
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py
@@ -36,61 +35,40 @@ def check_system_dependencies():
 
 def build_compiled_components():
     """Build the required C++ components using the build script."""
-    
+
     print("Building partis compiled components (ig-sw and ham)...")
-    
+
     # Check system dependencies first
     check_system_dependencies()
-    
+
     base_dir = Path(__file__).parent.absolute()
     build_script = base_dir / "bin" / "build.sh"
-    
+
     if not build_script.exists():
         raise Exception(f"Build script not found at {build_script}")
-    
+
     print("Compiling C++ components...")
     result = subprocess.run([str(build_script)], cwd=str(base_dir))
-    
+
     if result.returncode != 0:
         raise Exception(f"Build script failed with exit code {result.returncode}")
-    
+
     print("✓ Successfully built ig-sw and ham binaries")
 
 
-class CustomBuildPy(build_py):
-    """Custom build command that compiles C++ components."""
-    def run(self):
-        # First run the standard build
-        build_py.run(self)
-        # Then build our C++ components
-        build_compiled_components()
+def make_custom_command(base_class):
+    """Factory function to create custom command classes that build C++ components."""
+    class CustomCommand(base_class):
+        def run(self):
+            build_compiled_components()
+            base_class.run(self)
+    return CustomCommand
 
 
-class CustomDevelop(develop):
-    """Custom develop command that compiles C++ components."""
-    def run(self):
-        # Build C++ components first
-        build_compiled_components()
-        # Then run the standard develop
-        develop.run(self)
-
-
-class CustomInstall(install):
-    """Custom install command that ensures C++ components are built."""
-    def run(self):
-        # Build C++ components first
-        build_compiled_components()
-        # Then run the standard install
-        install.run(self)
-
-
-class CustomEggInfo(egg_info):
-    """Custom egg_info command that builds C++ components early."""
-    def run(self):
-        # Build C++ components before creating egg info
-        build_compiled_components()
-        # Then run the standard egg_info
-        egg_info.run(self)
+CustomBuildPy = make_custom_command(build_py)
+CustomDevelop = make_custom_command(develop)
+CustomInstall = make_custom_command(install)
+CustomEggInfo = make_custom_command(egg_info)
 
 
 class BinaryDistribution(Distribution):
@@ -162,14 +140,12 @@ setup(
             'circlify',
             'ete3',
             'joypy',
-            'matplotlib',
         ],
         'full': [
             'circlify',
             'ete3',
             'joypy',
             'levenshtein',
-            'matplotlib',
         ],
     },
     
@@ -197,6 +173,8 @@ setup(
     include_package_data=True,
     package_data={
         'partis': [
+            # Note: Using ../ to include files from outside the package directory
+            # These are runtime dependencies that need to be bundled with the package
             '../bin/*',
             '../data/**/*',
             '../test/**/*',

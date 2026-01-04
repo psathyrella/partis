@@ -2,10 +2,11 @@
 
 ### Installation methods
 
-Partis can be installed via: 
-  - [pip and pipx](#installation-with-pip): recommended
+Partis can be installed via:
+  - [pip and pipx](#installation-with-pip-or-pipx): recommended
   - [additional steps for simulation installation](#simulation)
   - [with Docker](#installation-with-docker)
+  - [plotting dependencies](#plotting)
 
 #### Installation with pip or pipx
 
@@ -51,6 +52,7 @@ partis-test.py --quick
 partis-test.py --no-simu
 partis-test.py --paired --no-simu
 ```
+
 #### Simulation
 
 A variety of partis simulation options will work using the base install described above; however for full functionality you'll need to install R and some R packages, as well as potentially compile bio++.
@@ -108,11 +110,35 @@ Alternatively, you can detach from the container with `ctrl-q q` (or whatever yo
 To then reattach to this running container, run `docker attach container-1`.
 If you don't plan on reattaching to a container, you should run with `--rm` so it is removed when you exit; otherwise you'll use up a lot of disk space with accumulated old containers (view with `sudo docker ps -a`).
 
-#### MDS Plotting
+#### Plotting
+
+##### Optional Python Dependencies
+
+The base installation includes all required dependencies for core partis functionality.
+However, some advanced plotting and analysis features require additional Python packages that can be installed as optional extras:
+
+**Plotting extras** (for advanced visualization):
+```bash
+pip install partis-bcr[plotting]
+```
+Includes: `circlify`, `ete3`, `joypy`
+
+**Full extras** (all optional features):
+```bash
+pip install partis-bcr[full]
+```
+Includes: `circlify`, `ete3`, `joypy`, `levenshtein`
+
+If installing from source, use:
+```bash
+pip install -e .[plotting]  # or .[full]
+```
+
+##### MDS Plotting with R
 
 In order to make the [MDS plots](plotting.md#partition-plots), you need R and the bios2mds package installed:
 
-```
+```bash
 apt-get install xorg libx11-dev libglu1-mesa-dev r-cran-rgl  # may not be necessary, depending on existing R install, but is at least necessary in docker
 conda install -y -cr r-rgl r-essentials
 unset R_LIBS_SITE
