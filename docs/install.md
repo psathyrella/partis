@@ -112,26 +112,13 @@ If you don't plan on reattaching to a container, you should run with `--rm` so i
 
 #### Plotting
 
-##### Optional Python Dependencies
-
-The base installation includes all required dependencies for core partis functionality.
-However, some advanced plotting and analysis features require additional Python packages that can be installed as optional extras:
-
-**Plotting extras** (for advanced visualization):
+In order to turn on plotting (typically by setting `--plotdir`) you'll have to install some extra dependencies:
 ```bash
 pip install partis-bcr[plotting]
 ```
-Includes: `circlify`, `ete3`, `joypy`
-
-**Full extras** (all optional features):
+or if installing from source:
 ```bash
-pip install partis-bcr[full]
-```
-Includes: `circlify`, `ete3`, `joypy`, `levenshtein`
-
-If installing from source, use:
-```bash
-pip install -e .[plotting]  # or .[full]
+pip install -e .[plotting]
 ```
 
 ##### MDS Plotting with R

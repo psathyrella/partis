@@ -140,11 +140,6 @@ setup(
             'circlify',
             'ete3',
             'joypy',
-        ],
-        'full': [
-            'circlify',
-            'ete3',
-            'joypy',
             'levenshtein',
         ],
     },
