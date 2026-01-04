@@ -42,6 +42,8 @@ For the sake of brevity, the commands below invoke partis with no leading path, 
   - added the partis `bin/` to your path: `export PATH=/path/to/partis/dir/bin/:$PATH`
 The other option is to specify the full path with each call `/path/to/partis/dir/bin/partis`.
 
+You can also import partis as a module rather than running command line scripts (see [quick start](quick-start.md) for details).
+
 ### annotate
 
 In order to find the most likely annotation (VDJ assignment, deletion boundaries, etc.) for each single sequence, run
