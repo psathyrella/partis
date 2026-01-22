@@ -230,6 +230,9 @@ if args.debug > 1 and n_skipped > 0:
 print('totals: %s%s' % (' '.join(('%s %d'%(l, len(sfos))) for l, sfos in outfos.items()), '' if len(failed_seqs) == 0 else ' (%s: %d)'%(utils.color('yellow', 'failed'), len(failed_seqs))))
 assert sum(len(ofo) for ofo in outfos.values()) + len(failed_seqs) == len(seqfos)
 
+# Check for UIDs appearing in multiple loci (will break later pair info processing)
+paircluster.check_for_cross_locus_duplicates({locus : [sfo['name'] for sfo in sfos] for locus, sfos in outfos.items()})
+
 if args.guess_pairing_info:
     if len(paired_uids) > 0:
         raise Exception('can\'t/shouldn\'t guess pairing info if we already have it from elsewhere')

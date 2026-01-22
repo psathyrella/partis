@@ -82,6 +82,28 @@ def clean_paired_dir(bdir, suffix='.fa', extra_files=None, expect_missing=False,
     utils.clean_files(fnames, expect_missing=expect_missing)
 
 # ----------------------------------------------------------------------------------------
+def check_for_cross_locus_duplicates(uid_lists_by_locus, extra_str=''):
+    """Check that no UID appears in multiple loci. Raises exception if any duplicates found.
+
+    Args:
+        uid_lists_by_locus: dict mapping locus name to list/set of UIDs for that locus
+        extra_str: optional string to prepend to error message
+    """
+    uid_to_loci = {}
+    for locus, uids in uid_lists_by_locus.items():
+        for uid in uids:
+            if uid not in uid_to_loci:
+                uid_to_loci[uid] = []
+            uid_to_loci[uid].append(locus)
+
+    cross_locus_dups = {u : loci for u, loci in uid_to_loci.items() if len(loci) > 1}
+    if len(cross_locus_dups) > 0:
+        err_str = '%sfound %d uid%s in multiple loci (which will cause hard to track crashes):\n' % (extra_str, len(cross_locus_dups), utils.plural(len(cross_locus_dups)))
+        for uid, loci in sorted(cross_locus_dups.items()):
+            err_str += '  %s: in %s\n' % (uid, ', '.join(loci))
+        raise Exception(err_str)
+
+# ----------------------------------------------------------------------------------------
 # add_selection_metrics: list of selection metrics to add (plotdir_fcn is atm only if adding selection metrics)
 def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics=False, add_selection_metrics=None, lb_tau=None, plotdir_fcn=None, seed_unique_id=None, dont_add_implicit_info=False, dbgstr='', debug=False):
     # ----------------------------------------------------------------------------------------
@@ -134,6 +156,12 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
             for smetric in add_selection_metrics:
                 treeutils.calculate_individual_tree_metrics(smetric, lpfos['antn_lists'][ltmp], base_plotdir=None if plotdir_fcn is None else plotdir_fcn(ltmp, lpair=lpair), lb_tau=lb_tau)
         parse_pairing_info(ltmp, lpfos['antn_lists'][ltmp])
+
+    # Check for UIDs that appear in multiple loci (NOTE this is also checked earlier in split-loci.py, but we keep it here as a safety check)
+    uid_lists = {ltmp : [uid for atn in lpfos['antn_lists'][ltmp] for uid in atn['unique_ids']]
+                 for ltmp in tmploci if lpfos['antn_lists'][ltmp] is not None}
+    check_for_cross_locus_duplicates(uid_lists)
+
     if all(lpfos['glfos'][l] is None for l in tmploci):  # if there was no info for *any* of the loci, set Nones one level up (it's just easier to have the Nones there)
         lpfos = {k : None for k in lpfos}
     return lpfos

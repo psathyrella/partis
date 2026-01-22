@@ -33,8 +33,8 @@ Alternatively, you can install from source if you think you'll want to modify th
 git clone https://github.com/psathyrella/partis.git
 cd partis
 
-# Initialize essential submodule
-git submodule update --init packages/ham
+# Initialize essential submodules
+git submodule update --init packages/ham packages/ig-sw
 
 # Create virtual environment and install
 python -m venv .venv

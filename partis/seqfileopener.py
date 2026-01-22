@@ -274,6 +274,9 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
                 already_printed_forbidden_character_warning = True
             uid = uid.translate(utils.forbidden_character_translations)
         if uid in input_info:
+            # Crash on duplicates if requested (typically set by paired loci parent process for single-chain subprocesses)
+            if args is not None and args.crash_on_duplicate_uids:
+                raise Exception('Found duplicate UID \'%s\' in %s. Cannot handle duplicate UIDs since pairing info references the original names. Please remove duplicates from input files.' % (uid, infname))
             uid, n_duplicate_uids = utils.choose_non_dup_id(uid, n_duplicate_uids, input_info)
         inseq = line['input_seqs'][0]
 
