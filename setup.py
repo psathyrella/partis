@@ -139,6 +139,7 @@ setup(
         'plotting': [
             'circlify',
             'ete3',
+            'PyQt5',
             'joypy',
             'levenshtein',
         ],

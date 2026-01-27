@@ -107,7 +107,7 @@ def convert_file(ifnfcn, ofnfcn, airr_input=False, igbl_gldir=False, plot_perfor
         if airr_input:
             cmd += ' --airr-input'
         if igbl_gldir:
-            cmd += ' --glfo-dir %s/igbl-db/fasta/partis-format-parsed --locus %s' % (args.igbdir, locus)  #  --template-glfo-dir %s/data/germlines/%s, partis_dir, args.species)  # just ran with the template set once so i could write the parsed glfo dirs
+            cmd += ' --glfo-dir %s/igbl-db/fasta/partis-format-parsed --locus %s' % (args.igbdir, locus)  #  --template-glfo-dir %s/data/germlines/%s, utils.get_partis_dir(), args.species)  # just ran with the template set once so i could write the parsed glfo dirs
         if plot_performance:
             cmd += ' --simfname %s --plotdir %s --only-csv-plots --only-plot-performance' % (simfn(locus), antn_plotdir(locus))
         cmdfos += [{

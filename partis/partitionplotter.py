@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import csv
 import os
+import shutil
 import math
 import numpy
 import itertools
@@ -954,7 +955,7 @@ class PartitionPlotter(object):
             skstrs = ',  '.join('%d (%s)'%(n_skipped[k], skip_dbg_strs.get(k, k)) for k in [k for k in sorted(n_skipped) if n_skipped[k]>0])
             print('      skipped %d / %d trees (ran %d): %s' % (sum(n_skipped.values()), len(self.sclusts), len(cmdfos), skstrs))
 
-        clean_up = False
+        clean_up = True
         if len(cmdfos) > 0:
 # TODO keep all i/o files, save command line
             # sys.exit()

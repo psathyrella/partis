@@ -5278,8 +5278,8 @@ def mamba_cmds(env, only_prep=False):
 # ----------------------------------------------------------------------------------------
 def run_ete_script(sub_cmd, return_for_cmdfos=False, dryrun=False, extra_str='', debug=True):
     prof_cmds = '' #' -m cProfile -s tottime -o prof.out'
-    # xvfb_err_str = '' # '-e %s' % XXX outdir + '/xvfb-err'  # tell xvfb-run to write its error to this file (rather than its default of /dev/null). This is only errors actually from xvfb-run, e.g. xauth stuff is broken
-    cmd = '%s/bin/xvfb-run -a python3%s %s' % (get_partis_dir(), prof_cmds, sub_cmd)
+    # Use QT_QPA_PLATFORM=offscreen for PyQt5 headless rendering (no need for xvfb-run)
+    cmd = 'QT_QPA_PLATFORM=offscreen python3%s %s' % (prof_cmds, sub_cmd)
     if debug or dryrun:
         print('%s%s %s' % (extra_str, color('red', 'run'), cmd))
     if return_for_cmdfos:

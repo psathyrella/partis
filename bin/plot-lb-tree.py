@@ -381,7 +381,7 @@ parser.add_argument('--label-leaf-nodes', action='store_true')
 parser.add_argument('--label-root-node', action='store_true')
 parser.add_argument('--node-label-regex', help='portion of node label to keep (rest is discarded if regex is found, if no regex label is left unchanged). E.g. \'ig.\' reduces them all to the locus')
 parser.add_argument('--tree-style', default='rectangular', choices=['rectangular', 'circular'])
-parser.add_argument('--partis-dir', default=str(Path(__file__)).parent.parent), help='path to main partis install dir')
+parser.add_argument('--partis-dir', default=str(Path(__file__).parent.parent), help='path to main partis install dir')
 parser.add_argument('--log-lbr', action='store_true')
 parser.add_argument('--seq-len', type=int)
 parser.add_argument('--uid-translations', help='colon-separated list of comma-separated pairs of uid:translated-id pairs')
@@ -398,16 +398,11 @@ args = parser.parse_args()
 if args.meta_info_key_to_color is None and not args.meta_info_to_emphasize:  # it'd be nice to move this stuff, but whatevs
     print('  note: if neither --meta-info-key-to-color or --meta-info-to-emphasize are set, other style attributes may not be set')
 
-sys.path.insert(1, args.partis_dir) # + '/python')
-try:
-    import partis.utils as utils
-    import partis.treeutils as treeutils
-    import partis.glutils as glutils
-    import partis.plotting as plotting
-    import partis.lbplotting as lbplotting
-except ImportError as e:
-    print(e)
-    raise Exception('couldn\'t import from main partis dir \'%s\' (set with --partis-dir)' % args.partis_dir)
+import partis.utils as utils
+import partis.treeutils as treeutils
+import partis.glutils as glutils
+import partis.plotting as plotting
+import partis.lbplotting as lbplotting
 args.meta_info_to_emphasize = utils.get_arg_list(args.meta_info_to_emphasize, key_val_pairs=True)
 args.meta_emph_formats = utils.get_arg_list(args.meta_emph_formats, key_val_pairs=True)
 utils.meta_emph_arg_process(args)

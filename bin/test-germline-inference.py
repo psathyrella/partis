@@ -38,7 +38,7 @@ def get_outfname(args, method, annotation_performance_plots=False, return_parent
 def simulate(args):
     if utils.output_exists(args, args.simfname):
         return
-    cmd_str = args.partis_path + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --outfname ' + args.simfname + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --force-dont-generate-germline-set --shm-parameter-dir ' + partis_dir + '/data/recombinator/scratch-parameters'
+    cmd_str = args.partis_path + ' simulate --n-sim-events ' + str(args.n_sim_events) + ' --outfname ' + args.simfname + ' --n-leaves ' + str(args.n_leaves) + ' --rearrange-from-scratch --force-dont-generate-germline-set --shm-parameter-dir ' + utils.get_partis_dir() + '/data/recombinator/scratch-parameters'
     cmd_str += ' --allow-nonfunctional-scratch-seqs'
     if args.n_leaf_distribution is None:
         cmd_str += ' --constant-number-of-leaves'
@@ -105,7 +105,7 @@ def run_other_method(args, method):
         cmd += ' --overwrite'
     if args.gls_gen:
         cmd += ' --gls-gen'
-        cmd += ' --glfo-dir ' + partis_dir + '/' + args.default_germline_dir  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
+        cmd += ' --glfo-dir ' + utils.get_partis_dir() + '/' + args.default_germline_dir  # the partis mehods have this as the default internally, but we want/have to set it explicitly here
     else:
         cmd += ' --glfo-dir ' + args.inf_glfo_dir
     cmd += ' --simulation-germline-dir ' + args.outdir + '/germlines/simulation'  # alleleclusterer is the only one that really uses this, but for now I want its dbg output to have the sim info
