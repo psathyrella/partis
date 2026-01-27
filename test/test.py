@@ -17,8 +17,6 @@ import colored_traceback.always
 import sys
 from io import open
 from pathlib import Path
-partis_dir = str(Path(__file__).parent.parent)
-sys.path.insert(1, partis_dir) # + '/python')
 import yaml
 
 from partis.baseutils import get_extra_str

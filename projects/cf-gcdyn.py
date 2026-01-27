@@ -12,8 +12,6 @@ import multiprocessing
 import glob
 import copy
 
-partis_dir = os.path.dirname(os.path.realpath(__file__)).replace('/projects', '')
-sys.path.insert(1, partis_dir) # + '/python')
 import partis.utils as utils
 import partis.paircluster as paircluster
 import partis.scanplot as scanplot

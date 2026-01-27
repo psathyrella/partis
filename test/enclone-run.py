@@ -13,11 +13,6 @@ import os
 import json
 from io import open
 
-# sys.path.insert(1, './python')
-# if you move this script, you'll need to change this method of getting the imports
-from pathlib import Path
-partis_dir = str(Path(__file__).parent.parent)
-sys.path.insert(1, partis_dir + '/python')
 import utils
 import glutils
 import paircluster

@@ -7,12 +7,6 @@ import sys
 import os
 import csv
 
-from pathlib import Path
-partis_dir = str(Path(__file__).parent.parent)
-if not os.path.exists(partis_dir):
-    print('WARNING current script dir %s doesn\'t exist, so python path may not be correctly set' % partis_dir)
-sys.path.insert(1, partis_dir) # + '/python')
-
 import partis.utils as utils
 from partis.hist import Hist
 import partis.plotting as plotting

@@ -12,9 +12,6 @@ import glob
 import colored_traceback.always
 
 from subprocess import check_call
-sys.path.insert(1, '.') #'./python')
-from pathlib import Path
-partis_dir = str(Path(__file__).parent.parent)
 
 import partis.utils as utils
 import partis.glutils as glutils

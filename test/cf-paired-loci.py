@@ -14,9 +14,6 @@ import operator
 import random
 from io import open
 
-from pathlib import Path
-partis_dir = str(Path(__file__).parent.parent)
-sys.path.insert(1, partis_dir) # + '/python')
 import partis.utils as utils
 import partis.paircluster as paircluster
 import partis.scanplot as scanplot

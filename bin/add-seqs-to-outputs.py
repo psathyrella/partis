@@ -10,11 +10,6 @@ import operator
 import colored_traceback.always
 import collections
 
-# if you move this script, you'll need to change this method of getting the imports
-from pathlib import Path
-partis_dir = str(Path(__file__).parent.parent)
-sys.path.insert(1, partis_dir) # + '/python')
-
 import partis.utils as utils
 import partis.glutils as glutils
 from partis.clusterpath import ClusterPath

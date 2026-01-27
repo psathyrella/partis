@@ -16,8 +16,6 @@ from io import open
 import random
 from pathlib import Path
 
-partis_dir = str(Path(__file__).parent.parent)
-sys.path.insert(1, partis_dir) #'./python')
 import partis.utils as utils
 import partis.glutils as glutils
 import partis.treeutils as treeutils
