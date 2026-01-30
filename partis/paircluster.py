@@ -255,8 +255,12 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
         return
     if ltmp in glfos:  # originally: heavy chain second time through: merge chain glfos from those paired with igk and with igl (now more general though)
         dbgprint('adding', add_tot=True)
-        glfos[ltmp] = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
-        antn_lists[ltmp] += dfn(glpf(lpair, 'antn_lists', ltmp))
+        glfos[ltmp], name_mapping = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
+        new_antn_list = dfn(glpf(lpair, 'antn_lists', ltmp))
+        # Update gene names in annotations to match the merged glfo
+        for line in new_antn_list:
+            utils.update_gene_names_in_line(line, name_mapping)
+        antn_lists[ltmp] += new_antn_list
         if glpf(lpair, 'cpaths', ltmp) is not None:
             if len(joint_cpaths[ltmp].partitions) != 1:  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
                 print('        %s multiple partitions in cpath when merging loci' % utils.wrnstr())  # ugh, maybe it isn't a big deal? I'm getting longer ones now, probably from the keep all unpaired/subsetpartition stuff

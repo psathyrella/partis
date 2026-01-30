@@ -28,5 +28,5 @@ for locus in ['igh', 'igk', 'igl']:
         glutils.write_glfo('data/germlines/%s' % mouse_type, new_glfo, debug=debug)
         if merged_glfo is None:
             merged_glfo = old_glfo
-        merged_glfo = glutils.get_merged_glfo(merged_glfo, new_glfo, debug=True)
+        merged_glfo, _ = glutils.get_merged_glfo(merged_glfo, new_glfo, debug=True)  # discard name_mapping since we don't have annotations here
     glutils.write_glfo('data/germlines/merged-mouse', merged_glfo, debug=debug)

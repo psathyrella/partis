@@ -4926,6 +4926,40 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
         return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
+def update_gene_names_in_line(line, name_mapping):
+    """
+    Update gene names in an annotation line using the provided name mapping.
+    This is used when merging germline info to keep annotations in sync with the merged glfo.
+
+    Args:
+        line: annotation line (dict) with gene name references
+        name_mapping: dict of {region: {dropped_name: retained_name}}
+
+    Returns:
+        None (modifies line in place)
+    """
+    for region in regions:
+        if len(name_mapping[region]) == 0:  # skip regions with no name changes
+            continue
+
+        # Update main gene assignment field
+        gene_key = region + '_gene'
+        if line[gene_key] != '' and line[gene_key] in name_mapping[region]:
+            line[gene_key] = name_mapping[region][line[gene_key]]
+
+        # Update per-gene support dictionary (has gene names as keys)
+        support_key = region + '_per_gene_support'
+        if support_key in line and line[support_key] is not None:
+            for old_name, new_name in name_mapping[region].items():
+                if old_name in line[support_key]:
+                    old_value = line[support_key].pop(old_name)
+                    # If new name already exists, keep the one with higher support
+                    if new_name in line[support_key]:
+                        line[support_key][new_name] = max(line[support_key][new_name], old_value)
+                    else:
+                        line[support_key][new_name] = old_value
+
+# ----------------------------------------------------------------------------------------
 def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, debug=False):
     from . import glutils
     merged_annotation_list, merged_keys = [], set()
@@ -4953,7 +4987,11 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
         if merged_glfo is None:
             merged_glfo = glfo
         elif glfo is not None:  # fall through if <glfo> is None
-            merged_glfo  = glutils.get_merged_glfo(glfo, merged_glfo)
+            merged_glfo, name_mapping = glutils.get_merged_glfo(glfo, merged_glfo)
+            # Update gene names in annotations to match the merged glfo (only if there are names to remap)
+            if any(len(name_mapping[r]) > 0 for r in regions):
+                for line in annotation_list:
+                    update_gene_names_in_line(line, name_mapping)
         merged_annotation_list += annotation_list
         merged_keys |= set(':'.join(l['unique_ids']) for l in annotation_list)
         if cleanup:

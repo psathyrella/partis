@@ -270,7 +270,7 @@ if args.gldirs is not None:
         if args.glfo is None:
             args.glfo = tmpglfo
         else:
-            args.glfo = glutils.get_merged_glfo(args.glfo, tmpglfo)
+            args.glfo, _ = glutils.get_merged_glfo(args.glfo, tmpglfo)  # discard name_mapping since we don't have annotations here
 
 if any(not os.path.isdir(d) for d in args.plotdirs):
     print('   at least one of --plotdirs doesn\'t exist: %s' % ' '.join(d for d in args.plotdirs if not os.path.isdir(d)))

@@ -476,6 +476,7 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
         print('  merging glfos')
     assert set(glfo_a['seqs']) == set(glfo_b['seqs'])
     merged_glfo = copy.deepcopy(glfo_a)
+    name_mapping = {region: {} for region in utils.regions}  # maps dropped names (from glfo_b) to retained names (from glfo_a)
     for region in utils.regions:
         duplicate_genes, duplicate_seqs = [], []
         inconsistent_names = []  # names corresponding to <duplicate_seqs>
@@ -489,6 +490,7 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
                 a_names = [g for g, s in glfo_a['seqs'][region].items() if s == seq]
                 assert len(a_names) == 1  # I really don't want to deal with duplicate sequences here. They should've been cleaned up elsewhere
                 inconsistent_names.append((a_names[0], gene))
+                name_mapping[region][gene] = a_names[0]  # track that gene name from glfo_b maps to a_names[0] from glfo_a
                 continue
             add_new_allele(merged_glfo, {'gene' : gene, 'seq' : seq, 'cpos' : utils.cdn_pos(glfo_b, region, gene)}, use_template_for_codon_info=False)
             merged_seqs.add(seq)
@@ -508,7 +510,7 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
         if len(duplicate_seqs) > 0:
             print('     %d seqs in both, but with different names (we use the name from glfo_a, the first arg): %s' % (len(duplicate_seqs), '   '.join([('%s %s' % (utils.color_gene(ga), utils.color_gene(gb))) for ga, gb in inconsistent_names])))
 
-    return merged_glfo
+    return merged_glfo, name_mapping
 
 #----------------------------------------------------------------------------------------
 def remove_extraneouse_info(glfo, debug=False):
