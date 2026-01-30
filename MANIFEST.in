@@ -21,11 +21,37 @@ recursive-include packages/ig-sw *
 recursive-exclude packages/ham *.o
 recursive-exclude packages/ig-sw *.o
 
-# Include documentation
-recursive-include docs *
+# Exclude documentation (plots should be accessed via GitHub/docs site)
+recursive-exclude docs *
 
-# Include tests
-recursive-include test *
+# Include test scripts and input data at root level
+include test/*.py
+include test/*.fa
+include test/*.yaml
+include test/*.yml
+include test/*.sh
+include test/*.nwk
+
+# Include test data directories
+recursive-include test/paired-data *
+
+# Include only non-slow reference results
+recursive-include test/ref-results *
+recursive-include test/paired/ref-results *
+
+# Exclude everything else in test/
+exclude test/new-results
+exclude test/new-results-slow
+exclude test/ref-results-slow
+exclude test/paired/new-results
+exclude test/paired/new-results-slow
+exclude test/paired/ref-results-slow
+prune test/new-results
+prune test/new-results-slow
+prune test/ref-results-slow
+prune test/paired/new-results
+prune test/paired/new-results-slow
+prune test/paired/ref-results-slow
 
 # Exclude compiled binaries initially (they'll be built during install)
 exclude packages/ham/bcrham
