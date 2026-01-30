@@ -4926,7 +4926,7 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
         return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, debug=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, debug=False):
     from . import glutils
     merged_annotation_list, merged_keys = [], set()
     merged_cpath, merged_glfo = None, None
@@ -4970,7 +4970,10 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
     if debug:
         print('      read %d total seqs from %d yaml files' % (sum(n_seq_list), len(yaml_list)))
 
-    return n_event_list, n_seq_list
+    if return_merged_objects:
+        return merged_glfo, merged_annotation_list, merged_cpath
+    else:
+        return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
 # merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub> (only works with paired dir structure)
