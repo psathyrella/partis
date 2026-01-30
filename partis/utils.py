@@ -5040,15 +5040,20 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
                 makelink('%s/parameters/%s/hmm/hmms' % (fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
             sub_glfo = glutils.read_glfo('%s/parameters/%s/hmm/germline-sets' % (subdfn(isub), ltmp), ltmp, dont_crash=True)
+            name_mapping = None
             if merged_glfo is None:
                 merged_glfo = sub_glfo
             elif sub_glfo is not None:  # fall through if <sub_glfo> is None
-                merged_glfo = glutils.get_merged_glfo(merged_glfo, sub_glfo)
+                merged_glfo, name_mapping = glutils.get_merged_glfo(merged_glfo, sub_glfo)
             for treg in regions:
                 if not os.path.exists(gpfn(subdfn(isub), ltmp, treg)):
                     continue
                 for tline in csvlines(gpfn(subdfn(isub), ltmp, treg)):
-                    merged_gene_counts[treg][tline['%s_gene'%treg]] += int(tline['count'])
+                    gene_name = tline['%s_gene'%treg]
+                    # Update gene name if it was remapped during glfo merge
+                    if name_mapping is not None and gene_name in name_mapping[treg]:
+                        gene_name = name_mapping[treg][gene_name]
+                    merged_gene_counts[treg][gene_name] += int(tline['count'])
         if merged_glfo is None:  # none of them exists
             continue
         glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo)
