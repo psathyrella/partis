@@ -5005,7 +5005,7 @@ def check_annotation_glfo_consistency(glfo, annotation_list, die_on_error=False,
         errstr = 'genes in annotations but not in glfo:'
         for region in regions:
             if len(missing_from_glfo[region]) > 0:
-                errstr += '\n    %s: %s' % (region, ' '.join(sorted(missing_from_glfo[region])))
+                errstr += '   %s: %s' % (region, ' '.join(sorted(missing_from_glfo[region])))
         if die_on_error:
             raise Exception(errstr)
         else:
@@ -5019,10 +5019,11 @@ def check_annotation_glfo_consistency(glfo, annotation_list, die_on_error=False,
             unused_in_glfo[region] = glfo_genes - annotation_genes[region]
         any_unused = any(len(unused_in_glfo[r]) > 0 for r in regions)
         if any_unused:
-            print('  note: genes in glfo but not referenced in any annotation:')
+            errstr = ''
             for region in regions:
                 if len(unused_in_glfo[region]) > 0:
-                    print('    %s: %d genes' % (region, len(unused_in_glfo[region])))
+                    errstr += '   %s: %s' % (region, color_genes(unused_in_glfo[region]))
+            print('      %s genes in glfo but not referenced in any annotation: %s' % (wrnstr(), errstr))
 
     return not any_missing
 
