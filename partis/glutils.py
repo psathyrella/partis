@@ -505,10 +505,10 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
             # assert set(duplicate_genes) | genes_from_a | genes_from_b == set(merged_glfo['seqs'][region])
         for dgene in duplicate_genes:  # check for inconsistent sequences for the same name
             if glfo_a['seqs'][region][dgene] != glfo_b['seqs'][region][dgene]:
-                print('      %s different seqs for name %s' % (utils.color('red', 'warning'), utils.color_gene(dgene)))
+                print('      merging glfos: %s different seqs for name %s' % (utils.color('red', 'warning'), utils.color_gene(dgene)))
                 utils.color_mutants(glfo_a['seqs'][region][dgene], glfo_b['seqs'][region][dgene], align=True, print_result=True, extra_str='        ')
         if len(duplicate_seqs) > 0:
-            print('     %d seqs in both, but with different names (we use the name from glfo_a, the first arg): %s' % (len(duplicate_seqs), '   '.join([('%s %s' % (utils.color_gene(ga), utils.color_gene(gb))) for ga, gb in inconsistent_names])))
+            print('     merging glfos: %d seqs in both, but with different names (we use the name from glfo_a, the first arg): %s' % (len(duplicate_seqs), '   '.join([('%s %s' % (utils.color_gene(ga), utils.color_gene(gb))) for ga, gb in inconsistent_names])))
 
     return merged_glfo, name_mapping
 

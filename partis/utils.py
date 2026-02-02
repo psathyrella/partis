@@ -4926,38 +4926,105 @@ def merge_csvs(outfname, csv_list, cleanup=False, old_simulation=False):
         return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
-def update_gene_names_in_line(line, name_mapping):
+def update_gene_names_in_annotation_list(annotation_list, name_mapping, debug=False):
     """
-    Update gene names in an annotation line using the provided name mapping.
+    Update gene names in annotation lines using the provided name mapping.
     This is used when merging germline info to keep annotations in sync with the merged glfo.
 
     Args:
-        line: annotation line (dict) with gene name references
+        annotation_list: list of annotation line dicts with gene name references
         name_mapping: dict of {region: {dropped_name: retained_name}}
+        debug: if True, print summary of changes made
+    """
+    if not any(len(name_mapping[r]) > 0 for r in regions):  # return if no names to update
+        return
+
+    n_genes_changed, n_lines_changed = 0, 0
+    for line in annotation_list:
+        n_changed = 0
+        for region in regions:
+            if len(name_mapping[region]) == 0:
+                continue
+            # Update main gene assignment field
+            gene_key = region + '_gene'
+            if gene_key in line and line[gene_key] != '' and line[gene_key] in name_mapping[region]:
+                line[gene_key] = name_mapping[region][line[gene_key]]
+                n_changed += 1
+            # Update per-gene support dictionary (has gene names as keys)
+            support_key = region + '_per_gene_support'
+            if support_key in line and line[support_key] is not None:
+                for old_name, new_name in name_mapping[region].items():
+                    if old_name in line[support_key]:
+                        old_value = line[support_key].pop(old_name)
+                        if new_name in line[support_key]:
+                            raise Exception('new (replacement) gene name %s already exists in line' % new_name)
+                        line[support_key][new_name] = old_value
+        n_genes_changed += n_changed
+        if n_changed > 0:
+            n_lines_changed += 1
+    if debug and n_genes_changed > 0:
+        replstr = ',  '.join('%s --> %s'%(color_gene(oname), color_gene(nname)) for r in regions for oname, nname in name_mapping[r].items())
+        print('        updated %d gene names in %d lines (%s)' % (n_genes_changed, n_lines_changed, replstr))
+
+# ----------------------------------------------------------------------------------------
+def check_annotation_glfo_consistency(glfo, annotation_list, die_on_error=False, debug=False):
+    # NOTE we shouldn't really need this fcn long term, but I'm adding it to make sure that the new function update_gene_names_in_annotation_list() is working correctly, so I'm leaving this in for a bit
+    """
+    Check that gene names in annotations are consistent with the germline set (glfo).
+    Checks both directions:
+      1. All gene names referenced in annotations exist in glfo
+      2. All genes in glfo are referenced in at least one annotation (optional warning)
+
+    Args:
+        glfo: germline file object with 'seqs' dict of {region: {gene_name: sequence}}
+        annotation_list: list of annotation line dicts
+        die_on_error: if True, raise exception on finding annotation genes not in glfo
+        debug: if True, print summary of any unused glfo genes
 
     Returns:
-        None (modifies line in place)
+        bool: True if annotation genes are all in glfo (critical check passes)
     """
+    # Collect all gene names referenced in annotations
+    annotation_genes = {r: set() for r in regions}
+    for line in annotation_list:
+        for region in regions:
+            gene_key = region + '_gene'
+            if gene_key in line and line[gene_key] is not None and line[gene_key] != '':
+                annotation_genes[region].add(line[gene_key])
+            support_key = region + '_per_gene_support'
+            if support_key in line and line[support_key] is not None:
+                annotation_genes[region].update(line[support_key].keys())
+
+    # Check 1: annotation genes must exist in glfo (critical)
+    missing_from_glfo = {r: set() for r in regions}
     for region in regions:
-        if len(name_mapping[region]) == 0:  # skip regions with no name changes
-            continue
+        glfo_genes = set(glfo['seqs'][region].keys())
+        missing_from_glfo[region] = annotation_genes[region] - glfo_genes
+    any_missing = any(len(missing_from_glfo[r]) > 0 for r in regions)
+    if any_missing:
+        errstr = 'genes in annotations but not in glfo:'
+        for region in regions:
+            if len(missing_from_glfo[region]) > 0:
+                errstr += '\n    %s: %s' % (region, ' '.join(sorted(missing_from_glfo[region])))
+        if die_on_error:
+            raise Exception(errstr)
+        else:
+            print('  %s %s' % (wrnstr(), errstr))
 
-        # Update main gene assignment field
-        gene_key = region + '_gene'
-        if line[gene_key] != '' and line[gene_key] in name_mapping[region]:
-            line[gene_key] = name_mapping[region][line[gene_key]]
+    # Check 2: glfo genes not in annotations (informational warning)
+    if debug:
+        unused_in_glfo = {r: set() for r in regions}
+        for region in regions:
+            glfo_genes = set(glfo['seqs'][region].keys())
+            unused_in_glfo[region] = glfo_genes - annotation_genes[region]
+        any_unused = any(len(unused_in_glfo[r]) > 0 for r in regions)
+        if any_unused:
+            print('  note: genes in glfo but not referenced in any annotation:')
+            for region in regions:
+                if len(unused_in_glfo[region]) > 0:
+                    print('    %s: %d genes' % (region, len(unused_in_glfo[region])))
 
-        # Update per-gene support dictionary (has gene names as keys)
-        support_key = region + '_per_gene_support'
-        if support_key in line and line[support_key] is not None:
-            for old_name, new_name in name_mapping[region].items():
-                if old_name in line[support_key]:
-                    old_value = line[support_key].pop(old_name)
-                    # If new name already exists, keep the one with higher support
-                    if new_name in line[support_key]:
-                        line[support_key][new_name] = max(line[support_key][new_name], old_value)
-                    else:
-                        line[support_key][new_name] = old_value
+    return not any_missing
 
 # ----------------------------------------------------------------------------------------
 def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, debug=False):
@@ -4988,15 +5055,17 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
             merged_glfo = glfo
         elif glfo is not None:  # fall through if <glfo> is None
             merged_glfo, name_mapping = glutils.get_merged_glfo(glfo, merged_glfo)
-            # Update gene names in annotations to match the merged glfo (only if there are names to remap)
-            if any(len(name_mapping[r]) > 0 for r in regions):
-                for line in annotation_list:
-                    update_gene_names_in_line(line, name_mapping)
+            # Update gene names in merged annotations to match the merged glfo
+            update_gene_names_in_annotation_list(merged_annotation_list, name_mapping, debug=debug)
         merged_annotation_list += annotation_list
         merged_keys |= set(':'.join(l['unique_ids']) for l in annotation_list)
         if cleanup:
             os.remove(infname)
             os.rmdir(os.path.dirname(infname))
+
+    # Verify consistency between merged annotations and glfo
+    if merged_glfo is not None:
+        check_annotation_glfo_consistency(merged_glfo, merged_annotation_list, debug=debug)
 
     if getsuffix(outfname) != '.yaml':
         raise Exception('wrong function for %s' % outfname)
@@ -5006,7 +5075,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
     write_annotations(outfname, merged_glfo, merged_annotation_list, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info, partition_lines=merged_cpath.get_partition_lines())
 
     if debug:
-        print('      read %d total seqs from %d yaml files' % (sum(n_seq_list), len(yaml_list)))
+        print('      merged %d total seqs from %d yaml files into %s' % (sum(n_seq_list), len(yaml_list), outfname))
 
     if return_merged_objects:
         return merged_glfo, merged_annotation_list, merged_cpath

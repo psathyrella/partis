@@ -258,8 +258,7 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
         glfos[ltmp], name_mapping = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
         new_antn_list = dfn(glpf(lpair, 'antn_lists', ltmp))
         # Update gene names in annotations to match the merged glfo
-        for line in new_antn_list:
-            utils.update_gene_names_in_line(line, name_mapping)
+        utils.update_gene_names_in_annotation_list(new_antn_list, name_mapping, debug=debug)
         antn_lists[ltmp] += new_antn_list
         if glpf(lpair, 'cpaths', ltmp) is not None:
             if len(joint_cpaths[ltmp].partitions) != 1:  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
@@ -271,6 +270,9 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
         antn_lists[ltmp] = dfn(glpf(lpair, 'antn_lists', ltmp))
         if glpf(lpair, 'cpaths', ltmp) is not None:
             joint_cpaths[ltmp] = dfn(glpf(lpair, 'cpaths', ltmp))
+    # Verify consistency between annotations and glfo for this locus
+    if ltmp in glfos and ltmp in antn_lists:
+        utils.check_annotation_glfo_consistency(glfos[ltmp], antn_lists[ltmp], debug=debug)
 
 # ----------------------------------------------------------------------------------------
 def lp_merge_final_dbg(tloci, antn_lists):

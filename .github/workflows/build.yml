@@ -2,9 +2,8 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main, dev ]
-  pull_request:
-    branches: [ main, dev ]
+    tags:
+      - '*'
 
 jobs:
   docker:
@@ -122,7 +121,7 @@ jobs:
         fi
 
     - name: Build and publish to PyPI
-      if: matrix.install-method == 'pip' && github.event_name == 'push'  #  && github.ref == 'refs/heads/main'  #  && matrix.os == 'ubuntu-latest'
+      if: matrix.install-method == 'pip' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')  #  && matrix.os == 'ubuntu-latest'
       run: |
         python -m pip install build twine
         if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
