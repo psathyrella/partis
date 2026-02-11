@@ -128,12 +128,6 @@ setup(
         'six',
     ],
     
-    # Build requirements
-    setup_requires=[
-        'scons',
-        'setuptools-scm',
-    ],
-    
     # Optional dependencies
     extras_require={
         'plotting': [
