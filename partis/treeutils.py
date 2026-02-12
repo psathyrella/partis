@@ -47,8 +47,8 @@ typical_bcr_seq_len = 400
 default_min_selection_metric_cluster_size = 10
 gct_methods = ['gctree', 'gctree-base', 'gctree-mut-mult', 'gctree-no-dag']
 iqt_methods = ['iqtree', 'iqtree-1.6.beta3', 'iqtree-2.3.1']
-inf_anc_methods = ['raxml', 'linearham', 'igphyml'] + gct_methods + iqt_methods  # methods that infer ancestors
-all_phylo_methods = ['fasttree', 'raxml', 'linearham', 'igphyml'] + gct_methods + iqt_methods
+inf_anc_methods = ['raxml', 'linearham', 'igphyml', 'bcrlarch'] + gct_methods + iqt_methods  # methods that infer ancestors
+all_phylo_methods = ['fasttree', 'raxml', 'linearham', 'igphyml', 'bcrlarch'] + gct_methods + iqt_methods
 
 legtexts = {
     'metric-for-target-distance' : 'target dist. metric',
@@ -1095,6 +1095,13 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             #--n-procs 15
         elif method == 'igphyml':
             cmd = './projects/igphyml-run.py --infname %s --outdir %s --naive-seq-name %s' % (ifn(workdir), workdir, naive_seq_name)
+        elif method == 'bcrlarch':
+            bcrlarch_dir = os.path.join(os.path.dirname(utils.get_partis_dir()), 'bcr-larch-experiments')
+            rcmds = ['#!/bin/bash']
+            rcmds += ['eval "$(pixi shell-hook --manifest-path %s/pixi.toml)"' % bcrlarch_dir]
+            rcmds += ['python %s/scripts/bcrlarch-run.py --infname %s --outdir %s --root-label %s' % (bcrlarch_dir, ifn(workdir), workdir, naive_seq_name)]
+            utils.write_cmd_file('\n'.join(rcmds) + '\n', '%s/run.sh' % workdir)
+            cmd = '%s/run.sh' % workdir
         else:
             assert False
         return cmd
@@ -1118,6 +1125,8 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             subd = ('single-chain/' if best else 'alternative-annotations/iclust-0/') if antns else ''  # kind of dumb to have iclust-0 here, but 1) we can't write multiple clusters to these files since they have many annotations for each cluster and 2) we only ever tell linearham-run.py to run on one cluster here, so it's always in iclust-0/
             return '%s/%s%s-%s.%s' % (workdir, subd, 'partition' if antns else 'trees', glfo['locus'], 'yaml' if antns else 'nwk')  # one tree for each cluster
         elif method == 'igphyml':
+            return '%s/%s' % (workdir, 'inferred-seqs.fa' if ancestors else 'tree.nwk')
+        elif method == 'bcrlarch':
             return '%s/%s' % (workdir, 'inferred-seqs.fa' if ancestors else 'tree.nwk')
         else:
             assert False
@@ -1247,6 +1256,10 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                 sfo['seq'] = sfo['seq'][ : len(sfo['seq']) - n_right_pad].translate(utils.ambig_translations)  # remove any padding we added before running
             re_insert_ambig(inf_seqfos, padded_seq_info_list, dont_insert=True)
             # re_add_removed_duplicates(input_seqfos, dtree)  # not implementing this atm (although probably should)
+        elif method == 'bcrlarch':
+            bcr_seqfos = utils.read_fastx('%s/inferred-seqs.fa' % workdir, look_for_tuples=True)
+            re_insert_ambig(bcr_seqfos, padded_seq_info_list)
+            inf_seqfos += bcr_seqfos
         else:  # method should be in inf_anc_methods
             assert False
         if debug:
