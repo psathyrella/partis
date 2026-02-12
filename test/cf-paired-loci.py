@@ -30,7 +30,7 @@ all_perf_metrics += pcfrac_metrics
 synth_actions = ['synth-%s'%a for a in ['distance-0.00', 'distance-0.005', 'distance-0.01', 'distance-0.02', 'distance-0.03', 'reassign-0.10', 'singletons-0.40', 'singletons-0.20']]
 ptn_actions = ['partition', 'partition-lthresh', 'star-partition', 'vsearch-partition', 'subset-partition', 'vsearch-subset-partition', 'annotate', 'vjcdr3-0.9', 'vjcdr3-0.8', 'scoper', 'mobille', 'igblast', 'linearham', 'enclone'] + synth_actions  # using the likelihood (rather than hamming-fraction) threshold makes basically zero difference
 print('%s default iqtree in treeutils.py is now 3 (rather than 1.6.12), which may require changing things here to get identical results as in the past)' % utils.wrnstr())
-phylo_actions = ['iqtree', 'raxml', 'gctree', 'gctree-mut-mult', 'gctree-no-dag', 'igphyml', 'bcrlarch']  # , 'iqtree-1.6.beta3', 'iqtree-2.3.1'  # , 'gctree-base'
+phylo_actions = ['iqtree', 'raxml', 'gctree', 'gctree-mut-mult', 'gctree-no-dag', 'igphyml', 'bcrlarch-pars']  # , 'iqtree-1.6.beta3', 'iqtree-2.3.1'  # , 'gctree-base'
 tree_perf_actions = ['%s-tree-perf'%a for a in phylo_actions]  # it would be really nice to run tree perf during the phylo action, but i can't figure out a good way to do that (main problem is getting access to both true and inferred annotations in a sensible way)
 phylo_naive_actions = ['phylo-naive-iqtree', 'phylo-naive-iqtree-fuzz-0', 'phylo-naive-iqtree-fuzz-1', 'phylo-naive-iqtree-fuzz-2']
 after_actions = ['replay-plot', 'cache-parameters', 'merge-paired-partitions', 'get-selection-metrics', 'parse-linearham-trees', 'write-fake-paired-annotations', 'tree-perf']  + ptn_actions + phylo_actions + tree_perf_actions + phylo_naive_actions  # actions that come after simulation (e.g. partition)

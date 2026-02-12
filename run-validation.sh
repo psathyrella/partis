@@ -35,13 +35,13 @@ Options:
 Actions:
   Phase 1: simu
   Phase 2: cache-parameters, partition, write-fake-paired-annotations,
-           iqtree, raxml, gctree, gctree-mut-mult, gctree-no-dag, igphyml, bcrlarch
+           iqtree, raxml, gctree, gctree-mut-mult, gctree-no-dag, igphyml, bcrlarch-pars
   Phase 3: tree-perf (runs all *-tree-perf actions)
            Or use individual: iqtree-tree-perf, raxml-tree-perf, etc.
   Phase 4: plot, combine-plots
 
 Action Shortcuts:
-  --tree-perf-basic       Run tree-perf for: iqtree, raxml, gctree, gctree-mut-mult, bcrlarch
+  --tree-perf-basic       Run tree-perf for: iqtree, raxml, gctree, gctree-mut-mult, bcrlarch-pars
                           (skips gctree-no-dag and igphyml)
 
 Examples:
@@ -63,7 +63,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --tree-perf-basic)
-            ACTIONS="iqtree-tree-perf:raxml-tree-perf:gctree-tree-perf:gctree-mut-mult-tree-perf:bcrlarch-tree-perf"
+            ACTIONS="iqtree-tree-perf:raxml-tree-perf:gctree-tree-perf:gctree-mut-mult-tree-perf:bcrlarch-pars-tree-perf"
             shift
             ;;
         --base-outdir)
