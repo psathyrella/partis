@@ -1302,7 +1302,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
                 sfo['name'] = sfo['name'].replace('+', 'PLUS')
                 translations[sfo['name']] = old_name
     padded_seq_info_list = None  # remove N padding for methods that'll barf on it
-    if method in ['linearham', 'raxml', 'igphyml'] + gct_methods:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
+    if method in ['linearham', 'raxml', 'igphyml'] + gct_methods + bcrl_methods:  # linearham discards framework insertions (leaving nonsense output annotations), and gctree supports ambiguous characters, but it's experimental, so for both we remove all Ns (all fwk insertions now should be Ns, i.e. only resulting from N padding in sw)
         padded_seq_info_list = [utils.ambig_base if c==utils.ambig_base else '' for c in input_seqfos[0]['seq']]  # each entry is either empty or N (the latter indicates that an N should be inserted in the final/returned seqs)
         if method != 'igphyml':  # for igphyml we want the info on which positions were ambiguous (since it makes some of them non-ambiguous in inferred ancestral nodes) but don't want to remove ambiguous positions (since it uses codon info we have to keep things in frame/as original)
             for sfo in input_seqfos:  # NOTE this can't fix Ns that are different from seq to seq, i.e. only fixes those from N-padding (either on fv/jf ends, or when smooshing h/l together)
