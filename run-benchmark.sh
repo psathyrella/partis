@@ -1,25 +1,30 @@
 #!/bin/bash
 #
-# Wrapper script for partis-zenodo validation pipeline
-# Usage: ./run-validation.sh --actions <actions> [options]
+# Wrapper script for partis benchmark pipeline
+# Usage: ./run-benchmark.sh --actions <actions> [options]
+#        ./run-benchmark.sh --smoke-test
 #
 
-set -e
+set -euo pipefail
 
 # Defaults
-BASEDIR="${BASEDIR:-/home/drich/matsen-lab/bcr-larch/partis-zenodo-1}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASEDIR="${BASEDIR:-$SCRIPT_DIR/_benchmark_output}"
 ACTIONS=""
 N_SUB_PROCS=15
 N_MAX_PROCS=5
 N_REPLICATES=3
 OBS_TIMES="15:20:30:40:50"
 N_SIM_EVENTS=70
+LABEL="gct-valid"
+SMOKE_TEST=false
 
 usage() {
     cat <<EOF
 Usage: $(basename "$0") --actions <actions> [options]
+       $(basename "$0") --smoke-test [--dry-run]
 
-Required:
+Required (unless --smoke-test):
   --actions ACTIONS       Colon-separated actions (e.g., gctree:igphyml or tree-perf)
 
 Options:
@@ -29,6 +34,7 @@ Options:
   --n-replicates N        Number of replicates/seeds (default: $N_REPLICATES)
   --obs-times LIST        Colon-separated obs-times (default: $OBS_TIMES)
   --n-sim-events N        Number of simulated events (default: $N_SIM_EVENTS)
+  --smoke-test            Run minimal end-to-end test (1 event, 1 replicate, 1 time point)
   --dry-run               Print command without executing
   -h, --help              Show this help
 
@@ -43,6 +49,7 @@ Actions:
 Action Shortcuts:
   --tree-perf-basic       Run tree-perf for: iqtree, raxml, gctree, gctree-mut-mult, bcrlarch-pars
                           (skips gctree-no-dag and igphyml)
+  --smoke-test            Run full bcrlarch-pars pipeline with minimal settings
 
 Examples:
   $(basename "$0") --actions gctree:gctree-mut-mult:igphyml
@@ -50,6 +57,8 @@ Examples:
   $(basename "$0") --tree-perf-basic                         # Skip gctree-no-dag and igphyml
   $(basename "$0") --actions plot:combine-plots
   $(basename "$0") --actions gctree --base-outdir /path/to/output --dry-run
+  $(basename "$0") --smoke-test                              # Minimal end-to-end validation
+  $(basename "$0") --smoke-test --dry-run                    # Show smoke test command
 EOF
     exit 0
 }
@@ -64,6 +73,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --tree-perf-basic)
             ACTIONS="iqtree-tree-perf:raxml-tree-perf:gctree-tree-perf:gctree-mut-mult-tree-perf:bcrlarch-pars-tree-perf"
+            shift
+            ;;
+        --smoke-test)
+            SMOKE_TEST=true
             shift
             ;;
         --base-outdir)
@@ -104,14 +117,29 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Apply smoke-test overrides
+if [[ "$SMOKE_TEST" == "true" ]]; then
+    N_REPLICATES=1
+    OBS_TIMES="15"
+    N_SIM_EVENTS=1
+    N_SUB_PROCS=1
+    N_MAX_PROCS=1
+    LABEL="smoke-test"
+    ACTIONS="simu:cache-parameters:partition:write-fake-paired-annotations:bcrlarch-pars:bcrlarch-pars-tree-perf"
+    # Use a dedicated output directory unless overridden via --base-outdir or $BASEDIR
+    if [[ "$BASEDIR" == "$SCRIPT_DIR/_benchmark_output" ]]; then
+        BASEDIR="$SCRIPT_DIR/_temp/smoke-test-benchmark"
+    fi
+fi
+
 if [[ -z "$ACTIONS" ]]; then
-    echo "Error: --actions is required"
+    echo "Error: --actions or --smoke-test is required"
     usage
 fi
 
 # Build the command
 CMD="./test/cf-paired-loci.py \\
-    --label gct-valid \\
+    --label $LABEL \\
     --version v6 \\
     --n-replicates $N_REPLICATES \\
     --obs-times-list $OBS_TIMES \\
