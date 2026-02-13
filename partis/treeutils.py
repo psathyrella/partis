@@ -1100,6 +1100,7 @@ def run_tree_inference(method, input_seqfos=None, annotation=None, naive_seq=Non
             bcrlarch_dir = os.path.join(os.path.dirname(utils.get_partis_dir()), 'bcr-larch-experiments')
             rcmds = ['#!/bin/bash']
             rcmds += ['eval "$(pixi shell-hook --manifest-path %s/pixi.toml)"' % bcrlarch_dir]
+            rcmds += ['pip install -e %s --quiet 2>/dev/null || true' % bcrlarch_dir]
             rcmds += ['python %s/scripts/bcrlarch-run.py --infname %s --outdir %s --root-label %s' % (bcrlarch_dir, ifn(workdir), workdir, naive_seq_name)]
             utils.write_cmd_file('\n'.join(rcmds) + '\n', '%s/run.sh' % workdir)
             cmd = '%s/run.sh' % workdir
