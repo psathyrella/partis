@@ -2128,10 +2128,13 @@ def convert_airr_line(aline, glfo):
 
     # print aline['v_call'], aline['d_call'], aline['j_call']
     if aline['d_germline_start'] == '':  # igblast leaves this blank for light chain (and sometimes for heavy)
-        d_start, d_end = [int(aline['v_germline_end']) + 1 for _ in range(2)]
+        d_start, d_end = [int(float(aline['v_germline_end'])) + 1 for _ in range(2)]
         if has_d_gene(glfo['locus']):
             pline['d_gene'] = list(glfo['seqs']['d'])[0]
             d_end += 1
+            print('      %s no d_germline_start in heavy chain airr annotation. Trying to avoid, but you may need to mark as invalid (see below)')
+            # pline['invalid'] = True
+            # return pline
         else:
             pline['d_gene'] = glutils.dummy_d_genes[glfo['locus']]
         aline['d_germline_start'] = d_start
@@ -2141,8 +2144,8 @@ def convert_airr_line(aline, glfo):
         if ',' in pline[rgn+'_gene']:  # wtf they just put multiple genes, separated by commas
             pline[rgn+'_gene'] = pline[rgn+'_gene'].split(',')[0]
 
-        pline[rgn+'_5p_del'] = int(aline[rgn+'_germline_start']) - 1
-        pline[rgn+'_3p_del'] = len(gseq(glfo, pline[rgn+'_gene'])) - int(aline[rgn+'_germline_end'])
+        pline[rgn+'_5p_del'] = int(float(aline[rgn+'_germline_start'])) - 1
+        pline[rgn+'_3p_del'] = len(gseq(glfo, pline[rgn+'_gene'])) - int(float(aline[rgn+'_germline_end']))
         cigars = indelutils.split_cigarstrs(aline[rgn+'_cigar'])
         if rgn == 'v':
             ctype, clen = cigars[0]
@@ -2169,6 +2172,16 @@ def convert_airr_line(aline, glfo):
         print(pad_lines(''.join(elines)))
         print('      convert_airr_line(): implicit info adding failed for %s (see above)' % pline['unique_ids'])
         pline['invalid'] = True
+
+    # NOTE this block may need testing/may not make sense
+    if not pline['invalid']:
+        for rgn in regions:
+            gllen = len(pline.get(rgn+'_gl_seq', ''))
+            qrlen = len(pline.get(rgn+'_qr_seqs', [''])[0])
+            if gllen != qrlen:
+                print('      convert_airr_line(): %s gl/qr seq len mismatch (%d vs %d) for %s' % (rgn, gllen, qrlen, pline['unique_ids']))
+                pline['invalid'] = True
+                break
 
     return pline
 
@@ -2202,12 +2215,15 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
                 writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
-def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False, clone_id_field='clone_id', sequence_id_field='sequence_id', delimiter='\t', skip_annotations=False):
+def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False, skip_unknown_genes=False, clone_id_field='clone_id', sequence_id_field='sequence_id', delimiter='\t', skip_annotations=False):
     from . import clusterpath
     from . import glutils
     if glfo is None and glfo_dir is not None:
         glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
     failed_queries, clone_ids, plines, other_locus_ids = [], {}, [], []
+    unknown_gene_counts = {}
+    n_skipped_unknown = 0
+    skipped_unknown_ids = set()
     with open(fname) as afile:
         reader = csv.DictReader(afile, delimiter=str(delimiter))
         for aline in reader:
@@ -2224,7 +2240,21 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
             if skip_other_locus and get_locus(aline['v_call']) != glfo['locus']:
                 other_locus_ids.append(aline[sequence_id_field])
                 continue
+            if skip_unknown_genes:
+                unknown = [aline[aky].split(',')[0] for aky, rgn in [('v_call', 'v'), ('d_call', 'd'), ('j_call', 'j')] if aline[aky] != '' and aline[aky].split(',')[0] not in glfo['seqs'][rgn]]
+                if len(unknown) > 0:
+                    n_skipped_unknown += 1
+                    skipped_unknown_ids.add(aline[sequence_id_field])
+                    for gene in unknown:
+                        unknown_gene_counts[gene] = unknown_gene_counts.get(gene, 0) + 1
+                    continue
             plines.append(convert_airr_line(aline, glfo))
+    invalid_lines = [l for l in plines if l['invalid']]
+    plines = [l for l in plines if not l['invalid']]
+    failed_queries += invalid_lines
+    if n_skipped_unknown > 0:
+        n_total = n_skipped_unknown + len(plines) + len(failed_queries)
+        print('  %s skipped %d / %d sequences with genes not in germline set: %s' % (wrnstr(), n_skipped_unknown, n_total, '  '.join('%s %d' % (color_gene(g), c) for g, c in sorted(unknown_gene_counts.items(), key=lambda x: -x[1]))))
     if len(clone_ids) > 0:
         partition = group_seqs_by_value(list(clone_ids.keys()), lambda q: clone_ids[q])
     else:
@@ -2232,8 +2262,14 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
     if skip_other_locus:
         partition = [[u for u in c if u not in other_locus_ids] for c in partition]
         partition = [c for c in partition if len(c) > 0]
+    if len(skipped_unknown_ids) > 0:
+        partition = [[u for u in c if u not in skipped_unknown_ids] for c in partition]
+        partition = [c for c in partition if len(c) > 0]
     if len(plines) > 0:
         sorted_ids = [l['unique_ids'][0] for l in plines]
+        sorted_id_set = set(sorted_ids)
+        partition = [[u for u in c if u in sorted_id_set] for c in partition]
+        partition = [c for c in partition if len(c) > 0]
         partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster
     antn_list = []
     if len(plines) > 0:

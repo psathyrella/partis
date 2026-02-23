@@ -59,8 +59,17 @@ def count_plot(tglfo, tlist, plotdir, paired_loci=None):
     from partis.parametercounter import ParameterCounter
     setattr(args, 'region_end_exclusions', {r : [0 for e in ['5p', '3p']] for r in utils.regions})  # hackity hackity hackity
     pcounter = ParameterCounter(tglfo, args)  # NOTE doesn't count correlations by default
+    n_skipped = 0
     for line in tlist:
+        if line.get('invalid', False):
+            n_skipped += 1
+            continue
+        if any(len(s) != len(line['naive_seq']) for s in line['seqs']) or any(len(line[r+'_gl_seq']) != len(line[r+'_qr_seqs'][i]) for r in utils.regions for i in range(len(line['seqs']))):
+            n_skipped += 1
+            continue
         pcounter.increment(line)
+    if n_skipped > 0:
+        print('  %s skipped %d / %d annotations with invalid/inconsistent info during plotting' % (utils.wrnstr(), n_skipped, len(tlist)))
     pcounter.plot(plotdir, only_csv=args.only_csv_plots, only_overall=args.only_overall_plots) #, make_per_base_plots=True) , make_per_base_plots=True
 
 # ----------------------------------------------------------------------------------------
@@ -96,6 +105,7 @@ parser.add_argument('--debug', type=int, default=0)
 parser.add_argument('--airr-input', action='store_true', help='read input in AIRR tsv format, and if output file suffix is .yaml write partis output.')
 parser.add_argument('--airr-output', action='store_true', help='write output in AIRR tsv format')
 parser.add_argument('--skip-other-locus', action='store_true', help='if --airr-output is set, this tells us to skip lines from the other locus')
+parser.add_argument('--skip-unknown-genes', action='store_true', help='skip sequences whose annotations contain gene names that aren\'t in our germline set. Since AIRR format files don\'t include germline sequences, there\'s no way to use a gene that we don\'t have, so the only option is to skip such sequences.')
 parser.add_argument('--skip-columns', help='don\'t write these columns to output (atm only implemented for airr output, since we need to remove the clone_id column so scoper doesn\'t crash)')
 parser.add_argument('--simfname', help='simulation file corresponding to input file (i.e. presumably <infile> is inference that was performed on --simfname')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv versions of plots (not svg), which is a lot faster')
@@ -144,7 +154,7 @@ else:
             glfo = glutils.read_glfo(args.glfo_dir, args.locus, template_glfo=glutils.read_glfo(args.template_glfo_dir, args.locus))
             # glutils.write_glfo(args.glfo_dir + '-parsed', glfo, debug=True)
             glfd = None
-        glfo, annotation_list, cpath = utils.read_airr_output(args.infile, locus=args.locus, glfo=glfo, glfo_dir=glfd, skip_other_locus=args.skip_other_locus)
+        glfo, annotation_list, cpath = utils.read_airr_output(args.infile, locus=args.locus, glfo=glfo, glfo_dir=glfd, skip_other_locus=args.skip_other_locus, skip_unknown_genes=args.skip_unknown_genes)
     else:
         glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
 

@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Generate HTML gallery pages from image files."""
+import glob
+import os
+
+import fire
+
+import partis.plotting as plotting
+
+
+def make_html(
+    *files,
+    plotdir=None,
+    n_columns=3,
+    extension='svg',
+    title='',
+    htmlfname=None,
+    new_table_each_row=True,
+):
+    """Generate HTML image gallery.
+
+    Args:
+        *files: Image file paths. If none given, auto-discovers from plotdir.
+        plotdir: Base directory (default: common parent of files, or cwd).
+        n_columns: Images per row.
+        extension: File extension for auto-discovery mode.
+        title: HTML page title.
+        htmlfname: Output HTML path.
+        new_table_each_row: Separate table per row.
+    """
+    if files:
+        abs_files = [os.path.abspath(f) for f in files]
+        if plotdir is None:
+            plotdir = os.path.commonpath(os.path.dirname(f) for f in abs_files)
+        if htmlfname is not None:
+            html_dir = os.path.dirname(os.path.abspath(htmlfname))
+            rel_files = [os.path.relpath(f, html_dir) for f in abs_files]
+            fnames = [rel_files[i:i + n_columns] for i in range(0, len(rel_files), n_columns)]
+        else:
+            fnames = [abs_files[i:i + n_columns] for i in range(0, len(abs_files), n_columns)]
+    else:
+        if plotdir is None:
+            plotdir = os.getcwd()
+        if not glob.glob(plotdir + '/*.' + extension):
+            print('no .%s files in %s' % (extension, plotdir))
+            return
+        fnames = None
+
+    plotting.make_html(
+        plotdir,
+        n_columns=n_columns,
+        extension=extension,
+        fnames=fnames,
+        title=title,
+        htmlfname=htmlfname,
+        new_table_each_row=new_table_each_row,
+    )
+    if htmlfname is None:
+        dirname = os.path.basename(plotdir)
+        htmlfname = os.path.dirname(plotdir) + '/' + dirname + '.html'
+    print(htmlfname)
+
+
+if __name__ == '__main__':
+    fire.Fire(make_html)

@@ -108,7 +108,7 @@ You can also set `--min-largest-cluster-size N`, in which case it will try to ke
 ##### progress file
 
 Since individual steps of the partition algorithm can be somewhat time consuming, during each step we periodically update a file with clustering status information so you can monitor progress.
-This file is written to the working directory, which you've either set, or is under `/tmp/$USER/hmms`.
+This file is written to the working directory, which you've either set with `--workdir`, or is under `/tmp/$USER/hmms`.
 The easiest way to find the working directory is to run an appropriate `ps` command to get the complete command lines of each subprocess (for instance `ps -Ho pid,args` or `ps -eo pcpu,pmem,rss,cputime:12,stime:7,user,pid,args:100 --sort pmem,pcpu`, depending if you're running from the terminal that called partis or not).
 For instance running the former in a terminal in which I've backgrounded the partis command gives (so the parent python process is currently clustering with one bcrham subprocess):
 
