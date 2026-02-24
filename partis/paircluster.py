@@ -400,6 +400,8 @@ def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_
     outfos, metafos = get_combined_outmetafos(locus_merged_lp_infos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
     write_combined_fasta_and_meta('%s/all-seqs.fa'%outdir, '%s/meta.yaml'%outdir, outfos, metafos, write_locus_files=True)  # need this meta file (not the original input one) to pick up pair cleaning (maybe for other reasons as well)
 
+    return subset_merged_lp_infos, locus_merged_lp_infos  # <subset_merged_lp_infos>: just has dirs merged (i.e. still split into lpairs); <locus_merged_lp_infos>: also has merged heavy chain
+
 # ----------------------------------------------------------------------------------------
 # somewhat similar to get_antn_pairs() and find_cluster_pairs() below, but operates on single sequences
 def find_seq_pairs(antn_lists, ig_or_tr='ig'):
