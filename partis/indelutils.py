@@ -47,41 +47,37 @@ def net_length(indelfo):
     return sum([sign(ifo) * ifo['len'] for ifo in indelfo['indels']])
 
 # ----------------------------------------------------------------------------------------
-def adjust_single_position_for_reinstated_indels(indel, position):
-    if indel['pos'] > position:  # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
-        return position
-    if indel['type'] == 'insertion':
-        return position + indel['len']
-    elif indel['type'] == 'deletion':
-        return position - indel['len']
-    else:
-        assert False
+def reinstated_position(indels, orig_pos):
+    # NOTE this just ignores the case where the indel's in the middle of the codon, because, like, screw that I don't want to think about it
+    # NOTE indel positions are in indel-reversed coords, so we must compare each against <orig_pos> (also in indel-reversed coords) rather than a cumulative-adjusted position
+    adjusted = orig_pos
+    for indel in indels:
+        if indel['pos'] > orig_pos:
+            continue
+        if indel['type'] == 'insertion':
+            adjusted += indel['len']
+        elif indel['type'] == 'deletion':
+            adjusted -= indel['len']
+        else:
+            assert False
+    return adjusted
 
 # ----------------------------------------------------------------------------------------
 def get_codon_positions_with_indels_reinstated(line, iseq, codon_positions):
     # NOTE as long as the indels are reversed, all the sequences have the same codon positions. But as soon as we reinstate the indels, all heck breaks loose.
     indelfo = line['indelfos'][iseq]
-    reinstated_codon_positions = copy.deepcopy(codon_positions)
     if not has_indels(indelfo):
-        return reinstated_codon_positions
-
-    for indel in indelfo['indels']:
-        for region in reinstated_codon_positions:
-            reinstated_codon_positions[region] = adjust_single_position_for_reinstated_indels(indel, reinstated_codon_positions[region])
-    return reinstated_codon_positions
+        return copy.deepcopy(codon_positions)
+    return {region: reinstated_position(indelfo['indels'], codon_positions[region]) for region in codon_positions}
 
 # ----------------------------------------------------------------------------------------
 def get_regional_bounds_with_indels_reinstated(line, iseq):
     indelfo = line['indelfos'][iseq]
-    regional_bounds = copy.deepcopy(line['regional_bounds'])
     if not has_indels(indelfo):
-        return regional_bounds
-
-    for indel in indelfo['indels']:
-        for region in regional_bounds:
-            regional_bounds[region] = (adjust_single_position_for_reinstated_indels(indel, regional_bounds[region][0]),
-                                       adjust_single_position_for_reinstated_indels(indel, regional_bounds[region][1]))
-    return regional_bounds
+        return copy.deepcopy(line['regional_bounds'])
+    return {region: (reinstated_position(indelfo['indels'], line['regional_bounds'][region][0]),
+                     reinstated_position(indelfo['indels'], line['regional_bounds'][region][1]))
+            for region in line['regional_bounds']}
 
 # ----------------------------------------------------------------------------------------
 def get_qr_seqs_with_indels_reinstated(line, iseq):
