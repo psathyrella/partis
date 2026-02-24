@@ -388,7 +388,7 @@ def subset_partition(args):
         assert args.seed_unique_id is None  # subset merging doesn't support --seed-unique-id yet
         paircluster.merge_paired_yamls(merged_odir, [subdir(i) for i in range(args.n_subsets)], headers, ig_or_tr=args.ig_or_tr, use_pyyaml=args.write_full_yaml_output,
                                        dont_write_git_info=args.dont_write_git_info, merge_overlaps=args.seed_unique_id is not None or args.queries_to_include is not None,
-                                       dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=args.seed_unique_id, debug=True, debug_paired_clustering=args.debug_paired_clustering)
+                                       dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=args.seed_unique_id, debug=args.debug_paired_clustering)
         utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
         # maybe don't need this now I've added the locus_lpfos stuff above?
         # if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:

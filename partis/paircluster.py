@@ -340,8 +340,7 @@ def handle_concatd_heavy_chain(lpairs, lp_infos, dont_deep_copy=False, ig_or_tr=
 
 # ----------------------------------------------------------------------------------------
 # merge multiple paired output directories into one, analogous to utils.merge_yamls() for single-chain files
-def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_git_info=False, ig_or_tr='ig',
-                       merge_overlaps=False, dont_calculate_annotations=False, seed_unique_id=None, debug=False, debug_paired_clustering=False):
+def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_git_info=False, ig_or_tr='ig', merge_overlaps=False, dont_calculate_annotations=False, seed_unique_id=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def print_dup_warning(ptn, wstr):
         n_tot, n_uniq = sum(len(c) for c in ptn), len(set(u for c in ptn for u in c))
@@ -350,7 +349,9 @@ def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_
     # ----------------------------------------------------------------------------------------
     def handle_overlap_merge(lpfos, loci):
         for ltmp in loci:
-            lpfos['cpaths'][ltmp].partitions, lpfos['antn_lists'][ltmp] = utils.merge_overlapping_clusters(lpfos['cpaths'][ltmp].partitions, glfo=lpfos['glfos'][ltmp], antn_list=lpfos['antn_lists'][ltmp], dbgstr='%s: '%utils.locstr(ltmp), debug=debug_paired_clustering)
+            lpfos['cpaths'][ltmp].partitions, lpfos['antn_lists'][ltmp] = \
+                utils.merge_overlapping_clusters(lpfos['cpaths'][ltmp].partitions, glfo=lpfos['glfos'][ltmp], antn_list=lpfos['antn_lists'][ltmp],
+                                                 dbgstr='%s: '%utils.locstr(ltmp), debug=debug)
             print_dup_warning(lpfos['cpaths'][ltmp].best(), 'after')
     # ----------------------------------------------------------------------------------------
     lpairs = utils.locus_pairs[ig_or_tr]
@@ -384,7 +385,8 @@ def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_
 
     # merge in empty-dir locus results (from --keep-all-unpaired-seqs)
     if len(locus_lpfos) > 0:
-        locus_merged_lp_infos = concat_locus_chains(utils.sub_loci(ig_or_tr), [locus_merged_lp_infos] + locus_lpfos, dont_deep_copy=True, dbgstr=' (from single-chain results due to --keep-all-unpaired-seqs)', debug=debug_paired_clustering)
+        locus_merged_lp_infos = concat_locus_chains(utils.sub_loci(ig_or_tr), [locus_merged_lp_infos] + locus_lpfos, dont_deep_copy=True,
+                                                    dbgstr=' (from single-chain results due to --keep-all-unpaired-seqs)', debug=debug)
 
     # overlap merging on locus-merged lp_infos: these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
     if merge_overlaps:
