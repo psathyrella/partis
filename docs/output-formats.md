@@ -82,7 +82,8 @@ The following keys are written to output by default:
 | v_gene         |  V gene in most likely annotation
 | d_gene         |  see v_gene
 | j_gene         |  see v_gene
-| cdr3_length    |  nucleotide CDR3 length of most likely annotation, but note that this __includes__ both conserved codons in their entirety, i.e. is what IMGT calls the ["junction length"](https://docs.airr-community.org/en/stable/datarep/rearrangements.html#junction-versus-cdr3)
+| cdr3_length    |  naive (rearrangement-time) nucleotide CDR3 length of most likely annotation, i.e. with SHM indels reversed (same for all sequences in a clonal family, see also `mature_cdr3_lengths`), but note that this __includes__ both conserved codons in their entirety, i.e. is what IMGT calls the ["junction length"](https://docs.airr-community.org/en/stable/datarep/rearrangements.html#junction-versus-cdr3)
+| mature_cdr3_lengths |  list of per-sequence CDR3 lengths accounting for SHM indels within CDR3 (equals `cdr3_length` for sequences without SHM indels) `[per-seq]`
 | mut_freqs      |  list of sequence mutation frequencies `[per-seq]`
 | input_seqs     |  list of input sequences (with constant regions (fv/jf insertions) removed, unless `--dont-remove-framework-insertions` was set) `[per-seq]`
 | naive_seq      |  naive (unmutated ancestor) sequence corresponding to most likely annotation

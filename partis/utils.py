@@ -788,7 +788,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'shm_aa', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'cdr3_seqs_aa', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
                        'leader_seqs', 'c_gene_seqs',  'leaders', 'c_genes', # these are kind of replacing fv/jf insertions, and the latter probably should just be removed, since they're really more per-seq things, but i don't know if it'd really work, and it'd for sure be hard, so whatever (otoh, maybe fv/jf insertions are necessary for padding to same length in sw? not sure atm)
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices',
-                       'min_target_distances', 'vrc01-muts', 'mut_positions', 'subjects'] + \
+                       'min_target_distances', 'vrc01-muts', 'mut_positions', 'subjects', 'mature_cdr3_lengths'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -799,7 +799,7 @@ linekeys['simu'] = ['reco_id', 'affinities', 'relative_affinities', 'lambdas', '
 # keys that are required to specify a naive rearrangement event
 minimal_linekeys = [r+'_gene' for r in regions] + [b+'_insertion' for b in boundaries] + [e+'_del' for e in real_erosions]
 # keys that are added by add_implicit_info() (these are *not* all the non-minimal ones)
-implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs'] + \
+implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths', 'regional_bounds', 'invalid', 'indel_reversed_seqs', 'mature_cdr3_lengths'] + \
                         [r + '_gl_seq' for r in regions] + \
                         ['mut_freqs', 'n_mutations'] + functional_columns + [r + '_qr_seqs' for r in regions] + ['aligned_' + r + '_seqs' for r in regions])
 
@@ -945,7 +945,7 @@ def get_meta_emph_fractions(mekey, all_emph_vals, cluster, antn, formats=None):
 
 # ----------------------------------------------------------------------------------------
 special_indel_columns_for_output = ['qr_gap_seqs', 'gl_gap_seqs', 'indel_reversed_seqs']  # arg, ugliness (but for reasons...)  NOTE used to also include 'has_shm_indels' (also note that 'indel_reversed_seqs' is treated differently for some purposes than are the gap seq keys)
-annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates', 'leader_seqs', 'c_gene_seqs', 'leaders', 'c_genes'] \
+annotation_headers = ['unique_ids', 'invalid', 'v_gene', 'd_gene', 'j_gene', 'cdr3_length', 'mature_cdr3_lengths', 'mut_freqs', 'n_mutations', 'input_seqs', 'indel_reversed_seqs', 'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'naive_seq', 'duplicates', 'leader_seqs', 'c_gene_seqs', 'leaders', 'c_genes'] \
                      + [r + '_per_gene_support' for r in regions] \
                      + [e + '_del' for e in all_erosions] + [b + '_insertion' for b in all_boundaries] \
                      + functional_columns + list(input_metafile_keys.values()) \
@@ -980,7 +980,7 @@ bcrham_dbgstr_types = {
 
 # ----------------------------------------------------------------------------------------
 io_column_configs = {
-    'ints' : ['n_mutations', 'cdr3_length', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
+    'ints' : ['n_mutations', 'cdr3_length', 'mature_cdr3_lengths', 'padlefts', 'padrights'] + [e + '_del' for e in all_erosions],
     'floats' : ['logprob', 'mut_freqs'],
     'bools' : functional_columns + ['has_shm_indels', 'invalid'],
     'literals' : ['indelfo', 'indelfos', 'k_v', 'k_d', 'all_matches', 'alternative-annotations'],  # simulation has indelfo[s] singular, annotation output has it plural... and I think it actually makes sense to have it that way
@@ -3631,6 +3631,7 @@ def add_implicit_info(glfo, line, aligned_gl_seqs=None, check_line_keys=False, r
         return
 
     input_codon_positions = [indelutils.get_codon_positions_with_indels_reinstated(line, iseq, line['codon_positions']) for iseq in range(len(line['seqs']))]
+    line['mature_cdr3_lengths'] = [icp['j'] - icp['v'] + 3 for icp in input_codon_positions]
     if 'indel_reversed_seqs' not in line:  # everywhere internally, we refer to 'indel_reversed_seqs' as simply 'seqs'. For interaction with outside entities, however (i.e. writing files) we use the more explicit 'indel_reversed_seqs'
         line['indel_reversed_seqs'] = line['seqs']
 
