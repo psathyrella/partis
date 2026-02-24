@@ -339,6 +339,68 @@ def handle_concatd_heavy_chain(lpairs, lp_infos, dont_deep_copy=False, ig_or_tr=
     return lpfos
 
 # ----------------------------------------------------------------------------------------
+# merge multiple paired output directories into one, analogous to utils.merge_yamls() for single-chain files
+def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_git_info=False, ig_or_tr='ig',
+                       merge_overlaps=False, dont_calculate_annotations=False, seed_unique_id=None, debug=False, debug_paired_clustering=False):
+    # ----------------------------------------------------------------------------------------
+    def print_dup_warning(ptn, wstr):
+        n_tot, n_uniq = sum(len(c) for c in ptn), len(set(u for c in ptn for u in c))
+        if n_tot != n_uniq:
+            print('    %s %s has duplicates in partition: sum of cluster sizes %d vs %d unique queries' % (utils.wrnstr(), wstr, n_tot, n_uniq))
+    # ----------------------------------------------------------------------------------------
+    def handle_overlap_merge(lpfos, loci):
+        for ltmp in loci:
+            lpfos['cpaths'][ltmp].partitions, lpfos['antn_lists'][ltmp] = utils.merge_overlapping_clusters(lpfos['cpaths'][ltmp].partitions, glfo=lpfos['glfos'][ltmp], antn_list=lpfos['antn_lists'][ltmp], dbgstr='%s: '%utils.locstr(ltmp), debug=debug_paired_clustering)
+            print_dup_warning(lpfos['cpaths'][ltmp].best(), 'after')
+    # ----------------------------------------------------------------------------------------
+    lpairs = utils.locus_pairs[ig_or_tr]
+
+    # separate empty vs non-empty dirs (for --keep-all-unpaired-seqs)
+    lpfo_list, locus_lpfos, i_empty = [], [], []
+    for ipd, pdir in enumerate(pdir_list):
+        tmp_lpfos = read_paired_dir(pdir)
+        if all(tmp_lpfos[tuple(lp)]['glfos'] is None for lp in lpairs):  # this should mean that we're keeping all unpaired-seqs, and there were no paired annotations for this dir, so it copied/linked the single chain files to the joint location
+            i_empty.append(ipd)
+            locus_lpfos.append(read_paired_dir(pdir, joint=True))
+        else:
+            lpfo_list.append(tmp_lpfos)
+    if len(i_empty) > 0:
+        print('    --keep-all-unpaired-seqs: using joint partition files for %d/%d empty paired dir annotations (indices %s)' % (len(i_empty), len(pdir_list), ' '.join(str(i) for i in i_empty)))
+
+    # <subset_merged_lp_infos>: just has subsets merged (i.e. still split into lpairs)
+    # <locus_merged_lp_infos>: also has merged heavy chain
+    subset_merged_lp_infos = concat_lpair_chains(lpairs, lpfo_list, dont_deep_copy=True)  # i think it's ok to not deep copy here, since this fcn doesn't deduplicate anything, and once we merge these subset lpfos, we don't use the originals for anything
+
+    # overlap merging on subset-merged lp_infos: these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
+    if merge_overlaps:
+        print('  merging overlaps in subset merged lp_infos')
+        for lpair in subset_merged_lp_infos:
+            handle_overlap_merge(subset_merged_lp_infos[lpair], lpair)
+
+    # if seed id or queries to include is set, we *need* to keep the duplicates so we can merge overlapping clusters below
+    locus_merged_lp_infos = handle_concatd_heavy_chain(lpairs, subset_merged_lp_infos,
+                                                        dont_calculate_annotations=dont_calculate_annotations, ig_or_tr=ig_or_tr,
+                                                        seed_unique_id=seed_unique_id, dont_deduplicate=merge_overlaps, debug=debug)  # note that we need to deep copy here, since e.g. if we deduplicate the merged igh antn list, we don't want that to change the annotations in the original lists
+
+    # merge in empty-dir locus results (from --keep-all-unpaired-seqs)
+    if len(locus_lpfos) > 0:
+        locus_merged_lp_infos = concat_locus_chains(utils.sub_loci(ig_or_tr), [locus_merged_lp_infos] + locus_lpfos, dont_deep_copy=True, dbgstr=' (from single-chain results due to --keep-all-unpaired-seqs)', debug=debug_paired_clustering)
+
+    # overlap merging on locus-merged lp_infos: these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
+    if merge_overlaps:
+        print('  merging overlaps in locus merged lp_infos')
+        handle_overlap_merge(locus_merged_lp_infos, utils.sub_loci(ig_or_tr))
+
+    print('   writing merged outputs from %d paired dirs to %s' % (len(pdir_list), outdir))
+    def ofn_fcn(ltmp, lpair=None, joint=None):  # I *think* i don't need joint
+        return paired_fn(utils.fpath(outdir), ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
+    # prep_paired_dir(outdir, clean=True, suffix='.yaml', ig_or_tr=ig_or_tr)
+    write_lpair_output_files(lpairs, subset_merged_lp_infos, ofn_fcn, headers, use_pyyaml=use_pyyaml, dont_write_git_info=dont_write_git_info)
+    write_concatd_output_files(locus_merged_lp_infos['glfos'], locus_merged_lp_infos['antn_lists'], ofn_fcn, headers, use_pyyaml=use_pyyaml, cpaths=locus_merged_lp_infos['cpaths'], dont_write_git_info=dont_write_git_info, write_light_chain_files=len(locus_lpfos) > 0)
+    outfos, metafos = get_combined_outmetafos(locus_merged_lp_infos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
+    write_combined_fasta_and_meta('%s/all-seqs.fa'%outdir, '%s/meta.yaml'%outdir, outfos, metafos, write_locus_files=True)  # need this meta file (not the original input one) to pick up pair cleaning (maybe for other reasons as well)
+
+# ----------------------------------------------------------------------------------------
 # somewhat similar to get_antn_pairs() and find_cluster_pairs() below, but operates on single sequences
 def find_seq_pairs(antn_lists, ig_or_tr='ig'):
     # ----------------------------------------------------------------------------------------

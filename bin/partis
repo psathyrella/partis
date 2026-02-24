@@ -384,56 +384,11 @@ def subset_partition(args):
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
         # NOTE it would be nice to merge duplicates in here (from --collapse-duplicate-sequences, but jeez it seems like it'll be a bit fiddly to implement it
-        # ----------------------------------------------------------------------------------------
-        def print_dup_warning(ptn, wstr):
-            n_tot, n_uniq = sum(len(c) for c in ptn), len(set(u for c in ptn for u in c))
-            if n_tot != n_uniq:
-                print('    %s %s has duplicates in partition: sum of cluster sizes %d vs %d unique queries' % (utils.wrnstr(), wstr, n_tot, n_uniq))
-        # ----------------------------------------------------------------------------------------
-        def handle_overlap_merge(lpfos, tmp):
-            lpfos['cpaths'][ltmp].partitions, lpfos['antn_lists'][ltmp] = utils.merge_overlapping_clusters(lpfos['cpaths'][ltmp].partitions, glfo=lpfos['glfos'][ltmp], antn_list=lpfos['antn_lists'][ltmp], dbgstr='%s: '%utils.locstr(ltmp), debug=args.debug_paired_clustering)
-            print_dup_warning(lpfos['cpaths'][ltmp].best(), 'after')
-        # ----------------------------------------------------------------------------------------
-        lpair_lpfos, locus_lpfos, i_empty = [], [], []
-        for isub in range(args.n_subsets):
-            tmp_lpfos = paircluster.read_paired_dir(subdir(isub))
-            if all(tmp_lpfos[tuple(lpair)]['glfos'] is None for lpair in utils.locus_pairs[args.ig_or_tr]):  # this should mean that we're keeping all unpaired-seqs, and there were no paired annotations for this subset proc, so it copied/linked the single chain files to the joint location
-                i_empty.append(isub)
-                tmp_lpfos = paircluster.read_paired_dir(subdir(isub), joint=True)
-                locus_lpfos.append(tmp_lpfos)
-            else:
-                lpair_lpfos.append(tmp_lpfos)
-        if len(i_empty) > 0:
-            print('    --keep-all-unpaired-seqs: using joint partition files for %d/%d empty paired subdir annotations (indices %s)' % (len(i_empty), args.n_subsets, ' '.join(str(i) for i in i_empty)))
-
-        # <subset_merged_lp_infos>: just has subsets merged (i.e. still split into lpairs)
-        # <locus_merged_lp_infos>: also has merged heavy chain
-        subset_merged_lp_infos = paircluster.concat_lpair_chains(utils.locus_pairs[args.ig_or_tr], lpair_lpfos, dont_deep_copy=True)  # i think it's ok to not deep copy here, since this fcn doesn't deduplicate anything, and once we merge these subset lpfos, we don't use the originals for anything
-        if args.seed_unique_id is not None or args.queries_to_include is not None:  # these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
-            print('  merging overlaps in subset merged lp_infos')
-            for lpair in subset_merged_lp_infos:
-                for ltmp in lpair:
-                    handle_overlap_merge(subset_merged_lp_infos[lpair], ltmp)
-        def seedid(x): assert args.seed_unique_id is None
-        # if seed id or queries to include is set, we *need* to keep the duplicates so we can merge overlapping clusters below
-        locus_merged_lp_infos = paircluster.handle_concatd_heavy_chain(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, dont_calculate_annotations=args.dont_calculate_annotations,
-                                                                       seed_unique_id=seedid('s'), dont_deduplicate=args.seed_unique_id is not None or args.queries_to_include is not None, debug=True) #args.debug_paired_clustering)  # note that we need to deep copy here, since e.g. if we deduplicate the merged igh antn list, we don't want that to change the annotations in the original lists
-
-        if len(locus_lpfos) > 0:
-            locus_merged_lp_infos = paircluster.concat_locus_chains(utils.sub_loci(args.ig_or_tr), [locus_merged_lp_infos] + locus_lpfos, dont_deep_copy=True, dbgstr=' (from single-chain results due to --keep-all-unpaired-seqs)', debug=args.debug_paired_clustering)
-
-        if args.seed_unique_id is not None or args.queries_to_include is not None:  # these will have been passed to every subproc, so need to be deduplicated here so they don't show up multiple times in the merged proc
-            print('  merging overlaps in locus merged lp_infos')
-            for ltmp in utils.sub_loci(args.ig_or_tr):
-                handle_overlap_merge(locus_merged_lp_infos, ltmp)
-
-        print('   writing merged outputs from %d subsets to %s' % (args.n_subsets, merged_odir))
-        def ofn_fcn(ltmp, lpair=None, joint=None): return ptnfn(utils.fpath(merged_odir), ltmp, lpair=lpair)  # I *think* i don't need joint
         headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
-        paircluster.write_lpair_output_files(utils.locus_pairs[args.ig_or_tr], subset_merged_lp_infos, ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
-        paircluster.write_concatd_output_files(locus_merged_lp_infos['glfos'], locus_merged_lp_infos['antn_lists'], ofn_fcn, headers, use_pyyaml=args.write_full_yaml_output, cpaths=locus_merged_lp_infos['cpaths'], dont_write_git_info=args.dont_write_git_info, write_light_chain_files=len(locus_lpfos) > 0)
-        outfos, metafos = paircluster.get_combined_outmetafos(locus_merged_lp_infos['antn_lists']) #, extra_meta_headers=[h for h in headers if h in utils.reversed_input_metafile_keys]) hmm, i can't just do this, since this probably has a bunch of keys that aren't in the annotation, but otoh i don't want to completely forget about maybe adding the option
-        paircluster.write_combined_fasta_and_meta('%s/all-seqs.fa'%merged_odir, '%s/meta.yaml'%merged_odir, outfos, metafos, write_locus_files=True)  # need this meta file (not the original input one) to pick up pair cleaning (maybe for other reasons as well)
+        assert args.seed_unique_id is None  # subset merging doesn't support --seed-unique-id yet
+        paircluster.merge_paired_yamls(merged_odir, [subdir(i) for i in range(args.n_subsets)], headers, ig_or_tr=args.ig_or_tr, use_pyyaml=args.write_full_yaml_output,
+                                       dont_write_git_info=args.dont_write_git_info, merge_overlaps=args.seed_unique_id is not None or args.queries_to_include is not None,
+                                       dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=args.seed_unique_id, debug=True, debug_paired_clustering=args.debug_paired_clustering)
         utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
         # maybe don't need this now I've added the locus_lpfos stuff above?
         # if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:
