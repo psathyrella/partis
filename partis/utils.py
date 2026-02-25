@@ -1498,6 +1498,8 @@ def translate_uids(antn_list, trns=None, trfcn=None, cpath=None, failstr='transl
             revrns[new_id] = old_id
             if 'paired-uids' in line and translate_pids:
                 line['paired-uids'][iseq] = [trfn(p, pid=True) for p in line['paired-uids'][iseq]]
+            if 'duplicates' in line:
+                line['duplicates'][iseq] = [trfn(d) for d in line['duplicates'][iseq]]
     if cpath is not None:
         if cpath.seed_unique_id is not None:
             cpath.seed_unique_id = trfn(cpath.seed_unique_id)
@@ -5065,13 +5067,19 @@ def check_annotation_glfo_consistency(glfo, annotation_list, die_on_error=False,
     return not any_missing
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, debug=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, debug=False):
     from . import glutils
+    if input_labels is not None:
+        assert len(input_labels) == len(yaml_list)
     merged_annotation_list, merged_keys = [], set()
     merged_cpath, merged_glfo = None, None
     n_event_list, n_seq_list = [], []
-    for infname in yaml_list:
+    for iyaml, infname in enumerate(yaml_list):
         glfo, annotation_list, cpath = read_yaml_output(infname, dont_add_implicit_info=True)
+        if input_labels is not None:
+            prefix = input_labels[iyaml]
+            trfcn = lambda u, _pfx=prefix: '%s_%s' % (_pfx, u)
+            translate_uids(annotation_list, trfcn=trfcn, translate_pids=True, cpath=cpath)
         if debug:
             print('        %d sequences in %d clusters from %s' % (sum(len(l['unique_ids']) for l in annotation_list), len(annotation_list), infname))
         if remove_duplicates:  # NOTE this doesn't catch duplicates *within* each subfile, but atm I'm only worried about the case where they appear at most once in each subfile, so oh well
