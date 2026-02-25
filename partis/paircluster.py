@@ -515,7 +515,13 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
         print('          sizes')
         print('          h   l    l index')
     n_skipped = {k : 0 for k in required_keys + ['zero-len-paired-uids', 'too-small']}
-    unpaired_l_clusts = [c for c in l_part]
+    unpaired_l_clust_keys = set(':'.join(c) for c in l_part)
+    # build index from light chain uid to cluster key for O(1) lookup (instead of scanning all light clusters for each heavy cluster)
+    l_uid_to_clust_key = {}
+    for l_clust in l_part:
+        ckey = ':'.join(l_clust)
+        for uid in l_clust:
+            l_uid_to_clust_key[uid] = ckey
     for h_clust in h_part:
         if ':'.join(h_clust) not in h_atn_dict:  # note sure if this really avoids it, and i wish i knew how it could be missing, but don't have time right now to track it down
             print('    %s cluster %s missing from h_atn_dict, skipping' % (utils.wrnstr(), ':'.join(h_clust)))
@@ -531,32 +537,31 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
             n_skipped['zero-len-paired-uids'] += 1
             continue
 
-        l_clusts = [c for c in l_part if len(h_pids & set(c)) > 0]
-        if len(l_clusts) != 1:
+        l_clust_keys = set(l_uid_to_clust_key[p] for p in h_pids if p in l_uid_to_clust_key)  # find light cluster keys that include any light uid paired with any h_pids
+        if len(l_clust_keys) != 1:
             if not quiet:
-                l_overlaps = [h_pids & set(c) for c in l_clusts]
-                print('  %s found %d light clusters (rather than 1) for heavy cluster with size %d (%d pids) (overlaps: %s)' % (utils.color('yellow', 'warning'), len(l_clusts), len(h_clust), len(h_pids), ' '.join(str(len(o)) for o in l_overlaps)))
+                print('  %s found %d light clusters (rather than 1) for heavy cluster with size %d (%d pids)' % (utils.color('yellow', 'warning'), len(l_clust_keys), len(h_clust), len(h_pids)))
                 print('         h clust %s' % ':'.join(utils.color('blue_bkg', u) for u in h_clust))
-                for il, lct in enumerate(l_clusts):
-                    print('        %s %s' % ('l clusts' if il==0 else '        ', ':'.join(utils.color('blue_bkg' if u in h_pids else None, u) for u in lct)))
             continue
-        assert len(l_clusts) == 1
-        if ':'.join(l_clusts[0]) not in l_atn_dict:
-            print('      %s missing annotation for light chain (size %d, paired with size %d) when finding cluster pairs%s%s' % (utils.color('yellow', 'warning'), len(l_clusts[0]), len(h_clust), ' '+':'.join(l_clusts[0]) if len(l_clusts[0])<30 else '', ' '+':'.join(h_clust) if len(h_clust) < 30 else ''))
-            unpaired_l_clusts.remove(l_clusts[0])  # i guess i want to remove it from here? i guess we know who it's paired with, but there's no annotation so we can't do anything with it
+        l_clust_key = utils.get_single_entry(list(l_clust_keys))
+        if l_clust_key not in l_atn_dict:
+            l_clust = l_clust_key.split(':')
+            print('      %s missing annotation for light chain (size %d, paired with size %d) when finding cluster pairs%s%s' % (utils.color('yellow', 'warning'), len(l_clust), len(h_clust), ' '+l_clust_key if len(l_clust)<30 else '', ' '+':'.join(h_clust) if len(h_clust) < 30 else ''))
+            unpaired_l_clust_keys.discard(l_clust_key)
             continue
-        l_atn = l_atn_dict[':'.join(l_clusts[0])]
+        l_atn = l_atn_dict[l_clust_key]
         if min_cluster_size is not None and any(len(l['unique_ids']) < min_cluster_size for l in [h_atn, l_atn]):
             n_skipped['too-small'] += 1
             continue
         h_atn['loci'] = [lpair[0] for _ in h_atn['unique_ids']]  # this kind of sucks, but it seems like the best option a.t.m. (see note in event.py)
         l_atn['loci'] = [lpair[1] for _ in l_atn['unique_ids']]
         lp_antn_pairs.append((h_atn, l_atn))
-        unpaired_l_clusts.remove(l_clusts[0])
+        unpaired_l_clust_keys.discard(l_clust_key)
         if debug:
-            print('        %3d %3d   %3d' % (len(h_clust), len(l_clusts[0]), l_part.index(l_clusts[0])))
-    if len(unpaired_l_clusts) > 0:
-        print('    %s: %d unpaired light cluster%s after finding h/l cluster pairs' % ('+'.join(lpair), len(unpaired_l_clusts), utils.plural(len(unpaired_l_clusts))))
+            l_clust = l_clust_key.split(':')
+            print('        %3d %3d   %3d' % (len(h_clust), len(l_clust), l_part.index(l_clust)))
+    if len(unpaired_l_clust_keys) > 0:
+        print('    %s: %d unpaired light cluster%s after finding h/l cluster pairs' % ('+'.join(lpair), len(unpaired_l_clust_keys), utils.plural(len(unpaired_l_clust_keys))))
         # this is just too verbose atm (and hopefully not necessary?)
         # for lc in unpaired_l_clusts:
         #     if ':'.join(lc) not in l_atn_dict:
