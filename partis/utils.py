@@ -5183,7 +5183,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             merge_csvs('%s/single-chain/persistent-cache-%s.csv'% (merged_odir, ltmp), subfns)
 
 # ----------------------------------------------------------------------------------------
-def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
+def get_nodelist_from_slurm_shorthand(nodestr, known_nodes=None, debug=False):
     if debug:
         print('    getting nodelist from \'%s\'' % nodestr)
 
@@ -5247,9 +5247,10 @@ def get_nodelist_from_slurm_shorthand(nodestr, known_nodes, debug=False):
         bracketnodes = [namestr + str(i) for i in bracketnodes]
         nodes += bracketnodes
 
-    unknown_nodes = set(nodes) - set(known_nodes)
-    if len(unknown_nodes) > 0:
-        print('    %s unknown nodes parsed from \'%s\': %s' % (color('yellow', 'warning'), nodestr, ' '.join(unknown_nodes)))
+    if known_nodes is not None:
+        unknown_nodes = set(nodes) - set(known_nodes)
+        if len(unknown_nodes) > 0:
+            print('    %s unknown nodes parsed from \'%s\': %s' % (color('yellow', 'warning'), nodestr, ' '.join(unknown_nodes)))
 
     if debug:
         print('    %d final nodes: %s' % (len(nodes), ' '.join(nodes)))
@@ -5276,21 +5277,25 @@ def get_available_node_core_list(batch_config_fname, debug=False):  # for when y
             linefo = line.strip().split()
             node = None
             if len(linefo) > 0 and linefo[0].find('NodeName=') == 0:  # node config line
+                lineprops = {}
+                raw_nodename = None
                 for strfo in linefo:
                     tokenval = strfo.split('=')
                     if len(tokenval) != 2:
                         raise Exception('couldn\'t parse %s into \'=\'-separated key-val pairs' % strfo)
                     key, val = tokenval
-                    if ',' in val:
-                        val = val.split(',')
                     if key == 'NodeName':
-                        node = val
-                        # if node not in our_nodes:  # damn, doesn't work
-                        #     continue
-                        nodefo[node] = {}
-                    if node is None or node not in nodefo:
-                        raise Exception('first key wasn\'t NodeName')
-                    nodefo[node][key] = val
+                        raw_nodename = val
+                    else:
+                        if ',' in val:
+                            val = val.split(',')
+                        lineprops[key] = val
+                if raw_nodename is None:
+                    raise Exception('first key wasn\'t NodeName')
+                expanded_nodes = get_nodelist_from_slurm_shorthand(raw_nodename)
+                for node in expanded_nodes:
+                    nodefo[node] = dict(lineprops)
+                    nodefo[node]['NodeName'] = node
     # multiply sockets times cores/socket
     for node, info in nodefo.items():
         if 'Sockets' not in info or 'CoresPerSocket' not in info:
