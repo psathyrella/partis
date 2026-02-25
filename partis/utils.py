@@ -5067,7 +5067,7 @@ def check_annotation_glfo_consistency(glfo, annotation_list, die_on_error=False,
     return not any_missing
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, debug=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, add_implicit_info_to_returned_objects=False, debug=False):
     from . import glutils
     if input_labels is not None:
         assert len(input_labels) == len(yaml_list)
@@ -5124,6 +5124,9 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
         print('      merged %d total seqs from %d yaml files into %s' % (sum(n_seq_list), len(yaml_list), outfname))
 
     if return_merged_objects:
+        if add_implicit_info_to_returned_objects:
+            for antn in merged_annotation_list:
+                add_implicit_info(merged_glfo, antn)
         return merged_glfo, merged_annotation_list, merged_cpath
     else:
         return n_event_list, n_seq_list
