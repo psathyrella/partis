@@ -1406,7 +1406,7 @@ class PartitionDriver(object):
             return ustr.split(':')
         # ----------------------------------------------------------------------------------------
         def hashstr(c):
-            return 'subc_%s' % utils.uidhashstr(skey(c))
+            return 'subc_%s' % utils.uidhashstr(skey(c), max_len=20)
         # ----------------------------------------------------------------------------------------
         def getsubclusters(superclust, shuffle=False, sdbg=False):  # NOTE similar to code in bin/partis simulation fcn
             superclust = copy.deepcopy(superclust)  # should only need this if we shuffle, but you *really* don't want to modify it since if you change the clusters in <init_partition> you'll screw up the actual partition, and if you change the ones in <clusters_still_to_do> you'll end up losing them cause the uidstrs won't be right
@@ -1446,7 +1446,9 @@ class PartitionDriver(object):
             # return [superclust[i : i + self.args.subcluster_annotation_size] for i in range(0, len(superclust), self.args.subcluster_annotation_size)]  # could do some cleverer tree-based clustering, but when partitioning they should be ordered by similarity (i.e. the order in which they got hierarchically agglomerated)
 
         # ----------------------------------------------------------------------------------------
-        def add_hash_seq(line, hashid, naive_hash_ids):  # need to add it also to self.input_info and self.sw_info for self.combine_queries()
+        # Returns True if hashid was successfully added, False if skipped (e.g. hash collision or cdr3 length mismatch).
+        # Returning False probably indicates something is wrong that may cause a later crash (but we're not quite worried enough to crash here)
+        def add_hash_seq(line, hashid, naive_hash_ids):  # need to add it also to self.input_info and self.sw_info for self.combine_queries(). 
             subcluster_hash_seqs[hashid] = line['naive_seq']
             uid_to_copy = line['unique_ids'][0]  # we copy from just this one, but then OR (more or less) info from the other ones
             swfo_to_copy = self.sw_info[uid_to_copy]
@@ -1465,13 +1467,13 @@ class PartitionDriver(object):
                 # raise Exception('hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (hashid, ':'.join(line['unique_ids'])))
                 if not self.added_extra_clusters_to_annotate:
                     print('  %s hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (utils.color('yellow', 'warning'), hashid, ':'.join(line['unique_ids'])))
-                return
+                return False
             self.sw_info[hashid] = swhfo
             if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
                 existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
                 if len(existing_cdr3_lengths) > 1:
                     print('    %s multiple existing cdr3 lengths when adding hash seq in subcluster annotation: %s' % (utils.wrnstr(), existing_cdr3_lengths))
-                    return
+                    return False
                 # raise Exception('added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths)))
                 print('  %s added hash seq %s with cdr3 len %d to list of len %d all with cdr3 of %d' % (utils.color('yellow', 'warning'), hashid, self.sw_info[hashid]['cdr3_length'], len(naive_hash_ids), utils.get_single_entry(existing_cdr3_lengths)))
                 self.sw_info[hashid]['cdr3_length'] = utils.get_single_entry(existing_cdr3_lengths)  # I'm not totally sure that this fix makes sense
@@ -1482,6 +1484,7 @@ class PartitionDriver(object):
             if self.reco_info is not None: # and self.args_correct_multi_hmm_boundaries:  # atm this only gets used when correcting multi hmm boundaries, which we want to immediately stop doing as soon as this fcn is working, but oh well, it's might be nice to have the hash/naive seqs in reco info
                 self.reco_info[hashid] = copy.deepcopy(self.reco_info[uid_to_copy])
                 utils.replace_seqs_in_line(self.reco_info[hashid], [{'name' : hashid, 'seq' : line['naive_seq']}], self.simglfo, try_to_fix_padding=True)  # i wish i could set refuse_to_align=True since it's slow, but sometimes it needs to align (when j length to right of tryp differs)
+            return True
 
         # ----------------------------------------------------------------------------------------
         subc_start = time.time()
@@ -1549,8 +1552,8 @@ class PartitionDriver(object):
                     hashid = hashstr(sline['unique_ids'])
                     if super_uidstr not in naive_ancestor_hashes:
                         naive_ancestor_hashes[super_uidstr] = []
-                    naive_ancestor_hashes[super_uidstr].append(hashid)  # add it to the list of inferred naives that we need to run next time through (if there is a next time)
-                    add_hash_seq(sline, hashid, naive_ancestor_hashes[super_uidstr])  # add it to stuff so it can get run on
+                    if add_hash_seq(sline, hashid, naive_ancestor_hashes[super_uidstr] + [hashid]):  # if hash adding succeeds, add it to stuff so it can get run on (if it fails, we may have problems later, but atm we're not worrying about it here)
+                        naive_ancestor_hashes[super_uidstr].append(hashid)  # add it to the list of inferred naives that we need to run next time through (if there is a next time)
                     n_hashed += 1
             for fsclust in failed_super_clusters:
                 print('    giving up on size %d cluster with failed seqs (was just split into %d subclusters): %s' % (len(skey_inverse(fsclust)), len(subd_clusters[fsclust][-1]), fsclust))
@@ -1582,7 +1585,7 @@ class PartitionDriver(object):
             istep += 1
 
         for uid in subcluster_hash_seqs:
-            if uid in self.sw_info[uid]:
+            if uid in self.sw_info:
                 del self.sw_info[uid]
             if uid in self.input_info:
                 del self.input_info[uid]
@@ -2066,7 +2069,7 @@ class PartitionDriver(object):
             uids_and_lengths = {q : self.sw_info[q]['cdr3_length'] for q in query_names}
             uids_and_lengths = sorted(list(uids_and_lengths.items()), key=operator.itemgetter(1))
             uids, lengths = zip(*uids_and_lengths)
-            raise Exception('cdr3 lengths not all the same (%s) for %s (probably need to add more criteria for call to utils.split_clusters_by_cdr3())' % (' '.join([str(c) for c in lengths]), ' '.join(uids)))
+            raise Exception('cdr3 lengths not all the same (%s) for %s (if subc_ ids: likely hash collision in subcluster annotation, otherwise probably need to add more criteria for call to utils.split_clusters_by_cdr3())' % (' '.join([str(c) for c in lengths]), ' '.join(uids)))
         combo['cdr3_length'] = cdr3_lengths[0]
 
         combo['k_v'] = {'min' : 99999, 'max' : -1}
