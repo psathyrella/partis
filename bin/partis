@@ -430,6 +430,8 @@ def subset_partition(args):
         print('  linking merged outputs to final dir')
         for ltmp in utils.sub_loci(args.ig_or_tr):
             utils.makelink(final_odir, ptnfn(merged_odir, ltmp), ptnfn(final_odir, ltmp), dryrun=args.dry_run)
+    # link merged parameters to top-level dir so callers can find them at the standard path
+    utils.makelink(final_odir, '%s/parameters' % merged_odir, '%s/parameters' % final_odir, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def run_partitiondriver(args):

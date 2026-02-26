@@ -1335,7 +1335,7 @@ def get_annotation_dict(annotation_list, duplicate_resolution_key=None, cpath=No
 
     if cpath is not None:  # check that all the clusters in <cpath>.best() are in the annotation dict
         if len(cpath.best()) > 10000:
-            print('     note: to save time, not checking concordance of cpath and annotations since partition has more than 10,000 clusters')
+            pass #print('     note: to save time, not checking concordance of cpath and annotations since partition has more than 10,000 clusters')
         else:
             check_concordance_of_cpath_and_annotations(cpath, annotation_list, annotation_dict, use_last=use_last)
     return annotation_dict
@@ -5126,7 +5126,8 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
     if return_merged_objects:
         if add_implicit_info_to_returned_objects:
             for antn in merged_annotation_list:
-                add_implicit_info(merged_glfo, antn)
+                if not antn.get('invalid', False):
+                    add_implicit_info(merged_glfo, antn)
         return merged_glfo, merged_annotation_list, merged_cpath
     else:
         return n_event_list, n_seq_list

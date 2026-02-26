@@ -262,12 +262,12 @@ def merge_locus_lpfo(glfos, antn_lists, joint_cpaths, lpair, ltmp, lp_infos, don
             print('      %s%s empty files' % (dbgstr, utils.locstr(ltmp)))
         return
     if ltmp in glfos:  # originally: heavy chain second time through: merge chain glfos from those paired with igk and with igl (now more general though)
-        dbgprint('adding', add_tot=True)
         glfos[ltmp], name_mapping = glutils.get_merged_glfo(glfos[ltmp], glpf(lpair, 'glfos', ltmp))
         new_antn_list = dfn(glpf(lpair, 'antn_lists', ltmp))
         # Update gene names in annotations to match the merged glfo
         utils.update_gene_names_in_annotation_list(new_antn_list, name_mapping, debug=debug)
         antn_lists[ltmp] += new_antn_list
+        dbgprint('adding', add_tot=True)
         if glpf(lpair, 'cpaths', ltmp) is not None:
             if len(joint_cpaths[ltmp].partitions) != 1:  # they should always be 1 anyway, and if they weren't, it'd make it more complicated to concatenate them
                 print('        %s multiple partitions in cpath when merging loci' % utils.wrnstr())  # ugh, maybe it isn't a big deal? I'm getting longer ones now, probably from the keep all unpaired/subsetpartition stuff
@@ -561,8 +561,11 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
         if debug:
             l_clust = l_clust_key.split(':')
             print('        %3d %3d   %3d' % (len(h_clust), len(l_clust), l_part.index(l_clust)))
+    has_stats = len(unpaired_l_clust_keys) > 0 or any(n > 0 for n in n_skipped.values())
+    if has_stats:
+        print('      find_cluster_pairs %s (%d h, %d l input clusters --> %d output pairs):' % ('+'.join(lpair), len(h_part), len(l_part), len(lp_antn_pairs)))
     if len(unpaired_l_clust_keys) > 0:
-        print('    %s: %d unpaired light cluster%s after finding h/l cluster pairs' % ('+'.join(lpair), len(unpaired_l_clust_keys), utils.plural(len(unpaired_l_clust_keys))))
+        print('        %d/%d light clusters couldn\'t be matched to a heavy cluster' % (len(unpaired_l_clust_keys), len(l_part)))
         # this is just too verbose atm (and hopefully not necessary?)
         # for lc in unpaired_l_clusts:
         #     if ':'.join(lc) not in l_atn_dict:
@@ -574,11 +577,11 @@ def find_cluster_pairs(lp_infos, lpair, antn_lists=None, required_keys=None, qui
         #         print '       %s unpaired light cluster with size %d overlaps with heavy cluster(s): %s' % (utils.color('yellow', 'warning'), len(lc), ' '.join(str(len(c)) for c in hpclusts))
     keptstr = ' (keeping %d annotation pairs)' % len(lp_antn_pairs)
     if any(n > 0 for k, n in n_skipped.items() if k not in ['too-small', 'zero-len-paired-uids']):
-        print('    %s: skipped %d annotations missing required keys (%s)%s' % ('+'.join(lpair), sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids'), keptstr))
+        print('        skipped %d annotations missing required keys (%s)%s' % (sum(n_skipped.values()), '  '.join('%s: %d'%(k, n) for k, n in sorted(n_skipped.items()) if n>0 and k!='zero-len-paired-uids'), keptstr))
     if n_skipped['zero-len-paired-uids'] > 0:
-            print('    %s: skipped %d annotations with zero length paired uids%s' % ('+'.join(lpair), n_skipped['zero-len-paired-uids'], keptstr))
+        print('        skipped %d/%d heavy clusters with zero length paired uids%s' % (n_skipped['zero-len-paired-uids'], len(h_part), keptstr))
     if n_skipped['too-small'] > 0:
-            print('    %s: skipped %d annotations with N h or l ids < %d%s%s' % ('+'.join(lpair), n_skipped['too-small'], min_cluster_size, min_cluster_arg_str, keptstr))
+        print('        skipped %d annotations with N h or l ids < %d%s%s' % (n_skipped['too-small'], min_cluster_size, min_cluster_arg_str, keptstr))
     if debug:
         print('  ')
     return lp_antn_pairs
