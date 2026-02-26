@@ -1,0 +1,54 @@
+[workspace]
+channels = ["conda-forge", "bioconda"]
+name = "partis-env"
+platforms = ["linux-64"]
+
+[dependencies]
+bzip2 = "*"
+cmake = "*"
+compilers = "*"
+cython = "*"
+gsl = ">=2.8,<3"
+libcurl = "*"
+mafft = "*"
+ncurses = "*"
+openssl = "*"
+pip = "*"
+pkg-config = "*"
+# python = ">=3.13,<3.14"
+python = "==3.11"
+scons = "*"
+setuptools = "*"
+setuptools-scm = "*"
+xz = "*"
+yaml-cpp = "*"
+zlib = "*"
+
+# build tools
+autoconf = "*"
+automake = "*"
+libtool = "*"
+micromamba = "*"
+pipx = "*"
+# graphing
+r-base = "*"
+r-essentials = "*"
+r-treesim = "*"
+# simulation tools
+# bpp-seqgen = "*"
+ete3 = "*"
+
+[activation]
+scripts = [".pixi/pixi_init.sh"]
+
+[activation.env]
+CPATH = "$CONDA_PREFIX/include"
+LD_LIBRARY_PATH = "$CONDA_PREFIX/lib"
+LIBRARY_PATH = "$CONDA_PREFIX/lib"
+PKG_CONFIG_PATH = "$CONDA_PREFIX/lib/pkgconfig"
+
+[pypi-options]
+no-build-isolation = ["partis-bcr", "pysam"]
+
+[pypi-dependencies]
+partis-bcr = "*"
