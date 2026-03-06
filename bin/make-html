@@ -58,7 +58,7 @@ def make_html(
     if htmlfname is None:
         dirname = os.path.basename(plotdir)
         htmlfname = os.path.dirname(plotdir) + '/' + dirname + '.html'
-    print(htmlfname)
+    print('      wrote html to %s' % htmlfname)
 
 
 if __name__ == '__main__':

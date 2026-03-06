@@ -243,11 +243,11 @@ def get_empty_glfo(locus):  # adding this very late, so probably some more place
     return glfo
 
 #----------------------------------------------------------------------------------------
-def read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_name_components=False, debug=False):
+def read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_name_components=False, dont_warn_about_duplicates=False, debug=False):
     glfo = get_empty_glfo(locus)
     read_extra_info(glfo, gldir)
     for region in utils.getregions(locus):
-        read_fasta_file(glfo, region, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, add_dummy_name_components=add_dummy_name_components, locus=locus, debug=debug)
+        read_fasta_file(glfo, region, get_fname(gldir, locus, region), skip_pseudogenes, skip_orfs, add_dummy_name_components=add_dummy_name_components, locus=locus, dont_warn_about_duplicates=dont_warn_about_duplicates, debug=debug)
     if not utils.has_d_gene(locus):  # choose a sequence for the dummy d
         glfo['seqs']['d'][dummy_d_genes[locus]] = 'A'  # this (arbitrary) choice is also made in packages/ham/src/bcrutils.cc
     return glfo
@@ -601,7 +601,7 @@ def print_glfo(glfo, use_primary_version=False, gene_groups=None, print_separate
                     print('    %s%s    %s      %s' % (' ' * leftpad, utils.color_mutants(cons_seq, seqfo['seq'], align=align, emphasis_positions=emphasis_positions), utils.color_gene(seqfo['name']), extra_str))
 
 #----------------------------------------------------------------------------------------
-def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, add_dummy_name_components=False, dont_crash=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
+def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=True, remove_orfs=False, template_glfo=None, remove_bad_genes=False, add_dummy_name_components=False, dont_crash=False, remove_duplicates=False, debug=False):  # <skip_orfs> is for use when reading just-downloaded imgt files, while <remove_orfs> tells us to look for a separate functionality file
     # NOTE <skip_pseudogenes> and <skip_orfs> only have an effect with just-downloaded imgt files (otherwise we don't in general have the functionality info)
     if not os.path.exists(gldir + '/' + locus):  # NOTE doesn't re-link it if we already made the link before
         if locus[:2] == 'ig' and os.path.exists(gldir + '/' + locus[2]):  # backwards compatibility
@@ -615,7 +615,9 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
 
     if debug:
         print('  reading %s locus glfo from %s' % (locus, gldir))
-    glfo = read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_name_components=add_dummy_name_components, debug=debug)
+    glfo = read_seqs_and_metafo(gldir, locus, skip_pseudogenes, skip_orfs, add_dummy_name_components=add_dummy_name_components, dont_warn_about_duplicates=remove_duplicates, debug=debug)
+    if remove_duplicates:
+        remove_duplicate_seqs(glfo, template_glfo=template_glfo, debug=debug)
     get_missing_codon_info(glfo, template_glfo=template_glfo, remove_bad_genes=remove_bad_genes, debug=debug)
     restrict_to_genes(glfo, only_genes, debug=debug)
 
@@ -905,9 +907,41 @@ def remove_gene(glfo, gene, debug=False):
             print('  removing %s from glfo' % utils.color_gene(gene))
         del glfo['seqs'][region][gene]
         if region in utils.conserved_codons[glfo['locus']]:
-            del glfo[utils.conserved_codons[glfo['locus']][region] + '-positions'][gene]
+            cpos_key = utils.conserved_codons[glfo['locus']][region] + '-positions'
+            if gene in glfo[cpos_key]:
+                del glfo[cpos_key][gene]
     else:
         print('  %s tried to remove %s from glfo, but it isn\'t there' % (utils.color('yellow', 'warning'), utils.color_gene(gene)))
+
+# ----------------------------------------------------------------------------------------
+def remove_duplicate_seqs(glfo, template_glfo=None, debug=False):
+    n_removed = 0
+    for region in utils.getregions(glfo['locus']):
+        seq_to_genes = {}
+        for gene, seq in glfo['seqs'][region].items():
+            seq_to_genes.setdefault(seq, []).append(gene)
+        for seq, genes in seq_to_genes.items():
+            if len(genes) <= 1:
+                continue
+            keep = None
+            if template_glfo is not None:
+                in_template = [g for g in genes if g in template_glfo['seqs'][region]]
+                if len(in_template) == 1:
+                    keep = in_template[0]
+            if keep is None:
+                non_snpd = [g for g in genes if not is_snpd(g)]
+                if len(non_snpd) > 0:
+                    keep = non_snpd[0]
+            if keep is None:
+                keep = genes[0]
+            to_remove = [g for g in genes if g != keep]
+            if debug:
+                print('    dedup %s: keeping %s, removing %s' % (region, utils.color_gene(keep), ' '.join(utils.color_gene(g) for g in to_remove)))
+            for gene in to_remove:
+                remove_gene(glfo, gene)
+                n_removed += 1
+    if n_removed > 0:
+        print('  removed %d duplicate-sequence gene names' % n_removed)
 
 # ----------------------------------------------------------------------------------------
 def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
@@ -1264,6 +1298,25 @@ def choose_new_allele_name(template_gene, new_seq, snpfo=None, indelfo=None):  #
         raise Exception('somehow ended up with too many \'+\'s in %s' % new_name)
 
     return new_name, snpfo
+
+# ----------------------------------------------------------------------------------------
+def compare_glfos(glfos, names, locus):
+    for region in [r for r in utils.regions if r in glfos[0]['seqs']]:
+        aseqs, bseqs = [{s : n for n, s in g['seqs'][region].items()} for g in glfos]  # dict of names keyed by seqs
+        a_only_seqs, b_only_seqs = set(aseqs) - set(bseqs), set(bseqs) - set(aseqs)
+        print('%s' % utils.color('green', region))
+        common_seqs = set(aseqs) & set(bseqs)
+        common_name_seqs = [aseqs[s] for s in common_seqs if aseqs[s]==bseqs[s]]
+        print('    %3d seqs in common with same name: %s' % (len(common_name_seqs), utils.color_genes(sorted(common_name_seqs))))
+        dnamed_seqs = [(aseqs[s], bseqs[s]) for s in common_seqs if aseqs[s] != bseqs[s]]
+        if len(dnamed_seqs) > 0:
+            print('      %s %d common seq%s with different names: %s' % (utils.wrnstr(), len(dnamed_seqs), utils.plural(len(dnamed_seqs)), ',  '.join(utils.color_genes([an,bn]) for an, bn in dnamed_seqs)))
+        print('    only in:\n      %12s: %3d  %s\n      %12s: %3d  %s' % (utils.color('blue', names[0]), len(a_only_seqs), utils.color_genes(sorted(aseqs[s] for s in a_only_seqs)),
+                                                                          utils.color('blue', names[1]), len(b_only_seqs), utils.color_genes(sorted(bseqs[s] for s in b_only_seqs))))
+        for gname, oname, only_seqs, allseqs, ogfo in zip(names, reversed(names), [a_only_seqs, b_only_seqs], [aseqs, bseqs], reversed(glfos)):
+            print('  finding nearest seq in %s for %d seqs only in %s' % (utils.color('blue', oname), len(only_seqs), utils.color('blue', gname)))
+            for oseq in only_seqs:
+                find_nearest_gene_in_glfo(ogfo, oseq, new_name=allseqs[oseq], region=region, debug=True)
 
 # ----------------------------------------------------------------------------------------
 def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, region='v', debug=False):  # NOTE should really be merged with find_nearest_gene_with_same_cpos()
