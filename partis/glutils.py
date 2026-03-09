@@ -59,26 +59,42 @@ def strip_functionality(funcstr):
 def get_imgt_info(infostrs, key):
     return infostrs[imgt_info_indices.index(key)]
 
-duplicate_names = {
-    'v' : [
-        set(['IGHV3-23*04', 'IGHV3-23D*02']),
-        set(['IGHV3-30*18', 'IGHV3-30-5*01']),
-        set(['IGHV1-69*01', 'IGHV1-69D*01']),
-        set(['IGHV3-30*02', 'IGHV3-30-5*02']),
-        set(['IGHV3-30*04', 'IGHV3-30-3*03']),
-        set(['IGHV3-23*01', 'IGHV3-23D*01']),
-    ],
-    'd' : [
-        set(['IGHD1/OR15-1a*01', 'IGHD1/OR15-1b*01']),
-        set(['IGHD2/OR15-2a*01', 'IGHD2/OR15-2b*01']),
-        set(['IGHD4/OR15-4a*01', 'IGHD4/OR15-4b*01']),
-        set(['IGHD3/OR15-3a*01', 'IGHD3/OR15-3b*01']),
-        set(['IGHD5/OR15-5a*01', 'IGHD5/OR15-5b*01']),
-        set(['IGHD5-18*01', 'IGHD5-5*01']),
-        set(['IGHD4-11*01', 'IGHD4-4*01']),
-    ],
-    'j' : []
-}
+# ----------------------------------------------------------------------------------------
+def get_duplicate_names_fname():
+    return utils.get_partis_dir() + '/data/germlines/duplicate-names.csv'
+
+# ----------------------------------------------------------------------------------------
+def read_duplicate_names():
+    dn = {r : [] for r in utils.regions}
+    fname = get_duplicate_names_fname()
+    if not os.path.exists(fname):
+        return dn
+    with open(fname) as cfile:
+        reader = csv.DictReader(cfile)
+        for row in reader:
+            gene_set = set(row['genes'].split(';'))
+            dn[row['region']].append(gene_set)
+    return dn
+
+# ----------------------------------------------------------------------------------------
+def write_duplicate_name_group(region, gene_set):
+    print('  adding new %s duplicate-name equivalence class with %d genes' % (region, len(gene_set)))
+    fname = get_duplicate_names_fname()
+    with open(fname, 'a') as cfile:
+        cfile.write('%s,%s\n' % (region, ';'.join(sorted(gene_set))))
+
+# ----------------------------------------------------------------------------------------
+def rewrite_duplicate_names_file(region=None, merged=None):
+    if region is not None:
+        print('  updating %s duplicate-name equivalence class to %d genes' % (region, len(merged)))
+    fname = get_duplicate_names_fname()
+    with open(fname, 'w') as cfile:
+        cfile.write('region,genes\n')
+        for rgn in utils.regions:
+            for gene_set in duplicate_names[rgn]:
+                cfile.write('%s,%s\n' % (rgn, ';'.join(sorted(gene_set))))
+
+duplicate_names = read_duplicate_names()
 
 #----------------------------------------------------------------------------------------
 def is_snpd(gene):
@@ -151,7 +167,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
     seq_to_gene_map = {}
     renamed_genes = []
     is_imgt_file = None
-    for seqfo in utils.read_fastx(fname, dont_split_infostrs=True, sanitize_seqs=True):
+    for seqfo in utils.read_fastx(fname, dont_split_infostrs=True):
         if is_imgt_file is None:
             is_imgt_file = get_is_imgt_file(seqfo['infostrs'])  # if the fasta lines aren't all formatted the same, who cares it, should crash somewhere
         # first get gene name
@@ -201,7 +217,7 @@ def read_fasta_file(glfo, region, fname, skip_pseudogenes, skip_orfs, aligned=Fa
             raise Exception('gene name %s appears twice in %s (see the two seqs above)' % (gene, fname))
 
         # then the sequence
-        seq = seqfo['seq']
+        seq = seqfo['seq'].translate(utils.ambig_translations).upper()
         if not aligned:
             seq = utils.remove_gaps(seq)
         if 'Y' in seq:
@@ -915,7 +931,7 @@ def remove_gene(glfo, gene, debug=False):
 
 # ----------------------------------------------------------------------------------------
 def remove_duplicate_seqs(glfo, template_glfo=None, debug=False):
-    n_removed = 0
+    removed_genes = set()
     for region in utils.getregions(glfo['locus']):
         seq_to_genes = {}
         for gene, seq in glfo['seqs'][region].items():
@@ -923,6 +939,19 @@ def remove_duplicate_seqs(glfo, template_glfo=None, debug=False):
         for seq, genes in seq_to_genes.items():
             if len(genes) <= 1:
                 continue
+            gene_set = set(genes)
+            in_dn = any(gene_set <= ec for ec in duplicate_names[region])  # check if this set of duplicates is a subset of an existing equivalence class
+            if not in_dn:
+                existing_ec = [ec for ec in duplicate_names[region] if len(gene_set & ec) > 0]  # check for partial overlap
+                if len(existing_ec) > 0:
+                    merged = gene_set.union(*existing_ec)
+                    for ec in existing_ec:
+                        duplicate_names[region].remove(ec)
+                    duplicate_names[region].append(merged)
+                    rewrite_duplicate_names_file(region=region, merged=merged)
+                else:
+                    duplicate_names[region].append(gene_set)
+                    write_duplicate_name_group(region, gene_set)
             keep = None
             if template_glfo is not None:
                 in_template = [g for g in genes if g in template_glfo['seqs'][region]]
@@ -935,13 +964,13 @@ def remove_duplicate_seqs(glfo, template_glfo=None, debug=False):
             if keep is None:
                 keep = genes[0]
             to_remove = [g for g in genes if g != keep]
-            if debug:
-                print('    dedup %s: keeping %s, removing %s' % (region, utils.color_gene(keep), ' '.join(utils.color_gene(g) for g in to_remove)))
+            # if debug:
+            #     print('    dedup %s: keeping %s, removing %s' % (region, utils.color_gene(keep), ' '.join(utils.color_gene(g) for g in to_remove)))
             for gene in to_remove:
                 remove_gene(glfo, gene)
-                n_removed += 1
-    if n_removed > 0:
-        print('  removed %d duplicate-sequence gene names' % n_removed)
+                removed_genes.add(gene)
+    if len(removed_genes) > 0:
+        print('    removed %d duplicate-sequence gene names: %s' % (len(removed_genes), utils.color_genes(removed_genes)))
 
 # ----------------------------------------------------------------------------------------
 def add_new_alleles(glfo, newfos, remove_template_genes=False, use_template_for_codon_info=True, simglfo=None, debug=False):
@@ -1313,10 +1342,35 @@ def compare_glfos(glfos, names, locus):
             print('      %s %d common seq%s with different names: %s' % (utils.wrnstr(), len(dnamed_seqs), utils.plural(len(dnamed_seqs)), ',  '.join(utils.color_genes([an,bn]) for an, bn in dnamed_seqs)))
         print('    only in:\n      %12s: %3d  %s\n      %12s: %3d  %s' % (utils.color('blue', names[0]), len(a_only_seqs), utils.color_genes(sorted(aseqs[s] for s in a_only_seqs)),
                                                                           utils.color('blue', names[1]), len(b_only_seqs), utils.color_genes(sorted(bseqs[s] for s in b_only_seqs))))
-        for gname, oname, only_seqs, allseqs, ogfo in zip(names, reversed(names), [a_only_seqs, b_only_seqs], [aseqs, bseqs], reversed(glfos)):
-            print('  finding nearest seq in %s for %d seqs only in %s' % (utils.color('blue', oname), len(only_seqs), utils.color('blue', gname)))
-            for oseq in only_seqs:
-                find_nearest_gene_in_glfo(ogfo, oseq, new_name=allseqs[oseq], region=region, debug=True)
+        # group genes unique to either glfo by primary version, and print aligned against shared/other genes
+        a_only_genes = set(aseqs[s] for s in a_only_seqs)
+        b_only_genes = set(bseqs[s] for s in b_only_seqs)
+        only_genes = a_only_genes | b_only_genes
+        if len(only_genes) == 0:
+            continue
+        only_by_pv = {}
+        for gene in only_genes:
+            only_by_pv.setdefault(utils.primary_version(gene), []).append(gene)
+        max_name_len = max(len(n) for n in names)
+        for pv in sorted(only_by_pv):
+            shared_genes = sorted(g for g in glfos[0]['seqs'][region] if utils.primary_version(g) == pv and g not in a_only_genes)
+            a_in_group = sorted(g for g in only_by_pv[pv] if g in a_only_genes)
+            b_in_group = sorted(g for g in only_by_pv[pv] if g in b_only_genes)
+            all_genes = shared_genes + a_in_group + b_in_group
+            all_seqs = {g : glfos[0]['seqs'][region].get(g, glfos[1]['seqs'][region].get(g)) for g in all_genes}
+            seqfos = [{'name' : g, 'seq' : all_seqs[g]} for g in all_genes]
+            msa_info = utils.align_many_seqs(seqfos)
+            aligned = {sfo['name'] : sfo['seq'] for sfo in msa_info}
+            ref_seq = aligned[all_genes[0]]
+            print('  %s' % utils.color('blue', pv))
+            for gene in all_genes:
+                if gene in a_only_genes:
+                    label_str = '  %s' % utils.color('blue', utils.wfmt(names[0], max_name_len))
+                elif gene in b_only_genes:
+                    label_str = '  %s' % utils.color('red', utils.wfmt(names[1], max_name_len))
+                else:
+                    label_str = ' ' * (2 + max_name_len)
+                print(utils.color_mutants(ref_seq, aligned[gene], extra_str='        ', post_str='%s  %s' % (label_str, utils.color_gene(gene))))
 
 # ----------------------------------------------------------------------------------------
 def find_nearest_gene_in_glfo(glfo, new_seq, new_name=None, exclusion_3p=None, region='v', debug=False):  # NOTE should really be merged with find_nearest_gene_with_same_cpos()

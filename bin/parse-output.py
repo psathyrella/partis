@@ -223,6 +223,7 @@ if not os.path.exists(os.path.dirname(os.path.abspath(args.outfile))):
 if args.airr_output:
     print('  writing %d annotations%s to %s' % (len(annotation_list), '' if cpath is None else ' (with partition: %d seqs in %d clusters)'%(sum(len(c) for c in cpath.best()), len(cpath.best())), args.outfile))
     utils.write_airr_output(args.outfile, annotation_list, cpath=cpath, extra_columns=args.extra_columns, skip_columns=args.skip_columns)
+    glutils.write_glfo(os.path.dirname(os.path.abspath(args.outfile)) + '/' + glutils.glfo_dir, glfo)
     sys.exit(0)
 
 # condense partis info into <seqfos> for fasta/csv output
@@ -281,3 +282,5 @@ with open(args.outfile, utils.csv_wmode()) as ofile:
         utils.write_annotations(args.outfile, glfo, annotation_list, utils.add_lists(utils.annotation_headers, args.extra_columns), partition_lines=plines)
     else:
         assert False
+if utils.getsuffix(args.outfile) != '.yaml':  # yaml already embeds glfo
+    glutils.write_glfo(os.path.dirname(os.path.abspath(args.outfile)) + '/' + glutils.glfo_dir, glfo)

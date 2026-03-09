@@ -2134,7 +2134,7 @@ def convert_airr_line(aline, glfo):
         if has_d_gene(glfo['locus']):
             pline['d_gene'] = list(glfo['seqs']['d'])[0]
             d_end += 1
-            print('      %s no d_germline_start in heavy chain airr annotation. Trying to avoid, but you may need to mark as invalid (see below)')
+            pline['missing_d_start'] = True
             # pline['invalid'] = True
             # return pline
         else:
@@ -2243,7 +2243,16 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
                 other_locus_ids.append(aline[sequence_id_field])
                 continue
             if skip_unknown_genes:
-                unknown = [aline[aky].split(',')[0] for aky, rgn in [('v_call', 'v'), ('d_call', 'd'), ('j_call', 'j')] if aline[aky] != '' and aline[aky].split(',')[0] not in glfo['seqs'][rgn]]
+                unknown = []
+                for aky, rgn in [('v_call', 'v'), ('d_call', 'd'), ('j_call', 'j')]:
+                    if aline[aky] == '':
+                        continue
+                    gene = aline[aky].split(',')[0]
+                    if gene not in glfo['seqs'][rgn]:
+                        try:
+                            aline[aky] = glutils.convert_to_duplicate_name(glfo, gene) + (',' + ','.join(aline[aky].split(',')[1:]) if ',' in aline[aky] else '')
+                        except:
+                            unknown.append(gene)
                 if len(unknown) > 0:
                     n_skipped_unknown += 1
                     skipped_unknown_ids.add(aline[sequence_id_field])
@@ -2251,6 +2260,9 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
                         unknown_gene_counts[gene] = unknown_gene_counts.get(gene, 0) + 1
                     continue
             plines.append(convert_airr_line(aline, glfo))
+    n_missing_d_start = sum(1 for l in plines if l.get('missing_d_start'))
+    if n_missing_d_start > 0:
+        print('  %s %d sequences with no d_germline_start in heavy chain airr annotation (trying to avoid, but you may need to mark as invalid)' % (wrnstr(), n_missing_d_start))
     invalid_lines = [l for l in plines if l['invalid']]
     plines = [l for l in plines if not l['invalid']]
     failed_queries += invalid_lines
