@@ -1263,7 +1263,8 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
-        cmd_str = self.args.partis_dir + '/packages/ham/bcrham'
+        import os as _os
+        cmd_str = _os.environ.get('PARTIS_ZIG_CORE_EXE', self.args.partis_dir + '/packages/ham/bcrham')
         cmd_str += ' --algorithm ' + algorithm
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
