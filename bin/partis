@@ -1662,7 +1662,7 @@ subconfig = collections.OrderedDict((
     ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
     ('disjoint-group',    {'func' : disjointgrouper.run_disjoint_group, 'help' : 'Split sequences into disjoint groups by cdr3 length, writing per-group fastas and a manifest yaml to --outdir. Auto-runs sw annotation if --parameter-dir is not set.'}),
-    ('assemble-groups',   {'func' : disjointgrouper.run_assemble_groups, 'help' : 'Validate and optionally merge per-group partition outputs from disjoint grouping. Reads manifest from --manifest, checks sequence count invariants and uid uniqueness. With --merge-output, produces a single merged partition yaml.'}),
+    ('assemble-groups',   {'func' : disjointgrouper.run_assemble_groups, 'help' : 'Validate and merge per-group partition outputs from disjoint grouping. Reads manifest from --disjoint-dir, reconciles germline info, checks sequence count invariants and uid uniqueness, and writes a single merged partition yaml per locus. Use --no-merge-output to keep per-group files separate for large datasets.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -1805,7 +1805,7 @@ subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs
 
 subargs['disjoint-group'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping. Step 1 writes manifest + per-group fastas here, step 2 writes per-group partition yamls here, step 3 reads from here.'}})
 subargs['assemble-groups'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping (same directory used for disjoint-group step 1 and partition step 2).'}})
-subargs['assemble-groups'].append({'name' : '--merge-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Produce a single merged partition yaml from per-group outputs (not recommended at scale).'}})
+subargs['assemble-groups'].append({'name' : '--no-merge-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Skip writing merged single-yaml output; keep per-group partition files separate (for large datasets where a single multi-GB yaml is impractical).'}})
 
 sub_arg_groups = {'subset-partition' : ['partition'], 'subset-annotate' : ['annotate']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
 

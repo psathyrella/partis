@@ -160,10 +160,9 @@ def run_disjoint_group(args):
     validate_sequence_count(manifest)
 
 # ----------------------------------------------------------------------------------------
-def validate_assembly(manifest, manifest_dir):
-    # check all partition files exist and are non-empty, verify uid uniqueness across groups
-    all_uids = set()
-    total_seqs = 0
+def get_partition_paths_by_locus(manifest, manifest_dir):
+    # collect and verify partition file paths grouped by locus
+    paths_by_locus = collections.OrderedDict()
     missing_partitions = []
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
@@ -176,21 +175,48 @@ def validate_assembly(manifest, manifest_dir):
             continue
         if os.path.getsize(full_ppath) == 0:
             raise Exception('partition file is empty for group %d: %s' % (ginfo['group_id'], full_ppath))
-        glfo, annotation_list, _ = utils.read_yaml_output(full_ppath, dont_add_implicit_info=True)
-        group_uids = set()
-        for line in annotation_list:
-            for uid in line['unique_ids']:
-                if uid in all_uids:
-                    raise Exception('duplicate uid %s found across groups' % uid)
-                group_uids.add(uid)
-                all_uids.add(uid)
-        total_seqs += len(group_uids)
+        ltmp = ginfo['locus']
+        if ltmp not in paths_by_locus:
+            paths_by_locus[ltmp] = []
+        paths_by_locus[ltmp].append(full_ppath)
     if len(missing_partitions) > 0:
         raise Exception('partition files missing for %d groups: %s' % (len(missing_partitions), missing_partitions))
+    return paths_by_locus
+
+# ----------------------------------------------------------------------------------------
+def validate_assembly(manifest, manifest_dir):
+    # validate uid uniqueness and sequence counts by reading each group one at a time
+    # (does not load all annotations into memory at once, so scales to large datasets)
+    all_uids = set()
+    total_seqs = 0
+    paths_by_locus = get_partition_paths_by_locus(manifest, manifest_dir)
+    for ltmp, yaml_list in paths_by_locus.items():
+        for ppath in yaml_list:
+            glfo, annotation_list, _ = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
+            for line in annotation_list:
+                for uid in line['unique_ids']:
+                    if uid in all_uids:
+                        raise Exception('duplicate uid %s found across groups' % uid)
+                    all_uids.add(uid)
+            total_seqs += sum(len(line['unique_ids']) for line in annotation_list)
     expected = manifest['grouping-info']['total_grouped_sequences']
     if total_seqs != expected:
         raise Exception('sequence count mismatch after assembly: found %d uids in partition files, expected %d' % (total_seqs, expected))
     print('    assembly validation passed: %d unique sequences across %d groups' % (total_seqs, len(manifest['groups'])))
+
+# ----------------------------------------------------------------------------------------
+def assemble_merged_output(manifest, manifest_dir, disjoint_dir):
+    # merge per-group partition yamls into single per-locus output using utils.merge_yamls()
+    # this reconciles germline info across groups and writes a single yaml per locus
+    headers = list(utils.annotation_headers)
+    assembled_dir = '%s/assembled' % disjoint_dir
+    utils.mkdir(assembled_dir)
+    paths_by_locus = get_partition_paths_by_locus(manifest, manifest_dir)
+    for ltmp, yaml_list in paths_by_locus.items():
+        outfname = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
+        print('    merging %d partition files for %s -> %s' % (len(yaml_list), ltmp, outfname))
+        utils.merge_yamls(outfname, yaml_list, headers, dont_write_git_info=True, debug=True)
+    manifest['assembly']['merged_output_path'] = 'assembled/'
 
 # ----------------------------------------------------------------------------------------
 def run_assemble_groups(args):
@@ -203,14 +229,16 @@ def run_assemble_groups(args):
     manifest_dir = os.path.dirname(os.path.abspath(manifest_path))
 
     validate_assembly(manifest, manifest_dir)
-
-    # update manifest with validation results
     manifest['assembly']['validation']['uids_unique'] = True
     manifest['assembly']['validation']['sequence_count_preserved'] = True
-    manifest['assembly']['status'] = 'validated'
+
+    if args.no_merge_output:
+        manifest['assembly']['status'] = 'validated'
+        print('    --no-merge-output: skipping merged output write (per-group files remain separate)')
+    else:
+        assemble_merged_output(manifest, manifest_dir, args.disjoint_dir)
+        manifest['assembly']['status'] = 'merged'
+
     with open(manifest_path, 'w') as mfile:
         yaml.dump(manifest, mfile, width=400, default_flow_style=False)
-    print('    updated manifest with validation results')
-
-    if args.merge_output:
-        print('    --merge-output not yet implemented')  # TODO implement merge via merge_paired_yamls()
+    print('    updated manifest')
