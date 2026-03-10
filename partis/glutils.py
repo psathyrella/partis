@@ -110,6 +110,30 @@ def is_novel(gene):
     return is_snpd(gene) or sub_version == 'x' or (sub_version is not None and len(sub_version) > 4)
 
 #----------------------------------------------------------------------------------------
+def d_position_variants(gene):
+    """Return alternate gene names with 'D' moved to the other side of the first hyphen, e.g. IGHV3D-64*06 <-> IGHV3-D64*06.  Also handles D at end of sub-version first segment, e.g. IGHV3-64D*06."""
+    if '-' not in gene or gene.find('-') > gene.find('*'):
+        return []
+    hidx = gene.find('-')
+    variants = []
+    rest = gene[hidx + 1:]
+    end = rest.find('-') if '-' in rest and rest.find('-') < rest.find('*') else rest.find('*')
+    first_seg = rest[:end]
+    suffix = rest[end:]
+    if gene[hidx - 1] == 'D':          # D just before hyphen: 3D-64 --> 3-D64, 3-64D
+        variants.append(gene[:hidx - 1] + '-D' + first_seg + suffix)
+        variants.append(gene[:hidx - 1] + '-' + first_seg + 'D' + suffix)
+    elif first_seg[0] == 'D':          # D at start of sub-version: 3-D64 --> 3D-64, 3-64D
+        base = first_seg[1:]
+        variants.append(gene[:hidx] + 'D-' + base + suffix)
+        variants.append(gene[:hidx] + '-' + base + 'D' + suffix)
+    elif first_seg[-1] == 'D':         # D at end of first sub-version segment: 3-64D --> 3-D64, 3D-64
+        base = first_seg[:-1]
+        variants.append(gene[:hidx] + '-D' + base + suffix)
+        variants.append(gene[:hidx] + 'D-' + base + suffix)
+    return variants
+
+#----------------------------------------------------------------------------------------
 def convert_to_duplicate_name(glfo, gene):
     for equivalence_class in duplicate_names[utils.get_region(gene)]:
         if gene in equivalence_class:
@@ -1114,7 +1138,7 @@ def generate_new_alleles(glfo, new_allele_info, remove_template_genes=False, deb
 # ----------------------------------------------------------------------------------------
 def write_glfo(output_dir, glfo, only_genes=None, debug=False):
     if debug:
-        print('  writing glfo to %s%s' % (output_dir, '' if only_genes is None else ('  (restricting to %d genes)' % len(only_genes))))
+        print('  writing glfo to %s  %s%s' % (output_dir, '  '.join('%s: %d' % (r, len(glfo['seqs'][r])) for r in utils.getregions(glfo['locus'])), '' if only_genes is None else ('  (restricting to %d genes)' % len(only_genes))))
     if os.path.exists(output_dir + '/' + glfo['locus']):
         remove_glfo_files(output_dir, glfo['locus'])  # also removes output_dir
     os.makedirs(output_dir + '/' + glfo['locus'])
