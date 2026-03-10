@@ -37,6 +37,7 @@ import partis.seqfileopener as seqfileopener
 from partis.partitiondriver import PartitionDriver
 from partis.clusterpath import ClusterPath
 import partis.paircluster as paircluster
+import partis.disjointgrouper as disjointgrouper
 from partis.parametercounter import ParameterCounter
 from partis.corrcounter import CorrCounter
 from partis.waterer import Waterer
@@ -1660,6 +1661,8 @@ subconfig = collections.OrderedDict((
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
     ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
+    ('disjoint-group',    {'func' : disjointgrouper.run_disjoint_group, 'help' : 'Split sequences into disjoint groups by cdr3 length, writing per-group fastas and a manifest yaml to --outdir. Auto-runs sw annotation if --parameter-dir is not set.'}),
+    ('assemble-groups',   {'func' : disjointgrouper.run_assemble_groups, 'help' : 'Validate and optionally merge per-group partition outputs from disjoint grouping. Reads manifest from --manifest, checks sequence count invariants and uid uniqueness. With --merge-output, produces a single merged partition yaml.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
