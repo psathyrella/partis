@@ -114,9 +114,103 @@ def validate_sequence_count(manifest):
     print('    sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
 
 # ----------------------------------------------------------------------------------------
+def get_sw_cache_path(parameter_dir, locus):
+    locus_path = '%s/%s/sw-cache.yaml' % (parameter_dir, locus)
+    if os.path.exists(locus_path):
+        return locus_path
+    flat_path = '%s/sw-cache.yaml' % parameter_dir
+    if os.path.exists(flat_path):
+        return flat_path
+    raise Exception('sw cache not found at %s or %s' % (locus_path, flat_path))
+
+# ----------------------------------------------------------------------------------------
+def get_loci(args):
+    if args.paired_loci:
+        return utils.sub_loci(args.ig_or_tr)
+    else:
+        return [args.locus]
+
+# ----------------------------------------------------------------------------------------
 def run_disjoint_group(args):
-    print('  running disjoint-group')  # placeholder
+    if args.disjoint_dir is None:
+        raise Exception('--disjoint-dir must be set for disjoint-group')
+    if args.parameter_dir is None:
+        raise Exception('--parameter-dir must be set for disjoint-group (auto-caching not yet implemented)')  # TODO auto-trigger sw annotation
+
+    outdir = args.disjoint_dir
+    loci = get_loci(args)
+    print('  running disjoint-group on %s with parameter dir %s' % (' '.join(loci), args.parameter_dir))
+
+    all_group_infos = []
+    total_input = 0
+    total_failed = 0
+    for ltmp in loci:
+        sw_cache_path = get_sw_cache_path(args.parameter_dir, ltmp)
+        print('    reading sw cache for %s from %s' % (ltmp, sw_cache_path))
+        glfo, annotation_list, _ = utils.read_yaml_output(sw_cache_path, dont_add_implicit_info=True)
+        groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
+        n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
+        total_input += n_seqs
+        total_failed += n_failed
+        print('    %s: %d sequences in %d cdr3 length groups (%d failed)' % (ltmp, n_seqs - n_failed, len(groups), n_failed))
+        group_infos = write_group_fastas(groups, outdir, ltmp)
+        all_group_infos.extend(group_infos)
+
+    manifest = write_manifest(all_group_infos, outdir, loci, total_input, total_failed, parameter_dir=args.parameter_dir)
+    validate_sequence_count(manifest)
+
+# ----------------------------------------------------------------------------------------
+def validate_assembly(manifest, manifest_dir):
+    # check all partition files exist and are non-empty, verify uid uniqueness across groups
+    all_uids = set()
+    total_seqs = 0
+    missing_partitions = []
+    for ginfo in manifest['groups']:
+        ppath = ginfo.get('partition_path')
+        if ppath is None:
+            missing_partitions.append(ginfo['group_id'])
+            continue
+        full_ppath = '%s/%s' % (manifest_dir, ppath)
+        if not os.path.exists(full_ppath):
+            missing_partitions.append(ginfo['group_id'])
+            continue
+        if os.path.getsize(full_ppath) == 0:
+            raise Exception('partition file is empty for group %d: %s' % (ginfo['group_id'], full_ppath))
+        glfo, annotation_list, _ = utils.read_yaml_output(full_ppath, dont_add_implicit_info=True)
+        group_uids = set()
+        for line in annotation_list:
+            for uid in line['unique_ids']:
+                if uid in all_uids:
+                    raise Exception('duplicate uid %s found across groups' % uid)
+                group_uids.add(uid)
+                all_uids.add(uid)
+        total_seqs += len(group_uids)
+    if len(missing_partitions) > 0:
+        raise Exception('partition files missing for %d groups: %s' % (len(missing_partitions), missing_partitions))
+    expected = manifest['grouping-info']['total_grouped_sequences']
+    if total_seqs != expected:
+        raise Exception('sequence count mismatch after assembly: found %d uids in partition files, expected %d' % (total_seqs, expected))
+    print('    assembly validation passed: %d unique sequences across %d groups' % (total_seqs, len(manifest['groups'])))
 
 # ----------------------------------------------------------------------------------------
 def run_assemble_groups(args):
-    print('  running assemble-groups')  # placeholder
+    if args.disjoint_dir is None:
+        raise Exception('--disjoint-dir must be set for assemble-groups')
+
+    manifest_path = '%s/manifest.yaml' % args.disjoint_dir
+    print('  running assemble-groups from %s' % manifest_path)
+    manifest = read_manifest(manifest_path)
+    manifest_dir = os.path.dirname(os.path.abspath(manifest_path))
+
+    validate_assembly(manifest, manifest_dir)
+
+    # update manifest with validation results
+    manifest['assembly']['validation']['uids_unique'] = True
+    manifest['assembly']['validation']['sequence_count_preserved'] = True
+    manifest['assembly']['status'] = 'validated'
+    with open(manifest_path, 'w') as mfile:
+        yaml.dump(manifest, mfile, width=400, default_flow_style=False)
+    print('    updated manifest with validation results')
+
+    if args.merge_output:
+        print('    --merge-output not yet implemented')  # TODO implement merge via merge_paired_yamls()
