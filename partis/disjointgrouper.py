@@ -5,6 +5,7 @@ import sys
 import json
 import yaml
 import collections
+import shutil
 
 from . import utils
 from . import glutils
@@ -115,13 +116,13 @@ def validate_sequence_count(manifest):
 
 # ----------------------------------------------------------------------------------------
 def get_sw_cache_path(parameter_dir, locus):
-    locus_path = '%s/%s/sw-cache.yaml' % (parameter_dir, locus)
-    if os.path.exists(locus_path):
-        return locus_path
-    flat_path = '%s/sw-cache.yaml' % parameter_dir
-    if os.path.exists(flat_path):
-        return flat_path
-    raise Exception('sw cache not found at %s or %s' % (locus_path, flat_path))
+    import glob
+    # try per-locus subdir first (paired data), then flat (unpaired)
+    for search_dir in ['%s/%s' % (parameter_dir, locus), parameter_dir]:
+        fnames = glob.glob(search_dir + '/sw-cache*.yaml')
+        if len(fnames) > 0:
+            return fnames[0]
+    raise Exception('sw cache not found in %s/%s/ or %s/' % (parameter_dir, locus, parameter_dir))
 
 # ----------------------------------------------------------------------------------------
 def get_loci(args):
@@ -131,14 +132,82 @@ def get_loci(args):
         return [args.locus]
 
 # ----------------------------------------------------------------------------------------
+def find_partis_cmd():
+    # find the partis binary, same logic as find_cmd() in bin/partis
+    if shutil.which('partis'):
+        return 'partis'
+    partis_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    partis_path = '%s/bin/partis' % partis_dir
+    if os.path.exists(partis_path):
+        return partis_path
+    raise Exception('could not find partis binary in PATH or at %s' % partis_path)
+
+# ----------------------------------------------------------------------------------------
+def get_infname_for_locus(args, locus):
+    # get the input file path for a given locus
+    if args.paired_loci:
+        if args.paired_indir is not None:
+            # try both .yaml and .fa suffixes (same logic as getifn() in run_all_loci)
+            yfn, ffn = [paircluster.paired_fn(args.paired_indir, locus, suffix=sx) for sx in ['.yaml', '.fa']]
+            if os.path.exists(yfn) and os.path.exists(ffn):
+                raise Exception('both %s and %s exist, not sure which to use' % (yfn, ffn))
+            return yfn if os.path.exists(yfn) else ffn
+        elif args.infname is not None:
+            raise Exception('--paired-loci with --infname requires locus splitting (use --paired-indir with pre-split files, or run split-loci.py first)')
+        else:
+            raise Exception('--paired-indir or --infname must be set for auto-caching with --paired-loci')
+    else:
+        return args.infname
+
+# ----------------------------------------------------------------------------------------
+def get_parameter_dir_for_locus(args, locus):
+    # get the per-locus parameter dir (paired data uses subdirs per locus)
+    if args.paired_loci:
+        return '%s/%s' % (args.parameter_dir, locus)
+    else:
+        return args.parameter_dir
+
+# ----------------------------------------------------------------------------------------
+def auto_cache_parameters(args, loci):
+    # run cache-parameters --only-smith-waterman for each locus that does not have an sw cache
+    partis_cmd = find_partis_cmd()
+    for ltmp in loci:
+        try:
+            get_sw_cache_path(args.parameter_dir, ltmp)
+            print('    %s: sw cache already exists in %s' % (ltmp, args.parameter_dir))
+            continue
+        except Exception:
+            pass  # no sw cache found, need to run cache-parameters
+        infname = get_infname_for_locus(args, ltmp)
+        pdir = get_parameter_dir_for_locus(args, ltmp)
+        print('    %s: running cache-parameters --only-smith-waterman (input: %s, parameter-dir: %s)' % (ltmp, infname, pdir))
+        cmd = '%s cache-parameters --infname %s --parameter-dir %s --locus %s --only-smith-waterman' % (partis_cmd, infname, pdir, ltmp)
+        if hasattr(args, 'n_procs') and args.n_procs is not None:
+            cmd += ' --n-procs %d' % args.n_procs
+        if hasattr(args, 'is_simu') and args.is_simu:
+            cmd += ' --is-simu'
+        utils.simplerun(cmd)
+
+# ----------------------------------------------------------------------------------------
 def run_disjoint_group(args):
     if args.disjoint_dir is None:
         raise Exception('--disjoint-dir must be set for disjoint-group')
-    if args.parameter_dir is None:
-        raise Exception('--parameter-dir must be set for disjoint-group (auto-caching not yet implemented)')  # TODO auto-trigger sw annotation
+    has_input = args.infname is not None or (hasattr(args, 'paired_indir') and args.paired_indir is not None)
+    if not has_input and args.parameter_dir is None:
+        raise Exception('--infname (or --paired-indir with --paired-loci) or --parameter-dir must be set for disjoint-group')
 
     outdir = args.disjoint_dir
     loci = get_loci(args)
+
+    # set default parameter dir if not provided (same convention as run_partitiondriver in bin/partis)
+    if args.parameter_dir is None:
+        instr = args.paired_indir if args.paired_loci and hasattr(args, 'paired_indir') and args.paired_indir is not None else args.infname
+        args.parameter_dir = '_output/%s' % utils.getprefix(instr).replace('/', '_')
+        print('  note: --parameter-dir not set, so using default: %s' % args.parameter_dir)
+
+    # auto-trigger sw annotation if sw cache does not exist
+    auto_cache_parameters(args, loci)
+
     print('  running disjoint-group on %s with parameter dir %s' % (' '.join(loci), args.parameter_dir))
 
     all_group_infos = []
