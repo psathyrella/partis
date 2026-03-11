@@ -242,7 +242,7 @@ class Tester(object):
             })
             test_configs.append({
                 'name' : 'disjoint-group-new-data',
-                'infname' : 'test/example.fa',
+                'infname' : self.datafname,
                 'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'data'),
                 'is_simu' : False,
             })
