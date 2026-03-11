@@ -102,11 +102,15 @@ if [[ ! -x "$ZIG_EXE_FINAL" ]]; then
     exit 1
 fi
 
+ZIG_IGSW_EXE_FINAL="$ZIG_CORE_DIR/zig-out/bin/partis-zig-igsw"
+
 echo ""
 echo "✓ Build complete: $ZIG_EXE_FINAL"
+echo "✓ Build complete: $ZIG_IGSW_EXE_FINAL"
 echo ""
-echo "To use the Zig backend, add this to your shell or job script:"
+echo "To use the Zig backend, add these to your shell or job script:"
 echo "  export PARTIS_ZIG_CORE_EXE=$ZIG_EXE_FINAL"
+echo "  export PARTIS_ZIG_IGSW_EXE=$ZIG_IGSW_EXE_FINAL"
 echo ""
-echo "Then run partis as normal. The Zig binary will be used in place of bcrham."
-echo "Unset PARTIS_ZIG_CORE_EXE to revert to the C++ bcrham."
+echo "Then run partis as normal. Both Zig binaries replace their C counterparts."
+echo "Unset both env vars to revert to the C++ bcrham and C ig-sw."
