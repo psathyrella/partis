@@ -4,9 +4,9 @@
 # Usage:
 #   bin/install-zig-backend.sh [--install-dir DIR]
 #
-# After running, add to your shell or job script:
-#   export PARTIS_ZIG_CORE_EXE=<install-dir>/partis-zig-core/zig-out/bin/partis-zig-core
-#   export PARTIS_ZIG_IGSW_EXE=<install-dir>/partis-zig-core/zig-out/bin/partis-zig-igsw
+# After running, pass these flags to partis:
+#   --bcrham-binary <install-dir>/partis-zig-core/zig-out/bin/partis-zig-core
+#   --ig-sw-binary  <install-dir>/partis-zig-core/zig-out/bin/partis-zig-igsw
 #
 # The Zig backend requires no external libraries (GSL, OpenBLAS, etc.) and
 # produces bit-for-bit identical annotations to the C++ bcrham and C ig-sw binaries.
@@ -106,12 +106,12 @@ fi
 ZIG_IGSW_EXE_FINAL="$ZIG_CORE_DIR/zig-out/bin/partis-zig-igsw"
 
 echo ""
-echo "✓ Build complete: $ZIG_EXE_FINAL"
-echo "✓ Build complete: $ZIG_IGSW_EXE_FINAL"
+echo "Build complete:"
+echo "  $ZIG_EXE_FINAL"
+echo "  $ZIG_IGSW_EXE_FINAL"
 echo ""
-echo "To use the Zig backend, add these to your shell or job script:"
-echo "  export PARTIS_ZIG_CORE_EXE=$ZIG_EXE_FINAL"
-echo "  export PARTIS_ZIG_IGSW_EXE=$ZIG_IGSW_EXE_FINAL"
+echo "To use the Zig backend, pass these flags to partis:"
+echo "  --bcrham-binary $ZIG_EXE_FINAL"
+echo "  --ig-sw-binary $ZIG_IGSW_EXE_FINAL"
 echo ""
-echo "Then run partis as normal. Both Zig binaries replace their C counterparts."
-echo "Unset both env vars to revert to the C++ bcrham and C ig-sw."
+echo "Omit these flags to use the default C++ bcrham and C ig-sw binaries."
