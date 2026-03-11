@@ -275,16 +275,39 @@ def validate_assembly(manifest, manifest_dir):
 
 # ----------------------------------------------------------------------------------------
 def assemble_merged_output(manifest, manifest_dir, disjoint_dir):
-    # merge per-group partition yamls into single per-locus output using utils.merge_yamls()
-    # this reconciles germline info across groups and writes a single yaml per locus
-    headers = list(utils.annotation_headers)
+    # merge per-group partition yamls into single per-locus output
+    # cannot use utils.merge_yamls() because per-group partition files have different numbers
+    # of partition steps (from hierarchical agglomeration), and merge_yamls() asserts they match.
+    # instead, read each file, extract the best partition and annotations, reconcile germlines,
+    # and write a combined output.
+    from .clusterpath import ClusterPath
     assembled_dir = '%s/assembled' % disjoint_dir
     utils.mkdir(assembled_dir)
     paths_by_locus = get_partition_paths_by_locus(manifest, manifest_dir)
     for ltmp, yaml_list in paths_by_locus.items():
         outfname = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
         print('    merging %d partition files for %s -> %s' % (len(yaml_list), ltmp, outfname))
-        utils.merge_yamls(outfname, yaml_list, headers, dont_write_git_info=True, debug=True)
+        merged_annotation_list = []
+        merged_partition = []
+        merged_glfo = None
+        for infname in yaml_list:
+            glfo, annotation_list, cpath = utils.read_yaml_output(infname, dont_add_implicit_info=True)
+            print('        %d sequences in %d clusters from %s' % (sum(len(l['unique_ids']) for l in annotation_list), len(annotation_list), infname))
+            # reconcile germline info
+            if merged_glfo is None:
+                merged_glfo = glfo
+            elif glfo is not None:
+                merged_glfo, name_mapping = glutils.get_merged_glfo(glfo, merged_glfo)
+                utils.update_gene_names_in_annotation_list(merged_annotation_list, name_mapping)
+            merged_annotation_list += annotation_list
+            # take only the best partition from each group
+            if cpath is not None and cpath.i_best is not None:
+                merged_partition += cpath.partitions[cpath.i_best]
+        # build a single-entry cluster path with the combined best partitions
+        merged_cpath = ClusterPath()
+        merged_cpath.add_partition(merged_partition, logprob=0., n_procs=1)
+        utils.write_annotations(outfname, merged_glfo, merged_annotation_list, utils.annotation_headers,
+                                partition_lines=merged_cpath.get_partition_lines(), dont_write_git_info=True)
     manifest['assembly']['merged_output_path'] = 'assembled/'
 
 # ----------------------------------------------------------------------------------------

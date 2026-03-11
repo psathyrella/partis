@@ -10,6 +10,7 @@ import glob
 import math
 import shutil
 import time
+import collections
 from collections import OrderedDict
 from subprocess import Popen, PIPE, check_call, check_output, CalledProcessError
 import copy
@@ -211,9 +212,148 @@ class Tester(object):
         self.perf_info = {version_stype : {} for version_stype in self.stypes}
 
     # ----------------------------------------------------------------------------------------
+    def run_disjoint_group_tests(self, args):
+        # run the three-step disjoint grouping pipeline on test data
+        # tests both simulated (ground truth) and real (robustness) paired data
+        if args.dry_run or args.dont_run:
+            return
+        import partis.disjointgrouper as disjointgrouper
+
+        test_configs = []
+        if args.paired:
+            test_configs.append({
+                'name' : 'disjoint-group-new-simu',
+                'paired_indir' : self.inpath('new' if args.bust_cache else 'ref', 'simu'),
+                'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'simu'),
+                'is_simu' : True,
+            })
+            test_configs.append({
+                'name' : 'disjoint-group-new-data',
+                'paired_indir' : 'test/paired-data',
+                'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'data'),
+                'is_simu' : False,
+            })
+        else:
+            test_configs.append({
+                'name' : 'disjoint-group-new-simu',
+                'infname' : self.inpath('new' if args.bust_cache else 'ref', 'simu'),
+                'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'simu'),
+                'is_simu' : True,
+            })
+            test_configs.append({
+                'name' : 'disjoint-group-new-data',
+                'infname' : 'test/example.fa',
+                'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'data'),
+                'is_simu' : False,
+            })
+
+        for tcfg in test_configs:
+            disjoint_dir = '%s/%s' % (self.dirs('new'), tcfg['name'])
+            if os.path.exists(disjoint_dir):
+                shutil.rmtree(disjoint_dir)
+
+            # step 1: disjoint-group
+            cmd = '%s disjoint-group --dont-write-git-info --disjoint-dir %s' % (self.partis_path, disjoint_dir)
+            if args.paired:
+                cmd += ' --paired-loci --paired-indir %s' % tcfg['paired_indir']
+            else:
+                cmd += ' --infname %s --locus %s' % (tcfg['infname'], args.locus)
+            cmd += ' --parameter-dir %s' % tcfg['parameter_dir']
+            if tcfg['is_simu']:
+                cmd += ' --is-simu'
+            cmd += ' %s' % ' '.join(self.common_extras)
+            logstr = '%s   %s' % (utils.color('green', tcfg['name'] + ' (step 1: group)', width=40, padside='right'), cmd)
+            print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
+            logfile = open(self.logfname, 'a')
+            logfile.write(logstr + '\n')
+            logfile.close()
+            start = time.time()
+            try:
+                check_call(cmd + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
+            except CalledProcessError:
+                print('  log tail: %s' % self.logfname)
+                print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
+                sys.exit(1)
+
+            # step 2: partition each group
+            manifest = disjointgrouper.read_manifest('%s/manifest.yaml' % disjoint_dir)
+            for ginfo in manifest['groups']:
+                fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
+                partition_path = '%s/groups/cdr3-%d/partition-%s.yaml' % (disjoint_dir, ginfo['cdr3_length'], ginfo['locus'])
+                pdir = '%s/%s' % (tcfg['parameter_dir'], ginfo['locus']) if args.paired else tcfg['parameter_dir']
+                cmd = '%s partition --dont-write-git-info --infname %s --outfname %s --parameter-dir %s --locus %s' % (self.partis_path, fasta_path, partition_path, pdir, ginfo['locus'])
+                # do not pass --is-simu for per-group FASTAs (no simulation germline info embedded, same as bin/partis line 807)
+                cmd += ' %s' % ' '.join(self.common_extras)
+                logstr = '%s   %s' % (utils.color('green', '  group %d (cdr3 %d, %s)' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']), width=40, padside='right'), cmd)
+                print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
+                logfile = open(self.logfname, 'a')
+                logfile.write(logstr + '\n')
+                logfile.close()
+                try:
+                    check_call(cmd + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
+                except CalledProcessError:
+                    print('  log tail: %s' % self.logfname)
+                    print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
+                    sys.exit(1)
+                # update manifest with partition path
+                ginfo['partition_path'] = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+
+            # write updated manifest with partition paths
+            with open('%s/manifest.yaml' % disjoint_dir, 'w') as mfile:
+                yaml.dump(manifest, mfile, width=400, default_flow_style=False)
+
+            # step 3: assemble-groups
+            cmd = '%s assemble-groups --dont-write-git-info --disjoint-dir %s' % (self.partis_path, disjoint_dir)
+            cmd += ' %s' % ' '.join(self.common_extras)
+            logstr = '%s   %s' % (utils.color('green', tcfg['name'] + ' (step 3: assemble)', width=40, padside='right'), cmd)
+            print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
+            logfile = open(self.logfname, 'a')
+            logfile.write(logstr + '\n')
+            logfile.close()
+            try:
+                check_call(cmd + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
+            except CalledProcessError:
+                print('  log tail: %s' % self.logfname)
+                print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
+                sys.exit(1)
+
+            # step 4 (simu only): validate disjointness against ground truth
+            if tcfg['is_simu']:
+                print('    validating disjointness against ground truth...')
+                loci = utils.sub_loci('ig') if args.paired else [args.locus]
+                simu_dir = tcfg.get('paired_indir', None)
+                simu_fname = tcfg.get('infname', None)
+                n_split = 0
+                for ltmp in loci:
+                    if simu_dir is not None:
+                        sfname = '%s/%s.yaml' % (simu_dir, ltmp)
+                    else:
+                        sfname = simu_fname
+                    sglfo, salist, _ = utils.read_yaml_output(sfname, dont_add_implicit_info=True)
+                    family_cdr3s = collections.defaultdict(set)
+                    for line in salist:
+                        family_cdr3s[line['reco_id']].add(line['cdr3_length'])
+                    split_families = {r: c for r, c in family_cdr3s.items() if len(c) > 1}
+                    n_split += len(split_families)
+                    if len(split_families) > 0:
+                        print('      %s %s: %d families split across CDR3 length groups:' % (utils.color('red', 'error'), ltmp, len(split_families)))
+                        for rid, c3s in split_families.items():
+                            print('        %s: cdr3 lengths %s' % (rid, sorted(c3s)))
+                    else:
+                        print('      %s: %d families, all have uniform CDR3 length' % (ltmp, len(family_cdr3s)))
+                if n_split > 0:
+                    raise Exception('disjointness validation failed: %d families split across CDR3 length groups' % n_split)
+
+            elapsed = time.time() - start
+            self.run_times[tcfg['name']] = elapsed
+            print('  %s' % utils.color('green', 'ok (%.1fs)' % elapsed))
+
+    # ----------------------------------------------------------------------------------------
     def test(self, args):
         if not args.dont_run:
             self.run(args)
+            if not args.quick:
+                self.run_disjoint_group_tests(args)
         if args.dry_run or args.bust_cache or args.quick:
             return
         self.compare_production_results(['cache-parameters-simu'])
