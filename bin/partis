@@ -1494,6 +1494,7 @@ parent_args.append({'name' : '--count-correlations', 'kwargs' : {'action' : 'sto
 parent_args.append({'name' : '--dont-write-parameters', 'kwargs' : {'action' : 'store_true', 'help' : 'don\'t write parameters to disk even if you\'ve counted them (mostly for use in conjunction with --only-smith-waterman, so you can avoid cluttering up your file system)'}})
 parent_args.append({'name' : '--partis-dir', 'kwargs' : {'default' : partis_dir, 'help' : 'for internal use only'}})
 parent_args.append({'name' : '--ig-sw-binary', 'kwargs' : {'default' : partis_dir + '/packages/ig-sw/src/ig_align/ig-sw', 'help' : 'Path to ig-sw executable.'}})
+parent_args.append({'name' : '--bcrham-binary', 'kwargs' : {'default' : partis_dir + '/packages/ham/bcrham', 'help' : 'Path to bcrham executable.'}})
 parent_args.append({'name' : '--vsearch-binary', 'kwargs' : { 'help' : 'Path to vsearch binary (vsearch binaries for linux and darwin are pre-installed in bin/, but for other systems you need to get your own)'}})
 parent_args.append({'name' : '--is-simu', 'kwargs' : {'action' : 'store_true', 'help' : 'Set if running on simulated sequences'}})
 parent_args.append({'name' : '--skip-unproductive', 'kwargs' : {'action' : 'store_true', 'help' : 'Skip sequences which Smith-Waterman determines to be unproductive (i.e. if they have stop codons, out of frame cdr3, or mutated cyst/tryp/phen)'}})

@@ -1267,7 +1267,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
-        cmd_str = os.environ.get('PARTIS_ZIG_CORE_EXE', self.args.partis_dir + '/packages/ham/bcrham')  # allow Zig drop-in via env var
+        cmd_str = self.args.bcrham_binary
         cmd_str += ' --algorithm ' + algorithm
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
@@ -1337,7 +1337,7 @@ class PartitionDriver(object):
     def print_partition_dbgfo(self):
         if self.bcrham_proc_info is None:
             return
-        if os.environ.get('PARTIS_ZIG_CORE_EXE'):  # Zig binary doesn't emit bcrham timing/debug strings
+        if self.args.bcrham_binary != self.args.partis_dir + '/packages/ham/bcrham':  # non-default binary (e.g. Zig) doesn't emit bcrham timing/debug strings
             return
         actionstr = self.current_action if self.current_action != 'cache-parameters' else 'annotate'
         summaryfo = utils.summarize_bcrham_dbgstrs(self.bcrham_proc_info, action=actionstr)
@@ -1364,7 +1364,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
-        if os.environ.get('PARTIS_ZIG_CORE_EXE'):  # Zig binary doesn't emit bcrham timing strings
+        if self.args.bcrham_binary != self.args.partis_dir + '/packages/ham/bcrham':  # non-default binary (e.g. Zig) doesn't emit bcrham timing strings
             return
         max_bcrham_time = max([procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info])
         if max_bcrham_time > 0. and wait_time / float(max_bcrham_time) > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
