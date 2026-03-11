@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Install the partis-zig-core Zig backend (drop-in replacement for bcrham).
+# Install the partis-zig-core Zig backend (drop-in replacements for bcrham and ig-sw).
 #
 # Usage:
 #   bin/install-zig-backend.sh [--install-dir DIR]
 #
 # After running, add to your shell or job script:
 #   export PARTIS_ZIG_CORE_EXE=<install-dir>/partis-zig-core/zig-out/bin/partis-zig-core
+#   export PARTIS_ZIG_IGSW_EXE=<install-dir>/partis-zig-core/zig-out/bin/partis-zig-igsw
 #
 # The Zig backend requires no external libraries (GSL, OpenBLAS, etc.) and
-# produces bit-for-bit identical annotations to the C++ bcrham binary.
+# produces bit-for-bit identical annotations to the C++ bcrham and C ig-sw binaries.
 set -euo pipefail
 
 ZIG_VERSION="0.15.2"
