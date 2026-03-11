@@ -190,7 +190,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle if args.xtitle is None else args.xtitle, ytitle=ytitle if args.ytitle is None else args.ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, linestyles=args.linestyles, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
-                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins)
+                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins, print_stats=True)
 
     if args.swarm_meta_key is not None:
         plotvals = {h.title : [h.get_bin_centers()[i] for i in h.ibiniter(True) for _ in range(int(h.bin_contents[i]))] for h in hlist}
