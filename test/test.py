@@ -424,6 +424,10 @@ class Tester(object):
                 if tkey in info:
                     cmd_str += ' --%s %s' % (tkey if tkey != 'inpath' else self.astr('in', dt=idt), info[tkey])
             cmd_str += ' %s' % ' '.join(info['extras'] + self.common_extras)
+            if args.bcrham_binary is not None:
+                cmd_str += ' --bcrham-binary %s' % args.bcrham_binary
+            if args.ig_sw_binary is not None:
+                cmd_str += ' --ig-sw-binary %s' % args.ig_sw_binary
 
             if name == 'simulate':
                 cmd_str += ' --%s %s' % (self.astr('out'), self.inpath('new', 'simu'))
@@ -941,6 +945,8 @@ parser.add_argument('--print-width', type=int, default=300, help='set to 0 for i
 
 parser.add_argument('--glfo-dir', default='data/germlines/human')
 parser.add_argument('--locus', default='igh')
+parser.add_argument('--bcrham-binary', default=None, help='override default bcrham binary path (e.g. Zig drop-in replacement)')
+parser.add_argument('--ig-sw-binary', default=None, help='override default ig-sw binary path (e.g. Zig drop-in replacement)')
 args = parser.parse_args()
 assert not (args.quick and args.slow)  # it just doesn't make sense
 assert not (args.quick and args.paired)  # --quick ignores --paired, which is confusing
