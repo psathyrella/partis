@@ -813,8 +813,8 @@ class PartitionDriver(object):
 
         total = 0.  # sum over each process
         for procinfo in self.bcrham_proc_info:
-            if 'vtb' not in procinfo['calcd'] or 'fwd' not in procinfo['calcd']:
-                print('%s couldn\'t find vtb/fwd in:\n%s' % (utils.color('red', 'warning'), procinfo['calcd']))  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
+            if procinfo['calcd'].get('vtb') is None or procinfo['calcd'].get('fwd') is None:
+                print('%s couldn\'t find vtb/fwd in:\n%s' % (utils.color('red', 'warning'), procinfo['calcd']))  # may as well not fail, it probably just means we lost some stdout somewhere (or are using the Zig backend which doesn't emit calcd debug strings). Which, ok, is bad, but let's say it shouldn't be fatal.
                 return 1.  # er, or something?
             if self.args.naive_hamming_cluster:  # make sure we didn't accidentally calculate some fwds
                 assert procinfo['calcd']['fwd'] == 0.
