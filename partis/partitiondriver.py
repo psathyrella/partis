@@ -1267,7 +1267,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
-        cmd_str = os.environ.get('PARTIS_ZIG_CORE_EXE', self.args.partis_dir + '/packages/ham/bcrham')
+        cmd_str = os.environ.get('PARTIS_ZIG_CORE_EXE', self.args.partis_dir + '/packages/ham/bcrham')  # allow Zig drop-in via env var
         cmd_str += ' --algorithm ' + algorithm
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
