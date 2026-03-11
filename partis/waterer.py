@@ -91,7 +91,7 @@ class Waterer(object):
         else:  # default, normal operation
             glutils.write_glfo(self.my_gldir, self.glfo)  # NOTE gets overwritten by read_cachefile()
 
-        if not os.path.exists(self.args.ig_sw_binary):
+        if not os.environ.get('PARTIS_ZIG_IGSW_EXE') and not os.path.exists(self.args.ig_sw_binary):
             raise Exception('ig-sw binary d.n.e: %s' % self.args.ig_sw_binary)
 
     # ----------------------------------------------------------------------------------------
@@ -444,7 +444,7 @@ class Waterer(object):
     def get_ig_sw_cmd_str(self, workdir, base_infname, base_outfname, mismatch, gap_open):
         # large gap-opening penalty: we want *no* gaps in the middle of the alignments
         # match score larger than (negative) mismatch score: we want to *encourage* some level of shm. If they're equal, we tend to end up with short unmutated alignments, which screws everything up
-        cmd_str = self.args.ig_sw_binary
+        cmd_str = os.environ.get('PARTIS_ZIG_IGSW_EXE', self.args.ig_sw_binary)  # use Zig ig-sw if PARTIS_ZIG_IGSW_EXE is set
         cmd_str += ' -l ' + self.args.locus.upper()
         cmd_str += ' -d 50'  # max drop
         cmd_str += ' -m ' + str(self.match_score) + ' -u ' + str(mismatch)
