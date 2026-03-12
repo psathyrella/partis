@@ -5924,7 +5924,8 @@ def summarize_bcrham_dbgstrs(dbgfos, action):
 
     for dbgcat in bcrham_dbgstr_types[action]['min-max']:
         for vtype in bcrham_dbgstrs[action][dbgcat]:
-            summaryfo[dbgcat][vtype] = min(summaryfo[dbgcat][vtype]), max(summaryfo[dbgcat][vtype])
+            non_none = [v for v in summaryfo[dbgcat][vtype] if v is not None]  # guard against None (e.g. Zig backend or parsing failure)
+            summaryfo[dbgcat][vtype] = (min(non_none), max(non_none)) if len(non_none) > 0 else (None, None)
 
     if cache_read_inconsistency:
         raise Exception('inconsistent cache reading information across processes (see above), probably due to file system issues')
