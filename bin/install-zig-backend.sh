@@ -9,7 +9,7 @@
 #   --ig-sw-binary  <install-dir>/partis-zig-core/zig-out/bin/partis-zig-igsw
 #
 # The Zig backend requires no external libraries (GSL, OpenBLAS, etc.) and
-# produces bit-for-bit identical annotations to the C++ bcrham and C ig-sw binaries.
+# produces functionally identical annotations to the C++ bcrham and C ig-sw binaries
 set -euo pipefail
 
 ZIG_VERSION="0.15.2"
