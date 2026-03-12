@@ -1353,9 +1353,7 @@ class PartitionDriver(object):
         if 'merged' in utils.bcrham_dbgstrs[actionstr]:
             dbgstr.append(('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio']))
 
-        if summaryfo['time']['bcrham'][0] is None:  # can happen if bcrham timing line wasn't parsed (e.g. parsing failure)
-            dbgstr.append('                     time:  n/a')
-        elif len(self.bcrham_proc_info) == 1:
+        if len(self.bcrham_proc_info) == 1:
             dbgstr.append('                     time:  %.1f sec' % summaryfo['time']['bcrham'][0])
         else:
             dbgstr.append('             min-max time:  %.1f - %.1f sec' % (summaryfo['time']['bcrham'][0], summaryfo['time']['bcrham'][1]))
@@ -1364,10 +1362,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
-        times = [procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info]
-        if any(t is None for t in times):  # can happen if bcrham stdout didn't include the expected timing line (e.g. early failure or parsing problem)
-            return
-        max_bcrham_time = max(times)
+        max_bcrham_time = max([procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info])
         if max_bcrham_time > 0. and wait_time / float(max_bcrham_time) > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
             print('    spent much longer waiting for bcrham (%.1fs) than bcrham reported taking (max per-proc time %.1fs)' % (wait_time, max_bcrham_time))
 
