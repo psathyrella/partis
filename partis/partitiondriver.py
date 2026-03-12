@@ -814,7 +814,7 @@ class PartitionDriver(object):
         total = 0.  # sum over each process
         for procinfo in self.bcrham_proc_info:
             if procinfo['calcd'].get('vtb') is None or procinfo['calcd'].get('fwd') is None:
-                print('%s couldn\'t find vtb/fwd in:\n%s' % (utils.color('red', 'warning'), procinfo['calcd']))  # may as well not fail, it probably just means we lost some stdout somewhere (or are using the Zig backend which doesn't emit calcd debug strings). Which, ok, is bad, but let's say it shouldn't be fatal.
+                print('%s couldn\'t find vtb/fwd in:\n%s' % (utils.color('red', 'warning'), procinfo['calcd']))  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
                 return 1.  # er, or something?
             if self.args.naive_hamming_cluster:  # make sure we didn't accidentally calculate some fwds
                 assert procinfo['calcd']['fwd'] == 0.
@@ -1353,7 +1353,7 @@ class PartitionDriver(object):
         if 'merged' in utils.bcrham_dbgstrs[actionstr]:
             dbgstr.append(('                   merged:       hfrac %' + pwidth + 'd     lratio %' + pwidth + 'd') % (summaryfo['merged']['hfrac'], summaryfo['merged']['lratio']))
 
-        if summaryfo['time']['bcrham'][0] is None:  # can happen if bcrham timing line wasn't parsed (e.g. Zig backend or parsing failure)
+        if summaryfo['time']['bcrham'][0] is None:  # can happen if bcrham timing line wasn't parsed (e.g. parsing failure)
             dbgstr.append('                     time:  n/a')
         elif len(self.bcrham_proc_info) == 1:
             dbgstr.append('                     time:  %.1f sec' % summaryfo['time']['bcrham'][0])
@@ -1365,7 +1365,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def check_wait_times(self, wait_time):
         times = [procinfo['time']['bcrham'] for procinfo in self.bcrham_proc_info]
-        if any(t is None for t in times):  # can happen if bcrham stdout didn't include the expected timing line (e.g. early failure or Zig backend variance)
+        if any(t is None for t in times):  # can happen if bcrham stdout didn't include the expected timing line (e.g. early failure or parsing problem)
             return
         max_bcrham_time = max(times)
         if max_bcrham_time > 0. and wait_time / float(max_bcrham_time) > 1.5 and wait_time > 30.:  # if we were waiting for a lot longer than the slowest process took, and if it took long enough for us to care
