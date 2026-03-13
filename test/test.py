@@ -596,7 +596,7 @@ class Tester(object):
                         ofn = sfns[0]
                     l_ccfs.append(read_cpath(ofn))
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = [numpy.mean(lcfs) for lcfs in zip(*l_ccfs)]
-                if 'seed-' not in ptest and 'disjoint-' not in ptest:  # disjoint-partition doesn't do pair cleaning (groups are partitioned independently, pairing happens downstream)
+                if 'seed-' not in ptest:  # seed-partition doesn't do pair cleaning
                     htmp = Hist(fname='%s/true-pair-clean-performance.csv' % self.opath(ptest, st=version_stype))
                     ttot = htmp.integral(False)
                     for pcat in self.pair_clean_metrics:
@@ -723,7 +723,7 @@ class Tester(object):
             alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
             print(('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)), end=' ')
             for ptest in partition_ptests:
-                if ('seed-' in ptest or 'disjoint-' in ptest) and metric in self.pair_clean_metrics:  # disjoint-partition doesn't do pair cleaning
+                if 'seed-' in ptest and metric in self.pair_clean_metrics:  # seed-partition doesn't do pair cleaning
                     continue
                 if set(refpfo[ptest]) != set(newpfo[ptest]):
                     raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))

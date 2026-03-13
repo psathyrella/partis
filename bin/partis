@@ -357,6 +357,8 @@ def disjoint_subset_partition(args):
         pdir = '%s/%s' % (args.parameter_dir, ginfo['locus']) if args.paired_loci else args.parameter_dir
         cmd = '%s partition --infname %s --outfname %s --parameter-dir %s --locus %s --dont-write-git-info' % (find_cmd(sys.argv[0]), fasta_path, partition_path, pdir, ginfo['locus'])
         cmd += ' --n-procs %d' % args.n_procs
+        if args.input_metafnames is not None:
+            cmd += ' --input-metafnames %s' % ':'.join(args.input_metafnames)
         extra_str = '    %s ' % utils.color('blue', 'group %d (cdr3 %d, %s):' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
         utils.simplerun(cmd, logfname='%s/groups/cdr3-%d/partition.log' % (disjoint_dir, ginfo['cdr3_length']), dryrun=args.dry_run, extra_str=extra_str)
         ginfo['partition_path'] = partition_rel_path
@@ -393,15 +395,23 @@ def disjoint_subset_partition(args):
             ccfs = m_cpath.ccfs[m_cpath.i_best]
             print('    %s: purity %.3f  completeness %.3f' % (ltmp, ccfs[0], ccfs[1]))
 
-    # link assembled outputs to the paired-outdir so callers find them at the standard path
+    # link assembled outputs to single-chain dir so combine_inf_chains() can find them for pair cleaning
+    sc_dir = '%s/single-chain' % args.paired_outdir
+    utils.mkdir(sc_dir)
     for ltmp in loci:
-        src = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
-        dst = paircluster.paired_fn(args.paired_outdir, ltmp, actstr='partition', suffix='.yaml')
+        src = os.path.realpath('%s/partition-%s.yaml' % (assembled_dir, ltmp))
+        dst = '%s/partition-%s.yaml' % (sc_dir, ltmp)
         if os.path.exists(src):
-            utils.makelink(args.paired_outdir, src, dst, dryrun=args.dry_run)
+            utils.makelink(sc_dir, src, dst, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def subset_partition(args):
+    if args.input_metafnames is None:
+        if args.paired_indir is None:
+            args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
+        else:
+            args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
+        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
     if getattr(args, 'disjoint_group', False):
         disjoint_subset_partition(args)
         return
@@ -475,12 +485,6 @@ def subset_partition(args):
         #     for ltmp in utils.sub_loci(args.ig_or_tr):
         #         utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
     # ----------------------------------------------------------------------------------------
-    if args.input_metafnames is None:
-        if args.paired_indir is None:
-            args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
-        else:
-            args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
-        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
     infname = args.infname
     if infname is None and os.path.exists('%s/all-seqs.fa'%args.paired_indir):  # simulation has a single file
         infname = '%s/all-seqs.fa'%args.paired_indir
@@ -1427,6 +1431,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         prep_inputs()
     if is_subset_action(args.action):
         subset_partition(args)
+        if getattr(args, 'disjoint_group', False) and not args.dry_run:
+            combine_inf_chains()
         return
     args.tree_inference_outdir = getodir()
     if args.tree_inference_subdir is not None:
