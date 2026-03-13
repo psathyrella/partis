@@ -326,7 +326,61 @@ def is_subset_action(action):
     return action in ['subset-partition', 'subset-annotate']
 
 # ----------------------------------------------------------------------------------------
+def disjoint_subset_partition(args):
+    # disjoint grouping flavor of subset-partition: group by CDR3 length, partition each group, merge
+    import partis.disjointgrouper as disjointgrouper
+    disjoint_dir = '%s/disjoint-groups' % args.paired_outdir
+    args.disjoint_dir = disjoint_dir
+    args.no_merge_output = False
+
+    # step 1: sw annotation + CDR3 grouping
+    manifest_path = '%s/manifest.yaml' % disjoint_dir
+    if os.path.exists(manifest_path):
+        print('  disjoint group manifest exists, skipping step 1: %s' % manifest_path)
+    else:
+        print('  step 1: grouping sequences by CDR3 length')
+        disjointgrouper.run_disjoint_group(args)
+
+    # step 2: partition each group
+    print('  step 2: partitioning each CDR3 group')
+    manifest = disjointgrouper.read_manifest(manifest_path)
+    loci = manifest['grouping-info']['loci']
+    for ginfo in manifest['groups']:
+        partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+        partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
+        if os.path.exists(partition_path):
+            print('    group %d (cdr3 %d, %s): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
+            ginfo['partition_path'] = partition_rel_path
+            continue
+        fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
+        pdir = '%s/%s' % (args.parameter_dir, ginfo['locus']) if args.paired_loci else args.parameter_dir
+        cmd = '%s partition --infname %s --outfname %s --parameter-dir %s --locus %s --dont-write-git-info' % (find_cmd(sys.argv[0]), fasta_path, partition_path, pdir, ginfo['locus'])
+        cmd += ' --n-procs %d' % args.n_procs
+        extra_str = '    %s ' % utils.color('blue', 'group %d (cdr3 %d, %s):' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
+        utils.simplerun(cmd, logfname='%s/groups/cdr3-%d/partition.log' % (disjoint_dir, ginfo['cdr3_length']), dryrun=args.dry_run, extra_str=extra_str)
+        ginfo['partition_path'] = partition_rel_path
+
+    # write updated manifest with partition paths
+    with open(manifest_path, 'w') as mfile:
+        yaml.dump(manifest, mfile, width=400, default_flow_style=False)
+
+    # step 3: merge per-group outputs
+    print('  step 3: assembling merged output')
+    disjointgrouper.run_assemble_groups(args)
+
+    # link assembled outputs to the paired-outdir so callers find them at the standard path
+    assembled_dir = '%s/assembled' % disjoint_dir
+    for ltmp in loci:
+        src = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
+        dst = paircluster.paired_fn(args.paired_outdir, ltmp, actstr='partition', suffix='.yaml')
+        if os.path.exists(src):
+            utils.makelink(args.paired_outdir, src, dst, dryrun=args.dry_run)
+
+# ----------------------------------------------------------------------------------------
 def subset_partition(args):
+    if getattr(args, 'disjoint_group', False):
+        disjoint_subset_partition(args)
+        return
     # ----------------------------------------------------------------------------------------
     def subdir(igroup):
         return '%s/isub-%d' % (args.paired_outdir, igroup)
@@ -1725,6 +1779,7 @@ subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwa
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
+subargs['subset-partition'].append({'name' : '--disjoint-group', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length rather than random splitting, then partition each group independently and merge.'}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
