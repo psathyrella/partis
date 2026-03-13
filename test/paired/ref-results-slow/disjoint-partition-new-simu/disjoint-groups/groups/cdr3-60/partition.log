@@ -1,0 +1,25 @@
+/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-60/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-60/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10
+partitioning     (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
+smith-waterman
+  vsearch: 74 / 74 v annotations (0 failed) with 4 v genes in 0.1 sec
+    couldn't find sw cache file test/paired/new-results-slow/test/parameters/simu/igh/sw-cache-0dcfc6d52a.yaml, so running sw
+    running 10 procs for 74 seqs
+    running 11 procs for 3 seqs
+      info for 74 / 74 = 1.000   (removed: 0 failed)
+      kept 37 (0.500) unproductive
+    water time: 0.2  (ig-sw 0.0  processing 0.1)
+hmm
+  caching all 74 naive sequences (0.4s)
+    collapsed 74 queries into 47 clusters with identical naive seqs (0.0 sec)
+  47 clusters with 10 procs (0.4s)
+   41 clusters with 7 procs (0.4s)
+   37 clusters with 5 procs (0.5s)
+   30 clusters with 3 procs (0.5s)
+   27 clusters with 2 procs (0.7s)
+   27 clusters with 1 proc (1.9s)
+   [93mnote[0m not merging entire cpath history
+      partition loop time: 4.5
+getting annotations for final partition
+  subcluster annotating 20 clusters with steps:  (0.4s) (0.3s) (0.1s) 
+    subcluster annotation time 0.7
+      total time: 5.9
