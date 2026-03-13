@@ -18,6 +18,7 @@ from io import open
 import colored_traceback.always
 import os
 import json
+import yaml
 import csv
 import operator
 import glob
@@ -368,8 +369,31 @@ def disjoint_subset_partition(args):
     print('  step 3: assembling merged output')
     disjointgrouper.run_assemble_groups(args)
 
-    # link assembled outputs to the paired-outdir so callers find them at the standard path
+    # if --is-simu, calculate CCFs (purity/completeness) on merged output by comparing to true partition from simulation input
     assembled_dir = '%s/assembled' % disjoint_dir
+    if args.is_simu:
+        print('  calculating partition performance metrics on merged output')
+        for ltmp in loci:
+            merged_ofn = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
+            if not os.path.exists(merged_ofn):
+                continue
+            # read simulation input to get true partition
+            if args.paired_loci:
+                sim_fn = paircluster.paired_fn(args.paired_indir, ltmp, suffix='.yaml')
+            else:
+                sim_fn = args.infname
+            sim_glfo, sim_alist, _ = utils.read_yaml_output(sim_fn, dont_add_implicit_info=True)
+            reco_info = {uid : line for line in sim_alist for uid in line['unique_ids']}
+            true_partition = utils.get_partition_from_reco_info(reco_info)
+            # read merged output and calculate ccfs
+            m_glfo, m_alist, m_cpath = utils.read_yaml_output(merged_ofn, dont_add_implicit_info=True)
+            m_cpath.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=m_cpath.i_best, fail_frac=args.max_ccf_fail_frac)
+            headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
+            utils.write_annotations(merged_ofn, m_glfo, m_alist, headers, partition_lines=m_cpath.get_partition_lines(reco_info=reco_info, true_partition=true_partition, calc_missing_values='best', fail_frac=args.max_ccf_fail_frac), dont_write_git_info=args.dont_write_git_info)
+            ccfs = m_cpath.ccfs[m_cpath.i_best]
+            print('    %s: purity %.3f  completeness %.3f' % (ltmp, ccfs[0], ccfs[1]))
+
+    # link assembled outputs to the paired-outdir so callers find them at the standard path
     for ltmp in loci:
         src = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
         dst = paircluster.paired_fn(args.paired_outdir, ltmp, actstr='partition', suffix='.yaml')

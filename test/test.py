@@ -596,7 +596,7 @@ class Tester(object):
                         ofn = sfns[0]
                     l_ccfs.append(read_cpath(ofn))
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = [numpy.mean(lcfs) for lcfs in zip(*l_ccfs)]
-                if 'seed-' not in ptest:
+                if 'seed-' not in ptest and 'disjoint-' not in ptest:  # disjoint-partition doesn't do pair cleaning (groups are partitioned independently, pairing happens downstream)
                     htmp = Hist(fname='%s/true-pair-clean-performance.csv' % self.opath(ptest, st=version_stype))
                     ttot = htmp.integral(False)
                     for pcat in self.pair_clean_metrics:
@@ -723,7 +723,7 @@ class Tester(object):
             alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
             print(('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)), end=' ')
             for ptest in partition_ptests:
-                if 'seed-' in ptest and metric in self.pair_clean_metrics:  # ick
+                if ('seed-' in ptest or 'disjoint-' in ptest) and metric in self.pair_clean_metrics:  # disjoint-partition doesn't do pair cleaning
                     continue
                 if set(refpfo[ptest]) != set(newpfo[ptest]):
                     raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))
@@ -816,6 +816,9 @@ class Tester(object):
 
         for name in self.tests:
             if args.quick and name not in self.quick_tests:
+                continue
+            if name not in times['ref']:
+                print('  %30s   no ref time (new test, run --bust-cache to generate)' % name)
                 continue
             print('  %30s   %7.1f' % (name, times['ref'][name]), end=' ')
             if name not in times['new']:
