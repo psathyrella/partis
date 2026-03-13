@@ -1,0 +1,848 @@
+/// ham/dp_handler.zig — Zig port of ham/src/dphandler.cc + ham/include/dphandler.h
+///
+/// Dynamic programming handler: runs Forward + Viterbi over a kset grid.
+/// Core bcrham algorithm.
+///
+/// C++ source: packages/ham/src/dphandler.cc, packages/ham/include/dphandler.h
+/// C++ author: psathyrella/ham
+
+const std = @import("std");
+const Trellis = @import("trellis.zig").Trellis;
+const TracebackPath = @import("traceback_path.zig").TracebackPath;
+const Model = @import("model.zig").Model;
+const Sequences = @import("sequences.zig").Sequences;
+const Sequence = @import("sequences.zig").Sequence;
+const mathutils = @import("mathutils.zig");
+const Args = @import("args.zig").Args;
+const bcr = @import("bcr_utils/root.zig");
+const GermLines = bcr.GermLines;
+const HMMHolder = bcr.HMMHolder;
+const KSet = bcr.KSet;
+const KBounds = bcr.KBounds;
+const RecoEvent = bcr.RecoEvent;
+const Result = bcr.Result;
+const Insertions = bcr.Insertions;
+
+/// Key for the per-gene score/path caches.
+const GeneKSetKey = struct {
+    gene: []const u8,
+    kset: KSet,
+};
+
+/// Cached trellis entry: query strings → Trellis
+const TrellisEntry = struct {
+    query_strs: std.ArrayListUnmanaged([]u8),
+    trellis: Trellis,
+};
+
+/// Corresponds to C++ `ham::DPHandler`.
+pub const DPHandler = struct {
+    algorithm: []const u8,
+    args: *Args,
+    gl: *GermLines,
+    hmms: *HMMHolder,
+    allocator: std.mem.Allocator,
+
+    /// scratch_cachefo_: gene → list of (query-string-vec, Trellis) entries
+    scratch_cachefo: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(TrellisEntry)),
+    /// paths_: gene → (KSet → TracebackPath)
+    paths: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, TracebackPath)),
+    /// scores_: gene → (KSet → f64)
+    scores: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, f64)),
+    /// per_gene_support_: gene → best full-annotation log-prob
+    per_gene_support: std.StringHashMapUnmanaged(f64),
+
+    pub fn init(
+        allocator: std.mem.Allocator,
+        algorithm: []const u8,
+        args: *Args,
+        gl: *GermLines,
+        hmms: *HMMHolder,
+    ) !DPHandler {
+        return DPHandler{
+            .algorithm = algorithm,
+            .args = args,
+            .gl = gl,
+            .hmms = hmms,
+            .allocator = allocator,
+            .scratch_cachefo = .{},
+            .paths = .{},
+            .scores = .{},
+            .per_gene_support = .{},
+        };
+    }
+
+    pub fn deinit(self: *DPHandler) void {
+        self.clear();
+    }
+
+    /// Clear all cached trellis data.
+    /// Corresponds to C++ `DPHandler::Clear`.
+    pub fn clear(self: *DPHandler) void {
+        const allocator = self.allocator;
+
+        // Free scratch_cachefo
+        var cit = self.scratch_cachefo.iterator();
+        while (cit.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            for (entry.value_ptr.items) |*te| {
+                for (te.query_strs.items) |s| allocator.free(s);
+                te.query_strs.deinit(allocator);
+                te.trellis.deinit();
+            }
+            entry.value_ptr.deinit(allocator);
+        }
+        self.scratch_cachefo.deinit(allocator);
+        self.scratch_cachefo = .{};
+
+        // Free paths
+        var pit = self.paths.iterator();
+        while (pit.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            var inner_it = entry.value_ptr.iterator();
+            while (inner_it.next()) |kv| kv.value_ptr.deinit(allocator);
+            entry.value_ptr.deinit(allocator);
+        }
+        self.paths.deinit(allocator);
+        self.paths = .{};
+
+        // Free scores
+        var sit = self.scores.iterator();
+        while (sit.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            entry.value_ptr.deinit(allocator);
+        }
+        self.scores.deinit(allocator);
+        self.scores = .{};
+
+        // Free per_gene_support
+        var pgit = self.per_gene_support.iterator();
+        while (pgit.next()) |entry| allocator.free(entry.key_ptr.*);
+        self.per_gene_support.deinit(allocator);
+        self.per_gene_support = .{};
+    }
+
+    /// Run the DP for a single Sequence.
+    /// Corresponds to C++ `DPHandler::Run(Sequence, ...)`.
+    pub fn runSeq(
+        self: *DPHandler,
+        seq: Sequence,
+        kbounds: KBounds,
+        only_gene_list: []const []const u8,
+        overall_mute_freq: f64,
+        clear_cache: bool,
+    ) !Result {
+        // Clone into a Sequences container (single sequence)
+        var seqvec: std.ArrayListUnmanaged(Sequence) = .{};
+        defer seqvec.deinit(self.allocator);
+        try seqvec.append(self.allocator, try seq.clone(self.allocator));
+        return self.run(seqvec.items, kbounds, only_gene_list, overall_mute_freq, clear_cache);
+    }
+
+    /// Run the DP over a vector of sequences.
+    /// Corresponds to C++ `DPHandler::Run(vector<Sequence>, ...)`.
+    pub fn run(
+        self: *DPHandler,
+        seqvector: []const Sequence,
+        kbounds: KBounds,
+        only_gene_list: []const []const u8,
+        overall_mute_freq: f64,
+        clear_cache: bool,
+    ) !Result {
+        const allocator = self.allocator;
+
+        var seqs = Sequences.init();
+        defer seqs.deinit(allocator);
+        for (seqvector) |*sq| {
+            try seqs.addSeq(allocator, try sq.clone(allocator));
+        }
+
+        // Build only_genes map: region → set of gene names
+        var only_genes: std.StringHashMapUnmanaged(std.StringHashMapUnmanaged(void)) = .{};
+        defer {
+            var oit = only_genes.iterator();
+            while (oit.next()) |entry| {
+                allocator.free(entry.key_ptr.*);
+                var inner_it = entry.value_ptr.iterator();
+                while (inner_it.next()) |kv| allocator.free(kv.key_ptr.*);
+                entry.value_ptr.deinit(allocator);
+            }
+            only_genes.deinit(allocator);
+        }
+
+        if (only_gene_list.len > 0) {
+            for (bcr.germ_lines.regions) |r| {
+                try only_genes.put(allocator, try allocator.dupe(u8, r), .{});
+            }
+            for (only_gene_list) |gene| {
+                const r_ch = try GermLines.getRegion(gene);
+                const r = &[_]u8{r_ch};
+                if (only_genes.getPtr(r)) |set| {
+                    const gkey = try allocator.dupe(u8, gene);
+                    errdefer allocator.free(gkey);
+                    try set.put(allocator, gkey, {});
+                }
+            }
+            // Validate each region has at least one gene
+            for (bcr.germ_lines.regions) |r| {
+                const set = only_genes.get(r) orelse return error.NoGenesForRegion;
+                if (set.count() == 0) return error.NoGenesForRegion;
+            }
+        } else {
+            // Populate from GermLines
+            for (bcr.germ_lines.regions) |r| {
+                var set: std.StringHashMapUnmanaged(void) = .{};
+                if (self.gl.names.get(r)) |name_list| {
+                    for (name_list.items) |gene| {
+                        try set.put(allocator, try allocator.dupe(u8, gene), {});
+                    }
+                }
+                try only_genes.put(allocator, try allocator.dupe(u8, r), set);
+            }
+        }
+
+        if (kbounds.vmin == 0 or kbounds.dmin == 0 or
+            kbounds.vmax <= kbounds.vmin or kbounds.dmax <= kbounds.dmin)
+            return error.TrivialKBounds;
+
+        if (clear_cache) self.clear();
+
+        var best_scores: std.AutoHashMapUnmanaged(KSet, f64) = .{};
+        defer best_scores.deinit(allocator);
+        var total_scores: std.AutoHashMapUnmanaged(KSet, f64) = .{};
+        defer total_scores.deinit(allocator);
+        var best_genes: std.AutoHashMapUnmanaged(KSet, std.StringHashMapUnmanaged([]u8)) = .{};
+        defer {
+            var bgit = best_genes.iterator();
+            while (bgit.next()) |entry| {
+                var inner = entry.value_ptr.iterator();
+                while (inner.next()) |kv| {
+                    allocator.free(kv.key_ptr.*);
+                    allocator.free(kv.value_ptr.*);
+                }
+                entry.value_ptr.deinit(allocator);
+            }
+            best_genes.deinit(allocator);
+        }
+
+        if (!self.args.dont_rescale_emissions) {
+            try self.hmms.rescaleOverallMuteFreqs(&only_genes, overall_mute_freq);
+        }
+
+        var result = try Result.init(allocator, kbounds, self.args.locus);
+
+        var best_score: f64 = -std.math.inf(f64);
+        var best_kset = KSet{ .v = 0, .d = 0 };
+
+        // Loop over k-space in reverse order (for chunk caching)
+        var k_v: usize = kbounds.vmax - 1;
+        while (true) {
+            var k_d: usize = kbounds.dmax - 1;
+            while (true) {
+                if (k_v + k_d < seqs.sequence_length) {
+                    const kset = KSet{ .v = k_v, .d = k_d };
+                    try self.runKSet(&seqs, kset, &only_genes, &best_scores, &total_scores, &best_genes);
+                    const total_kset = total_scores.get(kset) orelse -std.math.inf(f64);
+                    result.total_score = mathutils.add_in_log_space(total_kset, result.total_score);
+
+                    const best_kset_score = best_scores.get(kset) orelse -std.math.inf(f64);
+                    if (best_kset_score > best_score) {
+                        best_score = best_kset_score;
+                        best_kset = kset;
+                    }
+
+                    if (std.mem.eql(u8, self.algorithm, "viterbi") and best_kset_score != -std.math.inf(f64)) {
+                        const bg = best_genes.get(kset) orelse continue;
+                        const event = try self.fillRecoEvent(&seqs, kset, &bg, best_kset_score);
+                        try result.pushBackRecoEvent(event);
+                    }
+                }
+                if (k_d == kbounds.dmin) break;
+                k_d -= 1;
+            }
+            if (k_v == kbounds.vmin) break;
+            k_v -= 1;
+        }
+
+        // No valid path
+        if (best_kset.v == 0 and best_kset.d == 0) {
+            result.no_path = true;
+            if (!self.args.dont_rescale_emissions) {
+                try self.hmms.unRescaleOverallMuteFreqs(&only_genes);
+            }
+            return result;
+        }
+
+        if (std.mem.eql(u8, self.algorithm, "viterbi")) {
+            try result.finalize(self.gl, &self.per_gene_support, best_kset, kbounds);
+        }
+
+        if (!self.args.dont_rescale_emissions) {
+            try self.hmms.unRescaleOverallMuteFreqs(&only_genes);
+        }
+
+        return result;
+    }
+
+    /// Get subsequences for one region.
+    /// Corresponds to C++ `DPHandler::GetSubSeqs(seqs, kset, region)`.
+    fn getSubSeqs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: []const u8) !Sequences {
+        const allocator = self.allocator;
+        var result = Sequences.init();
+        errdefer result.deinit(allocator);
+
+        const k_v = kset.v;
+        const k_d = kset.d;
+        const start: usize = if (std.mem.eql(u8, region, "v")) 0
+            else if (std.mem.eql(u8, region, "d")) k_v
+            else k_v + k_d;
+        const length: usize = if (std.mem.eql(u8, region, "v")) k_v
+            else if (std.mem.eql(u8, region, "d")) k_d
+            else seqs.sequence_length - k_v - k_d;
+
+        for (seqs.seqs.items) |*sq| {
+            var sub = try Sequence.initSlice(allocator, sq, start, length);
+            errdefer sub.deinit(allocator);
+            try result.addSeq(allocator, sub);
+        }
+        return result;
+    }
+
+    /// Collect undigitized strings for the given region's subsequences.
+    fn getQueryStrs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: []const u8) !std.ArrayListUnmanaged([]u8) {
+        const allocator = self.allocator;
+        var query_seqs = try self.getSubSeqs(seqs, kset, region);
+        defer query_seqs.deinit(allocator);
+
+        var strs: std.ArrayListUnmanaged([]u8) = .{};
+        errdefer {
+            for (strs.items) |s| allocator.free(s);
+            strs.deinit(allocator);
+        }
+        for (query_seqs.seqs.items) |*sq| {
+            try strs.append(allocator, try allocator.dupe(u8, sq.undigitized));
+        }
+        return strs;
+    }
+
+    /// Ensure per-gene caches are initialised for `gene`.
+    fn initCache(self: *DPHandler, gene: []const u8) !void {
+        if (self.scores.contains(gene)) return;
+
+        const key = try self.allocator.dupe(u8, gene);
+        errdefer self.allocator.free(key);
+        try self.scratch_cachefo.put(self.allocator, key, .{});
+
+        const key2 = try self.allocator.dupe(u8, gene);
+        errdefer self.allocator.free(key2);
+        try self.paths.put(self.allocator, key2, .{});
+
+        const key3 = try self.allocator.dupe(u8, gene);
+        errdefer self.allocator.free(key3);
+        try self.scores.put(self.allocator, key3, .{});
+    }
+
+    /// Look for a cached kset whose region sequences are a prefix of `query_strs`.
+    /// Returns null-kset if none found.
+    fn findPartialCacheMatch(self: *DPHandler, region: []const u8, gene: []const u8, kset: KSet) KSet {
+        const gene_scores = self.scores.get(gene) orelse return KSet{ .v = 0, .d = 0 };
+        if (gene_scores.get(kset) != null) return kset;
+
+        if (std.mem.eql(u8, region, "v")) {
+            var it = gene_scores.iterator();
+            while (it.next()) |kv| {
+                if (kv.key_ptr.v == kset.v) return kv.key_ptr.*;
+            }
+        } else if (std.mem.eql(u8, region, "j")) {
+            var it = gene_scores.iterator();
+            while (it.next()) |kv| {
+                if (kv.key_ptr.v + kv.key_ptr.d == kset.v + kset.d) return kv.key_ptr.*;
+            }
+        }
+        return KSet{ .v = 0, .d = 0 };
+    }
+
+    /// Fill the trellis for the given (gene, kset, query_seqs).
+    /// Stores result in scores_[gene][kset] and (for viterbi) paths_[gene][kset].
+    fn fillTrellis(
+        self: *DPHandler,
+        kset: KSet,
+        query_seqs: Sequences,
+        query_strs: []const []const u8,
+        gene: []const u8,
+    ) !void {
+        const allocator = self.allocator;
+
+        // Look for a chunk-cached trellis
+        var cached_trellis: ?*const Trellis = null;
+        if (!self.args.no_chunk_cache) {
+            if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
+                for (cache_list.items) |*te| {
+                    if (te.query_strs.items.len != query_strs.len) continue;
+                    var all_match = true;
+                    for (te.query_strs.items, query_strs) |cached, current| {
+                        // cached must START WITH current (prefix match)
+                        if (!std.mem.startsWith(u8, cached, current)) {
+                            all_match = false;
+                            break;
+                        }
+                    }
+                    if (all_match) {
+                        cached_trellis = &te.trellis;
+                        break;
+                    }
+                }
+            }
+        }
+
+        const model = try self.hmms.get(gene);
+
+        // Match C++ DPHandler::FillTrellis logic exactly:
+        //   - When no cached trellis: create scratch, store it, run algorithm ON THE SCRATCH directly.
+        //   - When cached trellis exists: create a temp trellis that borrows from the cache,
+        //     run algorithm on the temp trellis.
+        // This is critical: when no cache, do NOT create a second trellis that borrows from
+        // the (empty) scratch — the scratch itself is the working trellis.
+
+        // Build the TrellisEntry query strings (needed if storing a new scratch).
+        var qstrs: std.ArrayListUnmanaged([]u8) = .{};
+        defer {
+            for (qstrs.items) |s| allocator.free(s);
+            qstrs.deinit(allocator);
+        }
+        for (query_strs) |s| {
+            try qstrs.append(allocator, try allocator.dupe(u8, s));
+        }
+
+        // trell_ptr points to the trellis on which the algorithm is run.
+        // tmptrell is only used when borrowing from a cached trellis.
+        var tmptrell: ?Trellis = null;
+        defer if (tmptrell) |*t| t.deinit();
+
+        const trell_ptr: *Trellis = if (cached_trellis == null) blk: {
+            // No cache: create scratch WITHOUT cached_trellis, store it, use it directly.
+            var fresh = try Trellis.initWithSeqs(allocator, model, query_seqs, null);
+            errdefer fresh.deinit();
+            const entry = TrellisEntry{ .query_strs = qstrs, .trellis = fresh };
+            qstrs = .{}; // ownership transferred to entry
+            if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
+                try cache_list.append(allocator, entry);
+                // Reallocation may have moved all entries — fix up self-referential _ptr fields.
+                for (cache_list.items) |*te| te.trellis.fixupPtrs();
+                break :blk &cache_list.items[cache_list.items.len - 1].trellis;
+            } else {
+                // gene not in scratch_cachefo — should never happen after initCache
+                unreachable;
+            }
+        } else blk: {
+            // Have cache: create temp trellis that borrows from the cached scratch.
+            tmptrell = try Trellis.initWithSeqs(allocator, model, query_seqs, cached_trellis);
+            break :blk &tmptrell.?;
+        };
+
+        // Run the algorithm on trell_ptr
+        const uncorrected_score: f64 = if (std.mem.eql(u8, self.algorithm, "viterbi")) blk: {
+            try trell_ptr.viterbi();
+            const sc = trell_ptr.ending_viterbi_log_prob;
+            // Store traceback path
+            var path = TracebackPath.initWithModel(model);
+            errdefer path.deinit(allocator);
+            if (sc != -std.math.inf(f64)) {
+                try trell_ptr.traceback(&path);
+            }
+            if (self.paths.getPtr(gene)) |gene_paths| {
+                try gene_paths.put(allocator, kset, path);
+            } else {
+                path.deinit(allocator);
+            }
+            break :blk sc;
+        } else blk: {
+            try trell_ptr.forward();
+            break :blk trell_ptr.ending_forward_log_prob;
+        };
+
+        const gene_choice_score = @log(model.overall_prob);
+        const final_score = mathutils.add_with_minus_infinities(uncorrected_score, gene_choice_score);
+
+        if (self.scores.getPtr(gene)) |gene_scores| {
+            try gene_scores.put(allocator, kset, final_score);
+        }
+    }
+
+    /// Run all genes for one kset.
+    fn runKSet(
+        self: *DPHandler,
+        seqs: *Sequences,
+        kset: KSet,
+        only_genes: *std.StringHashMapUnmanaged(std.StringHashMapUnmanaged(void)),
+        best_scores: *std.AutoHashMapUnmanaged(KSet, f64),
+        total_scores: *std.AutoHashMapUnmanaged(KSet, f64),
+        best_genes: *std.AutoHashMapUnmanaged(KSet, std.StringHashMapUnmanaged([]u8)),
+    ) !void {
+        const allocator = self.allocator;
+
+        try best_scores.put(allocator, kset, -std.math.inf(f64));
+        try total_scores.put(allocator, kset, -std.math.inf(f64));
+        const bg_entry: std.StringHashMapUnmanaged([]u8) = .{};
+        try best_genes.put(allocator, kset, bg_entry);
+
+        var regional_best: std.StringHashMapUnmanaged(f64) = .{};
+        defer {
+            var it = regional_best.iterator();
+            while (it.next()) |e| allocator.free(e.key_ptr.*);
+            regional_best.deinit(allocator);
+        }
+        var regional_total: std.StringHashMapUnmanaged(f64) = .{};
+        defer {
+            var it = regional_total.iterator();
+            while (it.next()) |e| allocator.free(e.key_ptr.*);
+            regional_total.deinit(allocator);
+        }
+        var per_gene_support_this_kset: std.StringHashMapUnmanaged(f64) = .{};
+        defer {
+            var it = per_gene_support_this_kset.iterator();
+            while (it.next()) |e| allocator.free(e.key_ptr.*);
+            per_gene_support_this_kset.deinit(allocator);
+        }
+
+        for (bcr.germ_lines.regions) |region| {
+            try regional_best.put(allocator, try allocator.dupe(u8, region), -std.math.inf(f64));
+            try regional_total.put(allocator, try allocator.dupe(u8, region), -std.math.inf(f64));
+
+            var query_strs = try self.getQueryStrs(seqs, kset, region);
+            defer {
+                for (query_strs.items) |s| allocator.free(s);
+                query_strs.deinit(allocator);
+            }
+
+            var query_seqs = try self.getSubSeqs(seqs, kset, region);
+            defer query_seqs.deinit(allocator);
+
+            const gene_set = only_genes.get(region) orelse continue;
+            var gene_it = gene_set.iterator();
+            while (gene_it.next()) |gene_entry| {
+                const gene = gene_entry.key_ptr.*;
+                try self.initCache(gene);
+
+                const partial_match = self.findPartialCacheMatch(region, gene, kset);
+                if (!partial_match.isNull()) {
+                    // Copy path and score from cached kset
+                    if (self.paths.getPtr(gene)) |gp| {
+                        if (gp.get(partial_match)) |cached_path| {
+                            var path_copy = TracebackPath.init();
+                            errdefer path_copy.deinit(allocator);
+                            try path_copy.path.appendSlice(allocator, cached_path.path.items);
+                            path_copy.setScore(cached_path.score);
+                            path_copy.setModel(cached_path.hmm.?);
+                            try gp.put(allocator, kset, path_copy);
+                        }
+                    }
+                    if (self.scores.getPtr(gene)) |gs| {
+                        const cached_score = gs.get(partial_match) orelse -std.math.inf(f64);
+                        try gs.put(allocator, kset, cached_score);
+                    }
+                } else {
+                    try self.fillTrellis(kset, query_seqs, query_strs.items, gene);
+                }
+
+                const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(kset) orelse -std.math.inf(f64) else -std.math.inf(f64);
+
+                // Update regional totals
+                if (regional_total.getPtr(region)) |rt| {
+                    rt.* = mathutils.add_in_log_space(gene_score, rt.*);
+                }
+
+                // Update regional best + best_genes for this kset
+                const reg_best = regional_best.get(region) orelse -std.math.inf(f64);
+                if (gene_score > reg_best) {
+                    if (regional_best.getPtr(region)) |rb| rb.* = gene_score;
+                    if (best_genes.getPtr(kset)) |bg_map| {
+                        const region_key = try allocator.dupe(u8, region);
+                        errdefer allocator.free(region_key);
+                        const gene_val = try allocator.dupe(u8, gene);
+                        errdefer allocator.free(gene_val);
+                        if (bg_map.fetchRemove(region_key)) |old| {
+                            allocator.free(old.key);
+                            allocator.free(old.value);
+                        }
+                        try bg_map.put(allocator, region_key, gene_val);
+                    }
+                }
+
+                // per_gene_support for this kset
+                const pg_key = try allocator.dupe(u8, gene);
+                errdefer allocator.free(pg_key);
+                try per_gene_support_this_kset.put(allocator, pg_key, gene_score);
+            }
+
+            // If no gene found for this region, return early
+            if (best_genes.getPtr(kset)) |bg_map| {
+                if (!bg_map.contains(region)) return;
+            }
+        }
+
+        // Store combined best and total scores
+        const rb_v = regional_best.get("v") orelse -std.math.inf(f64);
+        const rb_d = regional_best.get("d") orelse -std.math.inf(f64);
+        const rb_j = regional_best.get("j") orelse -std.math.inf(f64);
+        const rt_v = regional_total.get("v") orelse -std.math.inf(f64);
+        const rt_d = regional_total.get("d") orelse -std.math.inf(f64);
+        const rt_j = regional_total.get("j") orelse -std.math.inf(f64);
+
+        try best_scores.put(allocator, kset, mathutils.add_with_minus_infinities(rb_v, mathutils.add_with_minus_infinities(rb_d, rb_j)));
+        try total_scores.put(allocator, kset, mathutils.add_with_minus_infinities(rt_v, mathutils.add_with_minus_infinities(rt_d, rt_j)));
+
+        // Compute per_gene_support across ksets
+        for (bcr.germ_lines.regions) |region| {
+            const gene_set = only_genes.get(region) orelse continue;
+            var gene_it = gene_set.iterator();
+            while (gene_it.next()) |gene_entry| {
+                const gene = gene_entry.key_ptr.*;
+                var score_this_kset: f64 = 0.0;
+                for (bcr.germ_lines.regions) |tmpreg| {
+                    if (std.mem.eql(u8, tmpreg, region)) {
+                        score_this_kset = mathutils.add_with_minus_infinities(score_this_kset, per_gene_support_this_kset.get(gene) orelse -std.math.inf(f64));
+                    } else {
+                        score_this_kset = mathutils.add_with_minus_infinities(score_this_kset, regional_best.get(tmpreg) orelse -std.math.inf(f64));
+                    }
+                }
+
+                const existing = self.per_gene_support.get(gene) orelse -std.math.inf(f64);
+                if (score_this_kset > existing) {
+                    if (self.per_gene_support.contains(gene)) {
+                        self.per_gene_support.getPtr(gene).?.* = score_this_kset;
+                    } else {
+                        const pg_key = try self.allocator.dupe(u8, gene);
+                        errdefer self.allocator.free(pg_key);
+                        try self.per_gene_support.put(self.allocator, pg_key, score_this_kset);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Build a RecoEvent for the given kset and best gene assignments.
+    fn fillRecoEvent(
+        self: *DPHandler,
+        seqs: *Sequences,
+        kset: KSet,
+        best_genes_for_kset: *const std.StringHashMapUnmanaged([]u8),
+        score: f64,
+    ) !RecoEvent {
+        const allocator = self.allocator;
+        var event = try RecoEvent.init(allocator);
+        errdefer event.deinit(allocator);
+
+        for (bcr.germ_lines.regions) |region| {
+            const gene = best_genes_for_kset.get(region) orelse {
+                event.setScore(-std.math.inf(f64));
+                return event;
+            };
+
+            var query_strs = try self.getQueryStrs(seqs, kset, region);
+            defer {
+                for (query_strs.items) |s| allocator.free(s);
+                query_strs.deinit(allocator);
+            }
+            if (query_strs.items.len == 0) {
+                event.setScore(-std.math.inf(f64));
+                return event;
+            }
+
+            // Get traceback path names
+            const path_names_list = try self.getPathNames(gene, kset, allocator);
+            defer {
+                for (path_names_list.items) |s| allocator.free(s);
+                var pl = path_names_list;
+                pl.deinit(allocator);
+            }
+
+            if (path_names_list.items.len == 0) {
+                event.setScore(-std.math.inf(f64));
+                return event;
+            }
+
+            try event.setGene(allocator, region, gene);
+            const del_3p = try std.fmt.allocPrint(allocator, "{s}_3p", .{region});
+            defer allocator.free(del_3p);
+            const del_5p = try std.fmt.allocPrint(allocator, "{s}_5p", .{region});
+            defer allocator.free(del_5p);
+            try event.setDeletion(allocator, del_3p, self.getErosionLength("right", path_names_list.items, gene));
+            try event.setDeletion(allocator, del_5p, self.getErosionLength("left", path_names_list.items, gene));
+            try self.setInsertions(region, path_names_list.items, &event);
+        }
+
+        event.setScore(score);
+        try event.setNaiveSeq(allocator, self.gl);
+        return event;
+    }
+
+    /// Get the stored path name vector for a gene+kset combination.
+    fn getPathNames(
+        self: *DPHandler,
+        gene: []const u8,
+        kset: KSet,
+        allocator: std.mem.Allocator,
+    ) !std.ArrayListUnmanaged([]u8) {
+        const gene_paths = self.paths.getPtr(gene) orelse return .{};
+        const path = gene_paths.getPtr(kset) orelse return .{};
+        return path.nameVector(allocator);
+    }
+
+    /// Set insertions on `event` based on path state names for `region`.
+    /// Corresponds to C++ `DPHandler::SetInsertions`.
+    fn setInsertions(self: *DPHandler, region: []const u8, path_names: []const []const u8, event: *RecoEvent) !void {
+        const allocator = self.allocator;
+        const ins = Insertions{};
+        var buf: [200]u8 = undefined;
+        for (ins.forRegion(region)) |insertion| {
+            const side: []const u8 = if (std.mem.eql(u8, insertion, "jf")) "right" else "left";
+            const inserted = getInsertion(side, path_names, &buf);
+            try event.setInsertion(allocator, insertion, inserted);
+        }
+    }
+
+    /// Extract inserted bases from path state names for the given side.
+    /// Writes into caller-provided `buf` and returns a slice into it.
+    /// Corresponds to C++ `DPHandler::GetInsertion`.
+    fn getInsertion(side: []const u8, names: []const []const u8, buf: *[200]u8) []const u8 {
+        if (std.mem.eql(u8, side, "left")) {
+            // Scan left-to-right: collect last char of each "insert..." state
+            const max = @min(names.len, 200);
+            var len: usize = 0;
+            for (names[0..max]) |name| {
+                if (!std.mem.startsWith(u8, name, "insert")) break;
+                buf[len] = name[name.len - 1];
+                len += 1;
+            }
+            return buf[0..len];
+        } else {
+            // right: scan right-to-left
+            var len: usize = 0;
+            var i: usize = names.len;
+            while (i > 0) {
+                i -= 1;
+                if (!std.mem.startsWith(u8, names[i], "insert")) break;
+                if (len < 200) {
+                    // prepend
+                    std.mem.copyBackwards(u8, buf[1 .. len + 1], buf[0..len]);
+                    buf[0] = names[i][names[i].len - 1];
+                    len += 1;
+                }
+            }
+            return buf[0..len];
+        }
+    }
+
+    /// Get the number of eroded bases on the given side.
+    /// Corresponds to C++ `DPHandler::GetErosionLength`.
+    fn getErosionLength(self: *DPHandler, side: []const u8, names: []const []const u8, gene_name: []const u8) usize {
+        const germline = self.gl.seqs.get(gene_name) orelse return 0;
+
+        // Check if all states are inserts
+        var all_inserts = true;
+        for (names) |name| {
+            if (!std.mem.startsWith(u8, name, "insert")) {
+                all_inserts = false;
+                break;
+            }
+        }
+        if (all_inserts) {
+            if (std.mem.eql(u8, side, "left"))
+                return germline.len / 2
+            else
+                return (germline.len + 1) / 2;
+        }
+
+        // Find the relevant boundary state
+        if (std.mem.eql(u8, side, "left")) {
+            // leftmost non-insert state
+            var istate: usize = 0;
+            for (names, 0..) |name, il| {
+                if (!std.mem.startsWith(u8, name, "insert")) {
+                    istate = il;
+                    break;
+                }
+            }
+            const state_idx = parseStateIndex(names[istate]) orelse return 0;
+            return state_idx;
+        } else {
+            // rightmost non-insert state
+            var istate: usize = 0;
+            var found = false;
+            var il: usize = names.len;
+            while (il > 0) {
+                il -= 1;
+                if (!std.mem.startsWith(u8, names[il], "insert")) {
+                    istate = il;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return 0;
+            const state_idx = parseStateIndex(names[istate]) orelse return 0;
+            if (germline.len == 0) return 0;
+            return germline.len - state_idx - 1;
+        }
+    }
+
+    /// Handle fishy multi-seq annotations by re-running with naive seq.
+    /// Corresponds to C++ `DPHandler::HandleFishyAnnotations`.
+    pub fn handleFishyAnnotations(
+        self: *DPHandler,
+        multi_seq_result: *Result,
+        qry_seqs: []const Sequence,
+        kbounds: KBounds,
+        only_gene_list: []const []const u8,
+        overall_mute_freq: f64,
+    ) !void {
+        const allocator = self.allocator;
+        const best_ev = multi_seq_result.best_event orelse return;
+
+        // Build naive sequence from best event
+        const trk = try self.hmms.get(qry_seqs[0].track.?.name);
+        _ = trk;
+        // Create naive sequence (use first query's track)
+        const first_track = qry_seqs[0].track orelse return;
+        var naive_seq = try Sequence.initFromString(allocator, first_track, "naive-seq", best_ev.naive_seq);
+        defer naive_seq.deinit(allocator);
+
+        const naive_seqs = [_]Sequence{naive_seq};
+        var naive_result = try self.run(&naive_seqs, kbounds, only_gene_list, overall_mute_freq, true);
+        defer naive_result.deinit();
+
+        const naive_ev = naive_result.best_event orelse return;
+        if (multi_seq_result.best_event) |*me| {
+            for (bcr.germ_lines.regions) |region| {
+                const ng = naive_ev.genes.get(region) orelse continue;
+                try me.setGene(allocator, region, ng);
+            }
+            const all_dels = [_][]const u8{ "v_5p", "v_3p", "d_5p", "d_3p", "j_5p", "j_3p" };
+            for (all_dels) |delname| {
+                const nd = naive_ev.deletions.get(delname) orelse 0;
+                try me.setDeletion(allocator, delname, nd);
+            }
+            const all_ins = [_][]const u8{ "fv", "vd", "dj", "jf" };
+            for (all_ins) |ins_name| {
+                const ni = naive_ev.insertions.get(ins_name) orelse "";
+                try me.setInsertion(allocator, ins_name, ni);
+            }
+        }
+    }
+};
+
+/// Parse the state index from a state name like "IGHV3-15*01_42".
+/// Returns the integer after the last underscore, or null.
+fn parseStateIndex(name: []const u8) ?usize {
+    const last_under = std.mem.lastIndexOfScalar(u8, name, '_') orelse return null;
+    const idx_str = name[last_under + 1 ..];
+    return std.fmt.parseInt(usize, idx_str, 10) catch null;
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+test "DPHandler: parseStateIndex" {
+    try std.testing.expectEqual(@as(?usize, 42), parseStateIndex("IGHV3-15_star_01_42"));
+    try std.testing.expectEqual(@as(?usize, 0), parseStateIndex("IGHV3-15_star_01_0"));
+    try std.testing.expectEqual(@as(?usize, null), parseStateIndex("insert_left_A"));
+}

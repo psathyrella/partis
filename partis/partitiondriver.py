@@ -809,7 +809,7 @@ class PartitionDriver(object):
 
         total = 0.  # sum over each process
         for procinfo in self.bcrham_proc_info:
-            if 'vtb' not in procinfo['calcd'] or 'fwd' not in procinfo['calcd']:
+            if procinfo['calcd'].get('vtb') is None or procinfo['calcd'].get('fwd') is None:
                 print('%s couldn\'t find vtb/fwd in:\n%s' % (utils.color('red', 'warning'), procinfo['calcd']))  # may as well not fail, it probably just means we lost some stdout somewhere. Which, ok, is bad, but let's say it shouldn't be fatal.
                 return 1.  # er, or something?
             if self.args.naive_hamming_cluster:  # make sure we didn't accidentally calculate some fwds
@@ -1263,7 +1263,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
-        cmd_str = self.args.partis_dir + '/packages/ham/bcrham'
+        cmd_str = self.args.bcrham_binary
         cmd_str += ' --algorithm ' + algorithm
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
