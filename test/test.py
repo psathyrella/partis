@@ -176,6 +176,7 @@ class Tester(object):
             self.tests['partition-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--max-ccf-fail-frac', '0.10']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             if args.paired:
                 self.tests['subset-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
+                self.tests['disjoint-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']}
             # this runs ok, but i's need to modify some things so its output is actually checked self.tests['subset-annotate-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             self.tests['seed-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
@@ -211,132 +212,9 @@ class Tester(object):
         self.perf_info = {version_stype : {} for version_stype in self.stypes}
 
     # ----------------------------------------------------------------------------------------
-    def run_disjoint_group_tests(self, args):
-        # run the three-step disjoint grouping pipeline on test data
-        # tests both simulated (ground truth) and real (robustness) paired data
-        if args.dont_run:
-            return
-        import partis.disjointgrouper as disjointgrouper
-
-        test_configs = []
-        if args.paired:
-            test_configs.append({
-                'name' : 'disjoint-group-new-simu',
-                'paired_indir' : self.inpath('new' if args.bust_cache else 'ref', 'simu'),
-                'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'simu'),
-                'is_simu' : True,
-            })
-            test_configs.append({
-                'name' : 'disjoint-group-new-data',
-                'paired_indir' : 'test/paired-data',
-                'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'data'),
-                'is_simu' : False,
-            })
-        else:
-            test_configs.append({
-                'name' : 'disjoint-group-new-simu',
-                'infname' : self.inpath('new' if args.bust_cache else 'ref', 'simu'),
-                'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'simu'),
-                'is_simu' : True,
-            })
-            test_configs.append({
-                'name' : 'disjoint-group-new-data',
-                'infname' : self.datafname,
-                'parameter_dir' : self.paramdir('new' if args.bust_cache else 'ref', 'data'),
-                'is_simu' : False,
-            })
-
-        for tcfg in test_configs:
-            disjoint_dir = '%s/%s' % (self.dirs('new'), tcfg['name'])
-            if not args.dry_run and os.path.exists(disjoint_dir):
-                shutil.rmtree(disjoint_dir)
-
-            # step 1: disjoint-group
-            cmd = '%s disjoint-group --dont-write-git-info --disjoint-dir %s' % (self.partis_path, disjoint_dir)
-            if args.paired:
-                cmd += ' --paired-loci --paired-indir %s' % tcfg['paired_indir']
-            else:
-                cmd += ' --infname %s --locus %s' % (tcfg['infname'], args.locus)
-            cmd += ' --parameter-dir %s' % tcfg['parameter_dir']
-            if tcfg['is_simu']:
-                cmd += ' --is-simu'
-            cmd += ' %s' % ' '.join(self.common_extras)
-            logstr = '%s   %s' % (utils.color('green', tcfg['name'] + ' (step 1: group)', width=40, padside='right'), cmd)
-            print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
-            if args.dry_run:
-                print('    (dry run)')
-            else:
-                logfile = open(self.logfname, 'a')
-                logfile.write(logstr + '\n')
-                logfile.close()
-                start = time.time()
-                try:
-                    check_call(cmd + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
-                except CalledProcessError:
-                    print('  log tail: %s' % self.logfname)
-                    print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
-                    sys.exit(1)
-
-            # step 2: partition each group
-            print('%s' % utils.color('green', tcfg['name'] + ' (step 2: partition per group)'))
-            if args.dry_run:
-                print('    (dry run: would partition each CDR3 group from manifest)')
-            else:
-                manifest = disjointgrouper.read_manifest('%s/manifest.yaml' % disjoint_dir)
-                for ginfo in manifest['groups']:
-                    fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
-                    partition_path = '%s/groups/cdr3-%d/partition-%s.yaml' % (disjoint_dir, ginfo['cdr3_length'], ginfo['locus'])
-                    pdir = '%s/%s' % (tcfg['parameter_dir'], ginfo['locus']) if args.paired else tcfg['parameter_dir']
-                    cmd = '%s partition --dont-write-git-info --infname %s --outfname %s --parameter-dir %s --locus %s' % (self.partis_path, fasta_path, partition_path, pdir, ginfo['locus'])
-                    # do not pass --is-simu for per-group FASTAs (no simulation germline info embedded, same as bin/partis line 807)
-                    cmd += ' %s' % ' '.join(self.common_extras)
-                    logstr = '%s   %s' % (utils.color('green', '  group %d (cdr3 %d, %s)' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']), width=40, padside='right'), cmd)
-                    print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
-                    logfile = open(self.logfname, 'a')
-                    logfile.write(logstr + '\n')
-                    logfile.close()
-                    try:
-                        check_call(cmd + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
-                    except CalledProcessError:
-                        print('  log tail: %s' % self.logfname)
-                        print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
-                        sys.exit(1)
-                    # update manifest with partition path
-                    ginfo['partition_path'] = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
-
-                # write updated manifest with partition paths
-                with open('%s/manifest.yaml' % disjoint_dir, 'w') as mfile:
-                    yaml.dump(manifest, mfile, width=400, default_flow_style=False)
-
-            # step 3: assemble-groups
-            cmd = '%s assemble-groups --dont-write-git-info --disjoint-dir %s' % (self.partis_path, disjoint_dir)
-            cmd += ' %s' % ' '.join(self.common_extras)
-            logstr = '%s   %s' % (utils.color('green', tcfg['name'] + ' (step 3: assemble)', width=40, padside='right'), cmd)
-            print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
-            if args.dry_run:
-                print('    (dry run)')
-            else:
-                logfile = open(self.logfname, 'a')
-                logfile.write(logstr + '\n')
-                logfile.close()
-                try:
-                    check_call(cmd + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
-                except CalledProcessError:
-                    print('  log tail: %s' % self.logfname)
-                    print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
-                    sys.exit(1)
-
-            if not args.dry_run:
-                elapsed = time.time() - start
-                self.run_times[tcfg['name']] = elapsed
-                print('  %s' % utils.color('green', 'ok (%.1fs)' % elapsed))
-
-    # ----------------------------------------------------------------------------------------
     def test(self, args):
         if not args.dont_run:
             self.run(args)
-            if not args.quick:
-                self.run_disjoint_group_tests(args)
         if args.dry_run or args.bust_cache or args.quick:
             return
         self.compare_production_results(['cache-parameters-simu'])
@@ -448,6 +326,9 @@ class Tester(object):
         if ptest.find('subset-') == 0:
             argfo['action'] = 'subset-%s' % argfo['action']
             argfo['extras'] += ['--n-subsets', '2']
+        elif ptest.find('disjoint-') == 0:
+            argfo['action'] = 'subset-%s' % argfo['action']
+            argfo['extras'] += ['--disjoint-group']
 
         if '--plot-annotation-performance' in argfo['extras']:
             self.perfdirs[ptest] = ptest + '-annotation-performance'
@@ -520,7 +401,7 @@ class Tester(object):
             else:
                 info['extras'] += ['--seed-unique-id', seed_uid]
 
-        if name.find('subset-') == 0:
+        if name.find('subset-') == 0 or name.find('disjoint-') == 0:
             if os.path.exists(self.opath(name, st='new')):
                 clean_dir(self.opath(name, st='new'))
 
@@ -695,6 +576,11 @@ class Tester(object):
             print('  version %s input %s partitioning' % (version_stype, input_stype))
             print('  purity         completeness        test                    description')
         for ptest in ptest_list:
+            odir = self.opath(ptest, st=version_stype)
+            if not os.path.exists(odir):
+                if debug:
+                    print('    %s output dir does not exist, skipping: %s' % (ptest, odir))
+                continue
             if ptest not in pinfo:
                 pinfo[ptest] = OrderedDict()
             if args.paired:
@@ -780,7 +666,7 @@ class Tester(object):
         # ----------------------------------------------------------------------------------------
         print('  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype)
         all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'multi-annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
-        all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-', 'subset-']]
+        all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-', 'subset-', 'disjoint-']]
         annotation_ptests = [pt for pt in all_annotation_ptests if pt in self.perf_info['ref'][input_stype]]
         partition_ptests = [pt for pt in all_partition_ptests if pt in self.perf_info['ref'][input_stype]]
         selection_metric_tests = ['get-selection-metrics-'+input_stype+'-simu']
