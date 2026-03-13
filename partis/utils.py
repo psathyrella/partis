@@ -5067,7 +5067,7 @@ def check_annotation_glfo_consistency(glfo, annotation_list, die_on_error=False,
     return not any_missing
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, add_implicit_info_to_returned_objects=False, debug=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, add_implicit_info_to_returned_objects=False, best_partition_only=False, debug=False):
     from . import glutils
     if input_labels is not None:
         assert len(input_labels) == len(yaml_list)
@@ -5089,13 +5089,22 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
         n_event_list.append(len(annotation_list))
         n_seq_list.append(sum(len(l['unique_ids']) for l in annotation_list))
         if merged_cpath is None:
-            merged_cpath = cpath
+            if best_partition_only and cpath is not None and cpath.i_best is not None:
+                from .clusterpath import ClusterPath
+                merged_cpath = ClusterPath()
+                merged_cpath.add_partition(cpath.partitions[cpath.i_best], logprob=0., n_procs=1)
+            else:
+                merged_cpath = cpath
         else:
-            assert len(cpath.partitions) == len(merged_cpath.partitions)
-            assert cpath.i_best == merged_cpath.i_best  # not sure what to do otherwise (and a.t.m. i'm only using this  to merge simulation files, which only ever have one partition)
-            for ip in range(len(cpath.partitions)):
-                merged_cpath.partitions[ip] += cpath.partitions[ip]  # NOTE this assumes there's no overlap between files, e.g. if it's simulation and the files are totally separate
-                merged_cpath.logprobs[ip] += cpath.logprobs[ip]  # they'll be 0 for simulation, but may as well handle it
+            if best_partition_only:  # for disjoint grouping: independent partition runs have different numbers of HA steps, so just take the best partition from each
+                if cpath is not None and cpath.i_best is not None:
+                    merged_cpath.partitions[merged_cpath.i_best] += cpath.partitions[cpath.i_best]
+            else:
+                assert len(cpath.partitions) == len(merged_cpath.partitions)
+                assert cpath.i_best == merged_cpath.i_best  # not sure what to do otherwise (and a.t.m. i'm only using this  to merge simulation files, which only ever have one partition)
+                for ip in range(len(cpath.partitions)):
+                    merged_cpath.partitions[ip] += cpath.partitions[ip]  # NOTE this assumes there's no overlap between files, e.g. if it's simulation and the files are totally separate
+                    merged_cpath.logprobs[ip] += cpath.logprobs[ip]  # they'll be 0 for simulation, but may as well handle it
                 # NOTE i think i don't need to mess with these, but not totally sure: self.n_procs, self.ccfs, self.we_have_a_ccf
         if merged_glfo is None:
             merged_glfo = glfo
