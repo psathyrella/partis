@@ -431,12 +431,8 @@ pub const DPHandler = struct {
                 for (cache_list.items) |*te| te.trellis.fixupPtrs();
                 break :blk &cache_list.items[cache_list.items.len - 1].trellis;
             } else {
-                // gene not in scratch_cachefo (shouldn't happen after initCache), discard
-                var e = entry;
-                for (e.query_strs.items) |s| allocator.free(s);
-                e.query_strs.deinit(allocator);
-                e.trellis.deinit();
-                return;
+                // gene not in scratch_cachefo — should never happen after initCache
+                unreachable;
             }
         } else blk: {
             // Have cache: create temp trellis that borrows from the cached scratch.
@@ -698,22 +694,21 @@ pub const DPHandler = struct {
     fn setInsertions(self: *DPHandler, region: []const u8, path_names: []const []const u8, event: *RecoEvent) !void {
         const allocator = self.allocator;
         const ins = Insertions{};
+        var buf: [200]u8 = undefined;
         for (ins.forRegion(region)) |insertion| {
             const side: []const u8 = if (std.mem.eql(u8, insertion, "jf")) "right" else "left";
-            const inserted = self.getInsertion(side, path_names);
+            const inserted = getInsertion(side, path_names, &buf);
             try event.setInsertion(allocator, insertion, inserted);
         }
     }
 
     /// Extract inserted bases from path state names for the given side.
+    /// Writes into caller-provided `buf` and returns a slice into it.
     /// Corresponds to C++ `DPHandler::GetInsertion`.
-    fn getInsertion(self: *DPHandler, side: []const u8, names: []const []const u8) []const u8 {
-        _ = self;
+    fn getInsertion(side: []const u8, names: []const []const u8, buf: *[200]u8) []const u8 {
         if (std.mem.eql(u8, side, "left")) {
             // Scan left-to-right: collect last char of each "insert..." state
-            // Build into a static buffer (max 200 bases should be safe)
             const max = @min(names.len, 200);
-            var buf: [200]u8 = undefined;
             var len: usize = 0;
             for (names[0..max]) |name| {
                 if (!std.mem.startsWith(u8, name, "insert")) break;
@@ -723,7 +718,6 @@ pub const DPHandler = struct {
             return buf[0..len];
         } else {
             // right: scan right-to-left
-            var buf: [200]u8 = undefined;
             var len: usize = 0;
             var i: usize = names.len;
             while (i > 0) {

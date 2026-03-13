@@ -11,8 +11,18 @@ const math = std.math;
 
 /// A partition: a set of sequence IDs (strings) forming a cluster.
 /// Corresponds to C++ `typedef set<string> Partition`.
-/// We represent as a sorted ArrayList of owned strings for simplicity.
+/// We represent as a sorted ArrayList of owned strings.
+/// Must be kept sorted to match C++ set<string> iteration order.
 pub const Partition = std.ArrayListUnmanaged([]u8);
+
+/// Sort a Partition's items alphabetically in-place to match C++ set<string> ordering.
+pub fn sortPartition(partition: *Partition) void {
+    std.mem.sort([]u8, partition.items, {}, struct {
+        fn lessThan(_: void, a: []u8, b: []u8) bool {
+            return std.mem.order(u8, a, b) == .lt;
+        }
+    }.lessThan);
+}
 
 /// Sequence of partitions with associated log-probabilities, tracking the best.
 /// Corresponds to C++ `ham::ClusterPath`.
@@ -99,6 +109,10 @@ pub const ClusterPath = struct {
             for (old.items) |s| allocator.free(s);
             old.deinit(allocator);
             _ = self.logprobs.orderedRemove(0);
+            // Adjust i_best since we removed index 0
+            if (self.i_best > 0) {
+                self.i_best -= 1;
+            }
         }
     }
 

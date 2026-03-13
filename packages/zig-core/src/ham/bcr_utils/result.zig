@@ -77,6 +77,7 @@ pub const Result = struct {
         // Take ownership of the best event by removing it from the events list.
         // This avoids a double-free: deinit frees both best_event and every item
         // in events, so the best event must appear in exactly one of the two.
+        std.debug.assert(self.events.items.len > 0);
         self.best_event = self.events.orderedRemove(0);
 
         // Build per_gene_support for best event

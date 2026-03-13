@@ -58,18 +58,18 @@ pub const LexicalTable = struct {
     /// Corresponds to C++ `LexicalTable::ReplaceLogProbs(vector<double>)`.
     pub fn replaceLogProbs(self: *LexicalTable, allocator: std.mem.Allocator, new_log_probs: []const f64) !void {
         std.debug.assert(self.log_probs.len == new_log_probs.len);
+        // Normalization check before mutating state
+        var total: f64 = 0.0;
+        for (new_log_probs) |lp| total += @exp(lp);
+        if (@abs(total - 1.0) >= EPS) {
+            return error.BadNormalization;
+        }
         // Save originals
         if (self.original_log_probs.len > 0) allocator.free(self.original_log_probs);
         self.original_log_probs = try allocator.dupe(f64, self.log_probs);
         // Install new probs
         allocator.free(self.log_probs);
         self.log_probs = try allocator.dupe(f64, new_log_probs);
-        // Normalization check
-        var total: f64 = 0.0;
-        for (self.log_probs) |lp| total += @exp(lp);
-        if (@abs(total - 1.0) >= EPS) {
-            return error.BadNormalization;
-        }
     }
 
     /// Revert log_probs to the values saved by replaceLogProbs.

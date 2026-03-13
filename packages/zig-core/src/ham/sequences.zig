@@ -205,6 +205,7 @@ pub const Sequences = struct {
         other: *const Sequences,
     ) !Sequences {
         var result = Sequences.init();
+        errdefer result.deinit(allocator);
         var seen = std.StringHashMap(void).init(allocator);
         defer seen.deinit();
 

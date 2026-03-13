@@ -12,6 +12,7 @@ const track_mod = @import("../track.zig");
 const Track = track_mod.Track;
 const ClusterPath = @import("../cluster_path.zig").ClusterPath;
 const Partition = @import("../cluster_path.zig").Partition;
+const sortPartition = @import("../cluster_path.zig").sortPartition;
 const Sequence = @import("../sequences.zig").Sequence;
 const mathutils = @import("../mathutils.zig");
 const ham_text = @import("../text.zig");
@@ -323,11 +324,12 @@ pub const Glomerator = struct {
             return error.LogprobRatioThresholdNotSet;
         }
 
-        // Clone partition entries
+        // Clone partition entries and sort to match C++ set<string> ordering
         var init_part: Partition = .{};
         for (self.initial_partition.items) |name| {
             try init_part.append(self.allocator, try self.allocator.dupe(u8, name));
         }
+        sortPartition(&init_part);
         var cp = try ClusterPath.initWithPartition(self.allocator, init_part, -std.math.inf(f64));
         defer cp.deinit(self.allocator);
 
@@ -624,6 +626,7 @@ pub const Glomerator = struct {
             }
         }
         try new_partition.append(self.allocator, try self.allocator.dupe(u8, chosen.name));
+        sortPartition(&new_partition);
         try path.addPartition(self.allocator, new_partition, -std.math.inf(f64), @intCast(self.args.n_partitions_to_write));
 
         // Clear tmp cache
@@ -776,8 +779,14 @@ pub const Glomerator = struct {
             return self.allocator.dupe(u8, "");
         }
 
-        if (event_out != null and result.best_event != null) {
-            event_out.?.* = result.best_event.?;
+        if (event_out != null) {
+            // NOTE: transferring event ownership requires nulling result.best_event
+            // so that result.deinit() doesn't free the slices the caller now owns.
+            if (result.best_event) |ev| {
+                event_out.?.* = ev;
+                result.best_event = null;
+                return self.allocator.dupe(u8, ev.naive_seq);
+            }
         }
 
         // Must dupe before defer result.deinit() frees the memory
@@ -1294,20 +1303,23 @@ pub const Glomerator = struct {
     }
 
     fn addFailedQuery(self: *Glomerator, queries: []const u8, error_str: []const u8) !void {
-        const key = try self.allocator.dupe(u8, queries);
-        errdefer self.allocator.free(key);
-
         // Append error string
         const old_err = self.errors.get(queries) orelse "";
         const new_err = try std.fmt.allocPrint(self.allocator, "{s}:{s}", .{ old_err, error_str });
         errdefer self.allocator.free(new_err);
 
-        if (self.errors.fetchRemove(key)) |old| {
+        if (self.errors.fetchRemove(queries)) |old| {
             self.allocator.free(old.key);
             self.allocator.free(old.value);
         }
-        try self.errors.put(self.allocator, try self.allocator.dupe(u8, queries), new_err);
-        try self.failed_queries.put(self.allocator, key, {});
+        const err_key = try self.allocator.dupe(u8, queries);
+        errdefer self.allocator.free(err_key);
+        try self.errors.put(self.allocator, err_key, new_err);
+
+        if (!self.failed_queries.contains(queries)) {
+            const fq_key = try self.allocator.dupe(u8, queries);
+            try self.failed_queries.put(self.allocator, fq_key, {});
+        }
     }
 
     fn joinNames(self: *Glomerator, name1: []const u8, name2: []const u8) ![]u8 {
@@ -1347,8 +1359,17 @@ fn countMembers(namestr: []const u8) i32 {
 }
 
 fn countMembersWithExcludeSeeds(namestr: []const u8, seed_uid: []const u8) i32 {
-    _ = seed_uid;
-    return countMembers(namestr);
+    const n_members = countMembers(namestr);
+    if (seed_uid.len == 0) return n_members;
+    // Count how many times seed_uid appears as a member, then subtract extras
+    // (keep one copy of the seed in the count, exclude duplicates)
+    var n_seeds: i32 = 0;
+    var it = std.mem.splitScalar(u8, namestr, ':');
+    while (it.next()) |part| {
+        if (std.mem.eql(u8, part, seed_uid)) n_seeds += 1;
+    }
+    if (n_seeds > 0) return n_members - (n_seeds - 1);
+    return n_members;
 }
 
 fn largestClusterSize(partition: *const Partition) u32 {
