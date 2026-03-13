@@ -1,4 +1,5 @@
-/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-42/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-42/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10
+/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-42/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-42/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10 --input-metafnames test/paired/ref-results-slow/test/simu/meta.yaml
+  --input-metafnames: added meta info for 17 sequences from test/paired/ref-results-slow/test/simu/meta.yaml: loci paired-uids
 partitioning     (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
   vsearch: 17 / 17 v annotations (0 failed) with 1 v gene in 0.1 sec
@@ -14,11 +15,11 @@ hmm
   9 clusters with 9 procs (0.2s)
    9 clusters with 6 procs (0.3s)
    8 clusters with 4 procs (0.3s)
-   7 clusters with 3 procs (0.3s)
-   6 clusters with 2 procs (0.3s)
+   8 clusters with 3 procs (0.3s)
+   7 clusters with 2 procs (0.3s)
    6 clusters with 1 proc (0.3s)
-       partition loop time: 1.5
+       partition loop time: 1.6
 getting annotations for final partition
   subcluster annotating 6 clusters with steps:  (0.2s) (0.1s) 
     subcluster annotation time 0.3
-      total time: 2.2
+      total time: 2.3

@@ -1,4 +1,5 @@
-/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-51/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-51/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10
+/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-51/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-51/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10 --input-metafnames test/paired/ref-results-slow/test/simu/meta.yaml
+  --input-metafnames: added meta info for 116 sequences from test/paired/ref-results-slow/test/simu/meta.yaml: loci paired-uids
 partitioning     (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
   vsearch: 116 / 116 v annotations (0 failed) with 8 v genes in 0.1 sec
@@ -12,14 +13,14 @@ hmm
   caching all 116 naive sequences (0.5s)
     collapsed 116 queries into 45 clusters with identical naive seqs (0.0 sec)
   45 clusters with 10 procs (0.5s)
-   41 clusters with 7 procs (0.4s)
-   36 clusters with 5 procs (0.4s)
-   34 clusters with 3 procs (0.4s)
-   30 clusters with 2 procs (0.5s)
-   26 clusters with 1 proc (0.7s)
+   42 clusters with 7 procs (0.4s)
+   38 clusters with 5 procs (0.5s)
+   33 clusters with 3 procs (0.5s)
+   27 clusters with 2 procs (0.6s)
+   26 clusters with 1 proc (0.9s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 2.9
+      partition loop time: 3.4
 getting annotations for final partition
-  subcluster annotating 26 clusters with steps:  (0.5s) (0.3s) (0.2s) 
-    subcluster annotation time 1.0
-      total time: 4.8
+  subcluster annotating 24 clusters with steps:  (0.4s) (0.3s) (0.2s) 
+    subcluster annotation time 0.9
+      total time: 5.3

@@ -1,4 +1,5 @@
-/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-62/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-62/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10
+/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-62/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-62/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10 --input-metafnames test/paired/ref-results-slow/test/simu/meta.yaml
+  --input-metafnames: added meta info for 3 sequences from test/paired/ref-results-slow/test/simu/meta.yaml: loci paired-uids
   note: reducing N procs to the number of seqs 10 --> 3
 partitioning     (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
@@ -8,7 +9,7 @@ smith-waterman
     running 4 procs for 2 seqs
       info for 3 / 3 = 1.000   (removed: 0 failed)
       kept 3 (1.000) unproductive
-    water time: 0.1  (ig-sw 0.0  processing 0.0)
+    water time: 0.1  (ig-sw 0.0  processing 0.1)
 hmm
   caching all 3 naive sequences (0.2s)
     collapsed 3 queries into 3 clusters with identical naive seqs (0.0 sec)

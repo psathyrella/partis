@@ -1,4 +1,5 @@
-/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-66/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-66/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10
+/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-66/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-66/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10 --input-metafnames test/paired/ref-results-slow/test/simu/meta.yaml
+  --input-metafnames: added meta info for 61 sequences from test/paired/ref-results-slow/test/simu/meta.yaml: loci paired-uids
 partitioning     (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
 smith-waterman
   vsearch: 61 / 61 v annotations (0 failed) with 4 v genes in 0.1 sec
@@ -11,15 +12,15 @@ smith-waterman
 hmm
   caching all 61 naive sequences (0.3s)
     collapsed 61 queries into 33 clusters with identical naive seqs (0.0 sec)
-  33 clusters with 10 procs (0.4s)
-   29 clusters with 7 procs (0.3s)
-   27 clusters with 5 procs (0.3s)
-   24 clusters with 3 procs (0.4s)
-   21 clusters with 2 procs (0.5s)
-   18 clusters with 1 proc (0.4s)
+  33 clusters with 10 procs (0.3s)
+   30 clusters with 7 procs (0.3s)
+   27 clusters with 5 procs (0.4s)
+   23 clusters with 3 procs (0.4s)
+   22 clusters with 2 procs (0.5s)
+   19 clusters with 1 proc (0.5s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 2.3
+      partition loop time: 2.4
 getting annotations for final partition
   subcluster annotating 16 clusters with steps:  (0.3s) (0.2s) (0.1s) 
     subcluster annotation time 0.6
-      total time: 3.6
+      total time: 3.7

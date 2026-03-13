@@ -1,4 +1,5 @@
-partis partition --infname test/paired/new-results/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-36/igk.fa --outfname test/paired/new-results/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-36/partition-igk.yaml --parameter-dir test/paired/new-results/test/parameters/simu/igk --locus igk --dont-write-git-info --n-procs 10
+/partis-dev/bin/partis partition --infname test/paired/new-results/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-36/igk.fa --outfname test/paired/new-results/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-36/partition-igk.yaml --parameter-dir test/paired/new-results/test/parameters/simu/igk --locus igk --dont-write-git-info --n-procs 10 --input-metafnames test/paired/ref-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 9 sequences from test/paired/ref-results/test/simu/meta.yaml: loci paired-uids
   note: reducing N procs to the number of seqs 10 --> 9
 partitioning     (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
@@ -15,6 +16,6 @@ hmm
   1 clusters with 1 proc (0.1s)
        partition loop time: 0.1
 getting annotations for final partition
-  subcluster annotating 1 cluster with steps:  (0.2s) (0.1s) 
+  subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) 
     subcluster annotation time 0.2
-      total time: 0.7
+      total time: 0.6
