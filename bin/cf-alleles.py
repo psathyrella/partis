@@ -19,6 +19,9 @@ parser.add_argument('--species', default='human')
 parser.add_argument('--glfo-dir', help='default set below')
 args = parser.parse_args()
 
+if args.region == 'd':
+    raise Exception('needs updating to work with d')
+
 if args.glfo_dir is None:
     args.glfo_dir = 'data/germlines/' + args.species
 

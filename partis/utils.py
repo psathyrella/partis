@@ -1546,7 +1546,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, do
     # if any(reco_info[u]['invalid'] for u in uids):
     #     print('    %s invalid events in synthesize_multi_seq_line_from_reco_info()' % wrnstr())
     #     invalid = True
-    multikeys = set(k for u in uids for k in reco_info[u])  # need to have any key that's in any annotation
+    multikeys = set(k for u in uids for k in reco_info[u])  # need to have any line key that's in the annotation for any uid in <uids>
     multifo = {}
     for col in sorted(multikeys):
         if col in linekeys['per_seq']:
