@@ -18,6 +18,7 @@ from io import open
 import colored_traceback.always
 import os
 import json
+import yaml
 import csv
 import operator
 import glob
@@ -37,6 +38,7 @@ import partis.seqfileopener as seqfileopener
 from partis.partitiondriver import PartitionDriver
 from partis.clusterpath import ClusterPath
 import partis.paircluster as paircluster
+import partis.disjointgrouper as disjointgrouper
 from partis.parametercounter import ParameterCounter
 from partis.corrcounter import CorrCounter
 from partis.waterer import Waterer
@@ -325,7 +327,94 @@ def is_subset_action(action):
     return action in ['subset-partition', 'subset-annotate']
 
 # ----------------------------------------------------------------------------------------
+def disjoint_subset_partition(args):
+    # disjoint grouping flavor of subset-partition: group by CDR3 length, partition each group, merge
+    import partis.disjointgrouper as disjointgrouper
+    disjoint_dir = '%s/disjoint-groups' % args.paired_outdir
+    args.disjoint_dir = disjoint_dir
+    args.no_merge_output = False
+
+    # step 1: sw annotation + CDR3 grouping
+    manifest_path = '%s/manifest.yaml' % disjoint_dir
+    if os.path.exists(manifest_path):
+        print('  disjoint group manifest exists, skipping step 1: %s' % manifest_path)
+    else:
+        print('  step 1: grouping sequences by CDR3 length')
+        disjointgrouper.run_disjoint_group(args)
+
+    # step 2: partition each group
+    print('  step 2: partitioning each CDR3 group')
+    manifest = disjointgrouper.read_manifest(manifest_path)
+    loci = manifest['grouping-info']['loci']
+    for ginfo in manifest['groups']:
+        partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+        partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
+        if os.path.exists(partition_path):
+            print('    group %d (cdr3 %d, %s): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
+            ginfo['partition_path'] = partition_rel_path
+            continue
+        fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
+        pdir = '%s/%s' % (args.parameter_dir, ginfo['locus']) if args.paired_loci else args.parameter_dir
+        cmd = '%s partition --infname %s --outfname %s --parameter-dir %s --locus %s --dont-write-git-info' % (find_cmd(sys.argv[0]), fasta_path, partition_path, pdir, ginfo['locus'])
+        cmd += ' --n-procs %d' % args.n_procs
+        if args.input_metafnames is not None:
+            cmd += ' --input-metafnames %s' % ':'.join(args.input_metafnames)
+        extra_str = '    %s ' % utils.color('blue', 'group %d (cdr3 %d, %s):' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
+        utils.simplerun(cmd, logfname='%s/groups/cdr3-%d/partition.log' % (disjoint_dir, ginfo['cdr3_length']), dryrun=args.dry_run, extra_str=extra_str)
+        ginfo['partition_path'] = partition_rel_path
+
+    # write updated manifest with partition paths
+    with open(manifest_path, 'w') as mfile:
+        yaml.dump(manifest, mfile, width=400, default_flow_style=False)
+
+    # step 3: merge per-group outputs
+    print('  step 3: assembling merged output')
+    disjointgrouper.run_assemble_groups(args)
+
+    # if --is-simu, calculate CCFs (purity/completeness) on merged output by comparing to true partition from simulation input
+    assembled_dir = '%s/assembled' % disjoint_dir
+    if args.is_simu:
+        print('  calculating partition performance metrics on merged output')
+        for ltmp in loci:
+            merged_ofn = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
+            if not os.path.exists(merged_ofn):
+                continue
+            # read simulation input to get true partition
+            if args.paired_loci:
+                sim_fn = paircluster.paired_fn(args.paired_indir, ltmp, suffix='.yaml')
+            else:
+                sim_fn = args.infname
+            sim_glfo, sim_alist, _ = utils.read_yaml_output(sim_fn, dont_add_implicit_info=True)
+            reco_info = {uid : line for line in sim_alist for uid in line['unique_ids']}
+            true_partition = utils.get_partition_from_reco_info(reco_info)
+            # read merged output and calculate ccfs
+            m_glfo, m_alist, m_cpath = utils.read_yaml_output(merged_ofn, dont_add_implicit_info=True)
+            m_cpath.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=m_cpath.i_best, fail_frac=args.max_ccf_fail_frac)
+            headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
+            utils.write_annotations(merged_ofn, m_glfo, m_alist, headers, partition_lines=m_cpath.get_partition_lines(reco_info=reco_info, true_partition=true_partition, calc_missing_values='best', fail_frac=args.max_ccf_fail_frac), dont_write_git_info=args.dont_write_git_info)
+            ccfs = m_cpath.ccfs[m_cpath.i_best]
+            print('    %s: purity %.3f  completeness %.3f' % (ltmp, ccfs[0], ccfs[1]))
+
+    # link assembled outputs to single-chain dir so combine_inf_chains() can find them for pair cleaning
+    sc_dir = '%s/single-chain' % args.paired_outdir
+    utils.mkdir(sc_dir)
+    for ltmp in loci:
+        src = os.path.realpath('%s/partition-%s.yaml' % (assembled_dir, ltmp))
+        dst = '%s/partition-%s.yaml' % (sc_dir, ltmp)
+        if os.path.exists(src):
+            utils.makelink(sc_dir, src, dst, dryrun=args.dry_run)
+
+# ----------------------------------------------------------------------------------------
 def subset_partition(args):
+    if args.input_metafnames is None:
+        if args.paired_indir is None:
+            args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
+        else:
+            args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
+        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
+    if getattr(args, 'disjoint_group', False):
+        disjoint_subset_partition(args)
+        return
     # ----------------------------------------------------------------------------------------
     def subdir(igroup):
         return '%s/isub-%d' % (args.paired_outdir, igroup)
@@ -396,12 +485,6 @@ def subset_partition(args):
         #     for ltmp in utils.sub_loci(args.ig_or_tr):
         #         utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
     # ----------------------------------------------------------------------------------------
-    if args.input_metafnames is None:
-        if args.paired_indir is None:
-            args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
-        else:
-            args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
-        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
     infname = args.infname
     if infname is None and os.path.exists('%s/all-seqs.fa'%args.paired_indir):  # simulation has a single file
         infname = '%s/all-seqs.fa'%args.paired_indir
@@ -1348,6 +1431,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         prep_inputs()
     if is_subset_action(args.action):
         subset_partition(args)
+        if getattr(args, 'disjoint_group', False) and not args.dry_run:
+            combine_inf_chains()
         return
     args.tree_inference_outdir = getodir()
     if args.tree_inference_subdir is not None:
@@ -1660,6 +1745,8 @@ subconfig = collections.OrderedDict((
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
     ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
+    ('disjoint-group',    {'func' : disjointgrouper.run_disjoint_group, 'help' : 'Split sequences into disjoint groups by cdr3 length, writing per-group fastas and a manifest yaml to --outdir. Auto-runs sw annotation if --parameter-dir is not set.'}),
+    ('assemble-groups',   {'func' : disjointgrouper.run_assemble_groups, 'help' : 'Validate and merge per-group partition outputs from disjoint grouping. Reads manifest from --disjoint-dir, reconciles germline info, checks sequence count invariants and uid uniqueness, and writes a single merged partition yaml per locus. Use --no-merge-output to keep per-group files separate for large datasets.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -1722,6 +1809,7 @@ subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwa
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
+subargs['subset-partition'].append({'name' : '--disjoint-group', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length rather than random splitting, then partition each group independently and merge.'}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
@@ -1799,6 +1887,10 @@ subargs['plot-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'hel
 subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
+
+subargs['disjoint-group'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping. Step 1 writes manifest + per-group fastas here, step 2 writes per-group partition yamls here, step 3 reads from here.'}})
+subargs['assemble-groups'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping (same directory used for disjoint-group step 1 and partition step 2).'}})
+subargs['assemble-groups'].append({'name' : '--no-merge-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Skip writing merged single-yaml output; keep per-group partition files separate (for large datasets where a single multi-GB yaml is impractical).'}})
 
 sub_arg_groups = {'subset-partition' : ['partition'], 'subset-annotate' : ['annotate']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
 

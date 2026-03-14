@@ -1,0 +1,24 @@
+/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-81/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-81/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10 --input-metafnames test/paired/ref-results-slow/test/simu/meta.yaml
+  --input-metafnames: added meta info for 20 sequences from test/paired/ref-results-slow/test/simu/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
+smith-waterman
+  vsearch: 20 / 20 v annotations (0 failed) with 1 v gene in 0.1 sec
+    couldn't find sw cache file test/paired/new-results-slow/test/parameters/simu/igh/sw-cache-c993ab3f6c.yaml, so running sw
+    running 10 procs for 20 seqs
+      info for 20 / 20 = 1.000   (removed: 0 failed)
+      kept 2 (0.100) unproductive
+    water time: 0.1  (ig-sw 0.0  processing 0.1)
+hmm
+  caching all 20 naive sequences (0.2s)
+    collapsed 20 queries into 7 clusters with identical naive seqs (0.0 sec)
+  reducing n procs to number of clusters: 10 --> 7
+  7 clusters with 7 procs (0.2s)
+   7 clusters with 5 procs (0.3s)
+   6 clusters with 3 procs (0.3s)
+   6 clusters with 2 procs (0.3s)
+   5 clusters with 1 proc (0.3s)
+       partition loop time: 1.3
+getting annotations for final partition
+  subcluster annotating 4 clusters with steps:  (0.2s) (0.2s) 
+    subcluster annotation time 0.4
+      total time: 2.2

@@ -1,0 +1,23 @@
+/partis-dev/bin/partis partition --infname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-56/igh.fa --outfname test/paired/new-results-slow/disjoint-partition-new-simu/disjoint-groups/groups/cdr3-56/partition-igh.yaml --parameter-dir test/paired/new-results-slow/test/parameters/simu/igh --locus igh --dont-write-git-info --n-procs 10 --input-metafnames test/paired/ref-results-slow/test/simu/meta.yaml
+  --input-metafnames: added meta info for 3 sequences from test/paired/ref-results-slow/test/simu/meta.yaml: loci paired-uids
+  note: reducing N procs to the number of seqs 10 --> 3
+partitioning     (with test/paired/new-results-slow/test/parameters/simu/igh/hmm)
+smith-waterman
+  vsearch: 3 / 3 v annotations (0 failed) with 3 v genes in 0.1 sec
+    couldn't find sw cache file test/paired/new-results-slow/test/parameters/simu/igh/sw-cache-8cff4d5b54.yaml, so running sw
+    running 3 procs for 3 seqs
+      info for 3 / 3 = 1.000   (removed: 0 failed)
+      kept 3 (1.000) unproductive
+    water time: 0.1  (ig-sw 0.0  processing 0.0)
+hmm
+  caching all 3 naive sequences (0.2s)
+    collapsed 3 queries into 3 clusters with identical naive seqs (0.0 sec)
+  3 clusters with 3 procs (0.1s)
+   3 clusters with 2 procs (0.1s)
+   3 clusters with 1 proc (0.2s)
+       partition loop time: 0.4
+getting annotations for final partition
+    reading output
+        read 3 hmm output lines with 3 sequences in 3 events  (0 failures)
+      hmm step time: 0.2
+      total time: 0.9
