@@ -116,6 +116,9 @@ class Tester(object):
     def is_prod_test(self, ptest):
         return 'cache-parameters' in ptest or ptest == 'simulate'
     # ----------------------------------------------------------------------------------------
+    def is_subset_style_test(self, ptest):
+        return ptest.startswith('subset-') or ptest.startswith('disjoint-')
+    # ----------------------------------------------------------------------------------------
     def sclust_sizes(self):  # NOTE depends on self.n_simu_leaves
         return (15, 20) if args.slow else (5, 10)
     # ----------------------------------------------------------------------------------------
@@ -304,7 +307,7 @@ class Tester(object):
                 argfo['extras'] += ['--no-per-base-mutation']
         else:
             argfo['inpath'] = self.inpath('new' if args.bust_cache else 'ref', input_dtype)
-            if ptest.find('subset-') != 0:
+            if ptest.find('subset-') != 0:  # subset-partition handles its own parameter caching per-subset; disjoint needs parameter-dir for SW cache reading
                 argfo['parameter-dir'] = self.paramdir(input_stype, input_dtype)
             if not args.paired:
                 argfo['sw-cachefname'] = self.paramdir(input_stype, input_dtype) + '/sw-cache.yaml'
@@ -323,10 +326,10 @@ class Tester(object):
             argfo['action'] = 'cache-parameters'
         else:
             argfo['action'] = ptest
-        if ptest.find('subset-') == 0:
+        if ptest.startswith('subset-'):
             argfo['action'] = 'subset-%s' % argfo['action']
             argfo['extras'] += ['--n-subsets', '2']
-        elif ptest.find('disjoint-') == 0:
+        elif ptest.startswith('disjoint-'):
             argfo['action'] = 'subset-%s' % argfo['action']
             argfo['extras'] += ['--disjoint-group']
 
@@ -401,7 +404,7 @@ class Tester(object):
             else:
                 info['extras'] += ['--seed-unique-id', seed_uid]
 
-        if name.find('subset-') == 0 or name.find('disjoint-') == 0:
+        if self.is_subset_style_test(name):
             if os.path.exists(self.opath(name, st='new')):
                 clean_dir(self.opath(name, st='new'))
 

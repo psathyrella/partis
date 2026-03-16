@@ -5089,16 +5089,20 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
         n_event_list.append(len(annotation_list))
         n_seq_list.append(sum(len(l['unique_ids']) for l in annotation_list))
         if merged_cpath is None:
-            if best_partition_only and cpath is not None and cpath.i_best is not None:
+            if best_partition_only:
+                if cpath is None or cpath.i_best is None:
+                    raise Exception('best_partition_only=True but cpath has no best partition for %s' % infname)
                 from .clusterpath import ClusterPath
                 merged_cpath = ClusterPath()
+                # logprob set to 0 because independent partition runs are not comparable on the same log-probability scale, so summing is not meaningful
                 merged_cpath.add_partition(cpath.partitions[cpath.i_best], logprob=0., n_procs=1)
             else:
                 merged_cpath = cpath
         else:
             if best_partition_only:  # for disjoint grouping: independent partition runs have different numbers of HA steps, so just take the best partition from each
-                if cpath is not None and cpath.i_best is not None:
-                    merged_cpath.partitions[merged_cpath.i_best] += cpath.partitions[cpath.i_best]
+                if cpath is None or cpath.i_best is None:
+                    raise Exception('best_partition_only=True but cpath has no best partition for %s' % infname)
+                merged_cpath.partitions[merged_cpath.i_best] += cpath.partitions[cpath.i_best]
             else:
                 assert len(cpath.partitions) == len(merged_cpath.partitions)
                 assert cpath.i_best == merged_cpath.i_best  # not sure what to do otherwise (and a.t.m. i'm only using this  to merge simulation files, which only ever have one partition)

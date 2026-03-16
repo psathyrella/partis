@@ -4,11 +4,15 @@ import os
 import sys
 import json
 import yaml
+import glob
+import shutil
 import collections
 
 from . import utils
 from . import glutils
 from . import paircluster
+
+MANIFEST_FNAME = 'manifest.yaml'
 
 # ----------------------------------------------------------------------------------------
 def group_sequences_by_cdr3_length(annotation_list):
@@ -70,13 +74,13 @@ def write_manifest(group_infos, outdir, loci, total_input, n_failed, parameter_d
             'status' : 'pending',
             'merged_output_path' : None,
             'validation' : {
-                'gene_lists_consistent' : None,
                 'uids_unique' : None,
                 'sequence_count_preserved' : None,
+                # TODO add gene_lists_consistent check (verify germline gene lists are compatible across groups)
             },
         },
     }
-    manifest_path = '%s/manifest.yaml' % outdir
+    manifest_path = '%s/%s' % (outdir, MANIFEST_FNAME)
     utils.mkdir(manifest_path, isfile=True)
     with open(manifest_path, 'w') as mfile:
         yaml.dump(manifest, mfile, width=400, default_flow_style=False)
@@ -114,19 +118,18 @@ def validate_sequence_count(manifest):
 
 # ----------------------------------------------------------------------------------------
 def get_sw_cache_path(parameter_dir, locus):
-    import glob
-    # try per-locus subdir first (paired data), then flat (unpaired)
+    # try per-locus subdir first (paired data), then flat (unpaired). Returns None if not found.
     for search_dir in ['%s/%s' % (parameter_dir, locus), parameter_dir]:
         fnames = glob.glob(search_dir + '/sw-cache*.yaml')
         if len(fnames) > 0:
             return fnames[0]
-    raise Exception('sw cache not found in %s/%s/ or %s/' % (parameter_dir, locus, parameter_dir))
+    return None
 
 # ----------------------------------------------------------------------------------------
 def run_disjoint_group(args):
     if args.disjoint_dir is None:
         raise Exception('--disjoint-dir must be set for disjoint-group')
-    has_input = args.infname is not None or (hasattr(args, 'paired_indir') and args.paired_indir is not None)
+    has_input = args.infname is not None or getattr(args, 'paired_indir', None) is not None
     if not has_input and args.parameter_dir is None:
         raise Exception('--infname (or --paired-indir with --paired-loci) or --parameter-dir must be set for disjoint-group')
 
@@ -134,7 +137,7 @@ def run_disjoint_group(args):
     loci = utils.sub_loci(args.ig_or_tr) if args.paired_loci else [args.locus]
 
     if args.parameter_dir is None:
-        instr = args.paired_indir if args.paired_loci and hasattr(args, 'paired_indir') and args.paired_indir is not None else args.infname
+        instr = args.paired_indir if args.paired_loci and getattr(args, 'paired_indir', None) is not None else args.infname
         args.parameter_dir = '_output/%s' % utils.getprefix(instr).replace('/', '_')
         print('  note: --parameter-dir not set, so using default: %s' % args.parameter_dir)
 
@@ -148,8 +151,10 @@ def run_disjoint_group(args):
     total_failed = 0
     for ltmp in loci:
         sw_cache_path = get_sw_cache_path(args.parameter_dir, ltmp)
+        if sw_cache_path is None:
+            raise Exception('sw cache not found in %s/%s/ or %s/ (run cache-parameters --only-smith-waterman first)' % (args.parameter_dir, ltmp, args.parameter_dir))
         print('    reading sw cache for %s from %s' % (ltmp, sw_cache_path))
-        glfo, annotation_list, _ = utils.read_yaml_output(sw_cache_path, dont_add_implicit_info=True)
+        _, annotation_list, _ = utils.read_yaml_output(sw_cache_path, dont_add_implicit_info=True)
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
         total_input += n_seqs
@@ -164,10 +169,9 @@ def run_disjoint_group(args):
 # ----------------------------------------------------------------------------------------
 def auto_cache_parameters(args, loci):
     # run cache-parameters --only-smith-waterman for each locus that does not have an sw cache
-    # TODO this should be replaced with integration via run_step() when disjoint grouping
-    # is integrated into subset-partition (T4). run_step() handles full arg forwarding,
-    # whereas this only passes --n-procs and --is-simu.
-    import shutil
+    # TODO run_step() in run_all_loci() handles full arg forwarding via sys.argv deep copy,
+    # but it is a nested function with closure dependencies and not callable from here.
+    # This only forwards --n-procs, --is-simu, and --dry-run. See CR-01 in tasks-code-review.md.
     partis_cmd = 'partis'
     if not shutil.which('partis'):
         partis_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -177,12 +181,9 @@ def auto_cache_parameters(args, loci):
         else:
             raise Exception('could not find partis binary in PATH or at %s' % partis_path)
     for ltmp in loci:
-        try:
-            get_sw_cache_path(args.parameter_dir, ltmp)
+        if get_sw_cache_path(args.parameter_dir, ltmp) is not None:
             print('    %s: sw cache already exists in %s' % (ltmp, args.parameter_dir))
             continue
-        except Exception:
-            pass  # no sw cache found, need to run cache-parameters
         if args.paired_loci:
             if args.paired_indir is not None:
                 yfn, ffn = [paircluster.paired_fn(args.paired_indir, ltmp, suffix=sx) for sx in ['.yaml', '.fa']]
@@ -201,7 +202,7 @@ def auto_cache_parameters(args, loci):
             cmd += ' --n-procs %d' % args.n_procs
         if hasattr(args, 'is_simu') and args.is_simu:
             cmd += ' --is-simu'
-        utils.simplerun(cmd)
+        utils.simplerun(cmd, dryrun=args.dry_run)
 
 # ----------------------------------------------------------------------------------------
 def get_partition_paths_by_locus(manifest, manifest_dir):
@@ -235,7 +236,7 @@ def validate_assembly(manifest, manifest_dir):
     paths_by_locus = get_partition_paths_by_locus(manifest, manifest_dir)
     for ltmp, yaml_list in paths_by_locus.items():
         for ppath in yaml_list:
-            glfo, annotation_list, _ = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
+            _, annotation_list, _ = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
             for line in annotation_list:
                 for uid in line['unique_ids']:
                     if uid in all_uids:
@@ -248,16 +249,16 @@ def validate_assembly(manifest, manifest_dir):
     print('    assembly validation passed: %d unique sequences across %d groups' % (total_seqs, len(manifest['groups'])))
 
 # ----------------------------------------------------------------------------------------
-def assemble_merged_output(manifest, manifest_dir, disjoint_dir):
+def assemble_merged_output(manifest, disjoint_dir):
     # merge per-group partition yamls into single per-locus output using merge_yamls with best_partition_only
     assembled_dir = '%s/assembled' % disjoint_dir
     utils.mkdir(assembled_dir)
-    paths_by_locus = get_partition_paths_by_locus(manifest, manifest_dir)
+    paths_by_locus = get_partition_paths_by_locus(manifest, disjoint_dir)
     headers = list(utils.annotation_headers)
     for ltmp, yaml_list in paths_by_locus.items():
         outfname = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
         print('    merging %d partition files for %s -> %s' % (len(yaml_list), ltmp, outfname))
-        utils.merge_yamls(outfname, yaml_list, headers, best_partition_only=True, dont_write_git_info=True, debug=True)
+        utils.merge_yamls(outfname, yaml_list, headers, best_partition_only=True, dont_write_git_info=True, debug=True)  # debug=True is intentional: prints per-group sequence/cluster counts during assembly
     manifest['assembly']['merged_output_path'] = 'assembled/'
 
 # ----------------------------------------------------------------------------------------
@@ -265,12 +266,12 @@ def run_assemble_groups(args):
     if args.disjoint_dir is None:
         raise Exception('--disjoint-dir must be set for assemble-groups')
 
-    manifest_path = '%s/manifest.yaml' % args.disjoint_dir
+    manifest_path = '%s/%s' % (args.disjoint_dir, MANIFEST_FNAME)
     print('  running assemble-groups from %s' % manifest_path)
     manifest = read_manifest(manifest_path)
-    manifest_dir = os.path.dirname(os.path.abspath(manifest_path))
+    disjoint_dir = os.path.abspath(args.disjoint_dir)
 
-    validate_assembly(manifest, manifest_dir)
+    validate_assembly(manifest, disjoint_dir)
     manifest['assembly']['validation']['uids_unique'] = True
     manifest['assembly']['validation']['sequence_count_preserved'] = True
 
@@ -278,7 +279,7 @@ def run_assemble_groups(args):
         manifest['assembly']['status'] = 'validated'
         print('    --no-merge-output: skipping merged output write (per-group files remain separate)')
     else:
-        assemble_merged_output(manifest, manifest_dir, args.disjoint_dir)
+        assemble_merged_output(manifest, disjoint_dir)
         manifest['assembly']['status'] = 'merged'
 
     with open(manifest_path, 'w') as mfile:

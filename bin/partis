@@ -329,13 +329,13 @@ def is_subset_action(action):
 # ----------------------------------------------------------------------------------------
 def disjoint_subset_partition(args):
     # disjoint grouping flavor of subset-partition: group by CDR3 length, partition each group, merge
-    import partis.disjointgrouper as disjointgrouper
     disjoint_dir = '%s/disjoint-groups' % args.paired_outdir
-    args.disjoint_dir = disjoint_dir
-    args.no_merge_output = False
+    assembled_dir = '%s/assembled' % disjoint_dir
+    args.disjoint_dir = disjoint_dir  # injected for run_assemble_groups() which expects it as an arg
+    args.no_merge_output = False  # injected for run_assemble_groups() which expects it as an arg
 
     # step 1: sw annotation + CDR3 grouping
-    manifest_path = '%s/manifest.yaml' % disjoint_dir
+    manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
     if os.path.exists(manifest_path):
         print('  disjoint group manifest exists, skipping step 1: %s' % manifest_path)
     else:
@@ -346,6 +346,14 @@ def disjoint_subset_partition(args):
     print('  step 2: partitioning each CDR3 group')
     manifest = disjointgrouper.read_manifest(manifest_path)
     loci = manifest['grouping-info']['loci']
+    if len(manifest['groups']) == 0:
+        raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s' % manifest_path)
+    if args.parameter_dir is None:
+        # parameter_dir may have been set as a side effect of step 1, but if step 1 was skipped (manifest exists), it could still be None
+        if manifest['grouping-info'].get('parameter_dir') is not None:
+            args.parameter_dir = manifest['grouping-info']['parameter_dir']
+        else:
+            raise Exception('--parameter-dir must be set when resuming from an existing manifest (step 1 skipped)')
     for ginfo in manifest['groups']:
         partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
         partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
@@ -357,22 +365,26 @@ def disjoint_subset_partition(args):
         pdir = '%s/%s' % (args.parameter_dir, ginfo['locus']) if args.paired_loci else args.parameter_dir
         cmd = '%s partition --infname %s --outfname %s --parameter-dir %s --locus %s --dont-write-git-info' % (find_cmd(sys.argv[0]), fasta_path, partition_path, pdir, ginfo['locus'])
         cmd += ' --n-procs %d' % args.n_procs
+        # NOTE --is-simu is intentionally not forwarded to per-group partitions (same as subset-partition, see get_cmd line 453).
+        # Per-group FASTAs lack simulation metadata; CCFs are calculated post-merge instead.
         if args.input_metafnames is not None:
             cmd += ' --input-metafnames %s' % ':'.join(args.input_metafnames)
+        # NOTE other user args (--n-max-queries, --random-seed, --only-genes, etc.) are not forwarded here.
+        # Full arg forwarding requires integration with run_step() or sys.argv deep-copy pattern. See CR-01.
         extra_str = '    %s ' % utils.color('blue', 'group %d (cdr3 %d, %s):' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
         utils.simplerun(cmd, logfname='%s/groups/cdr3-%d/partition.log' % (disjoint_dir, ginfo['cdr3_length']), dryrun=args.dry_run, extra_str=extra_str)
         ginfo['partition_path'] = partition_rel_path
 
     # write updated manifest with partition paths
-    with open(manifest_path, 'w') as mfile:
-        yaml.dump(manifest, mfile, width=400, default_flow_style=False)
+    if not args.dry_run:
+        with open(manifest_path, 'w') as mfile:
+            yaml.dump(manifest, mfile, width=400, default_flow_style=False)
 
     # step 3: merge per-group outputs
     print('  step 3: assembling merged output')
     disjointgrouper.run_assemble_groups(args)
 
     # if --is-simu, calculate CCFs (purity/completeness) on merged output by comparing to true partition from simulation input
-    assembled_dir = '%s/assembled' % disjoint_dir
     if args.is_simu:
         print('  calculating partition performance metrics on merged output')
         for ltmp in loci:
@@ -412,7 +424,7 @@ def subset_partition(args):
         else:
             args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
         print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
-    if getattr(args, 'disjoint_group', False):
+    if args.disjoint_group:
         disjoint_subset_partition(args)
         return
     # ----------------------------------------------------------------------------------------
@@ -1431,7 +1443,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         prep_inputs()
     if is_subset_action(args.action):
         subset_partition(args)
-        if getattr(args, 'disjoint_group', False) and not args.dry_run:
+        if args.disjoint_group and not args.dry_run:
+            assert args.paired_loci  # disjoint-group currently only supported with --paired-loci
             combine_inf_chains()
         return
     args.tree_inference_outdir = getodir()
