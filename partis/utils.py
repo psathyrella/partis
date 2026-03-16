@@ -4169,7 +4169,7 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
     # return hackey_default_gene_versions[region]
 
 # ----------------------------------------------------------------------------------------
-def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, align_if_necessary=False, amino_acid=False):
+def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, align_if_necessary=False, amino_acid=False, skip_chars=None):
     if extra_bases is not None:
         raise Exception('not sure what this was supposed to do (or did in the past), but it doesn\'t do anything now! (a.t.m. it seems to only be set in bin/plot-germlines.py, which I think doesn\'t do anything useful any more)')
     if align or (align_if_necessary and len(seq1) != len(seq2)):  # way the hell slower if you have to align, of course
@@ -4185,10 +4185,11 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         else:
             return 0
 
-    if amino_acid:
-        skip_chars = set(ambiguous_amino_acids + gap_chars)
-    else:
-        skip_chars = set(all_ambiguous_bases + gap_chars)
+    if skip_chars is None:  # default: skip ambiguous bases and gaps (original behavior)
+        if amino_acid:
+            skip_chars = set(ambiguous_amino_acids + gap_chars)
+        else:
+            skip_chars = set(all_ambiguous_bases + gap_chars)
 
     distance, len_excluding_ambig = 0, 0
     mutated_positions = []

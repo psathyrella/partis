@@ -64,7 +64,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
         hlist = plotting.add_bin_labels_not_in_all_hists(hlist)
 
     no_labels = False
-    xline, bounds, figsize = None, None, None
+    xline, bounds, figsize, adjust = None, None, None, None
     stats = args.extra_stats
     translegend = [0.0, -0.2]
     xtitle, ytitle = hlist[0].xtitle, hlist[0].ytitle
@@ -113,8 +113,12 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
             bounds = plotconfig.default_hard_bounds.setdefault(varname, None)
         if varname in plotconfig.gene_usage_columns:
             # no_labels = True  # not sure why i wanted these labels turned off?
-            if 'j_' not in varname:
+            if 'v_' in varname:
+                figsize = (20, 5)
+                adjust = {'left': 0.08, 'right': 0.98, 'bottom': 0.35}
+            elif 'j_' not in varname:
                 figsize = (10, 5)
+                adjust = {'left': 0.1, 'right': 0.97, 'bottom': 0.35}
             line_width_override = 1
         elif 'per-gene-per-position/v' in pathnameclues:
             figsize = (20, 5)
@@ -190,7 +194,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle if args.xtitle is None else args.xtitle, ytitle=ytitle if args.ytitle is None else args.ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, linestyles=args.linestyles, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
-                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins, print_stats=True)
+                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins, print_stats=True, adjust=adjust)
 
     if args.swarm_meta_key is not None:
         plotvals = {h.title : [h.get_bin_centers()[i] for i in h.ibiniter(True) for _ in range(int(h.bin_contents[i]))] for h in hlist}
