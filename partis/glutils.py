@@ -1413,6 +1413,67 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
     Returns:
         Dict with 'emd' (float) and 'nearest_matches' (list of per-gene detail dicts).
     """
+    # ----------------------------------------------------------------------------------------
+    def print_dbg():
+        def padgene(gstr, width):  # pad colored gene string to <width> visible chars
+            return gstr + ' ' * max(0, width - utils.len_excluding_colors(gstr))
+        def center_colored(cstr, width):
+            visible = utils.len_excluding_colors(cstr)
+            pad = max(0, width - visible)
+            left = pad // 2
+            right = pad - left
+            return ' ' * left + cstr + ' ' * right
+        def fmt_usage(frac, width=7):  # format usage fraction, blue dash for zero
+            return utils.color('blue', '%*s' % (width, '-')) if frac == 0 else '%*.4f' % (width, frac)
+        def fmt_n(count, width=5):  # format count, blue dash for zero
+            return utils.color('blue', '%*s' % (width, '-')) if count == 0 else '%*d' % (width, count)
+        def fmt_emd(val, width=6):  # format emd value, blue dash for zero
+            return utils.color('blue', '%*s' % (width, '-')) if val == 0 else '%*.2f' % (width, val)
+        gwidth = max(utils.len_excluding_colors(utils.color_gene(m['gene_a'])) for m in nearest_matches)
+        gwidth = max(gwidth, max((utils.len_excluding_colors(utils.color_gene(m['transport_partner'])) for m in nearest_matches if m['transport_partner'] is not None), default=0))
+        gwidth = max(gwidth, len('gene'))
+        name_a = names[0] if names is not None else 'a'
+        name_b = names[1] if names is not None else 'b'
+        clr_a = utils.color('blue', name_a)
+        clr_b = utils.color('red', name_b)
+        nearest_hdr = 'top transport partner'
+        # "usage N" group: 7 + 1 + 5 = 13 chars
+        grp_width = 13
+        clr_a_padded = center_colored(clr_a, grp_width)
+        clr_b_padded = center_colored(clr_b, grp_width)
+        print('  %s  EMD = %.4f' % (utils.color('green', region), emd_value))
+        # align label line with fmt_hdr: 5 + gwidth + 1 spaces before first group
+        emd_grp = center_colored('emd', 15)
+        print('%s%s  %s  %s  %s%8s      %s' % (' ' * 4, emd_grp, ' ' * gwidth, clr_a_padded, clr_b_padded, '', nearest_hdr))
+        fmt_hdr = '    %6s%6s    %-*s %7s %5s  %7s %5s   %8s    %-*s%3s%7s'
+        print(fmt_hdr % ('out', 'in', gwidth, 'gene', 'usage', 'N ', 'usage', 'N ', 'residual', gwidth, 'gene', 'seq dist', 'emd'))
+        sorted_matches = sorted(nearest_matches, key=lambda x: x['emd_out'] + x['emd_in'], reverse=True)
+        for iline, m in enumerate(sorted_matches):
+            if max_lines is not None and iline >= max_lines:
+                print('                 skipping %d lines after first %d' % (len(sorted_matches) - max_lines, max_lines))
+                break
+            usage_a_frac = m['usage_a'] / total_a if total_a > 0 else 0
+            self_frac = m['usage_b_self'] / total_b if total_b > 0 else 0
+            residual = usage_a_frac - self_frac
+            nearest_str = ''
+            if m['transport_partner'] is not None:
+                nearest_str = '   %s   %3d    %s' % (padgene(utils.color_gene(m['transport_partner']), gwidth), m['distance'], fmt_emd(m['partner_emd']))
+            print(('    %s %s   %s  %s %s  %s %s  %8.3f%s') % (
+                fmt_emd(m['emd_out']),
+                fmt_emd(m['emd_in']),
+                padgene(utils.color_gene(m['gene_a']), gwidth),
+                fmt_usage(usage_a_frac),
+                fmt_n(m['usage_a']),
+                fmt_usage(self_frac),
+                fmt_n(m['usage_b_self']),
+                residual,
+                nearest_str,
+            ))
+        if debug >= 2:
+            ref_seq = aligned[all_genes[0]]
+            for gene in all_genes:
+                print(utils.color_mutants(ref_seq, aligned[gene], extra_str='        ', post_str='  %s' % utils.color_gene(gene)))
+    # ----------------------------------------------------------------------------------------
     import numpy as np
     import ot
 
@@ -1439,17 +1500,7 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
                 break
     missing = [g for g in all_genes if g not in all_seqs]
     if missing:
-        print('  %s: missing sequences for %d gene(s) in compare_germline_usage: %s' % (utils.wrnstr(), len(missing), ' '.join(missing)))
-        # Remove missing genes from the computation
-        keep = [i for i, g in enumerate(all_genes) if g in all_seqs]
-        all_genes = [all_genes[i] for i in keep]
-        dist_a = np.array([dist_a[i] for i in keep])
-        dist_b = np.array([dist_b[i] for i in keep])
-        dist_a = dist_a / dist_a.sum() if dist_a.sum() > 0 else dist_a
-        dist_b = dist_b / dist_b.sum() if dist_b.sum() > 0 else dist_b
-
-    if len(all_genes) == 0:
-        return {'emd': 0.0, 'nearest_matches': []}
+        raise Exception('missing sequences for %d gene(s) in compare_germline_usage: %s' % (len(missing), ' '.join(missing)))
 
     # Multiple sequence alignment of all genes
     seqfos = [{'name': g, 'seq': all_seqs[g]} for g in all_genes]
@@ -1478,7 +1529,7 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
     tc_no_diag = tc.copy()
     np.fill_diagonal(tc_no_diag, 0)
 
-    # Build per-gene detail for debug
+    # Build per-gene detail (returned, and also used for debug output below)
     nearest_matches = []
     for i, gene in enumerate(all_genes):
         # Find transport partner: gene with largest EMD contribution to/from this gene (out or in)
@@ -1498,65 +1549,7 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
         })
 
     if debug >= 1:
-        def padgene(gstr, width):  # pad colored gene string to <width> visible chars
-            return gstr + ' ' * max(0, width - utils.len_excluding_colors(gstr))
-        gwidth = max(utils.len_excluding_colors(utils.color_gene(m['gene_a'])) for m in nearest_matches)
-        gwidth = max(gwidth, max((utils.len_excluding_colors(utils.color_gene(m['transport_partner'])) for m in nearest_matches if m['transport_partner'] is not None), default=0))
-        gwidth = max(gwidth, len('gene'))
-        name_a = names[0] if names is not None else 'a'
-        name_b = names[1] if names is not None else 'b'
-        clr_a = utils.color('blue', name_a)
-        clr_b = utils.color('red', name_b)
-        nearest_hdr = 'top transport partner'
-        # "usage N" group: 7 + 1 + 5 = 13 chars
-        grp_width = 13
-        # center colored labels within their group width (ANSI codes don't count toward visible width)
-        def center_colored(cstr, width):
-            visible = utils.len_excluding_colors(cstr)
-            pad = max(0, width - visible)
-            left = pad // 2
-            right = pad - left
-            return ' ' * left + cstr + ' ' * right
-        clr_a_padded = center_colored(clr_a, grp_width)
-        clr_b_padded = center_colored(clr_b, grp_width)
-        print('  %s  EMD = %.4f' % (utils.color('green', region), emd_value))
-        # align label line with fmt_hdr: 5 + gwidth + 1 spaces before first group
-        emd_grp = center_colored('emd', 15)
-        print('%s%s  %s  %s  %s%8s      %s' % (' ' * 4, emd_grp, ' ' * gwidth, clr_a_padded, clr_b_padded, '', nearest_hdr))
-        fmt_hdr = '    %6s%6s    %-*s %7s %5s  %7s %5s   %8s    %-*s%3s%7s'
-        print(fmt_hdr % ('out', 'in', gwidth, 'gene', 'usage', 'N ', 'usage', 'N ', 'residual', gwidth, 'gene', 'seq dist', 'emd'))
-        def fmt_usage(frac, width=7):  # format usage fraction, blue dash for zero
-            return utils.color('blue', '%*s' % (width, '-')) if frac == 0 else '%*.4f' % (width, frac)
-        def fmt_n(count, width=5):  # format count, blue dash for zero
-            return utils.color('blue', '%*s' % (width, '-')) if count == 0 else '%*d' % (width, count)
-        def fmt_emd(val, width=6):  # format emd value, blue dash for zero
-            return utils.color('blue', '%*s' % (width, '-')) if val == 0 else '%*.2f' % (width, val)
-        sorted_matches = sorted(nearest_matches, key=lambda x: x['emd_out'] + x['emd_in'], reverse=True)
-        for iline, m in enumerate(sorted_matches):
-            if max_lines is not None and iline >= max_lines:
-                print('                 skipping %d lines after first %d' % (len(sorted_matches) - max_lines, max_lines))
-                break
-            usage_a_frac = m['usage_a'] / total_a if total_a > 0 else 0
-            self_frac = m['usage_b_self'] / total_b if total_b > 0 else 0
-            residual = usage_a_frac - self_frac
-            nearest_str = ''
-            if m['transport_partner'] is not None:
-                nearest_str = '   %s   %3d    %s' % (padgene(utils.color_gene(m['transport_partner']), gwidth), m['distance'], fmt_emd(m['partner_emd']))
-            print(('    %s %s   %s  %s %s  %s %s  %8.3f%s') % (
-                fmt_emd(m['emd_out']),
-                fmt_emd(m['emd_in']),
-                padgene(utils.color_gene(m['gene_a']), gwidth),
-                fmt_usage(usage_a_frac),
-                fmt_n(m['usage_a']),
-                fmt_usage(self_frac),
-                fmt_n(m['usage_b_self']),
-                residual,
-                nearest_str,
-            ))
-    if debug >= 2:
-        ref_seq = aligned[all_genes[0]]
-        for gene in all_genes:
-            print(utils.color_mutants(ref_seq, aligned[gene], extra_str='        ', post_str='  %s' % utils.color_gene(gene)))
+        print_dbg()
 
     return {'emd': float(emd_value), 'nearest_matches': nearest_matches}
 
