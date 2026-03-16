@@ -1456,12 +1456,13 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
     msa_info = utils.align_many_seqs(seqfos)
     aligned = {sfo['name']: sfo['seq'] for sfo in msa_info}
 
-    # Build pairwise distance matrix (counting N-vs-ACGT and gap-vs-ACGT as differences)
+    # Build pairwise distance matrix (counting gap-vs-ACGT as differences, but skipping Ns)
     n = len(all_genes)
     cost_matrix = np.zeros((n, n), dtype=float)
+    hdist_skip = set(utils.all_ambiguous_bases)  # skip ambiguous bases but *not* gaps
     for i in range(n):
         for j in range(i + 1, n):
-            d = utils.hamming_distance(aligned[all_genes[i]], aligned[all_genes[j]], skip_chars=set())
+            d = utils.hamming_distance(aligned[all_genes[i]], aligned[all_genes[j]], skip_chars=hdist_skip)
             cost_matrix[i, j] = d
             cost_matrix[j, i] = d
 
@@ -1472,31 +1473,26 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
     gene_emd_out = np.array([np.sum(transport[i, :] * cost_matrix[i, :]) for i in range(n)])
     gene_emd_in = np.array([np.sum(transport[:, i] * cost_matrix[:, i]) for i in range(n)])
 
+    # Per-gene transport cost matrix (element-wise T * C), with diagonal zeroed for partner search
+    tc = transport * cost_matrix
+    tc_no_diag = tc.copy()
+    np.fill_diagonal(tc_no_diag, 0)
+
     # Build per-gene detail for debug
     nearest_matches = []
     for i, gene in enumerate(all_genes):
-        usage_a_val = usage_dicts[0].get(gene, 0)
-        # Find the gene with the largest EMD contribution to/from this gene (excluding self)
-        # outgoing: largest T[i,j]*cost[i,j] for j != i; incoming: largest T[j,i]*cost[j,i] for j != i
-        best_out_j = max((j for j in range(n) if j != i), key=lambda j: transport[i, j] * cost_matrix[i, j], default=None)
-        best_in_j = max((j for j in range(n) if j != i), key=lambda j: transport[j, i] * cost_matrix[j, i], default=None)
-        # pick whichever has larger emd contribution
-        out_emd = transport[i, best_out_j] * cost_matrix[i, best_out_j] if best_out_j is not None else 0
-        in_emd = transport[best_in_j, i] * cost_matrix[best_in_j, i] if best_in_j is not None else 0
-        if out_emd > 0 or in_emd > 0:
-            if out_emd >= in_emd:
-                top_j, top_dist = best_out_j, int(cost_matrix[i, best_out_j])
-            else:
-                top_j, top_dist = best_in_j, int(cost_matrix[best_in_j, i])
-        else:
-            top_j, top_dist = None, None
+        # Find transport partner: gene with largest EMD contribution to/from this gene (out or in)
+        combined = tc_no_diag[i, :] + tc_no_diag[:, i]  # total emd contribution between gene i and each other gene
+        top_j = int(np.argmax(combined)) if n > 1 else None
+        if top_j is not None and combined[top_j] == 0:
+            top_j = None
         nearest_matches.append({
             'gene_a': gene,
-            'usage_a': usage_a_val,
+            'usage_a': usage_dicts[0].get(gene, 0),
             'usage_b_self': usage_dicts[1].get(gene, 0),
             'transport_partner': all_genes[top_j] if top_j is not None else None,
-            'distance': top_dist,
-            'partner_emd': float(max(transport[i, top_j] * cost_matrix[i, top_j], transport[top_j, i] * cost_matrix[top_j, i])) if top_j is not None else None,
+            'distance': int(cost_matrix[i, top_j]) if top_j is not None else None,
+            'partner_emd': float(combined[top_j]) if top_j is not None else None,
             'emd_out': float(gene_emd_out[i]),
             'emd_in': float(gene_emd_in[i]),
         })
