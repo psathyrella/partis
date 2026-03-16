@@ -1444,8 +1444,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     if is_subset_action(args.action):
         subset_partition(args)
         if args.disjoint_group and not args.dry_run:
-            assert args.paired_loci  # disjoint-group currently only supported with --paired-loci
-            combine_inf_chains()
+            combine_inf_chains()  # --paired-loci is always True here (subset-partition auto-enables it in processargs.py)
         return
     args.tree_inference_outdir = getodir()
     if args.tree_inference_subdir is not None:
