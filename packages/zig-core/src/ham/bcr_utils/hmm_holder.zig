@@ -7,7 +7,9 @@ const std = @import("std");
 const Model = @import("../model.zig").Model;
 const germ_lines_mod = @import("germ_lines.zig");
 const GermLines = germ_lines_mod.GermLines;
+const Region = germ_lines_mod.Region;
 const regions = germ_lines_mod.regions;
+const regionStr = germ_lines_mod.regionStr;
 
 /// Corresponds to C++ `ham::HMMHolder`.
 pub const HMMHolder = struct {
@@ -65,7 +67,7 @@ pub const HMMHolder = struct {
     /// Corresponds to C++ `HMMHolder::CacheAll`.
     pub fn cacheAll(self: *HMMHolder) !void {
         for (regions) |region| {
-            const names = self.gl.names.get(region) orelse continue;
+            const names = self.gl.names.get(regionStr(region)) orelse continue;
             for (names.items) |gene| {
                 const sanitized = try GermLines.sanitizeName(self.allocator, gene);
                 defer self.allocator.free(sanitized);
@@ -81,7 +83,7 @@ pub const HMMHolder = struct {
     /// Rescale overall_mute_freq for all genes in `only_genes`.
     pub fn rescaleOverallMuteFreqs(
         self: *HMMHolder,
-        only_genes: *std.StringHashMapUnmanaged(std.StringHashMapUnmanaged(void)),
+        only_genes: *std.AutoHashMapUnmanaged(Region, std.StringHashMapUnmanaged(void)),
         overall_mute_freq: f64,
     ) !void {
         for (regions) |region| {
@@ -97,7 +99,7 @@ pub const HMMHolder = struct {
     /// Undo rescaling.
     pub fn unRescaleOverallMuteFreqs(
         self: *HMMHolder,
-        only_genes: *std.StringHashMapUnmanaged(std.StringHashMapUnmanaged(void)),
+        only_genes: *std.AutoHashMapUnmanaged(Region, std.StringHashMapUnmanaged(void)),
     ) !void {
         for (regions) |region| {
             const gene_set = only_genes.get(region) orelse continue;

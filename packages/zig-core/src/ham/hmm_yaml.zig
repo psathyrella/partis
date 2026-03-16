@@ -193,6 +193,7 @@ pub fn parseString(allocator: std.mem.Allocator, content: []const u8) !HmmData {
             continue;
         }
 
+        reprocess: while (true) {
         switch (section) {
             .top => {
                 if (std.mem.startsWith(u8, t, "name: ")) {
@@ -273,24 +274,9 @@ pub fn parseString(allocator: std.mem.Allocator, content: []const u8) !HmmData {
             .state_extras => {
                 if (current_state == null) continue;
                 if (indent <= 2) {
+                    // Indent fell below extras level — re-process as state_body
                     section = .state_body;
-                    // re-process at state_body level
-                    if (std.mem.startsWith(u8, t, "name: ")) {
-                        allocator.free(current_state.?.name);
-                        current_state.?.name = try allocator.dupe(u8, t["name: ".len..]);
-                    } else if (std.mem.eql(u8, t, "transitions:")) {
-                        section = .state_transitions;
-                    } else if (std.mem.eql(u8, t, "emissions: null")) {
-                        // nothing
-                    } else if (std.mem.eql(u8, t, "emissions:")) {
-                        section = .state_emissions;
-                        if (current_state.?.emissions == null) {
-                            current_state.?.emissions = EmissionData{
-                                .probs = std.StringHashMap(f64).init(allocator),
-                                .track_name = try allocator.dupe(u8, ""),
-                            };
-                        }
-                    }
+                    continue :reprocess;
                 } else if (std.mem.startsWith(u8, t, "germline: ")) {
                     if (current_state.?.germline_nuc) |g| allocator.free(g);
                     current_state.?.germline_nuc = try allocator.dupe(u8, t["germline: ".len..]);
@@ -304,25 +290,9 @@ pub fn parseString(allocator: std.mem.Allocator, content: []const u8) !HmmData {
             .state_transitions => {
                 if (current_state == null) continue;
                 if (indent <= 2) {
+                    // Indent fell below transitions level — re-process as state_body
                     section = .state_body;
-                    if (std.mem.startsWith(u8, t, "name: ")) {
-                        allocator.free(current_state.?.name);
-                        current_state.?.name = try allocator.dupe(u8, t["name: ".len..]);
-                    } else if (std.mem.eql(u8, t, "extras:")) {
-                        section = .state_extras;
-                    } else if (std.mem.eql(u8, t, "extras: {}")) {
-                        // nothing
-                    } else if (std.mem.eql(u8, t, "emissions: null")) {
-                        // nothing
-                    } else if (std.mem.eql(u8, t, "emissions:")) {
-                        section = .state_emissions;
-                        if (current_state.?.emissions == null) {
-                            current_state.?.emissions = EmissionData{
-                                .probs = std.StringHashMap(f64).init(allocator),
-                                .track_name = try allocator.dupe(u8, ""),
-                            };
-                        }
-                    }
+                    continue :reprocess;
                 } else {
                     // "    state_name: 0.5"
                     if (std.mem.indexOf(u8, t, ": ")) |colon| {
@@ -335,17 +305,9 @@ pub fn parseString(allocator: std.mem.Allocator, content: []const u8) !HmmData {
             .state_emissions => {
                 if (current_state == null) continue;
                 if (indent <= 2) {
+                    // Indent fell below emissions level — re-process as state_body
                     section = .state_body;
-                    if (std.mem.startsWith(u8, t, "name: ")) {
-                        allocator.free(current_state.?.name);
-                        current_state.?.name = try allocator.dupe(u8, t["name: ".len..]);
-                    } else if (std.mem.eql(u8, t, "extras:")) {
-                        section = .state_extras;
-                    } else if (std.mem.eql(u8, t, "extras: {}")) {
-                        // nothing
-                    } else if (std.mem.eql(u8, t, "transitions:")) {
-                        section = .state_transitions;
-                    }
+                    continue :reprocess;
                 } else if (std.mem.startsWith(u8, t, "track: ")) {
                     if (current_state.?.emissions) |*em| {
                         allocator.free(em.track_name);
@@ -359,17 +321,9 @@ pub fn parseString(allocator: std.mem.Allocator, content: []const u8) !HmmData {
                 if (current_state == null) continue;
                 // Probs lines have indent >= 6. Track line has indent == 4.
                 if (indent <= 2) {
+                    // Indent fell below emissions_probs level — re-process as state_body
                     section = .state_body;
-                    if (std.mem.startsWith(u8, t, "name: ")) {
-                        allocator.free(current_state.?.name);
-                        current_state.?.name = try allocator.dupe(u8, t["name: ".len..]);
-                    } else if (std.mem.eql(u8, t, "extras:")) {
-                        section = .state_extras;
-                    } else if (std.mem.eql(u8, t, "extras: {}")) {
-                        // nothing
-                    } else if (std.mem.eql(u8, t, "transitions:")) {
-                        section = .state_transitions;
-                    }
+                    continue :reprocess;
                 } else if (indent == 4) {
                     // Back to emissions level (e.g. "    track: nukes")
                     section = .state_emissions;
@@ -392,6 +346,8 @@ pub fn parseString(allocator: std.mem.Allocator, content: []const u8) !HmmData {
                     }
                 }
             },
+        }
+        break; // processed line; exit reprocess loop
         }
     }
 

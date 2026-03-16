@@ -188,7 +188,7 @@ pub const Args = struct {
                 const field = tok.next() orelse break;
                 if (isStrListHeader(head)) {
                     // Split on ':' — matches C++ SplitString(tmpstr, ":")
-                    var parts = try ham_text.split_string(allocator, field, ":");
+                    var parts = try ham_text.splitString(allocator, field, ":");
                     defer {
                         for (parts.items) |p| allocator.free(p);
                         parts.deinit(allocator);

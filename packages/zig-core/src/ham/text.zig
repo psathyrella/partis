@@ -13,7 +13,7 @@ const std = @import("std");
 
 /// Removes all instances of characters in `chars` from `input` in place.
 /// Corresponds to C++ `ham::ClearWhitespace(string white, string *input)`.
-pub fn clear_whitespace(allocator: std.mem.Allocator, chars: []const u8, input: *std.ArrayList(u8)) void {
+pub fn clearWhitespace(allocator: std.mem.Allocator, chars: []const u8, input: *std.ArrayList(u8)) void {
     _ = allocator; // not needed for in-place removal
     var i: usize = 0;
     while (i < input.items.len) {
@@ -29,7 +29,7 @@ pub fn clear_whitespace(allocator: std.mem.Allocator, chars: []const u8, input: 
 /// Splits `argstr` by whitespace (any run), returning a list of owned slices.
 /// Caller owns the returned ArrayList and its items (free each item, then call deinit).
 /// Corresponds to C++ `ham::PythonSplit(string argstr)`.
-pub fn python_split(allocator: std.mem.Allocator, argstr: []const u8) !std.ArrayList([]u8) {
+pub fn pythonSplit(allocator: std.mem.Allocator, argstr: []const u8) !std.ArrayList([]u8) {
     var tokens: std.ArrayList([]u8) = .empty;
     var it = std.mem.tokenizeAny(u8, argstr, " \t\n\r");
     while (it.next()) |tok| {
@@ -42,7 +42,7 @@ pub fn python_split(allocator: std.mem.Allocator, argstr: []const u8) !std.Array
 /// Splits `argstr` by `delimiter`, returning owned slices.
 /// Default delimiter in C++ is `":"`.
 /// Corresponds to C++ `ham::SplitString(string argstr, string delimiter)`.
-pub fn split_string(allocator: std.mem.Allocator, argstr: []const u8, delimiter: []const u8) !std.ArrayList([]u8) {
+pub fn splitString(allocator: std.mem.Allocator, argstr: []const u8, delimiter: []const u8) !std.ArrayList([]u8) {
     var parts: std.ArrayList([]u8) = .empty;
     var remaining = argstr;
     while (true) {
@@ -63,7 +63,7 @@ pub fn split_string(allocator: std.mem.Allocator, argstr: []const u8, delimiter:
 /// Returns true if `query` is found as a delimited token in `liststr`.
 /// Default delimiter in C++ is `":"`.
 /// Corresponds to C++ `ham::InString(string query, string liststr, string delimiter)`.
-pub fn in_string(query: []const u8, liststr: []const u8, delimiter: []const u8) bool {
+pub fn inString(query: []const u8, liststr: []const u8, delimiter: []const u8) bool {
     var remaining = liststr;
     while (true) {
         if (std.mem.indexOf(u8, remaining, delimiter)) |pos| {
@@ -84,7 +84,7 @@ pub fn in_string(query: []const u8, liststr: []const u8, delimiter: []const u8) 
 /// Joins a slice of strings with `delimiter` between each pair.
 /// Returns owned string. Caller owns the result.
 /// Corresponds to C++ `ham::JoinStrings(vector<string> &strlist, string delimiter)`.
-pub fn join_strings(allocator: std.mem.Allocator, strlist: []const []const u8, delimiter: []const u8) ![]u8 {
+pub fn joinStrings(allocator: std.mem.Allocator, strlist: []const []const u8, delimiter: []const u8) ![]u8 {
     if (strlist.len == 0) {
         return try allocator.dupe(u8, "");
     }
@@ -131,9 +131,9 @@ pub fn floatify(allocator: std.mem.Allocator, strlist: []const []const u8) ![]f6
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-test "split_string default delimiter" {
+test "splitString default delimiter" {
     const allocator = std.testing.allocator;
-    var parts = try split_string(allocator, "a:b:c", ":");
+    var parts = try splitString(allocator, "a:b:c", ":");
     defer {
         for (parts.items) |p| allocator.free(p);
         parts.deinit(allocator);
@@ -144,18 +144,18 @@ test "split_string default delimiter" {
     try std.testing.expectEqualStrings("c", parts.items[2]);
 }
 
-test "in_string found" {
-    try std.testing.expect(in_string("b", "a:b:c", ":"));
+test "inString found" {
+    try std.testing.expect(inString("b", "a:b:c", ":"));
 }
 
-test "in_string not found" {
-    try std.testing.expect(!in_string("d", "a:b:c", ":"));
+test "inString not found" {
+    try std.testing.expect(!inString("d", "a:b:c", ":"));
 }
 
-test "join_strings" {
+test "joinStrings" {
     const allocator = std.testing.allocator;
     const strs = [_][]const u8{ "a", "b", "c" };
-    const result = try join_strings(allocator, &strs, ":");
+    const result = try joinStrings(allocator, &strs, ":");
     defer allocator.free(result);
     try std.testing.expectEqualStrings("a:b:c", result);
 }
@@ -168,9 +168,9 @@ test "intify" {
     try std.testing.expectEqualSlices(i32, &[_]i32{ 1, 2, 3 }, result);
 }
 
-test "python_split" {
+test "pythonSplit" {
     const allocator = std.testing.allocator;
-    var tokens = try python_split(allocator, "  foo  bar  baz  ");
+    var tokens = try pythonSplit(allocator, "  foo  bar  baz  ");
     defer {
         for (tokens.items) |t| allocator.free(t);
         tokens.deinit(allocator);

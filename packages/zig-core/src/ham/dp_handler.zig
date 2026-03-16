@@ -22,6 +22,8 @@ const KBounds = bcr.KBounds;
 const RecoEvent = bcr.RecoEvent;
 const Result = bcr.Result;
 const Insertions = bcr.Insertions;
+const Region = bcr.Region;
+const regionStr = bcr.regionStr;
 
 /// Key for the per-gene score/path caches.
 const GeneKSetKey = struct {
@@ -158,11 +160,10 @@ pub const DPHandler = struct {
         }
 
         // Build only_genes map: region → set of gene names
-        var only_genes: std.StringHashMapUnmanaged(std.StringHashMapUnmanaged(void)) = .{};
+        var only_genes: std.AutoHashMapUnmanaged(Region, std.StringHashMapUnmanaged(void)) = .{};
         defer {
             var oit = only_genes.iterator();
             while (oit.next()) |entry| {
-                allocator.free(entry.key_ptr.*);
                 var inner_it = entry.value_ptr.iterator();
                 while (inner_it.next()) |kv| allocator.free(kv.key_ptr.*);
                 entry.value_ptr.deinit(allocator);
@@ -172,11 +173,10 @@ pub const DPHandler = struct {
 
         if (only_gene_list.len > 0) {
             for (bcr.germ_lines.regions) |r| {
-                try only_genes.put(allocator, try allocator.dupe(u8, r), .{});
+                try only_genes.put(allocator, r, .{});
             }
             for (only_gene_list) |gene| {
-                const r_ch = try GermLines.getRegion(gene);
-                const r = &[_]u8{r_ch};
+                const r = try GermLines.getRegion(gene);
                 if (only_genes.getPtr(r)) |set| {
                     const gkey = try allocator.dupe(u8, gene);
                     errdefer allocator.free(gkey);
@@ -192,12 +192,12 @@ pub const DPHandler = struct {
             // Populate from GermLines
             for (bcr.germ_lines.regions) |r| {
                 var set: std.StringHashMapUnmanaged(void) = .{};
-                if (self.gl.names.get(r)) |name_list| {
+                if (self.gl.names.get(regionStr(r))) |name_list| {
                     for (name_list.items) |gene| {
                         try set.put(allocator, try allocator.dupe(u8, gene), {});
                     }
                 }
-                try only_genes.put(allocator, try allocator.dupe(u8, r), set);
+                try only_genes.put(allocator, r, set);
             }
         }
 
@@ -211,13 +211,12 @@ pub const DPHandler = struct {
         defer best_scores.deinit(allocator);
         var total_scores: std.AutoHashMapUnmanaged(KSet, f64) = .{};
         defer total_scores.deinit(allocator);
-        var best_genes: std.AutoHashMapUnmanaged(KSet, std.StringHashMapUnmanaged([]u8)) = .{};
+        var best_genes: std.AutoHashMapUnmanaged(KSet, std.AutoHashMapUnmanaged(Region, []u8)) = .{};
         defer {
             var bgit = best_genes.iterator();
             while (bgit.next()) |entry| {
                 var inner = entry.value_ptr.iterator();
                 while (inner.next()) |kv| {
-                    allocator.free(kv.key_ptr.*);
                     allocator.free(kv.value_ptr.*);
                 }
                 entry.value_ptr.deinit(allocator);
@@ -231,7 +230,7 @@ pub const DPHandler = struct {
 
         var result = try Result.init(allocator, kbounds, self.args.locus);
 
-        var best_score: f64 = -std.math.inf(f64);
+        var best_score: f64 = mathutils.NEG_INF;
         var best_kset = KSet{ .v = 0, .d = 0 };
 
         // Loop over k-space in reverse order (for chunk caching)
@@ -242,16 +241,16 @@ pub const DPHandler = struct {
                 if (k_v + k_d < seqs.sequence_length) {
                     const kset = KSet{ .v = k_v, .d = k_d };
                     try self.runKSet(&seqs, kset, &only_genes, &best_scores, &total_scores, &best_genes);
-                    const total_kset = total_scores.get(kset) orelse -std.math.inf(f64);
-                    result.total_score = mathutils.add_in_log_space(total_kset, result.total_score);
+                    const total_kset = total_scores.get(kset) orelse mathutils.NEG_INF;
+                    result.total_score = mathutils.addInLogSpace(total_kset, result.total_score);
 
-                    const best_kset_score = best_scores.get(kset) orelse -std.math.inf(f64);
+                    const best_kset_score = best_scores.get(kset) orelse mathutils.NEG_INF;
                     if (best_kset_score > best_score) {
                         best_score = best_kset_score;
                         best_kset = kset;
                     }
 
-                    if (std.mem.eql(u8, self.algorithm, "viterbi") and best_kset_score != -std.math.inf(f64)) {
+                    if (std.mem.eql(u8, self.algorithm, "viterbi") and best_kset_score != mathutils.NEG_INF) {
                         const bg = best_genes.get(kset) orelse continue;
                         const event = try self.fillRecoEvent(&seqs, kset, &bg, best_kset_score);
                         try result.pushBackRecoEvent(event);
@@ -286,19 +285,23 @@ pub const DPHandler = struct {
 
     /// Get subsequences for one region.
     /// Corresponds to C++ `DPHandler::GetSubSeqs(seqs, kset, region)`.
-    fn getSubSeqs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: []const u8) !Sequences {
+    fn getSubSeqs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: Region) !Sequences {
         const allocator = self.allocator;
         var result = Sequences.init();
         errdefer result.deinit(allocator);
 
         const k_v = kset.v;
         const k_d = kset.d;
-        const start: usize = if (std.mem.eql(u8, region, "v")) 0
-            else if (std.mem.eql(u8, region, "d")) k_v
-            else k_v + k_d;
-        const length: usize = if (std.mem.eql(u8, region, "v")) k_v
-            else if (std.mem.eql(u8, region, "d")) k_d
-            else seqs.sequence_length - k_v - k_d;
+        const start: usize = switch (region) {
+            .v => 0,
+            .d => k_v,
+            .j => k_v + k_d,
+        };
+        const length: usize = switch (region) {
+            .v => k_v,
+            .d => k_d,
+            .j => seqs.sequence_length - k_v - k_d,
+        };
 
         for (seqs.seqs.items) |*sq| {
             var sub = try Sequence.initSlice(allocator, sq, start, length);
@@ -309,7 +312,7 @@ pub const DPHandler = struct {
     }
 
     /// Collect undigitized strings for the given region's subsequences.
-    fn getQueryStrs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: []const u8) !std.ArrayListUnmanaged([]u8) {
+    fn getQueryStrs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: Region) !std.ArrayListUnmanaged([]u8) {
         const allocator = self.allocator;
         var query_seqs = try self.getSubSeqs(seqs, kset, region);
         defer query_seqs.deinit(allocator);
@@ -326,6 +329,7 @@ pub const DPHandler = struct {
     }
 
     /// Ensure per-gene caches are initialised for `gene`.
+    /// Three separate key copies are needed because each HashMap owns its key independently.
     fn initCache(self: *DPHandler, gene: []const u8) !void {
         if (self.scores.contains(gene)) return;
 
@@ -344,20 +348,24 @@ pub const DPHandler = struct {
 
     /// Look for a cached kset whose region sequences are a prefix of `query_strs`.
     /// Returns null-kset if none found.
-    fn findPartialCacheMatch(self: *DPHandler, region: []const u8, gene: []const u8, kset: KSet) KSet {
+    fn findPartialCacheMatch(self: *DPHandler, region: Region, gene: []const u8, kset: KSet) KSet {
         const gene_scores = self.scores.get(gene) orelse return KSet{ .v = 0, .d = 0 };
         if (gene_scores.get(kset) != null) return kset;
 
-        if (std.mem.eql(u8, region, "v")) {
-            var it = gene_scores.iterator();
-            while (it.next()) |kv| {
-                if (kv.key_ptr.v == kset.v) return kv.key_ptr.*;
-            }
-        } else if (std.mem.eql(u8, region, "j")) {
-            var it = gene_scores.iterator();
-            while (it.next()) |kv| {
-                if (kv.key_ptr.v + kv.key_ptr.d == kset.v + kset.d) return kv.key_ptr.*;
-            }
+        switch (region) {
+            .v => {
+                var it = gene_scores.iterator();
+                while (it.next()) |kv| {
+                    if (kv.key_ptr.v == kset.v) return kv.key_ptr.*;
+                }
+            },
+            .j => {
+                var it = gene_scores.iterator();
+                while (it.next()) |kv| {
+                    if (kv.key_ptr.v + kv.key_ptr.d == kset.v + kset.d) return kv.key_ptr.*;
+                }
+            },
+            .d => {},
         }
         return KSet{ .v = 0, .d = 0 };
     }
@@ -427,8 +435,6 @@ pub const DPHandler = struct {
             qstrs = .{}; // ownership transferred to entry
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 try cache_list.append(allocator, entry);
-                // Reallocation may have moved all entries — fix up self-referential _ptr fields.
-                for (cache_list.items) |*te| te.trellis.fixupPtrs();
                 break :blk &cache_list.items[cache_list.items.len - 1].trellis;
             } else {
                 // gene not in scratch_cachefo — should never happen after initCache
@@ -447,7 +453,7 @@ pub const DPHandler = struct {
             // Store traceback path
             var path = TracebackPath.initWithModel(model);
             errdefer path.deinit(allocator);
-            if (sc != -std.math.inf(f64)) {
+            if (sc != mathutils.NEG_INF) {
                 try trell_ptr.traceback(&path);
             }
             if (self.paths.getPtr(gene)) |gene_paths| {
@@ -462,7 +468,7 @@ pub const DPHandler = struct {
         };
 
         const gene_choice_score = @log(model.overall_prob);
-        const final_score = mathutils.add_with_minus_infinities(uncorrected_score, gene_choice_score);
+        const final_score = mathutils.addWithMinusInfinities(uncorrected_score, gene_choice_score);
 
         if (self.scores.getPtr(gene)) |gene_scores| {
             try gene_scores.put(allocator, kset, final_score);
@@ -474,30 +480,22 @@ pub const DPHandler = struct {
         self: *DPHandler,
         seqs: *Sequences,
         kset: KSet,
-        only_genes: *std.StringHashMapUnmanaged(std.StringHashMapUnmanaged(void)),
+        only_genes: *std.AutoHashMapUnmanaged(Region, std.StringHashMapUnmanaged(void)),
         best_scores: *std.AutoHashMapUnmanaged(KSet, f64),
         total_scores: *std.AutoHashMapUnmanaged(KSet, f64),
-        best_genes: *std.AutoHashMapUnmanaged(KSet, std.StringHashMapUnmanaged([]u8)),
+        best_genes: *std.AutoHashMapUnmanaged(KSet, std.AutoHashMapUnmanaged(Region, []u8)),
     ) !void {
         const allocator = self.allocator;
 
-        try best_scores.put(allocator, kset, -std.math.inf(f64));
-        try total_scores.put(allocator, kset, -std.math.inf(f64));
-        const bg_entry: std.StringHashMapUnmanaged([]u8) = .{};
+        try best_scores.put(allocator, kset, mathutils.NEG_INF);
+        try total_scores.put(allocator, kset, mathutils.NEG_INF);
+        const bg_entry: std.AutoHashMapUnmanaged(Region, []u8) = .{};
         try best_genes.put(allocator, kset, bg_entry);
 
-        var regional_best: std.StringHashMapUnmanaged(f64) = .{};
-        defer {
-            var it = regional_best.iterator();
-            while (it.next()) |e| allocator.free(e.key_ptr.*);
-            regional_best.deinit(allocator);
-        }
-        var regional_total: std.StringHashMapUnmanaged(f64) = .{};
-        defer {
-            var it = regional_total.iterator();
-            while (it.next()) |e| allocator.free(e.key_ptr.*);
-            regional_total.deinit(allocator);
-        }
+        var regional_best: std.AutoHashMapUnmanaged(Region, f64) = .{};
+        defer regional_best.deinit(allocator);
+        var regional_total: std.AutoHashMapUnmanaged(Region, f64) = .{};
+        defer regional_total.deinit(allocator);
         var per_gene_support_this_kset: std.StringHashMapUnmanaged(f64) = .{};
         defer {
             var it = per_gene_support_this_kset.iterator();
@@ -506,8 +504,8 @@ pub const DPHandler = struct {
         }
 
         for (bcr.germ_lines.regions) |region| {
-            try regional_best.put(allocator, try allocator.dupe(u8, region), -std.math.inf(f64));
-            try regional_total.put(allocator, try allocator.dupe(u8, region), -std.math.inf(f64));
+            try regional_best.put(allocator, region, mathutils.NEG_INF);
+            try regional_total.put(allocator, region, mathutils.NEG_INF);
 
             var query_strs = try self.getQueryStrs(seqs, kset, region);
             defer {
@@ -538,34 +536,31 @@ pub const DPHandler = struct {
                         }
                     }
                     if (self.scores.getPtr(gene)) |gs| {
-                        const cached_score = gs.get(partial_match) orelse -std.math.inf(f64);
+                        const cached_score = gs.get(partial_match) orelse mathutils.NEG_INF;
                         try gs.put(allocator, kset, cached_score);
                     }
                 } else {
                     try self.fillTrellis(kset, query_seqs, query_strs.items, gene);
                 }
 
-                const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(kset) orelse -std.math.inf(f64) else -std.math.inf(f64);
+                const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(kset) orelse mathutils.NEG_INF else mathutils.NEG_INF;
 
                 // Update regional totals
                 if (regional_total.getPtr(region)) |rt| {
-                    rt.* = mathutils.add_in_log_space(gene_score, rt.*);
+                    rt.* = mathutils.addInLogSpace(gene_score, rt.*);
                 }
 
                 // Update regional best + best_genes for this kset
-                const reg_best = regional_best.get(region) orelse -std.math.inf(f64);
+                const reg_best = regional_best.get(region) orelse mathutils.NEG_INF;
                 if (gene_score > reg_best) {
                     if (regional_best.getPtr(region)) |rb| rb.* = gene_score;
                     if (best_genes.getPtr(kset)) |bg_map| {
-                        const region_key = try allocator.dupe(u8, region);
-                        errdefer allocator.free(region_key);
                         const gene_val = try allocator.dupe(u8, gene);
                         errdefer allocator.free(gene_val);
-                        if (bg_map.fetchRemove(region_key)) |old| {
-                            allocator.free(old.key);
+                        if (bg_map.fetchRemove(region)) |old| {
                             allocator.free(old.value);
                         }
-                        try bg_map.put(allocator, region_key, gene_val);
+                        try bg_map.put(allocator, region, gene_val);
                     }
                 }
 
@@ -582,15 +577,15 @@ pub const DPHandler = struct {
         }
 
         // Store combined best and total scores
-        const rb_v = regional_best.get("v") orelse -std.math.inf(f64);
-        const rb_d = regional_best.get("d") orelse -std.math.inf(f64);
-        const rb_j = regional_best.get("j") orelse -std.math.inf(f64);
-        const rt_v = regional_total.get("v") orelse -std.math.inf(f64);
-        const rt_d = regional_total.get("d") orelse -std.math.inf(f64);
-        const rt_j = regional_total.get("j") orelse -std.math.inf(f64);
+        const rb_v = regional_best.get(.v) orelse mathutils.NEG_INF;
+        const rb_d = regional_best.get(.d) orelse mathutils.NEG_INF;
+        const rb_j = regional_best.get(.j) orelse mathutils.NEG_INF;
+        const rt_v = regional_total.get(.v) orelse mathutils.NEG_INF;
+        const rt_d = regional_total.get(.d) orelse mathutils.NEG_INF;
+        const rt_j = regional_total.get(.j) orelse mathutils.NEG_INF;
 
-        try best_scores.put(allocator, kset, mathutils.add_with_minus_infinities(rb_v, mathutils.add_with_minus_infinities(rb_d, rb_j)));
-        try total_scores.put(allocator, kset, mathutils.add_with_minus_infinities(rt_v, mathutils.add_with_minus_infinities(rt_d, rt_j)));
+        try best_scores.put(allocator, kset, mathutils.addWithMinusInfinities(rb_v, mathutils.addWithMinusInfinities(rb_d, rb_j)));
+        try total_scores.put(allocator, kset, mathutils.addWithMinusInfinities(rt_v, mathutils.addWithMinusInfinities(rt_d, rt_j)));
 
         // Compute per_gene_support across ksets
         for (bcr.germ_lines.regions) |region| {
@@ -600,14 +595,14 @@ pub const DPHandler = struct {
                 const gene = gene_entry.key_ptr.*;
                 var score_this_kset: f64 = 0.0;
                 for (bcr.germ_lines.regions) |tmpreg| {
-                    if (std.mem.eql(u8, tmpreg, region)) {
-                        score_this_kset = mathutils.add_with_minus_infinities(score_this_kset, per_gene_support_this_kset.get(gene) orelse -std.math.inf(f64));
+                    if (tmpreg == region) {
+                        score_this_kset = mathutils.addWithMinusInfinities(score_this_kset, per_gene_support_this_kset.get(gene) orelse mathutils.NEG_INF);
                     } else {
-                        score_this_kset = mathutils.add_with_minus_infinities(score_this_kset, regional_best.get(tmpreg) orelse -std.math.inf(f64));
+                        score_this_kset = mathutils.addWithMinusInfinities(score_this_kset, regional_best.get(tmpreg) orelse mathutils.NEG_INF);
                     }
                 }
 
-                const existing = self.per_gene_support.get(gene) orelse -std.math.inf(f64);
+                const existing = self.per_gene_support.get(gene) orelse mathutils.NEG_INF;
                 if (score_this_kset > existing) {
                     if (self.per_gene_support.contains(gene)) {
                         self.per_gene_support.getPtr(gene).?.* = score_this_kset;
@@ -626,7 +621,7 @@ pub const DPHandler = struct {
         self: *DPHandler,
         seqs: *Sequences,
         kset: KSet,
-        best_genes_for_kset: *const std.StringHashMapUnmanaged([]u8),
+        best_genes_for_kset: *const std.AutoHashMapUnmanaged(Region, []u8),
         score: f64,
     ) !RecoEvent {
         const allocator = self.allocator;
@@ -634,8 +629,9 @@ pub const DPHandler = struct {
         errdefer event.deinit(allocator);
 
         for (bcr.germ_lines.regions) |region| {
+            const rs = regionStr(region);
             const gene = best_genes_for_kset.get(region) orelse {
-                event.setScore(-std.math.inf(f64));
+                event.setScore(mathutils.NEG_INF);
                 return event;
             };
 
@@ -645,7 +641,7 @@ pub const DPHandler = struct {
                 query_strs.deinit(allocator);
             }
             if (query_strs.items.len == 0) {
-                event.setScore(-std.math.inf(f64));
+                event.setScore(mathutils.NEG_INF);
                 return event;
             }
 
@@ -658,14 +654,14 @@ pub const DPHandler = struct {
             }
 
             if (path_names_list.items.len == 0) {
-                event.setScore(-std.math.inf(f64));
+                event.setScore(mathutils.NEG_INF);
                 return event;
             }
 
-            try event.setGene(allocator, region, gene);
-            const del_3p = try std.fmt.allocPrint(allocator, "{s}_3p", .{region});
+            try event.setGene(allocator, rs, gene);
+            const del_3p = try std.fmt.allocPrint(allocator, "{s}_3p", .{rs});
             defer allocator.free(del_3p);
-            const del_5p = try std.fmt.allocPrint(allocator, "{s}_5p", .{region});
+            const del_5p = try std.fmt.allocPrint(allocator, "{s}_5p", .{rs});
             defer allocator.free(del_5p);
             try event.setDeletion(allocator, del_3p, self.getErosionLength("right", path_names_list.items, gene));
             try event.setDeletion(allocator, del_5p, self.getErosionLength("left", path_names_list.items, gene));
@@ -691,7 +687,7 @@ pub const DPHandler = struct {
 
     /// Set insertions on `event` based on path state names for `region`.
     /// Corresponds to C++ `DPHandler::SetInsertions`.
-    fn setInsertions(self: *DPHandler, region: []const u8, path_names: []const []const u8, event: *RecoEvent) !void {
+    fn setInsertions(self: *DPHandler, region: Region, path_names: []const []const u8, event: *RecoEvent) !void {
         const allocator = self.allocator;
         const ins = Insertions{};
         var buf: [200]u8 = undefined;
@@ -799,9 +795,6 @@ pub const DPHandler = struct {
         const allocator = self.allocator;
         const best_ev = multi_seq_result.best_event orelse return;
 
-        // Build naive sequence from best event
-        const trk = try self.hmms.get(qry_seqs[0].track.?.name);
-        _ = trk;
         // Create naive sequence (use first query's track)
         const first_track = qry_seqs[0].track orelse return;
         var naive_seq = try Sequence.initFromString(allocator, first_track, "naive-seq", best_ev.naive_seq);
@@ -814,8 +807,9 @@ pub const DPHandler = struct {
         const naive_ev = naive_result.best_event orelse return;
         if (multi_seq_result.best_event) |*me| {
             for (bcr.germ_lines.regions) |region| {
-                const ng = naive_ev.genes.get(region) orelse continue;
-                try me.setGene(allocator, region, ng);
+                const rs = regionStr(region);
+                const ng = naive_ev.genes.get(rs) orelse continue;
+                try me.setGene(allocator, rs, ng);
             }
             const all_dels = [_][]const u8{ "v_5p", "v_3p", "d_5p", "d_3p", "j_5p", "j_3p" };
             for (all_dels) |delname| {

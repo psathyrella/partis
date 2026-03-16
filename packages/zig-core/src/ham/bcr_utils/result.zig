@@ -12,7 +12,10 @@ const KSet = k_bounds_mod.KSet;
 const KBounds = k_bounds_mod.KBounds;
 const germ_lines_mod = @import("germ_lines.zig");
 const hasDGene = germ_lines_mod.hasDGene;
+const Region = germ_lines_mod.Region;
 const regions = germ_lines_mod.regions;
+const regionStr = germ_lines_mod.regionStr;
+const mathutils = @import("../mathutils.zig");
 
 /// Corresponds to C++ `ham::Result`.
 pub const Result = struct {
@@ -30,7 +33,7 @@ pub const Result = struct {
 
     pub fn init(allocator: std.mem.Allocator, kbounds: KBounds, locus: []const u8) !Result {
         return Result{
-            .total_score = -std.math.inf(f64),
+            .total_score = mathutils.NEG_INF,
             .no_path = false,
             .locus = try allocator.dupe(u8, locus),
             .better_kbounds = kbounds,
@@ -88,7 +91,7 @@ pub const Result = struct {
                 const gene = entry.key_ptr.*;
                 const logprob = entry.value_ptr.*;
                 const r = GermLines.getRegion(gene) catch continue;
-                if (r != region[0]) continue;
+                if (r != region) continue;
                 try support.append(self.allocator, SupportPair{ .gene = gene, .logprob = logprob });
             }
             // Sort descending by logprob
@@ -97,7 +100,7 @@ pub const Result = struct {
                     return a.logprob > b.logprob;
                 }
             }.desc);
-            const key = try self.allocator.dupe(u8, region);
+            const key = try self.allocator.dupe(u8, regionStr(region));
             errdefer self.allocator.free(key);
             if (self.best_event) |*be| {
                 try be.per_gene_support.put(self.allocator, key, support);

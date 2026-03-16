@@ -134,7 +134,7 @@ pub const Glomerator = struct {
             for (seq_list) |*sq| {
                 try names.append(allocator, sq.name);
             }
-            const key = try ham_text.join_strings(allocator, names.items, ":");
+            const key = try ham_text.joinStrings(allocator, names.items, ":");
             defer allocator.free(key);
 
             // Stash all sequences in single_seqs
@@ -181,7 +181,7 @@ pub const Glomerator = struct {
                         var s = uid_seqs;
                         s.deinit(allocator);
                     }
-                    const is_seed_missing = !ham_text.in_string(args.seed_unique_id, uid, ":");
+                    const is_seed_missing = !ham_text.inString(args.seed_unique_id, uid, ":");
                     var uid_q = try Query.create(
                         allocator,
                         uid,
@@ -207,7 +207,7 @@ pub const Glomerator = struct {
                 var ksl = key_seqs;
                 ksl.deinit(allocator);
             }
-            const is_seed_missing = !ham_text.in_string(args.seed_unique_id, key, ":");
+            const is_seed_missing = !ham_text.inString(args.seed_unique_id, key, ":");
             var q = try Query.create(
                 allocator,
                 key,
@@ -330,7 +330,7 @@ pub const Glomerator = struct {
             try init_part.append(self.allocator, try self.allocator.dupe(u8, name));
         }
         sortPartition(&init_part);
-        var cp = try ClusterPath.initWithPartition(self.allocator, init_part, -std.math.inf(f64));
+        var cp = try ClusterPath.initWithPartition(self.allocator, init_part, mathutils.NEG_INF);
         defer cp.deinit(self.allocator);
 
         while (!cp.finished) {
@@ -383,9 +383,7 @@ pub const Glomerator = struct {
             return;
         }
 
-        const content = std.fs.cwd().readFileAlloc(allocator, self.args.input_cachefname, 256 * 1024 * 1024) catch |err| {
-            return err;
-        };
+        const content = try std.fs.cwd().readFileAlloc(allocator, self.args.input_cachefname, 256 * 1024 * 1024);
         defer allocator.free(content);
 
         var line_iter = std.mem.splitScalar(u8, content, '\n');
@@ -515,7 +513,6 @@ pub const Glomerator = struct {
     // ── Partition I/O ─────────────────────────────────────────────────────────
 
     fn writePartitions(self: *Glomerator, cp: *ClusterPath) !void {
-        const allocator = self.allocator;
         const f = try std.fs.cwd().createFile(self.args.outfile, .{});
         defer f.close();
         var wr_buf: [65536]u8 = undefined;
@@ -546,7 +543,6 @@ pub const Glomerator = struct {
         }
 
         try writer.flush();
-        _ = allocator;
     }
 
     // ── Merge step ────────────────────────────────────────────────────────────
@@ -627,7 +623,7 @@ pub const Glomerator = struct {
         }
         try new_partition.append(self.allocator, try self.allocator.dupe(u8, chosen.name));
         sortPartition(&new_partition);
-        try path.addPartition(self.allocator, new_partition, -std.math.inf(f64), @intCast(self.args.n_partitions_to_write));
+        try path.addPartition(self.allocator, new_partition, mathutils.NEG_INF, @intCast(self.args.n_partitions_to_write));
 
         // Clear tmp cache
         var tcit = self.tmp_cachefo.iterator();
@@ -653,7 +649,7 @@ pub const Glomerator = struct {
         var total: f64 = 0.0;
         for (partition.items) |key| {
             const lp = try self.getLogProb(key);
-            total = mathutils.add_with_minus_infinities(total, lp);
+            total = mathutils.addWithMinusInfinities(total, lp);
         }
         return total;
     }
@@ -682,7 +678,7 @@ pub const Glomerator = struct {
 
         if (result.no_path) {
             try self.addFailedQuery(queries, "no_path");
-            return -std.math.inf(f64);
+            return mathutils.NEG_INF;
         }
         return result.total_score;
     }
@@ -880,7 +876,7 @@ pub const Glomerator = struct {
 
     /// Find best lratio merge; returns null if none above threshold.
     fn findLRatioMerge(self: *Glomerator, path: *ClusterPath) !?Query {
-        var max_lratio: f64 = -std.math.inf(f64);
+        var max_lratio: f64 = mathutils.NEG_INF;
         var best_query: ?Query = null;
 
         const cur_part = path.currentPartition();
@@ -914,19 +910,23 @@ pub const Glomerator = struct {
             }
         }
 
-        if (max_lratio != -std.math.inf(f64)) {
+        if (max_lratio != mathutils.NEG_INF) {
             self.n_lratio_merges += 1;
             return best_query;
         }
         return null;
     }
 
-    fn likelihoodRatioTooSmall(self: *Glomerator, lratio: f64, ccs: i32) bool {
+    /// Check whether the log-likelihood ratio is below a cluster-size-dependent threshold.
+    /// Ported from C++ `Glomerator::LikelihoodRatioTooSmall()`.
+    /// The threshold loosens by 1.0 for each additional sequence beyond 2, capped at ccs>=6.
+    /// `ccs` is the combined cluster size (number of sequences in the merged cluster).
+    fn likelihoodRatioTooSmall(self: *Glomerator, lratio: f64, combined_cluster_size: i32) bool {
         const threshold = self.args.logprob_ratio_threshold;
-        if (ccs == 2) return lratio < threshold;
-        if (ccs == 3) return lratio < threshold - 2.0;
-        if (ccs == 4) return lratio < threshold - 3.0;
-        if (ccs == 5) return lratio < threshold - 4.0;
+        if (combined_cluster_size == 2) return lratio < threshold;
+        if (combined_cluster_size == 3) return lratio < threshold - 2.0;
+        if (combined_cluster_size == 4) return lratio < threshold - 3.0;
+        if (combined_cluster_size == 5) return lratio < threshold - 4.0;
         return lratio < threshold - 5.0;
     }
 
@@ -985,7 +985,7 @@ pub const Glomerator = struct {
             ks.deinit(self.allocator);
         }
 
-        const is_seed_missing = !ham_text.in_string(self.args.seed_unique_id, queries, ":");
+        const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, queries, ":");
         var new_q = try Query.create(
             self.allocator,
             queries,
@@ -1044,7 +1044,7 @@ pub const Glomerator = struct {
         const n_a: f64 = @floatFromInt(ref_a.nSeqs());
         const n_b: f64 = @floatFromInt(ref_b.nSeqs());
         const joint_mute_freq: f32 = @floatCast((n_a * ref_a.mute_freq + n_b * ref_b.mute_freq) / (n_a + n_b));
-        const is_seed_missing = !ham_text.in_string(self.args.seed_unique_id, joint_name, ":");
+        const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, joint_name, ":");
 
         const key_seqs = try self.getSeqs(joint_name);
         defer {
@@ -1175,7 +1175,7 @@ pub const Glomerator = struct {
         defer sub_names.deinit(self.allocator);
         for (chosen.items) |i| try sub_names.append(self.allocator, namevec.items[i]);
 
-        const subqueries = try ham_text.join_strings(self.allocator, sub_names.items, ":");
+        const subqueries = try ham_text.joinStrings(self.allocator, sub_names.items, ":");
 
         const key = try self.allocator.dupe(u8, queries);
         errdefer self.allocator.free(key);
@@ -1261,7 +1261,7 @@ pub const Glomerator = struct {
                 var ks = key_seqs;
                 ks.deinit(self.allocator);
             }
-            const is_seed_missing = !ham_text.in_string(self.args.seed_unique_id, translated_query, ":");
+            const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, translated_query, ":");
             var q = try Query.create(
                 self.allocator,
                 translated_query,
