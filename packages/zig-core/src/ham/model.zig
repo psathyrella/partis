@@ -11,6 +11,7 @@ const track_mod = @import("track.zig");
 const State = @import("state.zig").State;
 const Transition = @import("transitions.zig").Transition;
 const hmm_yaml = @import("hmm_yaml.zig");
+const mathutils = @import("mathutils.zig");
 
 /// EPS for normalization checks (-DEPS=1e-6).
 const EPS: f64 = 1e-6;
@@ -51,7 +52,7 @@ pub const Model = struct {
             .name = try allocator.dupe(u8, ""),
             .overall_prob = 0.0,
             .original_overall_mute_freq = 0.0,
-            .rescale_ratio = -std.math.inf(f64),
+            .rescale_ratio = mathutils.NEG_INF,
             .ambiguous_char = try allocator.dupe(u8, ""),
             .track = null,
             .states = .{},
@@ -186,7 +187,7 @@ pub const Model = struct {
             const t = maybe_t orelse continue;
             const to_state = self.states_by_name.get(t.to_state_name) orelse return error.UnknownTransitionTarget;
             st.addToState(to_state);
-            t.setToState(@ptrCast(to_state));
+            t.setToState(to_state);
             if (st != self.initial) to_state.addFromState(st);
         }
         if (st.trans_to_end) |_| {
@@ -267,7 +268,7 @@ pub const Model = struct {
     fn addToStateIndicesHelper(_: *const Model, allocator: std.mem.Allocator, st: *const State, visited: *std.ArrayListUnmanaged(u16)) !void {
         for (st.transitions.items) |maybe_t| {
             if (maybe_t) |t| {
-                const to_st = @as(*State, @ptrCast(@alignCast(t.to_state_ptr orelse continue)));
+                const to_st = t.to_state_ptr orelse continue;
                 try visited.append(allocator, @intCast(to_st.index));
             }
         }

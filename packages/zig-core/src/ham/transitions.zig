@@ -6,10 +6,7 @@
 /// C++ author: psathyrella/ham
 
 const std = @import("std");
-
-/// Forward declaration: State is defined in state.zig but Transition needs a pointer to it.
-/// We use `anyopaque` to break the circular dependency — callers cast as needed.
-const StateOpaque = anyopaque;
+const State = @import("state.zig").State;
 
 /// Transition from one HMM state to another with an associated log-probability.
 /// Corresponds to C++ `ham::Transition`.
@@ -19,8 +16,7 @@ pub const Transition = struct {
     /// Log transition probability (log of the raw probability passed to constructor).
     log_prob: f64,
     /// Pointer to the destination State (set by Model::FinalizeState; not owned).
-    /// Cast to `*State` by callers that import state.zig.
-    to_state_ptr: ?*StateOpaque,
+    to_state_ptr: ?*State,
 
     /// Create a Transition from a destination state name and a raw probability.
     /// Stores log(prob) to match C++ constructor behavior.
@@ -40,7 +36,7 @@ pub const Transition = struct {
 
     /// Set the destination state pointer (called by Model during finalization).
     /// Corresponds to C++ `void set_to_state(State*)`.
-    pub fn setToState(self: *Transition, st: *StateOpaque) void {
+    pub fn setToState(self: *Transition, st: *State) void {
         self.to_state_ptr = st;
     }
 

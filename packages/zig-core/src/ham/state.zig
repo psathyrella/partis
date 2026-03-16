@@ -19,19 +19,9 @@ pub const STATE_MAX: usize = 500;
 /// EPS for normalization check (matches C++ -DEPS=1e-6).
 const EPS: f64 = 1e-6;
 
-/// A simple boolean bitset over STATE_MAX bits.
+/// Bitset over STATE_MAX bits. Uses std.StaticBitSet for compact representation.
 /// Corresponds to C++ `std::bitset<STATE_MAX>`.
-pub const StateBitset = struct {
-    bits: [STATE_MAX]bool = [_]bool{false} ** STATE_MAX,
-
-    pub fn set(self: *StateBitset, index: usize) void {
-        self.bits[index] = true;
-    }
-
-    pub fn get(self: *const StateBitset, index: usize) bool {
-        return self.bits[index];
-    }
-};
+pub const StateBitset = std.StaticBitSet(STATE_MAX);
 
 /// A single HMM state.
 /// Corresponds to C++ `ham::State`.
@@ -73,14 +63,14 @@ pub const State = struct {
         return State{
             .name = &[_]u8{},
             .germline_nuc = &[_]u8{},
-            .ambiguous_emission_logprob = -std.math.inf(f64),
+            .ambiguous_emission_logprob = mathutils.NEG_INF,
             .ambiguous_char = &[_]u8{},
             .transitions = .{},
             .trans_to_end = null,
             .emission = Emission.init(),
             .index = std.math.maxInt(usize),
-            .to_states = .{},
-            .from_states = .{},
+            .to_states = StateBitset.initEmpty(),
+            .from_states = StateBitset.initEmpty(),
             .from_state_indices = .{},
             .to_state_indices = .{},
         };
@@ -206,7 +196,7 @@ pub const State = struct {
         var logprob: f64 = 0.0;
         for (0..seqs.nSeqs()) |iseq| {
             const seq = seqs.get(iseq);
-            logprob = mathutils.add_with_minus_infinities(logprob, self.emissionLogprob(seq.seqq[pos]));
+            logprob = mathutils.addWithMinusInfinities(logprob, self.emissionLogprob(seq.seqq[pos]));
         }
         return logprob;
     }
@@ -214,16 +204,16 @@ pub const State = struct {
     /// Transition log-probability to state at index `to_state` (post-reorder).
     /// Returns -inf if no transition exists to that state.
     pub inline fn transitionLogprob(self: *const State, to_state: usize) f64 {
-        if (to_state >= self.transitions.items.len) return -std.math.inf(f64);
+        if (to_state >= self.transitions.items.len) return mathutils.NEG_INF;
         const maybe_t = self.transitions.items[to_state];
-        return if (maybe_t) |t| t.log_prob else -std.math.inf(f64);
+        return if (maybe_t) |t| t.log_prob else mathutils.NEG_INF;
     }
 
     /// Log-probability for the transition to "end" (-inf if no such transition).
     /// Corresponds to C++ `State::end_transition_logprob()`.
     pub fn endTransitionLogprob(self: *const State) f64 {
         if (self.trans_to_end) |t| return t.log_prob;
-        return -std.math.inf(f64);
+        return mathutils.NEG_INF;
     }
 
     /// Mark that this state transitions to `st`.
@@ -280,7 +270,7 @@ pub const State = struct {
     pub fn setFromStateIndices(self: *State, allocator: std.mem.Allocator) !void {
         self.from_state_indices.clearRetainingCapacity();
         for (0..STATE_MAX) |i| {
-            if (self.from_states.get(i)) {
+            if (self.from_states.isSet(i)) {
                 try self.from_state_indices.append(allocator, i);
             }
         }
@@ -290,7 +280,7 @@ pub const State = struct {
     pub fn setToStateIndices(self: *State, allocator: std.mem.Allocator) !void {
         self.to_state_indices.clearRetainingCapacity();
         for (0..STATE_MAX) |i| {
-            if (self.to_states.get(i)) {
+            if (self.to_states.isSet(i)) {
                 try self.to_state_indices.append(allocator, i);
             }
         }

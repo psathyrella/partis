@@ -49,14 +49,15 @@ pub const Sequence = struct {
             .name = try allocator.dupe(u8, name),
             .header = try allocator.dupe(u8, ""),
             .undigitized = try allocator.dupe(u8, undigitized_in),
-            .seqq = &[_]u8{},
+            .seqq = try allocator.dupe(u8, ""),
             .track = trk,
         };
         // ClearWhitespace("\n", &undigitized_)
         var ud_list = std.ArrayList(u8).fromOwnedSlice(seq.undigitized);
-        ham_text.clear_whitespace(allocator, "\n", &ud_list);
+        ham_text.clearWhitespace(allocator, "\n", &ud_list);
         seq.undigitized = try ud_list.toOwnedSlice(allocator);
-        // Digitize
+        // Digitize (free the placeholder empty allocation)
+        allocator.free(seq.seqq);
         seq.seqq = try digitize(allocator, trk, seq.undigitized);
         return seq;
     }
@@ -107,10 +108,10 @@ pub const Sequence = struct {
     }
 
     pub fn deinit(self: *Sequence, allocator: std.mem.Allocator) void {
-        if (self.name.len > 0) allocator.free(self.name);
-        if (self.header.len > 0) allocator.free(self.header);
-        if (self.undigitized.len > 0) allocator.free(self.undigitized);
-        if (self.seqq.len > 0) allocator.free(self.seqq);
+        allocator.free(self.name);
+        allocator.free(self.header);
+        allocator.free(self.undigitized);
+        allocator.free(self.seqq);
     }
 
     pub fn size(self: *const Sequence) usize {
@@ -118,7 +119,7 @@ pub const Sequence = struct {
     }
 
     pub fn setName(self: *Sequence, allocator: std.mem.Allocator, nm: []const u8) !void {
-        if (self.name.len > 0) allocator.free(self.name);
+        allocator.free(self.name);
         self.name = try allocator.dupe(u8, nm);
     }
 };
@@ -227,7 +228,7 @@ pub const Sequences = struct {
         var names = std.ArrayList([]const u8).init(allocator);
         defer names.deinit();
         for (self.seqs.items) |*s| try names.append(s.name);
-        return ham_text.join_strings(allocator, names.items, delimiter);
+        return ham_text.joinStrings(allocator, names.items, delimiter);
     }
 };
 

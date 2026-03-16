@@ -124,96 +124,96 @@ pub fn runAlgorithm(
 pub fn run(allocator: std.mem.Allocator, argv: []const [*:0]const u8) !void {
     const start = std.time.milliTimestamp();
 
-    // Parse args from argv
     // Parse args from argv: build defaults then populate each --flag value
     var args = try Args.initDefaults(allocator);
     defer args.deinit(allocator);
     {
+        // Table-driven arg parsing: each tuple maps "--flag-name" → "field_name".
+        const string_flags = .{
+            .{ "--hmmdir", "hmmdir" },
+            .{ "--datadir", "datadir" },
+            .{ "--infile", "infile" },
+            .{ "--outfile", "outfile" },
+            .{ "--annotationfile", "annotationfile" },
+            .{ "--input-cachefname", "input_cachefname" },
+            .{ "--output-cachefname", "output_cachefname" },
+            .{ "--locus", "locus" },
+            .{ "--algorithm", "algorithm" },
+            .{ "--ambig-base", "ambig_base" },
+            .{ "--seed-unique-id", "seed_unique_id" },
+        };
+        const i32_flags = .{
+            .{ "--debug", "debug" },
+            .{ "--n-partitions-to-write", "n_partitions_to_write" },
+            .{ "--biggest-naive-seq-cluster-to-calculate", "biggest_naive_seq_cluster_to_calculate" },
+            .{ "--biggest-logprob-cluster-to-calculate", "biggest_logprob_cluster_to_calculate" },
+        };
+        const u32_flags = .{
+            .{ "--n-final-clusters", "n_final_clusters" },
+            .{ "--max-cluster-size", "max_cluster_size" },
+            .{ "--random-seed", "random_seed" },
+            .{ "--min-largest-cluster-size", "min_largest_cluster_size" },
+        };
+        const f32_flags = .{
+            .{ "--hamming-fraction-bound-lo", "hamming_fraction_bound_lo" },
+            .{ "--hamming-fraction-bound-hi", "hamming_fraction_bound_hi" },
+            .{ "--logprob-ratio-threshold", "logprob_ratio_threshold" },
+            .{ "--max-logprob-drop", "max_logprob_drop" },
+        };
+        const bool_flags = .{
+            .{ "--no-chunk-cache", "no_chunk_cache" },
+            .{ "--partition", "partition" },
+            .{ "--dont-rescale-emissions", "dont_rescale_emissions" },
+            .{ "--cache-naive-seqs", "cache_naive_seqs" },
+            .{ "--cache-naive-hfracs", "cache_naive_hfracs" },
+            .{ "--only-cache-new-vals", "only_cache_new_vals" },
+            .{ "--write-logprob-for-each-partition", "write_logprob_for_each_partition" },
+        };
+
         var i: usize = 0;
         while (i < argv.len) : (i += 1) {
             const flag = std.mem.span(argv[i]);
+            var matched = false;
+
+            // Boolean flags: no value argument consumed
+            inline for (bool_flags) |entry| {
+                if (std.mem.eql(u8, flag, entry[0])) {
+                    @field(args, entry[1]) = true;
+                    matched = true;
+                }
+            }
+            if (matched) continue;
+
+            // All remaining flags consume a value argument
             if (i + 1 >= argv.len) break;
             const val = std.mem.span(argv[i + 1]);
-            i += 1;
-            if (std.mem.eql(u8, flag, "--hmmdir")) {
-                allocator.free(args.hmmdir);
-                args.hmmdir = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--datadir")) {
-                allocator.free(args.datadir);
-                args.datadir = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--infile")) {
-                allocator.free(args.infile);
-                args.infile = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--outfile")) {
-                allocator.free(args.outfile);
-                args.outfile = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--annotationfile")) {
-                allocator.free(args.annotationfile);
-                args.annotationfile = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--input-cachefname")) {
-                allocator.free(args.input_cachefname);
-                args.input_cachefname = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--output-cachefname")) {
-                allocator.free(args.output_cachefname);
-                args.output_cachefname = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--locus")) {
-                allocator.free(args.locus);
-                args.locus = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--algorithm")) {
-                allocator.free(args.algorithm);
-                args.algorithm = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--ambig-base")) {
-                allocator.free(args.ambig_base);
-                args.ambig_base = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--seed-unique-id")) {
-                allocator.free(args.seed_unique_id);
-                args.seed_unique_id = try allocator.dupe(u8, val);
-            } else if (std.mem.eql(u8, flag, "--debug")) {
-                args.debug = try std.fmt.parseInt(i32, val, 10);
-            } else if (std.mem.eql(u8, flag, "--hamming-fraction-bound-lo")) {
-                args.hamming_fraction_bound_lo = try std.fmt.parseFloat(f32, val);
-            } else if (std.mem.eql(u8, flag, "--hamming-fraction-bound-hi")) {
-                args.hamming_fraction_bound_hi = try std.fmt.parseFloat(f32, val);
-            } else if (std.mem.eql(u8, flag, "--logprob-ratio-threshold")) {
-                args.logprob_ratio_threshold = try std.fmt.parseFloat(f32, val);
-            } else if (std.mem.eql(u8, flag, "--max-logprob-drop")) {
-                args.max_logprob_drop = try std.fmt.parseFloat(f32, val);
-            } else if (std.mem.eql(u8, flag, "--n-partitions-to-write")) {
-                args.n_partitions_to_write = try std.fmt.parseInt(i32, val, 10);
-            } else if (std.mem.eql(u8, flag, "--biggest-naive-seq-cluster-to-calculate")) {
-                args.biggest_naive_seq_cluster_to_calculate = try std.fmt.parseInt(i32, val, 10);
-            } else if (std.mem.eql(u8, flag, "--biggest-logprob-cluster-to-calculate")) {
-                args.biggest_logprob_cluster_to_calculate = try std.fmt.parseInt(i32, val, 10);
-            } else if (std.mem.eql(u8, flag, "--n-final-clusters")) {
-                args.n_final_clusters = try std.fmt.parseInt(u32, val, 10);
-            } else if (std.mem.eql(u8, flag, "--max-cluster-size")) {
-                args.max_cluster_size = try std.fmt.parseInt(u32, val, 10);
-            } else if (std.mem.eql(u8, flag, "--random-seed")) {
-                args.random_seed = try std.fmt.parseInt(u32, val, 10);
-            } else if (std.mem.eql(u8, flag, "--no-chunk-cache")) {
-                args.no_chunk_cache = true;
-                i -= 1; // boolean flag, no value
-            } else if (std.mem.eql(u8, flag, "--partition")) {
-                args.partition = true;
-                i -= 1;
-            } else if (std.mem.eql(u8, flag, "--dont-rescale-emissions")) {
-                args.dont_rescale_emissions = true;
-                i -= 1;
-            } else if (std.mem.eql(u8, flag, "--cache-naive-seqs")) {
-                args.cache_naive_seqs = true;
-                i -= 1;
-            } else if (std.mem.eql(u8, flag, "--cache-naive-hfracs")) {
-                args.cache_naive_hfracs = true;
-                i -= 1;
-            } else if (std.mem.eql(u8, flag, "--only-cache-new-vals")) {
-                args.only_cache_new_vals = true;
-                i -= 1;
-            } else if (std.mem.eql(u8, flag, "--write-logprob-for-each-partition")) {
-                args.write_logprob_for_each_partition = true;
-                i -= 1;
-            } else if (std.mem.eql(u8, flag, "--min-largest-cluster-size")) {
-                args.min_largest_cluster_size = try std.fmt.parseInt(u32, val, 10);
+
+            inline for (string_flags) |entry| {
+                if (std.mem.eql(u8, flag, entry[0])) {
+                    allocator.free(@field(args, entry[1]));
+                    @field(args, entry[1]) = try allocator.dupe(u8, val);
+                    matched = true;
+                }
             }
+            inline for (i32_flags) |entry| {
+                if (std.mem.eql(u8, flag, entry[0])) {
+                    @field(args, entry[1]) = try std.fmt.parseInt(i32, val, 10);
+                    matched = true;
+                }
+            }
+            inline for (u32_flags) |entry| {
+                if (std.mem.eql(u8, flag, entry[0])) {
+                    @field(args, entry[1]) = try std.fmt.parseInt(u32, val, 10);
+                    matched = true;
+                }
+            }
+            inline for (f32_flags) |entry| {
+                if (std.mem.eql(u8, flag, entry[0])) {
+                    @field(args, entry[1]) = try std.fmt.parseFloat(f32, val);
+                    matched = true;
+                }
+            }
+            if (matched) i += 1; // consume the value argument
         }
     }
     // Validate required arguments

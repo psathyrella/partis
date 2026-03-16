@@ -6,7 +6,17 @@
 const std = @import("std");
 const ham_text = @import("../text.zig");
 
-pub const regions = [_][]const u8{ "v", "d", "j" };
+pub const Region = enum { v, d, j };
+
+pub const regions = [_]Region{ .v, .d, .j };
+
+pub fn regionStr(r: Region) []const u8 {
+    return switch (r) {
+        .v => "v",
+        .d => "d",
+        .j => "j",
+    };
+}
 
 /// Corresponds to C++ `ham::GermLines`.
 pub const GermLines = struct {
@@ -40,7 +50,7 @@ pub const GermLines = struct {
 
         // Initialise empty name lists for each region
         for (regions) |r| {
-            try self.names.put(allocator, try allocator.dupe(u8, r), .{});
+            try self.names.put(allocator, try allocator.dupe(u8, regionStr(r)), .{});
         }
 
         const has_d = hasDGene(locus);
@@ -61,9 +71,10 @@ pub const GermLines = struct {
 
         // Read FASTA files for each region
         for (regions) |r| {
-            if (!has_d and std.mem.eql(u8, r, "d")) continue;
+            const rs = regionStr(r);
+            if (!has_d and r == .d) continue;
 
-            const infname = try std.fmt.allocPrint(allocator, "{s}/{s}/{s}{s}.fasta", .{ gldir, locus, locus, r });
+            const infname = try std.fmt.allocPrint(allocator, "{s}/{s}/{s}{s}.fasta", .{ gldir, locus, locus, rs });
             defer allocator.free(infname);
 
             const content = std.fs.cwd().readFileAlloc(allocator, infname, 64 * 1024 * 1024) catch |err| {
@@ -93,7 +104,7 @@ pub const GermLines = struct {
                     const sp = std.mem.indexOfScalar(u8, rest, ' ') orelse rest.len;
                     const gene_name = try allocator.dupe(u8, rest[0..sp]);
                     name_buf = gene_name;
-                    if (self.names.getPtr(r)) |lst| {
+                    if (self.names.getPtr(rs)) |lst| {
                         try lst.append(allocator, try allocator.dupe(u8, gene_name));
                     }
                 } else {
@@ -120,7 +131,7 @@ pub const GermLines = struct {
             if (line_iter.next()) |header_raw| {
                 const header_line = std.mem.trim(u8, header_raw, " \t\r");
                 if (header_line.len > 0) {
-                    var header_parts = try ham_text.split_string(allocator, header_line, ",");
+                    var header_parts = try ham_text.splitString(allocator, header_line, ",");
                     defer {
                         for (header_parts.items) |s| allocator.free(s);
                         header_parts.deinit(allocator);
@@ -132,8 +143,8 @@ pub const GermLines = struct {
                 const line = std.mem.trim(u8, raw, " \t\r");
                 if (line.len == 0) continue;
 
-                // Use split_string to emit checkpoint (matches C++ instrumentation).
-                var parts = try ham_text.split_string(allocator, line, ",");
+                // Use splitString to emit checkpoint (matches C++ instrumentation).
+                var parts = try ham_text.splitString(allocator, line, ",");
                 defer {
                     for (parts.items) |s| allocator.free(s);
                     parts.deinit(allocator);
@@ -206,15 +217,19 @@ pub const GermLines = struct {
         return step2;
     }
 
-    /// Get region letter from gene name.
+    /// Get region from gene name.
     /// Corresponds to C++ `GermLines::GetRegion`.
-    pub fn getRegion(gene: []const u8) !u8 {
+    pub fn getRegion(gene: []const u8) !Region {
         if (!std.mem.startsWith(u8, gene, "IG") and !std.mem.startsWith(u8, gene, "TR"))
             return error.BadGeneName;
         if (gene.len < 4) return error.BadGeneName;
         const ch = std.ascii.toLower(gene[3]);
-        if (ch != 'v' and ch != 'd' and ch != 'j') return error.BadRegion;
-        return ch;
+        return switch (ch) {
+            'v' => .v,
+            'd' => .d,
+            'j' => .j,
+            else => error.BadRegion,
+        };
     }
 };
 

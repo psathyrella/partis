@@ -8,6 +8,7 @@
 
 const std = @import("std");
 const math = std.math;
+const mathutils = @import("mathutils.zig");
 
 /// A partition: a set of sequence IDs (strings) forming a cluster.
 /// Corresponds to C++ `typedef set<string> Partition`.
@@ -37,7 +38,7 @@ pub const ClusterPath = struct {
             .logprobs = .{},
             .finished = false,
             .initial_path_index = 0,
-            .max_log_prob_of_partition = -math.inf(f64),
+            .max_log_prob_of_partition = mathutils.NEG_INF,
             .i_best = 0,
         };
     }
@@ -69,7 +70,7 @@ pub const ClusterPath = struct {
     /// Corresponds to C++ `ClusterPath::set_logprob(size_t il, double logprob)`.
     pub fn setLogprob(self: *ClusterPath, il: usize, logprob: f64) void {
         self.logprobs.items[il] = logprob;
-        if (self.max_log_prob_of_partition == -math.inf(f64) or logprob > self.max_log_prob_of_partition) {
+        if (self.max_log_prob_of_partition == mathutils.NEG_INF or logprob > self.max_log_prob_of_partition) {
             self.max_log_prob_of_partition = logprob;
             self.i_best = il;
         }
@@ -88,7 +89,7 @@ pub const ClusterPath = struct {
         try self.partitions.append(allocator, partition);
         try self.logprobs.append(allocator, logprob);
 
-        if (self.max_log_prob_of_partition == -math.inf(f64) or logprob > self.max_log_prob_of_partition) {
+        if (self.max_log_prob_of_partition == mathutils.NEG_INF or logprob > self.max_log_prob_of_partition) {
             self.max_log_prob_of_partition = logprob;
             self.i_best = self.logprobs.items.len - 1;
         }

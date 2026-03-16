@@ -4,6 +4,7 @@
 /// C++ source: packages/ham/src/bcrutils.cc, packages/ham/include/bcrutils.h
 
 const std = @import("std");
+const Region = @import("germ_lines.zig").Region;
 
 /// ANSI escape code table.  Corresponds to C++ `TermColors::codes_`.
 const color_codes = std.StaticStringMap([]const u8).initComptime(.{
@@ -41,15 +42,19 @@ pub const TermColors = struct {
         return color(allocator, "red", &single);
     }
 
-    /// Extract region letter from a gene name (e.g. "IGHD1-1*01" → "d").
+    /// Extract region from a gene name (e.g. "IGHD1-1*01" → .d).
     /// Corresponds to C++ `TermColors::GetRegion(gene)`.
-    pub fn getRegion(gene: []const u8) !u8 {
+    pub fn getRegion(gene: []const u8) !Region {
         if (!std.mem.startsWith(u8, gene, "IG") and !std.mem.startsWith(u8, gene, "TR"))
             return error.BadGeneName;
         if (gene.len < 4) return error.BadGeneName;
         const ch = std.ascii.toLower(gene[3]);
-        if (ch != 'v' and ch != 'd' and ch != 'j') return error.BadRegion;
-        return ch;
+        return switch (ch) {
+            'v' => .v,
+            'd' => .d,
+            'j' => .j,
+            else => error.BadRegion,
+        };
     }
 
     /// Return `seq` with every occurrence of `ch_to_color` colored.
@@ -122,9 +127,9 @@ pub const TermColors = struct {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 test "TermColors: getRegion" {
-    try std.testing.expectEqual(@as(u8, 'v'), try TermColors.getRegion("IGHV3-15*01"));
-    try std.testing.expectEqual(@as(u8, 'd'), try TermColors.getRegion("IGHD1-1*01"));
-    try std.testing.expectEqual(@as(u8, 'j'), try TermColors.getRegion("IGHJ4*02"));
+    try std.testing.expectEqual(Region.v, try TermColors.getRegion("IGHV3-15*01"));
+    try std.testing.expectEqual(Region.d, try TermColors.getRegion("IGHD1-1*01"));
+    try std.testing.expectEqual(Region.j, try TermColors.getRegion("IGHJ4*02"));
     try std.testing.expectError(error.BadGeneName, TermColors.getRegion("bad"));
 }
 
