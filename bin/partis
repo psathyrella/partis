@@ -53,6 +53,54 @@ def find_cmd(cmd):
         return '%s/bin/%s' % (partis_dir, os.path.basename(cmd))
 
 # ----------------------------------------------------------------------------------------
+def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, parameter_dir=None, input_metafnames=None, extra_args=None):
+    # Build a single-locus subprocess command from sys.argv with full arg forwarding.
+    # Strips paired/multi-locus args and replaces action, locus, and path args as specified.
+    # Extracted from run_step()/prep_args() closure in run_all_loci() so that disjoint_subset_partition()
+    # can forward all user args to per-group partition commands.
+    clist = copy.deepcopy(sys.argv)
+    clist[0] = find_cmd(clist[0])
+    if any('=' in a for a in clist):  # handle --arg=val style syntax
+        new_clist = []
+        for cstr in clist:
+            if '=' in cstr and hasattr(args, cstr.split('=')[0].lstrip('-').replace('-', '_')):
+                new_clist += cstr.split('=')
+            else:
+                new_clist.append(cstr)
+        clist = new_clist
+    # remove paired/multi-locus args that do not apply to single-locus subprocesses
+    for argname in ['--paired-loci', '--single-light-locus', '--dry-run', '--reverse-negative-strands',
+                    '--random-seed-seq', '--dont-calculate-annotations', '--guess-pairing-info',
+                    '--no-pairing-info', '--remove-nonfunctional-seqs', '--prepend-coverage-command',
+                    '--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
+                    '--disjoint-group']:
+        utils.remove_from_arglist(clist, argname)
+    for argname in ['--paired-indir', '--paired-outdir', '--light-chain-fractions', '--seed-loci',
+                    '--n-random-queries', '--n-max-queries', '--existing-output-run-cfg', '--n-subsets']:
+        utils.remove_from_arglist(clist, argname, has_arg=True)
+    # set action and locus
+    clist[clist.index(args.action)] = tmpaction
+    utils.insert_in_arglist(clist, ['--locus', ltmp], tmpaction)
+    clist.append('--crash-on-duplicate-uids')
+    # for non-cache-parameters actions, refuse to auto-cache
+    if tmpaction != 'cache-parameters' and '--refuse-to-cache-parameters' not in clist:
+        clist += ['--refuse-to-cache-parameters']
+    # override paths
+    if infname is not None:
+        utils.replace_in_arglist(clist, '--infname', infname)
+    if outfname is not None:
+        utils.insert_in_arglist(clist, ['--outfname', outfname], '--infname' if '--infname' in clist else None, has_arg=True)
+    if parameter_dir is not None:
+        utils.replace_in_arglist(clist, '--parameter-dir', parameter_dir)
+    if input_metafnames is not None:
+        utils.replace_in_arglist(clist, '--input-metafnames', ':'.join(input_metafnames))
+    # remove --is-simu: per-group FASTAs lack simulation metadata; CCFs are calculated post-merge
+    utils.remove_from_arglist(clist, '--is-simu')
+    if extra_args is not None:
+        clist += extra_args
+    return ' '.join(clist)
+
+# ----------------------------------------------------------------------------------------
 def run_simulation(args):
     # ----------------------------------------------------------------------------------------
     def run_sub_cmds(working_gldir):
@@ -363,14 +411,10 @@ def disjoint_subset_partition(args):
             continue
         fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
         pdir = '%s/%s' % (args.parameter_dir, ginfo['locus']) if args.paired_loci else args.parameter_dir
-        cmd = '%s partition --infname %s --outfname %s --parameter-dir %s --locus %s --dont-write-git-info' % (find_cmd(sys.argv[0]), fasta_path, partition_path, pdir, ginfo['locus'])
-        cmd += ' --n-procs %d' % args.n_procs
-        # NOTE --is-simu is intentionally not forwarded to per-group partitions (same as subset-partition, see get_cmd line 453).
-        # Per-group FASTAs lack simulation metadata; CCFs are calculated post-merge instead.
-        if args.input_metafnames is not None:
-            cmd += ' --input-metafnames %s' % ':'.join(args.input_metafnames)
-        # NOTE other user args (--n-max-queries, --random-seed, --only-genes, etc.) are not forwarded here.
-        # Full arg forwarding requires integration with run_step() or sys.argv deep-copy pattern. See CR-01.
+        cmd = build_single_locus_cmd('partition', ginfo['locus'], args,
+                                     infname=fasta_path, outfname=partition_path, parameter_dir=pdir,
+                                     input_metafnames=args.input_metafnames,
+                                     extra_args=['--dont-write-git-info'])
         extra_str = '    %s ' % utils.color('blue', 'group %d (cdr3 %d, %s):' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
         utils.simplerun(cmd, logfname='%s/groups/cdr3-%d/partition.log' % (disjoint_dir, ginfo['cdr3_length']), dryrun=args.dry_run, extra_str=extra_str)
         ginfo['partition_path'] = partition_rel_path
@@ -1900,8 +1944,8 @@ subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 
-subargs['disjoint-group'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping. Step 1 writes manifest + per-group fastas here, step 2 writes per-group partition yamls here, step 3 reads from here.'}})
-subargs['assemble-groups'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping (same directory used for disjoint-group step 1 and partition step 2).'}})
+subargs['disjoint-group'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping (default: {paired-outdir or workdir}/disjoint-groups). Step 1 writes manifest + per-group fastas here, step 2 writes per-group partition yamls here, step 3 reads from here.'}})
+subargs['assemble-groups'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping (default: {paired-outdir or workdir}/disjoint-groups). Same directory used for disjoint-group step 1 and partition step 2.'}})
 subargs['assemble-groups'].append({'name' : '--no-merge-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Skip writing merged single-yaml output; keep per-group partition files separate (for large datasets where a single multi-GB yaml is impractical).'}})
 
 sub_arg_groups = {'subset-partition' : ['partition'], 'subset-annotate' : ['annotate']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')

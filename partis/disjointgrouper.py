@@ -128,7 +128,11 @@ def get_sw_cache_path(parameter_dir, locus):
 # ----------------------------------------------------------------------------------------
 def run_disjoint_group(args):
     if args.disjoint_dir is None:
-        raise Exception('--disjoint-dir must be set for disjoint-group')
+        base = utils.non_none([getattr(args, 'paired_outdir', None), getattr(args, 'workdir', None)])
+        if base is None:
+            raise Exception('--disjoint-dir, --paired-outdir, or --workdir must be set for disjoint-group')
+        args.disjoint_dir = '%s/disjoint-groups' % base
+        print('  note: --disjoint-dir not set, using %s' % args.disjoint_dir)
     has_input = args.infname is not None or getattr(args, 'paired_indir', None) is not None
     if not has_input and args.parameter_dir is None:
         raise Exception('--infname (or --paired-indir with --paired-loci) or --parameter-dir must be set for disjoint-group')
@@ -264,7 +268,11 @@ def assemble_merged_output(manifest, disjoint_dir):
 # ----------------------------------------------------------------------------------------
 def run_assemble_groups(args):
     if args.disjoint_dir is None:
-        raise Exception('--disjoint-dir must be set for assemble-groups')
+        base = utils.non_none([getattr(args, 'paired_outdir', None), getattr(args, 'workdir', None)])
+        if base is None:
+            raise Exception('--disjoint-dir, --paired-outdir, or --workdir must be set for assemble-groups')
+        args.disjoint_dir = '%s/disjoint-groups' % base
+        print('  note: --disjoint-dir not set, using %s' % args.disjoint_dir)
 
     manifest_path = '%s/%s' % (args.disjoint_dir, MANIFEST_FNAME)
     print('  running assemble-groups from %s' % manifest_path)
