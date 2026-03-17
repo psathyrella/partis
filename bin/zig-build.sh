@@ -52,7 +52,7 @@ if [[ -z "$ZIG" ]]; then
         darwin) OS_TAG="macos" ;;
         *) echo "ERROR: Unsupported OS: $OS" >&2; exit 1 ;;
     esac
-    ZIG_TARBALL="zig-${OS_TAG}-${ARCH}-${ZIG_VERSION}.tar.xz"
+    ZIG_TARBALL="zig-${ARCH}-${OS_TAG}-${ZIG_VERSION}.tar.xz"
     ZIG_URL="https://ziglang.org/download/${ZIG_VERSION}/${ZIG_TARBALL}"
     ZIG_DIR="$ZIG_CORE_DIR/.zig-install/zig-${ZIG_VERSION}"
     mkdir -p "$ZIG_DIR"

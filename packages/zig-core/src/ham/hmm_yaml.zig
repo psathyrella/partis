@@ -1,8 +1,8 @@
 /// ham/hmm_yaml.zig — Minimal YAML reader for partis HMM parameter files.
 ///
-/// Partis HMM YAML files use Python-tagged objects (`!!python/object:...`).
-/// Standard YAML parsers reject these tags, so we implement a hand-rolled
-/// line-oriented parser tailored exactly to the known HMM file structure.
+/// Hand-rolled line-oriented parser tailored to the known HMM file structure.
+/// This avoids a full YAML dependency and handles the Python-tagged objects
+/// (`!!python/object:...`) that appear in partis HMM files.
 ///
 /// Supported structure (from packages/ham/src/model.cc Parse()):
 ///   top-level scalar keys: name, extras.gene_prob, extras.overall_mute_freq,
