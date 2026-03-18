@@ -226,9 +226,9 @@ pub const Sequences = struct {
     /// Return a comma-separated string of sequence names.
     /// Corresponds to C++ `Sequences::name_str(string delimiter)`.
     pub fn nameStr(self: *const Sequences, allocator: std.mem.Allocator, delimiter: []const u8) ![]u8 {
-        var names = std.ArrayList([]const u8).init(allocator);
-        defer names.deinit();
-        for (self.seqs.items) |*s| try names.append(s.name);
+        var names: std.ArrayListUnmanaged([]const u8) = .{};
+        defer names.deinit(allocator);
+        for (self.seqs.items) |*s| try names.append(allocator, s.name);
         return ham_text.joinStrings(allocator, names.items, delimiter);
     }
 };

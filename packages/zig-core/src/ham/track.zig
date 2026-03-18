@@ -109,17 +109,17 @@ pub const Track = struct {
     /// Caller owns the returned string.
     /// Corresponds to C++ `Track::Stringify()`.
     pub fn stringify(self: *const Track, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayList(u8).init(allocator);
-        errdefer buf.deinit();
+        var buf: std.ArrayListUnmanaged(u8) = .{};
+        errdefer buf.deinit(allocator);
         for (self.alphabet.items) |sym| {
-            try buf.append(' ');
-            try buf.appendSlice(sym);
+            try buf.append(allocator, ' ');
+            try buf.appendSlice(allocator, sym);
         }
         if (self.ambiguous_char.len > 0) {
-            try buf.appendSlice("   ambiguous: ");
-            try buf.appendSlice(self.ambiguous_char);
+            try buf.appendSlice(allocator, "   ambiguous: ");
+            try buf.appendSlice(allocator, self.ambiguous_char);
         }
-        return buf.toOwnedSlice();
+        return buf.toOwnedSlice(allocator);
     }
 };
 
