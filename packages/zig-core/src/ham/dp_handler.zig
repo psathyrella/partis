@@ -24,6 +24,7 @@ const Result = bcr.Result;
 const Insertions = bcr.Insertions;
 const Region = bcr.Region;
 const regionStr = bcr.regionStr;
+const TermColors = bcr.TermColors;
 
 /// Key for the per-gene score/path caches.
 const GeneKSetKey = struct {
@@ -152,6 +153,7 @@ pub const DPHandler = struct {
         clear_cache: bool,
     ) !Result {
         const allocator = self.allocator;
+        const run_start = std.time.milliTimestamp();
 
         var seqs = Sequences.init();
         defer seqs.deinit(allocator);
@@ -232,17 +234,29 @@ pub const DPHandler = struct {
 
         var best_score: f64 = mathutils.NEG_INF;
         var best_kset = KSet{ .v = 0, .d = 0 };
+        var n_too_long: usize = 0;
+        var n_run: usize = 0;
+        var n_total: usize = 0;
 
         // Loop over k-space in reverse order (for chunk caching)
         var k_v: usize = kbounds.vmax - 1;
         while (true) {
             var k_d: usize = kbounds.dmax - 1;
             while (true) {
-                if (k_v + k_d < seqs.sequence_length) {
+                n_total += 1;
+                if (k_v + k_d >= seqs.sequence_length) {
+                    n_too_long += 1;
+                } else {
                     const kset = KSet{ .v = k_v, .d = k_d };
                     try self.runKSet(&seqs, kset, &only_genes, &best_scores, &total_scores, &best_genes);
+                    n_run += 1;
                     const total_kset = total_scores.get(kset) orelse mathutils.NEG_INF;
                     result.total_score = mathutils.addInLogSpace(total_kset, result.total_score);
+                    if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "forward")) {
+                        const fwd_msg = try std.fmt.allocPrint(allocator, "            {d: >9.2} ({e:.1})  tot: {d: >7.2}\n", .{ total_kset, @as(f64, @exp(total_kset)), result.total_score });
+                        defer allocator.free(fwd_msg);
+                        try std.fs.File.stdout().writeAll(fwd_msg);
+                    }
 
                     const best_kset_score = best_scores.get(kset) orelse mathutils.NEG_INF;
                     if (best_kset_score > best_score) {
@@ -262,9 +276,19 @@ pub const DPHandler = struct {
             if (k_v == kbounds.vmin) break;
             k_v -= 1;
         }
+        if (self.args.debug > 0 and n_too_long > 0) {
+            const skip_msg = try std.fmt.allocPrint(allocator, "      skipped {d} (of {d}) k sets 'cause they were longer than the sequence (ran {d})\n", .{ n_too_long, n_total, n_run });
+            defer allocator.free(skip_msg);
+            try std.fs.File.stdout().writeAll(skip_msg);
+        }
 
         // No valid path
         if (best_kset.v == 0 and best_kset.d == 0) {
+            const name_str = try seqs.nameStr(allocator, ":");
+            defer allocator.free(name_str);
+            const no_path_msg = try std.fmt.allocPrint(allocator, "    no valid paths for query {s}\n", .{name_str});
+            defer allocator.free(no_path_msg);
+            try std.fs.File.stdout().writeAll(no_path_msg);
             result.no_path = true;
             if (!self.args.dont_rescale_emissions) {
                 try self.hmms.unRescaleOverallMuteFreqs(&only_genes);
@@ -274,6 +298,27 @@ pub const DPHandler = struct {
 
         if (std.mem.eql(u8, self.algorithm, "viterbi")) {
             try result.finalize(self.gl, &self.per_gene_support, best_kset, kbounds);
+        }
+
+        // Debug: summary line (debug >= 1)
+        if (self.args.debug > 0) {
+            const prob: f64 = if (std.mem.eql(u8, self.algorithm, "viterbi")) best_score else result.total_score;
+            const alg_str: []const u8 = if (std.mem.eql(u8, self.algorithm, "viterbi")) "vtb" else "fwd";
+            var kstr_buf: [300]u8 = undefined;
+            const kstr = if (std.mem.eql(u8, self.algorithm, "viterbi"))
+                try std.fmt.bufPrint(&kstr_buf, "{d} [{d}-{d})  {d} [{d}-{d})", .{ best_kset.v, kbounds.vmin, kbounds.vmax, best_kset.d, kbounds.dmin, kbounds.dmax })
+            else
+                try std.fmt.bufPrint(&kstr_buf, "    [{d}-{d})     [{d}-{d})", .{ kbounds.vmin, kbounds.vmax, kbounds.dmin, kbounds.dmax });
+            const n_v = if (only_genes.get(.v)) |s| s.count() else 0;
+            const n_d = if (only_genes.get(.d)) |s| s.count() else 0;
+            const n_j = if (only_genes.get(.j)) |s| s.count() else 0;
+            const name_str = try seqs.nameStr(allocator, ":");
+            defer allocator.free(name_str);
+            const elapsed_ms = std.time.milliTimestamp() - run_start;
+            const cpu_seconds = @as(f64, @floatFromInt(elapsed_ms)) / 1000.0;
+            const summary = try std.fmt.allocPrint(allocator, "           {s} {d: >12.3}   {s: <25}  {d: >2}v {d: >2}d {d: >2}j  {d: >5.2}s   {d: >4}  {s}\n", .{ alg_str, prob, kstr, n_v, n_d, n_j, cpu_seconds, seqs.nSeqs(), name_str });
+            defer allocator.free(summary);
+            try std.fs.File.stdout().writeAll(summary);
         }
 
         if (!self.args.dont_rescale_emissions) {
@@ -378,7 +423,7 @@ pub const DPHandler = struct {
         query_seqs: Sequences,
         query_strs: []const []const u8,
         gene: []const u8,
-    ) !void {
+    ) ![]const u8 {
         const allocator = self.allocator;
 
         // Look for a chunk-cached trellis
@@ -427,12 +472,14 @@ pub const DPHandler = struct {
         var tmptrell: ?Trellis = null;
         defer if (tmptrell) |*t| t.deinit();
 
+        var origin: []const u8 = "scratch";
         const trell_ptr: *Trellis = if (cached_trellis == null) blk: {
             // No cache: create scratch WITHOUT cached_trellis, store it, use it directly.
             var fresh = try Trellis.initWithSeqs(allocator, model, query_seqs, null);
             errdefer fresh.deinit();
             const entry = TrellisEntry{ .query_strs = qstrs, .trellis = fresh };
             qstrs = .{}; // ownership transferred to entry
+            origin = "scratch";
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 try cache_list.append(allocator, entry);
                 break :blk &cache_list.items[cache_list.items.len - 1].trellis;
@@ -447,6 +494,7 @@ pub const DPHandler = struct {
         } else blk: {
             // Have cache: create temp trellis that borrows from the cached scratch.
             tmptrell = try Trellis.initWithSeqs(allocator, model, query_seqs, cached_trellis);
+            origin = "chunk";
             break :blk &tmptrell.?;
         };
 
@@ -477,6 +525,126 @@ pub const DPHandler = struct {
         if (self.scores.getPtr(gene)) |gene_scores| {
             try gene_scores.put(allocator, kset, final_score);
         }
+
+        return origin;
+    }
+
+    /// Print colored germline alignment for a gene path (debug==2 viterbi output).
+    /// Corresponds to C++ `DPHandler::PrintPath`.
+    fn printPath(self: *DPHandler, kset: KSet, query_strs: []const []const u8, gene: []const u8, score: f64, extra_str: []const u8) !void {
+        const allocator = self.allocator;
+        if (score == mathutils.NEG_INF) return;
+
+        const path_names_list = try self.getPathNames(gene, kset, allocator);
+        defer {
+            for (path_names_list.items) |s| allocator.free(s);
+            var pl = path_names_list;
+            pl.deinit(allocator);
+        }
+        if (path_names_list.items.len == 0) {
+            if (self.args.debug > 0) {
+                const msg = try std.fmt.allocPrint(allocator, "                     {s} has no valid path\n", .{gene});
+                defer allocator.free(msg);
+                try std.fs.File.stdout().writeAll(msg);
+            }
+            return;
+        }
+
+        const path_names = path_names_list.items;
+        var buf_l: [200]u8 = undefined;
+        const left_insert = getInsertion("left", path_names, &buf_l);
+        var buf_r: [200]u8 = undefined;
+        const right_insert = getInsertion("right", path_names, &buf_r);
+        const left_erosion_length = self.getErosionLength("left", path_names, gene);
+        const right_erosion_length = self.getErosionLength("right", path_names, gene);
+
+        // Build modified germline: left_insert + trimmed_germline + right_insert
+        const germline = self.gl.seqs.get(gene) orelse return;
+        const mid_end = if (germline.len >= right_erosion_length) germline.len - right_erosion_length else 0;
+        const mid = if (left_erosion_length <= mid_end) germline[left_erosion_length..mid_end] else "";
+
+        var mg_buf: std.ArrayListUnmanaged(u8) = .{};
+        defer mg_buf.deinit(allocator);
+        try mg_buf.appendSlice(allocator, left_insert);
+        try mg_buf.appendSlice(allocator, mid);
+        try mg_buf.appendSlice(allocator, right_insert);
+        const modified_germline = mg_buf.items;
+
+        // Get ambiguous char from args (matches C++ hmms_.track()->ambiguous_char())
+        const ambig = self.args.ambig_base;
+
+        // Color the match: mutants in red relative to query strings, ambiguous in light_blue
+        const match_colored = try TermColors.colorMutants(allocator, "red", modified_germline, "", query_strs, ambig);
+        defer allocator.free(match_colored);
+        const ambig_ch: u8 = if (ambig.len > 0) ambig[0] else 0;
+        const match_str_inner = if (ambig_ch != 0)
+            try TermColors.colorChars(allocator, ambig_ch, "light_blue", match_colored)
+        else
+            try allocator.dupe(u8, match_colored);
+        defer allocator.free(match_str_inner);
+
+        // Build output with erosion decorations
+        var out_buf: std.ArrayListUnmanaged(u8) = .{};
+        defer out_buf.deinit(allocator);
+
+        if (left_erosion_length > 0) {
+            var le_buf: [16]u8 = undefined;
+            const le_str = try std.fmt.bufPrint(&le_buf, "{d}", .{left_erosion_length});
+            const pad = if (le_str.len < 2) @as(usize, 2) - le_str.len else @as(usize, 0);
+            try out_buf.appendNTimes(allocator, ' ', pad);
+            try out_buf.append(allocator, '.');
+            try out_buf.appendSlice(allocator, le_str);
+            try out_buf.append(allocator, '.');
+        } else {
+            try out_buf.appendSlice(allocator, "    ");
+        }
+        try out_buf.appendSlice(allocator, match_str_inner);
+        if (right_erosion_length > 0) {
+            var re_buf: [16]u8 = undefined;
+            const re_str = try std.fmt.bufPrint(&re_buf, "{d}", .{right_erosion_length});
+            const pad = if (re_str.len < 2) @as(usize, 2) - re_str.len else @as(usize, 0);
+            try out_buf.appendNTimes(allocator, ' ', pad);
+            try out_buf.append(allocator, '.');
+            try out_buf.appendSlice(allocator, re_str);
+            try out_buf.append(allocator, '.');
+        } else {
+            try out_buf.appendSlice(allocator, "    ");
+        }
+
+        // "                    " + match_str + "  " + extra_str + score(w12) + gene(w25)
+        const score_str = try fmtSigFigs(allocator, score, 6);
+        defer allocator.free(score_str);
+        // Pad score to 12 chars right-justified
+        const score_pad = if (score_str.len < 12) @as(usize, 12) - score_str.len else @as(usize, 0);
+        // Pad gene to 25 chars right-justified
+        const gene_pad = if (gene.len < 25) @as(usize, 25) - gene.len else @as(usize, 0);
+
+        var line_buf: std.ArrayListUnmanaged(u8) = .{};
+        defer line_buf.deinit(allocator);
+        try line_buf.appendSlice(allocator, "                    ");
+        try line_buf.appendSlice(allocator, out_buf.items);
+        try line_buf.appendSlice(allocator, "  ");
+        try line_buf.appendSlice(allocator, extra_str);
+        try line_buf.appendNTimes(allocator, ' ', score_pad);
+        try line_buf.appendSlice(allocator, score_str);
+        try line_buf.appendNTimes(allocator, ' ', gene_pad);
+        try line_buf.appendSlice(allocator, gene);
+        try line_buf.append(allocator, '\n');
+        try std.fs.File.stdout().writeAll(line_buf.items);
+
+        // Print insertion indicator line if there were insertions
+        if (left_insert.len + right_insert.len > 0) {
+            var ins_buf: std.ArrayListUnmanaged(u8) = .{};
+            defer ins_buf.deinit(allocator);
+            try ins_buf.appendNTimes(allocator, 'i', left_insert.len);
+            try ins_buf.appendNTimes(allocator, ' ', mid.len);
+            try ins_buf.appendNTimes(allocator, 'i', right_insert.len);
+            const ins_colored = try TermColors.color(allocator, "yellow", ins_buf.items);
+            defer allocator.free(ins_colored);
+            const ins_line = try std.fmt.allocPrint(allocator, "                        {s}  \n", .{ins_colored});
+            defer allocator.free(ins_line);
+            try std.fs.File.stdout().writeAll(ins_line);
+        }
     }
 
     /// Run all genes for one kset.
@@ -495,6 +663,19 @@ pub const DPHandler = struct {
         try total_scores.put(allocator, kset, mathutils.NEG_INF);
         const bg_entry: std.AutoHashMapUnmanaged(Region, []u8) = .{};
         try best_genes.put(allocator, kset, bg_entry);
+
+        // Debug: kset header
+        if (self.args.debug == 2) {
+            if (std.mem.eql(u8, self.algorithm, "forward")) {
+                var hdr_buf: [256]u8 = undefined;
+                const s = try std.fmt.bufPrint(&hdr_buf, "         {d: >3}{d: >3} {s: >6} {s: >9}  {s: >7}  {s: >7} {s}\n", .{ kset.v, kset.d, "prob", "logprob", "total", "origin", "---------------" });
+                try std.fs.File.stdout().writeAll(s);
+            } else {
+                var hdr_buf: [256]u8 = undefined;
+                const s = try std.fmt.bufPrint(&hdr_buf, "         {d: >3}{d: >3} {s}\n", .{ kset.v, kset.d, "---------------" });
+                try std.fs.File.stdout().writeAll(s);
+            }
+        }
 
         var regional_best: std.AutoHashMapUnmanaged(Region, f64) = .{};
         defer regional_best.deinit(allocator);
@@ -520,12 +701,67 @@ pub const DPHandler = struct {
             var query_seqs = try self.getSubSeqs(seqs, kset, region);
             defer query_seqs.deinit(allocator);
 
+            // Debug: region query display
+            if (self.args.debug == 2) {
+                const rs = regionStr(region);
+                if (std.mem.eql(u8, self.algorithm, "viterbi")) {
+                    // Get ambiguous char from args (matches C++ hmms_.track()->ambiguous_char())
+                    const ambig = self.args.ambig_base;
+                    const ambig_ch: u8 = if (ambig.len > 0) ambig[0] else 0;
+                    if (query_strs.items.len > 0) {
+                        const colored = if (ambig_ch != 0)
+                            try TermColors.colorChars(allocator, ambig_ch, "light_blue", query_strs.items[0])
+                        else
+                            try allocator.dupe(u8, query_strs.items[0]);
+                        defer allocator.free(colored);
+                        const line = try std.fmt.allocPrint(allocator, "                {s} query {s}\n", .{ rs, colored });
+                        defer allocator.free(line);
+                        try std.fs.File.stdout().writeAll(line);
+                    }
+                    // Additional query strings colored as mutants relative to first
+                    if (query_strs.items.len > 1) {
+                        // Build const slice for colorMutants
+                        const const_strs = try allocator.alloc([]const u8, query_strs.items.len);
+                        defer allocator.free(const_strs);
+                        for (query_strs.items, 0..) |s, i| const_strs[i] = s;
+                        for (query_strs.items[1..]) |qs| {
+                            const mutant = try TermColors.colorMutants(allocator, "purple", qs, "", const_strs, ambig);
+                            defer allocator.free(mutant);
+                            const colored2 = if (ambig_ch != 0)
+                                try TermColors.colorChars(allocator, ambig_ch, "light_blue", mutant)
+                            else
+                                try allocator.dupe(u8, mutant);
+                            defer allocator.free(colored2);
+                            const line = try std.fmt.allocPrint(allocator, "                {s} query {s}\n", .{ rs, colored2 });
+                            defer allocator.free(line);
+                            try std.fs.File.stdout().writeAll(line);
+                        }
+                    }
+                } else {
+                    const line = try std.fmt.allocPrint(allocator, "              {s}\n", .{rs});
+                    defer allocator.free(line);
+                    try std.fs.File.stdout().writeAll(line);
+                }
+            }
+
             const gene_set = only_genes.get(region) orelse continue;
-            var gene_it = gene_set.iterator();
-            while (gene_it.next()) |gene_entry| {
-                const gene = gene_entry.key_ptr.*;
+            // Collect and sort gene names to match C++ set<string> iteration order
+            const sorted_genes = try allocator.alloc([]const u8, gene_set.count());
+            defer allocator.free(sorted_genes);
+            {
+                var gi = gene_set.iterator();
+                var idx: usize = 0;
+                while (gi.next()) |e| : (idx += 1) sorted_genes[idx] = e.key_ptr.*;
+            }
+            std.mem.sort([]const u8, sorted_genes, {}, struct {
+                fn lessThan(_: void, a: []const u8, b: []const u8) bool {
+                    return std.mem.order(u8, a, b) == .lt;
+                }
+            }.lessThan);
+            for (sorted_genes) |gene| {
                 try self.initCache(gene);
 
+                var origin: []const u8 = "";
                 const partial_match = self.findPartialCacheMatch(region, gene, kset);
                 if (!partial_match.isNull()) {
                     // Copy path and score from cached kset
@@ -543,15 +779,35 @@ pub const DPHandler = struct {
                         const cached_score = gs.get(partial_match) orelse mathutils.NEG_INF;
                         try gs.put(allocator, kset, cached_score);
                     }
+                    origin = "cached";
                 } else {
-                    try self.fillTrellis(kset, query_seqs, query_strs.items, gene);
+                    origin = try self.fillTrellis(kset, query_seqs, query_strs.items, gene);
                 }
 
                 const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(kset) orelse mathutils.NEG_INF else mathutils.NEG_INF;
 
+                // Debug: per-gene viterbi output
+                if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "viterbi")) {
+                    // Build const slice for printPath
+                    const const_strs = try allocator.alloc([]const u8, query_strs.items.len);
+                    defer allocator.free(const_strs);
+                    for (query_strs.items, 0..) |s, i| const_strs[i] = s;
+                    try self.printPath(kset, const_strs, gene, gene_score, origin);
+                }
+
                 // Update regional totals
                 if (regional_total.getPtr(region)) |rt| {
                     rt.* = mathutils.addInLogSpace(gene_score, rt.*);
+                }
+
+                // Debug: forward per-gene line
+                if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "forward")) {
+                    const rt_val = regional_total.get(region) orelse mathutils.NEG_INF;
+                    const colored_gene = try TermColors.colorGene(allocator, gene);
+                    defer allocator.free(colored_gene);
+                    const fwd_line = try std.fmt.allocPrint(allocator, "                {e: >6.0} {d: >9.2}  {d: >7.2}  {s}  {s}\n", .{ @as(f64, @exp(gene_score)), gene_score, rt_val, origin, colored_gene });
+                    defer allocator.free(fwd_line);
+                    try std.fs.File.stdout().writeAll(fwd_line);
                 }
 
                 // Update regional best + best_genes for this kset
@@ -576,7 +832,14 @@ pub const DPHandler = struct {
 
             // If no gene found for this region, return early
             if (best_genes.getPtr(kset)) |bg_map| {
-                if (!bg_map.contains(region)) return;
+                if (!bg_map.contains(region)) {
+                    if (self.args.debug == 2) {
+                        const msg = try std.fmt.allocPrint(allocator, "                  found no gene for {s} so skip\n", .{regionStr(region)});
+                        defer allocator.free(msg);
+                        try std.fs.File.stdout().writeAll(msg);
+                    }
+                    return;
+                }
             }
         }
 
@@ -840,6 +1103,52 @@ fn parseStateIndex(name: []const u8) ?usize {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+/// Format a float with N significant digits, matching C++ `cout << setprecision(N) << value`
+/// (i.e. %g format with rounding).  Caller owns the returned slice.
+fn fmtSigFigs(allocator: std.mem.Allocator, value: f64, sig_figs: u8) ![]u8 {
+    const abs_val = @abs(value);
+    // Determine number of integer digits (digits before decimal point)
+    const int_digits: u8 = if (abs_val < 1.0) 0 else blk: {
+        var d: u8 = 0;
+        var v = abs_val;
+        while (v >= 1.0) : (d += 1) v /= 10.0;
+        break :blk d;
+    };
+    // Number of decimal places needed for sig_figs significant digits
+    const dec_places: u8 = if (sig_figs > int_digits) sig_figs - int_digits else 0;
+    // Round to the right number of decimal places
+    const factor = std.math.pow(f64, 10.0, @as(f64, @floatFromInt(dec_places)));
+    const rounded = @round(value * factor) / factor;
+    // Format with exact decimal places
+    const raw = try std.fmt.allocPrint(allocator, "{d}", .{rounded});
+    defer allocator.free(raw);
+    // Find decimal point
+    const dot_pos = std.mem.indexOfScalar(u8, raw, '.') orelse return try allocator.dupe(u8, raw);
+    // Compute how many chars to keep after decimal point
+    const end = @min(dot_pos + 1 + @as(usize, dec_places), raw.len);
+    // Trim trailing zeros after decimal point (matching %g behavior)
+    var trim_end = end;
+    while (trim_end > dot_pos + 1 and raw[trim_end - 1] == '0') trim_end -= 1;
+    if (trim_end > 0 and raw[trim_end - 1] == '.') trim_end -= 1;
+    return try allocator.dupe(u8, raw[0..trim_end]);
+}
+
+test "fmtSigFigs matches C++ cout default" {
+    const a = std.testing.allocator;
+    // -103.3918 rounded to 6 sig figs → -103.392
+    const s1 = try fmtSigFigs(a, -103.3918, 6);
+    defer a.free(s1);
+    try std.testing.expectEqualStrings("-103.392", s1);
+    // -72.9176 = 6 sig figs (exact)
+    const s2 = try fmtSigFigs(a, -72.9176, 6);
+    defer a.free(s2);
+    try std.testing.expectEqualStrings("-72.9176", s2);
+    // -10.4 = trailing zeros trimmed
+    const s3 = try fmtSigFigs(a, -10.4, 6);
+    defer a.free(s3);
+    try std.testing.expectEqualStrings("-10.4", s3);
+}
 
 test "DPHandler: parseStateIndex" {
     try std.testing.expectEqual(@as(?usize, 42), parseStateIndex("IGHV3-15_star_01_42"));
