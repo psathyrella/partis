@@ -117,13 +117,15 @@ def validate_sequence_count(manifest):
     print('    sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
 
 # ----------------------------------------------------------------------------------------
-def get_sw_cache_path(parameter_dir, locus):
-    # try per-locus subdir first (paired data), then flat (unpaired). Returns None if not found.
-    for search_dir in ['%s/%s' % (parameter_dir, locus), parameter_dir]:
-        fnames = glob.glob(search_dir + '/sw-cache*.yaml')
-        if len(fnames) > 0:
-            return fnames[0]
-    return None
+def get_sw_cache_path(parameter_dir, locus, paired):
+    # look in the expected location based on paired vs unpaired, rather than searching both
+    search_dir = '%s/%s' % (parameter_dir, locus) if paired else parameter_dir
+    fnames = glob.glob(search_dir + '/sw-cache*.yaml')
+    if len(fnames) == 0:
+        return None
+    if len(fnames) > 1:
+        raise Exception('found %d sw cache files in %s (expected 1, maybe from different input samples?): %s' % (len(fnames), search_dir, ' '.join(fnames)))
+    return fnames[0]
 
 # ----------------------------------------------------------------------------------------
 def run_disjoint_group(args):
@@ -158,9 +160,10 @@ def run_disjoint_group(args):
     total_input = 0
     total_failed = 0
     for ltmp in loci:
-        sw_cache_path = get_sw_cache_path(args.parameter_dir, ltmp)
+        sw_cache_path = get_sw_cache_path(args.parameter_dir, ltmp, args.paired_loci)
         if sw_cache_path is None:
-            raise Exception('sw cache not found in %s/%s/ or %s/ (run cache-parameters --only-smith-waterman first)' % (args.parameter_dir, ltmp, args.parameter_dir))
+            search_dir = '%s/%s' % (args.parameter_dir, ltmp) if args.paired_loci else args.parameter_dir
+            raise Exception('sw cache not found in %s/ (run cache-parameters --only-smith-waterman first)' % search_dir)
         print('    reading sw cache for %s from %s' % (ltmp, sw_cache_path))
         _, annotation_list, _ = utils.read_yaml_output(sw_cache_path, dont_add_implicit_info=True)
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
@@ -189,7 +192,7 @@ def auto_cache_parameters(args, loci):
         else:
             raise Exception('could not find partis binary in PATH or at %s' % partis_path)
     for ltmp in loci:
-        if get_sw_cache_path(args.parameter_dir, ltmp) is not None:
+        if get_sw_cache_path(args.parameter_dir, ltmp, args.paired_loci) is not None:
             print('    %s: sw cache already exists in %s' % (ltmp, args.parameter_dir))
             continue
         if args.paired_loci:
