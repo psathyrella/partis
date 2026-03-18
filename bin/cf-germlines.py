@@ -61,10 +61,10 @@ for name, d, color in zip(args.names, [args.dir1, args.dir2], args.colors):
 
 glfos = [glutils.read_glfo(gldir, args.locus, debug=True) for gldir in gldirs]
 
-# glutils.compare_glfos(glfos, args.names, args.locus)
+glutils.compare_glfos(glfos, args.names, args.locus)
 
 if all(param_dirs):
-    print('\n%s' % utils.color('green', 'sequence-aware usage comparison (EMD)'))
+    print('\n%s' % utils.color('green', 'sequence-aware usage comparison'))
     for region in [r for r in utils.regions if r in glfos[0]['seqs']]:
         probs_file = '%s_gene-probs.csv' % region
         region_usage = []

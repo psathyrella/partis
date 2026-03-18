@@ -1448,10 +1448,15 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
         fmt_hdr = '    %6s%6s    %-*s %7s %5s  %7s %5s   %8s    %-*s%3s%7s'
         print(fmt_hdr % ('out', 'in', gwidth, 'gene', 'usage', 'N ', 'usage', 'N ', 'residual', gwidth, 'gene', 'seq dist', 'emd'))
         sorted_matches = sorted(nearest_matches, key=lambda x: x['emd_out'] + x['emd_in'], reverse=True)
-        for iline, m in enumerate(sorted_matches):
-            if max_lines is not None and iline >= max_lines:
-                print('                 skipping %d lines after first %d' % (len(sorted_matches) - max_lines, max_lines))
+        n_zero_transport = sum(1 for m in sorted_matches if m['emd_out'] == 0 and m['emd_in'] == 0)
+        n_printed = 0
+        for m in sorted_matches:
+            if m['emd_out'] == 0 and m['emd_in'] == 0:
+                continue
+            if max_lines is not None and n_printed >= max_lines:
+                print('                 skipping remaining lines after first %d' % max_lines)
                 break
+            n_printed += 1
             usage_a_frac = m['usage_a'] / total_a if total_a > 0 else 0
             self_frac = m['usage_b_self'] / total_b if total_b > 0 else 0
             residual = usage_a_frac - self_frac
@@ -1469,6 +1474,8 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
                 residual,
                 nearest_str,
             ))
+        if n_zero_transport > 0:
+            print('        (%d gene%s with zero transport not shown)' % (n_zero_transport, utils.plural(n_zero_transport)))
         if debug >= 2:
             ref_seq = aligned[all_genes[0]]
             for gene in all_genes:
