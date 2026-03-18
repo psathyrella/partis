@@ -141,8 +141,12 @@ def run_disjoint_group(args):
     loci = utils.sub_loci(args.ig_or_tr) if args.paired_loci else [args.locus]
 
     if args.parameter_dir is None:
-        instr = args.paired_indir if args.paired_loci and getattr(args, 'paired_indir', None) is not None else args.infname
-        args.parameter_dir = '_output/%s' % utils.getprefix(instr).replace('/', '_')
+        # match getpdir() in run_all_loci(): prefer {paired_outdir}/parameters, fall back to _output/ convention
+        if getattr(args, 'paired_outdir', None) is not None:
+            args.parameter_dir = '%s/parameters' % args.paired_outdir
+        else:
+            instr = args.paired_indir if args.paired_loci and getattr(args, 'paired_indir', None) is not None else args.infname
+            args.parameter_dir = '_output/%s' % utils.getprefix(instr).replace('/', '_')
         print('  note: --parameter-dir not set, so using default: %s' % args.parameter_dir)
 
     # auto-trigger sw annotation if sw cache does not exist
