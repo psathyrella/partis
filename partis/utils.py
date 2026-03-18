@@ -1546,7 +1546,7 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, do
     # if any(reco_info[u]['invalid'] for u in uids):
     #     print('    %s invalid events in synthesize_multi_seq_line_from_reco_info()' % wrnstr())
     #     invalid = True
-    multikeys = set(k for u in uids for k in reco_info[u])  # need to have any key that's in any annotation
+    multikeys = set(k for u in uids for k in reco_info[u])  # need to have any line key that's in the annotation for any uid in <uids>
     multifo = {}
     for col in sorted(multikeys):
         if col in linekeys['per_seq']:
@@ -2132,11 +2132,8 @@ def convert_airr_line(aline, glfo):
     if aline['d_germline_start'] == '':  # igblast leaves this blank for light chain (and sometimes for heavy)
         d_start, d_end = [int(float(aline['v_germline_end'])) + 1 for _ in range(2)]
         if has_d_gene(glfo['locus']):
-            pline['d_gene'] = list(glfo['seqs']['d'])[0]
-            d_end += 1
-            print('      %s no d_germline_start in heavy chain airr annotation. Trying to avoid, but you may need to mark as invalid (see below)')
-            # pline['invalid'] = True
-            # return pline
+            pline['invalid'] = True
+            return pline
         else:
             pline['d_gene'] = glutils.dummy_d_genes[glfo['locus']]
         aline['d_germline_start'] = d_start
@@ -2217,21 +2214,60 @@ def write_airr_output(outfname, annotation_list, cpath=None, failed_queries=None
                 writer.writerow({'sequence_id' : failfo['unique_ids'][0], 'sequence' : failfo['input_seqs'][0]})
 
 # ----------------------------------------------------------------------------------------
-def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False, skip_unknown_genes=False, clone_id_field='clone_id', sequence_id_field='sequence_id', delimiter='\t', skip_annotations=False):
+def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_locus=False, clone_id_field='clone_id', sequence_id_field='sequence_id', delimiter='\t', skip_annotations=False):
     from . import clusterpath
     from . import glutils
     if glfo is None and glfo_dir is not None:
         glfo = glutils.read_glfo(glfo_dir, locus)  # TODO this isn't right
+    # ----------------------------------------------------------------------------------------
+    def resolve_genes(aline):
+        """try to resolve gene names in <aline> to genes in glfo, using D-position variants and duplicate name lookup. Returns list of unresolved gene names (empty if all resolved)."""
+        unknown = []
+        for aky, rgn in [('v_call', 'v'), ('d_call', 'd'), ('j_call', 'j')]:
+            if aline[aky] == '':
+                continue
+            gene = aline[aky].split(',')[0]
+            if gene not in glfo['seqs'][rgn]:
+                resolved = None
+                d_variants = glutils.d_position_variants(gene)  # try moving D among primary version suffix, sub-version prefix/suffix (e.g. IGHV3D-64 <-> IGHV3-D64 <-> IGHV3-64D)
+                for dvar in d_variants:
+                    if dvar in glfo['seqs'][rgn]:
+                        resolved = dvar
+                        break
+                if resolved is None:  # try duplicate name lookup on original and D-variants
+                    for tgene in [gene] + d_variants:
+                        try:
+                            resolved = glutils.convert_to_duplicate_name(glfo, tgene)
+                            break
+                        except:
+                            pass
+                if resolved is not None:
+                    aline[aky] = resolved + (',' + ','.join(aline[aky].split(',')[1:]) if ',' in aline[aky] else '')
+                    used_genes.add(resolved)
+                else:
+                    unknown.append(gene)
+            else:
+                used_genes.add(gene)
+        return unknown
+    # ----------------------------------------------------------------------------------------
     failed_queries, clone_ids, plines, other_locus_ids = [], {}, [], []
     unknown_gene_counts = {}
     n_skipped_unknown = 0
     skipped_unknown_ids = set()
+    used_genes = set()
+    seen_ids = set()
+    n_duplicate_ids = 0
     with open(fname) as afile:
         reader = csv.DictReader(afile, delimiter=str(delimiter))
         for aline in reader:
+            uid = aline[sequence_id_field]
+            if uid in seen_ids:
+                n_duplicate_ids += 1
+                continue
+            seen_ids.add(uid)
             if clone_id_field in reader.fieldnames:
                 # print '  note: no clone ids in airr file %s' % fname
-                clone_ids[aline[sequence_id_field]] = aline[clone_id_field]
+                clone_ids[uid] = aline[clone_id_field]
             if skip_annotations:
                 continue
             if 'sequence' not in aline:
@@ -2242,21 +2278,31 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
             if skip_other_locus and get_locus(aline['v_call']) != glfo['locus']:
                 other_locus_ids.append(aline[sequence_id_field])
                 continue
-            if skip_unknown_genes:
-                unknown = [aline[aky].split(',')[0] for aky, rgn in [('v_call', 'v'), ('d_call', 'd'), ('j_call', 'j')] if aline[aky] != '' and aline[aky].split(',')[0] not in glfo['seqs'][rgn]]
-                if len(unknown) > 0:
-                    n_skipped_unknown += 1
-                    skipped_unknown_ids.add(aline[sequence_id_field])
-                    for gene in unknown:
-                        unknown_gene_counts[gene] = unknown_gene_counts.get(gene, 0) + 1
-                    continue
-            plines.append(convert_airr_line(aline, glfo))
-    invalid_lines = [l for l in plines if l['invalid']]
-    plines = [l for l in plines if not l['invalid']]
-    failed_queries += invalid_lines
+            unknown = resolve_genes(aline)
+            if len(unknown) > 0:
+                n_skipped_unknown += 1
+                skipped_unknown_ids.add(aline[sequence_id_field])
+                for gene in unknown:
+                    unknown_gene_counts[gene] = unknown_gene_counts.get(gene, 0) + 1
+                failed_queries.append({'unique_ids' : [aline[sequence_id_field]], 'input_seqs' : [aline['sequence']], 'invalid' : True})
+                continue  # can't process annotations with genes not in glfo
+            pline = convert_airr_line(aline, glfo)
+            for rgn in regions:
+                if pline.get(rgn + '_gene', '') != '':
+                    used_genes.add(pline[rgn + '_gene'])  # convert_airr_line may assign a different gene (e.g. first D gene when d_germline_start is empty)
+            if pline['invalid']:
+                failed_queries.append(pline)
+            else:
+                plines.append(pline)
+    print('  read %d sequences from %s' % (len(seen_ids), fname))
+    if n_duplicate_ids > 0:
+        print('  %s skipped %d duplicate sequence ids in %s' % (wrnstr(), n_duplicate_ids, fname))
     if n_skipped_unknown > 0:
-        n_total = n_skipped_unknown + len(plines) + len(failed_queries)
+        n_total = len(plines) + len(failed_queries)
         print('  %s skipped %d / %d sequences with genes not in germline set: %s' % (wrnstr(), n_skipped_unknown, n_total, '  '.join('%s %d' % (color_gene(g), c) for g, c in sorted(unknown_gene_counts.items(), key=lambda x: -x[1]))))
+    print('    %d valid, %d failed/invalid%s' % (len(plines), len(failed_queries), ' (%d other locus)' % len(other_locus_ids) if len(other_locus_ids) > 0 else ''))
+    if len(used_genes) > 0:
+        glutils.restrict_to_genes(glfo, used_genes)
     if len(clone_ids) > 0:
         partition = group_seqs_by_value(list(clone_ids.keys()), lambda q: clone_ids[q])
     else:
@@ -4123,7 +4169,7 @@ def find_replacement_genes(param_dir, min_counts, gene_name=None, debug=False, a
     # return hackey_default_gene_versions[region]
 
 # ----------------------------------------------------------------------------------------
-def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, align_if_necessary=False, amino_acid=False):
+def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=False, return_mutated_positions=False, align=False, align_if_necessary=False, amino_acid=False, skip_chars=None):
     if extra_bases is not None:
         raise Exception('not sure what this was supposed to do (or did in the past), but it doesn\'t do anything now! (a.t.m. it seems to only be set in bin/plot-germlines.py, which I think doesn\'t do anything useful any more)')
     if align or (align_if_necessary and len(seq1) != len(seq2)):  # way the hell slower if you have to align, of course
@@ -4139,10 +4185,11 @@ def hamming_distance(seq1, seq2, extra_bases=None, return_len_excluding_ambig=Fa
         else:
             return 0
 
-    if amino_acid:
-        skip_chars = set(ambiguous_amino_acids + gap_chars)
-    else:
-        skip_chars = set(all_ambiguous_bases + gap_chars)
+    if skip_chars is None:  # default: skip ambiguous bases and gaps (original behavior)
+        if amino_acid:
+            skip_chars = set(ambiguous_amino_acids + gap_chars)
+        else:
+            skip_chars = set(all_ambiguous_bases + gap_chars)
 
     distance, len_excluding_ambig = 0, 0
     mutated_positions = []

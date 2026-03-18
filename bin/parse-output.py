@@ -105,7 +105,6 @@ parser.add_argument('--debug', type=int, default=0)
 parser.add_argument('--airr-input', action='store_true', help='read input in AIRR tsv format, and if output file suffix is .yaml write partis output.')
 parser.add_argument('--airr-output', action='store_true', help='write output in AIRR tsv format')
 parser.add_argument('--skip-other-locus', action='store_true', help='if --airr-output is set, this tells us to skip lines from the other locus')
-parser.add_argument('--skip-unknown-genes', action='store_true', help='skip sequences whose annotations contain gene names that aren\'t in our germline set. Since AIRR format files don\'t include germline sequences, there\'s no way to use a gene that we don\'t have, so the only option is to skip such sequences.')
 parser.add_argument('--skip-columns', help='don\'t write these columns to output (atm only implemented for airr output, since we need to remove the clone_id column so scoper doesn\'t crash)')
 parser.add_argument('--simfname', help='simulation file corresponding to input file (i.e. presumably <infile> is inference that was performed on --simfname')
 parser.add_argument('--only-csv-plots', action='store_true', help='only write csv versions of plots (not svg), which is a lot faster')
@@ -154,7 +153,7 @@ else:
             glfo = glutils.read_glfo(args.glfo_dir, args.locus, template_glfo=glutils.read_glfo(args.template_glfo_dir, args.locus))
             # glutils.write_glfo(args.glfo_dir + '-parsed', glfo, debug=True)
             glfd = None
-        glfo, annotation_list, cpath = utils.read_airr_output(args.infile, locus=args.locus, glfo=glfo, glfo_dir=glfd, skip_other_locus=args.skip_other_locus, skip_unknown_genes=args.skip_unknown_genes)
+        glfo, annotation_list, cpath = utils.read_airr_output(args.infile, locus=args.locus, glfo=glfo, glfo_dir=glfd, skip_other_locus=args.skip_other_locus)
     else:
         glfo, annotation_list, cpath = utils.read_output(args.infile, glfo_dir=args.glfo_dir, locus=args.locus)
 
@@ -223,6 +222,7 @@ if not os.path.exists(os.path.dirname(os.path.abspath(args.outfile))):
 if args.airr_output:
     print('  writing %d annotations%s to %s' % (len(annotation_list), '' if cpath is None else ' (with partition: %d seqs in %d clusters)'%(sum(len(c) for c in cpath.best()), len(cpath.best())), args.outfile))
     utils.write_airr_output(args.outfile, annotation_list, cpath=cpath, extra_columns=args.extra_columns, skip_columns=args.skip_columns)
+    glutils.write_glfo(os.path.dirname(os.path.abspath(args.outfile)) + '/' + glutils.glfo_dir, glfo, debug=True)
     sys.exit(0)
 
 # condense partis info into <seqfos> for fasta/csv output
@@ -249,6 +249,9 @@ for cluster in clusters_to_use:
                     ival = ival[iseq]
                 newfos[iseq][ecol] = ival
     seqfos += newfos
+for line in annotation_list:  # also write failed/invalid sequences
+    if line.get('invalid'):
+        seqfos += [{'name' : u, 'seq' : s} for u, s in zip(line['unique_ids'], line['input_seqs'])]
 if n_skipped > 0:
     print('  missing annotations for %d sequences' % n_skipped)
 if n_failed_to_add > 0:
@@ -281,3 +284,5 @@ with open(args.outfile, utils.csv_wmode()) as ofile:
         utils.write_annotations(args.outfile, glfo, annotation_list, utils.add_lists(utils.annotation_headers, args.extra_columns), partition_lines=plines)
     else:
         assert False
+if utils.getsuffix(args.outfile) != '.yaml':  # yaml already embeds glfo
+    glutils.write_glfo(os.path.dirname(os.path.abspath(args.outfile)) + '/' + glutils.glfo_dir, glfo, debug=True)

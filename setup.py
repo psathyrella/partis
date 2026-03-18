@@ -121,6 +121,7 @@ setup(
         'numpy',
         'pandas',
         'psutil',
+        'pot',
         'pysam',
         'PyYAML',
         'scikit-learn',

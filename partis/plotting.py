@@ -528,6 +528,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
             statstr = ' (%s %s)' % ('0-bin' if htmp.bin_labels[1]=='' else htmp.bin_labels[1], floatstr(htmp.bin_contents[1]))
         elif stats is not None and stats != '':  # damnit, I ended up with both of the damn things as possible defaults
             raise Exception('unexpected stats str \'%s\'' % stats)
+        if statstr is not None and len(hists) > 1:  # for single hists it's done below
+            if print_stats:
+                print('    %12s %20s %s' % (htmp.title, plotname, statstr))
+            htmp.title += ' ' + statstr
         markersize = None
         if markersizes is not None:
             imark = ih if len(markersizes) > 1 else 0
@@ -581,10 +585,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
         tmptitle = plotconfig.plot_titles[plotname]
     else:
         tmptitle = hist.title  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
-    if statstr is not None:
+    if statstr is not None and len(hists) == 1:
         tmptitle += statstr
         if print_stats:
-            print('    %s %s' % (plotname, statstr))
+            print('    %20s %s' % (plotname, statstr))
 
     if xtitle is not None:
         tmpxtitle = xtitle
