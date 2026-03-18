@@ -1259,9 +1259,9 @@ class Waterer(object):
             if self.debug:
                 print('  %s nonsense k bounds for %s (v: %d %d  d: %d %d)' % (utils.color('red', 'error'), qinfo['name'], k_v_min, k_v_max, k_d_min, k_d_max))
             return None
-        if self.args.is_data and k_v_min - len(line['fv_insertion']) < 0:
+        if self.args.is_data and k_v_min - len(line['fv_insertion']) <= 0:
             if self.debug:
-                print('%s trimming fwk insertion would take k_v min to less than zero for %s: %d - %d = %d   %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']), utils.reverse_complement_warning()))
+                print('%s trimming fwk insertion would take k_v min to zero or less for %s: %d - %d = %d   %s' % (utils.color('yellow', 'warning'), ' '.join(line['unique_ids']), k_v_min, len(line['fv_insertion']), k_v_min - len(line['fv_insertion']), utils.reverse_complement_warning()))
             return None
 
         kbounds = {'v' : {'best' : best_k_v, 'min' : k_v_min, 'max' : k_v_max},
@@ -1565,6 +1565,7 @@ class Waterer(object):
                     print('      sw called a v indel, but there\'s already a vsearch v indel, so give up (delete vsearch indel, ignore new sw indel, and rerun sw forbidding indels)')
                 if qinfo['name'] in self.info['indels']:
                     del self.info['indels'][qinfo['name']]
+                self.vs_indels.discard(qinfo['name'])
                 return None
 
             vs_indelfo = self.info['indels'][qinfo['name']]
