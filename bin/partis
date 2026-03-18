@@ -55,10 +55,10 @@ def find_cmd(cmd):
 # ----------------------------------------------------------------------------------------
 def strip_paired_args(clist, args):
     # Core arg stripping shared by build_single_locus_cmd() and prep_args() in run_step().
-    # Deep copies sys.argv, resolves --arg=val syntax, and strips paired/multi-locus args
-    # that do not apply to single-locus subprocesses. Returns the modified clist.
-    # NOTE: callers may strip additional args beyond these (e.g. prep_args strips action-specific
-    # args for simulate/generate-trees, and build_single_locus_cmd strips --is-simu for disjoint groups)
+    # Takes an already-deep-copied sys.argv as <clist>, resolves --arg=val syntax, and strips
+    # paired/multi-locus args that do not apply to single-locus subprocesses. Returns the modified clist.
+    # NOTE: callers may strip additional args beyond these (e.g. prep_args strips --prepend-coverage-command
+    # after its coverage prepend logic, and build_single_locus_cmd strips --is-simu for disjoint groups)
     clist[0] = find_cmd(clist[0])
     if any('=' in a for a in clist):  # handle --arg=val style syntax
         new_clist = []
@@ -71,7 +71,7 @@ def strip_paired_args(clist, args):
     # remove paired/multi-locus boolean args
     for argname in ['--paired-loci', '--dry-run', '--reverse-negative-strands',
                     '--random-seed-seq', '--dont-calculate-annotations', '--guess-pairing-info',
-                    '--no-pairing-info', '--remove-nonfunctional-seqs', '--prepend-coverage-command']:
+                    '--no-pairing-info', '--remove-nonfunctional-seqs']:
         utils.remove_from_arglist(clist, argname)
     # remove paired/multi-locus args that have values
     for argname in ['--single-light-locus', '--paired-indir', '--paired-outdir', '--light-chain-fractions', '--seed-loci',
@@ -86,7 +86,7 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
     clist = strip_paired_args(copy.deepcopy(sys.argv), args)
     # strip additional args not needed for disjoint per-group commands
     for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
-                    '--disjoint-group']:
+                    '--disjoint-group', '--prepend-coverage-command']:
         utils.remove_from_arglist(clist, argname)
     utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
     # set action and locus
@@ -460,7 +460,7 @@ def link_assembled_to_single_chain(args, loci, assembled_dir):
 # ----------------------------------------------------------------------------------------
 def subset_partition(args):
     if args.disjoint_group:
-        disjoint_dir = '%s/disjoint-groups' % args.paired_outdir
+        disjoint_dir = os.path.abspath('%s/disjoint-groups' % args.paired_outdir)
         assembled_dir = '%s/assembled' % disjoint_dir
         # step 1: sw annotation + CDR3 grouping
         manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
@@ -484,7 +484,7 @@ def subset_partition(args):
         run_disjoint_groups(args, manifest, disjoint_dir)
         # step 3: assembly merge (concatenation, no second-pass)
         print('  step 3: assembling merged output')
-        disjointgrouper.validate_assembly(manifest, os.path.abspath(disjoint_dir))
+        disjointgrouper.validate_assembly(manifest, disjoint_dir)
         manifest['assembly']['validation']['uids_unique'] = True
         manifest['assembly']['validation']['sequence_count_preserved'] = True
         disjointgrouper.assemble_merged_output(manifest, disjoint_dir)
