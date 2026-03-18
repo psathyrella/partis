@@ -1213,7 +1213,7 @@ class PartitionDriver(object):
 
         partition = utils.split_clusters_by_cdr3(partition, self.sw_info, warn=True)  # if we didn't use sw cdr3 lengths to start with here, there can be clusters with multiple sw cdr3 lengths, which then break when we go to get annotations later (it'd be too hard to avoid using sw info when getting annotations). And we don't really care which is right -- in general if we can get different cdr3 lengths for a sequence, it's absolute garbage to begin with
         # should really also re-pad after this i think (at least i'm getting naive seq len errors when merging paired partitions cause some look un/wrongly padded)
-        # utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
+        # utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info, self.sw_glfo)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
 
         perf_metrics = None
         if not self.args.is_data:  # i'm no longer calculating ccfs here, so could remove/move some of this inside the pairwise clustering metric block
@@ -2127,7 +2127,7 @@ class PartitionDriver(object):
             # antn_dict, _ = self.convert_sw_annotations(partition=nsets)  # we *have* the annotations for the input partition, which would be better, but their seqs aren't correctly padded to the same length (since they were run in different subsets/procs), and propagating the new sw padding info (sw gets re-padded when we read the subset-merged sw info) to the input partition annotations would be hard, so we just use the sw annotations to get the naive seqs here
             # def naive_seq_fcn(query_name_list):
             #     return antn_dict.get(':'.join(query_name_list))['naive_seq']
-            utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
+            utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info, self.sw_glfo)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
             self.input_antn_dict = utils.get_annotation_dict(self.input_antn_list)  # fcn in previous line only replaces elements in list (rather than modifying those elements) in very rare cases, but for cases when it does, whe have to replace the associated dict
             def naive_seq_fcn(query_name_list):
                 if ':'.join(query_name_list) not in self.input_antn_dict:

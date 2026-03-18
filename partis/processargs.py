@@ -87,11 +87,13 @@ def process(args):
         if args.outfname is None and args.paired_outdir is None:
             raise Exception('have to set either --outfname or --paired-outdir for \'subset-partition\'')
         if not args.paired_loci:
-            print('  note: turning on --paired-loci since \'subset-partition\' requires it (and turning on --keep-all-unpaired-seqs)')
+            print('  note: turning on --paired-loci since \'subset-partition\' requires it (and turning on --keep-all-unpaired-seqs and --no-pairing-info)')
             args.keep_all_unpaired_seqs = True
             sys.argv.append('--keep-all-unpaired-seqs')
             args.paired_loci = True
             sys.argv.append('--paired-loci')
+            args.no_pairing_info = True
+            sys.argv.append('--no-pairing-info')
             if args.paired_outdir is None:
                 args.paired_outdir = utils.getprefix(args.outfname)
                 args.outfname = None

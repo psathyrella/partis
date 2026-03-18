@@ -366,7 +366,7 @@ def subset_partition(args):
         print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'running %s'%args.action), len(input_info), args.n_subsets, infname))
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
         sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
-                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
+                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
         for isub, sfos in enumerate(sfo_lists):
             ofn = ptnfn(subdir(isub), 'igh')
             if os.path.exists(ofn):
@@ -396,7 +396,7 @@ def subset_partition(args):
         #     for ltmp in utils.sub_loci(args.ig_or_tr):
         #         utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
     # ----------------------------------------------------------------------------------------
-    if args.input_metafnames is None:
+    if args.input_metafnames is None and not args.no_pairing_info:
         if args.paired_indir is None:
             args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
         else:

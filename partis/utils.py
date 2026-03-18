@@ -1060,7 +1060,7 @@ def evenly_split_list(inlist, n_subsets, dbgstr='items'):
 # n_max_queries: take only this many (after random shuffling, see notes below), n_random_queries: take this many at random, n_subsets: split into this many groups
 # NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
 def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None,
-                          seed_unique_ids=None, queries_to_include=None, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
+                          seed_unique_ids=None, queries_to_include=None, no_pairing_info=False, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
     # ----------------------------------------------------------------------------------------
     def get_final_seqfos(final_qlists, dbgarg, dbgstr):
         final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
@@ -1079,7 +1079,9 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     pvals = [n_max_queries, n_random_queries, n_subsets]
     if pvals == [-1, None, None] or pvals.count(None) + pvals.count(-1) != 2:  # not really correct (-1 isn't default for the second two) but why would you set them to that, anyway?
         raise Exception('have to set exactly 1 of [n_max_queries, n_random_queries, n_subsets], but got %s %s %s' % (n_max_queries, n_random_queries, n_subsets))
-    if input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
+    if no_pairing_info:  # each sequence is its own group (no droplet grouping)
+        drop_query_lists = [[s['name']] for s in seqfos]
+    elif input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
         _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True, debug=debug)
     else:  # but if we already have pair info in <input_info>
         _, drop_query_lists = get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet_id_indices, return_lists=True)
@@ -4786,7 +4788,7 @@ def re_pad_atn(n_fv_pad, n_jf_pad, atn, glfo, extra_str='      ', debug=False): 
 # Here we add any extra padding in the sw info (which will have been padded on the full sample when reading the subset-merged sw cache file)
 # UPDATE: actually also need to *trim* padding in input annotations, at least for the case we're subset partitioning and ignoring small clusters, in which case sw padding in the merge process will be missing all the sequences from small clusters, so it can end up with less padding than the original sw (and thus input annotation)
 # NOTE that in most cases this just modifies elements in <input_antn_list>, but sometimes also modifies the list, so in general you need to e.g. remake any associated annotation dict from the calling fcn
-def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE quite similar to pad_seqs_to_same_length() in waterer.py (although there we change a lot more stuff by hand, i think because i didn't yet have remove_all_implicit_info [or maybe bc that would be slower])
+def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, sw_glfo, debug=False):  # NOTE quite similar to pad_seqs_to_same_length() in waterer.py (although there we change a lot more stuff by hand, i think because i didn't yet have remove_all_implicit_info [or maybe bc that would be slower])
     from . import indelutils
     # ----------------------------------------------------------------------------------------
     def has_bad_lengths(iatn):
@@ -4804,7 +4806,7 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE 
             continue
         if debug:
             print_aligned_seqs(iatn)
-        sw_ldists, sw_rdists = zip(*[get_pad_parameters(sw_info[iatn['unique_ids'][i]], input_glfo) for i, u in enumerate(iatn['unique_ids'])])
+        sw_ldists, sw_rdists = zip(*[get_pad_parameters(sw_info[iatn['unique_ids'][i]], sw_glfo) for i, u in enumerate(iatn['unique_ids'])])
         sw_ldist, sw_rdist = [get_single_entry(list(set(l))) for l in [sw_ldists, sw_rdists]]
         ia_ldist, ia_rdist = get_pad_parameters(iatn, input_glfo)  # they should all be the same, so can use 0 (?)
         leftpad, rightpad = sw_ldist - ia_ldist, sw_rdist - ia_rdist
