@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const Region = @import("germ_lines.zig").Region;
+const regionStr = @import("germ_lines.zig").regionStr;
 
 /// ANSI escape code table.  Corresponds to C++ `TermColors::codes_`.
 const color_codes = std.StaticStringMap([]const u8).initComptime(.{
@@ -71,6 +72,65 @@ pub const TermColors = struct {
                 try buf.append(allocator, c);
             }
         }
+        return buf.toOwnedSlice(allocator);
+    }
+
+    /// Colorize a gene name (e.g. "IGHV3-15*01") with region, version, allele parts.
+    /// Caller owns the returned slice (allocated with `allocator`).
+    /// Corresponds to C++ `TermColors::ColorGene(gene)`.
+    pub fn colorGene(allocator: std.mem.Allocator, gene: []const u8) ![]u8 {
+        const region = try getRegion(gene);
+        const rs = regionStr(region);
+        const region_colored = try color(allocator, "red", rs);
+        defer allocator.free(region_colored);
+
+        var buf: std.ArrayListUnmanaged(u8) = .{};
+        defer buf.deinit(allocator);
+        try buf.appendSlice(allocator, region_colored);
+
+        // Find positions of '-' and '*' and '_' in the gene name
+        const dash_pos = std.mem.indexOfScalar(u8, gene, '-');
+        const star_pos = std.mem.indexOfScalar(u8, gene, '*');
+        const underscore_pos = std.mem.indexOfScalar(u8, gene, '_');
+
+        if (region == .j) {
+            // For j genes: n_version = gene[4..star_pos], no subversion
+            const version_end = star_pos orelse gene.len;
+            const n_version = gene[4..version_end];
+            const version_colored = try color(allocator, "purple", n_version);
+            defer allocator.free(version_colored);
+            try buf.appendSlice(allocator, version_colored);
+        } else {
+            // For v and d genes: n_version = gene[4..dash_pos], n_subversion = gene[dash_pos+1..star_pos]
+            const d_pos = dash_pos orelse gene.len;
+            const n_version = gene[4..d_pos];
+            const version_colored = try color(allocator, "purple", n_version);
+            defer allocator.free(version_colored);
+            try buf.appendSlice(allocator, version_colored);
+            try buf.append(allocator, '-');
+            const s_pos = star_pos orelse gene.len;
+            if (d_pos + 1 <= s_pos) {
+                const n_subversion = gene[d_pos + 1 .. s_pos];
+                const subversion_colored = try color(allocator, "purple", n_subversion);
+                defer allocator.free(subversion_colored);
+                try buf.appendSlice(allocator, subversion_colored);
+            }
+        }
+
+        // Allele: gene[star_pos+1..underscore_pos]
+        if (star_pos) |sp| {
+            const allele_end = underscore_pos orelse gene.len;
+            const allele = gene[sp + 1 .. allele_end];
+            const allele_colored = try color(allocator, "yellow", allele);
+            defer allocator.free(allele_colored);
+            try buf.appendSlice(allocator, allele_colored);
+        }
+
+        // Suffix after '_' (if present)
+        if (underscore_pos) |up| {
+            try buf.appendSlice(allocator, gene[up..]);
+        }
+
         return buf.toOwnedSlice(allocator);
     }
 
