@@ -124,7 +124,11 @@ def get_sw_cache_path(parameter_dir, locus, paired):
     if len(fnames) == 0:
         return None
     if len(fnames) > 1:
-        raise Exception('found %d sw cache files in %s (expected 1, maybe from different input samples?): %s' % (len(fnames), search_dir, ' '.join(fnames)))
+        # multiple cache files from different inputs (partis does not clean up old sw-cache-{hash}.yaml files
+        # when re-running cache-parameters with different input). Use most recent by mtime, since sw/hmm
+        # parameter dirs are overwritten on re-run so the newest cache file matches the current parameters.
+        fnames.sort(key=os.path.getmtime, reverse=True)
+        print('  %s found %d sw cache files in %s, using most recent: %s' % (utils.color('yellow', 'warning'), len(fnames), search_dir, fnames[0]))
     return fnames[0]
 
 # ----------------------------------------------------------------------------------------
