@@ -53,12 +53,12 @@ def find_cmd(cmd):
         return '%s/bin/%s' % (partis_dir, os.path.basename(cmd))
 
 # ----------------------------------------------------------------------------------------
-def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, parameter_dir=None, input_metafnames=None, extra_args=None):
-    # Build a single-locus subprocess command from sys.argv with full arg forwarding.
-    # Strips paired/multi-locus args and replaces action, locus, and path args as specified.
-    # Extracted from run_step()/prep_args() closure in run_all_loci() so that disjoint_subset_partition()
-    # can forward all user args to per-group partition commands.
-    clist = copy.deepcopy(sys.argv)
+def strip_paired_args(clist, args):
+    # Core arg stripping shared by build_single_locus_cmd() and prep_args() in run_step().
+    # Deep copies sys.argv, resolves --arg=val syntax, and strips paired/multi-locus args
+    # that do not apply to single-locus subprocesses. Returns the modified clist.
+    # NOTE: callers may strip additional args beyond these (e.g. prep_args strips action-specific
+    # args for simulate/generate-trees, and build_single_locus_cmd strips --is-simu for disjoint groups)
     clist[0] = find_cmd(clist[0])
     if any('=' in a for a in clist):  # handle --arg=val style syntax
         new_clist = []
@@ -67,17 +67,28 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
                 new_clist += cstr.split('=')
             else:
                 new_clist.append(cstr)
-        clist = new_clist
-    # remove paired/multi-locus args that do not apply to single-locus subprocesses
-    for argname in ['--paired-loci', '--single-light-locus', '--dry-run', '--reverse-negative-strands',
+        clist[:] = new_clist
+    # remove paired/multi-locus boolean args
+    for argname in ['--paired-loci', '--dry-run', '--reverse-negative-strands',
                     '--random-seed-seq', '--dont-calculate-annotations', '--guess-pairing-info',
-                    '--no-pairing-info', '--remove-nonfunctional-seqs', '--prepend-coverage-command',
-                    '--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
+                    '--no-pairing-info', '--remove-nonfunctional-seqs', '--prepend-coverage-command']:
+        utils.remove_from_arglist(clist, argname)
+    # remove paired/multi-locus args that have values
+    for argname in ['--single-light-locus', '--paired-indir', '--paired-outdir', '--light-chain-fractions', '--seed-loci',
+                    '--n-random-queries', '--n-max-queries', '--existing-output-run-cfg']:
+        utils.remove_from_arglist(clist, argname, has_arg=True)
+    return clist
+
+# ----------------------------------------------------------------------------------------
+def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, parameter_dir=None, input_metafnames=None, extra_args=None):
+    # Build a single-locus subprocess command from sys.argv with full arg forwarding.
+    # Uses strip_paired_args() for core arg stripping, then adds locus-specific overrides.
+    clist = strip_paired_args(copy.deepcopy(sys.argv), args)
+    # strip additional args not needed for disjoint per-group commands
+    for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
                     '--disjoint-group']:
         utils.remove_from_arglist(clist, argname)
-    for argname in ['--paired-indir', '--paired-outdir', '--light-chain-fractions', '--seed-loci',
-                    '--n-random-queries', '--n-max-queries', '--existing-output-run-cfg', '--n-subsets']:
-        utils.remove_from_arglist(clist, argname, has_arg=True)
+    utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
     # set action and locus
     clist[clist.index(args.action)] = tmpaction
     utils.insert_in_arglist(clist, ['--locus', ltmp], tmpaction)
@@ -375,27 +386,11 @@ def is_subset_action(action):
     return action in ['subset-partition', 'subset-annotate']
 
 # ----------------------------------------------------------------------------------------
-def disjoint_subset_partition(args):
-    # disjoint grouping flavor of subset-partition: group by CDR3 length, partition each group, merge
-    disjoint_dir = '%s/disjoint-groups' % args.paired_outdir
-    assembled_dir = '%s/assembled' % disjoint_dir
-    args.disjoint_dir = disjoint_dir  # injected for run_assemble_groups() which expects it as an arg
-    args.no_merge_output = False  # injected for run_assemble_groups() which expects it as an arg
-
-    # step 1: sw annotation + CDR3 grouping
-    manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
-    if os.path.exists(manifest_path):
-        print('  disjoint group manifest exists, skipping step 1: %s' % manifest_path)
-    else:
-        print('  step 1: grouping sequences by CDR3 length')
-        disjointgrouper.run_disjoint_group(args)
-
-    # step 2: partition each group
-    print('  step 2: partitioning each CDR3 group')
-    manifest = disjointgrouper.read_manifest(manifest_path)
+def run_disjoint_groups(args, manifest, disjoint_dir):
+    # partition each CDR3 group independently, updating manifest with partition paths
     loci = manifest['grouping-info']['loci']
     if len(manifest['groups']) == 0:
-        raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s' % manifest_path)
+        raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     if args.parameter_dir is None:
         # parameter_dir may have been set as a side effect of step 1, but if step 1 was skipped (manifest exists), it could still be None
         if manifest['grouping-info'].get('parameter_dir') is not None:
@@ -418,39 +413,41 @@ def disjoint_subset_partition(args):
         extra_str = '    %s ' % utils.color('blue', 'group %d (cdr3 %d, %s):' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
         utils.simplerun(cmd, logfname='%s/groups/cdr3-%d/partition.log' % (disjoint_dir, ginfo['cdr3_length']), dryrun=args.dry_run, extra_str=extra_str)
         ginfo['partition_path'] = partition_rel_path
-
     # write updated manifest with partition paths
     if not args.dry_run:
+        manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
         with open(manifest_path, 'w') as mfile:
             yaml.dump(manifest, mfile, width=400, default_flow_style=False)
 
-    # step 3: merge per-group outputs
-    print('  step 3: assembling merged output')
-    disjointgrouper.run_assemble_groups(args)
+# ----------------------------------------------------------------------------------------
+def calculate_disjoint_ccfs(args, loci, assembled_dir):
+    # calculate CCFs (purity/completeness) on merged disjoint output by comparing to true partition
+    # NOTE: this exists because disjoint grouping has no second-pass merge-partition step (which would
+    # normally calculate CCFs). It reads the simulation input to get the true partition, then computes
+    # and writes CCFs into the assembled output files.
+    print('  calculating partition performance metrics on merged output')
+    for ltmp in loci:
+        merged_ofn = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
+        if not os.path.exists(merged_ofn):
+            continue
+        # read simulation input to get true partition
+        if args.paired_loci:
+            sim_fn = paircluster.paired_fn(args.paired_indir, ltmp, suffix='.yaml')
+        else:
+            sim_fn = args.infname
+        sim_glfo, sim_alist, _ = utils.read_yaml_output(sim_fn, dont_add_implicit_info=True)
+        reco_info = {uid : line for line in sim_alist for uid in line['unique_ids']}
+        true_partition = utils.get_partition_from_reco_info(reco_info)
+        # read merged output and calculate ccfs
+        m_glfo, m_alist, m_cpath = utils.read_yaml_output(merged_ofn, dont_add_implicit_info=True)
+        m_cpath.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=m_cpath.i_best, fail_frac=args.max_ccf_fail_frac)
+        headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
+        utils.write_annotations(merged_ofn, m_glfo, m_alist, headers, partition_lines=m_cpath.get_partition_lines(reco_info=reco_info, true_partition=true_partition, calc_missing_values='best', fail_frac=args.max_ccf_fail_frac), dont_write_git_info=args.dont_write_git_info)
+        ccfs = m_cpath.ccfs[m_cpath.i_best]
+        print('    %s: purity %.3f  completeness %.3f' % (ltmp, ccfs[0], ccfs[1]))
 
-    # if --is-simu, calculate CCFs (purity/completeness) on merged output by comparing to true partition from simulation input
-    if args.is_simu:
-        print('  calculating partition performance metrics on merged output')
-        for ltmp in loci:
-            merged_ofn = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
-            if not os.path.exists(merged_ofn):
-                continue
-            # read simulation input to get true partition
-            if args.paired_loci:
-                sim_fn = paircluster.paired_fn(args.paired_indir, ltmp, suffix='.yaml')
-            else:
-                sim_fn = args.infname
-            sim_glfo, sim_alist, _ = utils.read_yaml_output(sim_fn, dont_add_implicit_info=True)
-            reco_info = {uid : line for line in sim_alist for uid in line['unique_ids']}
-            true_partition = utils.get_partition_from_reco_info(reco_info)
-            # read merged output and calculate ccfs
-            m_glfo, m_alist, m_cpath = utils.read_yaml_output(merged_ofn, dont_add_implicit_info=True)
-            m_cpath.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=m_cpath.i_best, fail_frac=args.max_ccf_fail_frac)
-            headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
-            utils.write_annotations(merged_ofn, m_glfo, m_alist, headers, partition_lines=m_cpath.get_partition_lines(reco_info=reco_info, true_partition=true_partition, calc_missing_values='best', fail_frac=args.max_ccf_fail_frac), dont_write_git_info=args.dont_write_git_info)
-            ccfs = m_cpath.ccfs[m_cpath.i_best]
-            print('    %s: purity %.3f  completeness %.3f' % (ltmp, ccfs[0], ccfs[1]))
-
+# ----------------------------------------------------------------------------------------
+def link_assembled_to_single_chain(args, loci, assembled_dir):
     # link assembled outputs to single-chain dir so combine_inf_chains() can find them for pair cleaning
     sc_dir = '%s/single-chain' % args.paired_outdir
     utils.mkdir(sc_dir)
@@ -469,7 +466,34 @@ def subset_partition(args):
             args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
         print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
     if args.disjoint_group:
-        disjoint_subset_partition(args)
+        disjoint_dir = '%s/disjoint-groups' % args.paired_outdir
+        assembled_dir = '%s/assembled' % disjoint_dir
+        # step 1: sw annotation + CDR3 grouping
+        manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
+        if os.path.exists(manifest_path):
+            print('  disjoint group manifest exists, skipping step 1: %s' % manifest_path)
+        else:
+            print('  step 1: grouping sequences by CDR3 length')
+            disjointgrouper.run_disjoint_group(args)
+        # step 2: per-group partition
+        print('  step 2: partitioning each CDR3 group')
+        manifest = disjointgrouper.read_manifest(manifest_path)
+        loci = manifest['grouping-info']['loci']
+        run_disjoint_groups(args, manifest, disjoint_dir)
+        # step 3: assembly merge (concatenation, no second-pass)
+        print('  step 3: assembling merged output')
+        disjointgrouper.validate_assembly(manifest, os.path.abspath(disjoint_dir))
+        manifest['assembly']['validation']['uids_unique'] = True
+        manifest['assembly']['validation']['sequence_count_preserved'] = True
+        disjointgrouper.assemble_merged_output(manifest, disjoint_dir)
+        manifest['assembly']['status'] = 'merged'
+        if not args.dry_run:
+            with open(manifest_path, 'w') as mfile:
+                yaml.dump(manifest, mfile, width=400, default_flow_style=False)
+            print('    updated manifest')
+        if args.is_simu:
+            calculate_disjoint_ccfs(args, loci, assembled_dir)
+        link_assembled_to_single_chain(args, loci, assembled_dir)
         return
     # ----------------------------------------------------------------------------------------
     def subdir(igroup):
@@ -820,33 +844,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     def run_step(tmpaction, ltmp, auto_cache=False, skip_missing_input=False, skip_missing_output=False, lpair=None, joint=False):
         # ----------------------------------------------------------------------------------------
         def prep_args(ltmp):
-            clist = copy.deepcopy(sys.argv)
-            clist[0] = find_cmd(clist[0])
-            if any('=' in a for a in clist):  # arg (have to handle --arg=val style syntax)
-                new_clist = []
-                for cstr in clist:
-                    if '=' in cstr and hasattr(args, cstr.split('=')[0].lstrip('-').replace('-', '_')):
-                        print('    note: replacing \'%s\' --> \'%s\' in clist' % (cstr, cstr.split('=')))
-                        new_clist += cstr.split('=')
-                    else:
-                        new_clist.append(cstr)
-                clist = new_clist
-            utils.remove_from_arglist(clist, '--paired-loci')
-            utils.remove_from_arglist(clist, '--single-light-locus', has_arg=True)
-            utils.remove_from_arglist(clist, '--dry-run')
-            utils.remove_from_arglist(clist, '--reverse-negative-strands')
-            utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
-            utils.remove_from_arglist(clist, '--paired-outdir', has_arg=True)
-            utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
-            utils.remove_from_arglist(clist, '--seed-loci', has_arg=True)
-            utils.remove_from_arglist(clist, '--random-seed-seq')
-            utils.remove_from_arglist(clist, '--dont-calculate-annotations')  # we need the single-chain partition steps to write annotations, although maybe it's just for pairing info so maybe we could write that separately, but whatever
-            utils.remove_from_arglist(clist, '--guess-pairing-info')
-            utils.remove_from_arglist(clist, '--no-pairing-info')
-            utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
-            utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
-            utils.remove_from_arglist(clist, '--existing-output-run-cfg', has_arg=True)
-            utils.remove_from_arglist(clist, '--remove-nonfunctional-seqs')  # have to do this after we have both chains, so we can remove both seqs if either one is nonfunctional
+            clist = strip_paired_args(copy.deepcopy(sys.argv), args)  # core paired/multi-locus arg stripping shared with build_single_locus_cmd()
             if tmpaction == 'view-output':
                 utils.remove_from_arglist(clist, '--input-partition-fname', has_arg=True)
             if args.prepend_coverage_command:
