@@ -324,6 +324,12 @@ pub const Glomerator = struct {
             return error.LogprobRatioThresholdNotSet;
         }
 
+        if (self.args.debug > 0) {
+            const s = try std.fmt.allocPrint(self.allocator, "   hieragloming {d} clusters\n", .{self.initial_partition.items.len});
+            defer self.allocator.free(s);
+            try std.fs.File.stdout().writeAll(s);
+        }
+
         // Clone partition entries and sort to match C++ set<string> ordering
         var init_part: Partition = .{};
         for (self.initial_partition.items) |name| {
@@ -355,10 +361,22 @@ pub const Glomerator = struct {
     /// Cache all naive sequences.
     /// Corresponds to C++ `Glomerator::CacheNaiveSeqs`.
     pub fn cacheNaiveSeqs(self: *Glomerator) !void {
-        std.debug.print("      caching all naive sequences\n", .{});
-        var it = self.cachefo.iterator();
-        while (it.next()) |entry| {
-            _ = try self.getNaiveSeq(entry.key_ptr.*, null);
+        try std.fs.File.stdout().writeAll("      caching all naive sequences\n");
+        // Sort keys to match C++ map<string,...> iteration order
+        const sorted_keys = try self.allocator.alloc([]const u8, self.cachefo.count());
+        defer self.allocator.free(sorted_keys);
+        {
+            var it = self.cachefo.iterator();
+            var idx: usize = 0;
+            while (it.next()) |e| : (idx += 1) sorted_keys[idx] = e.key_ptr.*;
+        }
+        std.mem.sort([]const u8, sorted_keys, {}, struct {
+            fn lessThan(_: void, a: []const u8, b: []const u8) bool {
+                return std.mem.order(u8, a, b) == .lt;
+            }
+        }.lessThan);
+        for (sorted_keys) |key| {
+            _ = try self.getNaiveSeq(key, null);
         }
         try self.writeCacheFile();
         // Signal completion by opening and closing the outfile
@@ -388,7 +406,7 @@ pub const Glomerator = struct {
 
         var line_iter = std.mem.splitScalar(u8, content, '\n');
         const header = line_iter.next() orelse {
-            std.debug.print("        empty cachefile\n", .{});
+            try std.fs.File.stdout().writeAll("        empty cachefile\n");
             return;
         };
         _ = header; // just skip it
@@ -491,9 +509,20 @@ pub const Glomerator = struct {
             }
         }
 
-        var kit = keys_to_cache.iterator();
-        while (kit.next()) |e| {
-            const key = e.key_ptr.*;
+        // Sort cache keys to match C++ map<string,...> iteration order
+        const sorted_cache_keys = try self.allocator.alloc([]const u8, keys_to_cache.count());
+        defer self.allocator.free(sorted_cache_keys);
+        {
+            var kit = keys_to_cache.iterator();
+            var kidx: usize = 0;
+            while (kit.next()) |e| : (kidx += 1) sorted_cache_keys[kidx] = e.key_ptr.*;
+        }
+        std.mem.sort([]const u8, sorted_cache_keys, {}, struct {
+            fn lessThan(_: void, a: []const u8, b: []const u8) bool {
+                return std.mem.order(u8, a, b) == .lt;
+            }
+        }.lessThan);
+        for (sorted_cache_keys) |key| {
             try writer.writeAll(key);
             try writer.writeByte(',');
             if (self.log_probs.get(key)) |lp| try writer.print("{d}", .{lp});
@@ -513,6 +542,9 @@ pub const Glomerator = struct {
     // ── Partition I/O ─────────────────────────────────────────────────────────
 
     fn writePartitions(self: *Glomerator, cp: *ClusterPath) !void {
+        if (self.args.debug > 0) {
+            try std.fs.File.stdout().writeAll("        writing partitions\n");
+        }
         const f = try std.fs.cwd().createFile(self.args.outfile, .{});
         defer f.close();
         var wr_buf: [65536]u8 = undefined;
@@ -563,6 +595,9 @@ pub const Glomerator = struct {
             const cur_part = path.currentPartition();
             for (cur_part.items) |cl| {
                 if (countMembers(cl) > self.args.max_cluster_size) {
+                    const s = try std.fmt.allocPrint(self.allocator, "    --max-cluster-size: stopping with a cluster of size {d} (> {d})\n", .{ @as(u32, @intCast(countMembers(cl))), self.args.max_cluster_size });
+                    defer self.allocator.free(s);
+                    try std.fs.File.stdout().writeAll(s);
                     path.finished = true;
                 }
             }
@@ -581,8 +616,32 @@ pub const Glomerator = struct {
                 if (need_more) {
                     if (self.force_merge) {
                         path.finished = true;
+                        if (self.args.debug > 0) {
+                            if (self.args.n_final_clusters > 0) {
+                                const s = try std.fmt.allocPrint(self.allocator, "    couldn't merge beyond {d} clusters despite setting force merge\n", .{cur_size});
+                                defer self.allocator.free(s);
+                                try std.fs.File.stdout().writeAll(s);
+                            }
+                            if (self.args.min_largest_cluster_size > 0) {
+                                const s = try std.fmt.allocPrint(self.allocator, "    couldn't merge past a biggest cluster of {d} despite setting force merge\n", .{largest});
+                                defer self.allocator.free(s);
+                                try std.fs.File.stdout().writeAll(s);
+                            }
+                        }
                     } else {
                         self.force_merge = true;
+                        if (self.args.debug > 0) {
+                            if (self.args.n_final_clusters > 0) {
+                                const s = try std.fmt.allocPrint(self.allocator, "    setting force merge (currently have {d} clusters, requested {d})\n", .{ cur_size, self.args.n_final_clusters });
+                                defer self.allocator.free(s);
+                                try std.fs.File.stdout().writeAll(s);
+                            }
+                            if (self.args.min_largest_cluster_size > 0) {
+                                const s = try std.fmt.allocPrint(self.allocator, "    setting force merge (current biggest cluster {d}, requested {d})\n", .{ largest, self.args.min_largest_cluster_size });
+                                defer self.allocator.free(s);
+                                try std.fs.File.stdout().writeAll(s);
+                            }
+                        }
                     }
                 } else {
                     path.finished = true;
@@ -606,7 +665,7 @@ pub const Glomerator = struct {
         }
 
         _ = try self.getNaiveSeq(chosen.name, if (chosen.parents != null) &[2][]const u8{ p1, p2 } else null);
-        self.updateLogProbTranslationsForAsymetrics(&chosen);
+        try self.updateLogProbTranslationsForAsymetrics(&chosen);
         try self.moveSubsetsFromTmpCache(chosen.name);
 
         // Build new partition
@@ -625,6 +684,12 @@ pub const Glomerator = struct {
         sortPartition(&new_partition);
         try path.addPartition(self.allocator, new_partition, mathutils.NEG_INF, @intCast(self.args.n_partitions_to_write));
 
+        if (self.args.debug > 0) {
+            const s = try std.fmt.allocPrint(self.allocator, "       merged   {s}  {s}\n          removing {d} entries from tmp cache\n", .{ p1, p2, self.tmp_cachefo.count() });
+            defer self.allocator.free(s);
+            try std.fs.File.stdout().writeAll(s);
+        }
+
         // Clear tmp cache
         var tcit = self.tmp_cachefo.iterator();
         while (tcit.next()) |e| {
@@ -640,6 +705,16 @@ pub const Glomerator = struct {
             (self.args.min_largest_cluster_size > 0 and new_largest >= self.args.min_largest_cluster_size))
         {
             path.finished = true;
+            if (self.args.n_final_clusters > 0) {
+                const s = try std.fmt.allocPrint(self.allocator, "    finished glomerating to {d} clusters (requested {d}), force merge status {d}\n", .{ new_size, self.args.n_final_clusters, @as(u8, if (self.force_merge) 1 else 0) });
+                defer self.allocator.free(s);
+                try std.fs.File.stdout().writeAll(s);
+            }
+            if (self.args.min_largest_cluster_size > 0) {
+                const s = try std.fmt.allocPrint(self.allocator, "    finished glomerating to a biggest cluster of {d} (requested {d}), force merge status {d}\n", .{ new_largest, self.args.min_largest_cluster_size, @as(u8, if (self.force_merge) 1 else 0) });
+                defer self.allocator.free(s);
+                try std.fs.File.stdout().writeAll(s);
+            }
         }
     }
 
@@ -706,6 +781,22 @@ pub const Glomerator = struct {
 
         const lratio = lp_ab - lp_a - lp_b;
 
+        if (self.args.debug > 0) {
+            const dbg = try std.fmt.allocPrint(self.allocator, "             {d: >8.3} = {s} - {s} - {s}", .{ lratio, joint_name, key_a, key_b });
+            defer self.allocator.free(dbg);
+            if (!std.mem.eql(u8, qmerged_calc.name, joint_name) or !std.mem.eql(u8, parents_to_calc[0], key_a) or !std.mem.eql(u8, parents_to_calc[1], key_b)) {
+                const calcd = try std.fmt.allocPrint(self.allocator, " (calcd  {s} - {s} - {s})", .{ qmerged_calc.name, parents_to_calc[0], parents_to_calc[1] });
+                defer self.allocator.free(calcd);
+                const combined = try std.fmt.allocPrint(self.allocator, "{s}{s}\n", .{ dbg, calcd });
+                defer self.allocator.free(combined);
+                try std.fs.File.stdout().writeAll(combined);
+            } else {
+                const with_nl = try std.fmt.allocPrint(self.allocator, "{s}\n", .{dbg});
+                defer self.allocator.free(with_nl);
+                try std.fs.File.stdout().writeAll(with_nl);
+            }
+        }
+
         const lr_key = try self.allocator.dupe(u8, joint_name);
         try self.lratios.put(self.allocator, lr_key, lratio);
         return lratio;
@@ -736,7 +827,11 @@ pub const Glomerator = struct {
             const tmp_ns = try self.calculateNaiveSeq(queries_to_calc, null);
             if (tmp_ns.len == 0) {
                 self.allocator.free(tmp_ns);
-                std.debug.print("  warning: zero length naive sequence for {s}\n", .{queries_to_calc});
+                {
+                    const warn = try std.fmt.allocPrint(self.allocator, "  warning: zero length naive sequence for {s}\n", .{queries_to_calc});
+                    defer self.allocator.free(warn);
+                    try std.fs.File.stdout().writeAll(warn);
+                }
                 return "";
             }
             const key = try self.allocator.dupe(u8, queries_to_calc);
@@ -869,6 +964,15 @@ pub const Glomerator = struct {
 
         if (found) {
             self.n_hfrac_merges += 1;
+            if (self.args.debug > 0) {
+                if (best_query) |bq| {
+                    if (bq.parents) |parents| {
+                        const s = try std.fmt.allocPrint(self.allocator, "          hfrac merge  {d:.3}   {s}  {s}\n", .{ min_hf, printStr(parents[0]), printStr(parents[1]) });
+                        defer self.allocator.free(s);
+                        try std.fs.File.stdout().writeAll(s);
+                    }
+                }
+            }
             return best_query;
         }
         return null;
@@ -912,6 +1016,15 @@ pub const Glomerator = struct {
 
         if (max_lratio != mathutils.NEG_INF) {
             self.n_lratio_merges += 1;
+            if (self.args.debug > 0) {
+                if (best_query) |bq| {
+                    if (bq.parents) |parents| {
+                        const s = try std.fmt.allocPrint(self.allocator, "          lratio merge  {d:.3}   {s}  {s}\n", .{ max_lratio, printStr(parents[0]), printStr(parents[1]) });
+                        defer self.allocator.free(s);
+                        try std.fs.File.stdout().writeAll(s);
+                    }
+                }
+            }
             return best_query;
         }
         return null;
@@ -974,10 +1087,18 @@ pub const Glomerator = struct {
 
         var only_genes_list: std.ArrayListUnmanaged([]const u8) = .{};
         defer only_genes_list.deinit(self.allocator);
-        var ogit = only_gene_set.iterator();
-        while (ogit.next()) |e| {
-            try only_genes_list.append(self.allocator, e.key_ptr.*);
+        {
+            var ogit = only_gene_set.iterator();
+            while (ogit.next()) |e| {
+                try only_genes_list.append(self.allocator, e.key_ptr.*);
+            }
         }
+        // Sort to match C++ set<string> iteration order
+        std.mem.sort([]const u8, only_genes_list.items, {}, struct {
+            fn lessThan(_: void, a: []const u8, b: []const u8) bool {
+                return std.mem.order(u8, a, b) == .lt;
+            }
+        }.lessThan);
 
         const key_seqs = try self.getSeqs(queries);
         defer {
@@ -1035,10 +1156,18 @@ pub const Glomerator = struct {
         }
         var genes_list: std.ArrayListUnmanaged([]const u8) = .{};
         defer genes_list.deinit(self.allocator);
-        var git = joint_genes.iterator();
-        while (git.next()) |e| {
-            try genes_list.append(self.allocator, e.key_ptr.*);
+        {
+            var git = joint_genes.iterator();
+            while (git.next()) |e| {
+                try genes_list.append(self.allocator, e.key_ptr.*);
+            }
         }
+        // Sort to match C++ set<string> iteration order
+        std.mem.sort([]const u8, genes_list.items, {}, struct {
+            fn lessThan(_: void, a: []const u8, b: []const u8) bool {
+                return std.mem.order(u8, a, b) == .lt;
+            }
+        }.lessThan);
 
         const joint_kbounds = ref_a.kbounds.logicalOr(ref_b.kbounds);
         const n_a: f64 = @floatFromInt(ref_a.nSeqs());
@@ -1086,6 +1215,11 @@ pub const Glomerator = struct {
         }
 
         const sub = try self.chooseSubsetOfNames(actual_queries, threshold);
+        if (self.args.debug > 0) {
+            const dbg = try std.fmt.allocPrint(self.allocator, "                translate for naive seq  {s}  -->  {s}\n", .{ actual_queries, sub });
+            defer self.allocator.free(dbg);
+            try std.fs.File.stdout().writeAll(dbg);
+        }
         const key = try self.allocator.dupe(u8, actual_queries);
         errdefer self.allocator.free(key);
         const val = try self.allocator.dupe(u8, sub);
@@ -1115,9 +1249,17 @@ pub const Glomerator = struct {
             };
         }
 
+        const ap1 = if (actual_parents) |p| p[0] else actual_queries;
+        const ap2 = if (actual_parents) |p| p[1] else actual_queries;
         const p1 = if (actual_parents) |p| try self.getLogProbNameToCalculate(p[0], n_max) else try self.allocator.dupe(u8, actual_queries);
         const p2 = if (actual_parents) |p| try self.getLogProbNameToCalculate(p[1], n_max) else try self.allocator.dupe(u8, actual_queries);
         const pair = [2][]u8{ p1, p2 };
+
+        if (self.args.debug > 0) {
+            const dbg = try std.fmt.allocPrint(self.allocator, "                translate for lratio ({s})   {s}  {s}  -->  {s}  {s}\n", .{ actual_queries, ap1, ap2, p1, p2 });
+            defer self.allocator.free(dbg);
+            try std.fs.File.stdout().writeAll(dbg);
+        }
 
         const key = try self.allocator.dupe(u8, actual_queries);
         errdefer self.allocator.free(key);
@@ -1131,7 +1273,14 @@ pub const Glomerator = struct {
 
     fn getLogProbNameToCalculate(self: *Glomerator, queries: []const u8, n_max: i32) ![]u8 {
         var q = queries;
-        if (self.logprob_asymetric_translations.get(queries)) |t| q = t;
+        if (self.logprob_asymetric_translations.get(queries)) |t| {
+            if (self.args.debug > 0) {
+                const dbg = try std.fmt.allocPrint(self.allocator, "             using asymetric translation  {s}  -->  {s}\n", .{ queries, t });
+                defer self.allocator.free(dbg);
+                try std.fs.File.stdout().writeAll(dbg);
+            }
+            q = t;
+        }
         if (countMembersWithExcludeSeeds(q, self.args.seed_unique_id) > n_max) {
             return self.chooseSubsetOfNames(q, n_max);
         }
@@ -1177,6 +1326,12 @@ pub const Glomerator = struct {
 
         const subqueries = try ham_text.joinStrings(self.allocator, sub_names.items, ":");
 
+        if (self.args.debug > 0) {
+            const dbg = try std.fmt.allocPrint(self.allocator, "                chose subset  {s}  -->  {s}\n", .{ queries, subqueries });
+            defer self.allocator.free(dbg);
+            try std.fs.File.stdout().writeAll(dbg);
+        }
+
         const key = try self.allocator.dupe(u8, queries);
         errdefer self.allocator.free(key);
         try self.name_subsets.put(self.allocator, key, subqueries);
@@ -1198,17 +1353,30 @@ pub const Glomerator = struct {
     fn firstParentMuchBigger(self: *Glomerator, queries: []const u8, queries_other: []const u8, nmax: i32) !bool {
         const nseq: i32 = countMembers(queries);
         const nseq_other: i32 = countMembers(queries_other);
-        return nseq > nmax and @as(f64, @floatFromInt(nseq)) / @as(f64, @floatFromInt(nseq_other)) > self.asym_factor;
+        const result = nseq > nmax and @as(f64, @floatFromInt(nseq)) / @as(f64, @floatFromInt(nseq_other)) > self.asym_factor;
+        if (result and self.args.debug > 0) {
+            const joined = try self.joinNames(queries, queries_other);
+            defer self.allocator.free(joined);
+            const dbg = try std.fmt.allocPrint(self.allocator, "                asymetric  {d} {d}  use {s}  instead of {s}\n", .{ nseq, nseq_other, queries, joined });
+            defer self.allocator.free(dbg);
+            try std.fs.File.stdout().writeAll(dbg);
+            if (self.naive_seq_name_translations.get(queries)) |t| {
+                const dbg2 = try std.fmt.allocPrint(self.allocator, "                    naive seq translates to {s}\n", .{t});
+                defer self.allocator.free(dbg2);
+                try std.fs.File.stdout().writeAll(dbg2);
+            }
+        }
+        return result;
     }
 
-    fn updateLogProbTranslationsForAsymetrics(self: *Glomerator, qmerge: *const Query) void {
+    fn updateLogProbTranslationsForAsymetrics(self: *Glomerator, qmerge: *const Query) !void {
         const parents = qmerge.parents orelse return;
         const nmax: i32 = @intCast(@as(u64, @intCast(self.args.biggest_logprob_cluster_to_calculate)) * 3 / 2);
 
         var big_parent: ?[]const u8 = null;
-        if (self.firstParentMuchBigger(parents[0], parents[1], nmax) catch false)
+        if (try self.firstParentMuchBigger(parents[0], parents[1], nmax))
             big_parent = parents[0]
-        else if (self.firstParentMuchBigger(parents[1], parents[0], nmax) catch false)
+        else if (try self.firstParentMuchBigger(parents[1], parents[0], nmax))
             big_parent = parents[1];
 
         if (big_parent == null) return;
@@ -1217,21 +1385,33 @@ pub const Glomerator = struct {
         // Follow chain of translations
         var subqueries = bp;
         while (self.logprob_asymetric_translations.get(subqueries)) |t| {
+            if (self.args.debug > 0) {
+                const dbg = try std.fmt.allocPrint(self.allocator, "                  turtles {s}  -->  {s}\n", .{ subqueries, t });
+                defer self.allocator.free(dbg);
+                try std.fs.File.stdout().writeAll(dbg);
+            }
             subqueries = t;
         }
 
         const ratio = @as(f64, @floatFromInt(countMembers(bp))) /
             @as(f64, @floatFromInt(countMembers(subqueries)));
         if (ratio < 2.0) {
-            const key = self.allocator.dupe(u8, qmerge.name) catch return;
-            const val = self.allocator.dupe(u8, subqueries) catch {
-                self.allocator.free(key);
-                return;
-            };
-            self.logprob_asymetric_translations.put(self.allocator, key, val) catch {
-                self.allocator.free(key);
-                self.allocator.free(val);
-            };
+            if (self.args.debug > 0) {
+                const dbg = try std.fmt.allocPrint(self.allocator, "                logprob asymetric translation  {s}  -->  {s}\n", .{ qmerge.name, subqueries });
+                defer self.allocator.free(dbg);
+                try std.fs.File.stdout().writeAll(dbg);
+            }
+            const key = try self.allocator.dupe(u8, qmerge.name);
+            errdefer self.allocator.free(key);
+            const val = try self.allocator.dupe(u8, subqueries);
+            errdefer self.allocator.free(val);
+            try self.logprob_asymetric_translations.put(self.allocator, key, val);
+        } else {
+            if (self.args.debug > 0) {
+                const dbg = try std.fmt.allocPrint(self.allocator, "                  ratio too big for asymetric {d} {d}\n", .{ countMembers(bp), countMembers(subqueries) });
+                defer self.allocator.free(dbg);
+                try std.fs.File.stdout().writeAll(dbg);
+            }
         }
     }
 
@@ -1348,6 +1528,21 @@ fn splitName(allocator: std.mem.Allocator, query: []const u8) !std.ArrayListUnma
         if (part.len > 0) try result.append(allocator, try allocator.dupe(u8, part));
     }
     return result;
+}
+
+/// Return "len(N)" if the cluster has >= 10 members, otherwise the full string.
+/// Corresponds to C++ `Glomerator::PrintStr`.
+/// Uses alternating static buffers since this may be called twice per print.
+fn printStr(queries: []const u8) []const u8 {
+    if (countMembers(queries) < 10) return queries;
+    const S = struct {
+        var bufs: [2][32]u8 = .{ undefined, undefined };
+        var idx: u1 = 0;
+    };
+    const i = S.idx;
+    S.idx +%= 1;
+    const s = std.fmt.bufPrint(&S.bufs[i], "len({d})", .{countMembers(queries)}) catch return queries;
+    return s;
 }
 
 fn countMembers(namestr: []const u8) i32 {

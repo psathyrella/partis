@@ -853,9 +853,20 @@ pub const DPHandler = struct {
         // Compute per_gene_support across ksets
         for (bcr.germ_lines.regions) |region| {
             const gene_set = only_genes.get(region) orelse continue;
-            var gene_it = gene_set.iterator();
-            while (gene_it.next()) |gene_entry| {
-                const gene = gene_entry.key_ptr.*;
+            // Sort gene names to match C++ set<string> iteration order
+            const sorted_support_genes = try allocator.alloc([]const u8, gene_set.count());
+            defer allocator.free(sorted_support_genes);
+            {
+                var si = gene_set.iterator();
+                var sidx: usize = 0;
+                while (si.next()) |e| : (sidx += 1) sorted_support_genes[sidx] = e.key_ptr.*;
+            }
+            std.mem.sort([]const u8, sorted_support_genes, {}, struct {
+                fn lessThan(_: void, a: []const u8, b: []const u8) bool {
+                    return std.mem.order(u8, a, b) == .lt;
+                }
+            }.lessThan);
+            for (sorted_support_genes) |gene| {
                 var score_this_kset: f64 = 0.0;
                 for (bcr.germ_lines.regions) |tmpreg| {
                     if (tmpreg == region) {
