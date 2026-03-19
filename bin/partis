@@ -459,6 +459,12 @@ def link_assembled_to_single_chain(args, loci, assembled_dir):
 
 # ----------------------------------------------------------------------------------------
 def subset_partition(args):
+    if args.input_metafnames is None:
+        if args.paired_indir is None:
+            args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
+        else:
+            args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
+        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
     if args.disjoint_group:
         disjoint_dir = os.path.abspath('%s/disjoint-groups' % args.paired_outdir)
         assembled_dir = '%s/assembled' % disjoint_dir
@@ -469,14 +475,6 @@ def subset_partition(args):
         else:
             print('  step 1: grouping sequences by CDR3 length')
             disjointgrouper.run_disjoint_group(args)
-        # per-group commands are single-locus (not paired), so they do not go through run_all_loci()/get_meta_fns()
-        # and need --input-metafnames explicitly set for paired-uids to propagate to per-group annotations
-        if args.input_metafnames is None:
-            if args.paired_indir is None:
-                args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
-            else:
-                args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
-            print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
         # step 2: per-group partition
         print('  step 2: partitioning each CDR3 group')
         manifest = disjointgrouper.read_manifest(manifest_path)
