@@ -324,7 +324,18 @@ pub const Glomerator = struct {
         }
 
         if (self.args.debug > 0) {
-            const s = try std.fmt.allocPrint(self.allocator, "   hieragloming {d} clusters\n", .{self.initial_partition.items.len});
+            var n_seeded: usize = 0;
+            if (self.args.seed_unique_id.len > 0) {
+                for (self.initial_partition.items) |cl| {
+                    if (ham_text.inString(self.args.seed_unique_id, cl, ":")) n_seeded += 1;
+                }
+            }
+            const seeded_str = if (self.args.seed_unique_id.len > 0)
+                try std.fmt.allocPrint(self.allocator, "  ({d} seeded)", .{n_seeded})
+            else
+                try std.fmt.allocPrint(self.allocator, "", .{});
+            defer self.allocator.free(seeded_str);
+            const s = try std.fmt.allocPrint(self.allocator, "   hieragloming {d} clusters{s}\n", .{ self.initial_partition.items.len, seeded_str });
             defer self.allocator.free(s);
             try std.fs.File.stdout().writeAll(s);
         }
@@ -541,6 +552,7 @@ pub const Glomerator = struct {
     // ── Partition I/O ─────────────────────────────────────────────────────────
 
     fn writePartitions(self: *Glomerator, cp: *ClusterPath) !void {
+        const run_start = std.time.milliTimestamp();
         if (self.args.debug > 0) {
             try std.fs.File.stdout().writeAll("        writing partitions\n");
         }
@@ -574,6 +586,13 @@ pub const Glomerator = struct {
         }
 
         try writer.flush();
+
+        if (self.args.write_logprob_for_each_partition) {
+            const elapsed = @as(f64, @floatFromInt(std.time.milliTimestamp() - run_start)) / 1000.0;
+            const s = try std.fmt.allocPrint(self.allocator, "        partition writing time (probably includes calculating a bunch of new logprobs) {d:.1}\n", .{elapsed});
+            defer self.allocator.free(s);
+            try std.fs.File.stdout().writeAll(s);
+        }
     }
 
     // ── Merge step ────────────────────────────────────────────────────────────
