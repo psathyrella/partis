@@ -1623,7 +1623,7 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None,
     xmin, xmax = -0.3, xmax
     fig, ax = mpl_init()
 
-    ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=15, linewidth=2, marker='.')  #, title='position ' + str(position))
+    ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=15, linewidth=2, alpha=0.7, marker='.', zorder=2)  #, title='position ' + str(position))
 
     if fitfos is not None:  # fitted lines
         colors = {'prefo' : 'red', 'postfo' : 'red', 'onefo' : 'green'}
@@ -1631,7 +1631,15 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None,
             if fitfos[ftype]['xvals'] is None:  # not really sure why this happens... probably zero-point fits?
                 continue
             linevals = [fitfos[ftype]['slope']*x + fitfos[ftype]['y_icpt'] for x in fitfos[ftype]['xvals']]
-            ax.plot(fitfos[ftype]['xvals'], linevals, color=colors[ftype])
+            ax.plot(fitfos[ftype]['xvals'], linevals, color=colors[ftype], linewidth=3, alpha=0.7, zorder=3)
+
+    if fitfos is not None:
+        one_resid = fitfos['onefo']['residuals_over_ndof']
+        two_resid = fitfos.get('twofo', {}).get('residuals_over_ndof', 0.)
+        resid_str = 'residuals / ndof\none piece: %.1f\ntwo piece: %.1f' % (one_resid, two_resid)
+        ax.text(0.97, 0.85, resid_str,
+                transform=ax.transAxes, fontsize=15, verticalalignment='top', horizontalalignment='right',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
     ymax = max(values['freqs']) + max(values['errs'])
