@@ -300,6 +300,13 @@ pub const Trellis = struct {
         next_states.items = old_current_items;
         next_states.capacity = old_current_cap;
         next_states.clearRetainingCapacity();
+        // Sort current_states in ascending order to match C++ bitset iteration
+        // (0..n_states). This is critical: cacheForwardVals accumulates
+        // forward_log_probs[position] across all (state, prev_state) pairs,
+        // and addInLogSpace is not associative, so different accumulation orders
+        // produce different results. The cached forward_log_probs values are
+        // then read by chunk-cached trellises via endingForwardLogProbAt().
+        std.mem.sort(usize, current_states.items, {}, std.sort.asc(usize));
         _ = allocator; // backing storage reuse avoids new allocations
     }
 
