@@ -56,7 +56,9 @@ def find_cmd(cmd):
 def strip_paired_args(clist, args):
     # Core arg stripping shared by build_single_locus_cmd() and prep_args() in run_step().
     # Takes an already-deep-copied sys.argv as <clist>, resolves --arg=val syntax, and strips
-    # paired/multi-locus args that do not apply to single-locus subprocesses. Returns the modified clist.
+    # args whose effects are either paired/multi-locus specific or are handled at the outer level
+    # (e.g. --dont-calculate-annotations is managed by the caller, not the single-locus subprocess).
+    # Returns the modified clist.
     # NOTE: callers may strip additional args beyond these (e.g. prep_args strips --prepend-coverage-command
     # after its coverage prepend logic, and build_single_locus_cmd strips --is-simu for disjoint groups)
     clist[0] = find_cmd(clist[0])
@@ -68,12 +70,12 @@ def strip_paired_args(clist, args):
             else:
                 new_clist.append(cstr)
         clist[:] = new_clist
-    # remove paired/multi-locus boolean args
+    # remove boolean args that are paired-specific or whose effects are handled at the outer level
     for argname in ['--paired-loci', '--dry-run', '--reverse-negative-strands',
                     '--random-seed-seq', '--dont-calculate-annotations', '--guess-pairing-info',
                     '--no-pairing-info', '--remove-nonfunctional-seqs']:
         utils.remove_from_arglist(clist, argname)
-    # remove paired/multi-locus args that have values
+    # remove valued args that are paired-specific or handled at the outer level
     for argname in ['--single-light-locus', '--paired-indir', '--paired-outdir', '--light-chain-fractions', '--seed-loci',
                     '--n-random-queries', '--n-max-queries', '--existing-output-run-cfg']:
         utils.remove_from_arglist(clist, argname, has_arg=True)
