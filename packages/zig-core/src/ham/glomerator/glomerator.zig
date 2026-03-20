@@ -1299,7 +1299,7 @@ pub const Glomerator = struct {
         return self.allocator.dupe(u8, q);
     }
 
-    fn chooseSubsetOfNames(self: *Glomerator, queries: []const u8, n_max: i32) ![]u8 {
+    fn chooseSubsetOfNames(self: *Glomerator, queries: []const u8, n_max_in: i32) ![]u8 {
         if (self.name_subsets.get(queries)) |ns| return try self.allocator.dupe(u8, ns);
 
         var namevec = try splitName(self.allocator, queries);
@@ -1308,35 +1308,56 @@ pub const Glomerator = struct {
             namevec.deinit(self.allocator);
         }
 
-        const n = @min(@as(usize, @intCast(n_max)), namevec.items.len);
+        // C++: set<string> nameset(namevector.begin(), namevector.end());
+        // Deduplicate names — with seed clustering you can get many duplicate seqs
+        var nameset = std.StringHashMapUnmanaged(void){};
+        defer nameset.deinit(self.allocator);
+        for (namevec.items) |name| try nameset.put(self.allocator, name, {});
+        var n_max: usize = @intCast(n_max_in);
+        if (nameset.count() < n_max) // C++: if(nameset.size() < unsigned(n_max))
+            n_max = nameset.count();
 
-        // Use hash of queries as seed for deterministic subset
-        var prng = std.Random.DefaultPrng.init(hashString(queries));
-        var rng = prng.random();
+        // C++: srand(hash<string>{}(queries)) — GCC's std::hash<string> is a 64-bit
+        // MurmurHash variant, and srand() truncates to unsigned int (32-bit)
+        const hash_val = gccStringHash(queries);
+        const seed_val: u32 = @truncate(hash_val);
+        var rand = GlibcRand.init(seed_val);
 
-        var chosen = std.ArrayListUnmanaged(usize){};
-        defer chosen.deinit(self.allocator);
+        // C++ uses set<int> ichosen + set<string> chosen_strs for deduplication,
+        // plus vector<int> ichosen_vec for ordering
+        var ichosen = std.AutoHashMapUnmanaged(usize, void){};
+        defer ichosen.deinit(self.allocator);
+        var ichosen_vec = std.ArrayListUnmanaged(usize){};
+        defer ichosen_vec.deinit(self.allocator);
+        var chosen_strs = std.StringHashMapUnmanaged(void){};
+        defer chosen_strs.deinit(self.allocator);
 
-        var n_tries: usize = 0;
-        while (chosen.items.len < n) {
-            const ich = rng.intRangeLessThan(usize, 0, namevec.items.len);
-            var already_chosen = false;
-            for (chosen.items) |c| {
-                if (c == ich) { already_chosen = true; break; }
+        for (0..n_max) |_| {
+            var n_tries: usize = 0;
+            while (true) {
+                // C++: ich = rand() % namevector.size()
+                const ich: usize = rand.next() % namevec.items.len;
+                n_tries += 1;
+                if (ichosen.contains(ich) or chosen_strs.contains(namevec.items[ich])) {
+                    if (n_tries > 1_000_000) return error.TooManyTriesInChooseSubset;
+                    continue;
+                }
+                try ichosen.put(self.allocator, ich, {});
+                try chosen_strs.put(self.allocator, namevec.items[ich], {});
+                try ichosen_vec.append(self.allocator, ich);
+                break;
             }
-            if (!already_chosen) {
-                try chosen.append(self.allocator, ich);
-            }
-            n_tries += 1;
-            if (n_tries > 1_000_000) return error.TooManyTriesInChooseSubset;
         }
-        std.mem.sort(usize, chosen.items, {}, std.sort.asc(usize));
+
+        // C++: sort(ichosen_vec.begin(), ichosen_vec.end())
+        std.mem.sort(usize, ichosen_vec.items, {}, std.sort.asc(usize));
 
         var sub_names: std.ArrayListUnmanaged([]const u8) = .{};
         defer sub_names.deinit(self.allocator);
-        for (chosen.items) |i| try sub_names.append(self.allocator, namevec.items[i]);
+        for (ichosen_vec.items) |i| try sub_names.append(self.allocator, namevec.items[i]);
 
         const subqueries = try ham_text.joinStrings(self.allocator, sub_names.items, ":");
+        errdefer self.allocator.free(subqueries);
 
         if (self.args.debug > 0) {
             const dbg = try std.fmt.allocPrint(self.allocator, "                chose subset  {s}  -->  {s}\n", .{ queries, subqueries });
@@ -1576,11 +1597,104 @@ fn largestClusterSize(partition: *const Partition) u32 {
     return max;
 }
 
-fn hashString(s: []const u8) u64 {
-    var h: u64 = 0;
-    for (s) |c| h = h *% 31 +% c;
-    return h;
+/// GCC libstdc++ `std::hash<std::string>` on 64-bit Linux.
+/// Based on MurmurHashUnaligned2 variant from gcc/libstdc++-v3/libsupc++/hash_bytes.cc,
+/// `_Hash_bytes` function and `load_bytes` helper. Seed is 0xc70f6907 (from functional_hash.h).
+/// Only valid on little-endian architectures (x86-64).
+fn gccStringHash(s: []const u8) u64 {
+    comptime if (@import("builtin").cpu.arch.endian() != .little)
+        @compileError("gccStringHash assumes little-endian (x86-64)");
+    const mul: u64 = 0xc6a4a7935bd1e995;
+    const seed: u64 = 0xc70f6907;
+    const len = s.len;
+
+    var hash: u64 = seed ^ (len *% mul);
+
+    // Process 8 bytes at a time
+    var i: usize = 0;
+    while (i + 8 <= len) : (i += 8) {
+        const data = shiftMix(std.mem.readInt(u64, s[i..][0..8], .little) *% mul) *% mul;
+        hash ^= data;
+        hash *%= mul;
+    }
+
+    // Tail: remaining bytes
+    const remaining = len & 7;
+    if (remaining != 0) {
+        // Matches libstdc++ load_bytes (hash_bytes.cc): packs remaining
+        // bytes into u64 with last byte most-significant.
+        var data: u64 = 0;
+        var j: usize = remaining;
+        while (j > 0) {
+            j -= 1;
+            data = (data << 8) + @as(u64, s[i + j]);
+        }
+        hash ^= data;
+        hash *%= mul;
+    }
+
+    // Finalization
+    hash = shiftMix(hash) *% mul;
+    hash = shiftMix(hash);
+    return hash;
 }
+
+fn shiftMix(v: u64) u64 {
+    return v ^ (v >> 47);
+}
+
+/// glibc TYPE_3 PRNG — matches srand()/rand() on Linux.
+/// State: 31 words, separation 3, trinomial x^31 + x^3 + 1.
+const GlibcRand = struct {
+    state: [31]i32,
+    fptr: usize, // index into state (initially 3)
+    rptr: usize, // index into state (initially 0)
+
+    fn init(seed_val: u32) GlibcRand {
+        var self = GlibcRand{ .state = undefined, .fptr = 3, .rptr = 0 };
+        // glibc treats seed=0 as seed=1. @bitCast reinterprets u32 as i32 (may
+        // be negative for seeds > 0x7FFFFFFF), matching glibc's cast from
+        // unsigned int to int32_t in __srandom_r.
+        const seed: i32 = if (seed_val == 0) 1 else @bitCast(seed_val);
+        self.state[0] = seed;
+
+        // Fill state[1..30] with Park-Miller LCG: x = 16807*x mod 2^31-1
+        var word: i32 = seed;
+        for (1..31) |i| {
+            const lo: i64 = @as(i64, @rem(word, 127773)) * 16807;
+            const hi: i64 = @as(i64, @divTrunc(word, 127773)) * 2836;
+            var val: i64 = lo - hi;
+            if (val < 0) val += 2147483647;
+            word = @intCast(val);
+            self.state[i] = word;
+        }
+
+        // Warm up: discard 310 values (DEG_3 * 10)
+        for (0..310) |_| _ = self.next();
+
+        return self;
+    }
+
+    /// Returns a 31-bit non-negative value (0..2^31-1), matching glibc rand().
+    fn next(self: *GlibcRand) u32 {
+        // Additive feedback: state[fptr] += state[rptr]
+        const val: u32 = @as(u32, @bitCast(self.state[self.fptr])) +% @as(u32, @bitCast(self.state[self.rptr]));
+        self.state[self.fptr] = @bitCast(val);
+        const result: u32 = val >> 1; // drop LSB, return 31-bit value
+
+        // Advance pointers cyclically
+        self.fptr += 1;
+        if (self.fptr >= 31) {
+            self.fptr = 0;
+            self.rptr += 1;
+        } else {
+            self.rptr += 1;
+            if (self.rptr >= 31) self.rptr = 0;
+        }
+
+        return result;
+    }
+};
 
 fn cloneQuery(allocator: std.mem.Allocator, q: *const Query) !Query {
     return Query.create(
