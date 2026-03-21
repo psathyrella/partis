@@ -399,16 +399,29 @@ pub const DPHandler = struct {
 
         switch (region) {
             .v => {
+                // C++ map<KSet,double> iterates in ascending (v,d) order, so
+                // it returns the smallest-d match. We must replicate that.
+                var best: ?KSet = null;
                 var it = gene_scores.iterator();
                 while (it.next()) |kv| {
-                    if (kv.key_ptr.v == kset.v) return kv.key_ptr.*;
+                    if (kv.key_ptr.v == kset.v) {
+                        if (best == null or kv.key_ptr.d < best.?.d)
+                            best = kv.key_ptr.*;
+                    }
                 }
+                if (best) |b| return b;
             },
             .j => {
+                var best: ?KSet = null;
                 var it = gene_scores.iterator();
                 while (it.next()) |kv| {
-                    if (kv.key_ptr.v + kv.key_ptr.d == kset.v + kset.d) return kv.key_ptr.*;
+                    if (kv.key_ptr.v + kv.key_ptr.d == kset.v + kset.d) {
+                        if (best == null or kv.key_ptr.v < best.?.v or
+                            (kv.key_ptr.v == best.?.v and kv.key_ptr.d < best.?.d))
+                            best = kv.key_ptr.*;
+                    }
                 }
+                if (best) |b| return b;
             },
             .d => {},
         }

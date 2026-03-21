@@ -4,12 +4,27 @@
 /// C++ source: packages/ham/src/bcrutils.cc
 
 const std = @import("std");
+const c = @cImport(@cInclude("stdio.h"));
 const SupportPair = @import("support_pair.zig").SupportPair;
 const RecoEvent = @import("reco_event.zig").RecoEvent;
 const Sequence = @import("../sequences.zig").Sequence;
 
 /// Whether the locus has a D gene segment (re-exported for use outside this module).
 pub const hasDGene = @import("germ_lines.zig").hasDGene;
+
+// ── C++-compatible float formatting ─────────────────────────────────────────
+
+/// Format a float like C++ `ostream << double` (6 significant digits, `%.6g`).
+fn fmtG6(buf: *[32]u8, val: f64) []const u8 {
+    const n: usize = @intCast(c.snprintf(buf, 32, "%.6g", val));
+    return buf[0..n];
+}
+
+/// Format a float like C++ `std::to_string(double)` (6 decimal places, `%.6f`).
+fn fmtF6(buf: *[64]u8, val: f64) []const u8 {
+    const n: usize = @intCast(c.snprintf(buf, 64, "%.6f", val));
+    return buf[0..n];
+}
 
 // ── Output streaming ──────────────────────────────────────────────────────────
 
@@ -39,9 +54,11 @@ pub fn perGeneSupportString(
     defer buf.deinit(allocator);
     for (support, 0..) |sp, i| {
         if (i > 0) try buf.append(allocator, ';');
-        const entry = try std.fmt.allocPrint(allocator, "{s}:{d}", .{ sp.gene, sp.logprob });
-        defer allocator.free(entry);
-        try buf.appendSlice(allocator, entry);
+        var fbuf: [64]u8 = undefined;
+        const fstr = fmtF6(&fbuf, sp.logprob);
+        try buf.appendSlice(allocator, sp.gene);
+        try buf.append(allocator, ':');
+        try buf.appendSlice(allocator, fstr);
     }
     return buf.toOwnedSlice(allocator);
 }
@@ -107,11 +124,13 @@ pub fn streamViterbiOutput(
     const js = try perGeneSupportString(allocator, jsupp);
     defer allocator.free(js);
 
-    try writer.print("{s},{s},{s},{s},{s},{s},{s},{s},{d},{d},{d},{d},{d},{d},{d},{s},{s},{s},{s},{s}\n", .{
+    var score_buf: [32]u8 = undefined;
+    const score_str = fmtG6(&score_buf, event.score);
+    try writer.print("{s},{s},{s},{s},{s},{s},{s},{s},{d},{d},{d},{d},{d},{d},{s},{s},{s},{s},{s},{s}\n", .{
         names, vgene, dgene, jgene,
         fv_ins, vd_ins, dj_ins, jf_ins,
         v5p, v3p, d5p, d3p, j5p, j3p,
-        event.score, seq_str, vs, ds, js, errors,
+        score_str, seq_str, vs, ds, js, errors,
     });
 }
 
@@ -126,7 +145,9 @@ pub fn streamForwardOutput(
 ) !void {
     const names = try seqNameStr(allocator, seqs, ":");
     defer allocator.free(names);
-    try writer.print("{s},{d},{s}\n", .{ names, total_score, errors });
+    var score_buf: [32]u8 = undefined;
+    const score_str = fmtG6(&score_buf, total_score);
+    try writer.print("{s},{s},{s}\n", .{ names, score_str, errors });
 }
 
 // ── Sequence string helpers ────────────────────────────────────────────────────

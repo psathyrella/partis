@@ -14,6 +14,9 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    // Link libc so release builds can use std.heap.c_allocator (malloc/free),
+    // which avoids GPA's per-allocation tracking overhead.
+    exe.root_module.linkSystemLibrary("c", .{});
     b.installArtifact(exe);
 
     // ── compare: equivalence harness binary ──────────────────────────────
