@@ -54,7 +54,6 @@ def write_group_fastas(groups, outdir, locus):
             'fasta_path' : rel_fasta_path,
             'partition_path' : None,
         })
-        print('    group %d: cdr3 length %d, %d sequences -> %s' % (gid, c3len, len(seqfos), rel_fasta_path))
     return group_infos
 
 # ----------------------------------------------------------------------------------------
@@ -117,19 +116,8 @@ def validate_sequence_count(manifest):
     print('    sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
 
 # ----------------------------------------------------------------------------------------
-def get_sw_cache_path(parameter_dir, locus, paired):
-    # look in the expected location based on paired vs unpaired, rather than searching both
-    search_dir = '%s/%s' % (parameter_dir, locus) if paired else parameter_dir
-    fnames = glob.glob(search_dir + '/sw-cache*.yaml')
-    if len(fnames) == 0:
-        return None
-    if len(fnames) > 1:
-        # multiple cache files from different inputs (partis does not clean up old sw-cache-{hash}.yaml files
-        # when re-running cache-parameters with different input). Use most recent by mtime, since sw/hmm
-        # parameter dirs are overwritten on re-run so the newest cache file matches the current parameters.
-        fnames.sort(key=os.path.getmtime, reverse=True)
-        print('  %s found %d sw cache files in %s, using most recent: %s' % (utils.color('yellow', 'warning'), len(fnames), search_dir, fnames[0]))
-    return fnames[0]
+def get_sw_cache_path(parameter_dir, locus):
+    return '%s/%s/sw-cache.yaml' % (parameter_dir, locus)
 
 # ----------------------------------------------------------------------------------------
 def run_disjoint_group(args):
@@ -158,14 +146,14 @@ def run_disjoint_group(args):
     # auto-trigger sw annotation if sw cache does not exist
     auto_cache_parameters(args, loci)
 
-    print('  running disjoint-group on %s with parameter dir %s' % (' '.join(loci), args.parameter_dir))
+    print('%s: grouping %s with parameter dir %s' % (utils.color('blue_bkg', 'disjoint-group'), ' '.join(loci), args.parameter_dir))
 
     all_group_infos = []
     total_input = 0
     total_failed = 0
     for ltmp in loci:
-        sw_cache_path = get_sw_cache_path(args.parameter_dir, ltmp, args.paired_loci)
-        if sw_cache_path is None:
+        sw_cache_path = get_sw_cache_path(args.parameter_dir, ltmp)
+        if not os.path.exists(sw_cache_path):
             search_dir = '%s/%s' % (args.parameter_dir, ltmp) if args.paired_loci else args.parameter_dir
             raise Exception('sw cache not found in %s/ (run cache-parameters --only-smith-waterman first)' % search_dir)
         print('    reading sw cache for %s from %s' % (ltmp, sw_cache_path))
@@ -174,8 +162,11 @@ def run_disjoint_group(args):
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
         total_input += n_seqs
         total_failed += n_failed
-        print('    %s: %d sequences in %d cdr3 length groups (%d failed)' % (ltmp, n_seqs - n_failed, len(groups), n_failed))
         group_infos = write_group_fastas(groups, outdir, ltmp)
+        print('    %s: %d sequences in %d cdr3 length groups (%d failed)' % (ltmp, n_seqs - n_failed, len(groups), n_failed))
+        cw = max(len(str(g['cdr3_length'])) for g in group_infos)
+        print('      cdr3 lengths : %s' % '  '.join('%*d' % (cw, g['cdr3_length']) for g in group_infos))
+        print('             N seqs: %s' % '  '.join('%*d' % (cw, g['sequence_count']) for g in group_infos))
         all_group_infos.extend(group_infos)
 
     manifest = write_manifest(all_group_infos, outdir, loci, total_input, total_failed, parameter_dir=args.parameter_dir)
@@ -187,16 +178,9 @@ def auto_cache_parameters(args, loci):
     # TODO run_step() in run_all_loci() handles full arg forwarding via sys.argv deep copy,
     # but it is a nested function with closure dependencies and not callable from here.
     # This only forwards --n-procs, --is-simu, and --dry-run. See CR-01 in tasks-code-review.md.
-    partis_cmd = 'partis'
-    if not shutil.which('partis'):
-        partis_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        partis_path = '%s/bin/partis' % partis_dir
-        if os.path.exists(partis_path):
-            partis_cmd = partis_path
-        else:
-            raise Exception('could not find partis binary in PATH or at %s' % partis_path)
+    print('  auto-caching parameters')
     for ltmp in loci:
-        if get_sw_cache_path(args.parameter_dir, ltmp, args.paired_loci) is not None:
+        if os.path.exists(get_sw_cache_path(args.parameter_dir, ltmp)):
             print('    %s: sw cache already exists in %s' % (ltmp, args.parameter_dir))
             continue
         if args.paired_loci:
@@ -211,8 +195,7 @@ def auto_cache_parameters(args, loci):
         else:
             infname = args.infname
             pdir = args.parameter_dir
-        print('    %s: running cache-parameters --only-smith-waterman (input: %s, parameter-dir: %s)' % (ltmp, infname, pdir))
-        cmd = '%s cache-parameters --infname %s --parameter-dir %s --locus %s --only-smith-waterman' % (partis_cmd, infname, pdir, ltmp)
+        cmd = '%s cache-parameters --infname %s --parameter-dir %s --sw-cachefname %s --locus %s --only-smith-waterman --dont-find-new-alleles' % (utils.find_cmd('partis'), infname, pdir, get_sw_cache_path(args.parameter_dir, ltmp), ltmp)
         if hasattr(args, 'n_procs') and args.n_procs is not None:
             cmd += ' --n-procs %d' % args.n_procs
         if hasattr(args, 'is_simu') and args.is_simu:
@@ -272,8 +255,9 @@ def assemble_merged_output(manifest, disjoint_dir):
     headers = list(utils.annotation_headers)
     for ltmp, yaml_list in paths_by_locus.items():
         outfname = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
-        print('    merging %d partition files for %s -> %s' % (len(yaml_list), ltmp, outfname))
-        utils.merge_yamls(outfname, yaml_list, headers, best_partition_only=True, dont_write_git_info=True, debug=True)  # debug=True is intentional: prints per-group sequence/cluster counts during assembly
+        sys.stdout.write('    merging %d partition files for %s:' % (len(yaml_list), ltmp))
+        sys.stdout.flush()
+        utils.merge_yamls(outfname, yaml_list, headers, best_partition_only=True, dont_write_git_info=True, debug=True)
     manifest['assembly']['merged_output_path'] = 'assembled/'
 
 # ----------------------------------------------------------------------------------------

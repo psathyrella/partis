@@ -29,6 +29,7 @@ import operator
 import yaml
 import six
 import hashlib
+import shutil
 from pathlib import Path
 from io import open
 try:
@@ -52,6 +53,15 @@ def csv_wmode(mode='w'):
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
     return str(Path(__file__).resolve().parent.parent)
+
+# ----------------------------------------------------------------------------------------
+def find_cmd(cmd):
+    if shutil.which(os.path.basename(cmd)):  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
+        return os.path.basename(cmd)
+    elif os.path.exists(cmd):
+        return cmd
+    else:
+        return '%s/bin/%s' % (get_partis_dir(), os.path.basename(cmd))
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -5082,6 +5092,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
             translate_uids(annotation_list, trfcn=trfcn, translate_pids=True, cpath=cpath)
         if debug:
             print('        %d sequences in %d clusters from %s' % (sum(len(l['unique_ids']) for l in annotation_list), len(annotation_list), infname))
+            sys.stdout.flush()
         if remove_duplicates:  # NOTE this doesn't catch duplicates *within* each subfile, but atm I'm only worried about the case where they appear at most once in each subfile, so oh well
             annotation_list = [l for l in annotation_list if ':'.join(l['unique_ids']) not in merged_keys]
             for ptn in cpath.partitions:

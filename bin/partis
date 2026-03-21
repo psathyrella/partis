@@ -44,15 +44,6 @@ from partis.corrcounter import CorrCounter
 from partis.waterer import Waterer
 
 # ----------------------------------------------------------------------------------------
-def find_cmd(cmd):
-    if shutil.which(os.path.basename(cmd)):  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
-        return os.path.basename(cmd)
-    elif os.path.exists(cmd):
-        return cmd
-    else:
-        return '%s/bin/%s' % (partis_dir, os.path.basename(cmd))
-
-# ----------------------------------------------------------------------------------------
 def strip_paired_args(clist, args):
     # Core arg stripping shared by build_single_locus_cmd() and prep_args() in run_step().
     # Takes an already-deep-copied sys.argv as <clist>, resolves --arg=val syntax, and strips
@@ -61,7 +52,7 @@ def strip_paired_args(clist, args):
     # Returns the modified clist.
     # NOTE: callers may strip additional args beyond these (e.g. prep_args strips --prepend-coverage-command
     # after its coverage prepend logic, and build_single_locus_cmd strips --is-simu for disjoint groups)
-    clist[0] = find_cmd(clist[0])
+    clist[0] = utils.find_cmd(clist[0])
     if any('=' in a for a in clist):  # handle --arg=val style syntax
         new_clist = []
         for cstr in clist:
@@ -160,7 +151,7 @@ def run_simulation(args):
         for iproc in range(args.n_procs):
             n_sub_events = get_sub_events(iproc)
             clist = copy.deepcopy(sys.argv)
-            clist[0] = find_cmd(clist[0])
+            clist[0] = utils.find_cmd(clist[0])
             utils.replace_in_arglist(clist, '--n-procs', '1')
             clist.append('--im-a-subproc')
             utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
@@ -410,8 +401,7 @@ def run_disjoint_groups(args, manifest, disjoint_dir):
         pdir = '%s/%s' % (args.parameter_dir, ginfo['locus']) if args.paired_loci else args.parameter_dir
         cmd = build_single_locus_cmd('partition', ginfo['locus'], args,
                                      infname=fasta_path, outfname=partition_path, parameter_dir=pdir,
-                                     input_metafnames=args.input_metafnames,
-                                     extra_args=['--dont-write-git-info'])
+                                     input_metafnames=args.input_metafnames)
         extra_str = '    %s ' % utils.color('blue', 'group %d (cdr3 %d, %s):' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
         utils.simplerun(cmd, logfname='%s/groups/cdr3-%d/partition.log' % (disjoint_dir, ginfo['cdr3_length']), dryrun=args.dry_run, extra_str=extra_str)
         ginfo['partition_path'] = partition_rel_path
@@ -473,17 +463,17 @@ def subset_partition(args):
         # step 1: sw annotation + CDR3 grouping
         manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
         if os.path.exists(manifest_path):
-            print('  disjoint group manifest exists, skipping step 1: %s' % manifest_path)
+            print('%s step 1: disjoint group manifest exists, skipping: %s' % (utils.color('blue_bkg', 'disjoint-group'), manifest_path))
         else:
-            print('  step 1: grouping sequences by CDR3 length')
+            print('%s step 1: grouping sequences by CDR3 length' % utils.color('blue_bkg', 'disjoint-group'))
             disjointgrouper.run_disjoint_group(args)
         # step 2: per-group partition
-        print('  step 2: partitioning each CDR3 group')
+        print('%s step 2: partitioning each CDR3 group' % utils.color('blue_bkg', 'disjoint-group'))
         manifest = disjointgrouper.read_manifest(manifest_path)
         loci = manifest['grouping-info']['loci']
         run_disjoint_groups(args, manifest, disjoint_dir)
         # step 3: assembly merge (concatenation, no second-pass)
-        print('  step 3: assembling merged output')
+        print('%s step 3: assembling merged output' % utils.color('blue_bkg', 'disjoint-group'))
         disjointgrouper.validate_assembly(manifest, disjoint_dir)
         manifest['assembly']['validation']['uids_unique'] = True
         manifest['assembly']['validation']['sequence_count_preserved'] = True
@@ -509,7 +499,7 @@ def subset_partition(args):
     # ----------------------------------------------------------------------------------------
     def get_cmd(infname, outdir, merged_odir=None):
         clist = copy.deepcopy(sys.argv)
-        clist[0] = find_cmd(clist[0])
+        clist[0] = utils.find_cmd(clist[0])
         assert is_subset_action(clist[1])  # ugh, but utils.replace_in_arglist() only handles -- style arg strs
         clist[1] = args.action.split('-')[1]
         utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
@@ -761,9 +751,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             if utils.getsuffix(args.infname) == '.yaml':
                 new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
                 print('  note: converting input .yaml file to .fa so we can extract pairing info + split loci (new --infname: %s)' % new_fn)
-                utils.simplerun('%s %s %s' % (find_cmd('parse-output.py'), args.infname, new_fn), extra_str='    ')
+                utils.simplerun('%s %s %s' % (utils.find_cmd('parse-output.py'), args.infname, new_fn), extra_str='    ')
                 args.infname = new_fn
-            cmd = '%s%s %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', find_cmd('extract-pairing-info.py'), args.infname, mfname)
+            cmd = '%s%s %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', utils.find_cmd('extract-pairing-info.py'), args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
             if args.n_random_queries is not None:
@@ -780,7 +770,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print('  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info')
         if is_subset_action(args.action):  # don't want loci to be split, since we pass all loci to each subset process in one file
             return
-        cmd = '%s%s %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', find_cmd('split-loci.py'), args.infname, getodir())
+        cmd = '%s%s %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', utils.find_cmd('split-loci.py'), args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
         if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
@@ -1428,7 +1418,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         titlestr = ltmp
         # if ccfs is not None and ltmp in ccfs:
         #     titlestr += ':@specif.%.2f'%ccfs[ltmp][0]
-        cmdstr = '%s --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (find_cmd('compare-plotdirs.py'), cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
+        cmdstr = '%s --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (utils.find_cmd('compare-plotdirs.py'), cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
         cmdstr += ' --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % titlestr
         utils.simplerun(cmdstr, dryrun=args.dry_run)
 
