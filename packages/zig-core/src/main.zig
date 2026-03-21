@@ -14,8 +14,18 @@ const std = @import("std");
 const bcrham = @import("ham/bcrham.zig");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = if (@import("builtin").mode == .Debug) blk: {
+        // In debug builds, use GPA for leak detection and use-after-free checks.
+        break :blk gpa_instance.allocator();
+    } else
+        // In release builds, use the C allocator — GPA's per-allocation tracking
+        // metadata adds massive overhead (observed 11 GB vs 278 MB on a 5k-sequence
+        // partition workload).
+        std.heap.c_allocator;
+    defer if (@import("builtin").mode == .Debug) {
+        _ = gpa_instance.deinit();
+    };
     try bcrham.run(allocator, std.os.argv[1..]);
 }
+
+var gpa_instance = std.heap.GeneralPurposeAllocator(.{}){};
