@@ -2093,7 +2093,7 @@ class PartitionDriver(object):
             # OR this query's genes into the ones from previous queries
             combo['only_genes'] |= genes_to_use  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
-        combo['only_genes'] = list(combo['only_genes'])  # maybe I don't need to convert it to a list, but it used to be a list, and I don't want to make sure there wasn't a reason for that
+        combo['only_genes'] = sorted(combo['only_genes'])  # sort for determinism: set iteration order varies across runs due to PYTHONHASHSEED
 
         # if we don't have at least one gene for each region, add all available genes from that regions
         if set(utils.regions) > set(utils.get_region(g) for g in combo['only_genes']):  # this is *very* rare
