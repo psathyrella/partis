@@ -1,4 +1,4 @@
-[91mrun[0m /partis-dev/bin/FastTree-linux -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/input-seqs.fa
+[91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/input-seqs.fa
 FastTree Version 2.1.10 SSE3
 Alignment: test/paired/new-results-slow/partition-new-simu/fasttree/iclust-2/input-seqs.fa
 Nucleotide distances: Jukes-Cantor Joins: balanced Support: SH-like 1000
@@ -6,7 +6,7 @@ Search: Normal +NNI +SPR (2 rounds range 10) +ML-NNI opt-each=1
 TopHits: 1.00*sqrtN close=default refresh=0.80
 ML Model: Generalized Time-Reversible, CAT approximation with 20 rate categories
 Ignored unknown character X (seen 364 times)
-Initial topology in 0.01 seconds
+Initial topology in 0.00 seconds
 Refining topology: 15 rounds ME-NNIs, 2 rounds ME-SPRs, 7 rounds ML-NNIs
 Total branch-length 0.061 after 0.02 sec
 ML-NNI round 1: LogLk = -1261.820 NNIs 3 max delta 0.00 Time 0.03
@@ -16,8 +16,9 @@ Switched to using 20 rate categories (CAT approximation)
 Rate categories were divided by 0.637 so that average rate = 1.0
 CAT-based log-likelihoods may not be comparable across runs
 Use -gamma for approximate but comparable Gamma(20) log-likelihoods
-ML-NNI round 2: LogLk = -1237.159 NNIs 1 max delta 0.00 Time 0.09
+ML-NNI round 2: LogLk = -1237.159 NNIs 1 max delta 0.00 Time 0.11
 Turning off heuristics for final round of ML NNIs (converged)
-ML-NNI round 3: LogLk = -1237.160 NNIs 0 max delta 0.00 Time 0.10 (final)
-Optimize all lengths: LogLk = -1237.160 Time 0.10
-Total time: 0.12 seconds Unique: 13/13 Bad splits: 0/10
+      0.10 seconds: ML NNI round 3 of 7, 1 of 11 splits
+ML-NNI round 3: LogLk = -1237.160 NNIs 0 max delta 0.00 Time 0.12 (final)
+Optimize all lengths: LogLk = -1237.160 Time 0.13
+Total time: 0.15 seconds Unique: 13/13 Bad splits: 0/10
