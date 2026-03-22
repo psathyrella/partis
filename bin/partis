@@ -79,9 +79,10 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
     clist = strip_paired_args(copy.deepcopy(sys.argv), args)
     # strip additional args not needed for disjoint per-group commands
     for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
-                    '--disjoint-group', '--prepend-coverage-command']:
+                    '--disjoint-groups', '--prepend-coverage-command']:
         utils.remove_from_arglist(clist, argname)
-    utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
+    for argname in ['--n-subsets', '--n-max-disjoint-jobs', '--n-sub-procs']:
+        utils.remove_from_arglist(clist, argname, has_arg=True)
     # set action and locus
     clist[clist.index(args.action)] = tmpaction
     utils.insert_in_arglist(clist, ['--locus', ltmp], tmpaction)
@@ -103,6 +104,31 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
     if extra_args is not None:
         clist += extra_args
     return ' '.join(clist)
+
+# ----------------------------------------------------------------------------------------
+def sw_cache_path(locus_pdir):
+    return '%s/sw-cache.yaml' % locus_pdir
+
+# ----------------------------------------------------------------------------------------
+def disjoint_group_action(args):
+    # standalone entry point for disjoint-group action (for running steps on separate batch systems)
+    swcfn = sw_cache_path('%s/%s' % (args.parameter_dir, args.locus))
+    outdir = utils.non_none([args.paired_outdir, args.workdir])
+    if outdir is None:
+        raise Exception('--paired-outdir or --workdir must be set')
+    disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
+    disjointgrouper.create_cdr3_groups(args.locus, swcfn, disjoint_dir, parameter_dir=args.parameter_dir)
+
+# ----------------------------------------------------------------------------------------
+def assemble_groups_action(args):
+    # standalone entry point for assemble-groups action
+    outdir = utils.non_none([args.paired_outdir, args.workdir])
+    if outdir is None:
+        raise Exception('--paired-outdir or --workdir must be set')
+    if args.outfname is None:
+        raise Exception('--outfname must be set for assemble-groups')
+    disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
+    disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname)
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -379,114 +405,13 @@ def is_subset_action(action):
     return action in ['subset-partition', 'subset-annotate']
 
 # ----------------------------------------------------------------------------------------
-def run_disjoint_groups(args, manifest, disjoint_dir):
-    # partition each CDR3 group independently, updating manifest with partition paths
-    loci = manifest['grouping-info']['loci']
-    if len(manifest['groups']) == 0:
-        raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
-    if args.parameter_dir is None:
-        # parameter_dir may have been set as a side effect of step 1, but if step 1 was skipped (manifest exists), it could still be None
-        if manifest['grouping-info'].get('parameter_dir') is not None:
-            args.parameter_dir = manifest['grouping-info']['parameter_dir']
-        else:
-            raise Exception('--parameter-dir must be set when resuming from an existing manifest (step 1 skipped)')
-    for ginfo in manifest['groups']:
-        partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
-        partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
-        if os.path.exists(partition_path):
-            print('    group %d (cdr3 %d, %s): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
-            ginfo['partition_path'] = partition_rel_path
-            continue
-        fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
-        pdir = '%s/%s' % (args.parameter_dir, ginfo['locus']) if args.paired_loci else args.parameter_dir
-        cmd = build_single_locus_cmd('partition', ginfo['locus'], args,
-                                     infname=fasta_path, outfname=partition_path, parameter_dir=pdir,
-                                     input_metafnames=args.input_metafnames)
-        extra_str = '    %s ' % utils.color('blue', 'group %d (cdr3 %d, %s):' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['locus']))
-        utils.simplerun(cmd, logfname='%s/groups/cdr3-%d/partition.log' % (disjoint_dir, ginfo['cdr3_length']), dryrun=args.dry_run, extra_str=extra_str)
-        ginfo['partition_path'] = partition_rel_path
-    # write updated manifest with partition paths
-    if not args.dry_run:
-        manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
-        with open(manifest_path, 'w') as mfile:
-            yaml.dump(manifest, mfile, width=400, default_flow_style=False)
-
-# ----------------------------------------------------------------------------------------
-def calculate_disjoint_ccfs(args, loci, assembled_dir):
-    # calculate CCFs (purity/completeness) on merged disjoint output by comparing to true partition
-    # NOTE: this exists because disjoint grouping has no second-pass merge-partition step (which would
-    # normally calculate CCFs). It reads the simulation input to get the true partition, then computes
-    # and writes CCFs into the assembled output files.
-    print('  calculating partition performance metrics on merged output')
-    for ltmp in loci:
-        merged_ofn = '%s/partition-%s.yaml' % (assembled_dir, ltmp)
-        if not os.path.exists(merged_ofn):
-            continue
-        # read simulation input to get true partition
-        if args.paired_loci:
-            sim_fn = paircluster.paired_fn(args.paired_indir, ltmp, suffix='.yaml')
-        else:
-            sim_fn = args.infname
-        sim_glfo, sim_alist, _ = utils.read_yaml_output(sim_fn, dont_add_implicit_info=True)
-        reco_info = {uid : line for line in sim_alist for uid in line['unique_ids']}
-        true_partition = utils.get_partition_from_reco_info(reco_info)
-        # read merged output and calculate ccfs
-        m_glfo, m_alist, m_cpath = utils.read_yaml_output(merged_ofn, dont_add_implicit_info=True)
-        m_cpath.calculate_missing_values(reco_info=reco_info, true_partition=true_partition, only_ip=m_cpath.i_best, fail_frac=args.max_ccf_fail_frac)
-        headers = utils.add_lists(list(utils.annotation_headers), args.extra_annotation_columns)
-        utils.write_annotations(merged_ofn, m_glfo, m_alist, headers, partition_lines=m_cpath.get_partition_lines(reco_info=reco_info, true_partition=true_partition, calc_missing_values='best', fail_frac=args.max_ccf_fail_frac), dont_write_git_info=args.dont_write_git_info)
-        ccfs = m_cpath.ccfs[m_cpath.i_best]
-        print('    %s: purity %.3f  completeness %.3f' % (ltmp, ccfs[0], ccfs[1]))
-
-# ----------------------------------------------------------------------------------------
-def link_assembled_to_single_chain(args, loci, assembled_dir):
-    # link assembled outputs to single-chain dir so combine_inf_chains() can find them for pair cleaning
-    sc_dir = '%s/single-chain' % args.paired_outdir
-    utils.mkdir(sc_dir)
-    for ltmp in loci:
-        src = os.path.realpath('%s/partition-%s.yaml' % (assembled_dir, ltmp))
-        dst = '%s/partition-%s.yaml' % (sc_dir, ltmp)
-        if os.path.exists(src):
-            utils.makelink(sc_dir, src, dst, dryrun=args.dry_run)
-
-# ----------------------------------------------------------------------------------------
 def subset_partition(args):
-    if args.input_metafnames is None:
+    if args.input_metafnames is None and not args.no_pairing_info:
         if args.paired_indir is None:
             args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
         else:
             args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
         print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
-    if args.disjoint_group:
-        disjoint_dir = os.path.abspath('%s/disjoint-groups' % args.paired_outdir)
-        assembled_dir = '%s/assembled' % disjoint_dir
-        # step 1: sw annotation + CDR3 grouping
-        manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
-        if os.path.exists(manifest_path):
-            print('%s step 1: disjoint group manifest exists, skipping: %s' % (utils.color('blue_bkg', 'disjoint-group'), manifest_path))
-        else:
-            print('%s step 1: grouping sequences by CDR3 length' % utils.color('blue_bkg', 'disjoint-group'))
-            disjointgrouper.run_disjoint_group(args)
-        # step 2: per-group partition
-        print('%s step 2: partitioning each CDR3 group' % utils.color('blue_bkg', 'disjoint-group'))
-        manifest = disjointgrouper.read_manifest(manifest_path)
-        loci = manifest['grouping-info']['loci']
-        run_disjoint_groups(args, manifest, disjoint_dir)
-        # step 3: assembly merge (concatenation, no second-pass)
-        print('%s step 3: assembling merged output' % utils.color('blue_bkg', 'disjoint-group'))
-        disjointgrouper.validate_assembly(manifest, disjoint_dir)
-        manifest['assembly']['validation']['uids_unique'] = True
-        manifest['assembly']['validation']['sequence_count_preserved'] = True
-        disjointgrouper.assemble_merged_output(manifest, disjoint_dir)
-        manifest['assembly']['status'] = 'merged'
-        if not args.dry_run:
-            with open(manifest_path, 'w') as mfile:
-                yaml.dump(manifest, mfile, width=400, default_flow_style=False)
-            print('    updated manifest')
-        if args.is_simu:
-            calculate_disjoint_ccfs(args, loci, assembled_dir)
-        link_assembled_to_single_chain(args, loci, assembled_dir)
-        return
     # ----------------------------------------------------------------------------------------
     def subdir(igroup):
         return '%s/isub-%d' % (args.paired_outdir, igroup)
@@ -513,6 +438,7 @@ def subset_partition(args):
             utils.remove_from_arglist(clist, '--is-simu')  # don't want to deal with subsetting input simulation file (and dual-use of --paired-indir), so just ignore --is-simu until merged run
         else:  # merged run
             utils.remove_from_arglist(clist, '--infname', has_arg=True)
+            utils.remove_from_arglist(clist, '--disjoint-groups')  # merged re-partition should not use disjoint grouping (it runs continue-from-input-partition)
             if args.paired_indir is None:  # if --paired-indir wasn't set (i.e. --infname *was* set), we want to use the extract-pairing-info/split-loci output in --paired-outdir
                 clist += ['--paired-indir', merged_odir]
             clist += ['--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir,
@@ -527,7 +453,7 @@ def subset_partition(args):
         print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'running %s'%args.action), len(input_info), args.n_subsets, infname))
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
         sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
-                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
+                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
         for isub, sfos in enumerate(sfo_lists):
             ofn = ptnfn(subdir(isub), 'igh')
             if os.path.exists(ofn):
@@ -747,12 +673,13 @@ def run_all_loci(args, ig_or_tr='ig'):
         mfname = getofn(None, joint=True, input_meta=True)
         if is_subset_action(args.action):  # UGH
             mfname = '%s/input/%s' % (os.path.dirname(mfname), os.path.basename(mfname))
-        if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
-            if utils.getsuffix(args.infname) == '.yaml':
-                new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
-                print('  note: converting input .yaml file to .fa so we can extract pairing info + split loci (new --infname: %s)' % new_fn)
+        if utils.getsuffix(args.infname) == '.yaml':  # convert .yaml to .fa for split-loci (needed regardless of pairing info)
+            new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
+            if not os.path.exists(new_fn):
+                print('  note: converting input .yaml file to .fa for split-loci (new --infname: %s)' % new_fn)
                 utils.simplerun('%s %s %s' % (utils.find_cmd('parse-output.py'), args.infname, new_fn), extra_str='    ')
-                args.infname = new_fn
+            args.infname = new_fn
+        if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
             cmd = '%s%s %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', utils.find_cmd('extract-pairing-info.py'), args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
@@ -893,7 +820,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if args.seed_unique_id is not None and tmpaction in ['plot-partitions', 'view-output', 'get-selection-metrics']:  # 'partition',   # for 'partition' we no longer want to run with seed unique id set, since we're now dropping unseeded clusters beforehand, and don't want the single-chain procs to drop them (since that leaves us with seemingly-unpaired seqs later on)
                         utils.replace_in_arglist(clist, '--seed-unique-id', seedid(ltmp))
                     if args.sw_cachefname is None:
-                        clist += ['--sw-cachefname', '%s/sw-cache.yaml'%getpdir(ltmp)]
+                        clist += ['--sw-cachefname', sw_cache_path(getpdir(ltmp))]
                     if tmpaction != 'cache-parameters':
                         utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname' if '--infname' in clist else None, has_arg=True)
                         if args.paired_outdir is None:
@@ -1190,14 +1117,14 @@ def run_all_loci(args, ig_or_tr='ig'):
     def remove_unseeded_seqs(debug=True):
         # ----------------------------------------------------------------------------------------
         def read_sw(ltmp):
-            if not os.path.exists('%s/sw-cache.yaml'%getpdir(ltmp)):
+            if not os.path.exists(sw_cache_path(getpdir(ltmp))):
                 return []
             wargs = copy.deepcopy(args)
             wargs.seed_unique_id = seedid(ltmp) if ltmp in args.seed_loci else None
             wargs.locus = ltmp
             wargs.is_data = True  # don't need the simu info, and it would complicate things to make it work
             waterer = Waterer(wargs, None, None, None, None, locus=ltmp)
-            waterer.read_cachefile('%s/sw-cache.yaml'%getpdir(ltmp), ignore_seed_unique_id=True, quiet=True)
+            waterer.read_cachefile(sw_cache_path(getpdir(ltmp)), ignore_seed_unique_id=True, quiet=True)
             return [waterer.info[q] for q in waterer.info['queries']]
         # ----------------------------------------------------------------------------------------
         print('   removing seqs very different from seed seq')
@@ -1477,13 +1404,67 @@ def run_all_loci(args, ig_or_tr='ig'):
         prep_inputs()
     if is_subset_action(args.action):
         subset_partition(args)
-        if args.disjoint_group and not args.dry_run:
-            combine_inf_chains()  # --paired-loci is always True here (subset-partition auto-enables it in processargs.py)
         return
     args.tree_inference_outdir = getodir()
     if args.tree_inference_subdir is not None:
         args.tree_inference_outdir = '%s/%s' % (args.tree_inference_outdir, args.tree_inference_subdir)
 
+    # ----------------------------------------------------------------------------------------
+    def run_disjoint_partition(ltmp):
+        # run partition on a single locus using disjoint CDR3-length grouping: group by CDR3 length,
+        # partition each group independently, concatenate results.
+        ifn = getifn(ltmp)
+        if not os.path.exists(ifn) or os.stat(ifn).st_size == 0:
+            print('  %s: %s, skipping disjoint partition (%s)' % (ltmp, 'input file missing' if not os.path.exists(ifn) else 'zero length input file', ifn))
+            return
+        disjoint_dir = '%s/disjoint-groups/%s' % (getodir(single_chain=True), ltmp)
+        print('%s %s with disjoint groups:' % (utils.color('blue_bkg', 'partition'), utils.color('blue', ltmp)))
+
+        # step 1: CDR3 grouping
+        manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
+        if os.path.exists(manifest_path):
+            print('%s %s: manifest exists, skipping grouping: %s' % (utils.color('blue_bkg', 'create-disjoint-groups'), ltmp, manifest_path))
+            manifest = disjointgrouper.read_manifest(manifest_path)
+        else:
+            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp))
+
+        # step 2: partition each CDR3 group
+        if len(manifest['groups']) == 0:
+            raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s' % manifest_path)
+        cmdfos = []
+        n_max_jobs = args.n_max_disjoint_jobs
+        for ginfo in manifest['groups']:
+            partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+            partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
+            ginfo['partition_path'] = partition_rel_path
+            if os.path.exists(partition_path):
+                print('    group %d (cdr3 %d): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length']))
+                continue
+            fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
+            sw_cache_group = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (disjoint_dir, ginfo['cdr3_length'], ltmp)
+            extra_args = ['--sw-cachefname', sw_cache_group]
+            if args.n_sub_procs is not None:
+                extra_args += ['--n-procs', str(args.n_sub_procs)]
+            cmd = build_single_locus_cmd('partition', ltmp, args,
+                                         infname=fasta_path, outfname=partition_path, parameter_dir=getpdir(ltmp),
+                                         extra_args=extra_args)
+            group_dir = '%s/groups/cdr3-%d' % (disjoint_dir, ginfo['cdr3_length'])
+            cmdfos.append({'cmd_str' : cmd, 'outfname' : partition_path, 'workdir' : group_dir})
+        if len(cmdfos) > 0:
+            if args.dry_run:
+                print('    --dry-run: would run %d group partition jobs (%d concurrent)' % (len(cmdfos), n_max_jobs))
+            else:
+                print('    running %d group partition jobs (%d concurrent, logs in %s/groups/cdr3-*/out):' % (len(cmdfos), n_max_jobs, disjoint_dir), end=' ')
+                utils.run_cmds(cmdfos, n_max_procs=n_max_jobs, debug='write', progress=True)
+        # write updated manifest with partition paths
+        if not args.dry_run:
+            with open(manifest_path, 'w') as mfile:
+                yaml.dump(manifest, mfile, width=400, default_flow_style=False)
+
+        # step 3: concatenate per-group partition results
+        disjointgrouper.assemble_groups(ltmp, disjoint_dir, getofn(ltmp))
+
+    # ----------------------------------------------------------------------------------------
     if args.action == 'simulate':
         if not args.dry_run:
             paircluster.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
@@ -1516,7 +1497,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.seed_unique_id is not None and args.action == 'partition':
                 remove_unseeded_seqs()
             for ltmp in sloci():
-                run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions', skip_missing_output=runs_on_existing_output(args.action))
+                if args.disjoint_groups and args.action == 'partition':
+                    run_disjoint_partition(ltmp)
+                else:
+                    run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions', skip_missing_output=runs_on_existing_output(args.action))
         if args.action in ['partition', 'merge-paired-partitions', 'annotate'] and not args.dry_run:  # ok it's weird to combine inf chains for 'annotate', but really we just want the merged/joint heavy chain output file in the normal location
             combine_inf_chains()
         ext_actions = []
@@ -1791,8 +1775,8 @@ subconfig = collections.OrderedDict((
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
     ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
-    ('disjoint-group',    {'func' : disjointgrouper.run_disjoint_group, 'help' : 'Split sequences into disjoint groups by cdr3 length, writing per-group fastas and a manifest yaml to --outdir. Auto-runs sw annotation if --parameter-dir is not set.'}),
-    ('assemble-groups',   {'func' : disjointgrouper.run_assemble_groups, 'help' : 'Validate and merge per-group partition outputs from disjoint grouping. Reads manifest from --disjoint-dir, reconciles germline info, checks sequence count invariants and uid uniqueness, and writes a single merged partition yaml per locus. Use --no-merge-output to keep per-group files separate for large datasets.'}),
+    ('create-disjoint-groups',    {'func' : disjoint_group_action, 'help' : 'Split sequences into disjoint groups by cdr3 length for a single locus, writing per-group fastas, sw-cache subsets, and a manifest yaml. Requires --parameter-dir and --locus.'}),
+    ('assemble-groups',   {'func' : assemble_groups_action, 'help' : 'Validate and concatenate per-group partition outputs from disjoint grouping for a single locus. Requires --locus and --paired-outdir (or --outfname).'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -1853,9 +1837,11 @@ subargs['partition'].append({'name' : '--add-pairwise-clustering-metrics', 'kwar
 subargs['partition'].append({'name' : '--naive-hamming-cluster', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value. Not recommended at this point: if you want fast use --naive-vsearch. (Default clustering uses naive hamming distance enough that it\'s not much slower than this, anyway).'}})
 subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwargs' : {'type' : int, 'default' : 50000, 'help' : 'If the repertoire has more than this many seqs, --naive-vsearch (--fast) is turned on, i.e. naive vsearch is used for clustering without any likelihoods. Turn off with --no-naive-vsearch.'}})
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
+subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length, then partition each group independently and concatenate. Speeds up large single-chain partitions by splitting into guaranteed-disjoint subsets.'}})
+subargs['partition'].append({'name' : '--n-max-disjoint-jobs', 'kwargs' : {'type' : int, 'default' : 3, 'help' : 'Maximum number of disjoint CDR3-group partition jobs to run concurrently.'}})
+subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
-subargs['subset-partition'].append({'name' : '--disjoint-group', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length rather than random splitting, then partition each group independently and merge.'}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
@@ -1934,9 +1920,6 @@ subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 
-subargs['disjoint-group'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping (default: {paired-outdir or workdir}/disjoint-groups). Step 1 writes manifest + per-group fastas here, step 2 writes per-group partition yamls here, step 3 reads from here.'}})
-subargs['assemble-groups'].append({'name' : '--disjoint-dir', 'kwargs' : {'help' : 'Working directory for disjoint grouping (default: {paired-outdir or workdir}/disjoint-groups). Same directory used for disjoint-group step 1 and partition step 2.'}})
-subargs['assemble-groups'].append({'name' : '--no-merge-output', 'kwargs' : {'action' : 'store_true', 'help' : 'Skip writing merged single-yaml output; keep per-group partition files separate (for large datasets where a single multi-GB yaml is impractical).'}})
 
 sub_arg_groups = {'subset-partition' : ['partition'], 'subset-annotate' : ['annotate']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
 

@@ -1070,7 +1070,7 @@ def evenly_split_list(inlist, n_subsets, dbgstr='items'):
 # n_max_queries: take only this many (after random shuffling, see notes below), n_random_queries: take this many at random, n_subsets: split into this many groups
 # NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
 def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None,
-                          seed_unique_ids=None, queries_to_include=None, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
+                          seed_unique_ids=None, queries_to_include=None, no_pairing_info=False, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
     # ----------------------------------------------------------------------------------------
     def get_final_seqfos(final_qlists, dbgarg, dbgstr):
         final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
@@ -1089,7 +1089,9 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     pvals = [n_max_queries, n_random_queries, n_subsets]
     if pvals == [-1, None, None] or pvals.count(None) + pvals.count(-1) != 2:  # not really correct (-1 isn't default for the second two) but why would you set them to that, anyway?
         raise Exception('have to set exactly 1 of [n_max_queries, n_random_queries, n_subsets], but got %s %s %s' % (n_max_queries, n_random_queries, n_subsets))
-    if input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
+    if no_pairing_info:  # each sequence is its own group (no droplet grouping)
+        drop_query_lists = [[s['name']] for s in seqfos]
+    elif input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
         _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True, debug=debug)
     else:  # but if we already have pair info in <input_info>
         _, drop_query_lists = get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet_id_indices, return_lists=True)
@@ -5671,7 +5673,7 @@ cmdfo_defaults = {  # None means by default it's absent
 #  - if both <n_max_procs> and <proc_limit_str> are set, it uses limit_procs() (i.e. a ps call) to count the total number of <proc_limit_str> running on the machine; whereas if only <n_max_procs> is set, it counts only subprocesses that it is itself running
 #  - debug: can be None (stdout mostly gets ignored), 'print' (printed), 'write' (written to file 'log' in logdir), or 'write:<logfname>' (same, but use <logfname>)
 def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batch_system=None, batch_options=None, batch_config_fname=None,
-             debug=None, ignore_stderr=False, sleep=True, n_max_procs=None, proc_limit_str=None, allow_failure=False):
+             debug=None, ignore_stderr=False, sleep=True, n_max_procs=None, proc_limit_str=None, allow_failure=False, progress=False):
     if len(cmdfos) == 0:
         raise Exception('zero length cmdfos')
     if n_max_tries is None:
@@ -5711,9 +5713,14 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
                     print(dbgstrs[iproc])
                     procs[iproc] = run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)
                     n_tries_list[iproc] += 1
+                elif progress:
+                    print('.', end=' ')
+                    sys.stdout.flush()
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
+    if progress:
+        print()  # newline after progress line
     for dstr in dbgstrs:
         if dstr != '':
             print(dstr)
