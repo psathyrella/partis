@@ -962,8 +962,10 @@ pub const Glomerator = struct {
 
                 if (self.failed_queries.contains(key_a) or self.failed_queries.contains(key_b)) continue;
 
-                const ca = try self.getCachefo(key_a);
-                const cb = try self.getCachefo(key_b);
+                _ = try self.getCachefo(key_a);
+                _ = try self.getCachefo(key_b);
+                const ca = self.cachefo.getPtr(key_a) orelse self.tmp_cachefo.getPtr(key_a) orelse return error.MissingSeqCache;
+                const cb = self.cachefo.getPtr(key_b) orelse self.tmp_cachefo.getPtr(key_b) orelse return error.MissingSeqCache;
                 if (ca.cdr3_length != cb.cdr3_length) continue;
 
                 const hf = try self.naiveHfrac(key_a, key_b);
@@ -1012,8 +1014,10 @@ pub const Glomerator = struct {
 
                 if (self.failed_queries.contains(key_a) or self.failed_queries.contains(key_b)) continue;
 
-                const ca = try self.getCachefo(key_a);
-                const cb = try self.getCachefo(key_b);
+                _ = try self.getCachefo(key_a);
+                _ = try self.getCachefo(key_b);
+                const ca = self.cachefo.getPtr(key_a) orelse self.tmp_cachefo.getPtr(key_a) orelse return error.MissingSeqCache;
+                const cb = self.cachefo.getPtr(key_b) orelse self.tmp_cachefo.getPtr(key_b) orelse return error.MissingSeqCache;
                 if (ca.cdr3_length != cb.cdr3_length) continue;
 
                 const hf = try self.naiveHfrac(key_a, key_b);
@@ -1152,8 +1156,13 @@ pub const Glomerator = struct {
         if (self.cachefo.getPtr(joint_name)) |q| return try cloneQuery(self.allocator, q);
         if (self.tmp_cachefo.getPtr(joint_name)) |q| return try cloneQuery(self.allocator, q);
 
-        const ref_a = try self.getCachefo(name_a);
-        const ref_b = try self.getCachefo(name_b);
+        // NOTE: getCachefo returns a pointer into tmp_cachefo; the second call
+        // may insert and resize the map, invalidating the first pointer.
+        // So we must call both first, then re-lookup to get stable pointers.
+        _ = try self.getCachefo(name_a);
+        _ = try self.getCachefo(name_b);
+        const ref_a = self.cachefo.getPtr(name_a) orelse self.tmp_cachefo.getPtr(name_a) orelse return error.MissingSeqCache;
+        const ref_b = self.cachefo.getPtr(name_b) orelse self.tmp_cachefo.getPtr(name_b) orelse return error.MissingSeqCache;
 
         if (ref_a.cdr3_length != ref_b.cdr3_length)
             return error.Cdr3LengthMismatch;
