@@ -117,7 +117,7 @@ class Tester(object):
         return 'cache-parameters' in ptest or ptest == 'simulate'
     # ----------------------------------------------------------------------------------------
     def is_subset_style_test(self, ptest):
-        return ptest.startswith('subset-') or ptest.startswith('disjoint-')
+        return ptest.startswith('subset-')
     # ----------------------------------------------------------------------------------------
     def sclust_sizes(self):  # NOTE depends on self.n_simu_leaves
         return (15, 20) if args.slow else (5, 10)
@@ -178,8 +178,7 @@ class Tester(object):
                 self.tests['multi-annotate-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             self.tests['partition-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--max-ccf-fail-frac', '0.10']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             if args.paired:
-                self.tests['subset-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
-                self.tests['disjoint-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']}
+                self.tests['subset-partition-%s-simu'%input_stype] = {'extras' : ['--disjoint-groups', '--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             # this runs ok, but i's need to modify some things so its output is actually checked self.tests['subset-annotate-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             self.tests['seed-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
@@ -307,7 +306,7 @@ class Tester(object):
                 argfo['extras'] += ['--no-per-base-mutation']
         else:
             argfo['inpath'] = self.inpath('new' if args.bust_cache else 'ref', input_dtype)
-            if ptest.find('subset-') != 0:  # subset-partition handles its own parameter caching per-subset; disjoint needs parameter-dir for SW cache reading
+            if ptest.find('subset-') != 0:  # subset-partition handles its own parameter caching per-subset
                 argfo['parameter-dir'] = self.paramdir(input_stype, input_dtype)
             if not args.paired:
                 argfo['sw-cachefname'] = self.paramdir(input_stype, input_dtype) + '/sw-cache.yaml'
@@ -329,9 +328,6 @@ class Tester(object):
         if ptest.startswith('subset-'):
             argfo['action'] = 'subset-%s' % argfo['action']
             argfo['extras'] += ['--n-subsets', '2']
-        elif ptest.startswith('disjoint-'):
-            argfo['action'] = 'subset-%s' % argfo['action']
-            argfo['extras'] += ['--disjoint-group']
 
         if '--plot-annotation-performance' in argfo['extras']:
             self.perfdirs[ptest] = ptest + '-annotation-performance'
@@ -669,7 +665,7 @@ class Tester(object):
         # ----------------------------------------------------------------------------------------
         print('  performance with %s simulation and parameters (smaller is better for all annotation metrics)' % input_stype)
         all_annotation_ptests = ['annotate-' + input_stype + '-simu', 'multi-annotate-' + input_stype + '-simu', 'partition-' + input_stype + '-simu']  # hard code for order
-        all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-', 'subset-', 'disjoint-']]
+        all_partition_ptests = [flavor + 'partition-' + input_stype + '-simu' for flavor in ['', 'vsearch-', 'seed-', 'subset-']]
         annotation_ptests = [pt for pt in all_annotation_ptests if pt in self.perf_info['ref'][input_stype]]
         partition_ptests = [pt for pt in all_partition_ptests if pt in self.perf_info['ref'][input_stype]]
         selection_metric_tests = ['get-selection-metrics-'+input_stype+'-simu']

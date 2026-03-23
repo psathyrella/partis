@@ -79,7 +79,8 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
     clist = strip_paired_args(copy.deepcopy(sys.argv), args)
     # strip additional args not needed for disjoint per-group commands
     for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
-                    '--disjoint-groups', '--prepend-coverage-command']:
+                    '--disjoint-groups', '--prepend-coverage-command',
+                    '--plot-annotation-performance']:  # requires --is-simu which is also stripped
         utils.remove_from_arglist(clist, argname)
     for argname in ['--n-subsets', '--n-max-disjoint-jobs', '--n-sub-procs']:
         utils.remove_from_arglist(clist, argname, has_arg=True)
@@ -441,7 +442,8 @@ def subset_partition(args):
             utils.remove_from_arglist(clist, '--disjoint-groups')  # merged re-partition should not use disjoint grouping (it runs continue-from-input-partition)
             if args.paired_indir is None:  # if --paired-indir wasn't set (i.e. --infname *was* set), we want to use the extract-pairing-info/split-loci output in --paired-outdir
                 clist += ['--paired-indir', merged_odir]
-            clist += ['--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir,
+            utils.replace_in_arglist(clist, '--parameter-dir', '%s/parameters'%merged_odir)
+            clist += ['--input-partition-fname', merged_odir, '--continue-from-input-partition',
                       '--ignore-sw-pair-info', '--refuse-to-cache-parameters', '--ignore-default-input-metafile']  # (don't need to ignore default input metafile for subset runs since they use --infname)
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------

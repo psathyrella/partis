@@ -26,6 +26,7 @@ And any changes that affect paired code should instead run (generally don't need
 
     partis-test.py --paired
 
+Substantial changes also need to add --slow to both of these, since many issues don't appear on super small samples
 Any crashes obviously need to be fixed.
 The color-coded output tells you if either results or time required have changed: red is a big change, yellow is a smaller change.
 Right now there's a few differences that need to be updated in the test framework (e.g. time required is larger than in the ref results because the ref times required need to be updated for changing a default option).
