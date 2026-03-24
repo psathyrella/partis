@@ -330,12 +330,13 @@ pub const Trellis = struct {
                     self.traceback_table.items[position][i_st_cur] = @intCast(i_st_prev);
                 }
                 self.cacheViterbiVals(position, dpval, i_st_cur);
-            }
-            // Mark outbound transitions (once per current state, deduplicated via next_seen)
-            for (st_cur.to_state_indices.items) |j| {
-                if (!self.next_seen.isSet(j)) {
-                    self.next_seen.set(j);
-                    try next_states.append(allocator, j);
+                // Mark outbound transitions inside the i_st_prev loop (as in C++) so we only
+                // include states that are really needed, i.e. that have at least one valid predecessor
+                for (st_cur.to_state_indices.items) |j| {
+                    if (!self.next_seen.isSet(j)) {
+                        self.next_seen.set(j);
+                        try next_states.append(allocator, j);
+                    }
                 }
             }
         }
@@ -358,12 +359,13 @@ pub const Trellis = struct {
                 const dpval = prev_val + emission_val + self.hmm.stateByIndex(i_st_prev).transitionLogprob(i_st_cur);
                 self.scoring_current[i_st_cur] = mathutils.addInLogSpace(dpval, self.scoring_current[i_st_cur]);
                 self.cacheForwardVals(position, dpval, i_st_cur);
-            }
-            // Mark outbound transitions (once per current state, deduplicated via next_seen)
-            for (st_cur.to_state_indices.items) |j| {
-                if (!self.next_seen.isSet(j)) {
-                    self.next_seen.set(j);
-                    try next_states.append(allocator, j);
+                // Mark outbound transitions inside the i_st_prev loop (as in C++) so we only
+                // include states that are really needed, i.e. that have at least one valid predecessor
+                for (st_cur.to_state_indices.items) |j| {
+                    if (!self.next_seen.isSet(j)) {
+                        self.next_seen.set(j);
+                        try next_states.append(allocator, j);
+                    }
                 }
             }
         }
