@@ -82,6 +82,7 @@ pub const Glomerator = struct {
     /// Asymmetry scaling factor (C++ asym_factor_ = 4.0).
     const ASYM_FACTOR: f64 = 4.0;
 
+    /// C++: Glomerator::Glomerator() — glomerator.cc:6
     pub fn init(
         allocator: std.mem.Allocator,
         hmms: *HMMHolder,
@@ -227,6 +228,7 @@ pub const Glomerator = struct {
         return self;
     }
 
+    /// C++: ~Glomerator() — glomerator.cc:58 (cache write + stats moved to cluster())
     pub fn deinit(self: *Glomerator) void {
         const allocator = self.allocator;
 
@@ -404,6 +406,7 @@ pub const Glomerator = struct {
 
     // ── Cache file I/O ────────────────────────────────────────────────────────
 
+    /// C++: Glomerator::ReadCacheFile() — glomerator.cc:114
     fn readCacheFile(self: *Glomerator) !void {
         const allocator = self.allocator;
         if (self.args.input_cachefname.len == 0) {
@@ -439,7 +442,10 @@ pub const Glomerator = struct {
             }
 
             if (logprob_str.len > 0) {
-                const val = std.fmt.parseFloat(f64, logprob_str) catch continue;
+                // C++ uses stof() which parses to float32 then widens to double.
+                // We must match that precision loss.
+                const val32: f32 = std.fmt.parseFloat(f32, logprob_str) catch continue;
+                const val: f64 = @as(f64, val32);
                 const gop_lp = try self.log_probs.getOrPut(allocator, query);
                 if (!gop_lp.found_existing) gop_lp.key_ptr.* = try allocator.dupe(u8, query);
                 gop_lp.value_ptr.* = val;
@@ -448,7 +454,9 @@ pub const Glomerator = struct {
             }
 
             if (naive_hfrac_str.len > 0) {
-                const val = std.fmt.parseFloat(f64, naive_hfrac_str) catch continue;
+                // C++ uses stof() which parses to float32 then widens to double.
+                const val32: f32 = std.fmt.parseFloat(f32, naive_hfrac_str) catch continue;
+                const val: f64 = @as(f64, val32);
                 const gop_nh = try self.naive_hfracs.getOrPut(allocator, query);
                 if (!gop_nh.found_existing) gop_nh.key_ptr.* = try allocator.dupe(u8, query);
                 gop_nh.value_ptr.* = val;
@@ -476,6 +484,7 @@ pub const Glomerator = struct {
         }
     }
 
+    /// C++: Glomerator::WriteCacheFile() — glomerator.cc:190
     fn writeCacheFile(self: *Glomerator) !void {
         if (self.args.output_cachefname.len == 0) return;
 
@@ -551,6 +560,7 @@ pub const Glomerator = struct {
 
     // ── Partition I/O ─────────────────────────────────────────────────────────
 
+    /// C++: Glomerator::WritePartitions() — glomerator.cc:227
     fn writePartitions(self: *Glomerator, cp: *ClusterPath) !void {
         const run_start = std.time.milliTimestamp();
         if (self.args.debug > 0) {
@@ -738,6 +748,7 @@ pub const Glomerator = struct {
 
     // ── Log-probability calculation ───────────────────────────────────────────
 
+    /// C++: Glomerator::LogProbOfPartition() — glomerator.cc:282
     fn logProbOfPartition(self: *Glomerator, partition: *const Partition) !f64 {
         var total: f64 = 0.0;
         for (partition.items) |key| {
@@ -747,6 +758,7 @@ pub const Glomerator = struct {
         return total;
     }
 
+    /// C++: Glomerator::GetLogProb() — glomerator.cc:681
     fn getLogProb(self: *Glomerator, queries: []const u8) !f64 {
         if (self.log_probs.get(queries)) |lp| return lp;
         const lp = try self.calculateLogProb(queries);
@@ -755,6 +767,7 @@ pub const Glomerator = struct {
         return lp;
     }
 
+    /// C++: Glomerator::CalculateLogProb() — glomerator.cc:754
     fn calculateLogProb(self: *Glomerator, queries: []const u8) !f64 {
         std.debug.assert(!self.log_probs.contains(queries));
         self.n_fwd_calculated += 1;
@@ -776,6 +789,7 @@ pub const Glomerator = struct {
         return result.total_score;
     }
 
+    /// C++: Glomerator::GetLogProbRatio() — glomerator.cc:692
     fn getLogProbRatio(self: *Glomerator, key_a: []const u8, key_b: []const u8) !f64 {
         const joint_name = try self.joinNames(key_a, key_b);
         defer self.allocator.free(joint_name);
@@ -822,6 +836,7 @@ pub const Glomerator = struct {
 
     // ── Naive sequence calculation ────────────────────────────────────────────
 
+    /// C++: Glomerator::GetNaiveSeq() — glomerator.cc:641
     fn getNaiveSeq(self: *Glomerator, queries: []const u8, parents: ?*const [2][]const u8) anyerror![]const u8 {
         if (self.naive_seqs.get(queries)) |ns| return ns;
 
@@ -869,6 +884,7 @@ pub const Glomerator = struct {
         return self.naive_seqs.get(queries).?;
     }
 
+    /// C++: Glomerator::CalculateNaiveSeq() — glomerator.cc:727
     fn calculateNaiveSeq(self: *Glomerator, queries: []const u8, event_out: ?*RecoEvent) ![]u8 {
         std.debug.assert(!self.naive_seqs.contains(queries));
         self.n_vtb_calculated += 1;
@@ -898,6 +914,7 @@ pub const Glomerator = struct {
 
     // ── Hamming fraction ──────────────────────────────────────────────────────
 
+    /// C++: Glomerator::CalculateHfrac() — glomerator.cc:455
     fn calculateHfrac(self: *Glomerator, seq_a: []const u8, seq_b: []const u8) !f64 {
         self.n_hfrac_calculated += 1;
         if (seq_a.len != seq_b.len) return error.SequenceLengthMismatch;
@@ -918,6 +935,7 @@ pub const Glomerator = struct {
         return @as(f64, @floatFromInt(distance)) / @as(f64, @floatFromInt(len_excl_ambig));
     }
 
+    /// C++: Glomerator::NaiveHfrac() — glomerator.cc:474
     fn naiveHfrac(self: *Glomerator, key_a: []const u8, key_b: []const u8) !f64 {
         const joint_key = try self.joinNames(key_a, key_b);
         defer self.allocator.free(joint_key);
@@ -939,7 +957,8 @@ pub const Glomerator = struct {
 
     // ── Merge finders ────────────────────────────────────────────────────────
 
-    /// Find best hfrac merge; returns null if none below threshold.
+    /// C++: Glomerator::FindHfracMerge() — glomerator.cc:1000
+    /// NOTE: C++ has seed-aware iteration via GetSeededClusters() that is not yet ported.
     fn findHfracMerge(self: *Glomerator, path: *ClusterPath) !?Query {
         var min_hf: f64 = std.math.inf(f64);
         var found = false;
@@ -992,7 +1011,8 @@ pub const Glomerator = struct {
         return null;
     }
 
-    /// Find best lratio merge; returns null if none above threshold.
+    /// C++: Glomerator::FindLRatioMerge() — glomerator.cc:1063
+    /// NOTE: C++ has seed-aware iteration via GetSeededClusters() that is not yet ported.
     fn findLRatioMerge(self: *Glomerator, path: *ClusterPath) !?Query {
         var max_lratio: f64 = mathutils.NEG_INF;
         var best_query: ?Query = null;
@@ -1061,6 +1081,7 @@ pub const Glomerator = struct {
 
     // ── Cache utilities ───────────────────────────────────────────────────────
 
+    /// C++: Glomerator::cachefo() — glomerator.cc:782
     fn getCachefo(self: *Glomerator, queries: []const u8) !*Query {
         if (self.cachefo.getPtr(queries)) |q| return q;
         if (self.tmp_cachefo.getPtr(queries)) |q| return q;
@@ -1142,6 +1163,7 @@ pub const Glomerator = struct {
         return self.tmp_cachefo.getPtr(queries).?;
     }
 
+    /// C++: Glomerator::GetMergedQuery() — glomerator.cc:908
     fn getMergedQuery(self: *Glomerator, name_a: []const u8, name_b: []const u8) !Query {
         const joint_name = try self.joinNames(name_a, name_b);
         defer self.allocator.free(joint_name);
@@ -1226,12 +1248,15 @@ pub const Glomerator = struct {
 
     // ── Name translation helpers ─────────────────────────────────────────────
 
+    /// C++: Glomerator::GetNaiveSeqNameToCalculate() — glomerator.cc:549
     fn getNaiveSeqNameToCalculate(self: *Glomerator, actual_queries: []const u8) ![]u8 {
         if (self.naive_seq_name_translations.get(actual_queries)) |t| return try self.allocator.dupe(u8, t);
 
         const n = countMembersWithExcludeSeeds(actual_queries, self.args.seed_unique_id);
         const threshold = @as(i32, @intCast(self.args.biggest_naive_seq_cluster_to_calculate));
-        if (n < @as(i32, @intCast(@as(u64, @intCast(threshold)) * 3 / 2 + 1))) {
+        // C++: CountMembers(...) < 1.5 * biggest_naive_seq_cluster_to_calculate()
+        // Must use float comparison to match C++ behavior exactly.
+        if (@as(f64, @floatFromInt(n)) < 1.5 * @as(f64, @floatFromInt(threshold))) {
             return try self.allocator.dupe(u8, actual_queries);
         }
 
@@ -1248,6 +1273,7 @@ pub const Glomerator = struct {
         return try self.allocator.dupe(u8, sub);
     }
 
+    /// C++: Glomerator::GetLogProbPairOfNamesToCalculate() — glomerator.cc:584
     fn getLogProbPairOfNamesToCalculate(self: *Glomerator, actual_queries: []const u8, actual_parents: ?*const [2][]u8) ![2][]u8 {
         if (self.logprob_name_translations.get(actual_queries)) |t| {
             return .{
@@ -1292,6 +1318,7 @@ pub const Glomerator = struct {
         return pair;
     }
 
+    /// C++: Glomerator::GetLogProbNameToCalculate() — glomerator.cc:568
     fn getLogProbNameToCalculate(self: *Glomerator, queries: []const u8, n_max: i32) ![]u8 {
         var q = queries;
         if (self.logprob_asymetric_translations.get(queries)) |t| {
@@ -1308,6 +1335,7 @@ pub const Glomerator = struct {
         return self.allocator.dupe(u8, q);
     }
 
+    /// C++: Glomerator::ChooseSubsetOfNames() — glomerator.cc:490
     fn chooseSubsetOfNames(self: *Glomerator, queries: []const u8, n_max_in: i32) ![]u8 {
         if (self.name_subsets.get(queries)) |ns| return try self.allocator.dupe(u8, ns);
 
@@ -1411,6 +1439,7 @@ pub const Glomerator = struct {
         return try self.allocator.dupe(u8, subqueries);
     }
 
+    /// C++: Glomerator::FindNaiveSeqNameReplace() — glomerator.cc:623
     fn findNaiveSeqNameReplace(self: *Glomerator, parents: *const [2][]const u8) !?[]u8 {
         const ns_a = try self.getNaiveSeq(parents[0], null);
         const ns_b = try self.getNaiveSeq(parents[1], null);
@@ -1422,6 +1451,7 @@ pub const Glomerator = struct {
         return null;
     }
 
+    /// C++: Glomerator::FirstParentMuchBigger() — glomerator.cc:608
     fn firstParentMuchBigger(self: *Glomerator, queries: []const u8, queries_other: []const u8, nmax: i32) !bool {
         const nseq: i32 = countMembers(queries);
         const nseq_other: i32 = countMembers(queries_other);
@@ -1441,6 +1471,7 @@ pub const Glomerator = struct {
         return result;
     }
 
+    /// C++: Glomerator::UpdateLogProbTranslationsForAsymetrics() — glomerator.cc:1121
     fn updateLogProbTranslationsForAsymetrics(self: *Glomerator, qmerge: *const Query) !void {
         const parents = qmerge.parents orelse return;
         const nmax: i32 = @intCast(@as(u64, @intCast(self.args.biggest_logprob_cluster_to_calculate)) * 3 / 2);
@@ -1487,6 +1518,7 @@ pub const Glomerator = struct {
         }
     }
 
+    /// C++: Glomerator::MoveSubsetsFromTmpCache() — glomerator.cc:865
     fn moveSubsetsFromTmpCache(self: *Glomerator, query: []const u8) !void {
         if (self.naive_seq_name_translations.get(query)) |tq| {
             try self.copyToPermanentCache(tq, query);
@@ -1500,6 +1532,7 @@ pub const Glomerator = struct {
         }
     }
 
+    /// C++: Glomerator::CopyToPermanentCache() — glomerator.cc:889
     fn copyToPermanentCache(self: *Glomerator, translated_query: []const u8, superquery: []const u8) !void {
         if (self.tmp_cachefo.getPtr(translated_query)) |tq| {
             const key = try self.allocator.dupe(u8, translated_query);
@@ -1534,6 +1567,7 @@ pub const Glomerator = struct {
 
     // ── Utility helpers ───────────────────────────────────────────────────────
 
+    /// C++: Glomerator::GetSeqs() — glomerator.cc:850
     fn getSeqs(self: *Glomerator, query: []const u8) !std.ArrayListUnmanaged(Sequence) {
         const names = try splitName(self.allocator, query);
         defer {
@@ -1554,6 +1588,7 @@ pub const Glomerator = struct {
         return result;
     }
 
+    /// C++: Glomerator::AddFailedQuery() — glomerator.cc:776
     fn addFailedQuery(self: *Glomerator, queries: []const u8, error_str: []const u8) !void {
         const key = try self.allocator.dupe(u8, queries);
         errdefer self.allocator.free(key);
@@ -1571,6 +1606,7 @@ pub const Glomerator = struct {
         try self.failed_queries.put(self.allocator, key, {});
     }
 
+    /// C++: Glomerator::JoinNames() — glomerator.cc:404
     fn joinNames(self: *Glomerator, name1: []const u8, name2: []const u8) ![]u8 {
         var names = [_][]const u8{ name1, name2 };
         std.mem.sort([]const u8, &names, {}, struct {
@@ -1614,6 +1650,7 @@ fn printStr(queries: []const u8) []const u8 {
     return s;
 }
 
+/// C++: Glomerator::CountMembers() — glomerator.cc:360
 fn countMembers(namestr: []const u8) i32 {
     var n: i32 = 1;
     for (namestr) |c| {
@@ -1627,6 +1664,7 @@ fn countMembersWithExcludeSeeds(namestr: []const u8, seed_uid: []const u8) i32 {
     return countMembers(namestr);
 }
 
+/// C++: Glomerator::LargestClusterSize() — glomerator.cc:374
 fn largestClusterSize(partition: *const Partition) u32 {
     var max: u32 = 0;
     for (partition.items) |cluster| {
