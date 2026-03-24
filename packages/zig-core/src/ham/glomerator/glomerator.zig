@@ -1368,6 +1368,36 @@ pub const Glomerator = struct {
         const subqueries = try ham_text.joinStrings(self.allocator, sub_names.items, ":");
         errdefer self.allocator.free(subqueries);
 
+        // C++ caches the subset in tmp_cachefo_ using the parent cluster's attributes
+        // (only_genes, kbounds, mute_freq, cdr3_length). This is important because
+        // later getCachefo() calls for the subset will find this entry instead of
+        // rebuilding from singles, and the parent's mute_freq (which carries f32
+        // merge cascade truncation) must be used for consistency with C++.
+        const cacheref = try self.getCachefo(queries);
+        {
+            const sub_seqs = try self.getSeqs(subqueries);
+            defer {
+                var ss = sub_seqs;
+                ss.deinit(self.allocator);
+            }
+            const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, subqueries, ":");
+            var sub_q = try Query.create(
+                self.allocator,
+                subqueries,
+                sub_seqs.items,
+                is_seed_missing,
+                cacheref.only_genes.items,
+                cacheref.kbounds,
+                cacheref.mute_freq,
+                cacheref.cdr3_length,
+                null, null,
+            );
+            errdefer sub_q.deinit(self.allocator);
+            const cf_key = try self.allocator.dupe(u8, subqueries);
+            errdefer self.allocator.free(cf_key);
+            try self.tmp_cachefo.put(self.allocator, cf_key, sub_q);
+        }
+
         if (self.args.debug > 0) {
             const dbg = try std.fmt.allocPrint(self.allocator, "                chose subset  {s}  -->  {s}\n", .{ queries, subqueries });
             defer self.allocator.free(dbg);
