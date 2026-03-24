@@ -965,20 +965,29 @@ pub const Glomerator = struct {
     // ── Merge finders ────────────────────────────────────────────────────────
 
     /// C++: Glomerator::FindHfracMerge() — glomerator.cc:1000
-    /// NOTE: C++ has seed-aware iteration via GetSeededClusters() that is not yet ported.
     fn findHfracMerge(self: *Glomerator, path: *ClusterPath) !?Query {
         var min_hf: f64 = std.math.inf(f64);
         var found = false;
         var best_query: ?Query = null;
 
         const cur_part = path.currentPartition();
+        const has_seed = self.args.seed_unique_id.len > 0;
+
         var ia: usize = 0;
         while (ia < cur_part.items.len) : (ia += 1) {
-            var ib: usize = ia + 1;
+            const key_a = cur_part.items[ia];
+            // C++: when seed is set, outer loop only covers seeded clusters (GetSeededClusters)
+            if (has_seed) {
+                const ca = try self.getCachefo(key_a);
+                if (ca.seed_missing) continue;
+            }
+
+            // C++: without seed, inner starts at ia+1; with seed, inner starts at 0 (all clusters)
+            var ib: usize = if (has_seed) 0 else ia + 1;
             while (ib < cur_part.items.len) : (ib += 1) {
-                const key_a = cur_part.items[ia];
                 const key_b = cur_part.items[ib];
 
+                if (std.mem.eql(u8, key_a, key_b)) continue; // skip self-pairs (needed with seed)
                 if (self.failed_queries.contains(key_a) or self.failed_queries.contains(key_b)) continue;
 
                 _ = try self.getCachefo(key_a);
@@ -1019,19 +1028,28 @@ pub const Glomerator = struct {
     }
 
     /// C++: Glomerator::FindLRatioMerge() — glomerator.cc:1063
-    /// NOTE: C++ has seed-aware iteration via GetSeededClusters() that is not yet ported.
     fn findLRatioMerge(self: *Glomerator, path: *ClusterPath) !?Query {
         var max_lratio: f64 = mathutils.NEG_INF;
         var best_query: ?Query = null;
 
         const cur_part = path.currentPartition();
+        const has_seed = self.args.seed_unique_id.len > 0;
+
         var ia: usize = 0;
         while (ia < cur_part.items.len) : (ia += 1) {
-            var ib: usize = ia + 1;
+            const key_a = cur_part.items[ia];
+            // C++: when seed is set, outer loop only covers seeded clusters (GetSeededClusters)
+            if (has_seed) {
+                const ca = try self.getCachefo(key_a);
+                if (ca.seed_missing) continue;
+            }
+
+            // C++: without seed, inner starts at ia+1; with seed, inner starts at 0 (all clusters)
+            var ib: usize = if (has_seed) 0 else ia + 1;
             while (ib < cur_part.items.len) : (ib += 1) {
-                const key_a = cur_part.items[ia];
                 const key_b = cur_part.items[ib];
 
+                if (std.mem.eql(u8, key_a, key_b)) continue; // skip self-pairs (needed with seed)
                 if (self.failed_queries.contains(key_a) or self.failed_queries.contains(key_b)) continue;
 
                 _ = try self.getCachefo(key_a);
