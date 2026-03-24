@@ -767,6 +767,8 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def shall_we_reduce_n_procs(self, last_n_procs):
+        if self.args.no_reduce_n_procs:  # for testing: disable time-based n_procs reduction so that C++ and Zig backends get the same number of processes
+            return False
         if self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples
             return True
         n_calcd_per_process = self.get_n_calculated_per_process()
