@@ -2,6 +2,7 @@ from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import os
 import sys
+import glob
 import yaml
 import collections
 
@@ -167,15 +168,88 @@ def validate_assembly(manifest, manifest_dir):
     print('      assembly validation passed: %d unique sequences across %d groups' % (total_seqs, len(manifest['groups'])))
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir):
-    # read sw cache for a single locus, group sequences by CDR3 length,
+def resolve_sw_cache_paths(sw_cache_paths):
+    # resolve <sw_cache_paths> to a list: accepts a single path string, a list of paths, or a directory
+    # (globs for sw-cache*.yaml in subdirs, then in the directory itself)
+    if isinstance(sw_cache_paths, str):
+        if os.path.isdir(sw_cache_paths):
+            paths = sorted(glob.glob('%s/*/sw-cache*.yaml' % sw_cache_paths))
+            if len(paths) == 0:
+                paths = sorted(glob.glob('%s/sw-cache*.yaml' % sw_cache_paths))
+            if len(paths) == 0:
+                raise Exception('no sw-cache*.yaml files found in %s or its subdirectories' % sw_cache_paths)
+            return paths
+        else:
+            return [sw_cache_paths]
+    return list(sw_cache_paths)
+
+# ----------------------------------------------------------------------------------------
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir):
+    # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # write per-group fastas and sw-cache subsets, write manifest.
-    print('      reading sw cache for %s from %s' % (locus, sw_cache_path))
-    glfo, annotation_list, _ = utils.read_yaml_output(sw_cache_path, dont_add_implicit_info=True)
-    groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
-    n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
-    group_infos = write_group_fastas(groups, outdir, locus)
-    write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
+    # <sw_cache_paths>: single path string, list of paths, or directory (for chunked cache-parameters at scale).
+    # For multiple caches, processes one chunk at a time to limit peak memory:
+    #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
+    #   - per-group sw-cache fragments are written per chunk, then merged and cleaned up
+    sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths)
+    multi_cache = len(sw_cache_paths) > 1
+
+    if not multi_cache:
+        # single sw cache: read once, process everything in memory (existing behavior)
+        print('      reading sw cache for %s from %s' % (locus, sw_cache_paths[0]))
+        glfo, annotation_list, _ = utils.read_yaml_output(sw_cache_paths[0], dont_add_implicit_info=True)
+        groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
+        n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
+        group_infos = write_group_fastas(groups, outdir, locus)
+        write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
+    else:
+        # multiple sw caches: process one chunk at a time
+        print('      processing %d sw cache files for %s' % (len(sw_cache_paths), locus))
+        glfo = None
+        all_groups = collections.OrderedDict()  # cdr3_length -> [seqfos] (lightweight: uid + seq only)
+        n_failed = 0
+        n_seqs = 0
+        chunk_fragments = collections.defaultdict(list)  # cdr3_length -> list of fragment file paths
+
+        for ichunk, swpath in enumerate(sw_cache_paths):
+            print('      chunk %d/%d: %s' % (ichunk + 1, len(sw_cache_paths), swpath))
+            tglfo, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
+            if glfo is None:
+                glfo = tglfo
+            chunk_groups, chunk_failed = group_sequences_by_cdr3_length(tantn_list)
+            n_failed += chunk_failed
+            n_seqs += sum(len(seqfos) for seqfos in chunk_groups.values()) + chunk_failed
+
+            # accumulate seqfos for FASTA writing, write sw-cache fragment per group
+            for c3len, seqfos in chunk_groups.items():
+                all_groups.setdefault(c3len, []).extend(seqfos)
+                group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
+                frag_path = '%s/sw-cache-chunk%03d.yaml' % (group_dir, ichunk)
+                uid_set = set(sfo['name'] for sfo in seqfos)
+                chunk_antns = [line for line in tantn_list if len(line['unique_ids']) == 1 and line['unique_ids'][0] in uid_set]
+                utils.mkdir(frag_path, isfile=True)
+                utils.write_annotations(frag_path, tglfo, chunk_antns, utils.sw_cache_headers)
+                chunk_fragments[c3len].append(frag_path)
+
+            del tantn_list  # free chunk annotations
+
+        # write per-group FASTAs
+        groups = collections.OrderedDict(sorted(all_groups.items()))
+        group_infos = write_group_fastas(groups, outdir, locus)
+
+        # merge per-chunk sw-cache fragments into final per-group files, then clean up
+        for c3len in sorted(groups):
+            final_swc = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
+            frags = chunk_fragments.get(c3len, [])
+            if len(frags) == 1:
+                os.rename(frags[0], final_swc)
+            elif len(frags) > 1:
+                utils.merge_yamls(final_swc, frags, utils.sw_cache_headers, dont_write_git_info=True)
+                for frag in frags:
+                    os.remove(frag)
+        # NOTE if multiple chunks inferred different novel alleles, glfo from the first chunk is used.
+        # For proper germline reconciliation across chunks, merge parameter dirs before grouping.
+
     print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, len(groups), n_failed))
     if len(group_infos) > 0:
         cw = max(len(str(g['cdr3_length'])) for g in group_infos)

@@ -113,12 +113,16 @@ def sw_cache_path(locus_pdir):
 # ----------------------------------------------------------------------------------------
 def disjoint_group_action(args):
     # standalone entry point for disjoint-group action (for running steps on separate batch systems)
-    swcfn = sw_cache_path('%s/%s' % (args.parameter_dir, args.locus))
+    # --sw-cachefname: single file, colon-separated paths, or a directory containing chunk sw caches
+    if args.sw_cachefname is not None:
+        sw_cache_paths = args.sw_cachefname.split(':') if ':' in args.sw_cachefname else args.sw_cachefname
+    else:
+        sw_cache_paths = sw_cache_path('%s/%s' % (args.parameter_dir, args.locus))
     outdir = utils.non_none([args.paired_outdir, args.workdir])
     if outdir is None:
         raise Exception('--paired-outdir or --workdir must be set')
     disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
-    disjointgrouper.create_cdr3_groups(args.locus, swcfn, disjoint_dir, parameter_dir=args.parameter_dir)
+    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir)
 
 # ----------------------------------------------------------------------------------------
 def assemble_groups_action(args):
