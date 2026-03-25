@@ -7,10 +7,13 @@
     - [subsampling](#subsampling)
     - [ignore small clusters](#ignore-smaller-clusters)
     - [subset-partition](#partition-in-subsets)
+    - [disjoint groups](#disjoint-groups)
     - [limit maximum cluster size](#limit-maximum-cluster-size)
     - [deliberate over-clustering](#deliberate-over-clustering)
 	- [progress file](#progress-file)
   - [subset-partition](#subset-partition)
+  - [create-disjoint-groups](#create-disjoint-groups) split sequences by CDR3 length for independent partition (standalone action for batch workflows)
+  - [assemble-groups](#assemble-groups) concatenate per-group partition results (standalone action for batch workflows)
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
     - [choosing antibodies](#choosing-antibodies)
@@ -93,6 +96,15 @@ If you're mostly interested in larger clonal families, you can tell it to cluste
 
 See section [below](#subset-partition) on the `subset-partition` action, which first splits the sample into subsets, partitions each one, then merges the resulting partitions together.
 
+##### disjoint groups
+
+Setting `--disjoint-groups` splits sequences by CDR3 length, partitions each group independently, and concatenates the results.
+Since no clonal family can span two CDR3 lengths, the groups are guaranteed disjoint and the concatenation needs no further reconciliation.
+This can substantially speed up partitioning on large samples, since partitioning many smaller groups is much faster than one large partition.
+The number of concurrent per-group jobs is set with `--n-max-disjoint-jobs <n>` (default 3), and each job uses `--n-procs` processes unless overridden with `--n-sub-procs <n>`.
+It can also be combined with `subset-partition` (i.e. `partis subset-partition --disjoint-groups`), in which case it speeds up the single-chain partition step within each subset.
+For running the individual steps separately (e.g. as independent batch jobs), see [`create-disjoint-groups`](#create-disjoint-groups) and [`assemble-groups`](#assemble-groups) below.
+
 ##### limit maximum cluster size
 
 Cases where memory is a limiting factor typically stem from a sample with several very large families. Some recent optimizations mean that this doesn't really happen any more, but limiting clonal family size with `--max-cluster-size N` nevertheless can reduce memory usage. Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
@@ -147,6 +159,19 @@ Even when run with default arguments it is often faster, since the subset proces
 
 Same as `subset-partition`, but just performs annotation with subsets, rather than partitioning.
 Since normal annotation, unlike partitioning, is easily split up into independent processes, this is less important than `subset-partition`; nevertheless it probably still uses substantially less memory.
+
+### create-disjoint-groups
+
+Split sequences for a single locus into disjoint CDR3 length groups, writing per-group FASTAs, per-group SW cache subsets, and a manifest to the output directory.
+Requires `--locus` and `--parameter-dir` (which must already contain an SW cache from a prior `cache-parameters` run).
+`--sw-cachefname` can point to a single SW cache file, a colon-separated list of files, or a directory containing multiple SW caches (e.g. from running cache-parameters independently on each part of a split input).
+This is the standalone version of the grouping step in `--disjoint-groups` (see [above](#disjoint-groups)), intended for workflows where each step is submitted as a separate batch job.
+
+### assemble-groups
+
+Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
+Requires `--locus` and `--outfname`.
+This is the standalone version of the assembly step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
 
 ### merge-paired-partitions
 
