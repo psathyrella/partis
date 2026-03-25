@@ -452,6 +452,9 @@ def run_partitiondriver(args):
         if args.seed_unique_id is not None:  # if we're auto parameter caching for/before seed partitioning, we *don't* (yet) want to remove non-clonal sequences, since we need all the non-clonal sequences to get better parameters (maybe at some point we want to be able to count parameters just on this lineage, but for now let's keep it simple)
             raise Exception('if setting --seed-unique-id for \'partition\', you must first explicitly run \'cache-parameters\' in order to ensure that parameters are cached on all sequences, not just clonally related sequences.')
 
+    if args.cache_hmm_annotations and 'cache-parameters' in actions and args.outfname is None:
+        args.outfname = '%s/hmm-cache.yaml' % args.parameter_dir
+
     input_info, reco_info, glfo, simglfo = read_inputs(args, actions)
     if input_info is not None and len(input_info) < args.n_procs:
         print('  note: reducing N procs to the number of seqs %d --> %d' % (args.n_procs, len(input_info)))
@@ -771,6 +774,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                             work_fnames.append(getofn(ltmp, joint=joint, lpair=lpair))
                             if not joint and lpair is None and getodir(single_chain=True) not in work_fnames:
                                 work_fnames.append(getodir(single_chain=True))
+                    elif args.cache_hmm_annotations:
+                        utils.insert_in_arglist(clist, ['--outfname', '%s/hmm-cache.yaml' % getpdir(ltmp)], '--infname' if '--infname' in clist else None, has_arg=True)
 
             mfnames = get_meta_fns(None, joint=True, tdbg=True)  # , lpair=lpair
             if args.infname is not None and os.path.exists(getofn(None, joint=True, input_meta=True)):  # if we automatically generated an input meta file with extract-pairing-info.py, we need to add it (but this should be the one in the *parent* dir with original pairing info, whereas below in 'annotate' we want the sub-loci ones (after cleaning)
@@ -1534,6 +1539,7 @@ parent_args.append({'name' : '--ignore-default-input-metafile', 'kwargs' : {'act
 parent_args.append({'name' : '--input-partition-fname', 'kwargs' : {'help' : 'partis-style json/yaml file from which to read a partition for input to specified action. For \'annotate\' action, annotates sequences in --infname using the partition in this file (rather than the default of annotating each sequence individually). For \'partition\' action, by default uses the input partition instead of doing any actual partitioning (to continue partitioning starting from the input partition, set --continue-from-input-partition). Note that if you\'re using this with --paired-loci, you should specify the entire directory, rather than a single file.'}})
 parent_args.append({'name' : '--input-partition-index', 'kwargs' : {'type' : int, 'help' : 'Index of the partition to be read from --input-partition-fname (if unset, defaults to the best partition). To figure out which index you want, you probably want to run the view-output action on the file.'}})
 parent_args.append({'name' : '--outfname', 'kwargs' : {'help' : 'output file name'}})
+parent_args.append({'name' : '--cache-hmm-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'when running cache-parameters, also write hmm annotations (more accurate than sw) to <parameter-dir>/hmm-cache.yaml by setting --outfname'}})
 parent_args.append({'name' : '--paired-outdir', 'kwargs' : {'help' : 'Directory for all output files when --paired-loci is set, i.e. involving multiple loci in input and/or paired heavy/light information.'}})
 parent_args.append({'name' : '--dont-calculate-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'Don\'t calculate annotations for the final partition (so just the partition is written to output).'}})
 parent_args.append({'name' : '--use-sw-annotations', 'kwargs' : {'action' : 'store_true', 'help' : 'Instead of running hmm annotation on each cluster in the final partition, use the smith-waterman annotations to synthesize a multi-sequence annotation for each final cluster.'}})

@@ -358,6 +358,7 @@ class PartitionDriver(object):
         sys.stdout.flush()
         _, annotations, hmm_failures = self.run_hmm('viterbi', self.sw_param_dir, parameter_out_dir=self.hmm_param_dir, count_parameters=True, partition=self.input_partition)
         if self.args.outfname is not None and self.current_action == self.all_actions[-1]:
+            print('        writing hmm cache to %s' % self.args.outfname)
             self.write_output(list(annotations.values()), hmm_failures, cpath=self.input_cpath)
         self.write_hmms(self.hmm_param_dir)  # note that this modifies <self.glfo>
 
