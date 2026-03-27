@@ -194,7 +194,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle if args.xtitle is None else args.xtitle, ytitle=ytitle if args.ytitle is None else args.ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
                           linewidths=linewidths, linestyles=args.linestyles, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
-                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins, print_stats=True, adjust=adjust)
+                          figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins, print_stats=True, adjust=adjust, no_legend=args.no_legend)
 
     if args.swarm_meta_key is not None:
         plotvals = {h.title : [h.get_bin_centers()[i] for i in h.ibiniter(True) for _ in range(int(h.bin_contents[i]))] for h in hlist}
@@ -235,6 +235,7 @@ parser.add_argument('--plottitle')
 parser.add_argument('--xtitle')
 parser.add_argument('--ytitle')
 parser.add_argument('--no-errors', action='store_true')
+parser.add_argument('--no-legend', action='store_true', help='suppress legend from all plots')
 parser.add_argument('--single-plotdir', action='store_true')
 parser.add_argument('--square-bins', action='store_true')
 parser.add_argument('--swarm-meta-key', help='if set, also make swarm plots, pretending that each hist\'s title is the value for this "fake" meta info key, and treat each bin\'s entries as observations at the bin center\'s value')

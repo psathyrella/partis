@@ -1225,7 +1225,7 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
 
 # ----------------------------------------------------------------------------------------
 # NOTE can use get_leg_entries()
-def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digits=None):
+def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digits=None, sort=True):
     lfn = plotdir+'/'+plotname+'.svg'
     if leg_entries is None:
         assert ax is not None
@@ -1237,7 +1237,8 @@ def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digi
     figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(leg_entries) / 4.))
     if ax is None:
         fig, ax = mpl_init()
-        for tlab, lfo in sorted((str(l), fo) for l, fo in leg_entries.items()):  # have to convert labels to str in case e.g. one of them's None
+        items = sorted((str(l), fo) for l, fo in leg_entries.items()) if sort else ((str(l), fo) for l, fo in leg_entries.items())  # have to convert labels to str in case e.g. one of them's None
+        for tlab, lfo in items:
             if n_digits is not None and tlab is not None:
                 tlab = utils.round_to_n_digits(float(tlab), 2)
             ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
