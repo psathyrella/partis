@@ -1509,18 +1509,13 @@ def compare_germline_usage(glfos, usage_dicts, region, names=None, debug=0, max_
     if missing:
         raise Exception('missing sequences for %d gene(s) in compare_germline_usage: %s' % (len(missing), ' '.join(missing)))
 
-    # Multiple sequence alignment of all genes
-    seqfos = [{'name': g, 'seq': all_seqs[g]} for g in all_genes]
-    msa_info = utils.align_many_seqs(seqfos)
-    aligned = {sfo['name']: sfo['seq'] for sfo in msa_info}
-
-    # Build pairwise distance matrix (counting gap-vs-ACGT as differences, but skipping Ns)
+    # Build pairwise Levenshtein distance matrix
+    import Levenshtein as Lev
     n = len(all_genes)
     cost_matrix = np.zeros((n, n), dtype=float)
-    hdist_skip = set(utils.all_ambiguous_bases)  # skip ambiguous bases but *not* gaps
     for i in range(n):
         for j in range(i + 1, n):
-            d = utils.hamming_distance(aligned[all_genes[i]], aligned[all_genes[j]], skip_chars=hdist_skip)
+            d = Lev.distance(all_seqs[all_genes[i]], all_seqs[all_genes[j]])
             cost_matrix[i, j] = d
             cost_matrix[j, i] = d
 

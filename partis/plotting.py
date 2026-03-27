@@ -1552,7 +1552,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgco
              '<tr>']
 
     def add_newline(lines, header=None):
-        if new_table_each_row:
+        if new_table_each_row or header is not None:
             endlines, startlines = ['</tr>', '</table>'], ['<table>', '<tr>']
         else:
             endlines, startlines = ['</tr>'], ['<tr>']

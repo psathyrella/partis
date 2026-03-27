@@ -509,7 +509,10 @@ class PartitionDriver(object):
 
         if len(annotation_list) > 0:
             print('%s%s' % (extra_str, utils.color('green', 'annotations:')))
-            if dont_sort:
+            if getattr(self.args, 'shuffle', False):
+                sorted_annotations = list(annotation_list)
+                random.shuffle(sorted_annotations)
+            elif dont_sort:
                 sorted_annotations = annotation_list
             else:
                 sorted_annotations = sorted(annotation_list, key=lambda l: len(l['unique_ids']), reverse=True)
