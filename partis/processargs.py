@@ -12,7 +12,7 @@ from . import treeutils
 def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
 
-actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations']
+actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations', 'create-disjoint-groups', 'assemble-groups']
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
@@ -81,25 +81,34 @@ def get_workdir(batch_system):  # split this out so we can use it in datascripts
 
 # ----------------------------------------------------------------------------------------
 def process(args):
+    def auto_enable_paired_loci(reason):
+        print('  note: %s: turning on --paired-loci to use multi-locus infrastructure (also --keep-all-unpaired-seqs and --no-pairing-info; other loci will be empty)' % reason)
+        args.keep_all_unpaired_seqs = True
+        sys.argv.append('--keep-all-unpaired-seqs')
+        args.paired_loci = True
+        sys.argv.append('--paired-loci')
+        args.no_pairing_info = True
+        sys.argv.append('--no-pairing-info')
+        if args.paired_outdir is None:
+            args.paired_outdir = utils.getprefix(args.outfname)
+            print('         --outfname converted to --paired-outdir %s (per-locus outputs will be e.g. %s/partition-igh.yaml)' % (args.paired_outdir, args.paired_outdir))
+            args.outfname = None
+            utils.remove_from_arglist(sys.argv, '--outfname', has_arg=True)
+
     if args.action == 'subset-partition':
         if args.infname is None and args.paired_indir is None:
             raise Exception('have to set either --infname or --paired-indir for \'subset-partition\'')
         if args.outfname is None and args.paired_outdir is None:
             raise Exception('have to set either --outfname or --paired-outdir for \'subset-partition\'')
         if not args.paired_loci:
-            print('  note: turning on --paired-loci since \'subset-partition\' requires it (and turning on --keep-all-unpaired-seqs)')
-            args.keep_all_unpaired_seqs = True
-            sys.argv.append('--keep-all-unpaired-seqs')
-            args.paired_loci = True
-            sys.argv.append('--paired-loci')
-            if args.paired_outdir is None:
-                args.paired_outdir = utils.getprefix(args.outfname)
-                args.outfname = None
-                utils.remove_from_arglist(sys.argv, '--outfname', has_arg=True)
+            auto_enable_paired_loci('subset-partition')
         if args.paired_outdir is None:
             raise Exception('have to set --paired-outdir (or --outfname) for \'subset-partition\'')
         if args.seed_unique_id is not None:  # note sure that it'd be much work, but there's much less reason to need it
             raise Exception('--seed-unique-id is not yet supported with \'subset-partition\'')
+
+    if args.action == 'partition' and args.disjoint_groups and not args.paired_loci:
+        auto_enable_paired_loci('--disjoint-groups')
 
     if args.outfname is None and args.paired_outdir is None and args.action in utils.existing_output_actions:
         raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)

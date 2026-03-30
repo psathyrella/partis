@@ -18,6 +18,7 @@ from io import open
 import colored_traceback.always
 import os
 import json
+import yaml
 import csv
 import operator
 import glob
@@ -37,18 +38,102 @@ import partis.seqfileopener as seqfileopener
 from partis.partitiondriver import PartitionDriver
 from partis.clusterpath import ClusterPath
 import partis.paircluster as paircluster
+import partis.disjointgrouper as disjointgrouper
 from partis.parametercounter import ParameterCounter
 from partis.corrcounter import CorrCounter
 from partis.waterer import Waterer
 
 # ----------------------------------------------------------------------------------------
-def find_cmd(cmd):
-    if shutil.which(os.path.basename(cmd)):  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
-        return os.path.basename(cmd)
-    elif os.path.exists(cmd):
-        return cmd
+def strip_paired_args(clist, args):
+    # Core arg stripping shared by build_single_locus_cmd() and prep_args() in run_step().
+    # Takes an already-deep-copied sys.argv as <clist>, resolves --arg=val syntax, and strips
+    # args whose effects are either paired/multi-locus specific or are handled at the outer level
+    # (e.g. --dont-calculate-annotations is managed by the caller, not the single-locus subprocess).
+    # Returns the modified clist.
+    # NOTE: callers may strip additional args beyond these (e.g. prep_args strips --prepend-coverage-command
+    # after its coverage prepend logic, and build_single_locus_cmd strips --is-simu for disjoint groups)
+    clist[0] = utils.find_cmd(clist[0])
+    if any('=' in a for a in clist):  # handle --arg=val style syntax
+        new_clist = []
+        for cstr in clist:
+            if '=' in cstr and hasattr(args, cstr.split('=')[0].lstrip('-').replace('-', '_')):
+                new_clist += cstr.split('=')
+            else:
+                new_clist.append(cstr)
+        clist[:] = new_clist
+    # remove boolean args that are paired-specific or whose effects are handled at the outer level
+    for argname in ['--paired-loci', '--dry-run', '--reverse-negative-strands',
+                    '--random-seed-seq', '--dont-calculate-annotations', '--guess-pairing-info',
+                    '--no-pairing-info', '--remove-nonfunctional-seqs']:
+        utils.remove_from_arglist(clist, argname)
+    # remove valued args that are paired-specific or handled at the outer level
+    for argname in ['--single-light-locus', '--paired-indir', '--paired-outdir', '--light-chain-fractions', '--seed-loci',
+                    '--n-random-queries', '--n-max-queries', '--existing-output-run-cfg']:
+        utils.remove_from_arglist(clist, argname, has_arg=True)
+    return clist
+
+# ----------------------------------------------------------------------------------------
+def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, parameter_dir=None, input_metafnames=None, extra_args=None):
+    # Build a single-locus subprocess command from sys.argv with full arg forwarding.
+    # Uses strip_paired_args() for core arg stripping, then adds locus-specific overrides.
+    clist = strip_paired_args(copy.deepcopy(sys.argv), args)
+    # strip additional args not needed for disjoint per-group commands
+    for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
+                    '--disjoint-groups', '--prepend-coverage-command',
+                    '--plot-annotation-performance']:  # requires --is-simu which is also stripped
+        utils.remove_from_arglist(clist, argname)
+    for argname in ['--n-subsets', '--n-max-disjoint-jobs', '--n-sub-procs']:
+        utils.remove_from_arglist(clist, argname, has_arg=True)
+    # set action and locus
+    clist[clist.index(args.action)] = tmpaction
+    utils.insert_in_arglist(clist, ['--locus', ltmp], tmpaction)
+    clist.append('--crash-on-duplicate-uids')
+    # for non-cache-parameters actions, refuse to auto-cache
+    if tmpaction != 'cache-parameters' and '--refuse-to-cache-parameters' not in clist:
+        clist += ['--refuse-to-cache-parameters']
+    # override paths
+    if infname is not None:
+        utils.replace_in_arglist(clist, '--infname', infname)
+    if outfname is not None:
+        utils.insert_in_arglist(clist, ['--outfname', outfname], '--infname' if '--infname' in clist else None, has_arg=True)
+    if parameter_dir is not None:
+        utils.replace_in_arglist(clist, '--parameter-dir', parameter_dir)
+    if input_metafnames is not None:
+        utils.replace_in_arglist(clist, '--input-metafnames', ':'.join(input_metafnames))
+    # remove --is-simu: per-group FASTAs lack simulation metadata; CCFs are calculated post-merge
+    utils.remove_from_arglist(clist, '--is-simu')
+    if extra_args is not None:
+        clist += extra_args
+    return ' '.join(clist)
+
+# ----------------------------------------------------------------------------------------
+def sw_cache_path(locus_pdir):
+    return '%s/sw-cache.yaml' % locus_pdir
+
+# ----------------------------------------------------------------------------------------
+def disjoint_group_action(args):
+    # standalone entry point for disjoint-group action (for running steps on separate batch systems)
+    # --sw-cachefname: single file, colon-separated paths, or a directory containing chunk sw caches
+    if args.sw_cachefname is not None:
+        sw_cache_paths = args.sw_cachefname.split(':') if ':' in args.sw_cachefname else args.sw_cachefname
     else:
-        return '%s/bin/%s' % (partis_dir, os.path.basename(cmd))
+        sw_cache_paths = sw_cache_path('%s/%s' % (args.parameter_dir, args.locus))
+    outdir = utils.non_none([args.paired_outdir, args.workdir])
+    if outdir is None:
+        raise Exception('--paired-outdir or --workdir must be set')
+    disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
+    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir)
+
+# ----------------------------------------------------------------------------------------
+def assemble_groups_action(args):
+    # standalone entry point for assemble-groups action
+    outdir = utils.non_none([args.paired_outdir, args.workdir])
+    if outdir is None:
+        raise Exception('--paired-outdir or --workdir must be set')
+    if args.outfname is None:
+        raise Exception('--outfname must be set for assemble-groups')
+    disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
+    disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname)
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
@@ -97,7 +182,7 @@ def run_simulation(args):
         for iproc in range(args.n_procs):
             n_sub_events = get_sub_events(iproc)
             clist = copy.deepcopy(sys.argv)
-            clist[0] = find_cmd(clist[0])
+            clist[0] = utils.find_cmd(clist[0])
             utils.replace_in_arglist(clist, '--n-procs', '1')
             clist.append('--im-a-subproc')
             utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
@@ -326,6 +411,12 @@ def is_subset_action(action):
 
 # ----------------------------------------------------------------------------------------
 def subset_partition(args):
+    if args.input_metafnames is None and not args.no_pairing_info:
+        if args.paired_indir is None:
+            args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
+        else:
+            args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
+        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
     # ----------------------------------------------------------------------------------------
     def subdir(igroup):
         return '%s/isub-%d' % (args.paired_outdir, igroup)
@@ -338,7 +429,7 @@ def subset_partition(args):
     # ----------------------------------------------------------------------------------------
     def get_cmd(infname, outdir, merged_odir=None):
         clist = copy.deepcopy(sys.argv)
-        clist[0] = find_cmd(clist[0])
+        clist[0] = utils.find_cmd(clist[0])
         assert is_subset_action(clist[1])  # ugh, but utils.replace_in_arglist() only handles -- style arg strs
         clist[1] = args.action.split('-')[1]
         utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
@@ -352,9 +443,11 @@ def subset_partition(args):
             utils.remove_from_arglist(clist, '--is-simu')  # don't want to deal with subsetting input simulation file (and dual-use of --paired-indir), so just ignore --is-simu until merged run
         else:  # merged run
             utils.remove_from_arglist(clist, '--infname', has_arg=True)
+            utils.remove_from_arglist(clist, '--disjoint-groups')  # merged re-partition should not use disjoint grouping (it runs continue-from-input-partition)
             if args.paired_indir is None:  # if --paired-indir wasn't set (i.e. --infname *was* set), we want to use the extract-pairing-info/split-loci output in --paired-outdir
                 clist += ['--paired-indir', merged_odir]
-            clist += ['--input-partition-fname', merged_odir, '--continue-from-input-partition', '--parameter-dir', '%s/parameters'%merged_odir,
+            utils.replace_in_arglist(clist, '--parameter-dir', '%s/parameters'%merged_odir)
+            clist += ['--input-partition-fname', merged_odir, '--continue-from-input-partition',
                       '--ignore-sw-pair-info', '--refuse-to-cache-parameters', '--ignore-default-input-metafile']  # (don't need to ignore default input metafile for subset runs since they use --infname)
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------
@@ -366,7 +459,7 @@ def subset_partition(args):
         print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'running %s'%args.action), len(input_info), args.n_subsets, infname))
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
         sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
-                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
+                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
         for isub, sfos in enumerate(sfo_lists):
             ofn = ptnfn(subdir(isub), 'igh')
             if os.path.exists(ofn):
@@ -396,12 +489,6 @@ def subset_partition(args):
         #     for ltmp in utils.sub_loci(args.ig_or_tr):
         #         utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
     # ----------------------------------------------------------------------------------------
-    if args.input_metafnames is None:
-        if args.paired_indir is None:
-            args.input_metafnames = ['%s/input/meta.yaml' % args.paired_outdir]  # this is where prep_inputs() will put them
-        else:
-            args.input_metafnames = ['%s/meta.yaml' % args.paired_indir]
-        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
     infname = args.infname
     if infname is None and os.path.exists('%s/all-seqs.fa'%args.paired_indir):  # simulation has a single file
         infname = '%s/all-seqs.fa'%args.paired_indir
@@ -592,13 +679,14 @@ def run_all_loci(args, ig_or_tr='ig'):
         mfname = getofn(None, joint=True, input_meta=True)
         if is_subset_action(args.action):  # UGH
             mfname = '%s/input/%s' % (os.path.dirname(mfname), os.path.basename(mfname))
+        if utils.getsuffix(args.infname) == '.yaml':  # convert .yaml to .fa for split-loci (needed regardless of pairing info)
+            new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
+            if not os.path.exists(new_fn):
+                print('  note: converting input .yaml file to .fa for split-loci (new --infname: %s)' % new_fn)
+                utils.simplerun('%s %s %s' % (utils.find_cmd('parse-output.py'), args.infname, new_fn), extra_str='    ')
+            args.infname = new_fn
         if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
-            if utils.getsuffix(args.infname) == '.yaml':
-                new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
-                print('  note: converting input .yaml file to .fa so we can extract pairing info + split loci (new --infname: %s)' % new_fn)
-                utils.simplerun('%s %s %s' % (find_cmd('parse-output.py'), args.infname, new_fn), extra_str='    ')
-                args.infname = new_fn
-            cmd = '%s%s %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', find_cmd('extract-pairing-info.py'), args.infname, mfname)
+            cmd = '%s%s %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', utils.find_cmd('extract-pairing-info.py'), args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
             if args.n_random_queries is not None:
@@ -615,7 +703,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print('  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info')
         if is_subset_action(args.action):  # don't want loci to be split, since we pass all loci to each subset process in one file
             return
-        cmd = '%s%s %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', find_cmd('split-loci.py'), args.infname, getodir())
+        cmd = '%s%s %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', utils.find_cmd('split-loci.py'), args.infname, getodir())
         if args.reverse_negative_strands:
             cmd += ' --reverse-negative-strands'
         if os.path.exists(mfname):  # NOTE this won't show up up in dry_run since it won't exist yet
@@ -681,33 +769,7 @@ def run_all_loci(args, ig_or_tr='ig'):
     def run_step(tmpaction, ltmp, auto_cache=False, skip_missing_input=False, skip_missing_output=False, lpair=None, joint=False):
         # ----------------------------------------------------------------------------------------
         def prep_args(ltmp):
-            clist = copy.deepcopy(sys.argv)
-            clist[0] = find_cmd(clist[0])
-            if any('=' in a for a in clist):  # arg (have to handle --arg=val style syntax)
-                new_clist = []
-                for cstr in clist:
-                    if '=' in cstr and hasattr(args, cstr.split('=')[0].lstrip('-').replace('-', '_')):
-                        print('    note: replacing \'%s\' --> \'%s\' in clist' % (cstr, cstr.split('=')))
-                        new_clist += cstr.split('=')
-                    else:
-                        new_clist.append(cstr)
-                clist = new_clist
-            utils.remove_from_arglist(clist, '--paired-loci')
-            utils.remove_from_arglist(clist, '--single-light-locus', has_arg=True)
-            utils.remove_from_arglist(clist, '--dry-run')
-            utils.remove_from_arglist(clist, '--reverse-negative-strands')
-            utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
-            utils.remove_from_arglist(clist, '--paired-outdir', has_arg=True)
-            utils.remove_from_arglist(clist, '--light-chain-fractions', has_arg=True)
-            utils.remove_from_arglist(clist, '--seed-loci', has_arg=True)
-            utils.remove_from_arglist(clist, '--random-seed-seq')
-            utils.remove_from_arglist(clist, '--dont-calculate-annotations')  # we need the single-chain partition steps to write annotations, although maybe it's just for pairing info so maybe we could write that separately, but whatever
-            utils.remove_from_arglist(clist, '--guess-pairing-info')
-            utils.remove_from_arglist(clist, '--no-pairing-info')
-            utils.remove_from_arglist(clist, '--n-random-queries', has_arg=True)
-            utils.remove_from_arglist(clist, '--n-max-queries', has_arg=True)
-            utils.remove_from_arglist(clist, '--existing-output-run-cfg', has_arg=True)
-            utils.remove_from_arglist(clist, '--remove-nonfunctional-seqs')  # have to do this after we have both chains, so we can remove both seqs if either one is nonfunctional
+            clist = strip_paired_args(copy.deepcopy(sys.argv), args)  # core paired/multi-locus arg stripping shared with build_single_locus_cmd()
             if tmpaction == 'view-output':
                 utils.remove_from_arglist(clist, '--input-partition-fname', has_arg=True)
             if args.prepend_coverage_command:
@@ -764,7 +826,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     if args.seed_unique_id is not None and tmpaction in ['plot-partitions', 'view-output', 'get-selection-metrics']:  # 'partition',   # for 'partition' we no longer want to run with seed unique id set, since we're now dropping unseeded clusters beforehand, and don't want the single-chain procs to drop them (since that leaves us with seemingly-unpaired seqs later on)
                         utils.replace_in_arglist(clist, '--seed-unique-id', seedid(ltmp))
                     if args.sw_cachefname is None:
-                        clist += ['--sw-cachefname', '%s/sw-cache.yaml'%getpdir(ltmp)]
+                        clist += ['--sw-cachefname', sw_cache_path(getpdir(ltmp))]
                     if tmpaction != 'cache-parameters':
                         utils.insert_in_arglist(clist, ['--outfname', getofn(ltmp, joint=joint, lpair=lpair)], '--infname' if '--infname' in clist else None, has_arg=True)
                         if args.paired_outdir is None:
@@ -1061,14 +1123,14 @@ def run_all_loci(args, ig_or_tr='ig'):
     def remove_unseeded_seqs(debug=True):
         # ----------------------------------------------------------------------------------------
         def read_sw(ltmp):
-            if not os.path.exists('%s/sw-cache.yaml'%getpdir(ltmp)):
+            if not os.path.exists(sw_cache_path(getpdir(ltmp))):
                 return []
             wargs = copy.deepcopy(args)
             wargs.seed_unique_id = seedid(ltmp) if ltmp in args.seed_loci else None
             wargs.locus = ltmp
             wargs.is_data = True  # don't need the simu info, and it would complicate things to make it work
             waterer = Waterer(wargs, None, None, None, None, locus=ltmp)
-            waterer.read_cachefile('%s/sw-cache.yaml'%getpdir(ltmp), ignore_seed_unique_id=True, quiet=True)
+            waterer.read_cachefile(sw_cache_path(getpdir(ltmp)), ignore_seed_unique_id=True, quiet=True)
             return [waterer.info[q] for q in waterer.info['queries']]
         # ----------------------------------------------------------------------------------------
         print('   removing seqs very different from seed seq')
@@ -1289,7 +1351,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         titlestr = ltmp
         # if ccfs is not None and ltmp in ccfs:
         #     titlestr += ':@specif.%.2f'%ccfs[ltmp][0]
-        cmdstr = '%s --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (find_cmd('compare-plotdirs.py'), cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
+        cmdstr = '%s --outdir %s/%s --names single:joint --plotdirs %s/%s:%s/%s' % (utils.find_cmd('compare-plotdirs.py'), cfpdir, ltmp, getplotdir(ltmp, single_chain=True), subd, getplotdir(ltmp), subd)
         cmdstr += ' --make-parent-html --add-to-title %s --log xy --translegend=0.07:0.07' % titlestr
         utils.simplerun(cmdstr, dryrun=args.dry_run)
 
@@ -1353,6 +1415,62 @@ def run_all_loci(args, ig_or_tr='ig'):
     if args.tree_inference_subdir is not None:
         args.tree_inference_outdir = '%s/%s' % (args.tree_inference_outdir, args.tree_inference_subdir)
 
+    # ----------------------------------------------------------------------------------------
+    def run_disjoint_partition(ltmp):
+        # run partition on a single locus using disjoint CDR3-length grouping: group by CDR3 length,
+        # partition each group independently, concatenate results.
+        ifn = getifn(ltmp)
+        if not os.path.exists(ifn) or os.stat(ifn).st_size == 0:
+            print('  %s: %s, skipping disjoint partition (%s)' % (ltmp, 'input file missing' if not os.path.exists(ifn) else 'zero length input file', ifn))
+            return
+        disjoint_dir = '%s/disjoint-groups/%s' % (getodir(single_chain=True), ltmp)
+        print('%s %s with disjoint groups:' % (utils.color('blue_bkg', 'partition'), utils.color('blue', ltmp)))
+
+        # step 1: CDR3 grouping
+        manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
+        if os.path.exists(manifest_path):
+            print('%s %s: manifest exists, skipping grouping: %s' % (utils.color('blue_bkg', 'create-disjoint-groups'), ltmp, manifest_path))
+            manifest = disjointgrouper.read_manifest(manifest_path)
+        else:
+            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp))
+
+        # step 2: partition each CDR3 group
+        if len(manifest['groups']) == 0:
+            raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s' % manifest_path)
+        cmdfos = []
+        n_max_jobs = args.n_max_disjoint_jobs
+        for ginfo in manifest['groups']:
+            partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+            partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
+            ginfo['partition_path'] = partition_rel_path
+            if os.path.exists(partition_path):
+                print('    group %d (cdr3 %d): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length']))
+                continue
+            fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
+            sw_cache_group = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (disjoint_dir, ginfo['cdr3_length'], ltmp)
+            extra_args = ['--sw-cachefname', sw_cache_group]
+            if args.n_sub_procs is not None:
+                extra_args += ['--n-procs', str(args.n_sub_procs)]
+            cmd = build_single_locus_cmd('partition', ltmp, args,
+                                         infname=fasta_path, outfname=partition_path, parameter_dir=getpdir(ltmp),
+                                         extra_args=extra_args)
+            group_dir = '%s/groups/cdr3-%d' % (disjoint_dir, ginfo['cdr3_length'])
+            cmdfos.append({'cmd_str' : cmd, 'outfname' : partition_path, 'workdir' : group_dir})
+        if len(cmdfos) > 0:
+            if args.dry_run:
+                print('    --dry-run: would run %d group partition jobs (%d concurrent)' % (len(cmdfos), n_max_jobs))
+            else:
+                print('    running %d group partition jobs (%d concurrent, logs in %s/groups/cdr3-*/out):' % (len(cmdfos), n_max_jobs, disjoint_dir), end=' ')
+                utils.run_cmds(cmdfos, n_max_procs=n_max_jobs, debug='write', progress=True)
+        # write updated manifest with partition paths
+        if not args.dry_run:
+            with open(manifest_path, 'w') as mfile:
+                yaml.dump(manifest, mfile, width=400, default_flow_style=False)
+
+        # step 3: concatenate per-group partition results
+        disjointgrouper.assemble_groups(ltmp, disjoint_dir, getofn(ltmp))
+
+    # ----------------------------------------------------------------------------------------
     if args.action == 'simulate':
         if not args.dry_run:
             paircluster.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
@@ -1385,7 +1503,10 @@ def run_all_loci(args, ig_or_tr='ig'):
             if args.seed_unique_id is not None and args.action == 'partition':
                 remove_unseeded_seqs()
             for ltmp in sloci():
-                run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions', skip_missing_output=runs_on_existing_output(args.action))
+                if args.disjoint_groups and args.action == 'partition':
+                    run_disjoint_partition(ltmp)
+                else:
+                    run_step(args.action, ltmp, skip_missing_input=args.action != 'plot-partitions', skip_missing_output=runs_on_existing_output(args.action))
         if args.action in ['partition', 'merge-paired-partitions', 'annotate'] and not args.dry_run:  # ok it's weird to combine inf chains for 'annotate', but really we just want the merged/joint heavy chain output file in the normal location
             combine_inf_chains()
         ext_actions = []
@@ -1660,6 +1781,8 @@ subconfig = collections.OrderedDict((
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
     ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
+    ('create-disjoint-groups',    {'func' : disjoint_group_action, 'help' : 'Split sequences into disjoint groups by cdr3 length for a single locus, writing per-group fastas, sw-cache subsets, and a manifest yaml. Requires --parameter-dir and --locus.'}),
+    ('assemble-groups',   {'func' : assemble_groups_action, 'help' : 'Validate and concatenate per-group partition outputs from disjoint grouping for a single locus. Requires --locus and --paired-outdir (or --outfname).'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -1720,6 +1843,9 @@ subargs['partition'].append({'name' : '--add-pairwise-clustering-metrics', 'kwar
 subargs['partition'].append({'name' : '--naive-hamming-cluster', 'kwargs' : {'action' : 'store_true', 'help' : 'agglomerate purely with naive hamming distance, i.e. set the low and high preclustering bounds to the same value. Not recommended at this point: if you want fast use --naive-vsearch. (Default clustering uses naive hamming distance enough that it\'s not much slower than this, anyway).'}})
 subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwargs' : {'type' : int, 'default' : 50000, 'help' : 'If the repertoire has more than this many seqs, --naive-vsearch (--fast) is turned on, i.e. naive vsearch is used for clustering without any likelihoods. Turn off with --no-naive-vsearch.'}})
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
+subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length, then partition each group independently and concatenate. Speeds up large single-chain partitions by splitting into guaranteed-disjoint subsets.'}})
+subargs['partition'].append({'name' : '--n-max-disjoint-jobs', 'kwargs' : {'type' : int, 'default' : 3, 'help' : 'Maximum number of disjoint CDR3-group partition jobs to run concurrently.'}})
+subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
@@ -1799,6 +1925,7 @@ subargs['plot-partitions'].append({'name' : '--seed-unique-id', 'kwargs' : {'hel
 subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 'see help for this option under \'partition\' action'}})  # NOTE do *not* move these up above -- we forbid people to set them for auto parameter caching (see exception above)
 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
+
 
 sub_arg_groups = {'subset-partition' : ['partition'], 'subset-annotate' : ['annotate']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
 

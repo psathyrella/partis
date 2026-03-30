@@ -29,6 +29,7 @@ import operator
 import yaml
 import six
 import hashlib
+import shutil
 from pathlib import Path
 from io import open
 try:
@@ -52,6 +53,15 @@ def csv_wmode(mode='w'):
 # ----------------------------------------------------------------------------------------
 def get_partis_dir():
     return str(Path(__file__).resolve().parent.parent)
+
+# ----------------------------------------------------------------------------------------
+def find_cmd(cmd):
+    if shutil.which(os.path.basename(cmd)):  # use version in PATH if it's there (pipx seems to leave two incompatible versions lying around)
+        return os.path.basename(cmd)
+    elif os.path.exists(cmd):
+        return cmd
+    else:
+        return '%s/bin/%s' % (get_partis_dir(), os.path.basename(cmd))
 
 # ----------------------------------------------------------------------------------------
 def fsdir():
@@ -1060,7 +1070,7 @@ def evenly_split_list(inlist, n_subsets, dbgstr='items'):
 # n_max_queries: take only this many (after random shuffling, see notes below), n_random_queries: take this many at random, n_subsets: split into this many groups
 # NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
 def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_max_queries=-1, n_random_queries=None, n_subsets=None, input_info=None,
-                          seed_unique_ids=None, queries_to_include=None, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
+                          seed_unique_ids=None, queries_to_include=None, no_pairing_info=False, debug=False):  # yes i hate that they have different defaults, but it has to match the original partis arg, which i don't want to change
     # ----------------------------------------------------------------------------------------
     def get_final_seqfos(final_qlists, dbgarg, dbgstr):
         final_sfos = [sfdict[u] for l in final_qlists for u in l]  # this loses the original order from <seqfos>, but the original way I preserved that order was super slow, and whatever who cares
@@ -1079,7 +1089,9 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     pvals = [n_max_queries, n_random_queries, n_subsets]
     if pvals == [-1, None, None] or pvals.count(None) + pvals.count(-1) != 2:  # not really correct (-1 isn't default for the second two) but why would you set them to that, anyway?
         raise Exception('have to set exactly 1 of [n_max_queries, n_random_queries, n_subsets], but got %s %s %s' % (n_max_queries, n_random_queries, n_subsets))
-    if input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
+    if no_pairing_info:  # each sequence is its own group (no droplet grouping)
+        drop_query_lists = [[s['name']] for s in seqfos]
+    elif input_info is None:  # default: group seqfos by splitting each uid into droplet id etc
         _, drop_query_lists = get_droplet_groups([s['name'] for s in seqfos], droplet_id_separators, droplet_id_indices, return_lists=True, debug=debug)
     else:  # but if we already have pair info in <input_info>
         _, drop_query_lists = get_droplet_groups_from_pair_info(input_info, droplet_id_separators, droplet_id_indices, return_lists=True)
@@ -5067,7 +5079,7 @@ def check_annotation_glfo_consistency(glfo, annotation_list, die_on_error=False,
     return not any_missing
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, add_implicit_info_to_returned_objects=False, debug=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, add_implicit_info_to_returned_objects=False, best_partition_only=False, debug=False):
     from . import glutils
     if input_labels is not None:
         assert len(input_labels) == len(yaml_list)
@@ -5082,6 +5094,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
             translate_uids(annotation_list, trfcn=trfcn, translate_pids=True, cpath=cpath)
         if debug:
             print('        %d sequences in %d clusters from %s' % (sum(len(l['unique_ids']) for l in annotation_list), len(annotation_list), infname))
+            sys.stdout.flush()
         if remove_duplicates:  # NOTE this doesn't catch duplicates *within* each subfile, but atm I'm only worried about the case where they appear at most once in each subfile, so oh well
             annotation_list = [l for l in annotation_list if ':'.join(l['unique_ids']) not in merged_keys]
             for ptn in cpath.partitions:
@@ -5089,13 +5102,26 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
         n_event_list.append(len(annotation_list))
         n_seq_list.append(sum(len(l['unique_ids']) for l in annotation_list))
         if merged_cpath is None:
-            merged_cpath = cpath
+            if best_partition_only:
+                if cpath is None or cpath.i_best is None:
+                    raise Exception('best_partition_only=True but cpath has no best partition for %s' % infname)
+                from .clusterpath import ClusterPath
+                merged_cpath = ClusterPath()
+                # logprob set to 0 because independent partition runs are not comparable on the same log-probability scale, so summing is not meaningful
+                merged_cpath.add_partition(cpath.partitions[cpath.i_best], logprob=0., n_procs=1)
+            else:
+                merged_cpath = cpath
         else:
-            assert len(cpath.partitions) == len(merged_cpath.partitions)
-            assert cpath.i_best == merged_cpath.i_best  # not sure what to do otherwise (and a.t.m. i'm only using this  to merge simulation files, which only ever have one partition)
-            for ip in range(len(cpath.partitions)):
-                merged_cpath.partitions[ip] += cpath.partitions[ip]  # NOTE this assumes there's no overlap between files, e.g. if it's simulation and the files are totally separate
-                merged_cpath.logprobs[ip] += cpath.logprobs[ip]  # they'll be 0 for simulation, but may as well handle it
+            if best_partition_only:  # for disjoint grouping: independent partition runs have different numbers of HA steps, so just take the best partition from each
+                if cpath is None or cpath.i_best is None:
+                    raise Exception('best_partition_only=True but cpath has no best partition for %s' % infname)
+                merged_cpath.partitions[merged_cpath.i_best] += cpath.partitions[cpath.i_best]
+            else:
+                assert len(cpath.partitions) == len(merged_cpath.partitions)
+                assert cpath.i_best == merged_cpath.i_best  # not sure what to do otherwise (and a.t.m. i'm only using this  to merge simulation files, which only ever have one partition)
+                for ip in range(len(cpath.partitions)):
+                    merged_cpath.partitions[ip] += cpath.partitions[ip]  # NOTE this assumes there's no overlap between files, e.g. if it's simulation and the files are totally separate
+                    merged_cpath.logprobs[ip] += cpath.logprobs[ip]  # they'll be 0 for simulation, but may as well handle it
                 # NOTE i think i don't need to mess with these, but not totally sure: self.n_procs, self.ccfs, self.we_have_a_ccf
         if merged_glfo is None:
             merged_glfo = glfo
@@ -5647,7 +5673,7 @@ cmdfo_defaults = {  # None means by default it's absent
 #  - if both <n_max_procs> and <proc_limit_str> are set, it uses limit_procs() (i.e. a ps call) to count the total number of <proc_limit_str> running on the machine; whereas if only <n_max_procs> is set, it counts only subprocesses that it is itself running
 #  - debug: can be None (stdout mostly gets ignored), 'print' (printed), 'write' (written to file 'log' in logdir), or 'write:<logfname>' (same, but use <logfname>)
 def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batch_system=None, batch_options=None, batch_config_fname=None,
-             debug=None, ignore_stderr=False, sleep=True, n_max_procs=None, proc_limit_str=None, allow_failure=False):
+             debug=None, ignore_stderr=False, sleep=True, n_max_procs=None, proc_limit_str=None, allow_failure=False, progress=False):
     if len(cmdfos) == 0:
         raise Exception('zero length cmdfos')
     if n_max_tries is None:
@@ -5687,9 +5713,14 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
                     print(dbgstrs[iproc])
                     procs[iproc] = run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)
                     n_tries_list[iproc] += 1
+                elif progress:
+                    print('.', end=' ')
+                    sys.stdout.flush()
         sys.stdout.flush()
         if sleep:
             time.sleep(per_proc_sleep_time)
+    if progress:
+        print()  # newline after progress line
     for dstr in dbgstrs:
         if dstr != '':
             print(dstr)

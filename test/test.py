@@ -116,6 +116,9 @@ class Tester(object):
     def is_prod_test(self, ptest):
         return 'cache-parameters' in ptest or ptest == 'simulate'
     # ----------------------------------------------------------------------------------------
+    def is_subset_style_test(self, ptest):
+        return ptest.startswith('subset-')
+    # ----------------------------------------------------------------------------------------
     def sclust_sizes(self):  # NOTE depends on self.n_simu_leaves
         return (15, 20) if args.slow else (5, 10)
     # ----------------------------------------------------------------------------------------
@@ -175,7 +178,7 @@ class Tester(object):
                 self.tests['multi-annotate-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--simultaneous-true-clonal-seqs']}  # NOTE this is mostly different to the multi-seq annotations from the partition step because it uses the whole sample
             self.tests['partition-%s-simu'%input_stype] = {'extras' : ['--plot-annotation-performance', '--max-ccf-fail-frac', '0.10']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             if args.paired:
-                self.tests['subset-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
+                self.tests['subset-partition-%s-simu'%input_stype] = {'extras' : ['--disjoint-groups', '--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             # this runs ok, but i's need to modify some things so its output is actually checked self.tests['subset-annotate-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.15']} # '--biggest-logprob-cluster-to-calculate', '5', '--biggest-naive-seq-cluster-to-calculate', '5',
             self.tests['seed-partition-%s-simu'%input_stype] = {'extras' : ['--max-ccf-fail-frac', '0.10']}
             if not args.paired:
@@ -303,7 +306,7 @@ class Tester(object):
                 argfo['extras'] += ['--no-per-base-mutation']
         else:
             argfo['inpath'] = self.inpath('new' if args.bust_cache else 'ref', input_dtype)
-            if ptest.find('subset-') != 0:
+            if ptest.find('subset-') != 0:  # subset-partition handles its own parameter caching per-subset
                 argfo['parameter-dir'] = self.paramdir(input_stype, input_dtype)
             if not args.paired:
                 argfo['sw-cachefname'] = self.paramdir(input_stype, input_dtype) + '/sw-cache.yaml'
@@ -322,7 +325,7 @@ class Tester(object):
             argfo['action'] = 'cache-parameters'
         else:
             argfo['action'] = ptest
-        if ptest.find('subset-') == 0:
+        if ptest.startswith('subset-'):
             argfo['action'] = 'subset-%s' % argfo['action']
             argfo['extras'] += ['--n-subsets', '2']
 
@@ -397,7 +400,7 @@ class Tester(object):
             else:
                 info['extras'] += ['--seed-unique-id', seed_uid]
 
-        if name.find('subset-') == 0:
+        if self.is_subset_style_test(name):
             if os.path.exists(self.opath(name, st='new')):
                 clean_dir(self.opath(name, st='new'))
 
@@ -572,6 +575,11 @@ class Tester(object):
             print('  version %s input %s partitioning' % (version_stype, input_stype))
             print('  purity         completeness        test                    description')
         for ptest in ptest_list:
+            odir = self.opath(ptest, st=version_stype)
+            if not os.path.exists(odir):
+                if debug:
+                    print('    %s output dir does not exist, skipping: %s' % (ptest, odir))
+                continue
             if ptest not in pinfo:
                 pinfo[ptest] = OrderedDict()
             if args.paired:
@@ -587,7 +595,7 @@ class Tester(object):
                         ofn = sfns[0]
                     l_ccfs.append(read_cpath(ofn))
                 pinfo[ptest]['purity'], pinfo[ptest]['completeness'] = [numpy.mean(lcfs) for lcfs in zip(*l_ccfs)]
-                if 'seed-' not in ptest:
+                if 'seed-' not in ptest:  # seed-partition doesn't do pair cleaning
                     htmp = Hist(fname='%s/true-pair-clean-performance.csv' % self.opath(ptest, st=version_stype))
                     ttot = htmp.integral(False)
                     for pcat in self.pair_clean_metrics:
@@ -714,7 +722,7 @@ class Tester(object):
             alignstr = '' if len(metricstrs.get(metric, metric).strip()) < 5 else '-'
             print(('%8s %' + alignstr + '9s') % ('', metricstrs.get(metric, metric)), end=' ')
             for ptest in partition_ptests:
-                if 'seed-' in ptest and metric in self.pair_clean_metrics:  # ick
+                if 'seed-' in ptest and metric in self.pair_clean_metrics:  # seed-partition doesn't do pair cleaning
                     continue
                 if set(refpfo[ptest]) != set(newpfo[ptest]):
                     raise Exception('different metrics in ref vs new:\n  %s\n  %s' % (sorted(refpfo[ptest]), sorted(newpfo[ptest])))
@@ -807,6 +815,9 @@ class Tester(object):
 
         for name in self.tests:
             if args.quick and name not in self.quick_tests:
+                continue
+            if name not in times['ref']:
+                print('  %30s   no ref time (new test, run --bust-cache to generate)' % name)
                 continue
             print('  %30s   %7.1f' % (name, times['ref'][name]), end=' ')
             if name not in times['new']:
