@@ -771,7 +771,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def shall_we_reduce_n_procs(self, last_n_procs):
-        if not self.args.no_reduce_n_procs and self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples (--no-reduce-n-procs skips only this time-based check, for C++/Zig reproducibility since Zig is faster)
+        if not self.args.no_time_based_n_proc_reduction and self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples (--no-time-based-n-proc-reduction skips only this time-based check, for C++/Zig reproducibility since Zig is faster)
             return True
         n_calcd_per_process = self.get_n_calculated_per_process()
         if n_calcd_per_process < self.args.n_max_to_calc_per_process and last_n_procs > 2:  # should be replaced by time requirement, since especially in later iterations, the larger clusters make this a crappy metric (2 is kind of a special case, becase, well, small integers and all)
