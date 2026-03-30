@@ -460,6 +460,10 @@ def subset_partition(args):
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
         sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
                                                 seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
+        # strip input_info to only the meta fields needed for writing per-subset meta.yaml (frees the bulk of annotation data from memory)
+        meta_keys = set(utils.input_metafile_keys.values())
+        for uid, tline in input_info.items():
+            input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
         for isub, sfos in enumerate(sfo_lists):
             ofn = ptnfn(subdir(isub), 'igh')
             if os.path.exists(ofn):
