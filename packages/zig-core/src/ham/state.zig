@@ -13,6 +13,8 @@ const Transition = @import("transitions.zig").Transition;
 const Sequences = @import("sequences.zig").Sequences;
 const mathutils = @import("mathutils.zig");
 
+extern fn log(x: f64) f64;
+
 /// Matches C++ build define -DSTATE_MAX=500.
 pub const STATE_MAX: usize = 500;
 
@@ -125,7 +127,7 @@ pub const State = struct {
             self.germline_nuc = try allocator.dupe(u8, gn);
         }
         if (ambiguous_emission_prob) |aep| {
-            self.ambiguous_emission_logprob = @log(aep);
+            self.ambiguous_emission_logprob = log(aep);
         }
         if (ambiguous_char) |ac| {
             if (self.ambiguous_char.len > 0) allocator.free(self.ambiguous_char);

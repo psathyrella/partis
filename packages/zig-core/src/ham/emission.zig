@@ -11,6 +11,8 @@ const Track = @import("track.zig").Track;
 const Sequence = @import("sequences.zig").Sequence;
 const LexicalTable = @import("lexical_table.zig").LexicalTable;
 
+extern fn log(x: f64) f64;
+
 /// EPS for normalization check (matches C++ build define -DEPS=1e-6).
 const EPS: f64 = 1e-6;
 
@@ -66,7 +68,7 @@ pub const Emission = struct {
         for (0..alphabet_size) |ip| {
             const sym = trk.symbol(ip);
             const prob = probs_map.get(sym) orelse return error.MissingEmissionSymbol;
-            log_probs[ip] = @log(prob);
+            log_probs[ip] = log(prob);
             self.total += prob;
         }
         if (@abs(self.total - 1.0) >= EPS) {
