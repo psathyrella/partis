@@ -480,7 +480,7 @@ def subset_partition(args):
                 utils.jsdump('%s/meta.yaml'%subdir(isub), metafos)
             # NOTE to get args.seed_unique_id working, I'd need to run parameter caching as a separate step here (probably calling remove_action_specific_args()) (plus other stuff below)
             cmdfos.append({'cmd_str' : get_cmd(input_fn(subdir(isub)), subdir(isub)), 'outfname' : ofn, 'workdir' : subdir(isub), 'logdir' : subdir(isub)})
-        if len(cmdfos) > 0:
+        if not args.write_subsets_only and len(cmdfos) > 0:
             if args.dry_run:
                 print('    --dry-run: would run %d subset jobs' % len(cmdfos))
             else:
@@ -515,6 +515,9 @@ def subset_partition(args):
         print('  all subset partitions exist (e.g. %s)' % ptnfn(subdir(0), 'igh'))
     else:
         run_subsets(infname)
+    if args.write_subsets_only:
+        print('  --write-subsets-only: wrote %d subset input files to %s, exiting' % (args.n_subsets, args.paired_outdir))
+        return
 
     merged_odir = '%s/merged-subsets' % args.paired_outdir
     if os.path.exists(ptnfn(merged_odir, 'igh')):
@@ -1860,6 +1863,7 @@ subargs['partition'].append({'name' : '--n-max-disjoint-jobs', 'kwargs' : {'type
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
+subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
