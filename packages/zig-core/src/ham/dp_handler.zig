@@ -284,7 +284,7 @@ pub const DPHandler = struct {
 
         // No valid path
         if (best_kset.v == 0 and best_kset.d == 0) {
-            const name_str = try seqs.nameStr(allocator, ":");
+            const name_str = try seqs.nameStr(allocator, " "); // C++ name_str() default delimiter is space (sequences.h:62)
             defer allocator.free(name_str);
             const no_path_msg = try std.fmt.allocPrint(allocator, "    no valid paths for query {s}\n", .{name_str});
             defer allocator.free(no_path_msg);
