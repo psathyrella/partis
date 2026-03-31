@@ -14,6 +14,11 @@
 const std = @import("std");
 const math = std.math;
 
+// Use libc log/exp to match C++ bcrham bit-for-bit across all platforms.
+// Zig @log/@exp map to LLVM intrinsics which may differ from glibc on some CPUs.
+extern fn log(x: f64) f64;
+extern fn exp(x: f64) f64;
+
 /// Negative infinity constant for log-probability computations.
 /// Replaces the verbose `-std.math.inf(f64)` throughout the codebase.
 pub const NEG_INF: f64 = -math.inf(f64);
@@ -58,9 +63,9 @@ pub fn addInLogSpace(first: f64, second: f64) f64 {
     if (first == NEG_INF) return second;
     if (second == NEG_INF) return first;
     if (first > second) {
-        return first + @log(1.0 + @exp(second - first));
+        return first + log(1.0 + exp(second - first));
     } else {
-        return second + @log(1.0 + @exp(first - second));
+        return second + log(1.0 + exp(first - second));
     }
 }
 

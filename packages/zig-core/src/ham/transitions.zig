@@ -8,6 +8,8 @@
 const std = @import("std");
 const State = @import("state.zig").State;
 
+extern fn log(x: f64) f64;
+
 /// Transition from one HMM state to another with an associated log-probability.
 /// Corresponds to C++ `ham::Transition`.
 pub const Transition = struct {
@@ -25,7 +27,7 @@ pub const Transition = struct {
     pub fn init(allocator: std.mem.Allocator, to_state: []const u8, prob: f64) !Transition {
         return Transition{
             .to_state_name = try allocator.dupe(u8, to_state),
-            .log_prob = @log(prob),
+            .log_prob = log(prob),
             .to_state_ptr = null,
         };
     }

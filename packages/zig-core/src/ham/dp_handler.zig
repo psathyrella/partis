@@ -7,6 +7,7 @@
 /// C++ author: psathyrella/ham
 
 const std = @import("std");
+extern fn log(x: f64) f64;
 const Trellis = @import("trellis.zig").Trellis;
 const TracebackPath = @import("traceback_path.zig").TracebackPath;
 const Model = @import("model.zig").Model;
@@ -532,7 +533,7 @@ pub const DPHandler = struct {
             break :blk trell_ptr.ending_forward_log_prob;
         };
 
-        const gene_choice_score = @log(model.overall_prob);
+        const gene_choice_score = log(model.overall_prob);
         const final_score = mathutils.addWithMinusInfinities(uncorrected_score, gene_choice_score);
 
         if (self.scores.getPtr(gene)) |gene_scores| {

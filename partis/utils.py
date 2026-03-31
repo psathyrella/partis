@@ -5893,7 +5893,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
         err_str += [line]
     err_str = '\n'.join(err_str)
 
-    if 'bcrham' in cmd_str:
+    if 'bcrham' in cmd_str or 'partis-zig-core' in cmd_str:
         for line in logstrs['out'].split('\n'):  # print debug info related to --n-final-clusters/--min-largest-cluster-size force merging
             if 'force' in line:
                 print('    %s %s' % (color('yellow', 'force info:'), line))
