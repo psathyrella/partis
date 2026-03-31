@@ -644,31 +644,29 @@ pub const Glomerator = struct {
                 if (need_more) {
                     if (self.force_merge) {
                         path.finished = true;
-                        if (self.args.debug > 0) {
-                            if (self.args.n_final_clusters > 0) {
-                                const s = try std.fmt.allocPrint(self.allocator, "    couldn't merge beyond {d} clusters despite setting force merge\n", .{cur_size});
-                                defer self.allocator.free(s);
-                                try std.fs.File.stdout().writeAll(s);
-                            }
-                            if (self.args.min_largest_cluster_size > 0) {
-                                const s = try std.fmt.allocPrint(self.allocator, "    couldn't merge past a biggest cluster of {d} despite setting force merge\n", .{largest});
-                                defer self.allocator.free(s);
-                                try std.fs.File.stdout().writeAll(s);
-                            }
+                        // C++ always prints these (no debug check)
+                        if (self.args.n_final_clusters > 0) {
+                            const s = try std.fmt.allocPrint(self.allocator, "    couldn't merge beyond {d} clusters despite setting force merge\n", .{cur_size});
+                            defer self.allocator.free(s);
+                            try std.fs.File.stdout().writeAll(s);
+                        }
+                        if (self.args.min_largest_cluster_size > 0) {
+                            const s = try std.fmt.allocPrint(self.allocator, "    couldn't merge past a biggest cluster of {d} despite setting force merge\n", .{largest});
+                            defer self.allocator.free(s);
+                            try std.fs.File.stdout().writeAll(s);
                         }
                     } else {
                         self.force_merge = true;
-                        if (self.args.debug > 0) {
-                            if (self.args.n_final_clusters > 0) {
-                                const s = try std.fmt.allocPrint(self.allocator, "    setting force merge (currently have {d} clusters, requested {d})\n", .{ cur_size, self.args.n_final_clusters });
-                                defer self.allocator.free(s);
-                                try std.fs.File.stdout().writeAll(s);
-                            }
-                            if (self.args.min_largest_cluster_size > 0) {
-                                const s = try std.fmt.allocPrint(self.allocator, "    setting force merge (current biggest cluster {d}, requested {d})\n", .{ largest, self.args.min_largest_cluster_size });
-                                defer self.allocator.free(s);
-                                try std.fs.File.stdout().writeAll(s);
-                            }
+                        // C++ always prints these (no debug check)
+                        if (self.args.n_final_clusters > 0) {
+                            const s = try std.fmt.allocPrint(self.allocator, "    setting force merge (currently have {d} clusters, requested {d})\n", .{ cur_size, self.args.n_final_clusters });
+                            defer self.allocator.free(s);
+                            try std.fs.File.stdout().writeAll(s);
+                        }
+                        if (self.args.min_largest_cluster_size > 0) {
+                            const s = try std.fmt.allocPrint(self.allocator, "    setting force merge (current biggest cluster {d}, requested {d})\n", .{ largest, self.args.min_largest_cluster_size });
+                            defer self.allocator.free(s);
+                            try std.fs.File.stdout().writeAll(s);
                         }
                     }
                 } else {
