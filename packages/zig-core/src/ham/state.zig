@@ -14,6 +14,7 @@ const Sequences = @import("sequences.zig").Sequences;
 const mathutils = @import("mathutils.zig");
 
 extern fn log(x: f64) f64;
+extern fn exp(x: f64) f64;
 
 /// Matches C++ build define -DSTATE_MAX=500.
 pub const STATE_MAX: usize = 500;
@@ -307,7 +308,7 @@ pub const State = struct {
         for (0..alpha_size) |ip| {
             const is_germ = std.mem.eql(u8, trk.symbol(ip), self.germline_nuc);
             if (is_germ) {
-                old_mute_freq = 1.0 - @exp(new_log_probs[ip]);
+                old_mute_freq = 1.0 - exp(new_log_probs[ip]);
             }
         }
         std.debug.assert(old_mute_freq >= 0.0);
@@ -318,9 +319,9 @@ pub const State = struct {
         for (0..alpha_size) |ip| {
             const is_germ = std.mem.eql(u8, trk.symbol(ip), self.germline_nuc);
             if (is_germ) {
-                new_log_probs[ip] = @log(1.0 - new_mute_freq);
+                new_log_probs[ip] = log(1.0 - new_mute_freq);
             } else {
-                new_log_probs[ip] = @log(@exp(new_log_probs[ip]) * new_mute_freq / old_mute_freq);
+                new_log_probs[ip] = log(exp(new_log_probs[ip]) * new_mute_freq / old_mute_freq);
             }
         }
         try self.emission.replaceLogProbs(allocator, new_log_probs);
