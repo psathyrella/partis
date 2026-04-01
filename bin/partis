@@ -82,7 +82,7 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
                     '--disjoint-groups', '--prepend-coverage-command',
                     '--plot-annotation-performance']:  # requires --is-simu which is also stripped
         utils.remove_from_arglist(clist, argname)
-    for argname in ['--n-subsets', '--n-max-disjoint-jobs', '--n-sub-procs']:
+    for argname in ['--n-subsets', '--n-max-subprocs', '--n-sub-procs']:
         utils.remove_from_arglist(clist, argname, has_arg=True)
     # set action and locus
     clist[clist.index(args.action)] = tmpaction
@@ -484,8 +484,8 @@ def subset_partition(args):
             if args.dry_run:
                 print('    --dry-run: would run %d subset jobs' % len(cmdfos))
             else:
-                print('    running %d subset jobs (%d concurrent):' % (len(cmdfos), min(len(cmdfos), args.n_max_subset_jobs)))
-                utils.run_cmds(cmdfos, n_max_procs=args.n_max_subset_jobs, debug='write')
+                print('    running %d subset jobs (%d concurrent):' % (len(cmdfos), min(len(cmdfos), args.n_max_subprocs)))
+                utils.run_cmds(cmdfos, n_max_procs=args.n_max_subprocs, debug='write')
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
         # NOTE it would be nice to merge duplicates in here (from --collapse-duplicate-sequences, but jeez it seems like it'll be a bit fiddly to implement it
@@ -1453,7 +1453,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if len(manifest['groups']) == 0:
             raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s' % manifest_path)
         cmdfos = []
-        n_max_jobs = args.n_max_disjoint_jobs
+        n_max_jobs = args.n_max_subprocs
         for ginfo in manifest['groups']:
             partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
             partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
@@ -1859,12 +1859,11 @@ subargs['partition'].append({'name' : '--naive-hamming-cluster', 'kwargs' : {'ac
 subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwargs' : {'type' : int, 'default' : 50000, 'help' : 'If the repertoire has more than this many seqs, --naive-vsearch (--fast) is turned on, i.e. naive vsearch is used for clustering without any likelihoods. Turn off with --no-naive-vsearch.'}})
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
 subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length, then partition each group independently and concatenate. Speeds up large single-chain partitions by splitting into guaranteed-disjoint subsets.'}})
-subargs['partition'].append({'name' : '--n-max-disjoint-jobs', 'kwargs' : {'type' : int, 'default' : 3, 'help' : 'Maximum number of disjoint CDR3-group partition jobs to run concurrently.'}})
+subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Each job uses --n-procs processes internally.'}})
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
-subargs['subset-partition'].append({'name' : '--n-max-subset-jobs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of subset partition jobs to run concurrently. Each job uses --n-procs processes internally, so total CPU usage is approximately n-max-subset-jobs times n-procs.'}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
