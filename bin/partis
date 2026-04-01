@@ -460,6 +460,12 @@ def subset_partition(args):
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
         sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
                                                 seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info, debug=True)  # don't want to re-split droplet ids etc if pair info is already there (i.e. use input_info if it has pair info, which it probably does if input meta file is set)
+        # strip input_info to only the meta fields needed for writing per-subset meta.yaml (frees the bulk of annotation data from memory)
+        meta_keys = set(utils.input_metafile_keys.values())
+        for uid, tline in input_info.items():
+            input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
+        # write all subset input files first, then dispatch subset jobs concurrently
+        cmdfos = []
         for isub, sfos in enumerate(sfo_lists):
             ofn = ptnfn(subdir(isub), 'igh')
             if os.path.exists(ofn):
@@ -473,7 +479,13 @@ def subset_partition(args):
                     metafos[sfo['name']] = {mk : input_info[sfo['name']][lk][0] for mk, lk in utils.input_metafile_keys.items() if lk in input_info[sfo['name']]}
                 utils.jsdump('%s/meta.yaml'%subdir(isub), metafos)
             # NOTE to get args.seed_unique_id working, I'd need to run parameter caching as a separate step here (probably calling remove_action_specific_args()) (plus other stuff below)
-            utils.simplerun(get_cmd(input_fn(subdir(isub)), subdir(isub)), logfname='%s/partition.log'%subdir(isub), dryrun=args.dry_run, extra_str='  %s '%utils.color('blue', 'isub %d:'%isub))
+            cmdfos.append({'cmd_str' : get_cmd(input_fn(subdir(isub)), subdir(isub)), 'outfname' : ofn, 'workdir' : subdir(isub), 'logdir' : subdir(isub)})
+        if not args.write_subsets_only and len(cmdfos) > 0:
+            if args.dry_run:
+                print('    --dry-run: would run %d subset jobs' % len(cmdfos))
+            else:
+                print('    running %d subset jobs (%d concurrent):' % (len(cmdfos), min(len(cmdfos), args.n_max_subset_jobs)))
+                utils.run_cmds(cmdfos, n_max_procs=args.n_max_subset_jobs, debug='write')
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
         # NOTE it would be nice to merge duplicates in here (from --collapse-duplicate-sequences, but jeez it seems like it'll be a bit fiddly to implement it
@@ -503,6 +515,9 @@ def subset_partition(args):
         print('  all subset partitions exist (e.g. %s)' % ptnfn(subdir(0), 'igh'))
     else:
         run_subsets(infname)
+    if args.write_subsets_only:
+        print('  --write-subsets-only: wrote %d subset input files to %s, exiting' % (args.n_subsets, args.paired_outdir))
+        return
 
     merged_odir = '%s/merged-subsets' % args.paired_outdir
     if os.path.exists(ptnfn(merged_odir, 'igh')):
@@ -1848,6 +1863,8 @@ subargs['partition'].append({'name' : '--n-max-disjoint-jobs', 'kwargs' : {'type
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
+subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
+subargs['subset-partition'].append({'name' : '--n-max-subset-jobs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of subset partition jobs to run concurrently. Each job uses --n-procs processes internally, so total CPU usage is approximately n-max-subset-jobs times n-procs.'}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
