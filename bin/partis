@@ -484,8 +484,8 @@ def subset_partition(args):
             if args.dry_run:
                 print('    --dry-run: would run %d subset jobs' % len(cmdfos))
             else:
-                print('    running %d subset jobs (%d concurrent):' % (len(cmdfos), min(len(cmdfos), args.n_subsets)))
-                utils.run_cmds(cmdfos, n_max_procs=args.n_subsets, debug='write')
+                print('    running %d subset jobs (%d concurrent):' % (len(cmdfos), min(len(cmdfos), args.n_max_subset_jobs)))
+                utils.run_cmds(cmdfos, n_max_procs=args.n_max_subset_jobs, debug='write')
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
         # NOTE it would be nice to merge duplicates in here (from --collapse-duplicate-sequences, but jeez it seems like it'll be a bit fiddly to implement it
@@ -1864,6 +1864,7 @@ subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int,
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
+subargs['subset-partition'].append({'name' : '--n-max-subset-jobs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of subset partition jobs to run concurrently. Each job uses --n-procs processes internally, so total CPU usage is approximately n-max-subset-jobs times n-procs.'}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
