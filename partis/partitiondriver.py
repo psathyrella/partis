@@ -771,7 +771,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def shall_we_reduce_n_procs(self, last_n_procs):
-        if self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples
+        if not self.args.no_time_based_n_proc_reduction and self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples (--no-time-based-n-proc-reduction skips only this time-based check, for C++/Zig reproducibility since Zig is faster)
             return True
         n_calcd_per_process = self.get_n_calculated_per_process()
         if n_calcd_per_process < self.args.n_max_to_calc_per_process and last_n_procs > 2:  # should be replaced by time requirement, since especially in later iterations, the larger clusters make this a crappy metric (2 is kind of a special case, becase, well, small integers and all)
@@ -1082,7 +1082,7 @@ class PartitionDriver(object):
             if len(additional_clusters) > 0 and any(list(c) not in clusters_to_annotate for c in additional_clusters):
                 cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
                 clusters_to_annotate = [list(c) for c in cluster_set]
-                actual_new_clusters = [c for c in clusters_to_annotate if c not in cpath.best()]
+                actual_new_clusters = sorted([c for c in clusters_to_annotate if c not in cpath.best()], key=lambda c: (-len(c), c[0] if len(c) > 0 else ''))
                 self.added_extra_clusters_to_annotate = True
                 print('    added %d cluster%s with size%s %s (in addition to the %d from the best partition) before running cluster annotations' % (len(actual_new_clusters), utils.plural(len(actual_new_clusters)), utils.plural(len(actual_new_clusters)),
                                                                                                                                                     ' '.join(str(len(c)) for c in actual_new_clusters), len(cpath.best())))
@@ -1105,7 +1105,7 @@ class PartitionDriver(object):
             return
         action_cache = self.current_action  # hackey, but probably not worth trying (more) to improve
         self.current_action = 'annotate'
-        clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
+        clusters_to_annotate = sorted(clusters_to_annotate, key=lambda c: (-len(c), c[0] if len(c) > 0 else ''))  # sort by size (descending), then by first uid for determinism among same-size clusters
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print('getting annotations for final partition%s%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '', ' (with star tree annotation since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else ''))
         all_annotations, hmm_failures = self.actually_get_annotations_for_clusters(clusters_to_annotate=clusters_to_annotate, n_procs=n_procs, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
@@ -1165,9 +1165,9 @@ class PartitionDriver(object):
             extra = set(cached_naive_seqs) - set(expected_queries)
             missing = set(expected_queries) - set(cached_naive_seqs)
             if len(extra) > 0:
-                print('    %s read %d extra queries from hmm cache file %s' % (utils.color('yellow', 'warning:'), len(extra), ' '.join(extra)))
+                print('    %s read %d extra queries from hmm cache file %s' % (utils.color('yellow', 'warning:'), len(extra), ' '.join(sorted(extra))))
             if len(missing) > 0:
-                print('    %s missing %d/%d queries from hmm cache file (using sw naive sequence instead): %s' % (utils.color('yellow', 'warning:'), len(missing), len(expected_queries), ' '.join(missing)))
+                print('    %s missing %d/%d queries from hmm cache file (using sw naive sequence instead): %s' % (utils.color('yellow', 'warning:'), len(missing), len(expected_queries), ' '.join(sorted(missing))))
                 for ustr in missing:
                     cached_naive_seqs[ustr] = self.sw_info[ustr.split(':')[0]]['naive_seq']
 
@@ -1267,7 +1267,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
-        cmd_str = self.args.partis_dir + '/packages/ham/bcrham'
+        cmd_str = self.args.bcrham_binary
         cmd_str += ' --algorithm ' + algorithm
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
@@ -2097,7 +2097,7 @@ class PartitionDriver(object):
             # OR this query's genes into the ones from previous queries
             combo['only_genes'] |= genes_to_use  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
-        combo['only_genes'] = list(combo['only_genes'])  # maybe I don't need to convert it to a list, but it used to be a list, and I don't want to make sure there wasn't a reason for that
+        combo['only_genes'] = sorted(combo['only_genes'])  # sort for determinism: set iteration order varies across runs due to PYTHONHASHSEED
 
         # if we don't have at least one gene for each region, add all available genes from that regions
         if set(utils.regions) > set(utils.get_region(g) for g in combo['only_genes']):  # this is *very* rare

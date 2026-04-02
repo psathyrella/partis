@@ -38,5 +38,3 @@ Do **NOT** remove comments, commented code, or TODOs unless absolutely certain t
 Comments and TODOs are not 'cruft' to remove, they are purposefully placed to remind of things in the future.
 
 Also do not remove functionality or checks that seem peripheral without CAREFULLY asking whether they should be removed.
-
-**NEVER* stage or commit files to git. Staging and committing is where I check your changes. You can use git diff and status commands as much as you like.

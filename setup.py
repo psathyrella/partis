@@ -38,10 +38,12 @@ def build_compiled_components():
 
     print("Building partis compiled components (ig-sw and ham)...")
 
-    # Check system dependencies first
-    check_system_dependencies()
-
     base_dir = Path(__file__).parent.absolute()
+    for submod in ['packages/ham', 'packages/ig-sw']:
+        if not any((base_dir / submod).iterdir()):
+            raise RuntimeError('Submodule %s is empty. Run: git submodule update --init %s' % (submod, submod))
+
+    check_system_dependencies()
     build_script = base_dir / "bin" / "build.sh"
 
     if not build_script.exists():
