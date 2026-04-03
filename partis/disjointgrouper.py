@@ -170,12 +170,10 @@ def validate_assembly(manifest, manifest_dir):
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths):
     # resolve <sw_cache_paths> to a list: accepts a single path string, a list of paths, or a directory
-    # (globs for sw-cache*.yaml in subdirs, then in the directory itself)
+    # (recursively globs for sw-cache*.yaml)
     if isinstance(sw_cache_paths, str):
         if os.path.isdir(sw_cache_paths):
-            paths = sorted(glob.glob('%s/*/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                paths = sorted(glob.glob('%s/sw-cache*.yaml' % sw_cache_paths))
+            paths = sorted(glob.glob('%s/**/sw-cache*.yaml' % sw_cache_paths, recursive=True))
             if len(paths) == 0:
                 raise Exception('no sw-cache*.yaml files found in %s or its subdirectories' % sw_cache_paths)
             return paths
