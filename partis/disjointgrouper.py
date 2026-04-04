@@ -131,22 +131,26 @@ def validate_sequence_count(manifest):
 # ----------------------------------------------------------------------------------------
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
+    # groups with partition_path=None are skipped (e.g. groups too small to partition)
     paths = []
-    missing_partitions = []
+    skipped_groups = []
+    missing_files = []
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
         if ppath is None:
-            missing_partitions.append(ginfo['group_id'])
+            skipped_groups.append(ginfo['group_id'])
             continue
         full_ppath = '%s/%s' % (manifest_dir, ppath)
         if not os.path.exists(full_ppath):
-            missing_partitions.append(ginfo['group_id'])
+            missing_files.append(ginfo['group_id'])
             continue
         if os.path.getsize(full_ppath) == 0:
             raise Exception('partition file is empty for group %d: %s' % (ginfo['group_id'], full_ppath))
         paths.append(full_ppath)
-    if len(missing_partitions) > 0:
-        raise Exception('partition files missing for %d groups: %s' % (len(missing_partitions), missing_partitions))
+    if len(skipped_groups) > 0:
+        print('      skipping %d groups with no partition output (e.g. too small): %s' % (len(skipped_groups), skipped_groups))
+    if len(missing_files) > 0:
+        raise Exception('partition files missing for %d groups (partition_path set but file not found): %s' % (len(missing_files), missing_files))
     return paths
 
 # ----------------------------------------------------------------------------------------
