@@ -326,7 +326,7 @@ def process(args):
         args.workdir = get_workdir(args.batch_system)
     else:
         args.workdir = args.workdir.rstrip('/')
-    if os.path.exists(args.workdir):
+    if os.path.exists(args.workdir) and args.action not in ['create-disjoint-groups', 'assemble-groups']:
         raise Exception('workdir %s already exists' % args.workdir)
 
     if args.batch_system == 'sge' and args.batch_options is not None:
