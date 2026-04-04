@@ -155,9 +155,11 @@ def get_partition_paths(manifest, manifest_dir):
 
 # ----------------------------------------------------------------------------------------
 def validate_assembly(manifest, manifest_dir):
-    # validate uid uniqueness and sequence counts by reading each group one at a time
+    # validate uid uniqueness and sequence counts by reading partitioned groups
     all_uids = set()
     total_seqs = 0
+    skipped = [g for g in manifest['groups'] if g.get('partition_path') is None]
+    skipped_seqs = sum(g['sequence_count'] for g in skipped)
     for ppath in get_partition_paths(manifest, manifest_dir):
         _, annotation_list, _ = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
         for line in annotation_list:
@@ -166,10 +168,10 @@ def validate_assembly(manifest, manifest_dir):
                     raise Exception('duplicate uid %s found across groups' % uid)
                 all_uids.add(uid)
         total_seqs += sum(len(line['unique_ids']) for line in annotation_list)
-    expected = manifest['grouping-info']['total_grouped_sequences']
+    expected = manifest['grouping-info']['total_grouped_sequences'] - skipped_seqs
     if total_seqs != expected:
-        raise Exception('sequence count mismatch after assembly: found %d uids in partition files, expected %d' % (total_seqs, expected))
-    print('      assembly validation passed: %d unique sequences across %d groups' % (total_seqs, len(manifest['groups'])))
+        raise Exception('sequence count mismatch after assembly: found %d in partition files, expected %d (total %d minus %d skipped)' % (total_seqs, expected, manifest['grouping-info']['total_grouped_sequences'], skipped_seqs))
+    print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped)))
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths):
