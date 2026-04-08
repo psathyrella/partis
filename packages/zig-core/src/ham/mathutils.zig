@@ -14,10 +14,14 @@
 const std = @import("std");
 const math = std.math;
 
-// Use libc log/exp to match C++ bcrham bit-for-bit across all platforms.
-// Zig @log/@exp map to LLVM intrinsics which may differ from glibc on some CPUs.
-extern fn log(x: f64) f64;
-extern fn exp(x: f64) f64;
+// Use glibc log/exp via C wrapper (glibc_math.c) to match C++ bcrham bit-for-bit.
+// Zig's `extern fn log/exp` resolves to compiler-rt (bundled as local 't' symbols),
+// NOT glibc. On some CPUs compiler-rt differs from glibc by ~1 ULP, which accumulates
+// to ~0.001 over thousands of trellis DP steps. The C wrapper forces actual glibc calls.
+extern fn glibc_log(x: f64) f64;
+extern fn glibc_exp(x: f64) f64;
+pub const log = glibc_log;
+pub const exp = glibc_exp;
 
 /// Negative infinity constant for log-probability computations.
 /// Replaces the verbose `-std.math.inf(f64)` throughout the codebase.

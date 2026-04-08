@@ -7,7 +7,7 @@
 /// C++ author: psathyrella/ham
 
 const std = @import("std");
-extern fn log(x: f64) f64;
+const log = @import("mathutils.zig").log;
 const Trellis = @import("trellis.zig").Trellis;
 const TracebackPath = @import("traceback_path.zig").TracebackPath;
 const Model = @import("model.zig").Model;

@@ -13,8 +13,8 @@ const Transition = @import("transitions.zig").Transition;
 const Sequences = @import("sequences.zig").Sequences;
 const mathutils = @import("mathutils.zig");
 
-extern fn log(x: f64) f64;
-extern fn exp(x: f64) f64;
+const log = mathutils.log;
+const exp = mathutils.exp;
 
 /// Matches C++ build define -DSTATE_MAX=500.
 pub const STATE_MAX: usize = 500;

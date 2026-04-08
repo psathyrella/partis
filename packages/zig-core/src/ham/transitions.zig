@@ -8,7 +8,7 @@
 const std = @import("std");
 const State = @import("state.zig").State;
 
-extern fn log(x: f64) f64;
+const log = @import("mathutils.zig").log;
 
 /// Transition from one HMM state to another with an associated log-probability.
 /// Corresponds to C++ `ham::Transition`.

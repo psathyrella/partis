@@ -17,6 +17,10 @@ pub fn build(b: *std.Build) void {
     // Link libc so release builds can use std.heap.c_allocator (malloc/free),
     // which avoids GPA's per-allocation tracking overhead.
     exe.root_module.linkSystemLibrary("c", .{});
+    // Compile glibc_math.c with the system C compiler so that log/exp resolve
+    // to actual glibc (dynamic 'U' symbols) rather than Zig's compiler-rt
+    // (local 't' symbols that may differ from glibc on some CPUs).
+    exe.addCSourceFile(.{ .file = b.path("src/ham/glibc_math.c"), .flags = &.{ "-O2", "-fno-builtin" } });
     b.installArtifact(exe);
 
     // ── compare: equivalence harness binary ──────────────────────────────
