@@ -52,9 +52,23 @@ def compare_directories(args, plotdirlist, outdir):
         allvars |= set(dirhists.keys())
         allhists[args.names[idir]] = dirhists
     # then loop over all the <varname>s we found
+    dnames = list(allhists.keys())
     for varname in allvars:
-        hlist = [allhists[dname].get(varname, Hist(1, 0, 1, title='null')) for dname in allhists]
-        plot_single_variable(args, varname, hlist, outdir, pathnameclues=plotdirlist[0])
+        present = [i for i, dname in enumerate(dnames) if varname in allhists[dname]]
+        if not present:
+            continue
+        hlist = [allhists[dnames[i]][varname] for i in present]
+        if len(present) < len(dnames):
+            missing = [dnames[i] for i in range(len(dnames)) if i not in present]
+            print('    %s %s missing from %s' % (utils.wrnstr(), varname, ', '.join(missing)))
+            sub_args = copy.deepcopy(args)
+            for attr in ['colors', 'linewidths', 'linestyles', 'markersizes', 'alphas']:
+                val = getattr(sub_args, attr, None)
+                if val is not None:
+                    setattr(sub_args, attr, [val[i % len(val)] for i in present])
+        else:
+            sub_args = args
+        plot_single_variable(sub_args, varname, hlist, outdir, pathnameclues=plotdirlist[0])
 
     plotting.make_html(outdir, n_columns=4, new_table_each_row=True)
 
@@ -193,7 +207,7 @@ def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     plotting.draw_no_root(hlist[0], plotname=varname, plotdir=outdir, more_hists=hlist[1:], write_csv=False, stats=stats, bounds=bounds, ybounds=args.ybounds,
                           shift_overflows=shift_overflows, plottitle=plottitle, colors=args.colors,
                           xtitle=xtitle if args.xtitle is None else args.xtitle, ytitle=ytitle if args.ytitle is None else args.ytitle, xline=xline, normalize=(args.normalize and '_vs_mute_freq' not in varname),
-                          linewidths=linewidths, linestyles=args.linestyles, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=True, #='y' in args.log,
+                          linewidths=linewidths, linestyles=args.linestyles, markersizes=args.markersizes, alphas=args.alphas, errors=not args.no_errors, remove_empty_bins=(varname not in plotconfig.gene_usage_columns),
                           figsize=figsize, no_labels=no_labels, log=args.log, translegend=translegend, xticks=xticks, xticklabels=xticklabels, square_bins=args.square_bins, print_stats=True, adjust=adjust, no_legend=args.no_legend)
 
     if args.swarm_meta_key is not None:
