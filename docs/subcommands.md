@@ -165,12 +165,15 @@ Since normal annotation, unlike partitioning, is easily split up into independen
 Split sequences for a single locus into disjoint CDR3 length groups, writing per-group FASTAs, per-group SW cache subsets, and a manifest to the output directory.
 Requires `--locus` and `--parameter-dir` (which must already contain an SW cache from a prior `cache-parameters` run).
 `--sw-cachefname` can point to a single SW cache file, a colon-separated list of files, or a directory containing multiple SW caches (e.g. from running cache-parameters independently on each part of a split input).
+When running `cache-parameters` independently on unpaired data for this purpose, pass `--paired-loci --no-pairing-info` so the parameter directory layout is compatible with downstream functions.
+At scale, merge only HMM parameters and germline sets across parts externally, and pass the directory of per-part SW caches to `--sw-cachefname` rather than merging them into one file.
 This is the standalone version of the grouping step in `--disjoint-groups` (see [above](#disjoint-groups)), intended for workflows where each step is submitted as a separate batch job.
 
 ### assemble-groups
 
 Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
 Requires `--locus` and `--outfname`.
+If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
 This is the standalone version of the assembly step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
 
 ### merge-paired-partitions
