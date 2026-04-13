@@ -131,15 +131,25 @@ def validate_sequence_count(manifest):
 # ----------------------------------------------------------------------------------------
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
-    # groups with partition_path=None are skipped (e.g. groups too small to partition)
+    # if partition_path is set in manifest, use it directly
+    # if partition_path is None, try to discover the partition file in the group dir
+    # (supports standalone partition jobs that do not update the manifest)
     paths = []
     skipped_groups = []
     missing_files = []
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
         if ppath is None:
-            skipped_groups.append(ginfo['group_id'])
-            continue
+            # try to discover partition file by globbing for partition-{locus}.yaml in the cdr3 group dir
+            discovered = glob.glob('%s/**/cdr3-%d/partition-%s.yaml' % (manifest_dir, ginfo['cdr3_length'], ginfo['locus']), recursive=True)
+            if len(discovered) == 1:
+                ppath = os.path.relpath(discovered[0], manifest_dir)
+            elif len(discovered) > 1:
+                print('      warning: found %d partition files for cdr3-%d, using first: %s' % (len(discovered), ginfo['cdr3_length'], discovered[0]))
+                ppath = os.path.relpath(discovered[0], manifest_dir)
+            else:
+                skipped_groups.append(ginfo['group_id'])
+                continue
         full_ppath = '%s/%s' % (manifest_dir, ppath)
         if not os.path.exists(full_ppath):
             missing_files.append(ginfo['group_id'])
