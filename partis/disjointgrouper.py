@@ -216,8 +216,9 @@ def get_partition_paths(manifest, manifest_dir):
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
         if ppath is None:
-            # check default path: groups/cdr3-N/partition-{locus}.yaml
-            default_ppath = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+            # check for partition file in the same directory as the fasta
+            fasta_dir = os.path.dirname(ginfo['fasta_path'])
+            default_ppath = '%s/partition-%s.yaml' % (fasta_dir, ginfo['locus'])
             if os.path.exists('%s/%s' % (manifest_dir, default_ppath)):
                 ppath = default_ppath
             else:
