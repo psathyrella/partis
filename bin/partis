@@ -79,7 +79,7 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
     clist = strip_paired_args(copy.deepcopy(sys.argv), args)
     # strip additional args not needed for disjoint per-group commands
     for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
-                    '--disjoint-groups', '--prepend-coverage-command',
+                    '--disjoint-groups', '--hfrac', '--prepend-coverage-command',
                     '--plot-annotation-performance']:  # requires --is-simu which is also stripped
         utils.remove_from_arglist(clist, argname)
     for argname in ['--n-subsets', '--n-max-subprocs', '--n-sub-procs']:
@@ -1449,28 +1449,32 @@ def run_all_loci(args, ig_or_tr='ig'):
         else:
             manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac)
 
-        # step 2: partition each CDR3 group
+        # step 2: partition each group (or sub-group if hfrac)
         if len(manifest['groups']) == 0:
             raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s' % manifest_path)
         cmdfos = []
         n_max_jobs = args.n_max_subprocs
         for ginfo in manifest['groups']:
-            partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+            # derive partition and sw-cache paths from the fasta_path in the manifest
+            fasta_rel = ginfo['fasta_path']
+            fasta_dir = os.path.dirname(fasta_rel)
+            partition_rel_path = '%s/partition-%s.yaml' % (fasta_dir, ltmp)
+            sw_cache_rel = '%s/sw-cache-%s.yaml' % (fasta_dir, ltmp)
             partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
             ginfo['partition_path'] = partition_rel_path
             if os.path.exists(partition_path):
                 print('    group %d (cdr3 %d): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length']))
                 continue
-            fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
-            sw_cache_group = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (disjoint_dir, ginfo['cdr3_length'], ltmp)
-            extra_args = ['--sw-cachefname', sw_cache_group]
+            fasta_path = '%s/%s' % (disjoint_dir, fasta_rel)
+            sw_cache_path_full = '%s/%s' % (disjoint_dir, sw_cache_rel)
+            extra_args = ['--sw-cachefname', sw_cache_path_full]
             if args.n_sub_procs is not None:
                 extra_args += ['--n-procs', str(args.n_sub_procs)]
             cmd = build_single_locus_cmd('partition', ltmp, args,
                                          infname=fasta_path, outfname=partition_path, parameter_dir=getpdir(ltmp),
                                          extra_args=extra_args)
-            group_dir = '%s/groups/cdr3-%d' % (disjoint_dir, ginfo['cdr3_length'])
-            cmdfos.append({'cmd_str' : cmd, 'outfname' : partition_path, 'workdir' : group_dir})
+            workdir = '%s/%s' % (disjoint_dir, fasta_dir)
+            cmdfos.append({'cmd_str' : cmd, 'outfname' : partition_path, 'workdir' : workdir})
         if len(cmdfos) > 0:
             if args.dry_run:
                 print('    --dry-run: would run %d group partition jobs (%d concurrent)' % (len(cmdfos), n_max_jobs))

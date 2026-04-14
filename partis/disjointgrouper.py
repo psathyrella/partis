@@ -50,12 +50,12 @@ def subgroup_by_naive_hamming(seqfos, hi_bound, workdir, min_group_size=100):
             naive_seqdict[sfo['name']] = sfo['naive_seq']
     if len(naive_seqdict) == 0:
         return [seqfos]
-    cluster_info = utils.run_vsearch('cluster', naive_seqdict, workdir, hi_bound, no_indels=True)
+    partition = utils.run_vsearch('cluster', naive_seqdict, workdir, hi_bound, no_indels=True)
     uid_to_cluster = {}
-    for iclust, cluster in enumerate(cluster_info.best()):
+    for iclust, cluster in enumerate(partition):
         for uid in cluster:
             uid_to_cluster[uid] = iclust
-    n_clusters = len(cluster_info.best())
+    n_clusters = len(partition)
     sub_groups = [[] for _ in range(n_clusters)]
     for sfo in seqfos:
         iclust = uid_to_cluster.get(sfo['name'], 0)
@@ -293,7 +293,12 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     # compute hi hamming bound for hfrac sub-grouping
     hi_bound = None
     if hfrac:
-        _, hi_bound = utils.get_naive_hamming_bounds('likelihood', parameter_dir)
+        # get_mean_mfreq expects the dir containing all-mean-mute-freqs.csv
+        # which is under sw/ or hmm/ in the parameter dir
+        mfreq_dir = '%s/sw' % parameter_dir
+        if not os.path.exists('%s/all-mean-mute-freqs.csv' % mfreq_dir):
+            mfreq_dir = '%s/hmm' % parameter_dir
+        _, hi_bound = utils.get_naive_hamming_bounds('likelihood', mfreq_dir)
         print('      hfrac sub-grouping enabled (hi bound: %.4f)' % hi_bound)
 
     if not multi_cache:
