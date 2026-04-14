@@ -140,13 +140,10 @@ def get_partition_paths(manifest, manifest_dir):
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
         if ppath is None:
-            # try to discover partition file by globbing for partition-{locus}.yaml in the cdr3 group dir
-            discovered = glob.glob('%s/**/cdr3-%d/partition-%s.yaml' % (manifest_dir, ginfo['cdr3_length'], ginfo['locus']), recursive=True)
-            if len(discovered) == 1:
-                ppath = os.path.relpath(discovered[0], manifest_dir)
-            elif len(discovered) > 1:
-                print('      warning: found %d partition files for cdr3-%d, using first: %s' % (len(discovered), ginfo['cdr3_length'], discovered[0]))
-                ppath = os.path.relpath(discovered[0], manifest_dir)
+            # check default path: groups/cdr3-N/partition-{locus}.yaml
+            default_ppath = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+            if os.path.exists('%s/%s' % (manifest_dir, default_ppath)):
+                ppath = default_ppath
             else:
                 skipped_groups.append(ginfo['group_id'])
                 continue
@@ -186,12 +183,20 @@ def validate_assembly(manifest, manifest_dir):
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths):
     # resolve <sw_cache_paths> to a list: accepts a single path string, a list of paths, or a directory
-    # (recursively globs for sw-cache*.yaml)
+    # for directory input, checks two expected patterns:
+    #   paired/chunked layout: {dir}/*/parameters/*/sw-cache*.yaml
+    #   flat unpaired layout:  {dir}/*/parameters/sw-cache*.yaml
     if isinstance(sw_cache_paths, str):
         if os.path.isdir(sw_cache_paths):
-            paths = sorted(glob.glob('%s/**/sw-cache*.yaml' % sw_cache_paths, recursive=True))
+            paths = sorted(glob.glob('%s/*/parameters/*/sw-cache*.yaml' % sw_cache_paths))
             if len(paths) == 0:
-                raise Exception('no sw-cache*.yaml files found in %s or its subdirectories' % sw_cache_paths)
+                paths = sorted(glob.glob('%s/*/parameters/sw-cache*.yaml' % sw_cache_paths))
+            if len(paths) == 0:
+                paths = sorted(glob.glob('%s/*/sw-cache*.yaml' % sw_cache_paths))
+            if len(paths) == 0:
+                paths = sorted(glob.glob('%s/sw-cache*.yaml' % sw_cache_paths))
+            if len(paths) == 0:
+                raise Exception('no sw-cache*.yaml files found in %s (checked */parameters/*/sw-cache*.yaml, */parameters/sw-cache*.yaml, */sw-cache*.yaml, sw-cache*.yaml)' % sw_cache_paths)
             return paths
         else:
             return [sw_cache_paths]
