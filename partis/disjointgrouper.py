@@ -295,10 +295,15 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     hi_bound = None
     if hfrac:
         # get_mean_mfreq expects the dir containing all-mean-mute-freqs.csv
-        # which is under sw/ or hmm/ in the parameter dir
-        mfreq_dir = '%s/sw' % parameter_dir
-        if not os.path.exists('%s/all-mean-mute-freqs.csv' % mfreq_dir):
-            mfreq_dir = '%s/hmm' % parameter_dir
+        # try nested layout ({pdir}/{locus}/sw/) then flat layout ({pdir}/sw/)
+        mfreq_dir = None
+        for candidate in ['%s/%s/sw' % (parameter_dir, locus), '%s/%s/hmm' % (parameter_dir, locus),
+                          '%s/sw' % parameter_dir, '%s/hmm' % parameter_dir]:
+            if os.path.exists('%s/all-mean-mute-freqs.csv' % candidate):
+                mfreq_dir = candidate
+                break
+        if mfreq_dir is None:
+            raise Exception('could not find all-mean-mute-freqs.csv in %s (checked {locus}/sw, {locus}/hmm, sw, hmm)' % parameter_dir)
         _, hi_bound = utils.get_naive_hamming_bounds('likelihood', mfreq_dir)
         print('      hfrac sub-grouping enabled (hi bound: %.4f)' % hi_bound)
 
