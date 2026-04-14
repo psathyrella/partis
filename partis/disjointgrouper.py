@@ -131,29 +131,42 @@ def validate_sequence_count(manifest):
 # ----------------------------------------------------------------------------------------
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
+    # if partition_path is set in manifest, use it directly
+    # if partition_path is None, try to discover the partition file in the group dir
+    # (supports standalone partition jobs that do not update the manifest)
     paths = []
-    missing_partitions = []
+    skipped_groups = []
+    missing_files = []
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
         if ppath is None:
-            missing_partitions.append(ginfo['group_id'])
-            continue
+            # check default path: groups/cdr3-N/partition-{locus}.yaml
+            default_ppath = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+            if os.path.exists('%s/%s' % (manifest_dir, default_ppath)):
+                ppath = default_ppath
+            else:
+                skipped_groups.append(ginfo['group_id'])
+                continue
         full_ppath = '%s/%s' % (manifest_dir, ppath)
         if not os.path.exists(full_ppath):
-            missing_partitions.append(ginfo['group_id'])
+            missing_files.append(ginfo['group_id'])
             continue
         if os.path.getsize(full_ppath) == 0:
             raise Exception('partition file is empty for group %d: %s' % (ginfo['group_id'], full_ppath))
         paths.append(full_ppath)
-    if len(missing_partitions) > 0:
-        raise Exception('partition files missing for %d groups: %s' % (len(missing_partitions), missing_partitions))
+    if len(skipped_groups) > 0:
+        print('      skipping %d groups with no partition output (e.g. too small): %s' % (len(skipped_groups), skipped_groups))
+    if len(missing_files) > 0:
+        raise Exception('partition files missing for %d groups (partition_path set but file not found): %s' % (len(missing_files), missing_files))
     return paths
 
 # ----------------------------------------------------------------------------------------
 def validate_assembly(manifest, manifest_dir):
-    # validate uid uniqueness and sequence counts by reading each group one at a time
+    # validate uid uniqueness and sequence counts by reading partitioned groups
     all_uids = set()
     total_seqs = 0
+    skipped = [g for g in manifest['groups'] if g.get('partition_path') is None]
+    skipped_seqs = sum(g['sequence_count'] for g in skipped)
     for ppath in get_partition_paths(manifest, manifest_dir):
         _, annotation_list, _ = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
         for line in annotation_list:
@@ -162,22 +175,28 @@ def validate_assembly(manifest, manifest_dir):
                     raise Exception('duplicate uid %s found across groups' % uid)
                 all_uids.add(uid)
         total_seqs += sum(len(line['unique_ids']) for line in annotation_list)
-    expected = manifest['grouping-info']['total_grouped_sequences']
+    expected = manifest['grouping-info']['total_grouped_sequences'] - skipped_seqs
     if total_seqs != expected:
-        raise Exception('sequence count mismatch after assembly: found %d uids in partition files, expected %d' % (total_seqs, expected))
-    print('      assembly validation passed: %d unique sequences across %d groups' % (total_seqs, len(manifest['groups'])))
+        raise Exception('sequence count mismatch after assembly: found %d in partition files, expected %d (total %d minus %d skipped)' % (total_seqs, expected, manifest['grouping-info']['total_grouped_sequences'], skipped_seqs))
+    print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped)))
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths):
     # resolve <sw_cache_paths> to a list: accepts a single path string, a list of paths, or a directory
-    # (globs for sw-cache*.yaml in subdirs, then in the directory itself)
+    # for directory input, checks two expected patterns:
+    #   paired/chunked layout: {dir}/*/parameters/*/sw-cache*.yaml
+    #   flat unpaired layout:  {dir}/*/parameters/sw-cache*.yaml
     if isinstance(sw_cache_paths, str):
         if os.path.isdir(sw_cache_paths):
-            paths = sorted(glob.glob('%s/*/sw-cache*.yaml' % sw_cache_paths))
+            paths = sorted(glob.glob('%s/*/parameters/*/sw-cache*.yaml' % sw_cache_paths))
+            if len(paths) == 0:
+                paths = sorted(glob.glob('%s/*/parameters/sw-cache*.yaml' % sw_cache_paths))
+            if len(paths) == 0:
+                paths = sorted(glob.glob('%s/*/sw-cache*.yaml' % sw_cache_paths))
             if len(paths) == 0:
                 paths = sorted(glob.glob('%s/sw-cache*.yaml' % sw_cache_paths))
             if len(paths) == 0:
-                raise Exception('no sw-cache*.yaml files found in %s or its subdirectories' % sw_cache_paths)
+                raise Exception('no sw-cache*.yaml files found in %s (checked */parameters/*/sw-cache*.yaml, */parameters/sw-cache*.yaml, */sw-cache*.yaml, sw-cache*.yaml)' % sw_cache_paths)
             return paths
         else:
             return [sw_cache_paths]
