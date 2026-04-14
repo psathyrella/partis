@@ -1867,6 +1867,9 @@ subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_t
 subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Each job uses --n-procs processes internally.'}})
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
+subargs['create-disjoint-groups'] = []
+subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'Further split CDR3 groups by naive hamming fraction into sub-groups.'}})
+
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
