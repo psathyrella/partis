@@ -678,7 +678,7 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
 # information plot in bcellap repo
 
 # key is parameter of interest, and associated list gives the parameters (other than itself) which are necessary to predict it
-# taken from mebcell mutual info plot: data/mebcell-mutual-info.jpg
+# taken from mebcell mutual info plot: data/mebcell-mutual-info.jpg (Fig 2 of Murugan 2012 has the ~same chart)
 column_dependencies = {}
 column_dependencies['v_gene'] = [] # NOTE v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
 column_dependencies['v_5p_del'] = ['v_gene']

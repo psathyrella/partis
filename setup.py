@@ -107,7 +107,7 @@ setup(
     keywords='immunology bioinformatics bcr tcr antibody sequence-analysis',
     
     # Packages and package data
-    packages=['partis', 'partis.cache'],
+    packages=['partis', 'partis.cache', 'partis.scripts'],
     package_dir={'partis': 'partis'},
     python_requires='>=3.7',
     
@@ -145,22 +145,18 @@ setup(
     entry_points={
         'console_scripts': [
             'partis=partis.main:main',
+            'cf-germlines.py=partis.scripts.cf_germlines:main',
+            'cf-alleles.py=partis.scripts.cf_alleles:main',
+            'extract-pairing-info.py=partis.scripts.extract_pairing_info:main',
+            'split-loci.py=partis.scripts.split_loci:main',
+            'get-naive-probabilities.py=partis.scripts.get_naive_probabilities:main',
+            'compare-plotdirs.py=partis.scripts.compare_plotdirs:main',
+            'gctree-run.py=partis.scripts.gctree_run:main',
+            'make-html=partis.scripts.make_html:main',
+            'parse-output.py=partis.scripts.parse_output:main',
+            'partis-test.py=partis.scripts.partis_test:main',
         ],
     },
-    
-    # Install Python scripts to PATH
-    scripts=[
-        'bin/cf-germlines.py',
-        'bin/cf-alleles.py',
-        'bin/extract-pairing-info.py',
-        'bin/split-loci.py',
-        'bin/get-naive-probabilities.py',
-        'bin/compare-plotdirs.py',
-        'bin/gctree-run.py',
-        'bin/make-html',
-        'bin/parse-output.py',
-        'bin/partis-test.py',
-    ],
 
     # Include data files
     include_package_data=True,
