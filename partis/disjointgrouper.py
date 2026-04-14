@@ -13,15 +13,17 @@ MANIFEST_FNAME = 'manifest.yaml'
 # ----------------------------------------------------------------------------------------
 def group_sequences_by_cdr3_length(annotation_list):
     # group uids and their input sequences by cdr3 length from sw annotation list
-    # returns {cdr3_length : [{'name': uid, 'seq': seq}, ...]}, n_failed
-    seqfo_map = {}  # uid -> {'name': uid, 'seq': seq, 'cdr3_length': int}
+    # also extracts naive_seq for hfrac sub-grouping
+    # returns {cdr3_length : [{'name': uid, 'seq': seq, 'naive_seq': naive_seq}, ...]}, n_failed
+    seqfo_map = {}  # uid -> {'name': uid, 'seq': seq, 'cdr3_length': int, 'naive_seq': str}
     n_failed = 0
     for line in annotation_list:
         if 'cdr3_length' not in line or line['cdr3_length'] is None:
             n_failed += len(line['unique_ids'])
             continue
+        naive_seq = line.get('naive_seq', '')
         for uid, seq in zip(line['unique_ids'], line['input_seqs']):
-            seqfo_map[uid] = {'name' : uid, 'seq' : seq, 'cdr3_length' : line['cdr3_length']}
+            seqfo_map[uid] = {'name' : uid, 'seq' : seq, 'cdr3_length' : line['cdr3_length'], 'naive_seq' : naive_seq}
     if n_failed > 0:
         print('  %s %d sequences had no cdr3_length and were excluded from grouping' % (utils.color('yellow', 'warning'), n_failed))
     if len(seqfo_map) == 0:
@@ -31,6 +33,35 @@ def group_sequences_by_cdr3_length(annotation_list):
     for c3len, uids in sorted(uid_groups, key=lambda x: x[0]):
         groups[c3len] = [seqfo_map[u] for u in uids]
     return groups, n_failed
+
+# ----------------------------------------------------------------------------------------
+def subgroup_by_naive_hamming(seqfos, hi_bound, workdir, min_group_size=100):
+    # split a CDR3 group into sub-groups by clustering naive sequences with vsearch
+    # uses the hi hamming bound as the identity threshold so sequences with similar
+    # naive sequences end up in the same sub-group
+    # note: vsearch greedy centroid clustering may split families in rare edge cases
+    # with very high SHM (>15%)
+    # returns list of sub-group seqfo lists
+    if len(seqfos) < min_group_size:
+        return [seqfos]
+    naive_seqdict = {}
+    for sfo in seqfos:
+        if sfo.get('naive_seq', ''):
+            naive_seqdict[sfo['name']] = sfo['naive_seq']
+    if len(naive_seqdict) == 0:
+        return [seqfos]
+    cluster_info = utils.run_vsearch('cluster', naive_seqdict, workdir, hi_bound, no_indels=True)
+    uid_to_cluster = {}
+    for iclust, cluster in enumerate(cluster_info.best()):
+        for uid in cluster:
+            uid_to_cluster[uid] = iclust
+    n_clusters = len(cluster_info.best())
+    sub_groups = [[] for _ in range(n_clusters)]
+    for sfo in seqfos:
+        iclust = uid_to_cluster.get(sfo['name'], 0)
+        sub_groups[iclust].append(sfo)
+    sub_groups = [sg for sg in sub_groups if len(sg) > 0]
+    return sub_groups
 
 # ----------------------------------------------------------------------------------------
 def write_group_fastas(groups, outdir, locus):
@@ -70,11 +101,56 @@ def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
         utils.write_annotations(sw_cache_path, glfo, antns_by_c3len.get(c3len, []), utils.sw_cache_headers)
 
 # ----------------------------------------------------------------------------------------
-def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_dir=None):
+def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list):
+    # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
+    # returns flattened groups dict (keyed by (cdr3_length, sub_id)) and group_infos list
+    uid_to_antn = {}
+    for line in annotation_list:
+        assert len(line['unique_ids']) == 1
+        uid_to_antn[line['unique_ids'][0]] = line
+
+    all_group_infos = []
+    flattened_groups = collections.OrderedDict()
+    for c3len, seqfos in sorted(groups.items()):
+        workdir = '%s/groups/cdr3-%d/_vsearch_work' % (outdir, c3len)
+        sub_groups = subgroup_by_naive_hamming(seqfos, hi_bound, workdir)
+        # clean up vsearch workdir
+        if os.path.exists(workdir):
+            import shutil
+            shutil.rmtree(workdir)
+        for isub, sub_seqfos in enumerate(sub_groups):
+            sub_dir = '%s/groups/cdr3-%d/sub-groups/sub-%03d' % (outdir, c3len, isub)
+            fasta_path = '%s/%s.fa' % (sub_dir, locus)
+            utils.write_fasta(fasta_path, sub_seqfos)
+            # write sub-group sw cache
+            sub_uids = set(sfo['name'] for sfo in sub_seqfos)
+            sub_antns = [uid_to_antn[uid] for uid in sub_uids if uid in uid_to_antn]
+            sw_cache_path = '%s/sw-cache-%s.yaml' % (sub_dir, locus)
+            utils.write_annotations(sw_cache_path, glfo, sub_antns, utils.sw_cache_headers)
+            # count unique naive sequences for the manifest
+            unique_naive = len(set(sfo.get('naive_seq', '') for sfo in sub_seqfos if sfo.get('naive_seq', '')))
+            rel_fasta = 'groups/cdr3-%d/sub-groups/sub-%03d/%s.fa' % (c3len, isub, locus)
+            all_group_infos.append({
+                'group_id' : len(all_group_infos),
+                'cdr3_length' : c3len,
+                'sub_group_id' : isub,
+                'locus' : locus,
+                'sequence_count' : len(sub_seqfos),
+                'unique_naive_count' : unique_naive,
+                'fasta_path' : rel_fasta,
+                'partition_path' : None,
+            })
+            flattened_groups[(c3len, isub)] = sub_seqfos
+        if len(sub_groups) > 1:
+            print('        cdr3-%d: %d seqs -> %d sub-groups (sizes: %s)' % (c3len, len(seqfos), len(sub_groups), ' '.join(str(len(sg)) for sg in sub_groups)))
+    return flattened_groups, all_group_infos
+
+# ----------------------------------------------------------------------------------------
+def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_dir=None, hfrac=False):
     # write manifest yaml to outdir
     manifest = {
         'grouping-info' : {
-            'method' : 'cdr3-length',
+            'method' : 'cdr3-length+hfrac' if hfrac else 'cdr3-length',
             'locus' : locus,
             'total_input_sequences' : total_input,
             'total_grouped_sequences' : total_input - n_failed,
@@ -203,9 +279,10 @@ def resolve_sw_cache_paths(sw_cache_paths):
     return list(sw_cache_paths)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir):
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
-    # write per-group fastas and sw-cache subsets, write manifest.
+    # optionally sub-group by naive hamming fraction (--hfrac),
+    # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
     # <sw_cache_paths>: single path string, list of paths, or directory (for chunked cache-parameters at scale).
     # For multiple caches, processes one chunk at a time to limit peak memory:
     #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
@@ -213,14 +290,23 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir):
     sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths)
     multi_cache = len(sw_cache_paths) > 1
 
+    # compute hi hamming bound for hfrac sub-grouping
+    hi_bound = None
+    if hfrac:
+        _, hi_bound = utils.get_naive_hamming_bounds('likelihood', parameter_dir)
+        print('      hfrac sub-grouping enabled (hi bound: %.4f)' % hi_bound)
+
     if not multi_cache:
         # single sw cache: read once, process everything in memory (existing behavior)
         print('      reading sw cache for %s from %s' % (locus, sw_cache_paths[0]))
         glfo, annotation_list, _ = utils.read_yaml_output(sw_cache_paths[0], dont_add_implicit_info=True)
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
-        group_infos = write_group_fastas(groups, outdir, locus)
-        write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
+        if hfrac:
+            groups, group_infos = _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list)
+        else:
+            group_infos = write_group_fastas(groups, outdir, locus)
+            write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
     else:
         # multiple sw caches: process one chunk at a time
         print('      processing %d sw cache files for %s' % (len(sw_cache_paths), locus))
@@ -269,12 +355,15 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir):
         # NOTE if multiple chunks inferred different novel alleles, glfo from the first chunk is used.
         # For proper germline reconciliation across chunks, merge parameter dirs before grouping.
 
-    print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, len(groups), n_failed))
-    if len(group_infos) > 0:
+    n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
+    print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, n_cdr3_groups, n_failed))
+    if hfrac and len(group_infos) > 0:
+        print('      hfrac: %d sub-groups total' % len(group_infos))
+    if len(group_infos) > 0 and not hfrac:
         cw = max(len(str(g['cdr3_length'])) for g in group_infos)
         print('        cdr3 lengths : %s' % '  '.join('%*d' % (cw, g['cdr3_length']) for g in group_infos))
         print('        N seqs       : %s' % '  '.join('%*d' % (cw, g['sequence_count']) for g in group_infos))
-    manifest = write_manifest(group_infos, outdir, locus, n_seqs, n_failed, parameter_dir=parameter_dir)
+    manifest = write_manifest(group_infos, outdir, locus, n_seqs, n_failed, parameter_dir=parameter_dir, hfrac=hfrac)
     validate_sequence_count(manifest)
     return manifest
 

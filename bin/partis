@@ -122,7 +122,7 @@ def disjoint_group_action(args):
     if outdir is None:
         raise Exception('--paired-outdir or --workdir must be set')
     disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
-    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir)
+    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir, hfrac=args.hfrac)
 
 # ----------------------------------------------------------------------------------------
 def assemble_groups_action(args):
@@ -1447,7 +1447,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s %s: manifest exists, skipping grouping: %s' % (utils.color('blue_bkg', 'create-disjoint-groups'), ltmp, manifest_path))
             manifest = disjointgrouper.read_manifest(manifest_path)
         else:
-            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp))
+            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac)
 
         # step 2: partition each CDR3 group
         if len(manifest['groups']) == 0:
@@ -1859,6 +1859,7 @@ subargs['partition'].append({'name' : '--naive-hamming-cluster', 'kwargs' : {'ac
 subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwargs' : {'type' : int, 'default' : 50000, 'help' : 'If the repertoire has more than this many seqs, --naive-vsearch (--fast) is turned on, i.e. naive vsearch is used for clustering without any likelihoods. Turn off with --no-naive-vsearch.'}})
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
 subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length, then partition each group independently and concatenate. Speeds up large single-chain partitions by splitting into guaranteed-disjoint subsets.'}})
+subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'When used with --disjoint-groups, further split CDR3 groups by naive hamming fraction into sub-groups. Reduces group sizes for better parallelism and potentially enables HA clustering on smaller sub-groups.'}})
 subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Each job uses --n-procs processes internally.'}})
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
