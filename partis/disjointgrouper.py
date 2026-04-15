@@ -50,7 +50,7 @@ def subgroup_by_naive_hamming(seqfos, hi_bound, workdir, min_group_size=100):
             naive_seqdict[sfo['name']] = sfo['naive_seq']
     if len(naive_seqdict) == 0:
         return [seqfos]
-    partition = utils.run_vsearch('cluster', naive_seqdict, workdir, hi_bound, no_indels=True)
+    partition = utils.run_vsearch('cluster', naive_seqdict, workdir, hi_bound, no_indels=True, maxaccepts=0, maxrejects=0)
     uid_to_cluster = {}
     for iclust, cluster in enumerate(partition):
         for uid in cluster:

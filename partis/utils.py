@@ -7500,7 +7500,7 @@ def get_platform_binstr():
 
 # ----------------------------------------------------------------------------------------
 # NOTE use the previous fcn if you expect duplicate uids
-def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:', debug=False):
+def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:', debug=False, maxaccepts=None, maxrejects=None):
     from . import clusterpath
     from . import glutils
     # note: '2:-4' is the default vsearch match:mismatch, but I'm setting it here in case vsearch changes it in the future
@@ -7560,7 +7560,10 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
             cmd += ' --consout ' + consensus_fname  # note: can also output a file with msa and consensus
         if msa_fname is not None:  # workdir cleanup below will fail if you put it in this workdir
             cmd += ' --msaout ' + msa_fname
-        # cmd += ' --maxaccept 0 --maxreject 0'  # see note above
+        if maxaccepts is not None:
+            cmd += ' --maxaccepts %d' % maxaccepts
+        if maxrejects is not None:
+            cmd += ' --maxrejects %d' % maxrejects
     elif action == 'search':
         outfname = workdir + '/aln-info.tsv'
         dbdir = workdir + '/' + glutils.glfo_dir
