@@ -411,17 +411,16 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         # NOTE if multiple chunks inferred different novel alleles, glfo from the first chunk is used.
         # For proper germline reconciliation across chunks, merge parameter dirs before grouping.
 
-        # apply hfrac after merging (reads per-CDR3-group sw caches one at a time)
+        # apply hfrac after merging: read all per-CDR3-group sw caches and pass to
+        # _apply_hfrac_and_write at once so vsearch jobs can run in parallel across groups
         if hfrac:
-            all_group_infos = []
-            for c3len, seqfos in sorted(groups.items()):
+            all_antn_list = []
+            for c3len in sorted(groups):
                 swc_path = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
                 _, antn_list, _ = utils.read_yaml_output(swc_path, dont_add_implicit_info=True)
-                sub_groups_for_c3 = {c3len: seqfos}
-                _, sub_infos = _apply_hfrac_and_write(sub_groups_for_c3, hi_bound, outdir, locus, glfo, antn_list)
-                all_group_infos.extend(sub_infos)
-                del antn_list
-            group_infos = all_group_infos
+                all_antn_list.extend(antn_list)
+            _, group_infos = _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, all_antn_list)
+            del all_antn_list
 
     n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
     print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, n_cdr3_groups, n_failed))
