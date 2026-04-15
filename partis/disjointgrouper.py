@@ -191,6 +191,102 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
     return flattened_groups, all_group_infos
 
 # ----------------------------------------------------------------------------------------
+def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo):
+    # memory-efficient hfrac for multi-cache path: reads one CDR3 group SW cache at a time
+    # pass 1: write naive FASTAs, build vsearch commands
+    # dispatch: run all vsearch in parallel
+    # pass 2: re-read SW caches, parse results, write sub-group outputs
+    import shutil
+
+    min_group_size = 100
+    vsearch_binary = '%s/bin/vsearch-2.4.3-%s-x86_64' % (utils.get_partis_dir(), utils.get_platform_binstr())
+
+    # pass 1: write naive FASTAs for groups needing splitting
+    cmdfos = []
+    vsearch_groups = {}
+    small_groups = set()
+    for c3len, seqfos in sorted(groups.items()):
+        if len(seqfos) < min_group_size:
+            small_groups.add(c3len)
+            continue
+        naive_seqdict = {sfo['name']: sfo['naive_seq'] for sfo in seqfos if sfo.get('naive_seq', '')}
+        if len(naive_seqdict) == 0:
+            small_groups.add(c3len)
+            continue
+        workdir = '%s/groups/cdr3-%d/_vsearch_work' % (outdir, c3len)
+        utils.prep_dir(workdir)
+        infname = workdir + '/input.fa'
+        with open(infname, 'w') as f:
+            for name, seq in naive_seqdict.items():
+                f.write('>%s\n%s\n' % (name, seq))
+        outfname = workdir + '/vsearch-clusters.txt'
+        cmd = '%s --cluster_fast %s --id %s --uc %s --maxaccepts 0 --maxrejects 0 --gapopen 1000I/2E --match 2 --mismatch -4 --threads 1' % (
+            vsearch_binary, infname, str(1. - hi_bound), outfname)
+        cmdfos.append({'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir})
+        vsearch_groups[c3len] = workdir
+
+    # dispatch: run all vsearch in parallel
+    if len(cmdfos) > 0:
+        n_procs = min(8, len(cmdfos))
+        print('        running %d vsearch hfrac jobs (%d concurrent)' % (len(cmdfos), n_procs))
+        utils.run_cmds(cmdfos, n_max_procs=n_procs)
+
+    # pass 2: parse results, re-read SW caches, write sub-group outputs
+    all_group_infos = []
+    flattened_groups = collections.OrderedDict()
+    for c3len, seqfos in sorted(groups.items()):
+        if c3len in small_groups:
+            sub_groups_list = [seqfos]
+        else:
+            cluster_file = '%s/vsearch-clusters.txt' % vsearch_groups[c3len]
+            partition = utils.read_vsearch_cluster_file(cluster_file)
+            uid_to_cluster = {}
+            for iclust, cluster in enumerate(partition):
+                for uid in cluster:
+                    uid_to_cluster[uid] = iclust
+            sub_groups_list = [[] for _ in range(len(partition))]
+            for sfo in seqfos:
+                iclust = uid_to_cluster.get(sfo['name'], 0)
+                sub_groups_list[iclust].append(sfo)
+            sub_groups_list = [sg for sg in sub_groups_list if len(sg) > 0]
+            shutil.rmtree(vsearch_groups[c3len])
+
+        # re-read SW cache for this CDR3 group to get annotations for sub-group output
+        swc_path = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
+        uid_to_antn = {}
+        if os.path.exists(swc_path):
+            _, antn_list, _ = utils.read_yaml_output(swc_path, dont_add_implicit_info=True)
+            for line in antn_list:
+                if len(line['unique_ids']) == 1:
+                    uid_to_antn[line['unique_ids'][0]] = line
+            del antn_list
+
+        for isub, sub_seqfos in enumerate(sub_groups_list):
+            sub_dir = '%s/groups/cdr3-%d/sub-groups/sub-%03d' % (outdir, c3len, isub)
+            fasta_path = '%s/%s.fa' % (sub_dir, locus)
+            utils.write_fasta(fasta_path, sub_seqfos)
+            sub_uids = set(sfo['name'] for sfo in sub_seqfos)
+            sub_antns = [uid_to_antn[uid] for uid in sub_uids if uid in uid_to_antn]
+            sw_cache_path = '%s/sw-cache-%s.yaml' % (sub_dir, locus)
+            utils.write_annotations(sw_cache_path, glfo, sub_antns, utils.sw_cache_headers)
+            unique_naive = len(set(sfo.get('naive_seq', '') for sfo in sub_seqfos if sfo.get('naive_seq', '')))
+            rel_fasta = 'groups/cdr3-%d/sub-groups/sub-%03d/%s.fa' % (c3len, isub, locus)
+            all_group_infos.append({
+                'group_id' : len(all_group_infos),
+                'cdr3_length' : c3len,
+                'sub_group_id' : isub,
+                'locus' : locus,
+                'sequence_count' : len(sub_seqfos),
+                'unique_naive_count' : unique_naive,
+                'fasta_path' : rel_fasta,
+                'partition_path' : None,
+            })
+            flattened_groups[(c3len, isub)] = sub_seqfos
+        if len(sub_groups_list) > 1:
+            print('        cdr3-%d: %d seqs -> %d sub-groups (sizes: %s)' % (c3len, len(seqfos), len(sub_groups_list), ' '.join(str(len(sg)) for sg in sub_groups_list)))
+    return flattened_groups, all_group_infos
+
+# ----------------------------------------------------------------------------------------
 def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_dir=None, hfrac=False):
     # write manifest yaml to outdir
     manifest = {
@@ -411,16 +507,12 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         # NOTE if multiple chunks inferred different novel alleles, glfo from the first chunk is used.
         # For proper germline reconciliation across chunks, merge parameter dirs before grouping.
 
-        # apply hfrac after merging: read all per-CDR3-group sw caches and pass to
-        # _apply_hfrac_and_write at once so vsearch jobs can run in parallel across groups
+        # apply hfrac after merging: two-pass approach for memory efficiency
+        # pass 1: read each CDR3 sw cache, write naive FASTAs (lightweight)
+        # then dispatch all vsearch jobs in parallel
+        # pass 2: read each CDR3 sw cache again, parse vsearch results, write sub-group outputs
         if hfrac:
-            all_antn_list = []
-            for c3len in sorted(groups):
-                swc_path = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
-                _, antn_list, _ = utils.read_yaml_output(swc_path, dont_add_implicit_info=True)
-                all_antn_list.extend(antn_list)
-            _, group_infos = _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, all_antn_list)
-            del all_antn_list
+            _, group_infos = _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo)
 
     n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
     print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, n_cdr3_groups, n_failed))
