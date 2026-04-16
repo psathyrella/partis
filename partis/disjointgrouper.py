@@ -35,6 +35,86 @@ def group_sequences_by_cdr3_length(annotation_list):
     return groups, n_failed
 
 # ----------------------------------------------------------------------------------------
+def _read_vsearch_uc_with_centroids(cluster_file):
+    # parse vsearch UC output preserving centroid info per cluster
+    # returns list of (centroid_uid, [member_uids]) pairs in cluster order
+    # vsearch writes an 'S' row first for each cluster (centroid), then 'H' rows (hits)
+    import csv
+    clusters = {}  # cluster_id -> {'centroid': uid, 'members': [uids]}
+    with open(cluster_file) as f:
+        reader = csv.reader(f, delimiter=str('\t'))
+        for row in reader:
+            if len(row) < 9:
+                continue
+            rtype = row[0]
+            if rtype == 'C':
+                continue
+            cid = int(row[1])
+            uid = row[8]
+            if cid not in clusters:
+                clusters[cid] = {'centroid': None, 'members': []}
+            if rtype == 'S':
+                clusters[cid]['centroid'] = uid
+            clusters[cid]['members'].append(uid)
+    return [(clusters[cid]['centroid'], clusters[cid]['members']) for cid in sorted(clusters)]
+
+# ----------------------------------------------------------------------------------------
+def _merge_round1_sub_groups(sub_groups_list, centroid_uids, naive_by_uid, target_size, hi_bound, workdir):
+    # two-round clustering: merge round-1 sub-groups by clustering their centroids at a looser threshold
+    # sub_groups_list: list of round-1 sub-group seqfo lists (aligned with centroid_uids)
+    # centroid_uids: list of centroid uid per round-1 sub-group (same order as sub_groups_list)
+    # naive_by_uid: dict uid -> naive_seq
+    # target_size: desired sequences per merged bin
+    # hi_bound: round 1 threshold, round 2 tries multiples of this
+    # returns: list of merged sub-group seqfo lists
+    if len(sub_groups_list) <= 1:
+        return sub_groups_list
+
+    centroid_naives = {cuid: naive_by_uid[cuid] for cuid in centroid_uids if cuid in naive_by_uid}
+    if len(centroid_naives) <= 1:
+        return sub_groups_list
+
+    total_seqs = sum(len(sg) for sg in sub_groups_list)
+    target_n_bins = max(1, round(total_seqs / float(target_size)))
+    if target_n_bins >= len(sub_groups_list):
+        return sub_groups_list  # already at or below target
+
+    # try multiple round-2 threshold multipliers, pick one closest to target
+    best = None  # (abs_diff, partition, mult)
+    for mult in [1.5, 2.0, 3.0, 5.0, 10.0, 20.0]:
+        r2_threshold = mult * hi_bound
+        if r2_threshold >= 0.5:  # vsearch id = 1 - threshold; threshold >= 0.5 means id <= 0.5 which is too loose
+            break
+        r2_workdir = '%s/round2_%.1fx' % (workdir, mult)
+        partition = utils.run_vsearch('cluster', centroid_naives, r2_workdir, r2_threshold, no_indels=True)
+        n_bins = len(partition)
+        diff = abs(n_bins - target_n_bins)
+        if best is None or diff < best[0]:
+            best = (diff, partition, mult, n_bins)
+        if n_bins <= target_n_bins:
+            break  # thresholds are monotonic: once we go below target, no point going further
+
+    if best is None:
+        return sub_groups_list
+    _, r2_partition, mult, n_bins = best
+    print('          round2: merged %d -> %d sub-groups at %.1fx hi_bound (target ~%d bins)' % (
+        len(sub_groups_list), n_bins, mult, target_n_bins))
+
+    # map each centroid uid to its round-2 bin index, then merge sub-groups accordingly
+    centroid_to_bin = {}
+    for bidx, r2_cluster in enumerate(r2_partition):
+        for cuid in r2_cluster:
+            centroid_to_bin[cuid] = bidx
+
+    merged = [[] for _ in range(n_bins)]
+    for r1_idx, cuid in enumerate(centroid_uids):
+        bidx = centroid_to_bin.get(cuid, 0)
+        merged[bidx].extend(sub_groups_list[r1_idx])
+
+    merged = [b for b in merged if len(b) > 0]
+    return merged
+
+# ----------------------------------------------------------------------------------------
 def subgroup_by_naive_hamming(seqfos, hi_bound, workdir, min_group_size=100):
     # split a CDR3 group into sub-groups by clustering naive sequences with vsearch
     # uses the hi hamming bound as the identity threshold so sequences with similar
