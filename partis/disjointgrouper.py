@@ -460,11 +460,14 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.
             if merge_factor > 0 and c3len in r2_workdirs:
                 shutil.rmtree(r2_workdirs[c3len], ignore_errors=True)
 
-        # re-read SW cache for this CDR3 group to get annotations for sub-group output
+        # re-read SW cache for this CDR3 group to get annotations AND the merged glfo
+        # (multi-chunk path: merge_yamls reconciled glfos across chunks; using the outer glfo
+        # from the first chunk would lose novel alleles from later chunks)
         swc_path = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
         uid_to_antn = {}
+        group_glfo = glfo
         if os.path.exists(swc_path):
-            _, antn_list, _ = utils.read_yaml_output(swc_path, dont_add_implicit_info=True)
+            group_glfo, antn_list, _ = utils.read_yaml_output(swc_path, dont_add_implicit_info=True)
             for line in antn_list:
                 if len(line['unique_ids']) == 1:
                     uid_to_antn[line['unique_ids'][0]] = line
@@ -477,7 +480,7 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.
             sub_uids = set(sfo['name'] for sfo in sub_seqfos)
             sub_antns = [uid_to_antn[uid] for uid in sub_uids if uid in uid_to_antn]
             sw_cache_path = '%s/sw-cache-%s.yaml' % (sub_dir, locus)
-            utils.write_annotations(sw_cache_path, glfo, sub_antns, utils.sw_cache_headers)
+            utils.write_annotations(sw_cache_path, group_glfo, sub_antns, utils.sw_cache_headers)
             unique_naive = len(set(sfo.get('naive_seq', '') for sfo in sub_seqfos if sfo.get('naive_seq', '')))
             rel_fasta = 'groups/cdr3-%d/sub-groups/sub-%03d/%s.fa' % (c3len, isub, locus)
             all_group_infos.append({
