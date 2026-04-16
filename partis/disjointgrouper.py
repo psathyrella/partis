@@ -50,7 +50,7 @@ def subgroup_by_naive_hamming(seqfos, hi_bound, workdir, min_group_size=100):
             naive_seqdict[sfo['name']] = sfo['naive_seq']
     if len(naive_seqdict) == 0:
         return [seqfos]
-    partition = utils.run_vsearch('cluster', naive_seqdict, workdir, hi_bound, no_indels=True, maxaccepts=0, maxrejects=0)
+    partition = utils.run_vsearch('cluster', naive_seqdict, workdir, hi_bound, no_indels=True)
     uid_to_cluster = {}
     for iclust, cluster in enumerate(partition):
         for uid in cluster:
@@ -135,7 +135,7 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
             for name, seq in naive_seqdict.items():
                 f.write('>%s\n%s\n' % (name, seq))
         outfname = workdir + '/vsearch-clusters.txt'
-        cmd = '%s --cluster_fast %s --id %s --uc %s --maxaccepts 0 --maxrejects 0 --gapopen 1000I/2E --match 2 --mismatch -4 --threads 1' % (
+        cmd = '%s --cluster_fast %s --id %s --uc %s --gapopen 1000I/2E --match 2 --mismatch -4 --threads 1' % (
             vsearch_binary, infname, str(1. - hi_bound), outfname)
         cmdfos.append({'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir})
         vsearch_groups[c3len] = workdir
@@ -220,7 +220,7 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo):
             for name, seq in naive_seqdict.items():
                 f.write('>%s\n%s\n' % (name, seq))
         outfname = workdir + '/vsearch-clusters.txt'
-        cmd = '%s --cluster_fast %s --id %s --uc %s --maxaccepts 0 --maxrejects 0 --gapopen 1000I/2E --match 2 --mismatch -4 --threads 1' % (
+        cmd = '%s --cluster_fast %s --id %s --uc %s --gapopen 1000I/2E --match 2 --mismatch -4 --threads 1' % (
             vsearch_binary, infname, str(1. - hi_bound), outfname)
         cmdfos.append({'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir})
         vsearch_groups[c3len] = workdir
