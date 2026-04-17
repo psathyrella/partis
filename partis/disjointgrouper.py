@@ -227,7 +227,7 @@ def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
         utils.write_annotations(sw_cache_path, glfo, antns_by_c3len.get(c3len, []), utils.sw_cache_headers)
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=3.0, max_bin_size=25000):
+def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=3.0, max_bin_size=15000):
     # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
     # round 1: vsearch greedy clustering at hi_bound produces safe sub-groups per CDR3 group
     # round 2 (if merge_factor > 0): vsearch --allpairs_global on round 1 centroids at
@@ -359,7 +359,7 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
     return flattened_groups, all_group_infos
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.0, max_bin_size=25000):
+def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.0, max_bin_size=15000):
     # memory-efficient hfrac for multi-cache path: reads one CDR3 group SW cache at a time
     # round 1 pass 1: write naive FASTAs, build vsearch commands
     # round 1 dispatch: run all vsearch in parallel
@@ -633,7 +633,7 @@ def resolve_sw_cache_paths(sw_cache_paths):
     return list(sw_cache_paths)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=3.0, hfrac_max_bin_size=25000):
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=3.0, hfrac_max_bin_size=15000):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
