@@ -606,9 +606,11 @@ def validate_assembly(manifest, manifest_dir):
                 all_uids.add(uid)
         total_seqs += sum(len(line['unique_ids']) for line in annotation_list)
     expected = manifest['grouping-info']['total_grouped_sequences'] - skipped_seqs
-    if total_seqs != expected:
-        raise Exception('sequence count mismatch after assembly: found %d in partition files, expected %d (total %d minus %d skipped)' % (total_seqs, expected, manifest['grouping-info']['total_grouped_sequences'], skipped_seqs))
-    print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped)))
+    if total_seqs > expected:
+        raise Exception('sequence count exceeds expected after assembly: found %d in partition files, expected at most %d (total %d minus %d skipped)' % (total_seqs, expected, manifest['grouping-info']['total_grouped_sequences'], skipped_seqs))
+    filtered = expected - total_seqs
+    filter_msg = ' (%d filtered during partition)' % filtered if filtered > 0 else ''
+    print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped%s)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped), filter_msg))
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths):
