@@ -1438,6 +1438,9 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not os.path.exists(ifn) or os.stat(ifn).st_size == 0:
             print('  %s: %s, skipping disjoint partition (%s)' % (ltmp, 'input file missing' if not os.path.exists(ifn) else 'zero length input file', ifn))
             return
+        if not os.path.isdir(getpdir(ltmp)):
+            print('  %s: parameter dir missing, skipping disjoint partition (%s)' % (ltmp, getpdir(ltmp)))
+            return
         disjoint_dir = '%s/disjoint-groups/%s' % (getodir(single_chain=True), ltmp)
         print('%s %s with disjoint groups:' % (utils.color('blue_bkg', 'partition'), utils.color('blue', ltmp)))
 
@@ -1865,14 +1868,14 @@ subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs
 subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length, then partition each group independently and concatenate. Speeds up large single-chain partitions by splitting into guaranteed-disjoint subsets.'}})
 subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'When used with --disjoint-groups, further split CDR3 groups by naive hamming fraction into sub-groups. Reduces group sizes for better parallelism and potentially enables HA clustering on smaller sub-groups.'}})
 subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : 3.0, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
-subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : 15000, 'help' : argparse.SUPPRESS}})  # dev/testing: cap on sub-group seq count after round 2 CC merge; 0 disables cap
+subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : 25000, 'help' : argparse.SUPPRESS}})  # dev/testing: cap on sub-group seq count after round 2 TCM merge; 0 disables cap
 subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Each job uses --n-procs processes internally.'}})
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
 subargs['create-disjoint-groups'] = []
 subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'Further split CDR3 groups by naive hamming fraction into sub-groups.'}})
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : 3.0, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
-subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : 15000, 'help' : argparse.SUPPRESS}})  # dev/testing: cap on sub-group seq count after round 2 CC merge; 0 disables cap
+subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : 25000, 'help' : argparse.SUPPRESS}})  # dev/testing: cap on sub-group seq count after round 2 TCM merge; 0 disables cap
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
