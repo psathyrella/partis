@@ -59,8 +59,8 @@ def _read_vsearch_uc_with_centroids(cluster_file):
     return [(clusters[cid]['centroid'], clusters[cid]['members']) for cid in sorted(clusters)]
 
 # ----------------------------------------------------------------------------------------
-def _build_round2_cc_cmd(centroid_naives, round2_threshold, workdir):
-    # build a vsearch --allpairs_global command for round 2 CC on centroid naive sequences
+def _build_round2_tcm_cmd(centroid_naives, round2_threshold, workdir):
+    # build a vsearch --allpairs_global command for round 2 TCM (transitive closure merge) on centroid naive sequences
     # returns (cmdfo dict, pairs_outfname) or (None, None) if fewer than 2 centroids
     if len(centroid_naives) < 2:
         return None, None
@@ -72,7 +72,7 @@ def _build_round2_cc_cmd(centroid_naives, round2_threshold, workdir):
             f.write('>%s\n%s\n' % (name, seq))
     vsearch_binary = '%s/bin/vsearch-2.4.3-%s-x86_64' % (utils.get_partis_dir(), utils.get_platform_binstr())
     # --maxaccepts 0 --maxrejects 0 so vsearch considers all pairs (not just first match)
-    # this is a local override for hfrac CC round 2 only, does not affect other vsearch calls in partis
+    # this is a local override for hfrac TCM round 2 only, does not affect other vsearch calls in partis
     cmd = ('%s --allpairs_global %s --id %s --userout %s --userfields query+target+id '
            '--gapopen 1000I/2E --match 2 --mismatch -4 --threads 1 --quiet '
            '--maxaccepts 0 --maxrejects 0') % (
@@ -80,8 +80,8 @@ def _build_round2_cc_cmd(centroid_naives, round2_threshold, workdir):
     return {'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir}, outfname
 
 # ----------------------------------------------------------------------------------------
-def _cc_merge_from_pairs(pairs_file, centroid_uids):
-    # parse vsearch pairs output, build adjacency graph, find connected components via BFS
+def _tcm_merge_from_pairs(pairs_file, centroid_uids):
+    # parse vsearch pairs output, build adjacency graph, find connected components via BFS (transitive closure merge)
     # returns list of component centroid lists (each component = a merged bin's centroids)
     adj = collections.defaultdict(set)
     if os.path.exists(pairs_file):
@@ -227,13 +227,13 @@ def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
         utils.write_annotations(sw_cache_path, glfo, antns_by_c3len.get(c3len, []), utils.sw_cache_headers)
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=3.0, max_bin_size=15000):
+def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=3.0, max_bin_size=25000):
     # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
     # round 1: vsearch greedy clustering at hi_bound produces safe sub-groups per CDR3 group
     # round 2 (if merge_factor > 0): vsearch --allpairs_global on round 1 centroids at
     #   merge_factor * hi_bound, then connected components merge via BFS to reduce
     #   sub-group count and heal round 1 greedy edge cases (family splits)
-    # the greedy-round-1 code below always runs; round 2 CC is conditional on merge_factor > 0
+    # the greedy-round-1 code below always runs; round 2 TCM is conditional on merge_factor > 0
     import shutil
 
     uid_to_antn = {}
@@ -282,7 +282,7 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
         cluster_file = '%s/vsearch-clusters.txt' % vsearch_groups[c3len]
         r1_by_c3len[c3len] = _read_vsearch_uc_with_centroids(cluster_file)
 
-    # round 2 (optional): CC merge via vsearch --allpairs_global on centroids
+    # round 2 (optional): TCM (transitive closure merge) via vsearch --allpairs_global on centroids
     comps_by_c3len = {}  # c3len -> list of components (each a list of centroid uids)
     if merge_factor > 0:
         r2_cmdfos = []
@@ -295,8 +295,8 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
                 continue
             naive_by_uid = {sfo['name']: sfo['naive_seq'] for sfo in groups[c3len] if sfo.get('naive_seq', '')}
             centroid_naives = {c: naive_by_uid[c] for c, _ in r1_results if c in naive_by_uid}
-            r2_workdir = '%s/groups/cdr3-%d/_round2_cc' % (outdir, c3len)
-            cmdfo, pairs_fname = _build_round2_cc_cmd(centroid_naives, round2_threshold, r2_workdir)
+            r2_workdir = '%s/groups/cdr3-%d/_round2_tcm' % (outdir, c3len)
+            cmdfo, pairs_fname = _build_round2_tcm_cmd(centroid_naives, round2_threshold, r2_workdir)
             if cmdfo is None:
                 comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
                 continue
@@ -305,14 +305,14 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
             r2_pairs_files[c3len] = pairs_fname
         if len(r2_cmdfos) > 0:
             n_procs2 = min(8, len(r2_cmdfos))
-            print('        running %d round 2 CC jobs (%d concurrent, %.2fx hi_bound = %.4f threshold)' % (
+            print('        running %d round 2 TCM jobs (%d concurrent, %.2fx hi_bound = %.4f threshold)' % (
                 len(r2_cmdfos), n_procs2, merge_factor, round2_threshold))
             utils.run_cmds(r2_cmdfos, n_max_procs=n_procs2)
         for c3len, pairs_fname in r2_pairs_files.items():
             centroid_uids = [c for c, _ in r1_by_c3len[c3len]]
-            comps_by_c3len[c3len] = _cc_merge_from_pairs(pairs_fname, centroid_uids)
+            comps_by_c3len[c3len] = _tcm_merge_from_pairs(pairs_fname, centroid_uids)
 
-    # step 4: build sub_groups_list per CDR3 group (merged by CC if round 2 enabled, else raw round 1)
+    # step 4: build sub_groups_list per CDR3 group (merged by TCM if round 2 enabled, else raw round 1)
     all_group_infos = []
     flattened_groups = collections.OrderedDict()
     for c3len, seqfos in sorted(groups.items()):
@@ -359,11 +359,11 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
     return flattened_groups, all_group_infos
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.0, max_bin_size=15000):
+def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.0, max_bin_size=25000):
     # memory-efficient hfrac for multi-cache path: reads one CDR3 group SW cache at a time
     # round 1 pass 1: write naive FASTAs, build vsearch commands
     # round 1 dispatch: run all vsearch in parallel
-    # round 2 (if merge_factor > 0): CC merge on round 1 centroids via --allpairs_global
+    # round 2 (if merge_factor > 0): TCM on round 1 centroids via --allpairs_global
     # pass 2: re-read SW caches, parse results, write sub-group outputs
     import shutil
 
@@ -408,7 +408,7 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.
         cluster_file = '%s/vsearch-clusters.txt' % vsearch_groups[c3len]
         r1_by_c3len[c3len] = _read_vsearch_uc_with_centroids(cluster_file)
 
-    # round 2 (optional): CC merge on centroids via --allpairs_global
+    # round 2 (optional): TCM on centroids via --allpairs_global
     comps_by_c3len = {}
     r2_workdirs = {}
     if merge_factor > 0:
@@ -421,8 +421,8 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.
                 continue
             naive_by_uid = {sfo['name']: sfo['naive_seq'] for sfo in groups[c3len] if sfo.get('naive_seq', '')}
             centroid_naives = {c: naive_by_uid[c] for c, _ in r1_results if c in naive_by_uid}
-            r2_workdir = '%s/groups/cdr3-%d/_round2_cc' % (outdir, c3len)
-            cmdfo, pairs_fname = _build_round2_cc_cmd(centroid_naives, round2_threshold, r2_workdir)
+            r2_workdir = '%s/groups/cdr3-%d/_round2_tcm' % (outdir, c3len)
+            cmdfo, pairs_fname = _build_round2_tcm_cmd(centroid_naives, round2_threshold, r2_workdir)
             if cmdfo is None:
                 comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
                 continue
@@ -431,14 +431,14 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=3.
             r2_pairs_files[c3len] = pairs_fname
         if len(r2_cmdfos) > 0:
             n_procs2 = min(8, len(r2_cmdfos))
-            print('        running %d round 2 CC jobs (%d concurrent, %.2fx hi_bound = %.4f threshold)' % (
+            print('        running %d round 2 TCM jobs (%d concurrent, %.2fx hi_bound = %.4f threshold)' % (
                 len(r2_cmdfos), n_procs2, merge_factor, round2_threshold))
             utils.run_cmds(r2_cmdfos, n_max_procs=n_procs2)
         for c3len, pairs_fname in r2_pairs_files.items():
             centroid_uids = [c for c, _ in r1_by_c3len[c3len]]
-            comps_by_c3len[c3len] = _cc_merge_from_pairs(pairs_fname, centroid_uids)
+            comps_by_c3len[c3len] = _tcm_merge_from_pairs(pairs_fname, centroid_uids)
 
-    # pass 2: re-read SW caches, build sub_groups_list (from CC components if round 2, else round 1), write outputs
+    # pass 2: re-read SW caches, build sub_groups_list (from TCM components if round 2, else round 1), write outputs
     all_group_infos = []
     flattened_groups = collections.OrderedDict()
     for c3len, seqfos in sorted(groups.items()):
@@ -633,7 +633,7 @@ def resolve_sw_cache_paths(sw_cache_paths):
     return list(sw_cache_paths)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=3.0, hfrac_max_bin_size=15000):
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=3.0, hfrac_max_bin_size=25000):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
