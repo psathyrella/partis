@@ -272,7 +272,7 @@ def get_arg_list(arg, intify=False, intify_with_ranges=False, floatify=False, bo
 
 # ----------------------------------------------------------------------------------------
 def add_to_scan_cmd(args, vname, vstr, cmd, replacefo=None):
-    if vstr == 'None':  # we want 'None' to show up in the scan dir structure, but it's nicer to just not set the command line arg (assuming the script we're running has None as the default!)
+    if vstr is None or vstr == 'None':  # we want 'None' to show up in the scan dir structure, but it's nicer to just not set the command line arg (assuming the script we're running has None as the default!)
         return cmd
     if hasattr(args, 'bool_args') and vname in args.bool_args:  # in cf-tree-metrics this was handled for e.g. context dependence in bcr-phylo-run
         if vstr == '0':
