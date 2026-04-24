@@ -1419,7 +1419,7 @@ class PartitionDriver(object):
             # n_clusters = len(superclust) // self.args.subcluster_annotation_size  # old way: truncates the decimal (see note in subcl_split())
             n_clusters = int(math.ceil(len(superclust) / float(self.args.subcluster_annotation_size)))  # taking the ceiling keeps the max un-split cluster size equal to <self.args.subcluster_annotation_size> (rather than one less than twice that)
             if n_clusters < 2:  # initially we don't call this function unless superclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
-                return [superclust]
+                return [superclust] if len(superclust) > 0 else []
 
             if False: # self.args.kmeans_subclusters:  # this gives you clusters that are "tighter" -- i.e. clusters similar sequences together
                 from . import mds  # this works fine, but it's not really different (on balance with kmeans is probably a bit worse) than the simple way. Which is weird, I would think it would help? but otoh it gives you non-equal-sized clusters, which sometimes i think is worse, although sometimes i also think is better
@@ -1471,7 +1471,8 @@ class PartitionDriver(object):
                 # raise Exception('hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (hashid, ':'.join(line['unique_ids'])))
                 if not self.added_extra_clusters_to_annotate:
                     print('  %s hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (utils.color('yellow', 'warning'), hashid, ':'.join(line['unique_ids'])))
-                return False
+                    return False
+                return True  # hashid seq already set up in sw_info from previous subcluster annotation pass; still need to add to naive_ancestor_hashes so subclustering continues
             self.sw_info[hashid] = swhfo
             if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
                 existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
@@ -1518,6 +1519,8 @@ class PartitionDriver(object):
                     if skey(tclust) in subd_clusters:  # subsequent rounds: get subclusters from intermediate inferred naives (hashids) from the last round
                         subclusters = getsubclusters(naive_ancestor_hashes[skey(tclust)])
                         del naive_ancestor_hashes[skey(tclust)]
+                        if len(subclusters) == 0 and len(subd_clusters[skey(tclust)][-1]) > 0:  # converged: all naive seqs already in sw_info (add_hash_seq returned False for all subclusters); force finalization by re-running just the first subcluster from the last round
+                            subclusters = subd_clusters[skey(tclust)][-1][:1]
                     else:  # first time through: add <tclust> to subd_clusters and get initial subclusters
                         subd_clusters[skey(tclust)] = []
                         subclusters = getsubclusters(tclust, shuffle=self.reco_info is not None and istep==0)  # the order of uids in each cluster that comes out of simulation is the order of leaves in the tree (i.e. they're sorted by similarity), so it's *extremely* important to shuffle them to get a fair comparison
@@ -1526,7 +1529,8 @@ class PartitionDriver(object):
                     if debug:
                         n_prev = len(subd_clusters[skey(tclust)]) - 1
                         mphfracs = [utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in c]) for c in subclusters]
-                        mean_weighted_pw_hfrac = numpy.average(mphfracs, weights=[len(c) / float(len(tclust)) for c in subclusters])
+                        weights = [len(c) / float(len(tclust)) for c in subclusters]
+                        mean_weighted_pw_hfrac = numpy.average(mphfracs, weights=weights) if sum(weights) > 0 else 0.
                         print('       %4d      %s      %s      %3d      %4.2f      %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), mean_weighted_pw_hfrac, ' '.join(str(len(c)) for c in subclusters)))
             _, step_antns, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
             if istep == 0 and self.args.calculate_alternative_annotations:  # could do this in one of the loops below, but it's nice to have it separate since it doesn't really have anything to do with subcluster annotation
@@ -1572,6 +1576,11 @@ class PartitionDriver(object):
             n_sub_finished = 0
             for uidstr, subcluster_lists in list(subd_clusters.items()):  # handle the ones that're done (at this point they should be an annotation of about length self.args.subcluster_annotation_size consisting of just inferred subcluster naives)
                 if len(subcluster_lists[-1]) > 1:  # not finished yet
+                    continue
+                if len(subcluster_lists[-1]) == 0:  # empty subcluster from degenerate input (e.g. empty naive_ancestor_hashes): clean up and skip
+                    all_hmm_failures |= set(skey_inverse(uidstr))
+                    clusters_still_to_do.remove(skey_inverse(uidstr))
+                    del subd_clusters[uidstr]
                     continue
                 sclust = skey_inverse(uidstr)
                 if debug:

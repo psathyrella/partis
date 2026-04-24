@@ -254,7 +254,7 @@ pub const DPHandler = struct {
                     const total_kset = total_scores.get(kset) orelse mathutils.NEG_INF;
                     result.total_score = mathutils.addInLogSpace(total_kset, result.total_score);
                     if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "forward")) {
-                        const fwd_msg = try std.fmt.allocPrint(allocator, "            {d: >9.2} ({e:.1})  tot: {d: >7.2}\n", .{ total_kset, @as(f64, @exp(total_kset)), result.total_score });
+                        const fwd_msg = try std.fmt.allocPrint(allocator, "            {d: >12.6} ({e:.1})  tot: {d: >12.6}\n", .{ total_kset, @as(f64, @exp(total_kset)), result.total_score });
                         defer allocator.free(fwd_msg);
                         try std.fs.File.stdout().writeAll(fwd_msg);
                     }
@@ -317,7 +317,7 @@ pub const DPHandler = struct {
             defer allocator.free(name_str);
             const elapsed_ms = std.time.milliTimestamp() - run_start;
             const cpu_seconds = @as(f64, @floatFromInt(elapsed_ms)) / 1000.0;
-            const summary = try std.fmt.allocPrint(allocator, "           {s} {d: >12.3}   {s: <25}  {d: >2}v {d: >2}d {d: >2}j  {d: >5.2}s   {d: >4}  {s}\n", .{ alg_str, prob, kstr, n_v, n_d, n_j, cpu_seconds, seqs.nSeqs(), name_str });
+            const summary = try std.fmt.allocPrint(allocator, "           {s} {d: >15.6}   {s: <25}  {d: >2}v {d: >2}d {d: >2}j  {d: >5.2}s   {d: >4}  {s}\n", .{ alg_str, prob, kstr, n_v, n_d, n_j, cpu_seconds, seqs.nSeqs(), name_str });
             defer allocator.free(summary);
             try std.fs.File.stdout().writeAll(summary);
         }
@@ -819,7 +819,7 @@ pub const DPHandler = struct {
                     const rt_val = regional_total.get(region) orelse mathutils.NEG_INF;
                     const colored_gene = try TermColors.colorGene(allocator, gene);
                     defer allocator.free(colored_gene);
-                    const fwd_line = try std.fmt.allocPrint(allocator, "                {e: >6.0} {d: >9.2}  {d: >7.2}  {s}  {s}\n", .{ @as(f64, @exp(gene_score)), gene_score, rt_val, origin, colored_gene });
+                    const fwd_line = try std.fmt.allocPrint(allocator, "                {e: >6.0} {d: >12.6}  {d: >12.6}  {s}  {s}\n", .{ @as(f64, @exp(gene_score)), gene_score, rt_val, origin, colored_gene });
                     defer allocator.free(fwd_line);
                     try std.fs.File.stdout().writeAll(fwd_line);
                 }
