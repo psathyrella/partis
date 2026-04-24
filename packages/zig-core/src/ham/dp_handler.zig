@@ -503,7 +503,7 @@ pub const DPHandler = struct {
                 for (e.query_strs.items) |s| allocator.free(s);
                 e.query_strs.deinit(allocator);
                 e.trellis.deinit();
-                return;
+                return error.GeneNotInScratchCache;
             }
         } else blk: {
             // Have cache: create temp trellis that borrows from the cached scratch.
@@ -984,20 +984,18 @@ pub const DPHandler = struct {
         const ins = Insertions{};
         for (ins.forRegion(region)) |insertion| {
             const side: []const u8 = if (std.mem.eql(u8, insertion, "jf")) "right" else "left";
-            const inserted = self.getInsertion(side, path_names);
+            var buf: [200]u8 = undefined;
+            const inserted = getInsertion(side, path_names, &buf);
             try event.setInsertion(allocator, insertion, inserted);
         }
     }
 
     /// Extract inserted bases from path state names for the given side.
     /// Corresponds to C++ `DPHandler::GetInsertion`.
-    fn getInsertion(self: *DPHandler, side: []const u8, names: []const []const u8) []const u8 {
-        _ = self;
+    fn getInsertion(side: []const u8, names: []const []const u8, buf: *[200]u8) []const u8 {
         if (std.mem.eql(u8, side, "left")) {
             // Scan left-to-right: collect last char of each "insert..." state
-            // Build into a static buffer (max 200 bases should be safe)
             const max = @min(names.len, 200);
-            var buf: [200]u8 = undefined;
             var len: usize = 0;
             for (names[0..max]) |name| {
                 if (!std.mem.startsWith(u8, name, "insert")) break;
@@ -1007,7 +1005,6 @@ pub const DPHandler = struct {
             return buf[0..len];
         } else {
             // right: scan right-to-left
-            var buf: [200]u8 = undefined;
             var len: usize = 0;
             var i: usize = names.len;
             while (i > 0) {

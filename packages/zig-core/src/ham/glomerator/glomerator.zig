@@ -24,6 +24,14 @@ const RecoEvent = bcr.RecoEvent;
 const Result = bcr.Result;
 const Query = @import("query.zig").Query;
 
+fn sortPartition(part: *Partition) void {
+    std.mem.sort([]u8, part.items, {}, struct {
+        fn lessThan(_: void, a: []u8, b: []u8) bool {
+            return std.mem.order(u8, a, b) == .lt;
+        }
+    }.lessThan);
+}
+
 /// Corresponds to C++ `ham::Glomerator`.
 pub const Glomerator = struct {
     track: *Track,
