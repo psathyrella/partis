@@ -1229,13 +1229,10 @@ pub const Glomerator = struct {
         }.lessThan);
 
         const joint_kbounds = ref_a.kbounds.logicalOr(ref_b.kbounds);
-        // Match C++ arithmetic: size_t * float → float (not double), sum in float, then divide by double.
-        // C++: (n_a * mf_a + n_b * mf_b) / double(n_total) where the products and sum are float.
-        const n_a_f32: f32 = @floatFromInt(ref_a.nSeqs());
-        const n_b_f32: f32 = @floatFromInt(ref_b.nSeqs());
-        const sum_f32: f32 = n_a_f32 * ref_a.mute_freq + n_b_f32 * ref_b.mute_freq;
-        const n_total_f64: f64 = @floatFromInt(ref_a.nSeqs() + ref_b.nSeqs());
-        const joint_mute_freq: f32 = @floatCast(@as(f64, sum_f32) / n_total_f64);
+        const n_a_f64: f64 = @floatFromInt(ref_a.nSeqs());
+        const n_b_f64: f64 = @floatFromInt(ref_b.nSeqs());
+        const n_total_f64: f64 = n_a_f64 + n_b_f64;
+        const joint_mute_freq: f32 = @floatCast((n_a_f64 * @as(f64, ref_a.mute_freq) + n_b_f64 * @as(f64, ref_b.mute_freq)) / n_total_f64);
         const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, joint_name, ":");
 
         const key_seqs = try self.getSeqs(joint_name);
