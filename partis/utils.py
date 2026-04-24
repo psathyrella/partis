@@ -7499,6 +7499,10 @@ def get_platform_binstr():
         raise Exception('%s no vsearch binary in bin/ for platform \'%s\' (you can specify your own full vsearch path with --vsearch-binary)' % (color('red', 'error'), platform.system()))
 
 # ----------------------------------------------------------------------------------------
+def get_vsearch_binary():
+    return '%s/bin/vsearch-2.4.3-%s-x86_64' % (get_partis_dir(), get_platform_binstr())
+
+# ----------------------------------------------------------------------------------------
 # NOTE use the previous fcn if you expect duplicate uids
 def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_open=None, no_indels=False, minseqlength=None, consensus_fname=None, msa_fname=None, glfo=None, print_time=False, vsearch_binary=None, get_annotations=False, expect_failure=False, extra_str='  vsearch:', debug=False):
     from . import clusterpath
@@ -7536,7 +7540,7 @@ def run_vsearch(action, seqdict, workdir, threshold, match_mismatch='2:-4', gap_
 
     # figure out which vsearch binary to use
     if vsearch_binary is None:
-        vsearch_binary = '%s/bin/vsearch-2.4.3-%s-x86_64' % (get_partis_dir(), get_platform_binstr())
+        vsearch_binary = get_vsearch_binary()
 
     # build command
     cmd = vsearch_binary
