@@ -1944,6 +1944,9 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             print('  %s using non-best partition index %d for %s (best is %d)' % (utils.color('red', 'note'), iparts[ploci[tch]], tch, cpaths[ploci[tch]].i_best))
 
     l_translations = translate_paired_uids(ploci, init_partitions, antn_lists)
+    if dg_uid_groups is not None and ploci['l'] in dg_uid_groups:  # remap light chain sub-group ids to use translated (heavy-format) uids, since translate_paired_uids replaced light uids with their paired heavy uids
+        l_grp = dg_uid_groups[ploci['l']]
+        dg_uid_groups[ploci['l']] = {translated_uid: l_grp[orig_uid] for translated_uid, orig_uid in l_translations.items() if orig_uid in l_grp}
     if debug:
         for tstr, tpart in [('heavy', init_partitions['h']), ('light', init_partitions['l'])]:
             ptnprint(tpart, extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
