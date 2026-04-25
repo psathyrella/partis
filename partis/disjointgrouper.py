@@ -496,6 +496,17 @@ def validate_sequence_count(manifest):
     print('      sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
 
 # ----------------------------------------------------------------------------------------
+def build_uid_group_mapping(manifest, disjoint_dir):
+    # build mapping from uid to group_id for all sequences in the manifest, used by paired clustering to identify which hfrac sub-group each sequence came from
+    uid_to_group = {}
+    for ginfo in manifest['groups']:
+        fasta_path = os.path.join(disjoint_dir, ginfo['fasta_path'])
+        group_id = ginfo['group_id']
+        for sfo in utils.read_fastx(fasta_path):
+            uid_to_group[sfo['name']] = group_id
+    return uid_to_group
+
+# ----------------------------------------------------------------------------------------
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
     # if partition_path is set in manifest, use it directly

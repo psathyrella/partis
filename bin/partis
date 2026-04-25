@@ -1320,9 +1320,17 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print('    %s: --n-final-clusters is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently this means we over-merge as far as possible (which is correct only if you set --n-final-clusters to 1)' % utils.color('yellow', 'warning'))
             if args.min_largest_cluster_size is not None:
                 print('    %s: --min-largest-cluster-size is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently we don\'t do anything specific for --min-largest-cluster-size during paired clustering, so you\'ll probably get smaller clusters than you want. If this is a problem, you can try using --n-final-clusters 1 instead.' % utils.color('yellow', 'warning'))
+            dg_uid_groups = None
+            if getattr(args, 'disjoint_groups', False):
+                dg_uid_groups = {}
+                for ltmp in lpair:
+                    dg_dir = '%s/disjoint-groups/%s' % (getodir(single_chain=True), ltmp)
+                    mfpath = '%s/%s' % (dg_dir, disjointgrouper.MANIFEST_FNAME)
+                    if os.path.exists(mfpath):
+                        dg_uid_groups[ltmp] = disjointgrouper.build_uid_group_mapping(disjointgrouper.read_manifest(mfpath), dg_dir)
             mstart = time.time()
             joint_partitions, cluster_pairs, ccfs = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, true_outfos=true_outfos, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
-                                                                             seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, debug=args.debug_paired_clustering, fail_frac=args.max_ccf_fail_frac if args.seed_unique_id is None else None)  # , iparts={'igl' : 7}
+                                                                             seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, dg_uid_groups=dg_uid_groups, debug=args.debug_paired_clustering, fail_frac=args.max_ccf_fail_frac if args.seed_unique_id is None else None)  # , iparts={'igl' : 7}
             if args.pair_unpaired_seqs_with_paired_family:
                 paircluster.pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, single_outfos['antn_lists'], debug=args.debug_paired_clustering)
             print('  merge time %.1f' % (time.time() - mstart))
