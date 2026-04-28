@@ -1756,7 +1756,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     # ----------------------------------------------------------------------------------------
     # Starting with <single_cluster> (from one chain) and <cluster_list> (all clusters in the other chain that overlap with <single_cluster>), decide which of the "splits" (i.e. cluster boundaries) in <cluster_list> should be applied to <single_cluster>.
     # Reapportions all uids from <single_cluster> and <cluster_list> into <return_clusts>, splitting definitely/first by cdr3, and then (if over some threshold) by naive hamming distance.
-    def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, uid_sub_groups=None, tdbg=False):
+    def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, uid_to_dg_group=None, tdbg=False):
         if dbgids is not None:
             tdbg = len(set(dbgids) & set(u for c in [single_cluster] + cluster_list for u in c)) > 0
         # NOTE single_cluster and cluster_list in general have quite different sets of uids, and that's fine. All that matters here is we're trying to find all the clusters that should be split from one another (without doing some all against all horror)
@@ -1781,8 +1781,8 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             # first figure out who needs to be split from whom
             clusters_to_split = {akey(c) : [] for c in cdrgroup}  # map from each cluster ('s key) to a list of clusters from which it should be split
             for c1, c2 in itertools.combinations(cdrgroup, 2):  # we could take account of the hfrac of both chains at this point, but looking at only the "split" one rather than the "merged" one, as we do here, is i think equivalent to assuming the merged one has zero hfrac, which is probably fine, since we only split if the split chain is very strongly suggesting we split
-                if uid_sub_groups is not None:  # with disjoint grouping + hfrac, clusters from different sub-groups were partitioned independently, so cross-sub-group pairs can be marked as splits without computing hamming (hfrac already separated them by naive distance)
-                    sg1, sg2 = uid_sub_groups.get(c1[0]), uid_sub_groups.get(c2[0])
+                if uid_to_dg_group is not None:  # with disjoint grouping + hfrac, clusters from different sub-groups were partitioned independently, so cross-sub-group pairs can be marked as splits without computing hamming (hfrac already separated them by naive distance)
+                    sg1, sg2 = uid_to_dg_group.get(c1[0]), uid_to_dg_group.get(c2[0])
                     if sg1 is not None and sg2 is not None and sg1 != sg2:
                         clusters_to_split[akey(c1)].append(c2)
                         clusters_to_split[akey(c2)].append(c1)
@@ -2017,8 +2017,9 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 sys.stdout.flush()
             ihuge += 1
 
-        uid_sub_groups = dg_uid_groups.get(ploci[list_chain]) if dg_uid_groups is not None else None
-        resolved_clusters = resolve_discordant_clusters([u for u in single_cluster], single_annotation, [[u for u in c] for c in cluster_list], annotation_list, uid_sub_groups=uid_sub_groups, tdbg=debug)
+        # only the list-chain sub-group map is consulted: the list chain is the one that iterates and makes split/merge decisions here (mirrors the "split chain decides" pattern in pair cleaning), so the single-chain sub-group map would be unused
+        uid_to_dg_group = dg_uid_groups.get(ploci[list_chain]) if dg_uid_groups is not None else None
+        resolved_clusters = resolve_discordant_clusters([u for u in single_cluster], single_annotation, [[u for u in c] for c in cluster_list], annotation_list, uid_to_dg_group=uid_to_dg_group, tdbg=debug)
         if check_partitions:
             assert is_clean_partition(resolved_clusters)
         incorporate_rclusts(final_partition, fclust_sets, fclust_indices, resolved_clusters)
