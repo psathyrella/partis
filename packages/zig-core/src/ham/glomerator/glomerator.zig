@@ -422,7 +422,10 @@ pub const Glomerator = struct {
             return;
         }
 
-        const content = try std.fs.cwd().readFileAlloc(allocator, self.args.input_cachefname, 256 * 1024 * 1024);
+        // 4 GiB cap accommodates collision-heavy paired runs (e.g. 50k all-singleton
+        // events) where the partition cache grows past 256 MiB. Not a memory guard —
+        // if RSS is genuinely tight the program will OOM regardless.
+        const content = try std.fs.cwd().readFileAlloc(allocator, self.args.input_cachefname, 4 * 1024 * 1024 * 1024);
         defer allocator.free(content);
 
         var line_iter = std.mem.splitScalar(u8, content, '\n');
