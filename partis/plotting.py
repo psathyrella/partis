@@ -1235,8 +1235,9 @@ def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digi
         return lfn
     max_label_len = max(len(str(l)) for l in leg_entries)
     figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(leg_entries) / 4.))
+    tmp_fig = None
     if ax is None:
-        fig, ax = mpl_init()
+        tmp_fig, ax = mpl_init()
         items = sorted((str(l), fo) for l, fo in leg_entries.items()) if sort else ((str(l), fo) for l, fo in leg_entries.items())  # have to convert labels to str in case e.g. one of them's None
         for tlab, lfo in items:
             if n_digits is not None and tlab is not None:
@@ -1245,6 +1246,9 @@ def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digi
         handles, labels = ax.get_legend_handles_labels()
     figlegend.legend(handles, labels, loc='center', title=title)
     figlegend.savefig(lfn)
+    plt.close(figlegend)
+    if tmp_fig is not None:
+        plt.close(tmp_fig)
     return lfn
 
 # ----------------------------------------------------------------------------------------
