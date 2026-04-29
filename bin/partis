@@ -1484,6 +1484,7 @@ parent_args.append({'name' : '--extra-print-keys', 'kwargs' : {'help' : 'add the
 parent_args.append({'name' : '--n-procs', 'kwargs' : {'type' : int, 'default' : utils.auto_n_procs(), 'help' : 'Number of processes over which to parallelize (defaults to the number of cpus on the machine). This is usually the maximum that will be initialized at any given time, but for internal reasons, certain steps (e.g. smith waterman) sometimes use slightly more.'}})
 parent_args.append({'name' : '--n-max-to-calc-per-process', 'kwargs' : {'default' : 250, 'help' : 'if a bcrham process calc\'d more than this many fwd + vtb values (and this is the first time with this number of procs), don\'t decrease the number of processes in the next step (default %(default)d)'}})
 parent_args.append({'name' : '--min-hmm-step-time', 'kwargs' : {'default' : 2., 'help' : 'if a clustering step takes fewer than this many seconds, always reduce n_procs'}})
+parent_args.append({'name' : '--no-time-based-n-proc-reduction', 'kwargs' : {'action' : 'store_true', 'help' : 'disable time-based n_procs reduction during partition hieraglom iterations (for testing: ensures C++ and Zig backends use the same number of processes)'}})
 parent_args.append({'name' : '--batch-system', 'kwargs' : {'choices' : ['slurm', 'sge'], 'help' : 'batch system with which to attempt paralellization'}})
 parent_args.append({'name' : '--batch-options', 'kwargs' : {'help' : 'additional options to apply to --batch-system (e.g. --batch-options : "--foo bar")'}})
 parent_args.append({'name' : '--batch-config-fname', 'kwargs' : {'default' : '/etc/slurm-llnl/slurm.conf', 'help' : 'system-wide batch system configuration file name'}})  # for when you're running the whole thing within one slurm allocation, i.e. with  % salloc --nodes N ./bin/partis [...]
@@ -1494,6 +1495,8 @@ parent_args.append({'name' : '--count-correlations', 'kwargs' : {'action' : 'sto
 parent_args.append({'name' : '--dont-write-parameters', 'kwargs' : {'action' : 'store_true', 'help' : 'don\'t write parameters to disk even if you\'ve counted them (mostly for use in conjunction with --only-smith-waterman, so you can avoid cluttering up your file system)'}})
 parent_args.append({'name' : '--partis-dir', 'kwargs' : {'default' : partis_dir, 'help' : 'for internal use only'}})
 parent_args.append({'name' : '--ig-sw-binary', 'kwargs' : {'default' : partis_dir + '/packages/ig-sw/src/ig_align/ig-sw', 'help' : 'Path to ig-sw executable.'}})
+parent_args.append({'name' : '--bcrham-binary', 'kwargs' : {'default' : partis_dir + '/packages/ham/bcrham', 'help' : 'Path to bcrham executable.'}})
+parent_args.append({'name' : '--zig', 'kwargs' : {'action' : 'store_true', 'help' : 'Use Zig backend instead of C++ bcrham and C ig-sw. Requires running bin/zig-build.sh first.'}})
 parent_args.append({'name' : '--vsearch-binary', 'kwargs' : { 'help' : 'Path to vsearch binary (vsearch binaries for linux and darwin are pre-installed in bin/, but for other systems you need to get your own)'}})
 parent_args.append({'name' : '--is-simu', 'kwargs' : {'action' : 'store_true', 'help' : 'Set if running on simulated sequences'}})
 parent_args.append({'name' : '--skip-unproductive', 'kwargs' : {'action' : 'store_true', 'help' : 'Skip sequences which Smith-Waterman determines to be unproductive (i.e. if they have stop codons, out of frame cdr3, or mutated cyst/tryp/phen)'}})
@@ -1832,6 +1835,14 @@ args = parser.parse_args() if len(sys.argv) > 1 else parser.parse_args(['--help'
 # add OR of all arguments to all subparsers to <args>, as None (to avoid having to rewrite a *##!(%ton of other code)
 for missing_arg in get_arg_names('all') - set(args.__dict__):  # NOTE see also remove_action_specific_args() above, which kind of does similar things, at least if i rewrote this all from scratch only one (or neither...) would exist
     args.__dict__[missing_arg] = None
+
+if getattr(args, 'zig', False):
+    zig_bin = partis_dir + '/packages/zig-core/zig-out/bin'
+    for binary, name in [('bcrham_binary', 'partis-zig-core'), ('ig_sw_binary', 'partis-zig-igsw')]:
+        path = zig_bin + '/' + name
+        if not os.path.exists(path):
+            raise Exception('Zig binary not found: %s (run bin/zig-build.sh first)' % path)
+        setattr(args, binary, path)
 
 processargs.process(args)
 random.seed(args.random_seed)

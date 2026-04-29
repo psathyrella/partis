@@ -678,7 +678,7 @@ for i in range(len(index_columns)):  # dict so we can access them by name instea
 # information plot in bcellap repo
 
 # key is parameter of interest, and associated list gives the parameters (other than itself) which are necessary to predict it
-# TODO am I even using these any more? I think I might just be using the all-probs file
+# taken from mebcell mutual info plot: data/mebcell-mutual-info.jpg (Fig 2 of Murugan 2012 has the ~same chart)
 column_dependencies = {}
 column_dependencies['v_gene'] = [] # NOTE v choice actually depends on everything... but not super strongly, so a.t.m. I ignore it
 column_dependencies['v_5p_del'] = ['v_gene']
@@ -690,7 +690,7 @@ column_dependencies['j_gene'] = []
 column_dependencies['j_5p_del'] = ['j_gene']  # NOTE mebcell plot showed this correlation as being small, but I'm adding it here for (a possibly foolish) consistency
 column_dependencies['j_3p_del'] = ['j_gene']
 column_dependencies['fv_insertion'] = []
-column_dependencies['vd_insertion'] = ['d_gene']
+column_dependencies['vd_insertion'] = ['d_gene']  # from the plot this should probably be v_gene (no idea why I made it d_gene), but they're both small (much smaller than the j_gene dependence of dj_insertion) 
 column_dependencies['dj_insertion'] = ['j_gene']
 column_dependencies['jf_insertion'] = []
 # column_dependencies['vd_insertion_content'] = []
@@ -5893,7 +5893,7 @@ def process_out_err(logdir, extra_str='', dbgfo=None, cmd_str=None, debug=None, 
         err_str += [line]
     err_str = '\n'.join(err_str)
 
-    if 'bcrham' in cmd_str:
+    if 'bcrham' in cmd_str or 'partis-zig-core' in cmd_str:
         for line in logstrs['out'].split('\n'):  # print debug info related to --n-final-clusters/--min-largest-cluster-size force merging
             if 'force' in line:
                 print('    %s %s' % (color('yellow', 'force info:'), line))
