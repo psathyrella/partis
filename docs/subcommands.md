@@ -103,6 +103,9 @@ Since no clonal family can span two CDR3 lengths, the groups are guaranteed disj
 This can substantially speed up partitioning on large samples, since partitioning many smaller groups is much faster than one large partition.
 The number of concurrent per-group jobs is set with `--n-max-disjoint-jobs <n>` (default 3), and each job uses `--n-procs` processes unless overridden with `--n-sub-procs <n>`.
 It can also be combined with `subset-partition` (i.e. `partis subset-partition --disjoint-groups`), in which case it speeds up the single-chain partition step within each subset.
+Adding `--hfrac` further splits CDR3 groups by naive hamming fraction into smaller sub-groups, controlled by `--hfrac-max-bin-size` (default 100000).
+Note that each sub-group is partitioned independently, and the clustering method depends on sub-group size: groups larger than `--max-n-seqs-to-likelihood-cluster` (default 50000) automatically use vsearch, while smaller groups use full likelihood clustering.
+To use vsearch on all groups regardless of size, pass `--fast`.
 For running the individual steps separately (e.g. as independent batch jobs), see [`create-disjoint-groups`](#create-disjoint-groups) and [`assemble-groups`](#assemble-groups) below.
 
 ##### limit maximum cluster size

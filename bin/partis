@@ -79,10 +79,10 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
     clist = strip_paired_args(copy.deepcopy(sys.argv), args)
     # strip additional args not needed for disjoint per-group commands
     for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
-                    '--disjoint-groups', '--prepend-coverage-command',
+                    '--disjoint-groups', '--hfrac', '--prepend-coverage-command',
                     '--plot-annotation-performance']:  # requires --is-simu which is also stripped
         utils.remove_from_arglist(clist, argname)
-    for argname in ['--n-subsets', '--n-max-subprocs', '--n-sub-procs']:
+    for argname in ['--n-subsets', '--n-max-subprocs', '--n-sub-procs', '--hfrac-merge-factor', '--hfrac-max-bin-size']:
         utils.remove_from_arglist(clist, argname, has_arg=True)
     # set action and locus
     clist[clist.index(args.action)] = tmpaction
@@ -122,7 +122,7 @@ def disjoint_group_action(args):
     if outdir is None:
         raise Exception('--paired-outdir or --workdir must be set')
     disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
-    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir)
+    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir, hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size)
 
 # ----------------------------------------------------------------------------------------
 def assemble_groups_action(args):
@@ -1320,9 +1320,17 @@ def run_all_loci(args, ig_or_tr='ig'):
                 print('    %s: --n-final-clusters is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently this means we over-merge as far as possible (which is correct only if you set --n-final-clusters to 1)' % utils.color('yellow', 'warning'))
             if args.min_largest_cluster_size is not None:
                 print('    %s: --min-largest-cluster-size is set, but there isn\'t yet a way to specify a particular number of clusters during paired clustering. So currently we don\'t do anything specific for --min-largest-cluster-size during paired clustering, so you\'ll probably get smaller clusters than you want. If this is a problem, you can try using --n-final-clusters 1 instead.' % utils.color('yellow', 'warning'))
+            dg_uid_groups = None
+            if getattr(args, 'disjoint_groups', False):
+                dg_uid_groups = {}
+                for ltmp in lpair:
+                    dg_dir = '%s/disjoint-groups/%s' % (getodir(single_chain=True), ltmp)
+                    mfpath = '%s/%s' % (dg_dir, disjointgrouper.MANIFEST_FNAME)
+                    if os.path.exists(mfpath):
+                        dg_uid_groups[ltmp] = disjointgrouper.build_uid_group_mapping(disjointgrouper.read_manifest(mfpath), dg_dir)
             mstart = time.time()
             joint_partitions, cluster_pairs, ccfs = paircluster.merge_chains(ploci, lp_cpaths, lp_antn_lists, unpaired_seqs=unpaired_seqs, true_outfos=true_outfos, input_cpaths=single_outfos['cpaths'], input_antn_lists=single_outfos['antn_lists'],
-                                                                             seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, debug=args.debug_paired_clustering, fail_frac=args.max_ccf_fail_frac if args.seed_unique_id is None else None)  # , iparts={'igl' : 7}
+                                                                             seed_unique_ids=seedids, overmerge=args.n_final_clusters is not None, naive_hamming_bound_type=args.paired_naive_hfrac_threshold_type, dg_uid_groups=dg_uid_groups, debug=args.debug_paired_clustering, fail_frac=args.max_ccf_fail_frac if args.seed_unique_id is None else None)  # , iparts={'igl' : 7}
             if args.pair_unpaired_seqs_with_paired_family:
                 paircluster.pair_unpaired_seqs_with_paired_family(ploci, unpaired_seqs, cluster_pairs, single_outfos['antn_lists'], debug=args.debug_paired_clustering)
             print('  merge time %.1f' % (time.time() - mstart))
@@ -1438,6 +1446,9 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not os.path.exists(ifn) or os.stat(ifn).st_size == 0:
             print('  %s: %s, skipping disjoint partition (%s)' % (ltmp, 'input file missing' if not os.path.exists(ifn) else 'zero length input file', ifn))
             return
+        if not os.path.isdir(getpdir(ltmp)):
+            print('  %s: parameter dir missing, skipping disjoint partition (%s)' % (ltmp, getpdir(ltmp)))
+            return
         disjoint_dir = '%s/disjoint-groups/%s' % (getodir(single_chain=True), ltmp)
         print('%s %s with disjoint groups:' % (utils.color('blue_bkg', 'partition'), utils.color('blue', ltmp)))
 
@@ -1447,30 +1458,34 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s %s: manifest exists, skipping grouping: %s' % (utils.color('blue_bkg', 'create-disjoint-groups'), ltmp, manifest_path))
             manifest = disjointgrouper.read_manifest(manifest_path)
         else:
-            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp))
+            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size)
 
-        # step 2: partition each CDR3 group
+        # step 2: partition each group (or sub-group if hfrac)
         if len(manifest['groups']) == 0:
             raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s' % manifest_path)
         cmdfos = []
         n_max_jobs = args.n_max_subprocs
         for ginfo in manifest['groups']:
-            partition_rel_path = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+            # derive partition and sw-cache paths from the fasta_path in the manifest
+            fasta_rel = ginfo['fasta_path']
+            fasta_dir = os.path.dirname(fasta_rel)
+            partition_rel_path = '%s/partition-%s.yaml' % (fasta_dir, ltmp)
+            sw_cache_rel = '%s/sw-cache-%s.yaml' % (fasta_dir, ltmp)
             partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
             ginfo['partition_path'] = partition_rel_path
             if os.path.exists(partition_path):
                 print('    group %d (cdr3 %d): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length']))
                 continue
-            fasta_path = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
-            sw_cache_group = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (disjoint_dir, ginfo['cdr3_length'], ltmp)
-            extra_args = ['--sw-cachefname', sw_cache_group]
+            fasta_path = '%s/%s' % (disjoint_dir, fasta_rel)
+            sw_cache_path_full = '%s/%s' % (disjoint_dir, sw_cache_rel)
+            extra_args = ['--sw-cachefname', sw_cache_path_full]
             if args.n_sub_procs is not None:
                 extra_args += ['--n-procs', str(args.n_sub_procs)]
             cmd = build_single_locus_cmd('partition', ltmp, args,
                                          infname=fasta_path, outfname=partition_path, parameter_dir=getpdir(ltmp),
                                          extra_args=extra_args)
-            group_dir = '%s/groups/cdr3-%d' % (disjoint_dir, ginfo['cdr3_length'])
-            cmdfos.append({'cmd_str' : cmd, 'outfname' : partition_path, 'workdir' : group_dir})
+            workdir = '%s/%s' % (disjoint_dir, fasta_dir)
+            cmdfos.append({'cmd_str' : cmd, 'outfname' : partition_path, 'workdir' : workdir})
         if len(cmdfos) > 0:
             if args.dry_run:
                 print('    --dry-run: would run %d group partition jobs (%d concurrent)' % (len(cmdfos), n_max_jobs))
@@ -1859,8 +1874,16 @@ subargs['partition'].append({'name' : '--naive-hamming-cluster', 'kwargs' : {'ac
 subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwargs' : {'type' : int, 'default' : 50000, 'help' : 'If the repertoire has more than this many seqs, --naive-vsearch (--fast) is turned on, i.e. naive vsearch is used for clustering without any likelihoods. Turn off with --no-naive-vsearch.'}})
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
 subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length, then partition each group independently and concatenate. Speeds up large single-chain partitions by splitting into guaranteed-disjoint subsets.'}})
+subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'When used with --disjoint-groups, further split CDR3 groups by naive hamming fraction into sub-groups. Reduces group sizes for better parallelism and potentially enables HA clustering on smaller sub-groups.'}})
+subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
+subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
 subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Each job uses --n-procs processes internally.'}})
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
+
+subargs['create-disjoint-groups'] = []
+subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'Further split CDR3 groups by naive hamming fraction into sub-groups.'}})
+subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
+subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})

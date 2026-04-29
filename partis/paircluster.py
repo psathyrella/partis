@@ -1735,7 +1735,7 @@ def evaluate_joint_partitions(ploci, true_outfos, init_partitions, joint_partiti
 
 # ----------------------------------------------------------------------------------------
 # cartoon explaining algorithm here https://github.com/psathyrella/partis/commit/ede140d76ff47383e0478c25fae8a9a9fa129afa#commitcomment-40981229
-def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_outfos=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, overmerge=False, naive_hamming_bound_type=None, fail_frac=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
+def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, check_partitions=False, true_outfos=None, input_cpaths=None, input_antn_lists=None, seed_unique_ids=None, overmerge=False, naive_hamming_bound_type=None, fail_frac=None, dg_uid_groups=None, debug=False):  # NOTE the clusters in the resulting partition generally have the uids in a totally different order to in either of the original partitions
     dbgids = None #['1437084736471665213-igh']  # None
     # ----------------------------------------------------------------------------------------
     def akey(klist):
@@ -1756,7 +1756,7 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     # ----------------------------------------------------------------------------------------
     # Starting with <single_cluster> (from one chain) and <cluster_list> (all clusters in the other chain that overlap with <single_cluster>), decide which of the "splits" (i.e. cluster boundaries) in <cluster_list> should be applied to <single_cluster>.
     # Reapportions all uids from <single_cluster> and <cluster_list> into <return_clusts>, splitting definitely/first by cdr3, and then (if over some threshold) by naive hamming distance.
-    def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, tdbg=False):
+    def resolve_discordant_clusters(single_cluster, single_annotation, cluster_list, annotation_list, uid_to_dg_group=None, tdbg=False):
         if dbgids is not None:
             tdbg = len(set(dbgids) & set(u for c in [single_cluster] + cluster_list for u in c)) > 0
         # NOTE single_cluster and cluster_list in general have quite different sets of uids, and that's fine. All that matters here is we're trying to find all the clusters that should be split from one another (without doing some all against all horror)
@@ -1781,6 +1781,13 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             # first figure out who needs to be split from whom
             clusters_to_split = {akey(c) : [] for c in cdrgroup}  # map from each cluster ('s key) to a list of clusters from which it should be split
             for c1, c2 in itertools.combinations(cdrgroup, 2):  # we could take account of the hfrac of both chains at this point, but looking at only the "split" one rather than the "merged" one, as we do here, is i think equivalent to assuming the merged one has zero hfrac, which is probably fine, since we only split if the split chain is very strongly suggesting we split
+                if uid_to_dg_group is not None:  # with disjoint grouping + hfrac, clusters from different sub-groups were partitioned independently, so cross-sub-group pairs can be marked as splits without computing hamming (hfrac already separated them by naive distance)
+                    sg1, sg2 = uid_to_dg_group.get(c1[0]), uid_to_dg_group.get(c2[0])
+                    if sg1 is not None and sg2 is not None and sg1 != sg2:
+                        clusters_to_split[akey(c1)].append(c2)
+                        clusters_to_split[akey(c2)].append(c1)
+                        if tdbg: print('         dg split (sub-groups %d vs %d)  %3d %3d  %s   %s' % (sg1, sg2, len(c1), len(c2), ':'.join(c1), ':'.join(c2)))
+                        continue
                 hfrac = utils.hamming_fraction(adict[akey(c1)]['naive_seq'], adict[akey(c2)]['naive_seq'], align_if_necessary=True)  # all clusters with the same cdr3 len have been padded in waterer so their naive seqs are the same length
                 if hfrac > hi_hbound:
                     clusters_to_split[akey(c1)].append(c2)
@@ -1937,6 +1944,9 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
             print('  %s using non-best partition index %d for %s (best is %d)' % (utils.color('red', 'note'), iparts[ploci[tch]], tch, cpaths[ploci[tch]].i_best))
 
     l_translations = translate_paired_uids(ploci, init_partitions, antn_lists)
+    if dg_uid_groups is not None and ploci['l'] in dg_uid_groups:  # remap light chain sub-group ids to use translated (heavy-format) uids, since translate_paired_uids replaced light uids with their paired heavy uids
+        l_grp = dg_uid_groups[ploci['l']]
+        dg_uid_groups[ploci['l']] = {translated_uid: l_grp[orig_uid] for translated_uid, orig_uid in l_translations.items() if orig_uid in l_grp}
     if debug:
         for tstr, tpart in [('heavy', init_partitions['h']), ('light', init_partitions['l'])]:
             ptnprint(tpart, extrastr=utils.color('blue', '%s  '%tstr), print_partition_indices=True, n_to_print=1, sort_by_size=False, print_header=tstr=='heavy')
@@ -1952,6 +1962,12 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     final_partition = []
     fclust_sets, fclust_indices = [], {} # just for speed
     initp_sets = {ch : [set(c) for c in ptn] for ch, ptn in init_partitions.items()}  # just for speed
+    if dg_uid_groups is not None:  # with disjoint grouping, build uid-to-cluster-index map for O(cluster_size) overlap lookup instead of O(N_clusters) scan
+        uid_to_clust_idx = {ch : {} for ch in 'hl'}
+        for ch in 'hl':
+            for idx, cluster in enumerate(init_partitions[ch]):
+                for uid in cluster:
+                    uid_to_clust_idx[ch][uid] = idx
     if debug:
         hdbg = ['    N        N       hclusts     lclusts       h/l',
                 '  hclusts  lclusts    sizes       sizes      overlaps']
@@ -1968,8 +1984,16 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
     for h_initclust, l_initclust in [(c, None) for c in init_partitions['h']] + [(None, c) for c in init_partitions['l']]:  # just loops over each single cluster in h and l partitions, but in a way that we know whether the single cluster is from h or l
         single_chain, list_chain = 'h' if l_initclust is None else 'l', 'l' if l_initclust is None else 'h'
         single_cluster = h_initclust if single_chain == 'h' else l_initclust
-        single_cset = set(single_cluster)
-        cluster_list = [init_partitions[list_chain][i] for i, c in enumerate(initp_sets[list_chain]) if len(single_cset & c) > 0]
+        if dg_uid_groups is not None:
+            overlap_indices = set()
+            for uid in single_cluster:
+                idx = uid_to_clust_idx[list_chain].get(uid)
+                if idx is not None:
+                    overlap_indices.add(idx)
+            cluster_list = [init_partitions[list_chain][i] for i in sorted(overlap_indices)]
+        else:
+            single_cset = set(single_cluster)
+            cluster_list = [init_partitions[list_chain][i] for i, c in enumerate(initp_sets[list_chain]) if len(single_cset & c) > 0]
         single_annotation = antn_dict[single_chain][akey(single_cluster)]
         annotation_list = [antn_dict[list_chain][akey(c)] for c in cluster_list]
 
@@ -1993,7 +2017,9 @@ def merge_chains(ploci, cpaths, antn_lists, unpaired_seqs=None, iparts=None, che
                 sys.stdout.flush()
             ihuge += 1
 
-        resolved_clusters = resolve_discordant_clusters([u for u in single_cluster], single_annotation, [[u for u in c] for c in cluster_list], annotation_list, tdbg=debug)
+        # only the list-chain sub-group map is consulted: the list chain is the one that iterates and makes split/merge decisions here (mirrors the "split chain decides" pattern in pair cleaning), so the single-chain sub-group map would be unused
+        uid_to_dg_group = dg_uid_groups.get(ploci[list_chain]) if dg_uid_groups is not None else None
+        resolved_clusters = resolve_discordant_clusters([u for u in single_cluster], single_annotation, [[u for u in c] for c in cluster_list], annotation_list, uid_to_dg_group=uid_to_dg_group, tdbg=debug)
         if check_partitions:
             assert is_clean_partition(resolved_clusters)
         incorporate_rclusts(final_partition, fclust_sets, fclust_indices, resolved_clusters)

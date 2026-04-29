@@ -109,6 +109,9 @@ def process(args):
 
     if args.action == 'partition' and args.disjoint_groups and not args.paired_loci:
         auto_enable_paired_loci('--disjoint-groups')
+    standalone_disjoint_actions = ['create-disjoint-groups', 'assemble-groups']
+    if hasattr(args, 'hfrac') and args.hfrac and not getattr(args, 'disjoint_groups', False) and args.action not in standalone_disjoint_actions:
+        raise Exception('--hfrac requires --disjoint-groups')
 
     if args.outfname is None and args.paired_outdir is None and args.action in utils.existing_output_actions:
         raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)

@@ -4,24 +4,38 @@ import os
 import sys
 import glob
 import yaml
+import csv
+import shutil
 import collections
 
 from . import utils
 
 MANIFEST_FNAME = 'manifest.yaml'
 
+# hfrac defaults (referenced from bin/partis argparse so all three places stay in sync)
+HFRAC_MERGE_FACTOR_DEFAULT = 3.0       # round-2 TCM threshold = merge_factor * hi_bound
+HFRAC_MAX_BIN_SIZE_DEFAULT = 100000    # bin-packing target cap on merged sub-group size; 0 disables
+HFRAC_MIN_GROUP_SIZE_DEFAULT = 100     # CDR3 groups smaller than this skip hfrac entirely
+
+# hfrac internal tuning (named to avoid magic numbers)
+BIN_PACK_TOLERANCE = 1.2               # allow up to 1.2 * cap before bin-packing fires
+MAX_VSEARCH_PROCS = 8                  # cap on concurrent vsearch jobs (round 1 and round 2)
+MAX_TCM_THRESHOLD = 0.49               # safety clamp on round-2 threshold; vsearch --id requires <= 1.0 and high-SHM regimes can otherwise drive merge_factor*hi_bound past sensible bounds
+
 # ----------------------------------------------------------------------------------------
 def group_sequences_by_cdr3_length(annotation_list):
     # group uids and their input sequences by cdr3 length from sw annotation list
-    # returns {cdr3_length : [{'name': uid, 'seq': seq}, ...]}, n_failed
-    seqfo_map = {}  # uid -> {'name': uid, 'seq': seq, 'cdr3_length': int}
+    # also extracts naive_seq for hfrac sub-grouping
+    # returns {cdr3_length : [{'name': uid, 'seq': seq, 'naive_seq': naive_seq}, ...]}, n_failed
+    seqfo_map = {}  # uid -> {'name': uid, 'seq': seq, 'cdr3_length': int, 'naive_seq': str}
     n_failed = 0
     for line in annotation_list:
         if 'cdr3_length' not in line or line['cdr3_length'] is None:
             n_failed += len(line['unique_ids'])
             continue
+        naive_seq = line.get('naive_seq', '')
         for uid, seq in zip(line['unique_ids'], line['input_seqs']):
-            seqfo_map[uid] = {'name' : uid, 'seq' : seq, 'cdr3_length' : line['cdr3_length']}
+            seqfo_map[uid] = {'name' : uid, 'seq' : seq, 'cdr3_length' : line['cdr3_length'], 'naive_seq' : naive_seq}
     if n_failed > 0:
         print('  %s %d sequences had no cdr3_length and were excluded from grouping' % (utils.color('yellow', 'warning'), n_failed))
     if len(seqfo_map) == 0:
@@ -31,6 +45,143 @@ def group_sequences_by_cdr3_length(annotation_list):
     for c3len, uids in sorted(uid_groups, key=lambda x: x[0]):
         groups[c3len] = [seqfo_map[u] for u in uids]
     return groups, n_failed
+
+# ----------------------------------------------------------------------------------------
+def _read_vsearch_uc_with_centroids(cluster_file):
+    # parse vsearch UC output preserving centroid info per cluster
+    # returns list of (centroid_uid, [member_uids]) pairs in cluster order
+    # vsearch writes an 'S' row first for each cluster (centroid), then 'H' rows (hits)
+    clusters = {}  # cluster_id -> {'centroid': uid, 'members': [uids]}
+    with open(cluster_file) as f:
+        reader = csv.reader(f, delimiter=str('\t'))
+        for row in reader:
+            if len(row) < 9:
+                continue
+            rtype = row[0]
+            if rtype == 'C':
+                continue
+            cid = int(row[1])
+            uid = row[8]
+            if cid not in clusters:
+                clusters[cid] = {'centroid': None, 'members': []}
+            if rtype == 'S':
+                clusters[cid]['centroid'] = uid
+            clusters[cid]['members'].append(uid)
+    return [(clusters[cid]['centroid'], clusters[cid]['members']) for cid in sorted(clusters)]
+
+# ----------------------------------------------------------------------------------------
+def _build_round2_tcm_cmd(centroid_naives, round2_threshold, workdir):
+    # build a vsearch --allpairs_global command for round 2 TCM (transitive closure merge) on centroid naive sequences
+    # returns (cmdfo dict, pairs_outfname) or (None, None) if fewer than 2 centroids
+    if len(centroid_naives) < 2:
+        return None, None
+    utils.prep_dir(workdir)
+    infname = '%s/centroids.fa' % workdir
+    outfname = '%s/pairs.tsv' % workdir
+    with open(infname, 'w') as f:
+        for name, seq in centroid_naives.items():
+            f.write('>%s\n%s\n' % (name, seq))
+    vsearch_binary = utils.get_vsearch_binary()
+    # --maxaccepts 0 --maxrejects 0 so vsearch considers all pairs (not just first match)
+    # this is a local override for hfrac TCM round 2 only, does not affect other vsearch calls in partis
+    cmd = ('%s --allpairs_global %s --id %s --userout %s --userfields query+target+id '
+           '--gapopen 1000I/2E --match 2 --mismatch -4 --threads 1 --quiet '
+           '--maxaccepts 0 --maxrejects 0') % (
+        vsearch_binary, infname, str(1.0 - round2_threshold), outfname)
+    return {'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir}, outfname
+
+# ----------------------------------------------------------------------------------------
+def _tcm_merge_from_pairs(pairs_file, centroid_uids):
+    # parse vsearch pairs output, build adjacency graph, find connected components via BFS (transitive closure merge)
+    # returns list of component centroid lists (each component = a merged bin's centroids)
+    adj = collections.defaultdict(set)
+    if os.path.exists(pairs_file):
+        with open(pairs_file) as f:
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) >= 2:
+                    a, b = parts[0], parts[1]
+                    adj[a].add(b)
+                    adj[b].add(a)
+    for c in centroid_uids:
+        if c not in adj:
+            adj[c] = set()
+    visited = set()
+    components = []
+    for c in centroid_uids:
+        if c in visited:
+            continue
+        comp = []
+        queue = collections.deque([c])
+        visited.add(c)
+        while queue:
+            node = queue.popleft()
+            comp.append(node)
+            for nbr in adj[node]:
+                if nbr not in visited:
+                    visited.add(nbr)
+                    queue.append(nbr)
+        components.append(comp)
+    return components
+
+# ----------------------------------------------------------------------------------------
+def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, c3len=None):
+    # r1_results: list of (centroid_uid, [member_uids]) pairs from round 1
+    # components: list of lists of centroid uids (one list per component)
+    # max_bin_size: if set, bin-pack round-1 sub-groups so no merged bin exceeds this size
+    #   (BIN_PACK_TOLERANCE headroom). round-1 sub-groups remain indivisible so family safety is preserved.
+    # c3len: optional CDR3 length used only for log lines
+    # returns: list of merged member uid lists (one list per output bin)
+    centroid_to_comp = {}
+    for cidx, comp in enumerate(components):
+        for c in comp:
+            centroid_to_comp[c] = cidx
+    # group round-1 sub-groups by component (preserving sub-group boundaries for bin-packing)
+    bins_r1 = [[] for _ in range(len(components))]
+    for centroid, members in r1_results:
+        assert centroid in centroid_to_comp, 'round-1 centroid %s not present in any round-2 component (every round-1 centroid must be fed into round 2 TCM)' % centroid
+        bins_r1[centroid_to_comp[centroid]].append(members)
+    bins_r1 = [b for b in bins_r1 if b]
+
+    if max_bin_size is None or max_bin_size <= 0:
+        return [[m for sg in b for m in sg] for b in bins_r1]
+
+    # split oversize bins via First Fit Decreasing bin-packing on round-1 sub-groups
+    cap = max_bin_size * BIN_PACK_TOLERANCE
+    c3str = ('cdr3-%d: ' % c3len) if c3len is not None else ''
+    out_bins = []
+    for r1_subs in bins_r1:
+        bin_size = sum(len(s) for s in r1_subs)
+        if bin_size <= cap:
+            out_bins.append([m for sg in r1_subs for m in sg])
+            continue
+        if len(r1_subs) == 1:
+            # cannot split: single indivisible round-1 sub-group exceeds cap. emit whole and warn (a
+            # very large clonal family that vsearch greedy clustering did not split; partition runtime
+            # for this sub-group can be expensive)
+            print('        %s %soversized round-1 sub-group emitted whole (%d seqs > cap %d), partition runtime may suffer' % (
+                utils.color('yellow', 'warning'), c3str, bin_size, int(cap)))
+            out_bins.append([m for sg in r1_subs for m in sg])
+            continue
+        # bin-packing engaged: TCM merged this component to %d seqs which exceeds cap, splitting back
+        # via FFD. round-1 sub-groups remain indivisible so each output bin is family-safe.
+        print('        %sbin-packing engaged: TCM component of %d seqs split into bins (cap %d, %d round-1 sub-groups)' % (
+            c3str, bin_size, int(cap), len(r1_subs)))
+        sorted_subs = sorted(r1_subs, key=len, reverse=True)
+        packed = [[]]
+        for sg in sorted_subs:
+            placed = False
+            for pb in packed:
+                if sum(len(s) for s in pb) + len(sg) <= cap:
+                    pb.append(sg)
+                    placed = True
+                    break
+            if not placed:
+                packed.append([sg])
+        for pb in packed:
+            if pb:
+                out_bins.append([m for sg in pb for m in sg])
+    return out_bins
 
 # ----------------------------------------------------------------------------------------
 def write_group_fastas(groups, outdir, locus):
@@ -70,11 +221,224 @@ def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
         utils.write_annotations(sw_cache_path, glfo, antns_by_c3len.get(c3len, []), utils.sw_cache_headers)
 
 # ----------------------------------------------------------------------------------------
-def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_dir=None):
+def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size):
+    # build vsearch greedy clustering commands for each CDR3 group above min_group_size
+    # returns cmdfos (for run_cmds), vsearch_groups (c3len -> workdir), small_groups (set of c3len)
+    vsearch_binary = utils.get_vsearch_binary()
+    cmdfos = []
+    vsearch_groups = {}
+    small_groups = set()
+    for c3len, seqfos in sorted(groups.items()):
+        if len(seqfos) < min_group_size:
+            small_groups.add(c3len)
+            continue
+        naive_seqdict = {sfo['name']: sfo['naive_seq'] for sfo in seqfos if sfo.get('naive_seq', '')}
+        if len(naive_seqdict) == 0:
+            small_groups.add(c3len)
+            continue
+        workdir = '%s/groups/cdr3-%d/_vsearch_work' % (outdir, c3len)
+        utils.prep_dir(workdir)
+        infname = workdir + '/input.fa'
+        with open(infname, 'w') as f:
+            for name, seq in naive_seqdict.items():
+                f.write('>%s\n%s\n' % (name, seq))
+        outfname = workdir + '/vsearch-clusters.txt'
+        cmd = '%s --cluster_fast %s --id %s --uc %s --gapopen 1000I/2E --match 2 --mismatch -4 --threads 1' % (
+            vsearch_binary, infname, str(1. - hi_bound), outfname)
+        cmdfos.append({'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir})
+        vsearch_groups[c3len] = workdir
+    return cmdfos, vsearch_groups, small_groups
+
+# ----------------------------------------------------------------------------------------
+def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir):
+    # run round 2 TCM (transitive closure merge) on round 1 centroids
+    # returns comps_by_c3len (c3len -> components), r2_workdirs (c3len -> workdir)
+    comps_by_c3len = {}
+    r2_workdirs = {}
+    r2_cmdfos = []
+    r2_pairs_files = {}
+    raw_threshold = merge_factor * hi_bound
+    round2_threshold = min(raw_threshold, MAX_TCM_THRESHOLD)
+    if raw_threshold > MAX_TCM_THRESHOLD:
+        # high-SHM regime: merge_factor * hi_bound exceeds the safety clamp, so the user-supplied merge_factor has no effect on this run
+        print('        %s round-2 TCM threshold clamped: merge_factor*hi_bound = %.2f*%.4f = %.4f > MAX_TCM_THRESHOLD %.2f, using %.2f (merge_factor effectively ignored)' % (
+            utils.color('yellow', 'warning'), merge_factor, hi_bound, raw_threshold, MAX_TCM_THRESHOLD, MAX_TCM_THRESHOLD))
+    for c3len, r1_results in r1_by_c3len.items():
+        if len(r1_results) < 2:
+            comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
+            continue
+        naive_by_uid = {sfo['name']: sfo['naive_seq'] for sfo in groups[c3len] if sfo.get('naive_seq', '')}
+        centroid_naives = {c: naive_by_uid[c] for c, _ in r1_results if c in naive_by_uid}
+        r2_workdir = '%s/groups/cdr3-%d/_round2_tcm' % (outdir, c3len)
+        cmdfo, pairs_fname = _build_round2_tcm_cmd(centroid_naives, round2_threshold, r2_workdir)
+        if cmdfo is None:
+            comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
+            continue
+        r2_cmdfos.append(cmdfo)
+        r2_workdirs[c3len] = r2_workdir
+        r2_pairs_files[c3len] = pairs_fname
+    if len(r2_cmdfos) > 0:
+        n_procs2 = min(MAX_VSEARCH_PROCS, len(r2_cmdfos))
+        print('        running %d round 2 TCM jobs (%d concurrent, %.2fx hi_bound = %.4f threshold)' % (
+            len(r2_cmdfos), n_procs2, merge_factor, round2_threshold))
+        utils.run_cmds(r2_cmdfos, n_max_procs=n_procs2)
+    for c3len, pairs_fname in r2_pairs_files.items():
+        centroid_uids = [c for c, _ in r1_by_c3len[c3len]]
+        comps_by_c3len[c3len] = _tcm_merge_from_pairs(pairs_fname, centroid_uids)
+    return comps_by_c3len, r2_workdirs
+
+# ----------------------------------------------------------------------------------------
+def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, sub_glfo, all_group_infos, flattened_groups):
+    # write per-sub-group FASTAs, SW cache subsets, and group info entries
+    for isub, sub_seqfos in enumerate(sub_groups_list):
+        sub_dir = '%s/groups/cdr3-%d/sub-groups/sub-%03d' % (outdir, c3len, isub)
+        fasta_path = '%s/%s.fa' % (sub_dir, locus)
+        utils.write_fasta(fasta_path, sub_seqfos)
+        sub_uids = set(sfo['name'] for sfo in sub_seqfos)
+        sub_antns = [uid_to_antn[uid] for uid in sub_uids if uid in uid_to_antn]
+        sw_cache_path = '%s/sw-cache-%s.yaml' % (sub_dir, locus)
+        utils.write_annotations(sw_cache_path, sub_glfo, sub_antns, utils.sw_cache_headers)
+        unique_naive = len(set(sfo.get('naive_seq', '') for sfo in sub_seqfos if sfo.get('naive_seq', '')))
+        rel_fasta = 'groups/cdr3-%d/sub-groups/sub-%03d/%s.fa' % (c3len, isub, locus)
+        all_group_infos.append({
+            'group_id' : len(all_group_infos),
+            'cdr3_length' : c3len,
+            'sub_group_id' : isub,
+            'locus' : locus,
+            'sequence_count' : len(sub_seqfos),
+            'unique_naive_count' : unique_naive,
+            'fasta_path' : rel_fasta,
+            'partition_path' : None,
+        })
+        flattened_groups[(c3len, isub)] = sub_seqfos
+    if len(sub_groups_list) > 1:
+        seqcount = sum(len(sg) for sg in sub_groups_list)
+        print('        cdr3-%d: %d seqs -> %d sub-groups (sizes: %s)' % (c3len, seqcount, len(sub_groups_list), ' '.join(str(len(sg)) for sg in sub_groups_list)))
+
+# ----------------------------------------------------------------------------------------
+def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT):
+    # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
+    # single-cache in-memory path: annotation_list is fully loaded
+    # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
+
+    uid_to_antn = {}
+    for line in annotation_list:
+        assert len(line['unique_ids']) == 1
+        uid_to_antn[line['unique_ids'][0]] = line
+
+    # round 1: vsearch greedy clustering
+    cmdfos, vsearch_groups, small_groups = _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size)
+    if len(cmdfos) > 0:
+        n_procs = min(MAX_VSEARCH_PROCS, len(cmdfos))
+        print('        running %d vsearch hfrac jobs (%d concurrent)' % (len(cmdfos), n_procs))
+        utils.run_cmds(cmdfos, n_max_procs=n_procs)
+
+    # parse round 1 results
+    r1_by_c3len = {}
+    for c3len in sorted(groups):
+        if c3len in small_groups:
+            continue
+        cluster_file = '%s/vsearch-clusters.txt' % vsearch_groups[c3len]
+        r1_by_c3len[c3len] = _read_vsearch_uc_with_centroids(cluster_file)
+
+    # round 2 (optional): TCM on centroids
+    comps_by_c3len, r2_workdirs = {}, {}
+    if merge_factor > 0:
+        comps_by_c3len, r2_workdirs = _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir)
+
+    # build and write sub-groups per CDR3 group
+    all_group_infos = []
+    flattened_groups = collections.OrderedDict()
+    for c3len, seqfos in sorted(groups.items()):
+        if c3len in small_groups:
+            sub_groups_list = [seqfos]
+        else:
+            r1_results = r1_by_c3len[c3len]
+            if merge_factor > 0 and c3len in comps_by_c3len:
+                merged_bins_uids = _merge_r1_subgroups_by_components(r1_results, comps_by_c3len[c3len], max_bin_size=max_bin_size, c3len=c3len)
+            else:
+                merged_bins_uids = [members for _, members in r1_results]
+            uid_to_sfo = {sfo['name']: sfo for sfo in seqfos}
+            sub_groups_list = []
+            for bin_uids in merged_bins_uids:
+                sg = [uid_to_sfo[u] for u in bin_uids if u in uid_to_sfo]
+                if sg:
+                    sub_groups_list.append(sg)
+            shutil.rmtree(vsearch_groups[c3len])
+            if merge_factor > 0 and c3len in r2_workdirs:
+                shutil.rmtree(r2_workdirs[c3len], ignore_errors=True)
+        _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, glfo, all_group_infos, flattened_groups)
+    return flattened_groups, all_group_infos
+
+# ----------------------------------------------------------------------------------------
+def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT):
+    # memory-efficient hfrac for multi-cache path: reads one CDR3 group SW cache at a time
+    # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
+
+    # round 1: vsearch greedy clustering
+    cmdfos, vsearch_groups, small_groups = _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size)
+    if len(cmdfos) > 0:
+        n_procs = min(MAX_VSEARCH_PROCS, len(cmdfos))
+        print('        running %d vsearch hfrac jobs (%d concurrent)' % (len(cmdfos), n_procs))
+        utils.run_cmds(cmdfos, n_max_procs=n_procs)
+
+    # parse round 1 results
+    r1_by_c3len = {}
+    for c3len in sorted(groups):
+        if c3len in small_groups:
+            continue
+        cluster_file = '%s/vsearch-clusters.txt' % vsearch_groups[c3len]
+        r1_by_c3len[c3len] = _read_vsearch_uc_with_centroids(cluster_file)
+
+    # round 2 (optional): TCM on centroids
+    comps_by_c3len, r2_workdirs = {}, {}
+    if merge_factor > 0:
+        comps_by_c3len, r2_workdirs = _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir)
+
+    # pass 2: re-read SW caches, build sub-groups, write outputs
+    all_group_infos = []
+    flattened_groups = collections.OrderedDict()
+    for c3len, seqfos in sorted(groups.items()):
+        if c3len in small_groups:
+            sub_groups_list = [seqfos]
+        else:
+            r1_results = r1_by_c3len[c3len]
+            if merge_factor > 0 and c3len in comps_by_c3len:
+                merged_bins_uids = _merge_r1_subgroups_by_components(r1_results, comps_by_c3len[c3len], max_bin_size=max_bin_size, c3len=c3len)
+            else:
+                merged_bins_uids = [members for _, members in r1_results]
+            uid_to_sfo = {sfo['name']: sfo for sfo in seqfos}
+            sub_groups_list = []
+            for bin_uids in merged_bins_uids:
+                sg = [uid_to_sfo[u] for u in bin_uids if u in uid_to_sfo]
+                if sg:
+                    sub_groups_list.append(sg)
+            shutil.rmtree(vsearch_groups[c3len])
+            if merge_factor > 0 and c3len in r2_workdirs:
+                shutil.rmtree(r2_workdirs[c3len], ignore_errors=True)
+
+        # re-read SW cache for this CDR3 group to get annotations AND the merged glfo
+        # (multi-chunk path: merge_yamls reconciled glfos across chunks; using the outer glfo
+        # from the first chunk would lose novel alleles from later chunks)
+        swc_path = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
+        uid_to_antn = {}
+        group_glfo = glfo
+        if os.path.exists(swc_path):
+            group_glfo, antn_list, _ = utils.read_yaml_output(swc_path, dont_add_implicit_info=True)
+            for line in antn_list:
+                if len(line['unique_ids']) == 1:
+                    uid_to_antn[line['unique_ids'][0]] = line
+            del antn_list
+
+        _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, group_glfo, all_group_infos, flattened_groups)
+    return flattened_groups, all_group_infos
+
+# ----------------------------------------------------------------------------------------
+def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_dir=None, hfrac=False):
     # write manifest yaml to outdir
     manifest = {
         'grouping-info' : {
-            'method' : 'cdr3-length',
+            'method' : 'cdr3-length+hfrac' if hfrac else 'cdr3-length',
             'locus' : locus,
             'total_input_sequences' : total_input,
             'total_grouped_sequences' : total_input - n_failed,
@@ -129,6 +493,17 @@ def validate_sequence_count(manifest):
     print('      sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
 
 # ----------------------------------------------------------------------------------------
+def build_uid_group_mapping(manifest, disjoint_dir):
+    # build mapping from uid to group_id for all sequences in the manifest, used by paired clustering to identify which hfrac sub-group each sequence came from
+    uid_to_group = {}
+    for ginfo in manifest['groups']:
+        fasta_path = os.path.join(disjoint_dir, ginfo['fasta_path'])
+        group_id = ginfo['group_id']
+        for sfo in utils.read_fastx(fasta_path):
+            uid_to_group[sfo['name']] = group_id
+    return uid_to_group
+
+# ----------------------------------------------------------------------------------------
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
     # if partition_path is set in manifest, use it directly
@@ -140,8 +515,9 @@ def get_partition_paths(manifest, manifest_dir):
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
         if ppath is None:
-            # check default path: groups/cdr3-N/partition-{locus}.yaml
-            default_ppath = 'groups/cdr3-%d/partition-%s.yaml' % (ginfo['cdr3_length'], ginfo['locus'])
+            # check for partition file in the same directory as the fasta
+            fasta_dir = os.path.dirname(ginfo['fasta_path'])
+            default_ppath = '%s/partition-%s.yaml' % (fasta_dir, ginfo['locus'])
             if os.path.exists('%s/%s' % (manifest_dir, default_ppath)):
                 ppath = default_ppath
             else:
@@ -176,9 +552,11 @@ def validate_assembly(manifest, manifest_dir):
                 all_uids.add(uid)
         total_seqs += sum(len(line['unique_ids']) for line in annotation_list)
     expected = manifest['grouping-info']['total_grouped_sequences'] - skipped_seqs
-    if total_seqs != expected:
-        raise Exception('sequence count mismatch after assembly: found %d in partition files, expected %d (total %d minus %d skipped)' % (total_seqs, expected, manifest['grouping-info']['total_grouped_sequences'], skipped_seqs))
-    print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped)))
+    if total_seqs > expected:
+        raise Exception('sequence count exceeds expected after assembly: found %d in partition files, expected at most %d (total %d minus %d skipped)' % (total_seqs, expected, manifest['grouping-info']['total_grouped_sequences'], skipped_seqs))
+    filtered = expected - total_seqs
+    filter_msg = ' (%d filtered during partition)' % filtered if filtered > 0 else ''
+    print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped%s)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped), filter_msg))
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths):
@@ -203,9 +581,10 @@ def resolve_sw_cache_paths(sw_cache_paths):
     return list(sw_cache_paths)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir):
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
-    # write per-group fastas and sw-cache subsets, write manifest.
+    # optionally sub-group by naive hamming fraction (--hfrac),
+    # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
     # <sw_cache_paths>: single path string, list of paths, or directory (for chunked cache-parameters at scale).
     # For multiple caches, processes one chunk at a time to limit peak memory:
     #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
@@ -213,14 +592,33 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir):
     sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths)
     multi_cache = len(sw_cache_paths) > 1
 
+    # compute hi hamming bound for hfrac sub-grouping
+    hi_bound = None
+    if hfrac:
+        # get_mean_mfreq expects the dir containing all-mean-mute-freqs.csv
+        # try nested layout ({pdir}/{locus}/sw/) then flat layout ({pdir}/sw/)
+        mfreq_dir = None
+        for candidate in ['%s/%s/sw' % (parameter_dir, locus), '%s/%s/hmm' % (parameter_dir, locus),
+                          '%s/sw' % parameter_dir, '%s/hmm' % parameter_dir]:
+            if os.path.exists('%s/all-mean-mute-freqs.csv' % candidate):
+                mfreq_dir = candidate
+                break
+        if mfreq_dir is None:
+            raise Exception('could not find all-mean-mute-freqs.csv in %s (checked {locus}/sw, {locus}/hmm, sw, hmm)' % parameter_dir)
+        _, hi_bound = utils.get_naive_hamming_bounds('likelihood', mfreq_dir)
+        print('      hfrac sub-grouping enabled (hi bound: %.4f)' % hi_bound)
+
     if not multi_cache:
         # single sw cache: read once, process everything in memory (existing behavior)
         print('      reading sw cache for %s from %s' % (locus, sw_cache_paths[0]))
         glfo, annotation_list, _ = utils.read_yaml_output(sw_cache_paths[0], dont_add_implicit_info=True)
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
-        group_infos = write_group_fastas(groups, outdir, locus)
-        write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
+        if hfrac:
+            groups, group_infos = _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size)
+        else:
+            group_infos = write_group_fastas(groups, outdir, locus)
+            write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
     else:
         # multiple sw caches: process one chunk at a time
         print('      processing %d sw cache files for %s' % (len(sw_cache_paths), locus))
@@ -269,12 +667,22 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir):
         # NOTE if multiple chunks inferred different novel alleles, glfo from the first chunk is used.
         # For proper germline reconciliation across chunks, merge parameter dirs before grouping.
 
-    print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, len(groups), n_failed))
-    if len(group_infos) > 0:
+        # apply hfrac after merging: two-pass approach for memory efficiency
+        # pass 1: read each CDR3 sw cache, write naive FASTAs (lightweight)
+        # then dispatch all vsearch jobs in parallel
+        # pass 2: read each CDR3 sw cache again, parse vsearch results, write sub-group outputs
+        if hfrac:
+            _, group_infos = _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size)
+
+    n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
+    print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, n_cdr3_groups, n_failed))
+    if hfrac and len(group_infos) > 0:
+        print('      hfrac: %d sub-groups total' % len(group_infos))
+    if len(group_infos) > 0 and not hfrac:
         cw = max(len(str(g['cdr3_length'])) for g in group_infos)
         print('        cdr3 lengths : %s' % '  '.join('%*d' % (cw, g['cdr3_length']) for g in group_infos))
         print('        N seqs       : %s' % '  '.join('%*d' % (cw, g['sequence_count']) for g in group_infos))
-    manifest = write_manifest(group_infos, outdir, locus, n_seqs, n_failed, parameter_dir=parameter_dir)
+    manifest = write_manifest(group_infos, outdir, locus, n_seqs, n_failed, parameter_dir=parameter_dir, hfrac=hfrac)
     validate_sequence_count(manifest)
     return manifest
 
