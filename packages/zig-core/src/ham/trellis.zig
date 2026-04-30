@@ -371,7 +371,7 @@ pub const Trellis = struct {
         }
     }
 
-    fn cacheViterbiVals(self: *Trellis, position: usize, dpval: f64, i_st_cur: usize) void {
+    inline fn cacheViterbiVals(self: *Trellis, position: usize, dpval: f64, i_st_cur: usize) void {
         const end_trans = self.hmm.stateByIndex(i_st_cur).endTransitionLogprob();
         const logprob = dpval + end_trans;
         if (logprob > self.viterbi_log_probs.items[position]) {
@@ -380,7 +380,7 @@ pub const Trellis = struct {
         }
     }
 
-    fn cacheForwardVals(self: *Trellis, position: usize, dpval: f64, i_st_cur: usize) void {
+    inline fn cacheForwardVals(self: *Trellis, position: usize, dpval: f64, i_st_cur: usize) void {
         const end_trans = self.hmm.stateByIndex(i_st_cur).endTransitionLogprob();
         const logprob = dpval + end_trans;
         self.forward_log_probs.items[position] = mathutils.addInLogSpace(logprob, self.forward_log_probs.items[position]);

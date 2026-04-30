@@ -208,7 +208,12 @@ pub const State = struct {
     /// Emission log-probability for a position in a Sequences object.
     /// Accumulates log-probs for each sequence at that position.
     /// Corresponds to C++ `State::EmissionLogprob(Sequences*, size_t pos)`.
-    pub fn emissionLogprobSeqs(self: *const State, seqs: *const Sequences, pos: usize) f64 {
+    pub inline fn emissionLogprobSeqs(self: *const State, seqs: *const Sequences, pos: usize) f64 {
+        // Single-sequence fast path. addWithMinusInfinities(0.0, x) == x for all
+        // x (including NEG_INF), so collapsing the one-iteration loop is exact.
+        if (seqs.nSeqs() == 1) {
+            return self.emissionLogprob(seqs.get(0).seqq[pos]);
+        }
         var logprob: f64 = 0.0;
         for (0..seqs.nSeqs()) |iseq| {
             const seq = seqs.get(iseq);
