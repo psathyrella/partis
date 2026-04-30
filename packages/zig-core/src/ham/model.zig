@@ -173,9 +173,14 @@ pub const Model = struct {
                 // never reallocates and the &slot pointer is stable.
                 const slot = self.states.addOneAssumeCapacity();
                 slot.* = State.init();
-                // Roll back the addOne if parse or put fails — pop() removes the
-                // slot so deinit doesn't try to free a partially-built State that
-                // is also handled by the local cleanup here.
+                // Roll back the addOne if parse or states_by_name.put fails.
+                // Order matters: `slot.deinit` must precede `pop`, because after
+                // pop the slot index is past states.items.len and a later
+                // model.deinit would not see it. Conversely, without pop, the
+                // slot would still live in states.items and model.deinit would
+                // re-deinit it (double free). If states_by_name.put is the
+                // failing call, no key was stored (put is failure-atomic), so
+                // freeing slot.name in deinit doesn't dangle a map entry.
                 errdefer {
                     slot.deinit(allocator);
                     _ = self.states.pop();

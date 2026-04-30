@@ -209,8 +209,11 @@ pub const State = struct {
     /// Accumulates log-probs for each sequence at that position.
     /// Corresponds to C++ `State::EmissionLogprob(Sequences*, size_t pos)`.
     pub inline fn emissionLogprobSeqs(self: *const State, seqs: *const Sequences, pos: usize) f64 {
-        // Single-sequence fast path. addWithMinusInfinities(0.0, x) == x for all
-        // x (including NEG_INF), so collapsing the one-iteration loop is exact.
+        // Single-sequence fast path. The general loop's first (and only)
+        // iteration computes addWithMinusInfinities(0.0, emissionLogprob(...)),
+        // which equals emissionLogprob(...) for every value including NEG_INF
+        // (addWithMinusInfinities propagates NEG_INF; for finite x, 0.0 + x == x).
+        // So the direct return is bit-identical to running the loop once.
         if (seqs.nSeqs() == 1) {
             return self.emissionLogprob(seqs.get(0).seqq[pos]);
         }
