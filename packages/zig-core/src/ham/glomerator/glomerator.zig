@@ -735,6 +735,10 @@ pub const Glomerator = struct {
         }
         self.tmp_cachefo.clearRetainingCapacity();
 
+        // Issue #342 item 7: parents p1 and p2 are no longer in the partition;
+        // drop their entries from the per-cluster and pair-keyed scoring caches.
+        try self.pruneMergedParentCaches(p1, p2);
+
         // Check if we're done
         const new_size = path.currentPartition().items.len;
         const new_largest = largestClusterSize(path.currentPartition());
@@ -1632,6 +1636,66 @@ pub const Glomerator = struct {
         }
         try self.errors.put(self.allocator, try self.allocator.dupe(u8, queries), new_err);
         try self.failed_queries.put(self.allocator, key, {});
+    }
+
+    // ── Cache pruning after merge (issue #342, item 7) ────────────────────────
+
+    /// True iff `key` is a pair-key (joinNames result, "name1:name2") with `parent`
+    /// occupying one whole side. Anchors at colon boundaries to avoid substring
+    /// false positives between distinct UID names (e.g. "u1" vs "u11").
+    fn keyHasParent(key: []const u8, parent: []const u8) bool {
+        if (key.len <= parent.len) return false;
+        if (std.mem.startsWith(u8, key, parent) and key[parent.len] == ':') return true;
+        // key[key.len - parent.len - 1] is the byte immediately before the suffix match
+        // (i.e. the colon separator). The bounds check above guarantees this is in range.
+        if (std.mem.endsWith(u8, key, parent) and key[key.len - parent.len - 1] == ':') return true;
+        return false;
+    }
+
+    /// Drop a single-cluster-keyed entry, freeing the duped key (and the duped value
+    /// when V == []u8). The `if (V == []u8)` branch is comptime-evaluated.
+    fn pruneSingleKey(self: *Glomerator, comptime V: type, map: *std.StringHashMapUnmanaged(V), key: []const u8) void {
+        if (map.fetchRemove(key)) |kv| {
+            self.allocator.free(kv.key);
+            if (V == []u8) self.allocator.free(kv.value);
+        }
+    }
+
+    /// Drop every pair-keyed f64 entry whose key has p1 or p2 as one whole side.
+    /// Two-pass to avoid invalidating the map iterator: collect dead keys first,
+    /// then fetchRemove + free.
+    fn pruneParentPairsF64(self: *Glomerator, map: *std.StringHashMapUnmanaged(f64), p1: []const u8, p2: []const u8) !void {
+        var dead_keys: std.ArrayListUnmanaged([]const u8) = .{};
+        defer dead_keys.deinit(self.allocator);
+        var it = map.iterator();
+        while (it.next()) |e| {
+            const k = e.key_ptr.*;
+            if (keyHasParent(k, p1) or keyHasParent(k, p2)) {
+                try dead_keys.append(self.allocator, k);
+            }
+        }
+        for (dead_keys.items) |k| {
+            if (map.fetchRemove(k)) |kv| self.allocator.free(kv.key);
+        }
+    }
+
+    /// After a merge of (p1, p2) → AB, drop entries that are now unreachable:
+    ///   - log_probs[p1], log_probs[p2]
+    ///   - naive_seqs[p1], naive_seqs[p2]      (NOT naive_seqs[AB] — that's live)
+    ///   - errors[p1], errors[p2]
+    ///   - lratios[K] / naive_hfracs[K] for every K = joinNames(p1, _) or joinNames(p2, _)
+    /// Cachefo / single_seqs / single_seq_cachefo are intentionally retained
+    /// (translation lookup paths). initial_* are read-only ingest-time guards
+    /// for `--only-cache-new-vals` and must not be touched.
+    fn pruneMergedParentCaches(self: *Glomerator, p1: []const u8, p2: []const u8) !void {
+        self.pruneSingleKey(f64, &self.log_probs, p1);
+        self.pruneSingleKey(f64, &self.log_probs, p2);
+        self.pruneSingleKey([]u8, &self.naive_seqs, p1);
+        self.pruneSingleKey([]u8, &self.naive_seqs, p2);
+        self.pruneSingleKey([]u8, &self.errors, p1);
+        self.pruneSingleKey([]u8, &self.errors, p2);
+        try self.pruneParentPairsF64(&self.lratios, p1, p2);
+        try self.pruneParentPairsF64(&self.naive_hfracs, p1, p2);
     }
 
     /// C++: Glomerator::JoinNames() — glomerator.cc:404
