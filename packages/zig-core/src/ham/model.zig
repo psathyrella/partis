@@ -131,18 +131,22 @@ pub const Model = struct {
         }
         for (td.symbols.items) |sym| try trk.addSymbol(allocator, sym);
 
-        // Collect state names for transition validation
+        // Collect state names for transition validation, and count non-init
+        // states so we can reserve flat-slice capacity in one shot. The capacity
+        // reservation is what makes `&states.items[i]` pointers stable — without
+        // it, addOneAssumeCapacity below would assert.
         var state_names: std.ArrayListUnmanaged([]const u8) = .{};
         defer state_names.deinit(allocator);
-        for (data.states.items) |*sd| try state_names.append(allocator, sd.name);
-
-        // Reserve flat-slice capacity for non-init states up front so addOne
-        // never reallocates — that's what makes `&states.items[i]` stable.
         var n_non_init: usize = 0;
         for (data.states.items) |*sd| {
+            try state_names.append(allocator, sd.name);
             if (!std.mem.eql(u8, sd.name, "init")) n_non_init += 1;
         }
-        if (n_non_init >= @import("state.zig").STATE_MAX) return error.TooManyStates;
+        // Match the C++/old behavior of allowing exactly STATE_MAX non-init
+        // states. The old code checked `items.len >= STATE_MAX` immediately
+        // before each append, so the (N+1)-th append (when items.len was
+        // already N==STATE_MAX) was the one that errored.
+        if (n_non_init > @import("state.zig").STATE_MAX) return error.TooManyStates;
         try self.states.ensureTotalCapacityPrecise(allocator, n_non_init);
 
         // Parse each state
@@ -199,6 +203,14 @@ pub const Model = struct {
                 try self.states_by_name.put(slot.name, slot);
             }
         }
+
+        // Make the stable-pointer invariant machine-checkable: any future code
+        // that accidentally appends to self.states would reallocate the slice
+        // and silently invalidate every *State held by states_by_name and by
+        // Transition.to_state_ptr. The capacity reservation above sized the
+        // slice to exactly n_non_init; if items.len ever drifts from capacity,
+        // the invariant has been broken.
+        std.debug.assert(self.states.items.len == self.states.capacity);
 
         try self.finalize(allocator);
     }

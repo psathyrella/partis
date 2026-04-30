@@ -211,9 +211,13 @@ pub const State = struct {
     pub inline fn emissionLogprobSeqs(self: *const State, seqs: *const Sequences, pos: usize) f64 {
         // Single-sequence fast path. The general loop's first (and only)
         // iteration computes addWithMinusInfinities(0.0, emissionLogprob(...)),
-        // which equals emissionLogprob(...) for every value including NEG_INF
-        // (addWithMinusInfinities propagates NEG_INF; for finite x, 0.0 + x == x).
-        // So the direct return is bit-identical to running the loop once.
+        // which equals emissionLogprob(...) for every value emissionLogprob can
+        // return: finite logprobs (0.0 + x == x) and NEG_INF (the function
+        // propagates -inf). emissionLogprob never returns NaN — its outputs come
+        // from the precomputed log-probability slice and the stored
+        // ambiguous_emission_logprob, both of which are seeded from log() of
+        // probabilities — so the fast path is value-identical to running the
+        // loop once.
         if (seqs.nSeqs() == 1) {
             return self.emissionLogprob(seqs.get(0).seqq[pos]);
         }
