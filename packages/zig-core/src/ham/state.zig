@@ -39,11 +39,20 @@ pub const State = struct {
 
     /// Transitions to other states (not the "end" state), in parse order.
     /// After reorderTransitions(), reindexed to model order (with null sentinels for absent).
-    /// Each pointer is owned by this State.
+    /// Each pointer is owned by this State. Kept alive after finalize so print() can
+    /// resolve destination names; the hot path reads `log_probs` and ignores this.
     transitions: std.ArrayListUnmanaged(?*Transition),
-    /// Transition to the "end" state (null if none).
-    /// Owned by this State.
+    /// Transition to the "end" state (null if none). Owned by this State.
+    /// Kept alive after finalize for print(); the hot path reads `end_log_prob`.
     trans_to_end: ?*Transition,
+    /// Flat log-probabilities indexed by destination state, populated by
+    /// materializeTransitionLogProbs() at the end of Model.finalize. Replaces the
+    /// pointer-of-pointers chase in transitionLogprob() — that's the hottest data
+    /// access in the trellis DP. NEG_INF for absent transitions.
+    log_probs: []f64,
+    /// Log-probability for the transition to "end". Set during parse(); read by
+    /// endTransitionLogprob() in the hot path. NEG_INF if no end transition.
+    end_log_prob: f64,
 
     /// Emission model for this state.
     emission: Emission,
@@ -70,6 +79,8 @@ pub const State = struct {
             .ambiguous_char = &[_]u8{},
             .transitions = .{},
             .trans_to_end = null,
+            .log_probs = &[_]f64{},
+            .end_log_prob = mathutils.NEG_INF,
             .emission = Emission.init(),
             .index = std.math.maxInt(usize),
             .to_states = StateBitset.initEmpty(),
@@ -94,6 +105,7 @@ pub const State = struct {
             t.deinit(allocator);
             allocator.destroy(t);
         }
+        if (self.log_probs.len > 0) allocator.free(self.log_probs);
         self.emission.deinit(allocator);
         self.from_state_indices.deinit(allocator);
         self.to_state_indices.deinit(allocator);
@@ -157,6 +169,7 @@ pub const State = struct {
             trans.* = try Transition.init(allocator, to_state, prob);
             if (std.mem.eql(u8, to_state, "end")) {
                 self.trans_to_end = trans;
+                self.end_log_prob = trans.log_prob;
             } else {
                 try self.transitions.append(allocator, trans);
             }
@@ -204,19 +217,20 @@ pub const State = struct {
         return logprob;
     }
 
-    /// Transition log-probability to state at index `to_state` (post-reorder).
-    /// Returns -inf if no transition exists to that state.
+    /// Transition log-probability to state at index `to_state` (post-finalize).
+    /// Returns -inf if no transition exists to that state. Reads from the flat
+    /// `log_probs` array materialized at the end of Model.finalize — eliminates
+    /// the pointer-chain dereference that was the hottest data access in the
+    /// trellis DP.
     pub inline fn transitionLogprob(self: *const State, to_state: usize) f64 {
-        if (to_state >= self.transitions.items.len) return mathutils.NEG_INF;
-        const maybe_t = self.transitions.items[to_state];
-        return if (maybe_t) |t| t.log_prob else mathutils.NEG_INF;
+        if (to_state >= self.log_probs.len) return mathutils.NEG_INF;
+        return self.log_probs[to_state];
     }
 
     /// Log-probability for the transition to "end" (-inf if no such transition).
     /// Corresponds to C++ `State::end_transition_logprob()`.
     pub fn endTransitionLogprob(self: *const State) f64 {
-        if (self.trans_to_end) |t| return t.log_prob;
-        return mathutils.NEG_INF;
+        return self.end_log_prob;
     }
 
     /// Mark that this state transitions to `st`.
@@ -234,6 +248,25 @@ pub const State = struct {
     /// Set this state's index.
     pub fn setIndex(self: *State, val: usize) void {
         self.index = val;
+    }
+
+    /// Materialize a flat `log_probs: []f64` from `transitions` (post-reorder).
+    /// Called at the end of Model.finalize, after every reader of `to_state_name`
+    /// /`to_state_ptr` has run.
+    ///
+    /// Eliminates the pointer-chain dereference in transitionLogprob (the hottest
+    /// data access in the trellis DP). The original `*Transition` allocations
+    /// remain alive — print() walks them post-finalize to resolve destination
+    /// names. Memory cost is one f64 per state per slot (~2 MB total across all
+    /// loaded models); the wall-time win comes from the read pattern, not from
+    /// freeing.
+    pub fn materializeTransitionLogProbs(self: *State, allocator: std.mem.Allocator) !void {
+        std.debug.assert(self.log_probs.len == 0);
+        const n = self.transitions.items.len;
+        self.log_probs = try allocator.alloc(f64, n);
+        for (self.transitions.items, 0..) |maybe_t, i| {
+            self.log_probs[i] = if (maybe_t) |t| t.log_prob else mathutils.NEG_INF;
+        }
     }
 
     /// Reorder `transitions` to indexed order matching `state_indices` map.
@@ -403,7 +436,7 @@ test "State: normal state parse with emissions" {
     try std.testing.expectEqualStrings("state0", state.name);
     try std.testing.expectEqualStrings("A", state.germline_nuc);
     try std.testing.expectApproxEqAbs(@log(0.25), state.emissionLogprob(0), 1e-9);
-    // end transition stored in trans_to_end
+    // end_log_prob is set during parse() at the same site that creates trans_to_end
     try std.testing.expectApproxEqAbs(@log(1.0), state.endTransitionLogprob(), 1e-9);
 }
 

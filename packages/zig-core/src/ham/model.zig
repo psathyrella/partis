@@ -176,6 +176,12 @@ pub const Model = struct {
         // Build from_state_indices
         try self.addMaybeFasterFromStateStuff(allocator);
 
+        // Materialize flat log_probs and free *Transition allocations. Must run
+        // after every reader of to_state_name/to_state_ptr (finalizeState,
+        // reorderTransitions, checkTopology, addMaybeFasterFromStateStuff).
+        for (self.states.items) |st| try st.materializeTransitionLogProbs(allocator);
+        if (self.initial) |init_st| try init_st.materializeTransitionLogProbs(allocator);
+
         self.finalized = true;
     }
 
