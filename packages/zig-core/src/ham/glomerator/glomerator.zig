@@ -1646,20 +1646,18 @@ pub const Glomerator = struct {
     fn keyHasParent(key: []const u8, parent: []const u8) bool {
         if (key.len <= parent.len) return false;
         if (std.mem.startsWith(u8, key, parent) and key[parent.len] == ':') return true;
+        // key[key.len - parent.len - 1] is the byte immediately before the suffix match
+        // (i.e. the colon separator). The bounds check above guarantees this is in range.
         if (std.mem.endsWith(u8, key, parent) and key[key.len - parent.len - 1] == ':') return true;
         return false;
     }
 
-    /// Drop a single-cluster-keyed f64 entry, freeing the duped key.
-    fn pruneSingleKeyF64(self: *Glomerator, map: *std.StringHashMapUnmanaged(f64), key: []const u8) void {
-        if (map.fetchRemove(key)) |kv| self.allocator.free(kv.key);
-    }
-
-    /// Drop a single-cluster-keyed []u8 entry, freeing both key and value.
-    fn pruneSingleKeyU8(self: *Glomerator, map: *std.StringHashMapUnmanaged([]u8), key: []const u8) void {
+    /// Drop a single-cluster-keyed entry, freeing the duped key (and the duped value
+    /// when V == []u8). The `if (V == []u8)` branch is comptime-evaluated.
+    fn pruneSingleKey(self: *Glomerator, comptime V: type, map: *std.StringHashMapUnmanaged(V), key: []const u8) void {
         if (map.fetchRemove(key)) |kv| {
             self.allocator.free(kv.key);
-            self.allocator.free(kv.value);
+            if (V == []u8) self.allocator.free(kv.value);
         }
     }
 
@@ -1690,12 +1688,12 @@ pub const Glomerator = struct {
     /// (translation lookup paths). initial_* are read-only ingest-time guards
     /// for `--only-cache-new-vals` and must not be touched.
     fn pruneMergedParentCaches(self: *Glomerator, p1: []const u8, p2: []const u8) !void {
-        self.pruneSingleKeyF64(&self.log_probs, p1);
-        self.pruneSingleKeyF64(&self.log_probs, p2);
-        self.pruneSingleKeyU8(&self.naive_seqs, p1);
-        self.pruneSingleKeyU8(&self.naive_seqs, p2);
-        self.pruneSingleKeyU8(&self.errors, p1);
-        self.pruneSingleKeyU8(&self.errors, p2);
+        self.pruneSingleKey(f64, &self.log_probs, p1);
+        self.pruneSingleKey(f64, &self.log_probs, p2);
+        self.pruneSingleKey([]u8, &self.naive_seqs, p1);
+        self.pruneSingleKey([]u8, &self.naive_seqs, p2);
+        self.pruneSingleKey([]u8, &self.errors, p1);
+        self.pruneSingleKey([]u8, &self.errors, p2);
         try self.pruneParentPairsF64(&self.lratios, p1, p2);
         try self.pruneParentPairsF64(&self.naive_hfracs, p1, p2);
     }
