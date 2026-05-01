@@ -128,60 +128,54 @@ def _tcm_merge_from_pairs(pairs_file, centroid_uids):
 def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, c3len=None):
     # r1_results: list of (centroid_uid, [member_uids]) pairs from round 1
     # components: list of lists of centroid uids (one list per component)
-    # max_bin_size: if set, bin-pack round-1 sub-groups so no merged bin exceeds this size
-    #   (BIN_PACK_TOLERANCE headroom). round-1 sub-groups remain indivisible so family safety is preserved.
+    # max_bin_size: if set, bundle small TCM components together up to this size.
+    #   TCM components are indivisible: a component is never split across bins, even if
+    #   it exceeds max_bin_size, because TCM determined those sub-groups share related
+    #   naive sequences and belong together biologically.
     # c3len: optional CDR3 length used only for log lines
     # returns: list of merged member uid lists (one list per output bin)
     centroid_to_comp = {}
     for cidx, comp in enumerate(components):
         for c in comp:
             centroid_to_comp[c] = cidx
-    # group round-1 sub-groups by component (preserving sub-group boundaries for bin-packing)
-    bins_r1 = [[] for _ in range(len(components))]
+    # flatten each component into a single uid list (TCM component = indivisible unit)
+    comp_members = [[] for _ in range(len(components))]
     for centroid, members in r1_results:
         assert centroid in centroid_to_comp, 'round-1 centroid %s not present in any round-2 component (every round-1 centroid must be fed into round 2 TCM)' % centroid
-        bins_r1[centroid_to_comp[centroid]].append(members)
-    bins_r1 = [b for b in bins_r1 if b]
+        comp_members[centroid_to_comp[centroid]].extend(members)
+    comp_members = [c for c in comp_members if c]
 
     if max_bin_size is None or max_bin_size <= 0:
-        return [[m for sg in b for m in sg] for b in bins_r1]
+        return comp_members
 
-    # split oversize bins via First Fit Decreasing bin-packing on round-1 sub-groups
+    # bin-pack TCM components: bundle small components together, emit large ones whole
     cap = max_bin_size * BIN_PACK_TOLERANCE
     c3str = ('cdr3-%d: ' % c3len) if c3len is not None else ''
-    out_bins = []
-    for r1_subs in bins_r1:
-        bin_size = sum(len(s) for s in r1_subs)
-        if bin_size <= cap:
-            out_bins.append([m for sg in r1_subs for m in sg])
+    n_oversize = 0
+    # sort components largest-first for FFD bin-packing
+    sorted_comps = sorted(comp_members, key=len, reverse=True)
+    packed_bins = []
+    for comp in sorted_comps:
+        if len(comp) > cap:
+            # component exceeds cap but is indivisible: emit whole
+            n_oversize += 1
+            packed_bins.append(comp)
             continue
-        if len(r1_subs) == 1:
-            # cannot split: single indivisible round-1 sub-group exceeds cap. emit whole and warn (a
-            # very large clonal family that vsearch greedy clustering did not split; partition runtime
-            # for this sub-group can be expensive)
-            print('        %s %soversized round-1 sub-group emitted whole (%d seqs > cap %d), partition runtime may suffer' % (
-                utils.color('yellow', 'warning'), c3str, bin_size, int(cap)))
-            out_bins.append([m for sg in r1_subs for m in sg])
-            continue
-        # bin-packing engaged: TCM merged this component to %d seqs which exceeds cap, splitting back
-        # via FFD. round-1 sub-groups remain indivisible so each output bin is family-safe.
-        print('        %sbin-packing engaged: TCM component of %d seqs split into bins (cap %d, %d round-1 sub-groups)' % (
-            c3str, bin_size, int(cap), len(r1_subs)))
-        sorted_subs = sorted(r1_subs, key=len, reverse=True)
-        packed = [[]]
-        for sg in sorted_subs:
-            placed = False
-            for pb in packed:
-                if sum(len(s) for s in pb) + len(sg) <= cap:
-                    pb.append(sg)
-                    placed = True
-                    break
-            if not placed:
-                packed.append([sg])
-        for pb in packed:
-            if pb:
-                out_bins.append([m for sg in pb for m in sg])
-    return out_bins
+        # try to fit into an existing bin
+        placed = False
+        for pb in packed_bins:
+            if len(pb) + len(comp) <= cap:
+                pb.extend(comp)
+                placed = True
+                break
+        if not placed:
+            packed_bins.append(list(comp))
+    if n_oversize > 0:
+        oversize_sizes = sorted([len(c) for c in sorted_comps if len(c) > cap], reverse=True)
+        print('        %s %s%d TCM component%s exceed%s bin cap %d (sizes: %s), emitted whole to preserve family integrity' % (
+            utils.color('yellow', 'note'), c3str, n_oversize, utils.plural(n_oversize),
+            '' if n_oversize == 1 else '', int(cap), ' '.join(str(s) for s in oversize_sizes)))
+    return packed_bins
 
 # ----------------------------------------------------------------------------------------
 def write_group_fastas(groups, outdir, locus):
@@ -349,15 +343,25 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
     # build and write sub-groups per CDR3 group
     all_group_infos = []
     flattened_groups = collections.OrderedDict()
+    total_r1 = 0
+    total_comps = 0
+    total_bins = 0
     for c3len, seqfos in sorted(groups.items()):
         if c3len in small_groups:
             sub_groups_list = [seqfos]
         else:
             r1_results = r1_by_c3len[c3len]
+            n_r1 = len(r1_results)
+            total_r1 += n_r1
             if merge_factor > 0 and c3len in comps_by_c3len:
+                n_comps = len(comps_by_c3len[c3len])
+                total_comps += n_comps
                 merged_bins_uids = _merge_r1_subgroups_by_components(r1_results, comps_by_c3len[c3len], max_bin_size=max_bin_size, c3len=c3len)
             else:
+                n_comps = n_r1
+                total_comps += n_comps
                 merged_bins_uids = [members for _, members in r1_results]
+            total_bins += len(merged_bins_uids)
             uid_to_sfo = {sfo['name']: sfo for sfo in seqfos}
             sub_groups_list = []
             for bin_uids in merged_bins_uids:
@@ -368,6 +372,8 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
             if merge_factor > 0 and c3len in r2_workdirs:
                 shutil.rmtree(r2_workdirs[c3len], ignore_errors=True)
         _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, glfo, all_group_infos, flattened_groups)
+    if total_r1 > 0:
+        print('        hfrac summary: %d round-1 sub-groups -> %d TCM components -> %d output bins' % (total_r1, total_comps, total_bins))
     return flattened_groups, all_group_infos
 
 # ----------------------------------------------------------------------------------------
@@ -398,15 +404,25 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HF
     # pass 2: re-read SW caches, build sub-groups, write outputs
     all_group_infos = []
     flattened_groups = collections.OrderedDict()
+    total_r1 = 0
+    total_comps = 0
+    total_bins = 0
     for c3len, seqfos in sorted(groups.items()):
         if c3len in small_groups:
             sub_groups_list = [seqfos]
         else:
             r1_results = r1_by_c3len[c3len]
+            n_r1 = len(r1_results)
+            total_r1 += n_r1
             if merge_factor > 0 and c3len in comps_by_c3len:
+                n_comps = len(comps_by_c3len[c3len])
+                total_comps += n_comps
                 merged_bins_uids = _merge_r1_subgroups_by_components(r1_results, comps_by_c3len[c3len], max_bin_size=max_bin_size, c3len=c3len)
             else:
+                n_comps = n_r1
+                total_comps += n_comps
                 merged_bins_uids = [members for _, members in r1_results]
+            total_bins += len(merged_bins_uids)
             uid_to_sfo = {sfo['name']: sfo for sfo in seqfos}
             sub_groups_list = []
             for bin_uids in merged_bins_uids:
@@ -431,6 +447,8 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HF
             del antn_list
 
         _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, group_glfo, all_group_infos, flattened_groups)
+    if total_r1 > 0:
+        print('        hfrac summary: %d round-1 sub-groups -> %d TCM components -> %d output bins' % (total_r1, total_comps, total_bins))
     return flattened_groups, all_group_infos
 
 # ----------------------------------------------------------------------------------------
