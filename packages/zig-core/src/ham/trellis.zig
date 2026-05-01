@@ -115,6 +115,10 @@ pub const Trellis = struct {
         const allocator = self.allocator;
         const seq_len = self.seq_len;
         const n_states = self.hmm.nStates();
+        // Cache the borrowed seqs pointer in a local so the inner DP loop reads
+        // it from a register rather than re-loading `self.seqs` (a heap-pointer
+        // member after #357) on every emission lookup.
+        const seqs = self.seqs;
 
         if (self.cached_trellis) |ct| {
             // Poach scalar values from cached trellis; array data accessed via accessors.
@@ -152,7 +156,7 @@ pub const Trellis = struct {
         // Reset next_seen before populating position 0
         self.next_seen = state_mod.StateBitset.initEmpty();
         for (init_st.to_state_indices.items) |i_st| {
-            const emission_val = self.hmm.stateByIndex(i_st).emissionLogprobSeqs(self.seqs, 0);
+            const emission_val = self.hmm.stateByIndex(i_st).emissionLogprobSeqs(seqs, 0);
             const dpval = emission_val + init_st.transitionLogprob(i_st);
             if (std.math.isNegativeInf(dpval)) continue;
             self.scoring_current[i_st] = dpval;
@@ -194,6 +198,8 @@ pub const Trellis = struct {
         const allocator = self.allocator;
         const seq_len = self.seq_len;
         const n_states = self.hmm.nStates();
+        // See viterbi(): cache borrowed seqs pointer in a local for the inner DP loop.
+        const seqs = self.seqs;
 
         if (self.cached_trellis) |ct| {
             self.ending_forward_log_prob = ct.endingForwardLogProbAt(seq_len);
@@ -218,7 +224,7 @@ pub const Trellis = struct {
         // Reset next_seen before populating position 0
         self.next_seen = state_mod.StateBitset.initEmpty();
         for (init_st.to_state_indices.items) |i_st| {
-            const emission_val = self.hmm.stateByIndex(i_st).emissionLogprobSeqs(self.seqs, 0);
+            const emission_val = self.hmm.stateByIndex(i_st).emissionLogprobSeqs(seqs, 0);
             const dpval = emission_val + init_st.transitionLogprob(i_st);
             if (std.math.isNegativeInf(dpval)) continue;
             self.scoring_current[i_st] = dpval;
@@ -317,9 +323,11 @@ pub const Trellis = struct {
         next_states: *std.ArrayListUnmanaged(usize),
         position: usize,
     ) !void {
+        // See viterbi(): cache borrowed seqs pointer in a local for the inner loop.
+        const seqs = self.seqs;
         for (current_states.items) |i_st_cur| {
             const st_cur = self.hmm.stateByIndex(i_st_cur);
-            const emission_val = st_cur.emissionLogprobSeqs(self.seqs, position);
+            const emission_val = st_cur.emissionLogprobSeqs(seqs, position);
             if (std.math.isNegativeInf(emission_val)) continue;
             for (st_cur.from_state_indices.items) |i_st_prev| {
                 const prev_val = self.scoring_previous[i_st_prev];
@@ -349,9 +357,11 @@ pub const Trellis = struct {
         next_states: *std.ArrayListUnmanaged(usize),
         position: usize,
     ) !void {
+        // See viterbi(): cache borrowed seqs pointer in a local for the inner loop.
+        const seqs = self.seqs;
         for (current_states.items) |i_st_cur| {
             const st_cur = self.hmm.stateByIndex(i_st_cur);
-            const emission_val = st_cur.emissionLogprobSeqs(self.seqs, position);
+            const emission_val = st_cur.emissionLogprobSeqs(seqs, position);
             if (std.math.isNegativeInf(emission_val)) continue;
             for (st_cur.from_state_indices.items) |i_st_prev| {
                 const prev_val = self.scoring_previous[i_st_prev];

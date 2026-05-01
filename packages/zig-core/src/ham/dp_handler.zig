@@ -516,7 +516,6 @@ pub const DPHandler = struct {
             errdefer fresh.deinit();
 
             const entry = TrellisEntry{ .query_seqs = stored_seqs, .trellis = fresh };
-            origin = "scratch";
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 try cache_list.append(allocator, entry);
                 break :blk &cache_list.items[cache_list.items.len - 1].trellis;
@@ -734,9 +733,14 @@ pub const DPHandler = struct {
             defer query_seqs.deinit(allocator);
 
             // Borrow the undigitized strings (slice headers only — no string copies).
+            // Only the args.debug == 2 paths consume this slice (the region-display
+            // block below and printPath); skip the allocation otherwise.
             // Lifetime is bounded by query_seqs above.
-            const query_strs = try borrowQueryStrs(allocator, &query_seqs);
-            defer allocator.free(query_strs);
+            const query_strs: [][]const u8 = if (self.args.debug == 2)
+                try borrowQueryStrs(allocator, &query_seqs)
+            else
+                &.{};
+            defer if (self.args.debug == 2) allocator.free(query_strs);
 
             // Debug: region query display
             if (self.args.debug == 2) {
