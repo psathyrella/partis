@@ -125,13 +125,13 @@ def _tcm_merge_from_pairs(pairs_file, centroid_uids):
     return components
 
 # ----------------------------------------------------------------------------------------
-def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, c3len=None):
+def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT, c3len=None):
     # r1_results: list of (centroid_uid, [member_uids]) pairs from round 1
     # components: list of lists of centroid uids (one list per component)
-    # max_bin_size: if set, bundle small TCM components together up to this size.
-    #   TCM components are indivisible: a component is never split across bins, even if
-    #   it exceeds max_bin_size, because TCM determined those sub-groups share related
-    #   naive sequences and belong together biologically.
+    # max_bin_size: components exceeding this are emitted with a warning (never split).
+    # min_group_size: components smaller than this are bundled together up to max_bin_size.
+    #   Components at or above min_group_size are emitted as separate bins -- TCM determined
+    #   they are distinct biological units and that signal must be preserved.
     # c3len: optional CDR3 length used only for log lines
     # returns: list of merged member uid lists (one list per output bin)
     centroid_to_comp = {}
@@ -148,34 +148,42 @@ def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None,
     if max_bin_size is None or max_bin_size <= 0:
         return comp_members
 
-    # bin-pack TCM components: bundle small components together, emit large ones whole
     cap = max_bin_size * BIN_PACK_TOLERANCE
     c3str = ('cdr3-%d: ' % c3len) if c3len is not None else ''
     n_oversize = 0
-    # sort components largest-first for FFD bin-packing
-    sorted_comps = sorted(comp_members, key=len, reverse=True)
-    packed_bins = []
-    for comp in sorted_comps:
+    out_bins = []
+    small_comps = []  # components below min_group_size, candidates for bundling
+    for comp in comp_members:
         if len(comp) > cap:
             # component exceeds cap but is indivisible: emit whole
             n_oversize += 1
-            packed_bins.append(comp)
-            continue
-        # try to fit into an existing bin
-        placed = False
-        for pb in packed_bins:
-            if len(pb) + len(comp) <= cap:
-                pb.extend(comp)
-                placed = True
-                break
-        if not placed:
-            packed_bins.append(list(comp))
+            out_bins.append(comp)
+        elif len(comp) >= min_group_size:
+            # meaningful component: emit as its own bin
+            out_bins.append(comp)
+        else:
+            # tiny component: bundle with other small ones
+            small_comps.append(comp)
+    # bundle small components via FFD bin-packing
+    if small_comps:
+        sorted_small = sorted(small_comps, key=len, reverse=True)
+        packed = []
+        for comp in sorted_small:
+            placed = False
+            for pb in packed:
+                if len(pb) + len(comp) <= cap:
+                    pb.extend(comp)
+                    placed = True
+                    break
+            if not placed:
+                packed.append(list(comp))
+        out_bins.extend(packed)
     if n_oversize > 0:
-        oversize_sizes = sorted([len(c) for c in sorted_comps if len(c) > cap], reverse=True)
+        oversize_sizes = sorted([len(c) for c in comp_members if len(c) > cap], reverse=True)
         print('        %s %s%d TCM component%s exceed%s bin cap %d (sizes: %s), emitted whole to preserve family integrity' % (
             utils.color('yellow', 'note'), c3str, n_oversize, utils.plural(n_oversize),
             '' if n_oversize == 1 else '', int(cap), ' '.join(str(s) for s in oversize_sizes)))
-    return packed_bins
+    return out_bins
 
 # ----------------------------------------------------------------------------------------
 def write_group_fastas(groups, outdir, locus):
@@ -356,7 +364,7 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
             if merge_factor > 0 and c3len in comps_by_c3len:
                 n_comps = len(comps_by_c3len[c3len])
                 total_comps += n_comps
-                merged_bins_uids = _merge_r1_subgroups_by_components(r1_results, comps_by_c3len[c3len], max_bin_size=max_bin_size, c3len=c3len)
+                merged_bins_uids = _merge_r1_subgroups_by_components(r1_results, comps_by_c3len[c3len], max_bin_size=max_bin_size, min_group_size=min_group_size, c3len=c3len)
             else:
                 n_comps = n_r1
                 total_comps += n_comps
@@ -417,7 +425,7 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HF
             if merge_factor > 0 and c3len in comps_by_c3len:
                 n_comps = len(comps_by_c3len[c3len])
                 total_comps += n_comps
-                merged_bins_uids = _merge_r1_subgroups_by_components(r1_results, comps_by_c3len[c3len], max_bin_size=max_bin_size, c3len=c3len)
+                merged_bins_uids = _merge_r1_subgroups_by_components(r1_results, comps_by_c3len[c3len], max_bin_size=max_bin_size, min_group_size=min_group_size, c3len=c3len)
             else:
                 n_comps = n_r1
                 total_comps += n_comps
