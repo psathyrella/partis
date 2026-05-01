@@ -8,9 +8,16 @@ const Sequence = @import("../sequences.zig").Sequence;
 const KBounds = @import("../bcr_utils/k_bounds.zig").KBounds;
 
 /// Corresponds to C++ `ham::Query`.
+///
+/// Sequence ownership (issue #342, item 6): `seqs` holds **borrowed** Sequence
+/// values — shallow copies whose slice fields (`name`, `header`, `undigitized`,
+/// `seqq`) point at buffers owned by `Glomerator.single_seqs`. The Query must
+/// not outlive the Glomerator that owns those buffers, and `Query.deinit` must
+/// not call `Sequence.deinit` on its entries.
 pub const Query = struct {
     name: []u8,
-    /// Owned copies of sequences belonging to this query/cluster.
+    /// Borrowed shallow copies of Sequences. Buffers are owned by
+    /// `Glomerator.single_seqs`; do not free per-item in deinit.
     seqs: std.ArrayListUnmanaged(Sequence),
     seed_missing: bool,
     only_genes: std.ArrayListUnmanaged([]u8),
@@ -34,11 +41,13 @@ pub const Query = struct {
         };
     }
 
-    /// Create a fully-specified Query.
+    /// Create a fully-specified Query. `seqs` is borrowed: each Sequence is
+    /// stored as a shallow copy (slice descriptors), and the buffers must
+    /// outlive this Query. See struct doc comment.
     pub fn create(
         allocator: std.mem.Allocator,
         name: []const u8,
-        seqs: []Sequence,
+        seqs: []const Sequence,
         seed_missing: bool,
         only_genes: []const []const u8,
         kbounds: KBounds,
@@ -59,8 +68,9 @@ pub const Query = struct {
         };
         errdefer q.deinit(allocator);
 
-        for (seqs) |*sq| {
-            try q.seqs.append(allocator, try sq.clone(allocator));
+        try q.seqs.ensureUnusedCapacity(allocator, seqs.len);
+        for (seqs) |sq| {
+            q.seqs.appendAssumeCapacity(sq);
         }
         for (only_genes) |g| {
             try q.only_genes.append(allocator, try allocator.dupe(u8, g));
@@ -76,7 +86,8 @@ pub const Query = struct {
 
     pub fn deinit(self: *Query, allocator: std.mem.Allocator) void {
         if (self.name.len > 0) allocator.free(self.name);
-        for (self.seqs.items) |*sq| sq.deinit(allocator);
+        // seqs entries are borrowed shallow copies (see struct doc); do not
+        // call Sequence.deinit here. Only the ArrayList itself is owned.
         self.seqs.deinit(allocator);
         for (self.only_genes.items) |g| allocator.free(g);
         self.only_genes.deinit(allocator);

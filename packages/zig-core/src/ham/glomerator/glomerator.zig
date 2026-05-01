@@ -44,6 +44,14 @@ pub const Glomerator = struct {
     initial_partition: Partition,
 
     /// All actual sequences, keyed by sequence name.
+    ///
+    /// Write-once during `init`; **frozen** thereafter (no inserts, no
+    /// removals, no replacements). Per issue #342 item 6, every other
+    /// `Query.seqs` in the glomerator borrows from these buffers via
+    /// shallow copies, so mutating this map post-init would invalidate
+    /// those borrows and produce use-after-free on the slice fields.
+    /// Adding any write to this map outside `init` requires reworking
+    /// the borrowed-Sequence contract (see Query struct doc).
     single_seqs: std.StringHashMapUnmanaged(Sequence),
     /// Single-sequence cache entries.
     single_seq_cachefo: std.StringHashMapUnmanaged(Query),
@@ -185,7 +193,7 @@ pub const Glomerator = struct {
                 if (!self.single_seq_cachefo.contains(uid)) {
                     const uid_seqs = try self.getSeqs(uid);
                     defer {
-                        for (uid_seqs.items) |*sq| sq.deinit(allocator);
+                        // uid_seqs items are borrowed (item 6); only free the list.
                         var s = uid_seqs;
                         s.deinit(allocator);
                     }
@@ -211,7 +219,7 @@ pub const Glomerator = struct {
             // Build cachefo entry for the full query group
             const key_seqs = try self.getSeqs(key);
             defer {
-                for (key_seqs.items) |*ks| ks.deinit(allocator);
+                // key_seqs items are borrowed (item 6); only free the list.
                 var ksl = key_seqs;
                 ksl.deinit(allocator);
             }
@@ -244,17 +252,21 @@ pub const Glomerator = struct {
         for (self.initial_partition.items) |s| allocator.free(s);
         self.initial_partition.deinit(allocator);
 
-        // Free single_seqs
+        // Free Query maps before single_seqs: Query.seqs borrows from
+        // single_seqs (item 6). Query.deinit no longer touches sequence
+        // buffers, so the order is not load-bearing for correctness, but
+        // freeing borrowers before owners keeps the invariant explicit.
+        freeQueryMap(allocator, &self.single_seq_cachefo);
+        freeQueryMap(allocator, &self.cachefo);
+        freeQueryMap(allocator, &self.tmp_cachefo);
+
+        // Free single_seqs (the unique owner of Sequence buffers).
         var ssit = self.single_seqs.iterator();
         while (ssit.next()) |e| {
             allocator.free(e.key_ptr.*);
             e.value_ptr.deinit(allocator);
         }
         self.single_seqs.deinit(allocator);
-
-        freeQueryMap(allocator, &self.single_seq_cachefo);
-        freeQueryMap(allocator, &self.cachefo);
-        freeQueryMap(allocator, &self.tmp_cachefo);
 
         freeStringF64Map(allocator, &self.log_probs);
         freeStringF64Map(allocator, &self.naive_hfracs);
@@ -1170,6 +1182,7 @@ pub const Glomerator = struct {
 
         const key_seqs = try self.getSeqs(queries);
         defer {
+            // key_seqs items are borrowed (item 6); only free the list.
             var ks = key_seqs;
             ks.deinit(self.allocator);
         }
@@ -1252,7 +1265,7 @@ pub const Glomerator = struct {
 
         const key_seqs = try self.getSeqs(joint_name);
         defer {
-            for (key_seqs.items) |*ks| ks.deinit(self.allocator);
+            // key_seqs items are borrowed (item 6); only free the list.
             var ksl = key_seqs;
             ksl.deinit(self.allocator);
         }
@@ -1437,6 +1450,7 @@ pub const Glomerator = struct {
         {
             const sub_seqs = try self.getSeqs(subqueries);
             defer {
+                // sub_seqs items are borrowed (item 6); only free the list.
                 var ss = sub_seqs;
                 ss.deinit(self.allocator);
             }
@@ -1575,6 +1589,7 @@ pub const Glomerator = struct {
             const supercache = try self.getCachefo(superquery);
             const key_seqs = try self.getSeqs(translated_query);
             defer {
+                // key_seqs items are borrowed (item 6); only free the list.
                 var ks = key_seqs;
                 ks.deinit(self.allocator);
             }
@@ -1600,6 +1615,11 @@ pub const Glomerator = struct {
     // ── Utility helpers ───────────────────────────────────────────────────────
 
     /// C++: Glomerator::GetSeqs() — glomerator.cc:850
+    ///
+    /// Returns borrowed shallow copies of Sequence values from `single_seqs`.
+    /// The buffers (`name`, `undigitized`, `seqq`, ...) are not duplicated;
+    /// callers must not call `Sequence.deinit` on the returned items, and the
+    /// returned slice must not outlive `single_seqs`. Issue #342, item 6.
     fn getSeqs(self: *Glomerator, query: []const u8) !std.ArrayListUnmanaged(Sequence) {
         const names = try splitName(self.allocator, query);
         defer {
@@ -1609,13 +1629,11 @@ pub const Glomerator = struct {
         }
 
         var result: std.ArrayListUnmanaged(Sequence) = .{};
-        errdefer {
-            for (result.items) |*sq| sq.deinit(self.allocator);
-            result.deinit(self.allocator);
-        }
+        errdefer result.deinit(self.allocator);
+        try result.ensureUnusedCapacity(self.allocator, names.items.len);
         for (names.items) |uid| {
             const sq = self.single_seqs.getPtr(uid) orelse return error.SequenceNotFound;
-            try result.append(self.allocator, try sq.clone(self.allocator));
+            result.appendAssumeCapacity(sq.*);
         }
         return result;
     }
