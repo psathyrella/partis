@@ -33,9 +33,19 @@ const GeneKSetKey = struct {
     kset: KSet,
 };
 
-/// Cached trellis entry: query strings → Trellis
+/// Cached trellis entry. Owns the Sequences the trellis was built over.
+///
+/// `query_seqs` is heap-allocated separately so its address is stable across
+/// reallocations of the enclosing `cache_list: ArrayListUnmanaged(TrellisEntry)`.
+/// `Trellis.seqs` borrows this stable pointer; appending more entries may
+/// relocate the entry struct, but the heap-allocated Sequences (and its
+/// inner Sequence buffers) stays put.
+///
+/// Prefix-match for chunk-cache hits reads
+/// `query_seqs.seqs.items[i].undigitized` — there is no separate `query_strs`
+/// list (item 2 of issue #342).
 const TrellisEntry = struct {
-    query_strs: std.ArrayListUnmanaged([]u8),
+    query_seqs: *Sequences,
     trellis: Trellis,
 };
 
@@ -85,14 +95,17 @@ pub const DPHandler = struct {
     pub fn clear(self: *DPHandler) void {
         const allocator = self.allocator;
 
-        // Free scratch_cachefo
+        // Free scratch_cachefo. Each TrellisEntry owns a heap-allocated Sequences
+        // (borrowed by the entry's trellis). Deinit the trellis BEFORE freeing
+        // the Sequences so that any debug assertions inside trellis.deinit() can
+        // still observe a valid borrow target if needed.
         var cit = self.scratch_cachefo.iterator();
         while (cit.next()) |entry| {
             allocator.free(entry.key_ptr.*);
             for (entry.value_ptr.items) |*te| {
-                for (te.query_strs.items) |s| allocator.free(s);
-                te.query_strs.deinit(allocator);
                 te.trellis.deinit();
+                te.query_seqs.deinit(allocator);
+                allocator.destroy(te.query_seqs);
             }
             entry.value_ptr.deinit(allocator);
         }
@@ -128,6 +141,8 @@ pub const DPHandler = struct {
 
     /// Run the DP for a single Sequence.
     /// Corresponds to C++ `DPHandler::Run(Sequence, ...)`.
+    /// The Sequence's heap buffers (name/header/undigitized/seqq) are borrowed
+    /// for the duration of the call; the caller retains ownership.
     pub fn runSeq(
         self: *DPHandler,
         seq: Sequence,
@@ -136,15 +151,16 @@ pub const DPHandler = struct {
         overall_mute_freq: f64,
         clear_cache: bool,
     ) !Result {
-        // Clone into a Sequences container (single sequence)
-        var seqvec: std.ArrayListUnmanaged(Sequence) = .{};
-        defer seqvec.deinit(self.allocator);
-        try seqvec.append(self.allocator, try seq.clone(self.allocator));
-        return self.run(seqvec.items, kbounds, only_gene_list, overall_mute_freq, clear_cache);
+        const seqvec = [_]Sequence{seq};
+        return self.run(&seqvec, kbounds, only_gene_list, overall_mute_freq, clear_cache);
     }
 
     /// Run the DP over a vector of sequences.
     /// Corresponds to C++ `DPHandler::Run(vector<Sequence>, ...)`.
+    /// `seqvector` is borrowed: each Sequence's heap buffers must outlive the
+    /// call; the internal Sequences container holds shallow struct-copies that
+    /// share those buffers (item 2 of issue #342). The container's items are
+    /// not deinit'd at function end — only the backing array is freed.
     pub fn run(
         self: *DPHandler,
         seqvector: []const Sequence,
@@ -156,10 +172,21 @@ pub const DPHandler = struct {
         const allocator = self.allocator;
         const run_start = std.time.milliTimestamp();
 
+        // Build a Sequences container that borrows from `seqvector`.
+        // Each Sequence is a shallow struct-copy: slice headers are duplicated,
+        // but the underlying name/header/undigitized/seqq buffers are shared
+        // with `seqvector`. We must not deinit the items at end-of-call —
+        // only the backing array allocation is freed.
         var seqs = Sequences.init();
-        defer seqs.deinit(allocator);
-        for (seqvector) |*sq| {
-            try seqs.addSeq(allocator, try sq.clone(allocator));
+        defer seqs.seqs.deinit(allocator);
+        try seqs.seqs.ensureTotalCapacityPrecise(allocator, seqvector.len);
+        for (seqvector) |sq| {
+            if (seqs.seqs.items.len == 0) {
+                seqs.sequence_length = sq.size();
+            } else if (sq.size() != seqs.sequence_length) {
+                return error.SequenceLengthMismatch;
+            }
+            seqs.seqs.appendAssumeCapacity(sq);
         }
 
         // Build only_genes map: region → set of gene names
@@ -357,21 +384,15 @@ pub const DPHandler = struct {
         return result;
     }
 
-    /// Collect undigitized strings for the given region's subsequences.
-    fn getQueryStrs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: Region) !std.ArrayListUnmanaged([]u8) {
-        const allocator = self.allocator;
-        var query_seqs = try self.getSubSeqs(seqs, kset, region);
-        defer query_seqs.deinit(allocator);
-
-        var strs: std.ArrayListUnmanaged([]u8) = .{};
-        errdefer {
-            for (strs.items) |s| allocator.free(s);
-            strs.deinit(allocator);
-        }
-        for (query_seqs.seqs.items) |*sq| {
-            try strs.append(allocator, try allocator.dupe(u8, sq.undigitized));
-        }
-        return strs;
+    /// Borrow the undigitized strings of `seqs` into a freshly-allocated slice
+    /// of `[]const u8` (slice-of-slices, no string copies). The returned slice
+    /// is allocated with `allocator` and must be `free`d by the caller; the
+    /// individual strings borrow into `seqs.seqs.items[i].undigitized` and
+    /// must not outlive `seqs`.
+    fn borrowQueryStrs(allocator: std.mem.Allocator, seqs: *const Sequences) ![][]const u8 {
+        const out = try allocator.alloc([]const u8, seqs.seqs.items.len);
+        for (seqs.seqs.items, 0..) |*sq, i| out[i] = sq.undigitized;
+        return out;
     }
 
     /// Ensure per-gene caches are initialised for `gene`.
@@ -431,25 +452,31 @@ pub const DPHandler = struct {
 
     /// Fill the trellis for the given (gene, kset, query_seqs).
     /// Stores result in scores_[gene][kset] and (for viterbi) paths_[gene][kset].
+    /// `query_seqs` is borrowed; its lifetime must span the call. For the
+    /// fresh path (no chunk-cache hit), the trellis is stored in
+    /// `scratch_cachefo[gene]` and a clone of `query_seqs` is heap-allocated
+    /// to give the stored trellis a stable, long-lived borrow target.
     fn fillTrellis(
         self: *DPHandler,
         kset: KSet,
-        query_seqs: Sequences,
-        query_strs: []const []const u8,
+        query_seqs: *const Sequences,
         gene: []const u8,
     ) ![]const u8 {
         const allocator = self.allocator;
 
-        // Look for a chunk-cached trellis
+        // Look for a chunk-cached trellis. Prefix-match is on undigitized
+        // strings of the cached trellis's stored query_seqs.
         var cached_trellis: ?*const Trellis = null;
         if (!self.args.no_chunk_cache) {
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 for (cache_list.items) |*te| {
-                    if (te.query_strs.items.len != query_strs.len) continue;
+                    const cached_seqs = te.query_seqs.seqs.items;
+                    const current_seqs = query_seqs.seqs.items;
+                    if (cached_seqs.len != current_seqs.len) continue;
                     var all_match = true;
-                    for (te.query_strs.items, query_strs) |cached, current| {
+                    for (cached_seqs, current_seqs) |*cached, *current| {
                         // cached must START WITH current (prefix match)
-                        if (!std.mem.startsWith(u8, cached, current)) {
+                        if (!std.mem.startsWith(u8, cached.undigitized, current.undigitized)) {
                             all_match = false;
                             break;
                         }
@@ -471,16 +498,6 @@ pub const DPHandler = struct {
         // This is critical: when no cache, do NOT create a second trellis that borrows from
         // the (empty) scratch — the scratch itself is the working trellis.
 
-        // Build the TrellisEntry query strings (needed if storing a new scratch).
-        var qstrs: std.ArrayListUnmanaged([]u8) = .{};
-        defer {
-            for (qstrs.items) |s| allocator.free(s);
-            qstrs.deinit(allocator);
-        }
-        for (query_strs) |s| {
-            try qstrs.append(allocator, try allocator.dupe(u8, s));
-        }
-
         // trell_ptr points to the trellis on which the algorithm is run.
         // tmptrell is only used when borrowing from a cached trellis.
         var tmptrell: ?Trellis = null;
@@ -488,11 +505,17 @@ pub const DPHandler = struct {
 
         var origin: []const u8 = "scratch";
         const trell_ptr: *Trellis = if (cached_trellis == null) blk: {
-            // No cache: create scratch WITHOUT cached_trellis, store it, use it directly.
-            var fresh = try Trellis.initWithSeqs(allocator, model, query_seqs, null);
+            // No cache: clone query_seqs into a stable heap home so the stored
+            // trellis can borrow from it for its full lifetime in scratch_cachefo.
+            const stored_seqs = try allocator.create(Sequences);
+            errdefer allocator.destroy(stored_seqs);
+            stored_seqs.* = try query_seqs.clone(allocator);
+            errdefer stored_seqs.deinit(allocator);
+
+            var fresh = try Trellis.initWithSeqs(allocator, model, stored_seqs, null);
             errdefer fresh.deinit();
-            const entry = TrellisEntry{ .query_strs = qstrs, .trellis = fresh };
-            qstrs = .{}; // ownership transferred to entry
+
+            const entry = TrellisEntry{ .query_seqs = stored_seqs, .trellis = fresh };
             origin = "scratch";
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 try cache_list.append(allocator, entry);
@@ -500,13 +523,14 @@ pub const DPHandler = struct {
             } else {
                 // gene not in scratch_cachefo (shouldn't happen after initCache), discard
                 var e = entry;
-                for (e.query_strs.items) |s| allocator.free(s);
-                e.query_strs.deinit(allocator);
                 e.trellis.deinit();
+                e.query_seqs.deinit(allocator);
+                allocator.destroy(e.query_seqs);
                 return error.GeneNotInScratchCache;
             }
         } else blk: {
-            // Have cache: create temp trellis that borrows from the cached scratch.
+            // Have cache: temp trellis borrows from the caller's query_seqs
+            // (no clone — lifetime is just this call).
             tmptrell = try Trellis.initWithSeqs(allocator, model, query_seqs, cached_trellis);
             origin = "chunk";
             break :blk &tmptrell.?;
@@ -706,14 +730,13 @@ pub const DPHandler = struct {
             try regional_best.put(allocator, region, mathutils.NEG_INF);
             try regional_total.put(allocator, region, mathutils.NEG_INF);
 
-            var query_strs = try self.getQueryStrs(seqs, kset, region);
-            defer {
-                for (query_strs.items) |s| allocator.free(s);
-                query_strs.deinit(allocator);
-            }
-
             var query_seqs = try self.getSubSeqs(seqs, kset, region);
             defer query_seqs.deinit(allocator);
+
+            // Borrow the undigitized strings (slice headers only — no string copies).
+            // Lifetime is bounded by query_seqs above.
+            const query_strs = try borrowQueryStrs(allocator, &query_seqs);
+            defer allocator.free(query_strs);
 
             // Debug: region query display
             if (self.args.debug == 2) {
@@ -722,24 +745,20 @@ pub const DPHandler = struct {
                     // Get ambiguous char from args (matches C++ hmms_.track()->ambiguous_char())
                     const ambig = self.args.ambig_base;
                     const ambig_ch: u8 = if (ambig.len > 0) ambig[0] else 0;
-                    if (query_strs.items.len > 0) {
+                    if (query_strs.len > 0) {
                         const colored = if (ambig_ch != 0)
-                            try TermColors.colorChars(allocator, ambig_ch, "light_blue", query_strs.items[0])
+                            try TermColors.colorChars(allocator, ambig_ch, "light_blue", query_strs[0])
                         else
-                            try allocator.dupe(u8, query_strs.items[0]);
+                            try allocator.dupe(u8, query_strs[0]);
                         defer allocator.free(colored);
                         const line = try std.fmt.allocPrint(allocator, "                {s} query {s}\n", .{ rs, colored });
                         defer allocator.free(line);
                         try std.fs.File.stdout().writeAll(line);
                     }
                     // Additional query strings colored as mutants relative to first
-                    if (query_strs.items.len > 1) {
-                        // Build const slice for colorMutants
-                        const const_strs = try allocator.alloc([]const u8, query_strs.items.len);
-                        defer allocator.free(const_strs);
-                        for (query_strs.items, 0..) |s, i| const_strs[i] = s;
-                        for (query_strs.items[1..]) |qs| {
-                            const mutant = try TermColors.colorMutants(allocator, "purple", qs, "", const_strs, ambig);
+                    if (query_strs.len > 1) {
+                        for (query_strs[1..]) |qs| {
+                            const mutant = try TermColors.colorMutants(allocator, "purple", qs, "", query_strs, ambig);
                             defer allocator.free(mutant);
                             const colored2 = if (ambig_ch != 0)
                                 try TermColors.colorChars(allocator, ambig_ch, "light_blue", mutant)
@@ -795,18 +814,14 @@ pub const DPHandler = struct {
                     }
                     origin = "cached";
                 } else {
-                    origin = try self.fillTrellis(kset, query_seqs, query_strs.items, gene);
+                    origin = try self.fillTrellis(kset, &query_seqs, gene);
                 }
 
                 const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(kset) orelse mathutils.NEG_INF else mathutils.NEG_INF;
 
                 // Debug: per-gene viterbi output
                 if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "viterbi")) {
-                    // Build const slice for printPath
-                    const const_strs = try allocator.alloc([]const u8, query_strs.items.len);
-                    defer allocator.free(const_strs);
-                    for (query_strs.items, 0..) |s, i| const_strs[i] = s;
-                    try self.printPath(kset, const_strs, gene, gene_score, origin);
+                    try self.printPath(kset, query_strs, gene, gene_score, origin);
                 }
 
                 // Update regional totals
@@ -927,12 +942,10 @@ pub const DPHandler = struct {
                 return event;
             };
 
-            var query_strs = try self.getQueryStrs(seqs, kset, region);
-            defer {
-                for (query_strs.items) |s| allocator.free(s);
-                query_strs.deinit(allocator);
-            }
-            if (query_strs.items.len == 0) {
+            // The original C++ path called GetQueryStrs and checked items.len > 0;
+            // in practice that's always equal to seqs.nSeqs(), so check directly
+            // and skip the unused string list.
+            if (seqs.nSeqs() == 0) {
                 event.setScore(mathutils.NEG_INF);
                 return event;
             }
