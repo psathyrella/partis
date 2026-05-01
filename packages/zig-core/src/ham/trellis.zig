@@ -23,8 +23,17 @@ pub const Int2D = std.ArrayListUnmanaged([]i16);
 pub const Trellis = struct {
     /// HMM model (not owned).
     hmm: *const Model,
-    /// Sequences to run DP over (owned copy).
-    seqs: Sequences,
+    /// Sequences to run DP over (BORROWED; not owned).
+    /// The pointee must outlive this Trellis. For trellises stored in
+    /// `DPHandler.scratch_cachefo`, the owning Sequences lives in the
+    /// enclosing TrellisEntry and is freed alongside the trellis.
+    /// For temporary chunk-borrowing trellises, the pointee is the caller's
+    /// stack-local `query_seqs` and lives only for the duration of fillTrellis.
+    seqs: *const Sequences,
+    /// Cached at init from `seqs.sequence_length`. Read by `traceback`,
+    /// `viterbi`, and `forward`; valid even if the borrowed seqs is no longer
+    /// being read post-DP.
+    seq_len: usize,
 
     /// Traceback table [position][state] → previous state (-1 if none).
     traceback_table: Int2D,
@@ -52,33 +61,25 @@ pub const Trellis = struct {
 
     allocator: std.mem.Allocator,
 
-    /// Create a Trellis for a single Sequence.
-    /// The sequence is copied into an internal Sequences object.
-    /// Corresponds to C++ `Trellis(Model*, Sequence, Trellis*)`.
-    pub fn initWithSeq(allocator: std.mem.Allocator, hmm: *const Model, seq: Sequence, cached: ?*const Trellis) !Trellis {
-        var seqs = Sequences.init();
-        try seqs.addSeq(allocator, try seq.clone(allocator));
-        return initImpl(allocator, hmm, seqs, cached);
-    }
-
-    /// Create a Trellis for a Sequences object.
-    /// Clones `seqs` so the caller retains ownership of the original
-    /// (matches C++ Trellis(Model*, Sequences, Trellis*) copy-by-value semantics).
-    pub fn initWithSeqs(allocator: std.mem.Allocator, hmm: *const Model, seqs: Sequences, cached: ?*const Trellis) !Trellis {
-        const seqs_copy = try seqs.clone(allocator);
-        return initImpl(allocator, hmm, seqs_copy, cached);
-    }
-
-    fn initImpl(allocator: std.mem.Allocator, hmm: *const Model, seqs: Sequences, cached: ?*const Trellis) !Trellis {
+    /// Create a Trellis borrowing the given Sequences.
+    /// The caller retains ownership; `seqs` must outlive this Trellis.
+    /// Corresponds to C++ `Trellis(Model*, Sequences, Trellis*)`, but without
+    /// the C++ copy-by-value clone — the borrow is sufficient for DP read
+    /// access, and for cached/stored trellises only the result arrays are
+    /// re-read.
+    pub fn initWithSeqs(allocator: std.mem.Allocator, hmm: *const Model, seqs: *const Sequences, cached: ?*const Trellis) !Trellis {
         const n = hmm.nStates();
         const scoring_current = try allocator.alloc(f64, n);
+        errdefer allocator.free(scoring_current);
         const scoring_previous = try allocator.alloc(f64, n);
+        errdefer allocator.free(scoring_previous);
         @memset(scoring_current, mathutils.NEG_INF);
         @memset(scoring_previous, mathutils.NEG_INF);
 
-        const t = Trellis{
+        return Trellis{
             .hmm = hmm,
             .seqs = seqs,
+            .seq_len = seqs.sequence_length,
             .traceback_table = .{},
             .cached_trellis = cached,
             .ending_viterbi_pointer = -1,
@@ -92,12 +93,11 @@ pub const Trellis = struct {
             .next_seen = state_mod.StateBitset.initEmpty(),
             .allocator = allocator,
         };
-        return t;
     }
 
     pub fn deinit(self: *Trellis) void {
         const allocator = self.allocator;
-        self.seqs.deinit(allocator);
+        // seqs is borrowed; not freed here.
         // Free traceback table rows
         for (self.traceback_table.items) |row| allocator.free(row);
         self.traceback_table.deinit(allocator);
@@ -113,8 +113,12 @@ pub const Trellis = struct {
     /// Corresponds to C++ `Trellis::Viterbi()`.
     pub fn viterbi(self: *Trellis) !void {
         const allocator = self.allocator;
-        const seq_len = self.seqs.sequence_length;
+        const seq_len = self.seq_len;
         const n_states = self.hmm.nStates();
+        // Cache the borrowed seqs pointer in a local so the inner DP loop reads
+        // it from a register rather than re-loading `self.seqs` (a heap-pointer
+        // member after #357) on every emission lookup.
+        const seqs = self.seqs;
 
         if (self.cached_trellis) |ct| {
             // Poach scalar values from cached trellis; array data accessed via accessors.
@@ -152,7 +156,7 @@ pub const Trellis = struct {
         // Reset next_seen before populating position 0
         self.next_seen = state_mod.StateBitset.initEmpty();
         for (init_st.to_state_indices.items) |i_st| {
-            const emission_val = self.hmm.stateByIndex(i_st).emissionLogprobSeqs(&self.seqs, 0);
+            const emission_val = self.hmm.stateByIndex(i_st).emissionLogprobSeqs(seqs, 0);
             const dpval = emission_val + init_st.transitionLogprob(i_st);
             if (std.math.isNegativeInf(dpval)) continue;
             self.scoring_current[i_st] = dpval;
@@ -192,8 +196,10 @@ pub const Trellis = struct {
     /// Corresponds to C++ `Trellis::Forward()`.
     pub fn forward(self: *Trellis) !void {
         const allocator = self.allocator;
-        const seq_len = self.seqs.sequence_length;
+        const seq_len = self.seq_len;
         const n_states = self.hmm.nStates();
+        // See viterbi(): cache borrowed seqs pointer in a local for the inner DP loop.
+        const seqs = self.seqs;
 
         if (self.cached_trellis) |ct| {
             self.ending_forward_log_prob = ct.endingForwardLogProbAt(seq_len);
@@ -218,7 +224,7 @@ pub const Trellis = struct {
         // Reset next_seen before populating position 0
         self.next_seen = state_mod.StateBitset.initEmpty();
         for (init_st.to_state_indices.items) |i_st| {
-            const emission_val = self.hmm.stateByIndex(i_st).emissionLogprobSeqs(&self.seqs, 0);
+            const emission_val = self.hmm.stateByIndex(i_st).emissionLogprobSeqs(seqs, 0);
             const dpval = emission_val + init_st.transitionLogprob(i_st);
             if (std.math.isNegativeInf(dpval)) continue;
             self.scoring_current[i_st] = dpval;
@@ -253,14 +259,14 @@ pub const Trellis = struct {
     /// Traceback to produce a path.
     /// Corresponds to C++ `Trellis::Traceback(TracebackPath&)`.
     pub fn traceback(self: *const Trellis, path: *TracebackPath) !void {
-        std.debug.assert(self.seqs.sequence_length != 0);
+        std.debug.assert(self.seq_len != 0);
         path.setModel(self.hmm);
         if (std.math.isNegativeInf(self.ending_viterbi_log_prob)) return;
         path.setScore(self.ending_viterbi_log_prob);
         try path.pushBack(self.allocator, self.ending_viterbi_pointer);
 
         var pointer: i16 = self.ending_viterbi_pointer;
-        var position: usize = self.seqs.sequence_length - 1;
+        var position: usize = self.seq_len - 1;
         const tbl_items = self.tracebackTableItems() orelse return;
         while (position > 0) : (position -= 1) {
             pointer = tbl_items[position][@intCast(pointer)];
@@ -317,9 +323,11 @@ pub const Trellis = struct {
         next_states: *std.ArrayListUnmanaged(usize),
         position: usize,
     ) !void {
+        // See viterbi(): cache borrowed seqs pointer in a local for the inner loop.
+        const seqs = self.seqs;
         for (current_states.items) |i_st_cur| {
             const st_cur = self.hmm.stateByIndex(i_st_cur);
-            const emission_val = st_cur.emissionLogprobSeqs(&self.seqs, position);
+            const emission_val = st_cur.emissionLogprobSeqs(seqs, position);
             if (std.math.isNegativeInf(emission_val)) continue;
             for (st_cur.from_state_indices.items) |i_st_prev| {
                 const prev_val = self.scoring_previous[i_st_prev];
@@ -349,9 +357,11 @@ pub const Trellis = struct {
         next_states: *std.ArrayListUnmanaged(usize),
         position: usize,
     ) !void {
+        // See viterbi(): cache borrowed seqs pointer in a local for the inner loop.
+        const seqs = self.seqs;
         for (current_states.items) |i_st_cur| {
             const st_cur = self.hmm.stateByIndex(i_st_cur);
-            const emission_val = st_cur.emissionLogprobSeqs(&self.seqs, position);
+            const emission_val = st_cur.emissionLogprobSeqs(seqs, position);
             if (std.math.isNegativeInf(emission_val)) continue;
             for (st_cur.from_state_indices.items) |i_st_prev| {
                 const prev_val = self.scoring_previous[i_st_prev];
@@ -441,7 +451,12 @@ test "Trellis: forward on real IGHV3-15 model" {
     var seq = try Sequence.initFromString(allocator, trk, "test_seq", "ACGT");
     defer seq.deinit(allocator);
 
-    var trellis = try Trellis.initWithSeq(allocator, &model, seq, null);
+    // Trellis borrows the Sequences; the caller retains ownership.
+    var seqs = Sequences.init();
+    defer seqs.deinit(allocator);
+    try seqs.addSeq(allocator, try seq.clone(allocator));
+
+    var trellis = try Trellis.initWithSeqs(allocator, &model, &seqs, null);
     defer trellis.deinit();
 
     try trellis.forward();
