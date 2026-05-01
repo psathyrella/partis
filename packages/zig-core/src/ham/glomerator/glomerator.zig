@@ -44,6 +44,14 @@ pub const Glomerator = struct {
     initial_partition: Partition,
 
     /// All actual sequences, keyed by sequence name.
+    ///
+    /// Write-once during `init`; **frozen** thereafter (no inserts, no
+    /// removals, no replacements). Per issue #342 item 6, every other
+    /// `Query.seqs` in the glomerator borrows from these buffers via
+    /// shallow copies, so mutating this map post-init would invalidate
+    /// those borrows and produce use-after-free on the slice fields.
+    /// Adding any write to this map outside `init` requires reworking
+    /// the borrowed-Sequence contract (see Query struct doc).
     single_seqs: std.StringHashMapUnmanaged(Sequence),
     /// Single-sequence cache entries.
     single_seq_cachefo: std.StringHashMapUnmanaged(Query),
