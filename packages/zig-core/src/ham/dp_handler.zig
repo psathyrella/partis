@@ -35,17 +35,18 @@ const GeneKSetKey = struct {
 
 /// Cached trellis entry. Owns the Sequences the trellis was built over.
 ///
-/// `query_seqs` is heap-allocated separately so its address is stable across
-/// reallocations of the enclosing `cache_list: ArrayListUnmanaged(TrellisEntry)`.
-/// `Trellis.seqs` borrows this stable pointer; appending more entries may
-/// relocate the entry struct, but the heap-allocated Sequences (and its
-/// inner Sequence buffers) stays put.
+/// The entry itself is **heap-allocated** and the cache list holds pointers
+/// (`ArrayListUnmanaged(*TrellisEntry)`), so the entry's address is stable
+/// across cache-list reallocations. Inlining `query_seqs` here (rather than
+/// holding it via an extra `*Sequences` indirection) means `Trellis.seqs`
+/// can borrow `&entry.query_seqs` directly with one fewer pointer chase
+/// during prefix-match scans and DP setup.
 ///
 /// Prefix-match for chunk-cache hits reads
-/// `query_seqs.seqs.items[i].undigitized` — there is no separate `query_strs`
-/// list (item 2 of issue #342).
+/// `entry.query_seqs.seqs.items[i].undigitized` — there is no separate
+/// `query_strs` list.
 const TrellisEntry = struct {
-    query_seqs: *Sequences,
+    query_seqs: Sequences,
     trellis: Trellis,
 };
 
@@ -57,8 +58,11 @@ pub const DPHandler = struct {
     hmms: *HMMHolder,
     allocator: std.mem.Allocator,
 
-    /// scratch_cachefo_: gene → list of (query-string-vec, Trellis) entries
-    scratch_cachefo: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(TrellisEntry)),
+    /// scratch_cachefo_: gene → list of *TrellisEntry. Entries are
+    /// individually heap-allocated for stable address (the trellis at each
+    /// entry borrows `&entry.query_seqs` and that pointer must stay valid
+    /// across appends to the same gene's list).
+    scratch_cachefo: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(*TrellisEntry)),
     /// paths_: gene → (KSet → TracebackPath)
     paths: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, TracebackPath)),
     /// scores_: gene → (KSet → f64)
@@ -95,17 +99,17 @@ pub const DPHandler = struct {
     pub fn clear(self: *DPHandler) void {
         const allocator = self.allocator;
 
-        // Free scratch_cachefo. Each TrellisEntry owns a heap-allocated Sequences
-        // (borrowed by the entry's trellis). Deinit the trellis BEFORE freeing
-        // the Sequences so that any debug assertions inside trellis.deinit() can
-        // still observe a valid borrow target if needed.
+        // Free scratch_cachefo. Each *TrellisEntry is heap-allocated and the
+        // entry's trellis borrows from the inline `query_seqs`. Deinit the
+        // trellis first (it doesn't own seqs but may use seq_len etc.), then
+        // the Sequences, then destroy the entry struct itself.
         var cit = self.scratch_cachefo.iterator();
         while (cit.next()) |entry| {
             allocator.free(entry.key_ptr.*);
-            for (entry.value_ptr.items) |*te| {
+            for (entry.value_ptr.items) |te| {
                 te.trellis.deinit();
                 te.query_seqs.deinit(allocator);
-                allocator.destroy(te.query_seqs);
+                allocator.destroy(te);
             }
             entry.value_ptr.deinit(allocator);
         }
@@ -469,7 +473,7 @@ pub const DPHandler = struct {
         var cached_trellis: ?*const Trellis = null;
         if (!self.args.no_chunk_cache) {
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
-                for (cache_list.items) |*te| {
+                for (cache_list.items) |te| {
                     const cached_seqs = te.query_seqs.seqs.items;
                     const current_seqs = query_seqs.seqs.items;
                     if (cached_seqs.len != current_seqs.len) continue;
@@ -505,26 +509,26 @@ pub const DPHandler = struct {
 
         var origin: []const u8 = "scratch";
         const trell_ptr: *Trellis = if (cached_trellis == null) blk: {
-            // No cache: clone query_seqs into a stable heap home so the stored
-            // trellis can borrow from it for its full lifetime in scratch_cachefo.
-            const stored_seqs = try allocator.create(Sequences);
-            errdefer allocator.destroy(stored_seqs);
-            stored_seqs.* = try query_seqs.clone(allocator);
-            errdefer stored_seqs.deinit(allocator);
+            // No cache: heap-allocate a TrellisEntry to give the stored trellis
+            // a stable borrow target. Inline `query_seqs` lives at a fixed offset
+            // from the entry's heap address, so `trellis.seqs = &entry.query_seqs`
+            // stays valid across cache_list appends (which only move the *entry
+            // pointers in the list, not the entries themselves).
+            const entry = try allocator.create(TrellisEntry);
+            errdefer allocator.destroy(entry);
+            entry.query_seqs = try query_seqs.clone(allocator);
+            errdefer entry.query_seqs.deinit(allocator);
+            entry.trellis = try Trellis.initWithSeqs(allocator, model, &entry.query_seqs, null);
+            errdefer entry.trellis.deinit();
 
-            var fresh = try Trellis.initWithSeqs(allocator, model, stored_seqs, null);
-            errdefer fresh.deinit();
-
-            const entry = TrellisEntry{ .query_seqs = stored_seqs, .trellis = fresh };
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 try cache_list.append(allocator, entry);
-                break :blk &cache_list.items[cache_list.items.len - 1].trellis;
+                break :blk &entry.trellis;
             } else {
                 // gene not in scratch_cachefo (shouldn't happen after initCache), discard
-                var e = entry;
-                e.trellis.deinit();
-                e.query_seqs.deinit(allocator);
-                allocator.destroy(e.query_seqs);
+                entry.trellis.deinit();
+                entry.query_seqs.deinit(allocator);
+                allocator.destroy(entry);
                 return error.GeneNotInScratchCache;
             }
         } else blk: {
