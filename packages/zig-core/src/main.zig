@@ -29,3 +29,12 @@ pub fn main() !void {
 }
 
 var gpa_instance = std.heap.GeneralPurposeAllocator(.{}){};
+
+// In test mode, force the analyzer to walk all decls reachable from the
+// executable so that tests in transitively-imported files get discovered by
+// `zig build test`. Without this, only tests in main.zig itself would run —
+// and main.zig has no tests. (`refAllDeclsRecursive` is a no-op outside tests.)
+test {
+    @setEvalBranchQuota(20000);
+    std.testing.refAllDeclsRecursive(bcrham);
+}
