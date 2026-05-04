@@ -282,12 +282,20 @@ pub const Trellis = struct {
 
     /// Traceback to produce a path.
     /// Corresponds to C++ `Trellis::Traceback(TracebackPath&)`.
-    pub fn traceback(self: *const Trellis, path: *TracebackPath) !void {
+    ///
+    /// `path_alloc` backs the path's growing item list, which may have a
+    /// different lifetime than the trellis itself: in the chunk-cache-hit
+    /// path of `DPHandler.fillTrellis`, the temp trellis lives on the
+    /// per-kset arena but the path is stored in `DPHandler.paths` (per
+    /// query). Passing the allocator explicitly avoids the use-after-free
+    /// that would otherwise come from `self.allocator` capturing a
+    /// shorter-lived arena. (Item 4, #342.)
+    pub fn traceback(self: *const Trellis, path_alloc: std.mem.Allocator, path: *TracebackPath) !void {
         std.debug.assert(self.seq_len != 0);
         path.setModel(self.hmm);
         if (std.math.isNegativeInf(self.ending_viterbi_log_prob)) return;
         path.setScore(self.ending_viterbi_log_prob);
-        try path.pushBack(self.allocator, self.ending_viterbi_pointer);
+        try path.pushBack(path_alloc, self.ending_viterbi_pointer);
 
         // Resolve the traceback source once: cached trellis if it has a
         // populated table, else self. If neither does, there's nothing to
@@ -301,7 +309,7 @@ pub const Trellis = struct {
                 std.debug.print("No valid path at position {d}\n", .{position});
                 return;
             }
-            try path.pushBack(self.allocator, pointer);
+            try path.pushBack(path_alloc, pointer);
         }
         std.debug.assert(path.size() > 0);
     }
@@ -616,7 +624,7 @@ test "Trellis: viterbi traceback walks through flat table consistently" {
 
     var path = TracebackPath.initWithModel(&model);
     defer path.deinit(allocator);
-    try trellis.traceback(&path);
+    try trellis.traceback(allocator, &path);
 
     // Path length should equal seq_len: traceback pushes ending pointer, then
     // one entry per position from seq_len-1 down to 1.
