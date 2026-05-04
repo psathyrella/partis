@@ -414,8 +414,9 @@ pub const DPHandler = struct {
     /// the per-region clones through its per-kset arena rather than the
     /// per-query arena. The clone strings live only for the region's
     /// inner loop. (Item 4, #342.)
-    fn getSubSeqs(self: *DPHandler, allocator: std.mem.Allocator, seqs: *const Sequences, kset: KSet, region: Region) !Sequences {
-        _ = self;
+    ///
+    /// Free function (no `self` access): nothing here reads DPHandler state.
+    fn getSubSeqs(allocator: std.mem.Allocator, seqs: *const Sequences, kset: KSet, region: Region) !Sequences {
         var result = Sequences.init();
         errdefer result.deinit(allocator);
 
@@ -819,7 +820,7 @@ pub const DPHandler = struct {
             try regional_best.put(allocator, region, mathutils.NEG_INF);
             try regional_total.put(allocator, region, mathutils.NEG_INF);
 
-            var query_seqs = try self.getSubSeqs(allocator, seqs, kset, region);
+            var query_seqs = try getSubSeqs(allocator, seqs, kset, region);
             defer query_seqs.deinit(allocator);
 
             // Borrow the undigitized strings (slice headers only — no string copies).
@@ -1208,17 +1209,23 @@ pub const DPHandler = struct {
     ) !void {
         // `multi_seq_result` was built by an earlier `run()` call with
         // `parent_allocator`; mutating its `best_event` here must use the
-        // same allocator so the existing entries' frees match. The local
-        // `naive_seq` is transient (only feeds the inner `run()`'s borrow
-        // contract) and uses scratch. (Item 4, #342.)
+        // same allocator so the existing entries' frees match. (Item 4, #342.)
+        //
+        // `naive_seq` MUST also use `parent_allocator`, NOT scratch: the
+        // inner `self.run(... clear_cache=true)` call on the line below
+        // calls `self.clear()` as its first action, which resets the
+        // per-query arena. Any naive_seq buffers (`name`/`header`/
+        // `undigitized`/`seqq`) allocated on scratch would be reclaimed
+        // before the inner DP loop reads `seqq[i]` in `emissionLogprobSeqs`,
+        // producing a use-after-reset. The fix is to keep naive_seq's
+        // backing on the caller's long-lived allocator.
         const parent = self.parent_allocator;
-        const scratch = self.scratchAllocator();
         const best_ev = multi_seq_result.best_event orelse return;
 
         // Create naive sequence (use first query's track)
         const first_track = qry_seqs[0].track orelse return;
-        var naive_seq = try Sequence.initFromString(scratch, first_track, "naive-seq", best_ev.naive_seq);
-        defer naive_seq.deinit(scratch);
+        var naive_seq = try Sequence.initFromString(parent, first_track, "naive-seq", best_ev.naive_seq);
+        defer naive_seq.deinit(parent);
 
         const naive_seqs = [_]Sequence{naive_seq};
         var naive_result = try self.run(&naive_seqs, kbounds, only_gene_list, overall_mute_freq, true);

@@ -67,6 +67,13 @@ pub const Trellis = struct {
     /// Scratch bitset for deduplicating next_states additions.
     next_seen: state_mod.StateBitset,
 
+    /// Captured at `initWithSeqs` time. For trellises stored in
+    /// `DPHandler.scratch_cachefo`, this is `dph.scratchAllocator()`,
+    /// whose `Allocator.ptr` aliases `&dph.query_arena`. The DPHandler
+    /// must therefore not be moved after a Trellis is constructed against
+    /// it, or every stored `allocator.ptr` would dangle. All current
+    /// callers bind `dph` to a stack-local `var` and never reassign,
+    /// which preserves the invariant. (Item 4, #342.)
     allocator: std.mem.Allocator,
 
     /// Create a Trellis borrowing the given Sequences.
