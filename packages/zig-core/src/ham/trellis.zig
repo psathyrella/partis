@@ -153,10 +153,14 @@ pub const Trellis = struct {
 
         // Initialize flat traceback table [seq_len * n_states] = -1.
         // Single allocation replaces seq_len per-row allocations (item 3 of #342).
+        // Note the explicit `traceback_table = &.{}` between free and alloc:
+        // if the alloc fails, deinit reads `traceback_table` and would otherwise
+        // see the just-freed slice with len > 0 and double-free it.
         std.debug.assert(seq_len <= std.math.maxInt(usize) / @max(n_states, 1));
         const total = seq_len * n_states;
         if (self.traceback_table.len != total) {
             if (self.traceback_table.len > 0) allocator.free(self.traceback_table);
+            self.traceback_table = &.{};
             self.traceback_table = try allocator.alloc(i16, total);
         }
         @memset(self.traceback_table, -1);
@@ -285,13 +289,14 @@ pub const Trellis = struct {
         path.setScore(self.ending_viterbi_log_prob);
         try path.pushBack(self.allocator, self.ending_viterbi_pointer);
 
+        // Resolve the traceback source once: cached trellis if it has a
+        // populated table, else self. If neither does, there's nothing to
+        // walk back through.
+        const view = self.pickTracebackView() orelse return;
         var pointer: i16 = self.ending_viterbi_pointer;
         var position: usize = self.seq_len - 1;
-        // Resolve traceback source once: cached trellis if it has one, else self.
-        // If neither has a populated table there's nothing to walk back through.
-        if (!self.hasTraceback()) return;
         while (position > 0) : (position -= 1) {
-            pointer = self.cachedTracebackAt(position, @intCast(pointer));
+            pointer = view.tbl[position * view.stride + @as(usize, @intCast(pointer))];
             if (pointer == -1) {
                 std.debug.print("No valid path at position {d}\n", .{position});
                 return;
@@ -420,38 +425,27 @@ pub const Trellis = struct {
 
     // ── Accessors: dispatch to cached trellis data or own data ──────────────
 
-    /// Scalar read of *self*'s traceback table at (position, state). Used by
-    /// `middleViterbiVals` when this trellis owns the table.
-    inline fn tracebackAt(self: *const Trellis, position: usize, state: usize) i16 {
-        return self.traceback_table[position * self.traceback_n_states + state];
-    }
+    /// Resolved view of the traceback source: the cached trellis's table if it
+    /// has one populated, else self's, else null. The stride is captured at
+    /// the same time as the slice so callers don't have to re-do the dispatch.
+    const TracebackView = struct { tbl: []const i16, stride: usize };
 
-    /// Scalar write of *self*'s traceback table at (position, state).
-    inline fn tracebackSet(self: *Trellis, position: usize, state: usize, v: i16) void {
-        self.traceback_table[position * self.traceback_n_states + state] = v;
-    }
-
-    /// Scalar read used by `traceback()` to walk back through the table. Reads
-    /// from the cached trellis if it has one, falling back to self. Returns -1
-    /// when neither has a populated traceback table; callers that need to
-    /// distinguish "no table" from "no path at this entry" should gate with
-    /// `hasTraceback` first (the original `?[][]i16` accessor exposed this
-    /// distinction explicitly).
-    inline fn cachedTracebackAt(self: *const Trellis, position: usize, state: usize) i16 {
+    inline fn pickTracebackView(self: *const Trellis) ?TracebackView {
         if (self.cached_trellis) |ct| {
             if (ct.traceback_table.len > 0) {
-                return ct.traceback_table[position * ct.traceback_n_states + state];
+                return .{ .tbl = ct.traceback_table, .stride = ct.traceback_n_states };
             }
         }
         if (self.traceback_table.len > 0) {
-            return self.traceback_table[position * self.traceback_n_states + state];
+            return .{ .tbl = self.traceback_table, .stride = self.traceback_n_states };
         }
-        return -1;
+        return null;
     }
 
-    inline fn hasTraceback(self: *const Trellis) bool {
-        if (self.cached_trellis) |ct| if (ct.traceback_table.len > 0) return true;
-        return self.traceback_table.len > 0;
+    /// Scalar write of *self*'s traceback table at (position, state). Used by
+    /// `middleViterbiVals` while filling the table fresh.
+    inline fn tracebackSet(self: *Trellis, position: usize, state: usize, v: i16) void {
+        self.traceback_table[position * self.traceback_n_states + state] = v;
     }
 
     /// Ending Viterbi log-prob for a specific sequence length (used by cached trellis).
@@ -516,12 +510,11 @@ test "Trellis: forward on real IGHV3-15 model" {
     std.debug.print("forward log-prob: {d}\n", .{trellis.ending_forward_log_prob});
 }
 
-// Layout test: writing through `tracebackSet` and reading back through
-// `tracebackAt` / `cachedTracebackAt` must round-trip the value at the same
-// (position, state). Catches row/col transposition in the indexing helpers
-// without needing a full Model — the byte-equality gate at 5k/30k can't catch
-// a transposition when seq_len ≈ n_states (square trellis), so this covers
-// the gap.
+// Layout test: writing through `tracebackSet` and reading back via
+// `pickTracebackView` must round-trip the value at the same (position, state).
+// Catches row/col transposition in the indexing helpers without needing a full
+// Model — the byte-equality gate at 5k/30k can't catch a transposition when
+// seq_len ≈ n_states (square trellis), so this covers the gap.
 test "Trellis: flat traceback layout round-trips position/state" {
     const allocator = std.testing.allocator;
 
@@ -529,7 +522,7 @@ test "Trellis: flat traceback layout round-trips position/state" {
     const n_states: usize = 5;
 
     // Hand-build just the indexing fields. The non-indexing fields aren't
-    // touched by tracebackAt / tracebackSet / cachedTracebackAt.
+    // touched by tracebackSet / pickTracebackView.
     var trellis: Trellis = undefined;
     trellis.allocator = allocator;
     trellis.cached_trellis = null;
@@ -544,41 +537,39 @@ test "Trellis: flat traceback layout round-trips position/state" {
             trellis.tracebackSet(pos, st, @intCast(pos * 10 + st));
         }
     }
-    // Read back via tracebackAt — catches a row/col swap in the helpers.
+    // Read back via the resolved view. A row/col swap in the indexing math
+    // would surface as the wrong value (or out-of-range index) at every cell.
+    const view = trellis.pickTracebackView() orelse return error.TestUnexpectedNull;
     for (0..seq_len) |pos| {
         for (0..n_states) |st| {
             const expected: i16 = @intCast(pos * 10 + st);
-            try std.testing.expectEqual(expected, trellis.tracebackAt(pos, st));
-            try std.testing.expectEqual(expected, trellis.cachedTracebackAt(pos, st));
+            try std.testing.expectEqual(expected, view.tbl[pos * view.stride + st]);
         }
     }
-    // hasTraceback: true with a populated table.
-    try std.testing.expect(trellis.hasTraceback());
 
-    // Empty-table fallback: cachedTracebackAt returns -1 when neither self nor
-    // cached has a table, mirroring the original `?[][]i16` accessor's null path.
+    // Empty-table fallback: pickTracebackView returns null when neither self
+    // nor cached has a table, mirroring the original `?[][]i16` accessor's
+    // null path. `traceback()` short-circuits on this.
     var empty_trellis: Trellis = undefined;
     empty_trellis.allocator = allocator;
     empty_trellis.cached_trellis = null;
     empty_trellis.traceback_n_states = 0;
     empty_trellis.traceback_table = &.{};
-    try std.testing.expect(!empty_trellis.hasTraceback());
-    try std.testing.expectEqual(@as(i16, -1), empty_trellis.cachedTracebackAt(0, 0));
+    try std.testing.expectEqual(@as(?Trellis.TracebackView, null), empty_trellis.pickTracebackView());
 
-    // Cached-fallthrough: when self has no table but cached does, reads should
-    // come from cached. Validates both the dispatch and that the cached
-    // trellis's own traceback_n_states (not self's, which is 0) is used as
-    // the stride.
+    // Cached-fallthrough: when self has no table but cached does, the view
+    // should come from cached, with cached's stride (not self's, which is 0).
     var borrow_trellis: Trellis = undefined;
     borrow_trellis.allocator = allocator;
     borrow_trellis.cached_trellis = &trellis;
     borrow_trellis.traceback_n_states = 0;
     borrow_trellis.traceback_table = &.{};
-    try std.testing.expect(borrow_trellis.hasTraceback());
+    const borrow_view = borrow_trellis.pickTracebackView() orelse return error.TestUnexpectedNull;
+    try std.testing.expectEqual(@as(usize, n_states), borrow_view.stride);
     for (0..seq_len) |pos| {
         for (0..n_states) |st| {
             const expected: i16 = @intCast(pos * 10 + st);
-            try std.testing.expectEqual(expected, borrow_trellis.cachedTracebackAt(pos, st));
+            try std.testing.expectEqual(expected, borrow_view.tbl[pos * borrow_view.stride + st]);
         }
     }
 }
@@ -635,10 +626,11 @@ test "Trellis: viterbi traceback walks through flat table consistently" {
     // This is what would fail catastrophically under a row/col transpose: the
     // wrong-strided read would land on -1 entries (or out of bounds — the
     // overflow assert above guards bounds).
+    const view = trellis.pickTracebackView() orelse return error.TestUnexpectedNull;
     var pointer: i16 = trellis.ending_viterbi_pointer;
     var position: usize = trellis.seq_len - 1;
     while (position > 0) : (position -= 1) {
-        const next = trellis.cachedTracebackAt(position, @intCast(pointer));
+        const next = view.tbl[position * view.stride + @as(usize, @intCast(pointer))];
         try std.testing.expect(next >= 0);
         pointer = next;
     }
