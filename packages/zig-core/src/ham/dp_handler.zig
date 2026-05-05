@@ -79,10 +79,17 @@ pub const DPHandler = struct {
     /// across appends to the same gene's list). Address stability is
     /// preserved under the per-query arena because arenas only grow —
     /// past allocations are never relocated.
+    ///
+    /// The string keys are NOT owned by this map — they are shared with
+    /// `paths` and `scores`, which are populated by the same `initCache`
+    /// call (item 5 of #342). `scores` owns the duped key bytes; `clear()`
+    /// frees keys only when iterating `scores` to avoid a triple-free.
     scratch_cachefo: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(*TrellisEntry)),
-    /// paths_: gene → (KSet → TracebackPath)
+    /// paths_: gene → (KSet → TracebackPath). Keys are borrowed (see
+    /// `scratch_cachefo` doc-block); the canonical owner is `scores`.
     paths: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, TracebackPath)),
-    /// scores_: gene → (KSet → f64)
+    /// scores_: gene → (KSet → f64). Owns the gene-name keys shared with
+    /// `scratch_cachefo` and `paths` (item 5 of #342).
     scores: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, f64)),
     /// per_gene_support_: gene → best full-annotation log-prob
     per_gene_support: std.StringHashMapUnmanaged(f64),
@@ -138,9 +145,10 @@ pub const DPHandler = struct {
         // entry's trellis borrows from the inline `query_seqs`. Deinit the
         // trellis first (it doesn't own seqs but may use seq_len etc.), then
         // the Sequences, then destroy the entry struct itself.
+        // Keys are shared with `paths` and `scores` (item 5 of #342); freed
+        // once below when iterating `scores`.
         var cit = self.scratch_cachefo.iterator();
         while (cit.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
             for (entry.value_ptr.items) |te| {
                 te.trellis.deinit();
                 te.query_seqs.deinit(allocator);
@@ -151,10 +159,9 @@ pub const DPHandler = struct {
         self.scratch_cachefo.deinit(allocator);
         self.scratch_cachefo = .{};
 
-        // Free paths
+        // Free paths. Keys are shared with `scores` (see above).
         var pit = self.paths.iterator();
         while (pit.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
             var inner_it = entry.value_ptr.iterator();
             while (inner_it.next()) |kv| kv.value_ptr.deinit(allocator);
             entry.value_ptr.deinit(allocator);
@@ -162,7 +169,8 @@ pub const DPHandler = struct {
         self.paths.deinit(allocator);
         self.paths = .{};
 
-        // Free scores
+        // Free scores. This is the canonical owner of the gene-name keys
+        // shared with `scratch_cachefo` and `paths`.
         var sit = self.scores.iterator();
         while (sit.next()) |entry| {
             allocator.free(entry.key_ptr.*);
@@ -453,22 +461,23 @@ pub const DPHandler = struct {
     }
 
     /// Ensure per-gene caches are initialised for `gene`.
-    /// Three separate key copies are needed because each HashMap owns its key independently.
+    /// One duped key is shared across `scratch_cachefo`, `paths`, and `scores`
+    /// (item 5 of #342). All three maps live on `query_arena` and are torn
+    /// down together by `clear()` / `deinit()`, so shared ownership is safe.
+    /// Capacity is reserved up front so the puts cannot fail after the dupe,
+    /// keeping the failure mode obvious if these maps ever move off the arena.
     fn initCache(self: *DPHandler, gene: []const u8) !void {
         if (self.scores.contains(gene)) return;
 
         const allocator = self.scratchAllocator();
+        try self.scratch_cachefo.ensureUnusedCapacity(allocator, 1);
+        try self.paths.ensureUnusedCapacity(allocator, 1);
+        try self.scores.ensureUnusedCapacity(allocator, 1);
+
         const key = try allocator.dupe(u8, gene);
-        errdefer allocator.free(key);
-        try self.scratch_cachefo.put(allocator, key, .{});
-
-        const key2 = try allocator.dupe(u8, gene);
-        errdefer allocator.free(key2);
-        try self.paths.put(allocator, key2, .{});
-
-        const key3 = try allocator.dupe(u8, gene);
-        errdefer allocator.free(key3);
-        try self.scores.put(allocator, key3, .{});
+        self.scratch_cachefo.putAssumeCapacity(key, .{});
+        self.paths.putAssumeCapacity(key, .{});
+        self.scores.putAssumeCapacity(key, .{});
     }
 
     /// Look for a cached kset whose region sequences are a prefix of `query_strs`.
@@ -809,12 +818,12 @@ pub const DPHandler = struct {
         defer regional_best.deinit(allocator);
         var regional_total: std.AutoHashMapUnmanaged(Region, f64) = .{};
         defer regional_total.deinit(allocator);
+        // per_gene_support_this_kset borrows its keys from `only_genes`'s
+        // arena-duped strings (item 22 of #342). `only_genes` lives on the
+        // per-query arena (`scratchAllocator()`) for the entire `run()`
+        // call, strictly outliving this map (per-kset arena).
         var per_gene_support_this_kset: std.StringHashMapUnmanaged(f64) = .{};
-        defer {
-            var it = per_gene_support_this_kset.iterator();
-            while (it.next()) |e| allocator.free(e.key_ptr.*);
-            per_gene_support_this_kset.deinit(allocator);
-        }
+        defer per_gene_support_this_kset.deinit(allocator);
 
         for (bcr.germ_lines.regions) |region| {
             try regional_best.put(allocator, region, mathutils.NEG_INF);
@@ -954,10 +963,9 @@ pub const DPHandler = struct {
                     }
                 }
 
-                // per_gene_support for this kset
-                const pg_key = try allocator.dupe(u8, gene);
-                errdefer allocator.free(pg_key);
-                try per_gene_support_this_kset.put(allocator, pg_key, gene_score);
+                // per_gene_support for this kset. `gene` is borrowed from
+                // `only_genes` (see map declaration above for lifetime).
+                try per_gene_support_this_kset.put(allocator, gene, gene_score);
             }
 
             // If no gene found for this region, return early
