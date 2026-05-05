@@ -32,9 +32,19 @@ pub const Model = struct {
     /// Track (alphabet). Owned by this Model.
     track: ?*Track,
 
-    /// All non-init states in model order. Each pointer is heap-allocated and owned.
-    states: std.ArrayListUnmanaged(*State),
-    /// Map from state name to State pointer (pointers owned via `states` or `initial`).
+    /// All non-init states in model order. Stored as values in a flat slice so the
+    /// hot path (Trellis.middleViterbi/Forward, which call `stateByIndex` once per
+    /// (current, prev) pair per position) does a single index instead of an extra
+    /// pointer dereference. Capacity is reserved once in `parse` from the YAML
+    /// state count and never grown afterward, so `*State` pointers obtained via
+    /// `&states.items[i]` remain stable for the lifetime of the Model — that
+    /// invariant is what lets `states_by_name` and Transition.to_state_ptr keep
+    /// holding `*State` directly.
+    states: std.ArrayListUnmanaged(State),
+    /// Map from state name to State pointer. Non-init pointers reference into
+    /// `states.items`; the init pointer references the separately heap-allocated
+    /// `initial`. The Model never grows `states` after parse, so these pointers
+    /// stay valid for the Model's lifetime.
     states_by_name: std.StringHashMap(*State),
     /// The "init" state. Owned.
     initial: ?*State,
@@ -66,15 +76,20 @@ pub const Model = struct {
     pub fn deinit(self: *Model, allocator: std.mem.Allocator) void {
         allocator.free(self.name);
         allocator.free(self.ambiguous_char);
-        // Free all states via states_by_name (owns all State pointers)
-        var it = self.states_by_name.valueIterator();
-        while (it.next()) |st_ptr| {
-            st_ptr.*.deinit(allocator);
-            allocator.destroy(st_ptr.*);
-        }
-        self.states_by_name.deinit();
+        // Non-init states live as values in the flat slice — deinit each in place,
+        // then free the slice's backing storage. No allocator.destroy: the State
+        // values were never individually heap-allocated.
+        for (self.states.items) |*st| st.deinit(allocator);
         self.states.deinit(allocator);
-        // ending is separate
+        // states_by_name pointers reference into states.items / initial / ending.
+        // Just free the map's own storage.
+        self.states_by_name.deinit();
+        // init and ending are separately heap-allocated (init is not in
+        // states.items by construction; ending is synthetic and never indexed).
+        if (self.initial) |init_st| {
+            init_st.deinit(allocator);
+            allocator.destroy(init_st);
+        }
         self.ending.deinit(allocator);
         allocator.destroy(self.ending);
         if (self.track) |t| {
@@ -116,40 +131,86 @@ pub const Model = struct {
         }
         for (td.symbols.items) |sym| try trk.addSymbol(allocator, sym);
 
-        // Collect state names for transition validation
+        // Collect state names for transition validation, and count non-init
+        // states so we can reserve flat-slice capacity in one shot. The capacity
+        // reservation is what makes `&states.items[i]` pointers stable — without
+        // it, addOneAssumeCapacity below would assert.
         var state_names: std.ArrayListUnmanaged([]const u8) = .{};
         defer state_names.deinit(allocator);
-        for (data.states.items) |*sd| try state_names.append(allocator, sd.name);
+        var n_non_init: usize = 0;
+        for (data.states.items) |*sd| {
+            try state_names.append(allocator, sd.name);
+            if (!std.mem.eql(u8, sd.name, "init")) n_non_init += 1;
+        }
+        // Match the C++/old behavior of allowing exactly STATE_MAX non-init
+        // states. The old code checked `items.len >= STATE_MAX` immediately
+        // before each append, so the (N+1)-th append (when items.len was
+        // already N==STATE_MAX) was the one that errored.
+        if (n_non_init > @import("state.zig").STATE_MAX) return error.TooManyStates;
+        try self.states.ensureTotalCapacityPrecise(allocator, n_non_init);
 
         // Parse each state
         for (data.states.items) |*sd| {
-            const st = try allocator.create(State);
-            errdefer {
-                st.deinit(allocator);
-                allocator.destroy(st);
-            }
-            st.* = State.init();
-
-            try st.parse(
-                allocator,
-                sd.name,
-                sd.germline_nuc,
-                sd.ambiguous_emission_prob,
-                sd.ambiguous_char,
-                sd.transitions,
-                if (sd.emissions) |*em| em.probs else null,
-                state_names.items,
-                trk,
-            );
-
             if (std.mem.eql(u8, sd.name, "init")) {
+                // init stays in its own heap allocation (one per Model, not indexed).
+                const st = try allocator.create(State);
+                errdefer {
+                    st.deinit(allocator);
+                    allocator.destroy(st);
+                }
+                st.* = State.init();
+                try st.parse(
+                    allocator,
+                    sd.name,
+                    sd.germline_nuc,
+                    sd.ambiguous_emission_prob,
+                    sd.ambiguous_char,
+                    sd.transitions,
+                    if (sd.emissions) |*em| em.probs else null,
+                    state_names.items,
+                    trk,
+                );
                 self.initial = st;
+                try self.states_by_name.put(st.name, st);
             } else {
-                if (self.states.items.len >= @import("state.zig").STATE_MAX) return error.TooManyStates;
-                try self.states.append(allocator, st);
+                // Grow the flat slice by one slot; capacity reserved above so this
+                // never reallocates and the &slot pointer is stable.
+                const slot = self.states.addOneAssumeCapacity();
+                slot.* = State.init();
+                // Roll back the addOne if parse or states_by_name.put fails.
+                // Order matters: `slot.deinit` must precede `pop`, because after
+                // pop the slot index is past states.items.len and a later
+                // model.deinit would not see it. Conversely, without pop, the
+                // slot would still live in states.items and model.deinit would
+                // re-deinit it (double free). If states_by_name.put is the
+                // failing call, no key was stored (put is failure-atomic), so
+                // freeing slot.name in deinit doesn't dangle a map entry.
+                errdefer {
+                    slot.deinit(allocator);
+                    _ = self.states.pop();
+                }
+                try slot.parse(
+                    allocator,
+                    sd.name,
+                    sd.germline_nuc,
+                    sd.ambiguous_emission_prob,
+                    sd.ambiguous_char,
+                    sd.transitions,
+                    if (sd.emissions) |*em| em.probs else null,
+                    state_names.items,
+                    trk,
+                );
+                try self.states_by_name.put(slot.name, slot);
             }
-            try self.states_by_name.put(st.name, st);
         }
+
+        // Make the stable-pointer invariant machine-checkable: any future code
+        // that accidentally appends to self.states would reallocate the slice
+        // and silently invalidate every *State held by states_by_name and by
+        // Transition.to_state_ptr. The capacity reservation above sized the
+        // slice to exactly n_non_init; if items.len ever drifts from capacity,
+        // the invariant has been broken.
+        std.debug.assert(self.states.items.len == self.states.capacity);
 
         try self.finalize(allocator);
     }
@@ -160,14 +221,14 @@ pub const Model = struct {
         std.debug.assert(!self.finalized);
 
         // Assign indices to all non-init states
-        for (self.states.items, 0..) |st, i| st.setIndex(i);
+        for (self.states.items, 0..) |*st, i| st.setIndex(i);
 
         // Set to/from connectivity for each non-init state
-        for (self.states.items) |st| try self.finalizeState(st);
+        for (self.states.items) |*st| try self.finalizeState(st);
         if (self.initial) |init_st| try self.finalizeState(init_st);
 
         // Reorder transitions in index order
-        for (self.states.items) |st| try st.reorderTransitions(allocator, &self.states_by_name);
+        for (self.states.items) |*st| try st.reorderTransitions(allocator, &self.states_by_name);
         if (self.initial) |init_st| try init_st.reorderTransitions(allocator, &self.states_by_name);
 
         // Check topology
@@ -175,6 +236,12 @@ pub const Model = struct {
 
         // Build from_state_indices
         try self.addMaybeFasterFromStateStuff(allocator);
+
+        // Materialize flat log_probs and free *Transition allocations. Must run
+        // after every reader of to_state_name/to_state_ptr (finalizeState,
+        // reorderTransitions, checkTopology, addMaybeFasterFromStateStuff).
+        for (self.states.items) |*st| try st.materializeTransitionLogProbs(allocator);
+        if (self.initial) |init_st| try init_st.materializeTransitionLogProbs(allocator);
 
         self.finalized = true;
     }
@@ -202,7 +269,7 @@ pub const Model = struct {
             try init_st.setFromStateIndices(allocator);
             try init_st.setToStateIndices(allocator);
         }
-        for (self.states.items) |st| {
+        for (self.states.items) |*st| {
             try st.setFromStateIndices(allocator);
             try st.setToStateIndices(allocator);
         }
@@ -230,7 +297,7 @@ pub const Model = struct {
 
             var tmp: std.ArrayListUnmanaged(u16) = .{};
             defer tmp.deinit(allocator);
-            try self.addToStateIndicesHelper(allocator, self.states.items[icheck], &tmp);
+            try self.addToStateIndicesHelper(allocator, &self.states.items[icheck], &tmp);
             const num_visited = tmp.items.len;
 
             if (num_visited == 0) {
@@ -248,7 +315,7 @@ pub const Model = struct {
 
         // At least one transition to end
         var found_end = false;
-        for (self.states.items) |st| {
+        for (self.states.items) |*st| {
             if (st.trans_to_end != null) {
                 found_end = true;
                 break;
@@ -280,13 +347,13 @@ pub const Model = struct {
         std.debug.assert(!std.math.isNegativeInf(overall_mute_freq));
         if (self.original_overall_mute_freq == 0.0) return error.ZeroOriginalMuteFreq;
         const factor = @max(0.01, overall_mute_freq) / self.original_overall_mute_freq;
-        for (self.states.items) |st| try st.rescaleOverallMuteFreq(allocator, factor);
+        for (self.states.items) |*st| try st.rescaleOverallMuteFreq(allocator, factor);
     }
 
     /// Undo rescaling.
     /// Corresponds to C++ `Model::UnRescaleOverallMuteFreq()`.
-    pub fn unRescaleOverallMuteFreq(self: *Model, allocator: std.mem.Allocator) void {
-        for (self.states.items) |st| st.unRescaleOverallMuteFreq(allocator);
+    pub fn unRescaleOverallMuteFreq(self: *Model) void {
+        for (self.states.items) |*st| st.unRescaleOverallMuteFreq();
     }
 
     pub fn nStates(self: *const Model) usize {
@@ -298,7 +365,7 @@ pub const Model = struct {
     }
 
     pub inline fn stateByIndex(self: *const Model, idx: usize) *State {
-        return self.states.items[idx];
+        return &self.states.items[idx];
     }
 
     pub fn initState(self: *const Model) ?*State {
