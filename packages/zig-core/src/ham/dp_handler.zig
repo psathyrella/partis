@@ -819,9 +819,10 @@ pub const DPHandler = struct {
         var regional_total: std.AutoHashMapUnmanaged(Region, f64) = .{};
         defer regional_total.deinit(allocator);
         // per_gene_support_this_kset borrows its keys from `only_genes`'s
-        // arena-duped strings (item 22 of #342). `only_genes` lives on the
-        // per-query arena (`scratchAllocator()`) for the entire `run()`
-        // call, strictly outliving this map (per-kset arena).
+        // arena-duped strings (item 22 of #342). `only_genes`'s key bytes
+        // live on the per-query arena (`scratchAllocator()`); they outlive
+        // any single `runKSet` call (per-kset arena dies first), and in
+        // fact persist until the next `clear()` resets the arena.
         var per_gene_support_this_kset: std.StringHashMapUnmanaged(f64) = .{};
         defer per_gene_support_this_kset.deinit(allocator);
 

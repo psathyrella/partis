@@ -106,7 +106,7 @@ pub const HMMHolder = struct {
             var git = gene_set.iterator();
             while (git.next()) |entry| {
                 const m = try self.get(entry.key_ptr.*);
-                m.unRescaleOverallMuteFreq(self.allocator);
+                m.unRescaleOverallMuteFreq();
             }
         }
     }

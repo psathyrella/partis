@@ -52,38 +52,39 @@ pub const LexicalTable = struct {
     /// Set (replace) log_probs from a slice, taking a copy. Also (re)allocates
     /// the `original_log_probs` scratch buffer to the same size, so subsequent
     /// replace/unReplace calls can @memcpy without hitting the allocator.
+    /// Atomic: if either allocation fails the struct is left unchanged.
     /// Corresponds to C++ `LexicalTable::SetLogProbs(vector<double>)`.
     pub fn setLogProbs(self: *LexicalTable, allocator: std.mem.Allocator, logprobs: []const f64) !void {
+        const new_log_probs = try allocator.dupe(f64, logprobs);
+        errdefer allocator.free(new_log_probs);
+        const new_original = try allocator.alloc(f64, logprobs.len);
         if (self.log_probs.len > 0) allocator.free(self.log_probs);
         if (self.original_log_probs.len > 0) allocator.free(self.original_log_probs);
-        self.log_probs = try allocator.dupe(f64, logprobs);
-        self.original_log_probs = try allocator.alloc(f64, logprobs.len);
+        self.log_probs = new_log_probs;
+        self.original_log_probs = new_original;
     }
 
     /// Replace log_probs with new values, saving the originals for unReplaceLogProbs.
     /// Asserts that sizes match. Checks that exp(new probs) sum to ~1.0 within EPS.
+    /// Atomic: validates the new distribution before mutating either buffer,
+    /// so a `BadNormalization` return leaves `log_probs` and `original_log_probs`
+    /// untouched.
     /// Corresponds to C++ `LexicalTable::ReplaceLogProbs(vector<double>)`.
-    /// `allocator` is unused now that the scratch buffer is allocated up front
-    /// in setLogProbs (item 15 of #342); kept for API symmetry with setLogProbs.
-    pub fn replaceLogProbs(self: *LexicalTable, allocator: std.mem.Allocator, new_log_probs: []const f64) !void {
-        _ = allocator;
+    pub fn replaceLogProbs(self: *LexicalTable, new_log_probs: []const f64) !void {
         std.debug.assert(self.log_probs.len == new_log_probs.len);
         std.debug.assert(self.original_log_probs.len == new_log_probs.len);
-        @memcpy(self.original_log_probs, self.log_probs);
-        @memcpy(self.log_probs, new_log_probs);
         var total: f64 = 0.0;
-        for (self.log_probs) |lp| total += @exp(lp);
+        for (new_log_probs) |lp| total += @exp(lp);
         if (@abs(total - 1.0) >= EPS) {
             return error.BadNormalization;
         }
+        @memcpy(self.original_log_probs, self.log_probs);
+        @memcpy(self.log_probs, new_log_probs);
     }
 
     /// Revert log_probs to the values saved by replaceLogProbs.
     /// Corresponds to C++ `LexicalTable::UnReplaceLogProbs()`.
-    /// `allocator` is unused now that the scratch buffer is allocated up front
-    /// in setLogProbs (item 15 of #342); kept for API symmetry with setLogProbs.
-    pub fn unReplaceLogProbs(self: *LexicalTable, allocator: std.mem.Allocator) void {
-        _ = allocator;
+    pub fn unReplaceLogProbs(self: *LexicalTable) void {
         std.debug.assert(self.original_log_probs.len == self.log_probs.len);
         @memcpy(self.log_probs, self.original_log_probs);
     }
@@ -135,11 +136,11 @@ test "LexicalTable: replaceLogProbs and unReplaceLogProbs" {
 
     // Replace with new valid distribution
     const new_lps = [_]f64{ @log(0.5), @log(0.3), @log(0.1), @log(0.1) };
-    try lt.replaceLogProbs(allocator, &new_lps);
+    try lt.replaceLogProbs(&new_lps);
     try std.testing.expectApproxEqAbs(@log(0.5), lt.logProb(0), 1e-9);
 
     // Revert
-    lt.unReplaceLogProbs(allocator);
+    lt.unReplaceLogProbs();
     try std.testing.expectApproxEqAbs(@log(0.25), lt.logProb(0), 1e-9);
 }
 
@@ -153,8 +154,10 @@ test "LexicalTable: replaceLogProbs rejects bad normalization" {
 
     // Distribution that sums to 0.9, not 1.0
     const bad = [_]f64{ @log(0.3), @log(0.3), @log(0.2), @log(0.1) };
-    const result = lt.replaceLogProbs(allocator, &bad);
+    const result = lt.replaceLogProbs(&bad);
     try std.testing.expectError(error.BadNormalization, result);
+    // Atomicity: log_probs must be unchanged on BadNormalization
+    try std.testing.expectApproxEqAbs(@log(0.25), lt.logProb(0), 1e-9);
 }
 
 test "LexicalTable: logProbSeq" {

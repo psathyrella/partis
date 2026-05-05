@@ -352,8 +352,8 @@ pub const Model = struct {
 
     /// Undo rescaling.
     /// Corresponds to C++ `Model::UnRescaleOverallMuteFreq()`.
-    pub fn unRescaleOverallMuteFreq(self: *Model, allocator: std.mem.Allocator) void {
-        for (self.states.items) |*st| st.unRescaleOverallMuteFreq(allocator);
+    pub fn unRescaleOverallMuteFreq(self: *Model) void {
+        for (self.states.items) |*st| st.unRescaleOverallMuteFreq();
     }
 
     pub fn nStates(self: *const Model) usize {
