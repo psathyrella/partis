@@ -46,10 +46,12 @@ pub const Glomerator = struct {
     /// All actual sequences, keyed by sequence name.
     ///
     /// Write-once during `init`; **frozen** thereafter (no inserts, no
-    /// removals, no replacements). Per issue #342 item 6, every other
-    /// `Query.seqs` in the glomerator borrows from these buffers via
-    /// shallow copies, so mutating this map post-init would invalidate
-    /// those borrows and produce use-after-free on the slice fields.
+    /// removals, no replacements). Per issue #342 items 6 and 16, every
+    /// other `Query.seqs` in the glomerator stores `*const Sequence`
+    /// pointers into this map's value slots. Mutating this map post-init
+    /// (or growing it past its `ensureTotalCapacity` bound during init)
+    /// can rehash and invalidate those pointers — `init` populates this
+    /// map fully in a first pass before any cachefo Query is built.
     /// Adding any write to this map outside `init` requires reworking
     /// the borrowed-Sequence contract (see Query struct doc).
     single_seqs: std.StringHashMapUnmanaged(Sequence),
@@ -143,6 +145,26 @@ pub const Glomerator = struct {
 
         try self.readCacheFile();
 
+        // Pass 1: populate `single_seqs` fully. Item 16 stores `*const Sequence`
+        // pointers into this map's value slots in `single_seq_cachefo` and
+        // `cachefo` `Query.seqs`; those pointers must be taken only after the
+        // map is stable, since `put` on a growing map can rehash and invalidate
+        // pointers returned by earlier `getPtr` calls.
+        var total_seqs: usize = 0;
+        for (qry_seq_lists) |seq_list| total_seqs += seq_list.len;
+        try self.single_seqs.ensureTotalCapacity(allocator, @intCast(total_seqs));
+        for (qry_seq_lists) |seq_list| {
+            for (seq_list) |*sq| {
+                if (self.single_seqs.contains(sq.name)) continue;
+                const name_key = try allocator.dupe(u8, sq.name);
+                errdefer allocator.free(name_key);
+                try self.single_seqs.put(allocator, name_key, try sq.clone(allocator));
+            }
+        }
+
+        // Pass 2: build cachefo / single_seq_cachefo / initial_partition.
+        // `single_seqs` is now frozen; `getPtr` results are stable for the
+        // remaining lifetime of the Glomerator.
         for (qry_seq_lists, 0..) |seq_list, iqry| {
             // Build the colon-separated key for this query group
             var names: std.ArrayListUnmanaged([]const u8) = .{};
@@ -152,17 +174,6 @@ pub const Glomerator = struct {
             }
             const key = try ham_text.joinStrings(allocator, names.items, ":");
             defer allocator.free(key);
-
-            // Stash all sequences in single_seqs
-            for (seq_list) |*sq| {
-                const name_key = try allocator.dupe(u8, sq.name);
-                errdefer allocator.free(name_key);
-                if (!self.single_seqs.contains(name_key)) {
-                    try self.single_seqs.put(allocator, name_key, try sq.clone(allocator));
-                } else {
-                    allocator.free(name_key);
-                }
-            }
 
             // Build bounds from args queries
             const qrow = &args.queries.items[iqry];
@@ -182,52 +193,41 @@ pub const Glomerator = struct {
                 try only_genes.append(allocator, g);
             }
 
-            // Build single_seq_cachefo entries
-            const names_in_key = try splitName(allocator, key);
-            defer {
-                for (names_in_key.items) |n| allocator.free(n);
-                var nl = names_in_key;
-                nl.deinit(allocator);
-            }
-            for (names_in_key.items) |uid| {
-                if (!self.single_seq_cachefo.contains(uid)) {
-                    const uid_seqs = try self.getSeqs(uid);
-                    defer {
-                        // uid_seqs items are borrowed (item 6); only free the list.
-                        var s = uid_seqs;
-                        s.deinit(allocator);
-                    }
-                    const is_seed_missing = !ham_text.inString(args.seed_unique_id, uid, ":");
-                    var uid_q = try Query.create(
-                        allocator,
-                        uid,
-                        uid_seqs.items,
-                        is_seed_missing,
-                        only_genes.items,
-                        kbounds,
-                        @floatCast(qrow.mut_freq),
-                        @intCast(@max(0, qrow.cdr3_length)),
-                        null, null,
-                    );
-                    errdefer uid_q.deinit(allocator);
-                    const uid_key = try allocator.dupe(u8, uid);
-                    errdefer allocator.free(uid_key);
-                    try self.single_seq_cachefo.put(allocator, uid_key, uid_q);
-                }
+            // Build single_seq_cachefo entries. `key` outlives this block, so
+            // we iterate splitScalar without duping the names (item 16).
+            var key_iter = std.mem.splitScalar(u8, key, ':');
+            while (key_iter.next()) |uid| {
+                if (uid.len == 0) continue;
+                if (self.single_seq_cachefo.contains(uid)) continue;
+                const sq_ptr = self.single_seqs.getPtr(uid) orelse return error.SequenceNotFound;
+                const uid_seq_ptrs = [_]*const Sequence{sq_ptr};
+                const is_seed_missing = !ham_text.inString(args.seed_unique_id, uid, ":");
+                var uid_q = try Query.create(
+                    allocator,
+                    uid,
+                    &uid_seq_ptrs,
+                    is_seed_missing,
+                    only_genes.items,
+                    kbounds,
+                    @floatCast(qrow.mut_freq),
+                    @intCast(@max(0, qrow.cdr3_length)),
+                    null, null,
+                );
+                errdefer uid_q.deinit(allocator);
+                const uid_key = try allocator.dupe(u8, uid);
+                errdefer allocator.free(uid_key);
+                try self.single_seq_cachefo.put(allocator, uid_key, uid_q);
             }
 
             // Build cachefo entry for the full query group
-            const key_seqs = try self.getSeqs(key);
-            defer {
-                // key_seqs items are borrowed (item 6); only free the list.
-                var ksl = key_seqs;
-                ksl.deinit(allocator);
-            }
+            var key_seq_ptrs: std.ArrayListUnmanaged(*const Sequence) = .{};
+            defer key_seq_ptrs.deinit(allocator);
+            try self.appendSeqPtrsForQuery(&key_seq_ptrs, allocator, key);
             const is_seed_missing = !ham_text.inString(args.seed_unique_id, key, ":");
             var q = try Query.create(
                 allocator,
                 key,
-                key_seqs.items,
+                key_seq_ptrs.items,
                 is_seed_missing,
                 only_genes.items,
                 kbounds,
@@ -253,9 +253,10 @@ pub const Glomerator = struct {
         self.initial_partition.deinit(allocator);
 
         // Free Query maps before single_seqs: Query.seqs borrows from
-        // single_seqs (item 6). Query.deinit no longer touches sequence
-        // buffers, so the order is not load-bearing for correctness, but
-        // freeing borrowers before owners keeps the invariant explicit.
+        // single_seqs (items 6 and 16 — `*const Sequence` pointers into the
+        // map's value slots). Query.deinit no longer touches Sequence values,
+        // so the order is not load-bearing for correctness, but freeing
+        // borrowers before owners keeps the invariant explicit.
         freeQueryMap(allocator, &self.single_seq_cachefo);
         freeQueryMap(allocator, &self.cachefo);
         freeQueryMap(allocator, &self.tmp_cachefo);
@@ -804,7 +805,7 @@ pub const Glomerator = struct {
         const only_genes_slice = try self.geneListToSlice(cacheref.only_genes.items);
         defer self.allocator.free(only_genes_slice);
 
-        var result = try dph.run(cacheref.seqs.items, cacheref.kbounds, only_genes_slice, cacheref.mute_freq, true);
+        var result = try dph.run(cacheref.seqs, cacheref.kbounds, only_genes_slice, cacheref.mute_freq, true);
         defer result.deinit();
 
         if (result.no_path) {
@@ -921,7 +922,7 @@ pub const Glomerator = struct {
         const only_genes_slice = try self.geneListToSlice(cacheref.only_genes.items);
         defer self.allocator.free(only_genes_slice);
 
-        var result = try dph.run(cacheref.seqs.items, cacheref.kbounds, only_genes_slice, cacheref.mute_freq, true);
+        var result = try dph.run(cacheref.seqs, cacheref.kbounds, only_genes_slice, cacheref.mute_freq, true);
         defer result.deinit();
 
         if (result.no_path) {
@@ -1129,7 +1130,10 @@ pub const Glomerator = struct {
         if (self.cachefo.getPtr(queries)) |q| return q;
         if (self.tmp_cachefo.getPtr(queries)) |q| return q;
 
-        // Build on the fly from single_seq_cachefo
+        // Build on the fly from single_seq_cachefo. Single splitScalar pass
+        // over `queries` (item 16): the same iteration drives only_gene_set
+        // / kbounds / mute_freq and the seqs-pointer list, with no name dupes
+        // and no intermediate ArrayList from a separate getSeqs call.
         var only_gene_set: std.StringHashMapUnmanaged(void) = .{};
         defer {
             var it = only_gene_set.iterator();
@@ -1141,21 +1145,21 @@ pub const Glomerator = struct {
         var mute_freq_total: f64 = 0.0;
         var cdr3_length: usize = 0;
 
-        const names = try splitName(self.allocator, queries);
-        defer {
-            for (names.items) |n| self.allocator.free(n);
-            var nl = names;
-            nl.deinit(self.allocator);
-        }
+        var key_seq_ptrs: std.ArrayListUnmanaged(*const Sequence) = .{};
+        defer key_seq_ptrs.deinit(self.allocator);
+        try key_seq_ptrs.ensureUnusedCapacity(self.allocator, @intCast(countMembers(queries)));
 
-        for (names.items, 0..) |uid, is| {
+        var n_names: usize = 0;
+        var name_it = std.mem.splitScalar(u8, queries, ':');
+        while (name_it.next()) |uid| {
+            if (uid.len == 0) continue;
             const scache = self.single_seq_cachefo.getPtr(uid) orelse return error.MissingSeqCache;
             for (scache.only_genes.items) |g| {
                 if (!only_gene_set.contains(g)) {
                     try only_gene_set.put(self.allocator, try self.allocator.dupe(u8, g), {});
                 }
             }
-            if (is == 0) {
+            if (n_names == 0) {
                 kbounds = scache.kbounds;
                 cdr3_length = scache.cdr3_length;
             } else {
@@ -1163,7 +1167,16 @@ pub const Glomerator = struct {
                 if (cdr3_length != scache.cdr3_length) return error.Cdr3LengthMismatch;
             }
             mute_freq_total += scache.mute_freq;
+
+            const sq_ptr = self.single_seqs.getPtr(uid) orelse return error.SequenceNotFound;
+            key_seq_ptrs.appendAssumeCapacity(sq_ptr);
+            n_names += 1;
         }
+        // Defensive: an all-colon `queries` would yield no non-empty parts and
+        // would otherwise produce NaN from the mute_freq division below. Real
+        // cluster keys derive from non-empty UIDs, so this is not reachable on
+        // valid input — but the explicit error is cheaper than tracing NaN.
+        if (n_names == 0) return error.MissingSeqCache;
 
         var only_genes_list: std.ArrayListUnmanaged([]const u8) = .{};
         defer only_genes_list.deinit(self.allocator);
@@ -1180,22 +1193,15 @@ pub const Glomerator = struct {
             }
         }.lessThan);
 
-        const key_seqs = try self.getSeqs(queries);
-        defer {
-            // key_seqs items are borrowed (item 6); only free the list.
-            var ks = key_seqs;
-            ks.deinit(self.allocator);
-        }
-
         const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, queries, ":");
         var new_q = try Query.create(
             self.allocator,
             queries,
-            key_seqs.items,
+            key_seq_ptrs.items,
             is_seed_missing,
             only_genes_list.items,
             kbounds,
-            @floatCast(mute_freq_total / @as(f64, @floatFromInt(names.items.len))),
+            @floatCast(mute_freq_total / @as(f64, @floatFromInt(n_names))),
             cdr3_length,
             null, null,
         );
@@ -1263,17 +1269,14 @@ pub const Glomerator = struct {
         const joint_mute_freq: f32 = @floatCast((n_a_f64 * @as(f64, ref_a.mute_freq) + n_b_f64 * @as(f64, ref_b.mute_freq)) / n_total_f64);
         const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, joint_name, ":");
 
-        const key_seqs = try self.getSeqs(joint_name);
-        defer {
-            // key_seqs items are borrowed (item 6); only free the list.
-            var ksl = key_seqs;
-            ksl.deinit(self.allocator);
-        }
+        var key_seq_ptrs: std.ArrayListUnmanaged(*const Sequence) = .{};
+        defer key_seq_ptrs.deinit(self.allocator);
+        try self.appendSeqPtrsForQuery(&key_seq_ptrs, self.allocator, joint_name);
 
         var q = try Query.create(
             self.allocator,
             joint_name,
-            key_seqs.items,
+            key_seq_ptrs.items,
             is_seed_missing,
             genes_list.items,
             joint_kbounds,
@@ -1448,17 +1451,14 @@ pub const Glomerator = struct {
         // merge cascade truncation) must be used for consistency with C++.
         const cacheref = try self.getCachefo(queries);
         {
-            const sub_seqs = try self.getSeqs(subqueries);
-            defer {
-                // sub_seqs items are borrowed (item 6); only free the list.
-                var ss = sub_seqs;
-                ss.deinit(self.allocator);
-            }
+            var sub_seq_ptrs: std.ArrayListUnmanaged(*const Sequence) = .{};
+            defer sub_seq_ptrs.deinit(self.allocator);
+            try self.appendSeqPtrsForQuery(&sub_seq_ptrs, self.allocator, subqueries);
             const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, subqueries, ":");
             var sub_q = try Query.create(
                 self.allocator,
                 subqueries,
-                sub_seqs.items,
+                sub_seq_ptrs.items,
                 is_seed_missing,
                 cacheref.only_genes.items,
                 cacheref.kbounds,
@@ -1587,17 +1587,14 @@ pub const Glomerator = struct {
             try self.cachefo.put(self.allocator, key, val);
         } else {
             const supercache = try self.getCachefo(superquery);
-            const key_seqs = try self.getSeqs(translated_query);
-            defer {
-                // key_seqs items are borrowed (item 6); only free the list.
-                var ks = key_seqs;
-                ks.deinit(self.allocator);
-            }
+            var key_seq_ptrs: std.ArrayListUnmanaged(*const Sequence) = .{};
+            defer key_seq_ptrs.deinit(self.allocator);
+            try self.appendSeqPtrsForQuery(&key_seq_ptrs, self.allocator, translated_query);
             const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, translated_query, ":");
             var q = try Query.create(
                 self.allocator,
                 translated_query,
-                key_seqs.items,
+                key_seq_ptrs.items,
                 is_seed_missing,
                 supercache.only_genes.items,
                 supercache.kbounds,
@@ -1614,28 +1611,26 @@ pub const Glomerator = struct {
 
     // ── Utility helpers ───────────────────────────────────────────────────────
 
-    /// C++: Glomerator::GetSeqs() — glomerator.cc:850
-    ///
-    /// Returns borrowed shallow copies of Sequence values from `single_seqs`.
-    /// The buffers (`name`, `undigitized`, `seqq`, ...) are not duplicated;
-    /// callers must not call `Sequence.deinit` on the returned items, and the
-    /// returned slice must not outlive `single_seqs`. Issue #342, item 6.
-    fn getSeqs(self: *Glomerator, query: []const u8) !std.ArrayListUnmanaged(Sequence) {
-        const names = try splitName(self.allocator, query);
-        defer {
-            for (names.items) |n| self.allocator.free(n);
-            var nl = names;
-            nl.deinit(self.allocator);
-        }
-
-        var result: std.ArrayListUnmanaged(Sequence) = .{};
-        errdefer result.deinit(self.allocator);
-        try result.ensureUnusedCapacity(self.allocator, names.items.len);
-        for (names.items) |uid| {
+    /// Append `*const Sequence` pointers into `single_seqs` to `dst`, one per
+    /// colon-separated UID in `query`. Iterates `splitScalar` directly — no
+    /// per-name `dupe`, no intermediate ArrayList. The pointed-to Sequences
+    /// must outlive any consumer that holds these pointers.
+    /// C++: corresponds to the `Glomerator::GetSeqs()` callers' inline build
+    /// pattern (glomerator.cc:850 + the lookup loop in cachefo()).
+    /// Issue #342, items 6 + 16.
+    fn appendSeqPtrsForQuery(
+        self: *Glomerator,
+        dst: *std.ArrayListUnmanaged(*const Sequence),
+        allocator: std.mem.Allocator,
+        query: []const u8,
+    ) !void {
+        try dst.ensureUnusedCapacity(allocator, @intCast(countMembers(query)));
+        var it = std.mem.splitScalar(u8, query, ':');
+        while (it.next()) |uid| {
+            if (uid.len == 0) continue;
             const sq = self.single_seqs.getPtr(uid) orelse return error.SequenceNotFound;
-            result.appendAssumeCapacity(sq.*);
+            dst.appendAssumeCapacity(sq);
         }
-        return result;
     }
 
     /// C++: Glomerator::AddFailedQuery() — glomerator.cc:776
@@ -1887,7 +1882,7 @@ fn cloneQuery(allocator: std.mem.Allocator, q: *const Query) !Query {
     return Query.create(
         allocator,
         q.name,
-        q.seqs.items,
+        q.seqs,
         q.seed_missing,
         q.only_genes.items,
         q.kbounds,

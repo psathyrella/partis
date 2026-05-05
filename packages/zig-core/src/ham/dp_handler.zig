@@ -197,25 +197,26 @@ pub const DPHandler = struct {
     /// for the duration of the call; the caller retains ownership.
     pub fn runSeq(
         self: *DPHandler,
-        seq: Sequence,
+        seq: *const Sequence,
         kbounds: KBounds,
         only_gene_list: []const []const u8,
         overall_mute_freq: f64,
         clear_cache: bool,
     ) !Result {
-        const seqvec = [_]Sequence{seq};
+        const seqvec = [_]*const Sequence{seq};
         return self.run(&seqvec, kbounds, only_gene_list, overall_mute_freq, clear_cache);
     }
 
     /// Run the DP over a vector of sequences.
     /// Corresponds to C++ `DPHandler::Run(vector<Sequence>, ...)`.
-    /// `seqvector` is borrowed: each Sequence's heap buffers must outlive the
-    /// call; the internal Sequences container holds shallow struct-copies that
-    /// share those buffers (item 2 of issue #342). The container's items are
-    /// not deinit'd at function end — only the backing array is freed.
+    /// `seqvector` is borrowed: each pointed-to Sequence's heap buffers must
+    /// outlive the call; the internal Sequences container holds shallow
+    /// struct-copies that share those buffers (items 2 + 16 of issue #342).
+    /// The container's items are not deinit'd at function end — only the
+    /// backing array allocation is freed.
     pub fn run(
         self: *DPHandler,
-        seqvector: []const Sequence,
+        seqvector: []const *const Sequence,
         kbounds: KBounds,
         only_gene_list: []const []const u8,
         overall_mute_freq: f64,
@@ -241,7 +242,8 @@ pub const DPHandler = struct {
         var seqs = Sequences.init();
         defer seqs.seqs.deinit(allocator);
         try seqs.seqs.ensureTotalCapacityPrecise(allocator, seqvector.len);
-        for (seqvector) |sq| {
+        for (seqvector) |sq_ptr| {
+            const sq = sq_ptr.*;
             if (seqs.seqs.items.len == 0) {
                 seqs.sequence_length = sq.size();
             } else if (sq.size() != seqs.sequence_length) {
@@ -1211,7 +1213,7 @@ pub const DPHandler = struct {
     pub fn handleFishyAnnotations(
         self: *DPHandler,
         multi_seq_result: *Result,
-        qry_seqs: []const Sequence,
+        qry_seqs: []const *const Sequence,
         kbounds: KBounds,
         only_gene_list: []const []const u8,
         overall_mute_freq: f64,
@@ -1236,7 +1238,7 @@ pub const DPHandler = struct {
         var naive_seq = try Sequence.initFromString(parent, first_track, "naive-seq", best_ev.naive_seq);
         defer naive_seq.deinit(parent);
 
-        const naive_seqs = [_]Sequence{naive_seq};
+        const naive_seqs = [_]*const Sequence{&naive_seq};
         var naive_result = try self.run(&naive_seqs, kbounds, only_gene_list, overall_mute_freq, true);
         defer naive_result.deinit();
 

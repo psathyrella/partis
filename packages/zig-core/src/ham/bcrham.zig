@@ -89,18 +89,23 @@ pub fn runAlgorithm(
         defer allocator.free(only_genes);
         for (qrow.only_genes.items, only_genes) |g, *out| out.* = g;
 
+        // Build pointer view into qseqs for the DP and stream calls (item 16).
+        const qseq_ptrs = try allocator.alloc(*const Sequence, qseqs.items.len);
+        defer allocator.free(qseq_ptrs);
+        for (qseqs.items, qseq_ptrs) |*sq, *out| out.* = sq;
+
         var dph = try DPHandler.init(allocator, args.algorithm, args, gl, hmms);
         defer dph.deinit();
 
-        var result = try dph.run(qseqs.items, kbounds, only_genes, @floatCast(qrow.mut_freq), true);
+        var result = try dph.run(qseq_ptrs, kbounds, only_genes, @floatCast(qrow.mut_freq), true);
         defer result.deinit();
 
         if (result.no_path) {
-            try bcr_text.streamErrorput(writer, args.algorithm, allocator, qseqs.items, "no_path");
+            try bcr_text.streamErrorput(writer, args.algorithm, allocator, qseq_ptrs, "no_path");
         } else if (std.mem.eql(u8, args.algorithm, "viterbi")) {
-            try bcr_text.streamViterbiOutput(writer, allocator, &result.best_event.?, qseqs.items, "");
+            try bcr_text.streamViterbiOutput(writer, allocator, &result.best_event.?, qseq_ptrs, "");
         } else if (std.mem.eql(u8, args.algorithm, "forward")) {
-            try bcr_text.streamForwardOutput(writer, allocator, qseqs.items, result.total_score, "");
+            try bcr_text.streamForwardOutput(writer, allocator, qseq_ptrs, result.total_score, "");
         } else {
             return error.UnknownAlgorithm;
         }
