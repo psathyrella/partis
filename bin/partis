@@ -185,7 +185,7 @@ def run_simulation(args):
             clist[0] = utils.find_cmd(clist[0])
             utils.replace_in_arglist(clist, '--n-procs', '1')
             clist.append('--im-a-subproc')
-            utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc))
+            utils.replace_in_arglist(clist, '--random-seed', str(args.random_seed + iproc * args.n_sim_events))  # shift by n_sim_events so per-proc seed ranges (each proc uses [seed, seed+n_sub_events)) don't overlap
             utils.replace_in_arglist(clist, '--workdir', get_workdir(iproc))
             utils.replace_in_arglist(clist, '--outfname', get_outfname(iproc))
             utils.replace_in_arglist(clist, '--n-sim-events', str(n_sub_events))
@@ -275,8 +275,8 @@ def run_simulation(args):
 
     n_per_proc_list, work_fnames = [], []
     if args.n_procs == 1:
-        retry_gap = 20000  # must exceed max retry count in recombinator.combine() (currently 10000) so per-event retry seeds don't overlap with the next event's range
-        make_events(args.n_sim_events, args.workdir, args.outfname, [args.random_seed * retry_gap * args.n_sim_events + ievt * retry_gap for ievt in range(args.n_sim_events)], heavy_chain_events=heavy_chain_events)
+        # NOTE per-event sequential seeds (each event uses one seed slot since combine() seeds once and lets retries advance the RNG state). Multi-proc cross-proc uniqueness is handled by the iproc * n_sim_events shift above.
+        make_events(args.n_sim_events, args.workdir, args.outfname, [args.random_seed + ievt for ievt in range(args.n_sim_events)], heavy_chain_events=heavy_chain_events)
     else:
         cmdfos = run_sub_cmds(working_gldir)
 
