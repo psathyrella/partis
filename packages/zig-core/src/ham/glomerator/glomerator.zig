@@ -858,6 +858,7 @@ pub const Glomerator = struct {
         }
 
         const lr_key = try self.allocator.dupe(u8, joint_name);
+        errdefer self.allocator.free(lr_key);
         try self.lratios.put(self.allocator, lr_key, lratio);
         return lratio;
     }
@@ -979,6 +980,7 @@ pub const Glomerator = struct {
 
         const hf = try self.calculateHfrac(ns_a, ns_b);
         const jk = try self.allocator.dupe(u8, joint_key);
+        errdefer self.allocator.free(jk);
         try self.naive_hfracs.put(self.allocator, jk, hf);
         return hf;
     }
@@ -1637,20 +1639,28 @@ pub const Glomerator = struct {
 
     /// C++: Glomerator::AddFailedQuery() — glomerator.cc:776
     fn addFailedQuery(self: *Glomerator, queries: []const u8, error_str: []const u8) !void {
-        const key = try self.allocator.dupe(u8, queries);
-        errdefer self.allocator.free(key);
+        // Reserve capacity up-front so the puts below are infallible. This lets
+        // every fallible allocation happen under errdefer protection, and the
+        // ownership transfer to the maps stays atomic.
+        try self.errors.ensureUnusedCapacity(self.allocator, 1);
+        try self.failed_queries.ensureUnusedCapacity(self.allocator, 1);
 
-        // Append error string
+        const fq_key = try self.allocator.dupe(u8, queries);
+        errdefer self.allocator.free(fq_key);
+
+        const errors_key = try self.allocator.dupe(u8, queries);
+        errdefer self.allocator.free(errors_key);
+
         const old_err = self.errors.get(queries) orelse "";
         const new_err = try std.fmt.allocPrint(self.allocator, "{s}:{s}", .{ old_err, error_str });
         errdefer self.allocator.free(new_err);
 
-        if (self.errors.fetchRemove(key)) |old| {
+        if (self.errors.fetchRemove(queries)) |old| {
             self.allocator.free(old.key);
             self.allocator.free(old.value);
         }
-        try self.errors.put(self.allocator, try self.allocator.dupe(u8, queries), new_err);
-        try self.failed_queries.put(self.allocator, key, {});
+        self.errors.putAssumeCapacity(errors_key, new_err);
+        self.failed_queries.putAssumeCapacity(fq_key, {});
     }
 
     // ── Cache pruning after merge (issue #342, item 7) ────────────────────────
