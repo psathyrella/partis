@@ -158,7 +158,9 @@ pub const Glomerator = struct {
                 if (self.single_seqs.contains(sq.name)) continue;
                 const name_key = try allocator.dupe(u8, sq.name);
                 errdefer allocator.free(name_key);
-                try self.single_seqs.put(allocator, name_key, try sq.clone(allocator));
+                var cloned = try sq.clone(allocator);
+                errdefer cloned.deinit(allocator);
+                try self.single_seqs.put(allocator, name_key, cloned);
             }
         }
 

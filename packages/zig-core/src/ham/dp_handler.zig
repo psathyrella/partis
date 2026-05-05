@@ -482,7 +482,8 @@ pub const DPHandler = struct {
         self.scores.putAssumeCapacity(key, .{});
     }
 
-    /// Look for a cached kset whose region sequences are a prefix of `query_strs`.
+    /// Look for a cached kset whose region sequences are a prefix of the
+    /// query's per-region undigitized strings (built via `getSubSeqs`).
     /// Returns null-kset if none found.
     fn findPartialCacheMatch(self: *DPHandler, region: Region, gene: []const u8, kset: KSet) KSet {
         const gene_scores = self.scores.get(gene) orelse return KSet{ .v = 0, .d = 0 };
