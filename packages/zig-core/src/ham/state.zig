@@ -369,16 +369,16 @@ pub const State = struct {
                 new_log_probs[ip] = log(exp(new_log_probs[ip]) * new_mute_freq / old_mute_freq);
             }
         }
-        try self.emission.replaceLogProbs(allocator, new_log_probs);
+        try self.emission.replaceLogProbs(new_log_probs);
     }
 
     /// Revert emission rescaling.
     /// Corresponds to C++ `State::UnRescaleOverallMuteFreq()`.
-    pub fn unRescaleOverallMuteFreq(self: *State, allocator: std.mem.Allocator) void {
+    pub fn unRescaleOverallMuteFreq(self: *State) void {
         if (self.germline_nuc.len == 0 or
             (self.ambiguous_char.len > 0 and std.mem.eql(u8, self.germline_nuc, self.ambiguous_char)))
             return;
-        self.emission.unReplaceLogProbs(allocator);
+        self.emission.unReplaceLogProbs();
     }
 
     /// Print this state to stderr.

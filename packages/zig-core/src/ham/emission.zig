@@ -79,14 +79,14 @@ pub const Emission = struct {
 
     /// Replace log probs (for mute-freq rescaling).
     /// Corresponds to C++ `void ReplaceLogProbs(vector<double>)`.
-    pub fn replaceLogProbs(self: *Emission, allocator: std.mem.Allocator, new_log_probs: []const f64) !void {
-        try self.scores.replaceLogProbs(allocator, new_log_probs);
+    pub fn replaceLogProbs(self: *Emission, new_log_probs: []const f64) !void {
+        try self.scores.replaceLogProbs(new_log_probs);
     }
 
     /// Revert to original log probs.
     /// Corresponds to C++ `void UnReplaceLogProbs()`.
-    pub fn unReplaceLogProbs(self: *Emission, allocator: std.mem.Allocator) void {
-        self.scores.unReplaceLogProbs(allocator);
+    pub fn unReplaceLogProbs(self: *Emission) void {
+        self.scores.unReplaceLogProbs();
     }
 
     /// Score (log-probability) for a digitized symbol index.
