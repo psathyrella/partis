@@ -82,7 +82,7 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
                     '--disjoint-groups', '--hfrac', '--prepend-coverage-command',
                     '--plot-annotation-performance']:  # requires --is-simu which is also stripped
         utils.remove_from_arglist(clist, argname)
-    for argname in ['--n-subsets', '--n-max-subprocs', '--n-sub-procs', '--hfrac-merge-factor', '--hfrac-max-bin-size']:
+    for argname in ['--n-subsets', '--n-max-subprocs', '--n-sub-procs', '--hfrac-merge-factor', '--hfrac-max-bin-size', '--hfrac-min-seqs']:
         utils.remove_from_arglist(clist, argname, has_arg=True)
     # set action and locus
     clist[clist.index(args.action)] = tmpaction
@@ -122,7 +122,7 @@ def disjoint_group_action(args):
     if outdir is None:
         raise Exception('--paired-outdir or --workdir must be set')
     disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
-    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir, hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size)
+    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir, hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs)
 
 # ----------------------------------------------------------------------------------------
 def assemble_groups_action(args):
@@ -1458,7 +1458,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s %s: manifest exists, skipping grouping: %s' % (utils.color('blue_bkg', 'create-disjoint-groups'), ltmp, manifest_path))
             manifest = disjointgrouper.read_manifest(manifest_path)
         else:
-            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size)
+            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs)
 
         # step 2: partition each group (or sub-group if hfrac)
         if len(manifest['groups']) == 0:
@@ -1877,6 +1877,7 @@ subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' 
 subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'When used with --disjoint-groups, further split CDR3 groups by naive hamming fraction into sub-groups. Reduces group sizes for better parallelism and potentially enables HA clustering on smaller sub-groups.'}})
 subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
+subargs['partition'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
 subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Each job uses --n-procs processes internally.'}})
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
@@ -1884,6 +1885,7 @@ subargs['create-disjoint-groups'] = []
 subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'Further split CDR3 groups by naive hamming fraction into sub-groups.'}})
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
+subargs['create-disjoint-groups'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})

@@ -15,7 +15,7 @@ MANIFEST_FNAME = 'manifest.yaml'
 # hfrac defaults (referenced from bin/partis argparse so all three places stay in sync)
 HFRAC_MERGE_FACTOR_DEFAULT = 3.0       # round-2 TCM threshold = merge_factor * hi_bound
 HFRAC_MAX_BIN_SIZE_DEFAULT = 100000    # bin-packing target cap on merged sub-group size; 0 disables
-HFRAC_MIN_GROUP_SIZE_DEFAULT = 100     # CDR3 groups smaller than this skip hfrac entirely
+HFRAC_MIN_SEQS_DEFAULT = 50000   # CDR3 groups smaller than this skip hfrac entirely
 
 # hfrac internal tuning (named to avoid magic numbers)
 BIN_PACK_TOLERANCE = 1.2               # allow up to 1.2 * cap before bin-packing fires
@@ -125,7 +125,7 @@ def _tcm_merge_from_pairs(pairs_file, centroid_uids):
     return components
 
 # ----------------------------------------------------------------------------------------
-def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT, c3len=None):
+def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, min_group_size=HFRAC_MIN_SEQS_DEFAULT, c3len=None):
     # r1_results: list of (centroid_uid, [member_uids]) pairs from round 1
     # components: list of lists of centroid uids (one list per component)
     # max_bin_size: components exceeding this are emitted with a warning (never split).
@@ -318,7 +318,7 @@ def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, 
         print('        cdr3-%d: %d seqs -> %d sub-groups (sizes: %s)' % (c3len, seqcount, len(sub_groups_list), ' '.join(str(len(sg)) for sg in sub_groups_list)))
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT):
+def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT):
     # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
     # single-cache in-memory path: annotation_list is fully loaded
     # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
@@ -385,7 +385,7 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
     return flattened_groups, all_group_infos
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT):
+def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT):
     # memory-efficient hfrac for multi-cache path: reads one CDR3 group SW cache at a time
     # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
 
@@ -607,7 +607,7 @@ def resolve_sw_cache_paths(sw_cache_paths):
     return list(sw_cache_paths)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT):
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
@@ -641,7 +641,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
         if hfrac:
-            groups, group_infos = _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size)
+            groups, group_infos = _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size)
         else:
             group_infos = write_group_fastas(groups, outdir, locus)
             write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
@@ -698,7 +698,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         # then dispatch all vsearch jobs in parallel
         # pass 2: read each CDR3 sw cache again, parse vsearch results, write sub-group outputs
         if hfrac:
-            _, group_infos = _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size)
+            _, group_infos = _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size)
 
     n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
     print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, n_cdr3_groups, n_failed))
