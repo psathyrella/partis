@@ -69,7 +69,7 @@ pub fn streamErrorput(
     writer: anytype,
     algorithm: []const u8,
     allocator: std.mem.Allocator,
-    seqs: []const Sequence,
+    seqs: []const *const Sequence,
     errors: []const u8,
 ) !void {
     const names = try seqNameStr(allocator, seqs, ":");
@@ -90,7 +90,7 @@ pub fn streamViterbiOutput(
     writer: anytype,
     allocator: std.mem.Allocator,
     event: *const RecoEvent,
-    seqs: []const Sequence,
+    seqs: []const *const Sequence,
     errors: []const u8,
 ) !void {
     const names = try seqNameStr(allocator, seqs, ":");
@@ -139,7 +139,7 @@ pub fn streamViterbiOutput(
 pub fn streamForwardOutput(
     writer: anytype,
     allocator: std.mem.Allocator,
-    seqs: []const Sequence,
+    seqs: []const *const Sequence,
     total_score: f64,
     errors: []const u8,
 ) !void {
@@ -156,12 +156,12 @@ pub fn streamForwardOutput(
 /// Corresponds to C++ `ham::SeqStr`.
 pub fn seqStr(
     allocator: std.mem.Allocator,
-    seqs: []const Sequence,
+    seqs: []const *const Sequence,
     delimiter: []const u8,
 ) ![]u8 {
     var buf: std.ArrayListUnmanaged(u8) = .{};
     defer buf.deinit(allocator);
-    for (seqs, 0..) |*seq, i| {
+    for (seqs, 0..) |seq, i| {
         if (i > 0) try buf.appendSlice(allocator, delimiter);
         try buf.appendSlice(allocator, seq.undigitized);
     }
@@ -172,12 +172,12 @@ pub fn seqStr(
 /// Corresponds to C++ `ham::SeqNameStr`.
 pub fn seqNameStr(
     allocator: std.mem.Allocator,
-    seqs: []const Sequence,
+    seqs: []const *const Sequence,
     delimiter: []const u8,
 ) ![]u8 {
     var buf: std.ArrayListUnmanaged(u8) = .{};
     defer buf.deinit(allocator);
-    for (seqs, 0..) |*seq, i| {
+    for (seqs, 0..) |seq, i| {
         if (i > 0) try buf.appendSlice(allocator, delimiter);
         try buf.appendSlice(allocator, seq.name);
     }

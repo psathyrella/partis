@@ -33,9 +33,20 @@ const GeneKSetKey = struct {
     kset: KSet,
 };
 
-/// Cached trellis entry: query strings → Trellis
+/// Cached trellis entry. Owns the Sequences the trellis was built over.
+///
+/// The entry itself is **heap-allocated** and the cache list holds pointers
+/// (`ArrayListUnmanaged(*TrellisEntry)`), so the entry's address is stable
+/// across cache-list reallocations. Inlining `query_seqs` here (rather than
+/// holding it via an extra `*Sequences` indirection) means `Trellis.seqs`
+/// can borrow `&entry.query_seqs` directly with one fewer pointer chase
+/// during prefix-match scans and DP setup.
+///
+/// Prefix-match for chunk-cache hits reads
+/// `entry.query_seqs.seqs.items[i].undigitized` — there is no separate
+/// `query_strs` list.
 const TrellisEntry = struct {
-    query_strs: std.ArrayListUnmanaged([]u8),
+    query_seqs: Sequences,
     trellis: Trellis,
 };
 
@@ -45,13 +56,40 @@ pub const DPHandler = struct {
     args: *Args,
     gl: *GermLines,
     hmms: *HMMHolder,
-    allocator: std.mem.Allocator,
 
-    /// scratch_cachefo_: gene → list of (query-string-vec, Trellis) entries
-    scratch_cachefo: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(TrellisEntry)),
-    /// paths_: gene → (KSet → TracebackPath)
+    /// Caller-supplied allocator. Used **only** for allocations that
+    /// outlive the DPHandler — Result, RecoEvent and any owned strings
+    /// reachable from them (gene names on RecoEvent, naive_seq, deletion
+    /// keys, insertion seqs). See item 4 of issue #342 for the lifetime
+    /// table; any allocation that lands in `parent_allocator` rather than
+    /// `scratchAllocator()` is a deliberate cross-boundary write.
+    parent_allocator: std.mem.Allocator,
+
+    /// Per-query arena, lives for the full DPHandler lifetime. Backs every
+    /// internal scratch allocation: scratch_cachefo, paths, scores,
+    /// per_gene_support, and the run()-local maps (only_genes,
+    /// best_scores, total_scores, best_genes). On `clear()`,
+    /// reset(.retain_capacity) drops every dependent allocation in O(1)
+    /// and reuses the backing pages for the next call. Item 4, #342.
+    query_arena: std.heap.ArenaAllocator,
+
+    /// scratch_cachefo_: gene → list of *TrellisEntry. Entries are
+    /// individually heap-allocated for stable address (the trellis at each
+    /// entry borrows `&entry.query_seqs` and that pointer must stay valid
+    /// across appends to the same gene's list). Address stability is
+    /// preserved under the per-query arena because arenas only grow —
+    /// past allocations are never relocated.
+    ///
+    /// The string keys are NOT owned by this map — they are shared with
+    /// `paths` and `scores`, which are populated by the same `initCache`
+    /// call (item 5 of #342). `scores` owns the duped key bytes; `clear()`
+    /// frees keys only when iterating `scores` to avoid a triple-free.
+    scratch_cachefo: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(*TrellisEntry)),
+    /// paths_: gene → (KSet → TracebackPath). Keys are borrowed (see
+    /// `scratch_cachefo` doc-block); the canonical owner is `scores`.
     paths: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, TracebackPath)),
-    /// scores_: gene → (KSet → f64)
+    /// scores_: gene → (KSet → f64). Owns the gene-name keys shared with
+    /// `scratch_cachefo` and `paths` (item 5 of #342).
     scores: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, f64)),
     /// per_gene_support_: gene → best full-annotation log-prob
     per_gene_support: std.StringHashMapUnmanaged(f64),
@@ -68,7 +106,8 @@ pub const DPHandler = struct {
             .args = args,
             .gl = gl,
             .hmms = hmms,
-            .allocator = allocator,
+            .parent_allocator = allocator,
+            .query_arena = std.heap.ArenaAllocator.init(allocator),
             .scratch_cachefo = .{},
             .paths = .{},
             .scores = .{},
@@ -76,33 +115,53 @@ pub const DPHandler = struct {
         };
     }
 
+    /// Per-query scratch allocator. **Always re-derive at the use site** —
+    /// caching `arena.allocator()` in a struct field would silently break
+    /// after a DPHandler move, since the returned `Allocator.ptr` points
+    /// at the arena's address at call time. (Item 4, #342.)
+    pub inline fn scratchAllocator(self: *DPHandler) std.mem.Allocator {
+        return self.query_arena.allocator();
+    }
+
     pub fn deinit(self: *DPHandler) void {
         self.clear();
+        self.query_arena.deinit();
     }
 
     /// Clear all cached trellis data.
     /// Corresponds to C++ `DPHandler::Clear`.
+    ///
+    /// Under the per-query arena (item 4, #342), every individual `free` /
+    /// `destroy` / `deinit` below is a no-op — the arena reset at the end
+    /// reclaims everything in one shot. The explicit cleanup loops are kept
+    /// as documentation and as a safety belt: they make the ownership
+    /// graph readable, and if a future change ever pulls one of these
+    /// allocations off the arena and back onto a real allocator, the
+    /// existing `free` will keep doing the right thing.
     pub fn clear(self: *DPHandler) void {
-        const allocator = self.allocator;
+        const allocator = self.scratchAllocator();
 
-        // Free scratch_cachefo
+        // Free scratch_cachefo. Each *TrellisEntry is heap-allocated and the
+        // entry's trellis borrows from the inline `query_seqs`. Deinit the
+        // trellis first (it doesn't own seqs but may use seq_len etc.), then
+        // the Sequences, then destroy the entry struct itself.
+        // Keys are shared with `paths` and `scores` (item 5 of #342); freed
+        // once below when iterating `scores`.
         var cit = self.scratch_cachefo.iterator();
         while (cit.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            for (entry.value_ptr.items) |*te| {
-                for (te.query_strs.items) |s| allocator.free(s);
-                te.query_strs.deinit(allocator);
+            for (entry.value_ptr.items) |te| {
                 te.trellis.deinit();
+                te.query_seqs.deinit(allocator);
+                allocator.destroy(te);
             }
             entry.value_ptr.deinit(allocator);
         }
         self.scratch_cachefo.deinit(allocator);
         self.scratch_cachefo = .{};
 
-        // Free paths
+        // Free paths. Keys are shared with `scores` (see above).
         var pit = self.paths.iterator();
         while (pit.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
             var inner_it = entry.value_ptr.iterator();
             while (inner_it.next()) |kv| kv.value_ptr.deinit(allocator);
             entry.value_ptr.deinit(allocator);
@@ -110,7 +169,8 @@ pub const DPHandler = struct {
         self.paths.deinit(allocator);
         self.paths = .{};
 
-        // Free scores
+        // Free scores. This is the canonical owner of the gene-name keys
+        // shared with `scratch_cachefo` and `paths`.
         var sit = self.scores.iterator();
         while (sit.next()) |entry| {
             allocator.free(entry.key_ptr.*);
@@ -124,42 +184,72 @@ pub const DPHandler = struct {
         while (pgit.next()) |entry| allocator.free(entry.key_ptr.*);
         self.per_gene_support.deinit(allocator);
         self.per_gene_support = .{};
+
+        // Reset the per-query arena: this is what actually reclaims memory
+        // (the loops above are no-ops on the arena). Retains capacity so
+        // the next run() in handleFishyAnnotations reuses the backing pages.
+        _ = self.query_arena.reset(.retain_capacity);
     }
 
     /// Run the DP for a single Sequence.
     /// Corresponds to C++ `DPHandler::Run(Sequence, ...)`.
+    /// The Sequence's heap buffers (name/header/undigitized/seqq) are borrowed
+    /// for the duration of the call; the caller retains ownership.
     pub fn runSeq(
         self: *DPHandler,
-        seq: Sequence,
+        seq: *const Sequence,
         kbounds: KBounds,
         only_gene_list: []const []const u8,
         overall_mute_freq: f64,
         clear_cache: bool,
     ) !Result {
-        // Clone into a Sequences container (single sequence)
-        var seqvec: std.ArrayListUnmanaged(Sequence) = .{};
-        defer seqvec.deinit(self.allocator);
-        try seqvec.append(self.allocator, try seq.clone(self.allocator));
-        return self.run(seqvec.items, kbounds, only_gene_list, overall_mute_freq, clear_cache);
+        const seqvec = [_]*const Sequence{seq};
+        return self.run(&seqvec, kbounds, only_gene_list, overall_mute_freq, clear_cache);
     }
 
     /// Run the DP over a vector of sequences.
     /// Corresponds to C++ `DPHandler::Run(vector<Sequence>, ...)`.
+    /// `seqvector` is borrowed: each pointed-to Sequence's heap buffers must
+    /// outlive the call; the internal Sequences container holds shallow
+    /// struct-copies that share those buffers (items 2 + 16 of issue #342).
+    /// The container's items are not deinit'd at function end — only the
+    /// backing array allocation is freed.
     pub fn run(
         self: *DPHandler,
-        seqvector: []const Sequence,
+        seqvector: []const *const Sequence,
         kbounds: KBounds,
         only_gene_list: []const []const u8,
         overall_mute_freq: f64,
         clear_cache: bool,
     ) !Result {
-        const allocator = self.allocator;
+        // Per-query scratch arena: every internal allocation routes here.
+        // `parent` is reserved for the returned Result and any RecoEvent
+        // strings the caller will read after run() exits. Item 4, #342.
+        //
+        // `clear_cache` MUST run before any per-call scratch allocations.
+        // `clear()` resets the arena, which would invalidate any seqs /
+        // only_genes / etc. already built off `scratchAllocator()`.
+        if (clear_cache) self.clear();
+        const allocator = self.scratchAllocator();
+        const parent = self.parent_allocator;
         const run_start = std.time.milliTimestamp();
 
+        // Build a Sequences container that borrows from `seqvector`.
+        // Each Sequence is a shallow struct-copy: slice headers are duplicated,
+        // but the underlying name/header/undigitized/seqq buffers are shared
+        // with `seqvector`. We must not deinit the items at end-of-call —
+        // only the backing array allocation is freed.
         var seqs = Sequences.init();
-        defer seqs.deinit(allocator);
-        for (seqvector) |*sq| {
-            try seqs.addSeq(allocator, try sq.clone(allocator));
+        defer seqs.seqs.deinit(allocator);
+        try seqs.seqs.ensureTotalCapacityPrecise(allocator, seqvector.len);
+        for (seqvector) |sq_ptr| {
+            const sq = sq_ptr.*;
+            if (seqs.seqs.items.len == 0) {
+                seqs.sequence_length = sq.size();
+            } else if (sq.size() != seqs.sequence_length) {
+                return error.SequenceLengthMismatch;
+            }
+            seqs.seqs.appendAssumeCapacity(sq);
         }
 
         // Build only_genes map: region → set of gene names
@@ -208,8 +298,6 @@ pub const DPHandler = struct {
             kbounds.vmax <= kbounds.vmin or kbounds.dmax <= kbounds.dmin)
             return error.TrivialKBounds;
 
-        if (clear_cache) self.clear();
-
         var best_scores: std.AutoHashMapUnmanaged(KSet, f64) = .{};
         defer best_scores.deinit(allocator);
         var total_scores: std.AutoHashMapUnmanaged(KSet, f64) = .{};
@@ -231,7 +319,7 @@ pub const DPHandler = struct {
             try self.hmms.rescaleOverallMuteFreqs(&only_genes, overall_mute_freq);
         }
 
-        var result = try Result.init(allocator, kbounds, self.args.locus);
+        var result = try Result.init(parent, kbounds, self.args.locus);
 
         var best_score: f64 = mathutils.NEG_INF;
         var best_kset = KSet{ .v = 0, .d = 0 };
@@ -331,8 +419,14 @@ pub const DPHandler = struct {
 
     /// Get subsequences for one region.
     /// Corresponds to C++ `DPHandler::GetSubSeqs(seqs, kset, region)`.
-    fn getSubSeqs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: Region) !Sequences {
-        const allocator = self.allocator;
+    ///
+    /// `allocator` is taken explicitly so the caller (`runKSet`) can route
+    /// the per-region clones through its per-kset arena rather than the
+    /// per-query arena. The clone strings live only for the region's
+    /// inner loop. (Item 4, #342.)
+    ///
+    /// Free function (no `self` access): nothing here reads DPHandler state.
+    fn getSubSeqs(allocator: std.mem.Allocator, seqs: *const Sequences, kset: KSet, region: Region) !Sequences {
         var result = Sequences.init();
         errdefer result.deinit(allocator);
 
@@ -357,42 +451,39 @@ pub const DPHandler = struct {
         return result;
     }
 
-    /// Collect undigitized strings for the given region's subsequences.
-    fn getQueryStrs(self: *DPHandler, seqs: *const Sequences, kset: KSet, region: Region) !std.ArrayListUnmanaged([]u8) {
-        const allocator = self.allocator;
-        var query_seqs = try self.getSubSeqs(seqs, kset, region);
-        defer query_seqs.deinit(allocator);
-
-        var strs: std.ArrayListUnmanaged([]u8) = .{};
-        errdefer {
-            for (strs.items) |s| allocator.free(s);
-            strs.deinit(allocator);
-        }
-        for (query_seqs.seqs.items) |*sq| {
-            try strs.append(allocator, try allocator.dupe(u8, sq.undigitized));
-        }
-        return strs;
+    /// Borrow the undigitized strings of `seqs` into a freshly-allocated slice
+    /// of `[]const u8` (slice-of-slices, no string copies). The returned slice
+    /// is allocated with `allocator` and must be `free`d by the caller; the
+    /// individual strings borrow into `seqs.seqs.items[i].undigitized` and
+    /// must not outlive `seqs`.
+    fn borrowQueryStrs(allocator: std.mem.Allocator, seqs: *const Sequences) ![][]const u8 {
+        const out = try allocator.alloc([]const u8, seqs.seqs.items.len);
+        for (seqs.seqs.items, 0..) |*sq, i| out[i] = sq.undigitized;
+        return out;
     }
 
     /// Ensure per-gene caches are initialised for `gene`.
-    /// Three separate key copies are needed because each HashMap owns its key independently.
+    /// One duped key is shared across `scratch_cachefo`, `paths`, and `scores`
+    /// (item 5 of #342). All three maps live on `query_arena` and are torn
+    /// down together by `clear()` / `deinit()`, so shared ownership is safe.
+    /// Capacity is reserved up front so the puts cannot fail after the dupe,
+    /// keeping the failure mode obvious if these maps ever move off the arena.
     fn initCache(self: *DPHandler, gene: []const u8) !void {
         if (self.scores.contains(gene)) return;
 
-        const key = try self.allocator.dupe(u8, gene);
-        errdefer self.allocator.free(key);
-        try self.scratch_cachefo.put(self.allocator, key, .{});
+        const allocator = self.scratchAllocator();
+        try self.scratch_cachefo.ensureUnusedCapacity(allocator, 1);
+        try self.paths.ensureUnusedCapacity(allocator, 1);
+        try self.scores.ensureUnusedCapacity(allocator, 1);
 
-        const key2 = try self.allocator.dupe(u8, gene);
-        errdefer self.allocator.free(key2);
-        try self.paths.put(self.allocator, key2, .{});
-
-        const key3 = try self.allocator.dupe(u8, gene);
-        errdefer self.allocator.free(key3);
-        try self.scores.put(self.allocator, key3, .{});
+        const key = try allocator.dupe(u8, gene);
+        self.scratch_cachefo.putAssumeCapacity(key, .{});
+        self.paths.putAssumeCapacity(key, .{});
+        self.scores.putAssumeCapacity(key, .{});
     }
 
-    /// Look for a cached kset whose region sequences are a prefix of `query_strs`.
+    /// Look for a cached kset whose region sequences are a prefix of the
+    /// query's per-region undigitized strings (built via `getSubSeqs`).
     /// Returns null-kset if none found.
     fn findPartialCacheMatch(self: *DPHandler, region: Region, gene: []const u8, kset: KSet) KSet {
         const gene_scores = self.scores.get(gene) orelse return KSet{ .v = 0, .d = 0 };
@@ -431,25 +522,39 @@ pub const DPHandler = struct {
 
     /// Fill the trellis for the given (gene, kset, query_seqs).
     /// Stores result in scores_[gene][kset] and (for viterbi) paths_[gene][kset].
+    /// `query_seqs` is borrowed; its lifetime must span the call. For the
+    /// fresh path (no chunk-cache hit), the trellis is stored in
+    /// `scratch_cachefo[gene]` and a clone of `query_seqs` is heap-allocated
+    /// to give the stored trellis a stable, long-lived borrow target.
+    /// `kset_alloc` is the per-kset arena. Used **only** for the chunk-cache
+    /// temp trellis (its scoring buffers and traceback_table are reset at
+    /// end-of-kset). Everything that lives across ksets — `scratch_cachefo`
+    /// entries, `paths`, `scores` — uses `scratchAllocator()`. The
+    /// traceback path's items are explicitly routed through `scratch` even
+    /// when the temp trellis runs viterbi: they are stored in `self.paths`
+    /// and outlive the kset. (Item 4, #342.)
     fn fillTrellis(
         self: *DPHandler,
+        kset_alloc: std.mem.Allocator,
         kset: KSet,
-        query_seqs: Sequences,
-        query_strs: []const []const u8,
+        query_seqs: *const Sequences,
         gene: []const u8,
     ) ![]const u8 {
-        const allocator = self.allocator;
+        const allocator = self.scratchAllocator();
 
-        // Look for a chunk-cached trellis
+        // Look for a chunk-cached trellis. Prefix-match is on undigitized
+        // strings of the cached trellis's stored query_seqs.
         var cached_trellis: ?*const Trellis = null;
         if (!self.args.no_chunk_cache) {
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
-                for (cache_list.items) |*te| {
-                    if (te.query_strs.items.len != query_strs.len) continue;
+                for (cache_list.items) |te| {
+                    const cached_seqs = te.query_seqs.seqs.items;
+                    const current_seqs = query_seqs.seqs.items;
+                    if (cached_seqs.len != current_seqs.len) continue;
                     var all_match = true;
-                    for (te.query_strs.items, query_strs) |cached, current| {
+                    for (cached_seqs, current_seqs) |*cached, *current| {
                         // cached must START WITH current (prefix match)
-                        if (!std.mem.startsWith(u8, cached, current)) {
+                        if (!std.mem.startsWith(u8, cached.undigitized, current.undigitized)) {
                             all_match = false;
                             break;
                         }
@@ -471,16 +576,6 @@ pub const DPHandler = struct {
         // This is critical: when no cache, do NOT create a second trellis that borrows from
         // the (empty) scratch — the scratch itself is the working trellis.
 
-        // Build the TrellisEntry query strings (needed if storing a new scratch).
-        var qstrs: std.ArrayListUnmanaged([]u8) = .{};
-        defer {
-            for (qstrs.items) |s| allocator.free(s);
-            qstrs.deinit(allocator);
-        }
-        for (query_strs) |s| {
-            try qstrs.append(allocator, try allocator.dupe(u8, s));
-        }
-
         // trell_ptr points to the trellis on which the algorithm is run.
         // tmptrell is only used when borrowing from a cached trellis.
         var tmptrell: ?Trellis = null;
@@ -488,26 +583,44 @@ pub const DPHandler = struct {
 
         var origin: []const u8 = "scratch";
         const trell_ptr: *Trellis = if (cached_trellis == null) blk: {
-            // No cache: create scratch WITHOUT cached_trellis, store it, use it directly.
-            var fresh = try Trellis.initWithSeqs(allocator, model, query_seqs, null);
-            errdefer fresh.deinit();
-            const entry = TrellisEntry{ .query_strs = qstrs, .trellis = fresh };
-            qstrs = .{}; // ownership transferred to entry
-            origin = "scratch";
+            // No cache: heap-allocate a TrellisEntry to give the stored trellis
+            // a stable borrow target. Inline `query_seqs` lives at a fixed offset
+            // from the entry's heap address, so `trellis.seqs = &entry.query_seqs`
+            // stays valid across cache_list appends (which only move the *entry
+            // pointers in the list, not the entries themselves).
+            const entry = try allocator.create(TrellisEntry);
+            errdefer allocator.destroy(entry);
+            entry.query_seqs = try query_seqs.clone(allocator);
+            errdefer entry.query_seqs.deinit(allocator);
+            entry.trellis = try Trellis.initWithSeqs(allocator, model, &entry.query_seqs, null);
+            errdefer entry.trellis.deinit();
+
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 try cache_list.append(allocator, entry);
-                break :blk &cache_list.items[cache_list.items.len - 1].trellis;
+                break :blk &entry.trellis;
             } else {
-                // gene not in scratch_cachefo (shouldn't happen after initCache), discard
-                var e = entry;
-                for (e.query_strs.items) |s| allocator.free(s);
-                e.query_strs.deinit(allocator);
-                e.trellis.deinit();
+                // gene not in scratch_cachefo (shouldn't happen after initCache).
+                // Assert so safe builds (Debug, ReleaseSafe — including the
+                // rung-1 UAF-coverage run) panic loudly; ReleaseFast keeps
+                // the cleanup + error-return path as a defensive fallback.
+                std.debug.assert(false);
+                entry.trellis.deinit();
+                entry.query_seqs.deinit(allocator);
+                allocator.destroy(entry);
                 return error.GeneNotInScratchCache;
             }
         } else blk: {
-            // Have cache: create temp trellis that borrows from the cached scratch.
-            tmptrell = try Trellis.initWithSeqs(allocator, model, query_seqs, cached_trellis);
+            // Have cache: temp trellis borrows from the caller's query_seqs
+            // (no clone — lifetime is just this call). Backed by the per-kset
+            // arena (`kset_alloc`): scoring buffers + traceback_table are
+            // reset at end-of-kset rather than accumulating across ksets in
+            // the per-query arena. Worst case under the per-query arena
+            // would be n_genes × n_ksets × seq_len × n_states × 2 bytes per
+            // viterbi-mode query — hundreds of MB on annotation workloads.
+            // The path items below are explicitly routed through `allocator`
+            // (per-query scratch), not `kset_alloc`, since they're stored in
+            // `self.paths` and outlive the kset. (Item 4, #342.)
+            tmptrell = try Trellis.initWithSeqs(kset_alloc, model, query_seqs, cached_trellis);
             origin = "chunk";
             break :blk &tmptrell.?;
         };
@@ -520,7 +633,9 @@ pub const DPHandler = struct {
             var path = TracebackPath.initWithModel(model);
             errdefer path.deinit(allocator);
             if (sc != mathutils.NEG_INF) {
-                try trell_ptr.traceback(&path);
+                // Explicitly pass `allocator` (per-query scratch) so the path's
+                // items don't capture the temp trellis's per-kset arena.
+                try trell_ptr.traceback(allocator, &path);
             }
             if (self.paths.getPtr(gene)) |gene_paths| {
                 try gene_paths.put(allocator, kset, path);
@@ -546,7 +661,7 @@ pub const DPHandler = struct {
     /// Print colored germline alignment for a gene path (debug==2 viterbi output).
     /// Corresponds to C++ `DPHandler::PrintPath`.
     fn printPath(self: *DPHandler, kset: KSet, query_strs: []const []const u8, gene: []const u8, score: f64, extra_str: []const u8) !void {
-        const allocator = self.allocator;
+        const allocator = self.scratchAllocator();
         if (score == mathutils.NEG_INF) return;
 
         const path_names_list = try self.getPathNames(gene, kset, allocator);
@@ -662,6 +777,18 @@ pub const DPHandler = struct {
     }
 
     /// Run all genes for one kset.
+    ///
+    /// Two arenas are in play here (item 4, #342):
+    ///   - `scratch` (per-query): backs the maps that outlive this kset —
+    ///     `best_scores` / `total_scores` / `best_genes` (passed in, owned
+    ///     by `run()`), the `gene_val` dupe written into `best_genes[kset]`,
+    ///     the cached-path copy stored in `self.paths`, and updates to
+    ///     `self.scores` / `self.per_gene_support`.
+    ///   - `kset_alloc` (per-kset): backs everything that dies at end of
+    ///     this function — `regional_best/total`, `per_gene_support_this_kset`,
+    ///     per-region sub-seq clones, debug-output buffers, sorted-gene
+    ///     slices, and the chunk-cache temp trellis routed through
+    ///     `fillTrellis`. `kset_arena.deinit()` reclaims it all in one shot.
     fn runKSet(
         self: *DPHandler,
         seqs: *Sequences,
@@ -671,12 +798,15 @@ pub const DPHandler = struct {
         total_scores: *std.AutoHashMapUnmanaged(KSet, f64),
         best_genes: *std.AutoHashMapUnmanaged(KSet, std.AutoHashMapUnmanaged(Region, []u8)),
     ) !void {
-        const allocator = self.allocator;
+        const scratch = self.scratchAllocator();
+        var kset_arena = std.heap.ArenaAllocator.init(self.parent_allocator);
+        defer kset_arena.deinit();
+        const allocator = kset_arena.allocator();
 
-        try best_scores.put(allocator, kset, mathutils.NEG_INF);
-        try total_scores.put(allocator, kset, mathutils.NEG_INF);
+        try best_scores.put(scratch, kset, mathutils.NEG_INF);
+        try total_scores.put(scratch, kset, mathutils.NEG_INF);
         const bg_entry: std.AutoHashMapUnmanaged(Region, []u8) = .{};
-        try best_genes.put(allocator, kset, bg_entry);
+        try best_genes.put(scratch, kset, bg_entry);
 
         // Debug: kset header
         if (self.args.debug == 2) {
@@ -695,25 +825,30 @@ pub const DPHandler = struct {
         defer regional_best.deinit(allocator);
         var regional_total: std.AutoHashMapUnmanaged(Region, f64) = .{};
         defer regional_total.deinit(allocator);
+        // per_gene_support_this_kset borrows its keys from `only_genes`'s
+        // arena-duped strings (item 22 of #342). `only_genes`'s key bytes
+        // live on the per-query arena (`scratchAllocator()`); they outlive
+        // any single `runKSet` call (per-kset arena dies first), and in
+        // fact persist until the next `clear()` resets the arena.
         var per_gene_support_this_kset: std.StringHashMapUnmanaged(f64) = .{};
-        defer {
-            var it = per_gene_support_this_kset.iterator();
-            while (it.next()) |e| allocator.free(e.key_ptr.*);
-            per_gene_support_this_kset.deinit(allocator);
-        }
+        defer per_gene_support_this_kset.deinit(allocator);
 
         for (bcr.germ_lines.regions) |region| {
             try regional_best.put(allocator, region, mathutils.NEG_INF);
             try regional_total.put(allocator, region, mathutils.NEG_INF);
 
-            var query_strs = try self.getQueryStrs(seqs, kset, region);
-            defer {
-                for (query_strs.items) |s| allocator.free(s);
-                query_strs.deinit(allocator);
-            }
-
-            var query_seqs = try self.getSubSeqs(seqs, kset, region);
+            var query_seqs = try getSubSeqs(allocator, seqs, kset, region);
             defer query_seqs.deinit(allocator);
+
+            // Borrow the undigitized strings (slice headers only — no string copies).
+            // Only the args.debug == 2 paths consume this slice (the region-display
+            // block below and printPath); skip the allocation otherwise.
+            // Lifetime is bounded by query_seqs above.
+            const query_strs: [][]const u8 = if (self.args.debug == 2)
+                try borrowQueryStrs(allocator, &query_seqs)
+            else
+                &.{};
+            defer if (self.args.debug == 2) allocator.free(query_strs);
 
             // Debug: region query display
             if (self.args.debug == 2) {
@@ -722,24 +857,20 @@ pub const DPHandler = struct {
                     // Get ambiguous char from args (matches C++ hmms_.track()->ambiguous_char())
                     const ambig = self.args.ambig_base;
                     const ambig_ch: u8 = if (ambig.len > 0) ambig[0] else 0;
-                    if (query_strs.items.len > 0) {
+                    if (query_strs.len > 0) {
                         const colored = if (ambig_ch != 0)
-                            try TermColors.colorChars(allocator, ambig_ch, "light_blue", query_strs.items[0])
+                            try TermColors.colorChars(allocator, ambig_ch, "light_blue", query_strs[0])
                         else
-                            try allocator.dupe(u8, query_strs.items[0]);
+                            try allocator.dupe(u8, query_strs[0]);
                         defer allocator.free(colored);
                         const line = try std.fmt.allocPrint(allocator, "                {s} query {s}\n", .{ rs, colored });
                         defer allocator.free(line);
                         try std.fs.File.stdout().writeAll(line);
                     }
                     // Additional query strings colored as mutants relative to first
-                    if (query_strs.items.len > 1) {
-                        // Build const slice for colorMutants
-                        const const_strs = try allocator.alloc([]const u8, query_strs.items.len);
-                        defer allocator.free(const_strs);
-                        for (query_strs.items, 0..) |s, i| const_strs[i] = s;
-                        for (query_strs.items[1..]) |qs| {
-                            const mutant = try TermColors.colorMutants(allocator, "purple", qs, "", const_strs, ambig);
+                    if (query_strs.len > 1) {
+                        for (query_strs[1..]) |qs| {
+                            const mutant = try TermColors.colorMutants(allocator, "purple", qs, "", query_strs, ambig);
                             defer allocator.free(mutant);
                             const colored2 = if (ambig_ch != 0)
                                 try TermColors.colorChars(allocator, ambig_ch, "light_blue", mutant)
@@ -778,35 +909,33 @@ pub const DPHandler = struct {
                 var origin: []const u8 = "";
                 const partial_match = self.findPartialCacheMatch(region, gene, kset);
                 if (!partial_match.isNull()) {
-                    // Copy path and score from cached kset
+                    // Copy path and score from cached kset. Both go into
+                    // `self.paths` / `self.scores`, which outlive the kset
+                    // — route through `scratch`, not `allocator`.
                     if (self.paths.getPtr(gene)) |gp| {
                         if (gp.get(partial_match)) |cached_path| {
                             var path_copy = TracebackPath.init();
-                            errdefer path_copy.deinit(allocator);
-                            try path_copy.path.appendSlice(allocator, cached_path.path.items);
+                            errdefer path_copy.deinit(scratch);
+                            try path_copy.path.appendSlice(scratch, cached_path.path.items);
                             path_copy.setScore(cached_path.score);
                             path_copy.setModel(cached_path.hmm.?);
-                            try gp.put(allocator, kset, path_copy);
+                            try gp.put(scratch, kset, path_copy);
                         }
                     }
                     if (self.scores.getPtr(gene)) |gs| {
                         const cached_score = gs.get(partial_match) orelse mathutils.NEG_INF;
-                        try gs.put(allocator, kset, cached_score);
+                        try gs.put(scratch, kset, cached_score);
                     }
                     origin = "cached";
                 } else {
-                    origin = try self.fillTrellis(kset, query_seqs, query_strs.items, gene);
+                    origin = try self.fillTrellis(allocator, kset, &query_seqs, gene);
                 }
 
                 const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(kset) orelse mathutils.NEG_INF else mathutils.NEG_INF;
 
                 // Debug: per-gene viterbi output
                 if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "viterbi")) {
-                    // Build const slice for printPath
-                    const const_strs = try allocator.alloc([]const u8, query_strs.items.len);
-                    defer allocator.free(const_strs);
-                    for (query_strs.items, 0..) |s, i| const_strs[i] = s;
-                    try self.printPath(kset, const_strs, gene, gene_score, origin);
+                    try self.printPath(kset, query_strs, gene, gene_score, origin);
                 }
 
                 // Update regional totals
@@ -824,24 +953,27 @@ pub const DPHandler = struct {
                     try std.fs.File.stdout().writeAll(fwd_line);
                 }
 
-                // Update regional best + best_genes for this kset
+                // Update regional best + best_genes for this kset.
+                // `regional_best` is kset-local but `best_genes` is owned by
+                // `run()` and read in `fillRecoEvent` after this kset
+                // returns — its `gene_val` dupe must live on `scratch`,
+                // not the per-kset arena.
                 const reg_best = regional_best.get(region) orelse mathutils.NEG_INF;
                 if (gene_score > reg_best) {
                     if (regional_best.getPtr(region)) |rb| rb.* = gene_score;
                     if (best_genes.getPtr(kset)) |bg_map| {
-                        const gene_val = try allocator.dupe(u8, gene);
-                        errdefer allocator.free(gene_val);
+                        const gene_val = try scratch.dupe(u8, gene);
+                        errdefer scratch.free(gene_val);
                         if (bg_map.fetchRemove(region)) |old| {
-                            allocator.free(old.value);
+                            scratch.free(old.value);
                         }
-                        try bg_map.put(allocator, region, gene_val);
+                        try bg_map.put(scratch, region, gene_val);
                     }
                 }
 
-                // per_gene_support for this kset
-                const pg_key = try allocator.dupe(u8, gene);
-                errdefer allocator.free(pg_key);
-                try per_gene_support_this_kset.put(allocator, pg_key, gene_score);
+                // per_gene_support for this kset. `gene` is borrowed from
+                // `only_genes` (see map declaration above for lifetime).
+                try per_gene_support_this_kset.put(allocator, gene, gene_score);
             }
 
             // If no gene found for this region, return early
@@ -865,8 +997,8 @@ pub const DPHandler = struct {
         const rt_d = regional_total.get(.d) orelse mathutils.NEG_INF;
         const rt_j = regional_total.get(.j) orelse mathutils.NEG_INF;
 
-        try best_scores.put(allocator, kset, mathutils.addWithMinusInfinities(rb_v, mathutils.addWithMinusInfinities(rb_d, rb_j)));
-        try total_scores.put(allocator, kset, mathutils.addWithMinusInfinities(rt_v, mathutils.addWithMinusInfinities(rt_d, rt_j)));
+        try best_scores.put(scratch, kset, mathutils.addWithMinusInfinities(rb_v, mathutils.addWithMinusInfinities(rb_d, rb_j)));
+        try total_scores.put(scratch, kset, mathutils.addWithMinusInfinities(rt_v, mathutils.addWithMinusInfinities(rt_d, rt_j)));
 
         // Compute per_gene_support across ksets
         for (bcr.germ_lines.regions) |region| {
@@ -899,9 +1031,9 @@ pub const DPHandler = struct {
                     if (self.per_gene_support.contains(gene)) {
                         self.per_gene_support.getPtr(gene).?.* = score_this_kset;
                     } else {
-                        const pg_key = try self.allocator.dupe(u8, gene);
-                        errdefer self.allocator.free(pg_key);
-                        try self.per_gene_support.put(self.allocator, pg_key, score_this_kset);
+                        const pg_key = try scratch.dupe(u8, gene);
+                        errdefer scratch.free(pg_key);
+                        try self.per_gene_support.put(scratch, pg_key, score_this_kset);
                     }
                 }
             }
@@ -909,6 +1041,13 @@ pub const DPHandler = struct {
     }
 
     /// Build a RecoEvent for the given kset and best gene assignments.
+    ///
+    /// The returned `RecoEvent` is pushed into `Result.events` (and possibly
+    /// `Result.best_event`), which is handed back to the caller of `run()`.
+    /// All allocations that end up owned by the event (gene names,
+    /// deletion keys, insertion seqs, naive_seq) therefore route through
+    /// `parent_allocator`. Transient workspace (path_names_list, del_3p/
+    /// del_5p format strings) uses `scratchAllocator()`. (Item 4, #342.)
     fn fillRecoEvent(
         self: *DPHandler,
         seqs: *Sequences,
@@ -916,9 +1055,10 @@ pub const DPHandler = struct {
         best_genes_for_kset: *const std.AutoHashMapUnmanaged(Region, []u8),
         score: f64,
     ) !RecoEvent {
-        const allocator = self.allocator;
-        var event = try RecoEvent.init(allocator);
-        errdefer event.deinit(allocator);
+        const parent = self.parent_allocator;
+        const scratch = self.scratchAllocator();
+        var event = try RecoEvent.init(parent);
+        errdefer event.deinit(parent);
 
         for (bcr.germ_lines.regions) |region| {
             const rs = regionStr(region);
@@ -927,22 +1067,20 @@ pub const DPHandler = struct {
                 return event;
             };
 
-            var query_strs = try self.getQueryStrs(seqs, kset, region);
-            defer {
-                for (query_strs.items) |s| allocator.free(s);
-                query_strs.deinit(allocator);
-            }
-            if (query_strs.items.len == 0) {
+            // The original C++ path called GetQueryStrs and checked items.len > 0;
+            // in practice that's always equal to seqs.nSeqs(), so check directly
+            // and skip the unused string list.
+            if (seqs.nSeqs() == 0) {
                 event.setScore(mathutils.NEG_INF);
                 return event;
             }
 
-            // Get traceback path names
-            const path_names_list = try self.getPathNames(gene, kset, allocator);
+            // Get traceback path names — transient workspace, scratch alloc.
+            const path_names_list = try self.getPathNames(gene, kset, scratch);
             defer {
-                for (path_names_list.items) |s| allocator.free(s);
+                for (path_names_list.items) |s| scratch.free(s);
                 var pl = path_names_list;
-                pl.deinit(allocator);
+                pl.deinit(scratch);
             }
 
             if (path_names_list.items.len == 0) {
@@ -950,18 +1088,18 @@ pub const DPHandler = struct {
                 return event;
             }
 
-            try event.setGene(allocator, rs, gene);
-            const del_3p = try std.fmt.allocPrint(allocator, "{s}_3p", .{rs});
-            defer allocator.free(del_3p);
-            const del_5p = try std.fmt.allocPrint(allocator, "{s}_5p", .{rs});
-            defer allocator.free(del_5p);
-            try event.setDeletion(allocator, del_3p, self.getErosionLength("right", path_names_list.items, gene));
-            try event.setDeletion(allocator, del_5p, self.getErosionLength("left", path_names_list.items, gene));
+            try event.setGene(parent, rs, gene);
+            const del_3p = try std.fmt.allocPrint(scratch, "{s}_3p", .{rs});
+            defer scratch.free(del_3p);
+            const del_5p = try std.fmt.allocPrint(scratch, "{s}_5p", .{rs});
+            defer scratch.free(del_5p);
+            try event.setDeletion(parent, del_3p, self.getErosionLength("right", path_names_list.items, gene));
+            try event.setDeletion(parent, del_5p, self.getErosionLength("left", path_names_list.items, gene));
             try self.setInsertions(region, path_names_list.items, &event);
         }
 
         event.setScore(score);
-        try event.setNaiveSeq(allocator, self.gl);
+        try event.setNaiveSeq(parent, self.gl);
         return event;
     }
 
@@ -980,7 +1118,9 @@ pub const DPHandler = struct {
     /// Set insertions on `event` based on path state names for `region`.
     /// Corresponds to C++ `DPHandler::SetInsertions`.
     fn setInsertions(self: *DPHandler, region: Region, path_names: []const []const u8, event: *RecoEvent) !void {
-        const allocator = self.allocator;
+        // Insertion seqs are dupe'd onto the event, which lives in
+        // Result returned to the caller — parent_allocator. (Item 4, #342.)
+        const allocator = self.parent_allocator;
         const ins = Insertions{};
         for (ins.forRegion(region)) |insertion| {
             const side: []const u8 = if (std.mem.eql(u8, insertion, "jf")) "right" else "left";
@@ -1078,20 +1218,32 @@ pub const DPHandler = struct {
     pub fn handleFishyAnnotations(
         self: *DPHandler,
         multi_seq_result: *Result,
-        qry_seqs: []const Sequence,
+        qry_seqs: []const *const Sequence,
         kbounds: KBounds,
         only_gene_list: []const []const u8,
         overall_mute_freq: f64,
     ) !void {
-        const allocator = self.allocator;
+        // `multi_seq_result` was built by an earlier `run()` call with
+        // `parent_allocator`; mutating its `best_event` here must use the
+        // same allocator so the existing entries' frees match. (Item 4, #342.)
+        //
+        // `naive_seq` MUST also use `parent_allocator`, NOT scratch: the
+        // inner `self.run(... clear_cache=true)` call on the line below
+        // calls `self.clear()` as its first action, which resets the
+        // per-query arena. Any naive_seq buffers (`name`/`header`/
+        // `undigitized`/`seqq`) allocated on scratch would be reclaimed
+        // before the inner DP loop reads `seqq[i]` in `emissionLogprobSeqs`,
+        // producing a use-after-reset. The fix is to keep naive_seq's
+        // backing on the caller's long-lived allocator.
+        const parent = self.parent_allocator;
         const best_ev = multi_seq_result.best_event orelse return;
 
         // Create naive sequence (use first query's track)
         const first_track = qry_seqs[0].track orelse return;
-        var naive_seq = try Sequence.initFromString(allocator, first_track, "naive-seq", best_ev.naive_seq);
-        defer naive_seq.deinit(allocator);
+        var naive_seq = try Sequence.initFromString(parent, first_track, "naive-seq", best_ev.naive_seq);
+        defer naive_seq.deinit(parent);
 
-        const naive_seqs = [_]Sequence{naive_seq};
+        const naive_seqs = [_]*const Sequence{&naive_seq};
         var naive_result = try self.run(&naive_seqs, kbounds, only_gene_list, overall_mute_freq, true);
         defer naive_result.deinit();
 
@@ -1100,17 +1252,17 @@ pub const DPHandler = struct {
             for (bcr.germ_lines.regions) |region| {
                 const rs = regionStr(region);
                 const ng = naive_ev.genes.get(rs) orelse continue;
-                try me.setGene(allocator, rs, ng);
+                try me.setGene(parent, rs, ng);
             }
             const all_dels = [_][]const u8{ "v_5p", "v_3p", "d_5p", "d_3p", "j_5p", "j_3p" };
             for (all_dels) |delname| {
                 const nd = naive_ev.deletions.get(delname) orelse 0;
-                try me.setDeletion(allocator, delname, nd);
+                try me.setDeletion(parent, delname, nd);
             }
             const all_ins = [_][]const u8{ "fv", "vd", "dj", "jf" };
             for (all_ins) |ins_name| {
                 const ni = naive_ev.insertions.get(ins_name) orelse "";
-                try me.setInsertion(allocator, ins_name, ni);
+                try me.setInsertion(parent, ins_name, ni);
             }
         }
     }

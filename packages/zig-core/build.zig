@@ -96,7 +96,13 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    // Link libc + glibc_math shim so tests that exercise mathutils.log/exp
+    // resolve `glibc_log` / `glibc_exp`. Without these, unit tests linking
+    // anything that uses the math hot path fail with "undefined symbol:
+    // glibc_log". Symmetric with the `exe` setup above.
+    ham_test_mod.linkSystemLibrary("c", .{});
     const unit_tests = b.addTest(.{ .root_module = ham_test_mod });
+    unit_tests.addCSourceFile(.{ .file = b.path("src/ham/glibc_math.c"), .flags = &.{ "-O2", "-fno-builtin" } });
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
