@@ -598,7 +598,11 @@ pub const DPHandler = struct {
                 try cache_list.append(allocator, entry);
                 break :blk &entry.trellis;
             } else {
-                // gene not in scratch_cachefo (shouldn't happen after initCache), discard
+                // gene not in scratch_cachefo (shouldn't happen after initCache).
+                // Assert so safe builds (Debug, ReleaseSafe — including the
+                // rung-1 UAF-coverage run) panic loudly; ReleaseFast keeps
+                // the cleanup + error-return path as a defensive fallback.
+                std.debug.assert(false);
                 entry.trellis.deinit();
                 entry.query_seqs.deinit(allocator);
                 allocator.destroy(entry);
