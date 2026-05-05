@@ -15,7 +15,11 @@ from . import treeutils
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):
     """ Container to hold the information for a single recombination event. """
+    _event_counter = 0  # class-level counter to guarantee unique UIDs across events within a process
+
     def __init__(self, glfo):
+        RecombinationEvent._event_counter += 1
+        self._event_id = RecombinationEvent._event_counter
         self.glfo = glfo
         self.vdj_combo_label = ()  # A tuple with the names of the chosen versions (v_gene, d_gene, j_gene, cdr3_length, <erosion lengths>)
                                    # NOTE I leave the lengths in here as strings
@@ -95,7 +99,7 @@ class RecombinationEvent(object):
     # ----------------------------------------------------------------------------------------
     def set_reco_id(self, line, irandom=None):
         reco_id_columns = [r + '_gene' for r in utils.regions] + [b + '_insertion' for b in utils.boundaries] + [e + '_del' for e in utils.all_erosions]
-        reco_id_str = ''.join([str(line[c]) for c in reco_id_columns]) + self.randstr(irandom)  # NOTE this used to give the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event (until we added the randstr() call)
+        reco_id_str = ''.join([str(line[c]) for c in reco_id_columns]) + self.randstr(irandom) + str(self._event_id)  # NOTE this used to give the same reco id for the same rearrangement parameters, even if they come from a separate rearrangement event (until we added the randstr() call)
         line['reco_id'] = utils.uidhashstr(reco_id_str, max_len=20)
         return reco_id_str
 
@@ -103,7 +107,7 @@ class RecombinationEvent(object):
     def set_unique_ids(self, line, reco_id_str, irandom=None):
         unique_id_columns = ['seqs', 'input_seqs']
         uidstrs = [''.join([str(line[c][iseq]) for c in unique_id_columns]) for iseq in range(len(line['input_seqs']))]
-        uidstrs = [reco_id_str + uidstrs[iseq] + self.randstr(irandom) + str(iseq) for iseq in range(len(uidstrs))]  # NOTE i'm not sure I really like having the str(iseq), but it mimics the way things used to be by accident/bug (i.e. identical sequences in the same simulated rearrangement event get different uids), so I'm leaving it in for the moment to ease transition after a rewrite
+        uidstrs = [reco_id_str + uidstrs[iseq] + self.randstr(irandom) + str(self._event_id) + str(iseq) for iseq in range(len(uidstrs))]  # NOTE i'm not sure I really like having the str(iseq), but it mimics the way things used to be by accident/bug (i.e. identical sequences in the same simulated rearrangement event get different uids), so I'm leaving it in for the moment to ease transition after a rewrite
         line['unique_ids'] = [utils.uidhashstr(ustr, max_len=20) for ustr in uidstrs]
 
     # ----------------------------------------------------------------------------------------
