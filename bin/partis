@@ -275,7 +275,8 @@ def run_simulation(args):
 
     n_per_proc_list, work_fnames = [], []
     if args.n_procs == 1:
-        make_events(args.n_sim_events, args.workdir, args.outfname, [random.randint(0, numpy.iinfo(numpy.int32).max) for _ in range(args.n_sim_events)], heavy_chain_events=heavy_chain_events)
+        retry_gap = 20000  # must exceed max retry count in recombinator.combine() (currently 10000) so per-event retry seeds don't overlap with the next event's range
+        make_events(args.n_sim_events, args.workdir, args.outfname, [args.random_seed * retry_gap * args.n_sim_events + ievt * retry_gap for ievt in range(args.n_sim_events)], heavy_chain_events=heavy_chain_events)
     else:
         cmdfos = run_sub_cmds(working_gldir)
 
