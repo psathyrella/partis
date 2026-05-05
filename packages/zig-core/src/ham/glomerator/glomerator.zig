@@ -1172,6 +1172,11 @@ pub const Glomerator = struct {
             key_seq_ptrs.appendAssumeCapacity(sq_ptr);
             n_names += 1;
         }
+        // Defensive: an all-colon `queries` would yield no non-empty parts and
+        // would otherwise produce NaN from the mute_freq division below. Real
+        // cluster keys derive from non-empty UIDs, so this is not reachable on
+        // valid input — but the explicit error is cheaper than tracing NaN.
+        if (n_names == 0) return error.MissingSeqCache;
 
         var only_genes_list: std.ArrayListUnmanaged([]const u8) = .{};
         defer only_genes_list.deinit(self.allocator);
