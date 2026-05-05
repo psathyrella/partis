@@ -37,8 +37,8 @@ pub const Trellis = struct {
     /// as a single contiguous allocation for locality and one alloc/free per
     /// Trellis instead of seq_len + 1.
     /// Empty (`&.{}`) until `viterbi()` allocates it; `forward()` never touches
-    /// this field. Read via `tracebackAt` / `cachedTracebackAt`; written via
-    /// `tracebackSet`.
+    /// this field. Read via `pickTracebackView` (returns a `TracebackView` with
+    /// the slice and stride); written via `tracebackSet`.
     traceback_table: []i16,
     /// State width of `traceback_table`. Captured at allocation time and equal
     /// to `hmm.nStates()` for the trellis's lifetime. Stored explicitly so a
@@ -86,7 +86,7 @@ pub const Trellis = struct {
         const n = hmm.nStates();
         // Stale-cache guard: a chunk-borrowing trellis must be built against
         // the same model as its cached source, otherwise its scalar reads from
-        // `cached.traceback_table` (via `cachedTracebackAt`) would index with
+        // `cached.traceback_table` (via `pickTracebackView`) would index with
         // the wrong stride. The cached trellis can have an empty traceback
         // table (forward-only), so guard only when it has one.
         if (cached) |ct| {
