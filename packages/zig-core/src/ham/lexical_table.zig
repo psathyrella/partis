@@ -19,10 +19,13 @@ pub const LexicalTable = struct {
     /// Pointer to the track (not owned; must outlive this LexicalTable).
     track: ?*const Track,
     /// Log-probabilities for each symbol in the track's alphabet.
-    /// Owned by this struct when set via setLogProbs / replaceLogProbs.
+    /// Owned by this struct, allocated by setLogProbs and reused thereafter.
     log_probs: []f64,
-    /// Saved copy of log_probs before a ReplaceLogProbs call (for UnReplaceLogProbs).
-    /// Empty slice means no replacement is active.
+    /// Saved copy of log_probs from the last replaceLogProbs call. Sized
+    /// the same as log_probs and allocated together by setLogProbs (item 15
+    /// of #342). Treated as a scratch buffer: replace/unReplace @memcpy
+    /// rather than realloc, so per-query rescale/un-rescale cycles do not
+    /// hit the allocator (~50k calls per 5k-seq run).
     original_log_probs: []f64,
 
     /// Create an empty LexicalTable with no track.
@@ -46,25 +49,28 @@ pub const LexicalTable = struct {
         if (self.original_log_probs.len > 0) allocator.free(self.original_log_probs);
     }
 
-    /// Set (replace) log_probs from a slice, taking a copy.
+    /// Set (replace) log_probs from a slice, taking a copy. Also (re)allocates
+    /// the `original_log_probs` scratch buffer to the same size, so subsequent
+    /// replace/unReplace calls can @memcpy without hitting the allocator.
     /// Corresponds to C++ `LexicalTable::SetLogProbs(vector<double>)`.
     pub fn setLogProbs(self: *LexicalTable, allocator: std.mem.Allocator, logprobs: []const f64) !void {
         if (self.log_probs.len > 0) allocator.free(self.log_probs);
+        if (self.original_log_probs.len > 0) allocator.free(self.original_log_probs);
         self.log_probs = try allocator.dupe(f64, logprobs);
+        self.original_log_probs = try allocator.alloc(f64, logprobs.len);
     }
 
     /// Replace log_probs with new values, saving the originals for unReplaceLogProbs.
     /// Asserts that sizes match. Checks that exp(new probs) sum to ~1.0 within EPS.
     /// Corresponds to C++ `LexicalTable::ReplaceLogProbs(vector<double>)`.
+    /// `allocator` is unused now that the scratch buffer is allocated up front
+    /// in setLogProbs (item 15 of #342); kept for API symmetry with setLogProbs.
     pub fn replaceLogProbs(self: *LexicalTable, allocator: std.mem.Allocator, new_log_probs: []const f64) !void {
+        _ = allocator;
         std.debug.assert(self.log_probs.len == new_log_probs.len);
-        // Save originals
-        if (self.original_log_probs.len > 0) allocator.free(self.original_log_probs);
-        self.original_log_probs = try allocator.dupe(f64, self.log_probs);
-        // Install new probs
-        allocator.free(self.log_probs);
-        self.log_probs = try allocator.dupe(f64, new_log_probs);
-        // Normalization check
+        std.debug.assert(self.original_log_probs.len == new_log_probs.len);
+        @memcpy(self.original_log_probs, self.log_probs);
+        @memcpy(self.log_probs, new_log_probs);
         var total: f64 = 0.0;
         for (self.log_probs) |lp| total += @exp(lp);
         if (@abs(total - 1.0) >= EPS) {
@@ -74,11 +80,12 @@ pub const LexicalTable = struct {
 
     /// Revert log_probs to the values saved by replaceLogProbs.
     /// Corresponds to C++ `LexicalTable::UnReplaceLogProbs()`.
+    /// `allocator` is unused now that the scratch buffer is allocated up front
+    /// in setLogProbs (item 15 of #342); kept for API symmetry with setLogProbs.
     pub fn unReplaceLogProbs(self: *LexicalTable, allocator: std.mem.Allocator) void {
+        _ = allocator;
         std.debug.assert(self.original_log_probs.len == self.log_probs.len);
-        allocator.free(self.log_probs);
-        self.log_probs = self.original_log_probs;
-        self.original_log_probs = &[_]f64{};
+        @memcpy(self.log_probs, self.original_log_probs);
     }
 
     /// Return the log-probability for a digitized symbol index.
