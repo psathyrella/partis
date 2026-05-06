@@ -68,6 +68,10 @@ pub fn addInLogSpace(first: f64, second: f64) f64 {
     perf_counters.bumpAddInLogSpace();
     if (first == NEG_INF) return second;
     if (second == NEG_INF) return first;
+    // Past both early-outs: this call does exactly 1 log + 1 exp. Bump
+    // the work counter separately so item-3.2 cost predictions can be
+    // priced against actual transcendental work, not call rate.
+    perf_counters.bumpAddInLogSpaceLogExp();
     if (first > second) {
         return first + log(1.0 + exp(second - first));
     } else {

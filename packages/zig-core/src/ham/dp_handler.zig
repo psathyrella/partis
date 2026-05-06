@@ -448,22 +448,6 @@ pub const DPHandler = struct {
         const name_str = try seqs.nameStr(allocator, ":");
         defer allocator.free(name_str);
 
-        // O_APPEND so concurrent bcrham processes (partis runs n-procs in
-        // parallel) writing to the same log file don't clobber each other.
-        // Linux guarantees atomic appends for writes <= PIPE_BUF (4 KiB);
-        // each PERFCOUNTER line stays well under that limit.
-        const log_path_z = try allocator.dupeZ(u8, log_path);
-        defer allocator.free(log_path_z);
-        const flags: std.posix.O = .{ .ACCMODE = .WRONLY, .APPEND = true, .CREAT = true };
-        const fd = try std.posix.openZ(log_path_z, flags, 0o644);
-        const file = std.fs.File{ .handle = fd };
-        defer file.close();
-
-        if (try perf_counters.formatPerfCounters(allocator, self.algorithm, name_str, seqs.seqs.items.len)) |line| {
-            defer allocator.free(line);
-            try file.writeAll(line);
-        }
-
         // cache_list length histogram across all genes in scratch_cachefo.
         // Buckets are log-ish (0,1,2,3,4,5,[6-9],[10-19],[20-49],[50-99],
         // [100-199],[200+]) — matches the order-of-magnitude questions the
@@ -476,13 +460,37 @@ pub const DPHandler = struct {
                 if (n == 0) 0 else if (n == 1) 1 else if (n == 2) 2 else if (n == 3) 3 else if (n == 4) 4 else if (n == 5) 5 else if (n < 10) 6 else if (n < 20) 7 else if (n < 50) 8 else if (n < 100) 9 else if (n < 200) 10 else 11;
             buckets[idx] += 1;
         }
+
+        // Build the PERFCOUNTER + PERFCOUNTER_CACHE block in one buffer
+        // and emit with a single writeAll. With multiple bcrham processes
+        // appending to the same log (`partis --n-procs N > 1`), splitting
+        // this into two writes would let another process slip a line
+        // between ours, separating the pair. Concatenated, the two lines
+        // share one O_APPEND atomic write.
+        const main_line = (try perf_counters.formatPerfCounters(allocator, self.algorithm, name_str, seqs.seqs.items.len)) orelse return;
+        defer allocator.free(main_line);
         const cache_line = try std.fmt.allocPrint(
             allocator,
             "PERFCOUNTER_CACHE alg={s} q={s} 0={d} 1={d} 2={d} 3={d} 4={d} 5={d} 6_9={d} 10_19={d} 20_49={d} 50_99={d} 100_199={d} 200p={d}\n",
             .{ self.algorithm, name_str, buckets[0], buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7], buckets[8], buckets[9], buckets[10], buckets[11] },
         );
         defer allocator.free(cache_line);
-        try file.writeAll(cache_line);
+        const blob = try std.mem.concat(allocator, u8, &.{ main_line, cache_line });
+        defer allocator.free(blob);
+
+        // O_APPEND on regular files: Linux serializes the
+        // seek-to-end-and-write pair at the syscall level, so each
+        // writeAll lands as one atomic append regardless of size — there
+        // is no PIPE_BUF-style upper bound for regular files. (PIPE_BUF
+        // applies to pipes, not files.) Concurrent bcrham processes
+        // therefore can't interleave the bytes of a single writeAll.
+        const log_path_z = try allocator.dupeZ(u8, log_path);
+        defer allocator.free(log_path_z);
+        const flags: std.posix.O = .{ .ACCMODE = .WRONLY, .APPEND = true, .CREAT = true };
+        const fd = try std.posix.openZ(log_path_z, flags, 0o644);
+        const file = std.fs.File{ .handle = fd };
+        defer file.close();
+        try file.writeAll(blob);
     }
 
     /// Get subsequences for one region.
@@ -615,7 +623,7 @@ pub const DPHandler = struct {
         // strings of the cached trellis's stored query_seqs.
         var cached_trellis: ?*const Trellis = null;
         if (!self.args.no_chunk_cache) {
-            perf_counters.bumpChunkCacheEntry();
+            perf_counters.bumpChunkCacheLookup();
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 for (cache_list.items) |te| {
                     const cached_seqs = te.query_seqs.seqs.items;

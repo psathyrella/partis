@@ -8,17 +8,36 @@
 ///
 /// Counters cover the metrics requested in #366 phase 0.1 / 0.2:
 ///
-///   - addInLogSpace_calls       — `mathutils.zig:addInLogSpace`
-///   - fillTrellis_calls         — `dp_handler.zig:fillTrellis` entry
-///   - n_ksets                   — `dp_handler.zig:run` kset loop
-///   - chunk_cache_entries/hits  — `dp_handler.zig:fillTrellis` cache branch
-///   - active_state_hist[count]  — `trellis.zig` middleViterbiVals/middleForwardVals
+///   - addInLogSpace_calls          — `mathutils.zig:addInLogSpace` entry
+///   - addInLogSpace_log_exp_calls  — calls past both NEG_INF early-outs
+///                                    (each = 1 log + 1 exp of work)
+///   - fillTrellis_calls            — `dp_handler.zig:fillTrellis` entry
+///   - n_ksets                      — `dp_handler.zig:run` kset loop
+///   - chunk_cache_lookups/hits     — `dp_handler.zig:fillTrellis` cache
+///                                    branch entry / prefix-match success
+///   - active_state_hist[count]     — `trellis.zig` middleViterbiVals/
+///                                    middleForwardVals
+///
+/// The `_calls` vs `_log_exp_calls` split for `addInLogSpace` matters for
+/// item-3.2 costing: at function entry the call may still hit a cheap
+/// `NEG_INF` short-circuit and do zero transcendental work. The first
+/// counter is the call rate; the second is the rate of work that an
+/// item-3.2 log/exp approximation would actually replace.
 ///
 /// State is process-global and reset at start of each `DPHandler.run()`.
-/// `formatPerfCounters` returns one structured PERFCOUNTER line per query;
-/// caller writes to stdout. Single-threaded by design (issue says
-/// `--n-procs 1`), so no atomics needed.
-
+/// `formatPerfCounters` returns one heap-allocated PERFCOUNTER line per
+/// query; caller writes it to the destination it picks (current dump site
+/// is the file at `PARTIS_ZIG_PERF_LOG`, opened O_APPEND to keep parallel
+/// bcrham processes non-clobbering — see `dp_handler.zig:dumpPerfCounters`).
+///
+/// SAFETY: the counters below are plain `pub var` globals, NOT atomics.
+/// Every caller must run single-threaded within a process. bcrham is
+/// single-threaded by design (#342 item 1 investigated and rejected
+/// `smp_allocator`); cross-process parallelism via `partis --n-procs N`
+/// runs each bcrham in its own address space, so the globals stay
+/// per-process. If a future caller introduces threading inside a single
+/// bcrham process, this module must grow atomic counters or per-thread
+/// shadow state.
 const std = @import("std");
 const build_options = @import("build_options");
 
@@ -29,18 +48,20 @@ pub const enabled: bool = build_options.perf_counters;
 const HIST_LEN: usize = 501;
 
 pub var addInLogSpace_calls: u64 = 0;
+pub var addInLogSpace_log_exp_calls: u64 = 0;
 pub var fillTrellis_calls: u64 = 0;
 pub var n_ksets: u64 = 0;
-pub var chunk_cache_entries: u64 = 0;
+pub var chunk_cache_lookups: u64 = 0;
 pub var chunk_cache_hits: u64 = 0;
 pub var active_state_hist: [HIST_LEN]u64 = [_]u64{0} ** HIST_LEN;
 
 pub fn reset() void {
     if (!enabled) return;
     addInLogSpace_calls = 0;
+    addInLogSpace_log_exp_calls = 0;
     fillTrellis_calls = 0;
     n_ksets = 0;
-    chunk_cache_entries = 0;
+    chunk_cache_lookups = 0;
     chunk_cache_hits = 0;
     // NB: explicit loop instead of `@memset(&active_state_hist, 0)` —
     // Zig 0.15.2 hits an x86_64 codegen bug ("no encoding found for:
@@ -55,6 +76,10 @@ pub inline fn bumpAddInLogSpace() void {
     if (enabled) addInLogSpace_calls += 1;
 }
 
+pub inline fn bumpAddInLogSpaceLogExp() void {
+    if (enabled) addInLogSpace_log_exp_calls += 1;
+}
+
 pub inline fn bumpFillTrellis() void {
     if (enabled) fillTrellis_calls += 1;
 }
@@ -63,8 +88,8 @@ pub inline fn bumpKSet() void {
     if (enabled) n_ksets += 1;
 }
 
-pub inline fn bumpChunkCacheEntry() void {
-    if (enabled) chunk_cache_entries += 1;
+pub inline fn bumpChunkCacheLookup() void {
+    if (enabled) chunk_cache_lookups += 1;
 }
 
 pub inline fn bumpChunkCacheHit() void {
@@ -104,8 +129,12 @@ fn activeStateStats() struct { median: usize, p95: usize, max: usize, total: u64
 /// Returns null when counters are disabled (caller skips the write).
 /// Format is intentionally trivial-to-grep:
 ///   PERFCOUNTER alg=... q=... n_seqs=... ksets=... fillTrellis=... \
-///       chunk_hits=H/E addInLogSpace=... \
-///       active_states_med=... active_states_p95=... active_states_max=... active_states_positions=...
+///       chunk_hits=H/L addInLogSpace=... addInLogSpace_log_exp=... \
+///       active_states_med=... active_states_p95=... active_states_max=... \
+///       active_states_positions=...
+///
+/// `chunk_hits=H/L`: H = prefix-match successes, L = lookup attempts (the
+/// `if (!no_chunk_cache)` branch entries in fillTrellis). Hit rate is H/L.
 pub fn formatPerfCounters(
     allocator: std.mem.Allocator,
     algorithm: []const u8,
@@ -116,7 +145,7 @@ pub fn formatPerfCounters(
     const stats = activeStateStats();
     return try std.fmt.allocPrint(
         allocator,
-        "PERFCOUNTER alg={s} q={s} n_seqs={d} ksets={d} fillTrellis={d} chunk_hits={d}/{d} addInLogSpace={d} active_states_med={d} active_states_p95={d} active_states_max={d} active_states_positions={d}\n",
+        "PERFCOUNTER alg={s} q={s} n_seqs={d} ksets={d} fillTrellis={d} chunk_hits={d}/{d} addInLogSpace={d} addInLogSpace_log_exp={d} active_states_med={d} active_states_p95={d} active_states_max={d} active_states_positions={d}\n",
         .{
             algorithm,
             query_name,
@@ -124,8 +153,9 @@ pub fn formatPerfCounters(
             n_ksets,
             fillTrellis_calls,
             chunk_cache_hits,
-            chunk_cache_entries,
+            chunk_cache_lookups,
             addInLogSpace_calls,
+            addInLogSpace_log_exp_calls,
             stats.median,
             stats.p95,
             stats.max,
