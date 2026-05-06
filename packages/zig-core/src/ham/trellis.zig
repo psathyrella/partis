@@ -65,6 +65,18 @@ pub const Trellis = struct {
     scoring_current: []f64,
     scoring_previous: []f64,
 
+    /// Indices into scoring_current that may hold non-NEG_INF values
+    /// (a SUPERSET of truly-dirty slots — see `swapColumnsActive`). Mirrors
+    /// the swap of scoring_current ↔ scoring_previous so the sparse clear
+    /// in `swapColumnsActive` only touches slots that were active two
+    /// iterations ago, instead of the full n_states column. Item 1.1 of
+    /// #366: at rung-2 medians (~50 active states / 500 n_states) this
+    /// drops the per-position memset from O(n_states) to O(active).
+    scoring_current_dirty: std.ArrayListUnmanaged(usize),
+    /// Indices into scoring_previous that may hold non-NEG_INF values.
+    /// See `scoring_current_dirty`.
+    scoring_previous_dirty: std.ArrayListUnmanaged(usize),
+
     /// Scratch bitset for deduplicating next_states additions.
     next_seen: state_mod.StateBitset,
 
@@ -118,6 +130,8 @@ pub const Trellis = struct {
             .viterbi_indices = .{},
             .scoring_current = scoring_current,
             .scoring_previous = scoring_previous,
+            .scoring_current_dirty = .{},
+            .scoring_previous_dirty = .{},
             .next_seen = state_mod.StateBitset.initEmpty(),
             .allocator = allocator,
         };
@@ -132,6 +146,8 @@ pub const Trellis = struct {
         self.viterbi_indices.deinit(allocator);
         allocator.free(self.scoring_current);
         allocator.free(self.scoring_previous);
+        self.scoring_current_dirty.deinit(allocator);
+        self.scoring_previous_dirty.deinit(allocator);
     }
 
     /// Run the Viterbi algorithm.
@@ -174,9 +190,13 @@ pub const Trellis = struct {
         @memset(self.traceback_table, -1);
         self.traceback_n_states = n_states;
 
-        // Reset scoring columns
+        // Reset scoring columns. Dirty lists pair with the buffers and start
+        // empty: the full memset establishes the all-NEG_INF invariant that
+        // the sparse clear in `swapColumnsActive` relies on.
         @memset(self.scoring_current, mathutils.NEG_INF);
         @memset(self.scoring_previous, mathutils.NEG_INF);
+        self.scoring_current_dirty.clearRetainingCapacity();
+        self.scoring_previous_dirty.clearRetainingCapacity();
 
         var current_states = std.ArrayListUnmanaged(usize){};
         defer current_states.deinit(allocator);
@@ -192,6 +212,7 @@ pub const Trellis = struct {
             const dpval = emission_val + init_st.transitionLogprob(i_st);
             if (std.math.isNegativeInf(dpval)) continue;
             self.scoring_current[i_st] = dpval;
+            try self.scoring_current_dirty.append(allocator, i_st);
             self.cacheViterbiVals(0, dpval, i_st);
             // Mark outbound transitions for next position (deduplicated)
             for (self.hmm.stateByIndex(i_st).to_state_indices.items) |j| {
@@ -242,9 +263,11 @@ pub const Trellis = struct {
         try self.forward_log_probs.resize(allocator, seq_len);
         @memset(self.forward_log_probs.items, mathutils.NEG_INF);
 
-        // Reset scoring columns
+        // Reset scoring columns. See `viterbi()` for the dirty-list invariant.
         @memset(self.scoring_current, mathutils.NEG_INF);
         @memset(self.scoring_previous, mathutils.NEG_INF);
+        self.scoring_current_dirty.clearRetainingCapacity();
+        self.scoring_previous_dirty.clearRetainingCapacity();
 
         var current_states = std.ArrayListUnmanaged(usize){};
         defer current_states.deinit(allocator);
@@ -260,6 +283,7 @@ pub const Trellis = struct {
             const dpval = emission_val + init_st.transitionLogprob(i_st);
             if (std.math.isNegativeInf(dpval)) continue;
             self.scoring_current[i_st] = dpval;
+            try self.scoring_current_dirty.append(allocator, i_st);
             // Mark outbound transitions for next position (deduplicated)
             for (self.hmm.stateByIndex(i_st).to_state_indices.items) |j| {
                 if (!self.next_seen.isSet(j)) {
@@ -330,11 +354,23 @@ pub const Trellis = struct {
         current_states: *std.ArrayListUnmanaged(usize),
         next_states: *std.ArrayListUnmanaged(usize),
     ) !void {
-        // Swap scoring_current ↔ scoring_previous
-        const tmp = self.scoring_previous;
-        self.scoring_previous = self.scoring_current;
-        self.scoring_current = tmp;
-        @memset(self.scoring_current, mathutils.NEG_INF);
+        // Swap scoring_current ↔ scoring_previous, and the parallel dirty
+        // lists. After the swap, `scoring_current` is the buffer that was
+        // last written *two* iterations ago (or position-0 init); only the
+        // slots in `scoring_current_dirty` (the freshly-swapped-in list) can
+        // be non-NEG_INF, so a sparse clear over those slots restores the
+        // all-NEG_INF invariant. Item 1.1 of #366.
+        std.mem.swap([]f64, &self.scoring_current, &self.scoring_previous);
+        std.mem.swap(
+            std.ArrayListUnmanaged(usize),
+            &self.scoring_current_dirty,
+            &self.scoring_previous_dirty,
+        );
+
+        for (self.scoring_current_dirty.items) |idx| {
+            self.scoring_current[idx] = mathutils.NEG_INF;
+        }
+        self.scoring_current_dirty.clearRetainingCapacity();
 
         // Clear next_seen for all indices that were in next_states
         // (they will become current_states; next_seen tracks what's queued for the NEW next)
@@ -373,6 +409,12 @@ pub const Trellis = struct {
             const st_cur = self.hmm.stateByIndex(i_st_cur);
             const emission_val = st_cur.emissionLogprobSeqs(seqs, position);
             if (std.math.isNegativeInf(emission_val)) continue;
+            // Track for the sparse clear in `swapColumnsActive`. This is a
+            // SUPERSET of slots we actually write: if every i_st_prev has
+            // NEG_INF prev_val, no write happens but i_st_cur is still in the
+            // dirty list. Clearing an already-NEG_INF slot is a no-op, so the
+            // superset is bit-equal.
+            try self.scoring_current_dirty.append(allocator, i_st_cur);
             for (st_cur.from_state_indices.items) |i_st_prev| {
                 const prev_val = self.scoring_previous[i_st_prev];
                 if (std.math.isNegativeInf(prev_val)) continue;
@@ -408,6 +450,8 @@ pub const Trellis = struct {
             const st_cur = self.hmm.stateByIndex(i_st_cur);
             const emission_val = st_cur.emissionLogprobSeqs(seqs, position);
             if (std.math.isNegativeInf(emission_val)) continue;
+            // See `middleViterbiVals` for the dirty-list invariant.
+            try self.scoring_current_dirty.append(allocator, i_st_cur);
             for (st_cur.from_state_indices.items) |i_st_prev| {
                 const prev_val = self.scoring_previous[i_st_prev];
                 if (std.math.isNegativeInf(prev_val)) continue;
