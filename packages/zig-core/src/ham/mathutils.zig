@@ -13,6 +13,7 @@
 
 const std = @import("std");
 const math = std.math;
+const perf_counters = @import("perf_counters.zig");
 
 // Use glibc log/exp via C wrapper (glibc_math.c) to match C++ bcrham bit-for-bit.
 // Zig's `extern fn log/exp` resolves to compiler-rt (bundled as local 't' symbols),
@@ -64,8 +65,13 @@ pub fn addWithMinusInfinities(first: f64, second: f64) f64 {
 /// Implements the log-space *or* operation (a OR b = a + b in probability space).
 /// Corresponds to C++ `ham::AddInLogSpace<T>(T first, T second)`.
 pub fn addInLogSpace(first: f64, second: f64) f64 {
+    perf_counters.bumpAddInLogSpace();
     if (first == NEG_INF) return second;
     if (second == NEG_INF) return first;
+    // Past both early-outs: this call does exactly 1 log + 1 exp. Bump
+    // the work counter separately so item-3.2 cost predictions can be
+    // priced against actual transcendental work, not call rate.
+    perf_counters.bumpAddInLogSpaceLogExp();
     if (first > second) {
         return first + log(1.0 + exp(second - first));
     } else {
