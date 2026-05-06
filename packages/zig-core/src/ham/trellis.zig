@@ -13,6 +13,7 @@ const Sequences = @import("sequences.zig").Sequences;
 const Sequence = @import("sequences.zig").Sequence;
 const TracebackPath = @import("traceback_path.zig").TracebackPath;
 const mathutils = @import("mathutils.zig");
+const perf_counters = @import("perf_counters.zig");
 
 /// DP trellis for Forward/Viterbi algorithms.
 /// Corresponds to C++ `ham::Trellis`.
@@ -365,6 +366,7 @@ pub const Trellis = struct {
         next_states: *std.ArrayListUnmanaged(usize),
         position: usize,
     ) !void {
+        perf_counters.recordActiveStates(current_states.items.len);
         // See viterbi(): cache borrowed seqs pointer in a local for the inner loop.
         const seqs = self.seqs;
         for (current_states.items) |i_st_cur| {
@@ -399,6 +401,7 @@ pub const Trellis = struct {
         next_states: *std.ArrayListUnmanaged(usize),
         position: usize,
     ) !void {
+        perf_counters.recordActiveStates(current_states.items.len);
         // See viterbi(): cache borrowed seqs pointer in a local for the inner loop.
         const seqs = self.seqs;
         for (current_states.items) |i_st_cur| {

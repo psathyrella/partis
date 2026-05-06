@@ -14,6 +14,7 @@ const Model = @import("model.zig").Model;
 const Sequences = @import("sequences.zig").Sequences;
 const Sequence = @import("sequences.zig").Sequence;
 const mathutils = @import("mathutils.zig");
+const perf_counters = @import("perf_counters.zig");
 const Args = @import("args.zig").Args;
 const bcr = @import("bcr_utils/root.zig");
 const GermLines = bcr.GermLines;
@@ -234,6 +235,11 @@ pub const DPHandler = struct {
         const parent = self.parent_allocator;
         const run_start = std.time.milliTimestamp();
 
+        // Phase-0 diagnostics (#366): per-query counter reset. No-op when
+        // `-Dperf-counters=false` (default), so the bit-equal default build
+        // is unaffected.
+        perf_counters.reset();
+
         // Build a Sequences container that borrows from `seqvector`.
         // Each Sequence is a shallow struct-copy: slice headers are duplicated,
         // but the underlying name/header/undigitized/seqq buffers are shared
@@ -337,6 +343,7 @@ pub const DPHandler = struct {
                     n_too_long += 1;
                 } else {
                     const kset = KSet{ .v = k_v, .d = k_d };
+                    perf_counters.bumpKSet();
                     try self.runKSet(&seqs, kset, &only_genes, &best_scores, &total_scores, &best_genes);
                     n_run += 1;
                     const total_kset = total_scores.get(kset) orelse mathutils.NEG_INF;
@@ -382,6 +389,7 @@ pub const DPHandler = struct {
             if (!self.args.dont_rescale_emissions) {
                 try self.hmms.unRescaleOverallMuteFreqs(&only_genes);
             }
+            try self.dumpPerfCounters(&seqs);
             return result;
         }
 
@@ -414,7 +422,67 @@ pub const DPHandler = struct {
             try self.hmms.unRescaleOverallMuteFreqs(&only_genes);
         }
 
+        try self.dumpPerfCounters(&seqs);
         return result;
+    }
+
+    /// Phase-0 diagnostics dump (#366). No-op when `-Dperf-counters=false`.
+    /// Emits one PERFCOUNTER and one PERFCOUNTER_CACHE line per query.
+    ///
+    /// Output target: file path from `PARTIS_ZIG_PERF_LOG` env var (append).
+    /// Side-channel rather than stdout because partis captures bcrham stdout
+    /// and discards everything except recognised dbgstrs (utils.py:5896+);
+    /// the env-var redirect keeps the diagnostic output entirely outside
+    /// the partis input/output protocol so partis-test.py's parity checks
+    /// stay clean. When the env var is unset, the dump is silent.
+    fn dumpPerfCounters(self: *DPHandler, seqs: *const Sequences) !void {
+        if (!perf_counters.enabled) return;
+        const allocator = self.scratchAllocator();
+
+        const log_path = std.process.getEnvVarOwned(allocator, "PARTIS_ZIG_PERF_LOG") catch |err| switch (err) {
+            error.EnvironmentVariableNotFound => return,
+            else => return err,
+        };
+        defer allocator.free(log_path);
+
+        const name_str = try seqs.nameStr(allocator, ":");
+        defer allocator.free(name_str);
+
+        // O_APPEND so concurrent bcrham processes (partis runs n-procs in
+        // parallel) writing to the same log file don't clobber each other.
+        // Linux guarantees atomic appends for writes <= PIPE_BUF (4 KiB);
+        // each PERFCOUNTER line stays well under that limit.
+        const log_path_z = try allocator.dupeZ(u8, log_path);
+        defer allocator.free(log_path_z);
+        const flags: std.posix.O = .{ .ACCMODE = .WRONLY, .APPEND = true, .CREAT = true };
+        const fd = try std.posix.openZ(log_path_z, flags, 0o644);
+        const file = std.fs.File{ .handle = fd };
+        defer file.close();
+
+        if (try perf_counters.formatPerfCounters(allocator, self.algorithm, name_str, seqs.seqs.items.len)) |line| {
+            defer allocator.free(line);
+            try file.writeAll(line);
+        }
+
+        // cache_list length histogram across all genes in scratch_cachefo.
+        // Buckets are log-ish (0,1,2,3,4,5,[6-9],[10-19],[20-49],[50-99],
+        // [100-199],[200+]) — matches the order-of-magnitude questions the
+        // issue asks about chunk-cache state.
+        var buckets = [_]u64{0} ** 12;
+        var it = self.scratch_cachefo.iterator();
+        while (it.next()) |entry| {
+            const n = entry.value_ptr.items.len;
+            const idx: usize =
+                if (n == 0) 0 else if (n == 1) 1 else if (n == 2) 2 else if (n == 3) 3 else if (n == 4) 4 else if (n == 5) 5 else if (n < 10) 6 else if (n < 20) 7 else if (n < 50) 8 else if (n < 100) 9 else if (n < 200) 10 else 11;
+            buckets[idx] += 1;
+        }
+        const cache_line = try std.fmt.allocPrint(
+            allocator,
+            "PERFCOUNTER_CACHE alg={s} q={s} 0={d} 1={d} 2={d} 3={d} 4={d} 5={d} 6_9={d} 10_19={d} 20_49={d} 50_99={d} 100_199={d} 200p={d}\n",
+            .{ self.algorithm, name_str, buckets[0], buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7], buckets[8], buckets[9], buckets[10], buckets[11] },
+        );
+        defer allocator.free(cache_line);
+        try file.writeAll(cache_line);
     }
 
     /// Get subsequences for one region.
@@ -541,11 +609,13 @@ pub const DPHandler = struct {
         gene: []const u8,
     ) ![]const u8 {
         const allocator = self.scratchAllocator();
+        perf_counters.bumpFillTrellis();
 
         // Look for a chunk-cached trellis. Prefix-match is on undigitized
         // strings of the cached trellis's stored query_seqs.
         var cached_trellis: ?*const Trellis = null;
         if (!self.args.no_chunk_cache) {
+            perf_counters.bumpChunkCacheEntry();
             if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
                 for (cache_list.items) |te| {
                     const cached_seqs = te.query_seqs.seqs.items;
@@ -561,6 +631,7 @@ pub const DPHandler = struct {
                     }
                     if (all_match) {
                         cached_trellis = &te.trellis;
+                        perf_counters.bumpChunkCacheHit();
                         break;
                     }
                 }
