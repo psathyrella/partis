@@ -567,7 +567,16 @@ def validate_assembly(manifest, manifest_dir):
     # validate uid uniqueness and sequence counts by reading partitioned groups
     all_uids = set()
     total_seqs = 0
-    skipped = [g for g in manifest['groups'] if g.get('partition_path') is None]
+    # compute skipped groups using same auto-discovery logic as get_partition_paths
+    skipped = []
+    for ginfo in manifest['groups']:
+        ppath = ginfo.get('partition_path')
+        if ppath is not None:
+            continue
+        fasta_dir = os.path.dirname(ginfo['fasta_path'])
+        default_ppath = '%s/partition-%s.yaml' % (fasta_dir, ginfo['locus'])
+        if not os.path.exists('%s/%s' % (manifest_dir, default_ppath)):
+            skipped.append(ginfo)
     skipped_seqs = sum(g['sequence_count'] for g in skipped)
     for ppath in get_partition_paths(manifest, manifest_dir):
         _, annotation_list, _ = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
