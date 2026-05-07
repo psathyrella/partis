@@ -34,117 +34,6 @@ const GeneKSetKey = struct {
     kset: KSet,
 };
 
-/// Per-gene dense score grid over the kset rectangle. Replaces the
-/// `AutoHashMapUnmanaged(KSet, f64)` inner-map of `DPHandler.scores`
-/// (item 2.1 of #366). The C++ `map<KSet, double>` it descends from gave
-/// `findPartialCacheMatch` an `O(n_filled_ksets)` scan per call, called
-/// `n_genes × 3 × n_ksets` times per query — `O(n_genes × n_ksets²)`
-/// per query of map iteration. The dense grid replaces that with O(1)
-/// direct lookup and an `O(d_dim)` (V-region) or `O(v_dim)` (J-region)
-/// bounded scan, plus drops the per-cell HashMap pointer-chasing.
-///
-/// Layout: row-major `[v_dim * d_dim]` indexed as
-/// `idx = (k_v - kgrid_vmin) * d_dim + (k_d - kgrid_dmin)`. The query's
-/// `kbounds` pin both the offsets and the dims, so the grid covers
-/// every kset that `run()` will ever write.
-///
-/// "Unfilled" is tracked by a parallel `DynamicBitSetUnmanaged` rather
-/// than a NaN sentinel in `cells`. The bitset is 1 bit per cell (memset 0
-/// = 1/64 the bandwidth of a NaN memset over the f64 backing array), so
-/// the per-gene init cost stays small even when most cells go unread —
-/// which is the common case in partition workloads, where many
-/// (gene, kset) pairs are never visited.
-const ScoreGrid = struct {
-    cells: []f64,
-    filled: std.DynamicBitSetUnmanaged,
-    v_dim: usize,
-    d_dim: usize,
-
-    fn init(allocator: std.mem.Allocator, v_dim: usize, d_dim: usize) !ScoreGrid {
-        const total = v_dim * d_dim;
-        const cells = try allocator.alloc(f64, total);
-        errdefer allocator.free(cells);
-        // Cells are intentionally NOT initialised — `filled` gates every read,
-        // so an unfilled cell is never observed.
-        const filled = try std.DynamicBitSetUnmanaged.initEmpty(allocator, total);
-        return .{ .cells = cells, .filled = filled, .v_dim = v_dim, .d_dim = d_dim };
-    }
-
-    fn deinit(self: *ScoreGrid, allocator: std.mem.Allocator) void {
-        self.filled.deinit(allocator);
-        allocator.free(self.cells);
-    }
-
-    inline fn idx(self: *const ScoreGrid, v_off: usize, d_off: usize) usize {
-        return v_off * self.d_dim + d_off;
-    }
-
-    inline fn isFilled(self: *const ScoreGrid, v_off: usize, d_off: usize) bool {
-        return self.filled.isSet(self.idx(v_off, d_off));
-    }
-
-    inline fn get(self: *const ScoreGrid, v_off: usize, d_off: usize) ?f64 {
-        const i = self.idx(v_off, d_off);
-        return if (self.filled.isSet(i)) self.cells[i] else null;
-    }
-
-    inline fn put(self: *ScoreGrid, v_off: usize, d_off: usize, score: f64) void {
-        const i = self.idx(v_off, d_off);
-        self.cells[i] = score;
-        self.filled.set(i);
-    }
-};
-
-/// Per-gene dense traceback-path grid. Mirrors `ScoreGrid` for the
-/// `DPHandler.paths` map; only allocated under the viterbi algorithm
-/// (forward leaves the gene's entry absent from the outer map).
-///
-/// "Unfilled" is tracked by a parallel `DynamicBitSetUnmanaged` so the
-/// `cells` slice can be left uninitialised — skipping a per-cell
-/// `TracebackPath.init()` over `v_dim × d_dim` cells. The same logic as
-/// `ScoreGrid`: under partition-style workloads, most cells go unread,
-/// and the prior eager init was the dominant cost.
-const PathGrid = struct {
-    cells: []TracebackPath,
-    filled: std.DynamicBitSetUnmanaged,
-    v_dim: usize,
-    d_dim: usize,
-
-    fn init(allocator: std.mem.Allocator, v_dim: usize, d_dim: usize) !PathGrid {
-        const total = v_dim * d_dim;
-        const cells = try allocator.alloc(TracebackPath, total);
-        errdefer allocator.free(cells);
-        // See `ScoreGrid.init` — `filled` gates every read, cells stay garbage
-        // until written.
-        const filled = try std.DynamicBitSetUnmanaged.initEmpty(allocator, total);
-        return .{ .cells = cells, .filled = filled, .v_dim = v_dim, .d_dim = d_dim };
-    }
-
-    fn deinit(self: *PathGrid, allocator: std.mem.Allocator) void {
-        // Walk only filled cells: unfilled cells hold uninitialised memory
-        // and `TracebackPath.deinit` would read its `path` ArrayList field.
-        var it = self.filled.iterator(.{});
-        while (it.next()) |i| self.cells[i].deinit(allocator);
-        self.filled.deinit(allocator);
-        allocator.free(self.cells);
-    }
-
-    inline fn idx(self: *const PathGrid, v_off: usize, d_off: usize) usize {
-        return v_off * self.d_dim + d_off;
-    }
-
-    inline fn getPtr(self: *PathGrid, v_off: usize, d_off: usize) ?*TracebackPath {
-        const i = self.idx(v_off, d_off);
-        return if (self.filled.isSet(i)) &self.cells[i] else null;
-    }
-
-    inline fn put(self: *PathGrid, v_off: usize, d_off: usize, path: TracebackPath) void {
-        const i = self.idx(v_off, d_off);
-        self.cells[i] = path;
-        self.filled.set(i);
-    }
-};
-
 /// Cached trellis entry. Owns the Sequences the trellis was built over.
 ///
 /// The entry itself is **heap-allocated** and the cache list holds pointers
@@ -197,29 +86,14 @@ pub const DPHandler = struct {
     /// call (item 5 of #342). `scores` owns the duped key bytes; `clear()`
     /// frees keys only when iterating `scores` to avoid a triple-free.
     scratch_cachefo: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(*TrellisEntry)),
-    /// paths_: gene → dense kset-grid of TracebackPath (only populated under
-    /// viterbi; absent in forward). Keys are borrowed (see `scratch_cachefo`
-    /// doc-block); the canonical owner is `scores`. Item 2.1 of #366: dense
-    /// grid replaces the prior `AutoHashMapUnmanaged(KSet, TracebackPath)`.
-    paths: std.StringHashMapUnmanaged(PathGrid),
-    /// scores_: gene → dense kset-grid of f64. Owns the gene-name keys shared
-    /// with `scratch_cachefo` and `paths` (item 5 of #342). Item 2.1 of #366:
-    /// dense grid replaces the prior `AutoHashMapUnmanaged(KSet, f64)`; see
-    /// `ScoreGrid` for layout and the NaN-sentinel "unfilled" semantics.
-    scores: std.StringHashMapUnmanaged(ScoreGrid),
+    /// paths_: gene → (KSet → TracebackPath). Keys are borrowed (see
+    /// `scratch_cachefo` doc-block); the canonical owner is `scores`.
+    paths: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, TracebackPath)),
+    /// scores_: gene → (KSet → f64). Owns the gene-name keys shared with
+    /// `scratch_cachefo` and `paths` (item 5 of #342).
+    scores: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, f64)),
     /// per_gene_support_: gene → best full-annotation log-prob
     per_gene_support: std.StringHashMapUnmanaged(f64),
-
-    /// Kgrid offsets and dimensions. Set at the top of every `run()` from
-    /// `kbounds` and used by every `ScoreGrid` / `PathGrid` allocation in
-    /// the call. Stale between `run()` calls; only the live query reads them.
-    /// Stored on the handler rather than per-grid because every grid in a
-    /// query shares the same dims, and the conversion from `KSet` to
-    /// `(v_off, d_off)` happens at every read/write site.
-    kgrid_vmin: usize,
-    kgrid_dmin: usize,
-    kgrid_v_dim: usize,
-    kgrid_d_dim: usize,
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -239,21 +113,7 @@ pub const DPHandler = struct {
             .paths = .{},
             .scores = .{},
             .per_gene_support = .{},
-            .kgrid_vmin = 0,
-            .kgrid_dmin = 0,
-            .kgrid_v_dim = 0,
-            .kgrid_d_dim = 0,
         };
-    }
-
-    /// Convert a KSet to its dense-grid (v_off, d_off). Asserts the kset is
-    /// inside the current query's grid bounds — every write site routes
-    /// ksets from the `runKSet` loop, which iterates over `[vmin, vmax) ×
-    /// [dmin, dmax)`, so an out-of-bounds kset here is a programmer bug.
-    inline fn kgridOff(self: *const DPHandler, kset: KSet) struct { v: usize, d: usize } {
-        std.debug.assert(kset.v >= self.kgrid_vmin and kset.v < self.kgrid_vmin + self.kgrid_v_dim);
-        std.debug.assert(kset.d >= self.kgrid_dmin and kset.d < self.kgrid_dmin + self.kgrid_d_dim);
-        return .{ .v = kset.v - self.kgrid_vmin, .d = kset.d - self.kgrid_dmin };
     }
 
     /// Per-query scratch allocator. **Always re-derive at the use site** —
@@ -300,21 +160,18 @@ pub const DPHandler = struct {
         self.scratch_cachefo.deinit(allocator);
         self.scratch_cachefo = .{};
 
-        // Free paths. Keys are shared with `scores` (see above). Item 2.1
-        // of #366: each value is now a dense `PathGrid` rather than a
-        // `AutoHashMap`; `PathGrid.deinit` walks the dense cells, deiniting
-        // every filled traceback path.
+        // Free paths. Keys are shared with `scores` (see above).
         var pit = self.paths.iterator();
         while (pit.next()) |entry| {
+            var inner_it = entry.value_ptr.iterator();
+            while (inner_it.next()) |kv| kv.value_ptr.deinit(allocator);
             entry.value_ptr.deinit(allocator);
         }
         self.paths.deinit(allocator);
         self.paths = .{};
 
         // Free scores. This is the canonical owner of the gene-name keys
-        // shared with `scratch_cachefo` and `paths`. Item 2.1 of #366: each
-        // value is now a dense `ScoreGrid` (single backing slice) rather
-        // than an `AutoHashMap`.
+        // shared with `scratch_cachefo` and `paths`.
         var sit = self.scores.iterator();
         while (sit.next()) |entry| {
             allocator.free(entry.key_ptr.*);
@@ -446,15 +303,6 @@ pub const DPHandler = struct {
         if (kbounds.vmin == 0 or kbounds.dmin == 0 or
             kbounds.vmax <= kbounds.vmin or kbounds.dmax <= kbounds.dmin)
             return error.TrivialKBounds;
-
-        // Item 2.1 of #366: pin the dense kset-grid bounds for this query.
-        // Every `ScoreGrid` / `PathGrid` allocated under `initCache` below
-        // sizes itself against these dims, and every `kgridOff` conversion
-        // resolves against these offsets.
-        self.kgrid_vmin = kbounds.vmin;
-        self.kgrid_dmin = kbounds.dmin;
-        self.kgrid_v_dim = kbounds.vmax - kbounds.vmin;
-        self.kgrid_d_dim = kbounds.dmax - kbounds.dmin;
 
         var best_scores: std.AutoHashMapUnmanaged(KSet, f64) = .{};
         defer best_scores.deinit(allocator);
@@ -701,85 +549,47 @@ pub const DPHandler = struct {
 
         const allocator = self.scratchAllocator();
         try self.scratch_cachefo.ensureUnusedCapacity(allocator, 1);
+        try self.paths.ensureUnusedCapacity(allocator, 1);
         try self.scores.ensureUnusedCapacity(allocator, 1);
 
-        // Allocate the grids before any map insertion so a mid-init OOM
-        // can't leave `scratch_cachefo` populated while `scores` is still
-        // empty — `clear()` is the canonical key owner and would miss a
-        // dangling `scratch_cachefo` entry if the order were inverted.
-        // After this block, every `putAssumeCapacity` is infallible.
-        var grid = try ScoreGrid.init(allocator, self.kgrid_v_dim, self.kgrid_d_dim);
-        errdefer grid.deinit(allocator);
-
-        // `paths` is only populated under viterbi; in forward mode the gene's
-        // entry is left absent, so `self.paths.getPtr(gene)` returns null at
-        // every read site (`fillTrellis` path-store, `findPartialCacheMatch`
-        // cache-copy block, `getPathNames`). This matches the old behaviour
-        // where the inner `AutoHashMap` was put-but-never-populated under
-        // forward — same observable, less allocation.
-        const want_paths = std.mem.eql(u8, self.algorithm, "viterbi");
-        var path_grid: PathGrid = undefined;
-        if (want_paths) {
-            try self.paths.ensureUnusedCapacity(allocator, 1);
-            path_grid = try PathGrid.init(allocator, self.kgrid_v_dim, self.kgrid_d_dim);
-        }
-        errdefer if (want_paths) path_grid.deinit(allocator);
-
         const key = try allocator.dupe(u8, gene);
-
-        // Infallible from here: every map has its capacity reserved and the
-        // grids are constructed. No partial-state window.
         self.scratch_cachefo.putAssumeCapacity(key, .{});
-        self.scores.putAssumeCapacity(key, grid);
-        if (want_paths) self.paths.putAssumeCapacity(key, path_grid);
+        self.paths.putAssumeCapacity(key, .{});
+        self.scores.putAssumeCapacity(key, .{});
     }
 
     /// Look for a cached kset whose region sequences are a prefix of the
     /// query's per-region undigitized strings (built via `getSubSeqs`).
     /// Returns null-kset if none found.
     fn findPartialCacheMatch(self: *DPHandler, region: Region, gene: []const u8, kset: KSet) KSet {
-        const gene_scores = self.scores.getPtr(gene) orelse return KSet{ .v = 0, .d = 0 };
+        const gene_scores = self.scores.get(gene) orelse return KSet{ .v = 0, .d = 0 };
+        if (gene_scores.get(kset) != null) return kset;
 
-        // Direct hit on the requested kset — same fast-path as the prior
-        // map-based version.
-        const off = self.kgridOff(kset);
-        if (gene_scores.get(off.v, off.d) != null) return kset;
-
-        // Item 2.1 of #366. The C++ source iterated `map<KSet,double>` in
-        // ascending `(v, d)` order; the Zig `AutoHashMap` was unordered, so
-        // the prior scan hand-tracked the minimum. Both produced the same
-        // logical match; the dense scan below produces it in O(d_dim) for
-        // V-region and O(v_dim) for J-region instead of O(n_filled_ksets).
         switch (region) {
             .v => {
-                // V-region: smallest filled d at fixed v. Iterate d_off in
-                // ascending order; first non-null is the smallest-d match.
-                var d_off: usize = 0;
-                while (d_off < gene_scores.d_dim) : (d_off += 1) {
-                    if (gene_scores.get(off.v, d_off) != null) {
-                        return KSet{ .v = kset.v, .d = self.kgrid_dmin + d_off };
+                // C++ map<KSet,double> iterates in ascending (v,d) order, so
+                // it returns the smallest-d match. We must replicate that.
+                var best: ?KSet = null;
+                var it = gene_scores.iterator();
+                while (it.next()) |kv| {
+                    if (kv.key_ptr.v == kset.v) {
+                        if (best == null or kv.key_ptr.d < best.?.d)
+                            best = kv.key_ptr.*;
                     }
                 }
+                if (best) |b| return b;
             },
             .j => {
-                // J-region: among entries with v + d == target, smallest
-                // (v, d) lexicographically. On the diagonal each v has at
-                // most one d, so this is just the smallest filled v on the
-                // diagonal — iterate v_off ascending; for each, if the
-                // matching d is in-bounds and filled, return it.
-                const target = kset.v + kset.d;
-                var v_off: usize = 0;
-                while (v_off < gene_scores.v_dim) : (v_off += 1) {
-                    const v = self.kgrid_vmin + v_off;
-                    if (target < v) break; // ascending v means d would go negative from here on
-                    const d = target - v;
-                    if (d < self.kgrid_dmin) continue;
-                    const d_off_j = d - self.kgrid_dmin;
-                    if (d_off_j >= gene_scores.d_dim) continue;
-                    if (gene_scores.get(v_off, d_off_j) != null) {
-                        return KSet{ .v = v, .d = d };
+                var best: ?KSet = null;
+                var it = gene_scores.iterator();
+                while (it.next()) |kv| {
+                    if (kv.key_ptr.v + kv.key_ptr.d == kset.v + kset.d) {
+                        if (best == null or kv.key_ptr.v < best.?.v or
+                            (kv.key_ptr.v == best.?.v and kv.key_ptr.d < best.?.d))
+                            best = kv.key_ptr.*;
                     }
                 }
+                if (best) |b| return b;
             },
             .d => {},
         }
@@ -907,8 +717,7 @@ pub const DPHandler = struct {
                 try trell_ptr.traceback(allocator, &path);
             }
             if (self.paths.getPtr(gene)) |gene_paths| {
-                const off = self.kgridOff(kset);
-                gene_paths.put(off.v, off.d, path);
+                try gene_paths.put(allocator, kset, path);
             } else {
                 path.deinit(allocator);
             }
@@ -922,8 +731,7 @@ pub const DPHandler = struct {
         const final_score = mathutils.addWithMinusInfinities(uncorrected_score, gene_choice_score);
 
         if (self.scores.getPtr(gene)) |gene_scores| {
-            const off = self.kgridOff(kset);
-            gene_scores.put(off.v, off.d, final_score);
+            try gene_scores.put(allocator, kset, final_score);
         }
 
         return origin;
@@ -1183,29 +991,26 @@ pub const DPHandler = struct {
                     // Copy path and score from cached kset. Both go into
                     // `self.paths` / `self.scores`, which outlive the kset
                     // — route through `scratch`, not `allocator`.
-                    const dst_off = self.kgridOff(kset);
-                    const src_off = self.kgridOff(partial_match);
                     if (self.paths.getPtr(gene)) |gp| {
-                        if (gp.getPtr(src_off.v, src_off.d)) |cached_path| {
+                        if (gp.get(partial_match)) |cached_path| {
                             var path_copy = TracebackPath.init();
                             errdefer path_copy.deinit(scratch);
                             try path_copy.path.appendSlice(scratch, cached_path.path.items);
                             path_copy.setScore(cached_path.score);
                             path_copy.setModel(cached_path.hmm.?);
-                            gp.put(dst_off.v, dst_off.d, path_copy);
+                            try gp.put(scratch, kset, path_copy);
                         }
                     }
                     if (self.scores.getPtr(gene)) |gs| {
-                        const cached_score = gs.get(src_off.v, src_off.d) orelse mathutils.NEG_INF;
-                        gs.put(dst_off.v, dst_off.d, cached_score);
+                        const cached_score = gs.get(partial_match) orelse mathutils.NEG_INF;
+                        try gs.put(scratch, kset, cached_score);
                     }
                     origin = "cached";
                 } else {
                     origin = try self.fillTrellis(allocator, kset, &query_seqs, gene);
                 }
 
-                const off = self.kgridOff(kset);
-                const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(off.v, off.d) orelse mathutils.NEG_INF else mathutils.NEG_INF;
+                const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(kset) orelse mathutils.NEG_INF else mathutils.NEG_INF;
 
                 // Debug: per-gene viterbi output
                 if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "viterbi")) {
@@ -1385,8 +1190,7 @@ pub const DPHandler = struct {
         allocator: std.mem.Allocator,
     ) !std.ArrayListUnmanaged([]u8) {
         const gene_paths = self.paths.getPtr(gene) orelse return .{};
-        const off = self.kgridOff(kset);
-        const path = gene_paths.getPtr(off.v, off.d) orelse return .{};
+        const path = gene_paths.getPtr(kset) orelse return .{};
         return path.nameVector(allocator);
     }
 
