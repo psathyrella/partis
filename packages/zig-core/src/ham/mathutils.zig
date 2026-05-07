@@ -24,6 +24,15 @@ extern fn glibc_exp(x: f64) f64;
 pub const log = glibc_log;
 pub const exp = glibc_exp;
 
+// fast_softplus(d) = log(1 + exp(d)), via 64K-entry linear-interp LUT.
+// Implemented in fast_math.c; mirrored on the C++ side at
+// packages/ham/src/fast_math.c. Replaces 1 log + 1 exp glibc call inside
+// addInLogSpace with a single load + 1 mul + 1 fma — ~22-40% speedup
+// per addInLogSpace call across Zen 3-5 and Intel Broadwell. Accuracy
+// 6.5e-9 max abs over [-30, 0] (5 orders under partis-test 1e-5 gate).
+// See fast_math.c for the design notes (issue #366 item 3.2).
+extern fn fast_softplus(d: f64) f64;
+
 /// Negative infinity constant for log-probability computations.
 /// Replaces the verbose `-std.math.inf(f64)` throughout the codebase.
 pub const NEG_INF: f64 = -math.inf(f64);
@@ -68,14 +77,15 @@ pub fn addInLogSpace(first: f64, second: f64) f64 {
     perf_counters.bumpAddInLogSpace();
     if (first == NEG_INF) return second;
     if (second == NEG_INF) return first;
-    // Past both early-outs: this call does exactly 1 log + 1 exp. Bump
-    // the work counter separately so item-3.2 cost predictions can be
-    // priced against actual transcendental work, not call rate.
+    // Past both early-outs: one call to fast_softplus (LUT lookup, no glibc
+    // log/exp). The counter name kept its original log+exp suffix because
+    // the call site is still the place where item-3.2's transcendental work
+    // used to live — re-naming would invalidate prior #368 measurements.
     perf_counters.bumpAddInLogSpaceLogExp();
     if (first > second) {
-        return first + log(1.0 + exp(second - first));
+        return first + fast_softplus(second - first);
     } else {
-        return second + log(1.0 + exp(first - second));
+        return second + fast_softplus(first - second);
     }
 }
 
