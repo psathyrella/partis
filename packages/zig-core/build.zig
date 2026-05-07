@@ -35,6 +35,11 @@ pub fn build(b: *std.Build) void {
     // to actual glibc (dynamic 'U' symbols) rather than Zig's compiler-rt
     // (local 't' symbols that may differ from glibc on some CPUs).
     exe.addCSourceFile(.{ .file = b.path("src/ham/glibc_math.c"), .flags = &.{ "-O2", "-fno-builtin" } });
+    // fast_math.c — fast_softplus LUT (issue #366 item 3.2). Mirrors
+    // packages/ham/src/fast_math.c on the C++ side; both must stay in sync.
+    // -ffp-contract=off keeps the linear-interp arithmetic bit-deterministic
+    // across compilers (cheap insurance for cross-backend bit equality).
+    exe.addCSourceFile(.{ .file = b.path("src/ham/fast_math.c"), .flags = &.{ "-O3", "-ffp-contract=off", "-fno-builtin" } });
     b.installArtifact(exe);
 
     // ── compare: equivalence harness binary ──────────────────────────────
@@ -120,6 +125,7 @@ pub fn build(b: *std.Build) void {
     ham_test_mod.linkSystemLibrary("c", .{});
     const unit_tests = b.addTest(.{ .root_module = ham_test_mod });
     unit_tests.addCSourceFile(.{ .file = b.path("src/ham/glibc_math.c"), .flags = &.{ "-O2", "-fno-builtin" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("src/ham/fast_math.c"), .flags = &.{ "-O3", "-ffp-contract=off", "-fno-builtin" } });
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
