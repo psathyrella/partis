@@ -3,13 +3,14 @@
 
 Usage: zig-compare.py <baseline_dir> <new_dir>
 
-Per issue #342 validation harness. Exit 0 if identical, 1 otherwise.
+Companion to bin/partis-30k-parity-test.sh (issue #375 cpp-mirror gate).
+Exit 0 if identical, 1 otherwise.
 """
 import json
 import os
 import sys
 
-sys.path.insert(0, '/home/matsen/re/partis')
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from partis.clusterpath import ClusterPath
 
 
@@ -45,8 +46,10 @@ def diff_pair(base, new):
             print(f'{locus}: PARTITION DIFF ({len(bpart)} vs {len(npart)} clusters)')
             n_diffs += 1
             continue
-        bd = json.load(open(bp))
-        nd = json.load(open(np_))
+        with open(bp) as f:
+            bd = json.load(f)
+        with open(np_) as f:
+            nd = json.load(f)
         bk = {tuple(sorted(e['unique_ids'])): e for e in bd['events']}
         nk = {tuple(sorted(e['unique_ids'])): e for e in nd['events']}
         if set(bk) != set(nk):

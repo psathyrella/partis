@@ -29,10 +29,7 @@ N="${3:-30000}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPARE="${REPO_ROOT}/bin/zig-compare.py"
 if [[ ! -x "${COMPARE}" ]]; then
-  COMPARE="/tmp/zig-compare.py"  # legacy location used during issue #375 development
-fi
-if [[ ! -x "${COMPARE}" ]]; then
-  echo "ERROR: cannot find zig-compare.py (looked in bin/ and /tmp/)" >&2
+  echo "ERROR: cannot find zig-compare.py at ${COMPARE}" >&2
   exit 2
 fi
 
@@ -45,20 +42,21 @@ CPP_DIR="${OUTBASE}-cpp"
 ZIG_DIR="${OUTBASE}-zig"
 
 run_backend() {
-  local backend="$1" outdir="$2" extra_flag="$3"
+  local backend="$1" outdir="$2"
+  shift 2
   rm -rf "${outdir}"
   echo ">> running ${backend} backend → ${outdir}"
   PYTHONHASHSEED=0 python3 "${REPO_ROOT}/bin/partis" partition --paired-loci \
     --paired-outdir "${outdir}" \
     --infname "${INFILE}" --n-max-queries "${N}" \
     --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction \
-    --dont-write-git-info ${extra_flag}
+    --dont-write-git-info "$@"
 }
 
 # C++ first (slower), then Zig — sequential keeps the host responsive at the
 # usual 10 procs. Either order works; the partition is deterministic.
-run_backend "C++"  "${CPP_DIR}" ""
-run_backend "Zig"  "${ZIG_DIR}" "--zig"
+run_backend "C++"  "${CPP_DIR}"
+run_backend "Zig"  "${ZIG_DIR}"  --zig
 
 echo ">> comparing"
 "${COMPARE}" "${CPP_DIR}" "${ZIG_DIR}"
