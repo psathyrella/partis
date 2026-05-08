@@ -468,10 +468,11 @@ pub const Glomerator = struct {
             }
 
             if (logprob_str.len > 0) {
-                // C++ uses stof() which parses to float32 then widens to double.
-                // We must match that precision loss.
-                const val32: f32 = std.fmt.parseFloat(f32, logprob_str) catch continue;
-                const val: f64 = @as(f64, val32);
+                // C++ uses stod() (since ham f41e055 "fix precision: stof→stod for cache reads"):
+                // log_probs_ is map<string,double> and the cache file is written with setprecision(20).
+                // Parse as f64 to preserve full precision (the previous f32 truncation drove the
+                // 30k Zig-vs-C++ partition divergence — issue #375).
+                const val: f64 = std.fmt.parseFloat(f64, logprob_str) catch continue;
                 const gop_lp = try self.log_probs.getOrPut(allocator, query);
                 if (!gop_lp.found_existing) gop_lp.key_ptr.* = try allocator.dupe(u8, query);
                 gop_lp.value_ptr.* = val;
@@ -480,9 +481,8 @@ pub const Glomerator = struct {
             }
 
             if (naive_hfrac_str.len > 0) {
-                // C++ uses stof() which parses to float32 then widens to double.
-                const val32: f32 = std.fmt.parseFloat(f32, naive_hfrac_str) catch continue;
-                const val: f64 = @as(f64, val32);
+                // C++ uses stod() (see logprob branch above).
+                const val: f64 = std.fmt.parseFloat(f64, naive_hfrac_str) catch continue;
                 const gop_nh = try self.naive_hfracs.getOrPut(allocator, query);
                 if (!gop_nh.found_existing) gop_nh.key_ptr.* = try allocator.dupe(u8, query);
                 gop_nh.value_ptr.* = val;

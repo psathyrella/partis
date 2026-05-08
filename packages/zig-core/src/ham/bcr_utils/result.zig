@@ -70,8 +70,13 @@ pub const Result = struct {
         _ = _gl;
         std.debug.assert(!self.finalized);
 
-        // Sort events descending by score
-        std.mem.sort(RecoEvent, self.events.items, {}, struct {
+        // Sort events descending by score. STABLE sort to make tied scores
+        // resolve to first-pushed (deterministic across runs and backends).
+        // Ties happen at 30k+: f32 score truncation (Result::SetScore @floatCast)
+        // can collapse close f64 viterbi scores, and unstable pdqsort/introsort
+        // would otherwise pick different "best" events between Zig and C++ —
+        // which cascades through naive_seq → hfrac → cluster merges (#375).
+        std.sort.block(RecoEvent, self.events.items, {}, struct {
             fn desc(_: void, a: RecoEvent, b: RecoEvent) bool {
                 return a.score > b.score;
             }
