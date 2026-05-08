@@ -117,14 +117,12 @@ pub fn intify(allocator: std.mem.Allocator, strlist: []const []const u8) ![]i32 
 }
 
 /// Converts a slice of strings to a slice of f64.
-/// C++ uses stof (f32 precision) but returns vector<double>; we parse as f32 then widen to f64 to match.
+/// C++ uses stod (full f64 precision) since ham f41e055 "fix precision: stof→stod for cache reads".
 /// Corresponds to C++ `ham::Floatify(vector<string> strlist)`.
 pub fn floatify(allocator: std.mem.Allocator, strlist: []const []const u8) ![]f64 {
     const result = try allocator.alloc(f64, strlist.len);
     for (strlist, 0..) |s, i| {
-        // C++ uses stof (single-precision parse) — match that precision by parsing as f32 then widening
-        const f32_val = try std.fmt.parseFloat(f32, s);
-        result[i] = @as(f64, f32_val);
+        result[i] = try std.fmt.parseFloat(f64, s);
     }
     return result;
 }
