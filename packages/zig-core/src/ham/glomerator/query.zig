@@ -22,7 +22,7 @@ pub const Query = struct {
     seed_missing: bool,
     only_genes: std.ArrayListUnmanaged([]u8),
     kbounds: KBounds,
-    mute_freq: f32,
+    mute_freq: f64,
     cdr3_length: usize,
     /// Names of the two parent queries (may be empty when not set).
     parents: ?[2][]u8,
@@ -51,7 +51,7 @@ pub const Query = struct {
         seed_missing: bool,
         only_genes: []const []const u8,
         kbounds: KBounds,
-        mute_freq: f32,
+        mute_freq: f64,
         cdr3_length: usize,
         parent1: ?[]const u8,
         parent2: ?[]const u8,

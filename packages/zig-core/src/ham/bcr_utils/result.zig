@@ -72,10 +72,11 @@ pub const Result = struct {
 
         // Sort events descending by score. STABLE sort to make tied scores
         // resolve to first-pushed (deterministic across runs and backends).
-        // Ties happen at 30k+: f32 score truncation (Result::SetScore @floatCast)
-        // can collapse close f64 viterbi scores, and unstable pdqsort/introsort
-        // would otherwise pick different "best" events between Zig and C++ —
-        // which cascades through naive_seq → hfrac → cluster merges (#375).
+        // With score stored as f64 (#377) the f32-collapse failure mode from
+        // #375 is gone, but two ksets can still produce machine-epsilon-equal
+        // f64 scores; an unstable pdqsort/introsort would otherwise pick
+        // different "best" events between Zig and C++, cascading through
+        // naive_seq → hfrac → cluster merges. Originally added in #375.
         std.sort.block(RecoEvent, self.events.items, {}, struct {
             fn desc(_: void, a: RecoEvent, b: RecoEvent) bool {
                 return a.score > b.score;
