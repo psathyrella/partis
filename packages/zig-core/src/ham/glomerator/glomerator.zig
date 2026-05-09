@@ -211,7 +211,7 @@ pub const Glomerator = struct {
                     is_seed_missing,
                     only_genes.items,
                     kbounds,
-                    @floatCast(qrow.mut_freq),
+                    qrow.mut_freq,
                     @intCast(@max(0, qrow.cdr3_length)),
                     null, null,
                 );
@@ -233,7 +233,7 @@ pub const Glomerator = struct {
                 is_seed_missing,
                 only_genes.items,
                 kbounds,
-                @floatCast(qrow.mut_freq),
+                qrow.mut_freq,
                 @intCast(@max(0, qrow.cdr3_length)),
                 null, null,
             );
@@ -344,7 +344,7 @@ pub const Glomerator = struct {
     /// Run full hierarchical clustering and write output.
     /// Corresponds to C++ `Glomerator::Cluster`.
     pub fn cluster(self: *Glomerator) !void {
-        if (self.args.logprob_ratio_threshold == -std.math.inf(f32)) {
+        if (self.args.logprob_ratio_threshold == -std.math.inf(f64)) {
             return error.LogprobRatioThresholdNotSet;
         }
 
@@ -1214,7 +1214,7 @@ pub const Glomerator = struct {
             is_seed_missing,
             only_genes_list.items,
             kbounds,
-            @floatCast(mute_freq_total / @as(f64, @floatFromInt(n_names))),
+            mute_freq_total / @as(f64, @floatFromInt(n_names)),
             cdr3_length,
             null, null,
         );
@@ -1279,7 +1279,7 @@ pub const Glomerator = struct {
         const n_a_f64: f64 = @floatFromInt(ref_a.nSeqs());
         const n_b_f64: f64 = @floatFromInt(ref_b.nSeqs());
         const n_total_f64: f64 = n_a_f64 + n_b_f64;
-        const joint_mute_freq: f32 = @floatCast((n_a_f64 * @as(f64, ref_a.mute_freq) + n_b_f64 * @as(f64, ref_b.mute_freq)) / n_total_f64);
+        const joint_mute_freq: f64 = (n_a_f64 * ref_a.mute_freq + n_b_f64 * ref_b.mute_freq) / n_total_f64;
         const is_seed_missing = !ham_text.inString(self.args.seed_unique_id, joint_name, ":");
 
         var key_seq_ptrs: std.ArrayListUnmanaged(*const Sequence) = .{};
@@ -1460,8 +1460,10 @@ pub const Glomerator = struct {
         // C++ caches the subset in tmp_cachefo_ using the parent cluster's attributes
         // (only_genes, kbounds, mute_freq, cdr3_length). This is important because
         // later getCachefo() calls for the subset will find this entry instead of
-        // rebuilding from singles, and the parent's mute_freq (which carries f32
-        // merge cascade truncation) must be used for consistency with C++.
+        // rebuilding from singles, so the parent's mute_freq (the weighted-average
+        // value carried through the merge cascade) must be used for consistency
+        // with C++. Pre-#377 both backends stored mute_freq as f32, so the cascade
+        // also accumulated f32 truncation; #377 promoted both to f64.
         const cacheref = try self.getCachefo(queries);
         {
             var sub_seq_ptrs: std.ArrayListUnmanaged(*const Sequence) = .{};
