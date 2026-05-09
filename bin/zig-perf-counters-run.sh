@@ -2,8 +2,14 @@
 # Build partis-zig-core with -Dperf-counters=true and run a partition workload
 # with PARTIS_ZIG_PERF_LOG set, so each query emits one PERFCOUNTER line plus
 # one PERFCOUNTER_CACHE line (chunk-cache prefix-list-length histogram) into
-# the log. See packages/zig-core/src/ham/perf_counters.zig for the metric set
-# and packages/zig-core/PERF-NEXT.md Phase 0.1/0.2 for what these are for.
+# the log. See packages/zig-core/src/ham/perf_counters.zig for the metric set.
+#
+# These counters pin denominators for the perf-work cost claims tracked in
+# issue #366 (https://github.com/psathyrella/partis/issues/366) — the
+# distributions every later perf-item's wall claim depends on:
+# per-query active-state median/p95/max, n_ksets, fillTrellis call counts,
+# addInLogSpace call counts, and chunk-cache hit rate. Originally landed in
+# PR #368.
 #
 # Pair with bin/zig-perf-counters-aggregate.py to compute median/p95/max
 # distributions and chunk-cache hit rate from the resulting log.
@@ -15,8 +21,10 @@
 #   INFILE  = /tmp/paired-paper-all-seqs.fa
 #   OUTBASE = /tmp/perf-counters-test
 #   N       = 1000
-#   N_PROCS = 1   (PERF-NEXT.md 0.1 specifies n-procs 1 for clean wall-time
-#                 numbers; for distribution stats only, n_procs > 1 is fine)
+#   N_PROCS = 1   (single-proc keeps wall-time numbers clean for cost-claim
+#                 sizing — multi-proc smears the symbol map across child PIDs
+#                 and adds scheduling jitter. For distribution stats only,
+#                 n_procs > 1 is fine.)
 #
 # After the run, the perf log path is:
 #   $OUTBASE/zig-perf.log

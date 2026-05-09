@@ -8,8 +8,13 @@ all queries.
 
 The log file is produced by partis-zig-core when built with
 -Dperf-counters=true and run with PARTIS_ZIG_PERF_LOG=<path> in the env. See
-packages/zig-core/src/ham/perf_counters.zig for the metric definitions and
-PERF-NEXT.md Phase 0.1 / 0.2 for the priors this is meant to test against.
+packages/zig-core/src/ham/perf_counters.zig for the metric definitions.
+
+These counters pin denominators (active-state distribution, n_ksets,
+fillTrellis call counts, addInLogSpace call counts, chunk-cache hit rate)
+for the perf-work cost claims tracked in issue #366
+(https://github.com/psathyrella/partis/issues/366). Originally landed in
+PR #368.
 
 Usage: zig-perf-counters-aggregate.py <log-file>
 """
