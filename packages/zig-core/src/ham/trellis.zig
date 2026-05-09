@@ -182,6 +182,14 @@ pub const Trellis = struct {
         defer current_states.deinit(allocator);
         var next_states = std.ArrayListUnmanaged(usize){};
         defer next_states.deinit(allocator);
+        // Third list for the sparse-memset three-way rotation in
+        // swapColumnsActive (#366 item 1.1). Holds the candidate-set used
+        // as input to the previous middleViterbiVals call; rotates into
+        // the role of "dirty-list for two swaps from now" so the sparse
+        // clear has the right indices in hand at every iteration without
+        // any per-active-state bookkeeping in the hot inner loop.
+        var prev_current_states = std.ArrayListUnmanaged(usize){};
+        defer prev_current_states.deinit(allocator);
 
         // Position 0: transitions from init state
         const init_st = self.hmm.initial orelse return error.NoInitState;
@@ -192,6 +200,16 @@ pub const Trellis = struct {
             const dpval = emission_val + init_st.transitionLogprob(i_st);
             if (std.math.isNegativeInf(dpval)) continue;
             self.scoring_current[i_st] = dpval;
+            // Track which slots the init code wrote, so the three-way list
+            // rotation in swapColumnsActive can derive iter-2's dirty-list
+            // (= these init writes) without a separate `init_written_states`
+            // list. Treats init as a virtual "iteration 0": its
+            // current_states output is the indices it wrote, and rotates
+            // into prev_current_states at swap #1 → ready for sparse-clear
+            // at swap #2 when the buffer swap exposes these slots in
+            // scoring_current. This is the small refinement of the plan's
+            // "option (b)" (init memset alone leaves swap #2's clear empty).
+            try current_states.append(allocator, i_st);
             self.cacheViterbiVals(0, dpval, i_st);
             // Mark outbound transitions for next position (deduplicated)
             for (self.hmm.stateByIndex(i_st).to_state_indices.items) |j| {
@@ -205,10 +223,10 @@ pub const Trellis = struct {
         // Positions 1..seq_len-1
         var position: usize = 1;
         while (position < seq_len) : (position += 1) {
-            try self.swapColumnsActive(allocator, &current_states, &next_states);
+            self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
             try self.middleViterbiVals(allocator, current_states, &next_states, position);
         }
-        try self.swapColumnsActive(allocator, &current_states, &next_states);
+        self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
 
         // Compute ending probability
         self.ending_viterbi_pointer = -1;
@@ -250,6 +268,10 @@ pub const Trellis = struct {
         defer current_states.deinit(allocator);
         var next_states = std.ArrayListUnmanaged(usize){};
         defer next_states.deinit(allocator);
+        // Third list for the sparse-memset three-way rotation in
+        // swapColumnsActive (#366 item 1.1); see viterbi() for the rationale.
+        var prev_current_states = std.ArrayListUnmanaged(usize){};
+        defer prev_current_states.deinit(allocator);
 
         // Position 0: transitions from init state
         const init_st = self.hmm.initial orelse return error.NoInitState;
@@ -260,6 +282,10 @@ pub const Trellis = struct {
             const dpval = emission_val + init_st.transitionLogprob(i_st);
             if (std.math.isNegativeInf(dpval)) continue;
             self.scoring_current[i_st] = dpval;
+            // Track which slots the init code wrote so the three-way list
+            // rotation can derive iter-2's dirty-list. See viterbi() for
+            // the longer rationale; same logic applies here verbatim.
+            try current_states.append(allocator, i_st);
             // Mark outbound transitions for next position (deduplicated)
             for (self.hmm.stateByIndex(i_st).to_state_indices.items) |j| {
                 if (!self.next_seen.isSet(j)) {
@@ -273,10 +299,10 @@ pub const Trellis = struct {
         // Positions 1..seq_len-1
         var position: usize = 1;
         while (position < seq_len) : (position += 1) {
-            try self.swapColumnsActive(allocator, &current_states, &next_states);
+            self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
             try self.middleForwardVals(allocator, current_states, &next_states, position);
         }
-        try self.swapColumnsActive(allocator, &current_states, &next_states);
+        self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
 
         // Compute ending probability
         self.ending_forward_log_prob = mathutils.NEG_INF;
@@ -326,28 +352,60 @@ pub const Trellis = struct {
 
     fn swapColumnsActive(
         self: *Trellis,
-        allocator: std.mem.Allocator,
         current_states: *std.ArrayListUnmanaged(usize),
         next_states: *std.ArrayListUnmanaged(usize),
-    ) !void {
-        // Swap scoring_current ↔ scoring_previous
+        prev_current_states: *std.ArrayListUnmanaged(usize),
+    ) void {
+        // Swap scoring_current ↔ scoring_previous.
         const tmp = self.scoring_previous;
         self.scoring_previous = self.scoring_current;
         self.scoring_current = tmp;
-        @memset(self.scoring_current, mathutils.NEG_INF);
+
+        // Sparse-clear scoring_current at the indices written two iterations
+        // ago (= the contents of prev_current_states at entry). After the
+        // buffer swap, scoring_current is the buffer that held those writes,
+        // so only those slots could hold non-NEG_INF; clearing them restores
+        // the same post-condition the previous full @memset gave (entire
+        // buffer NEG_INF before middle{Viterbi,Forward}Vals at iteration N
+        // writes through its current_states subset).
+        //
+        // This is the #366 item 1.1 sparse-memset path. Hot-path discipline
+        // (the rule that #369 violated): no `try`, no allocation, no fallible
+        // op in this loop — it must compile to a tight indexed store. The
+        // dirty-list arrives in `prev_current_states` as a zero-cost side
+        // effect of the three-way list rotation below; no per-active-state
+        // bookkeeping inside middle{Viterbi,Forward}Vals.
+        for (prev_current_states.items) |j| self.scoring_current[j] = mathutils.NEG_INF;
 
         // Clear next_seen for all indices that were in next_states
         // (they will become current_states; next_seen tracks what's queued for the NEW next)
         for (next_states.items) |j| self.next_seen.unset(j);
 
-        // current_states ← next_states; next_states ← empty
-        // Swap the backing allocations to avoid reallocation
-        const old_current_items = current_states.items;
-        const old_current_cap = current_states.capacity;
+        // Three-way list rotation: prev_current ← current, current ← next,
+        // next ← (old prev_current, then cleared). After this rotation:
+        //   - current_states.items = the candidate-set for the NEXT
+        //     middle{Viterbi,Forward}Vals call (i.e., what was in
+        //     next_states at entry, populated by the previous iteration);
+        //   - prev_current_states.items = the candidate-set that was just
+        //     used as input to the previous middle{...}Vals call. Those
+        //     indices name the slots in scoring_previous (post-rotation),
+        //     and will become the dirty-list for the sparse-clear two
+        //     swaps from now (when those slots have rotated back into
+        //     scoring_current via the next two buffer swaps).
+        //   - next_states is empty (clearRetainingCapacity), ready for
+        //     the next middle{...}Vals to populate the iteration-after-next
+        //     candidate set.
+        //
+        // ArrayListUnmanaged is two POD fields (items: []usize, capacity:
+        // usize); this is allocation-free struct-field assignment, no `try`.
+        const tmp_items = prev_current_states.items;
+        const tmp_capacity = prev_current_states.capacity;
+        prev_current_states.items = current_states.items;
+        prev_current_states.capacity = current_states.capacity;
         current_states.items = next_states.items;
         current_states.capacity = next_states.capacity;
-        next_states.items = old_current_items;
-        next_states.capacity = old_current_cap;
+        next_states.items = tmp_items;
+        next_states.capacity = tmp_capacity;
         next_states.clearRetainingCapacity();
         // Sort current_states in ascending order to match C++ bitset iteration
         // (0..n_states). This is critical: cacheForwardVals accumulates
@@ -356,7 +414,6 @@ pub const Trellis = struct {
         // produce different results. The cached forward_log_probs values are
         // then read by chunk-cached trellises via endingForwardLogProbAt().
         std.mem.sort(usize, current_states.items, {}, std.sort.asc(usize));
-        _ = allocator; // backing storage reuse avoids new allocations
     }
 
     fn middleViterbiVals(
