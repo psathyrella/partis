@@ -1849,4 +1849,10 @@ random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
 start = time.time()
 args.func(args)
-print('      total time: %.1f' % (time.time()-start))
+total_time = time.time() - start
+print('      total time: %.1f' % total_time)
+from partis import partitiondriver
+bcrham_t, bcrham_n = partitiondriver.get_bcrham_summary()
+if bcrham_n > 0:
+    pct = 100.0 * bcrham_t / total_time if total_time > 0 else 0.0
+    print('      bcrham time: %.1f (%.1f%% of total, %d calls)' % (bcrham_t, pct, bcrham_n))

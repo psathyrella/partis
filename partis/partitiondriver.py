@@ -37,6 +37,17 @@ from .hist import Hist
 from . import seqfileopener
 
 # ----------------------------------------------------------------------------------------
+# Process-global accumulator for bcrham subprocess wall time, used to print a
+# "bcrham time: X (Y% of total)" summary alongside the final "total time:" line
+# in bin/partis. Phase 0 of issue #366 deferred pinning the bcrham fraction
+# pending partis-level timing instrumentation; this is that instrumentation.
+_cumul_bcrham_time = 0.0
+_cumul_bcrham_calls = 0
+
+def get_bcrham_summary():
+    return _cumul_bcrham_time, _cumul_bcrham_calls
+
+# ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args, glfo, input_info, simglfo, reco_info):
@@ -1390,7 +1401,11 @@ class PartitionDriver(object):
                    'outfname' : get_outfname(iproc),
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
+        run_start = time.time()
         utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname, debug='print' if self.args.debug else None)
+        global _cumul_bcrham_time, _cumul_bcrham_calls
+        _cumul_bcrham_time += time.time() - run_start
+        _cumul_bcrham_calls += 1
         self.print_partition_dbgfo()
 
         self.check_wait_times(time.time()-start)
