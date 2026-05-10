@@ -51,6 +51,27 @@ const TrellisEntry = struct {
     trellis: Trellis,
 };
 
+/// Per-gene pointer bundle hoisted once at the top of `runKSet`'s
+/// per-gene loop iteration. Eliminates the redundant
+/// `self.scratch_cachefo.getPtr(gene)`, `self.paths.getPtr(gene)`,
+/// `self.scores.getPtr(gene)`, and `self.hmms.get(gene)` calls that
+/// would otherwise fire 3-6× per gene per kset on the hot path.
+///
+/// Pointers are stable for the lifetime of one gene-block iteration:
+/// `initCache(gene)` populates the outer `scratch_cachefo` / `paths` /
+/// `scores` maps before the cache is built; no other caller adds new
+/// entries to those outer maps within a gene-block; and writes to the
+/// inner kset-keyed maps don't relocate the outer-map value slots.
+/// HMMHolder's gene→Model map is similarly stable post-load. See the
+/// Phase A lever-sizing memo on issue #366 for the wall attribution
+/// (HashMap-by-gene-name = ~33% of partition wall before this hoist).
+const PerGeneCache = struct {
+    cachefo: *std.ArrayListUnmanaged(*TrellisEntry),
+    paths: *std.AutoHashMapUnmanaged(KSet, TracebackPath),
+    scores: *std.AutoHashMapUnmanaged(KSet, f64),
+    model: *Model,
+};
+
 /// Corresponds to C++ `ham::DPHandler`.
 pub const DPHandler = struct {
     algorithm: []const u8,
@@ -560,9 +581,10 @@ pub const DPHandler = struct {
 
     /// Look for a cached kset whose region sequences are a prefix of the
     /// query's per-region undigitized strings (built via `getSubSeqs`).
-    /// Returns null-kset if none found.
-    fn findPartialCacheMatch(self: *DPHandler, region: Region, gene: []const u8, kset: KSet) KSet {
-        const gene_scores = self.scores.get(gene) orelse return KSet{ .v = 0, .d = 0 };
+    /// Returns null-kset if none found. `gene_scores` is the per-gene
+    /// inner map hoisted by the caller (see `PerGeneCache`); replaces
+    /// the prior `self.scores.get(gene)` lookup at this site.
+    fn findPartialCacheMatch(_: *DPHandler, region: Region, gene_scores: *const std.AutoHashMapUnmanaged(KSet, f64), kset: KSet) KSet {
         if (gene_scores.get(kset) != null) return kset;
 
         switch (region) {
@@ -614,7 +636,7 @@ pub const DPHandler = struct {
         kset_alloc: std.mem.Allocator,
         kset: KSet,
         query_seqs: *const Sequences,
-        gene: []const u8,
+        gc: *const PerGeneCache,
     ) ![]const u8 {
         const allocator = self.scratchAllocator();
         perf_counters.bumpFillTrellis();
@@ -624,29 +646,25 @@ pub const DPHandler = struct {
         var cached_trellis: ?*const Trellis = null;
         if (!self.args.no_chunk_cache) {
             perf_counters.bumpChunkCacheLookup();
-            if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
-                for (cache_list.items) |te| {
-                    const cached_seqs = te.query_seqs.seqs.items;
-                    const current_seqs = query_seqs.seqs.items;
-                    if (cached_seqs.len != current_seqs.len) continue;
-                    var all_match = true;
-                    for (cached_seqs, current_seqs) |*cached, *current| {
-                        // cached must START WITH current (prefix match)
-                        if (!std.mem.startsWith(u8, cached.undigitized, current.undigitized)) {
-                            all_match = false;
-                            break;
-                        }
-                    }
-                    if (all_match) {
-                        cached_trellis = &te.trellis;
-                        perf_counters.bumpChunkCacheHit();
+            for (gc.cachefo.items) |te| {
+                const cached_seqs = te.query_seqs.seqs.items;
+                const current_seqs = query_seqs.seqs.items;
+                if (cached_seqs.len != current_seqs.len) continue;
+                var all_match = true;
+                for (cached_seqs, current_seqs) |*cached, *current| {
+                    // cached must START WITH current (prefix match)
+                    if (!std.mem.startsWith(u8, cached.undigitized, current.undigitized)) {
+                        all_match = false;
                         break;
                     }
                 }
+                if (all_match) {
+                    cached_trellis = &te.trellis;
+                    perf_counters.bumpChunkCacheHit();
+                    break;
+                }
             }
         }
-
-        const model = try self.hmms.get(gene);
 
         // Match C++ DPHandler::FillTrellis logic exactly:
         //   - When no cached trellis: create scratch, store it, run algorithm ON THE SCRATCH directly.
@@ -671,23 +689,13 @@ pub const DPHandler = struct {
             errdefer allocator.destroy(entry);
             entry.query_seqs = try query_seqs.clone(allocator);
             errdefer entry.query_seqs.deinit(allocator);
-            entry.trellis = try Trellis.initWithSeqs(allocator, model, &entry.query_seqs, null);
+            entry.trellis = try Trellis.initWithSeqs(allocator, gc.model, &entry.query_seqs, null);
             errdefer entry.trellis.deinit();
 
-            if (self.scratch_cachefo.getPtr(gene)) |cache_list| {
-                try cache_list.append(allocator, entry);
-                break :blk &entry.trellis;
-            } else {
-                // gene not in scratch_cachefo (shouldn't happen after initCache).
-                // Assert so safe builds (Debug, ReleaseSafe — including the
-                // rung-1 UAF-coverage run) panic loudly; ReleaseFast keeps
-                // the cleanup + error-return path as a defensive fallback.
-                std.debug.assert(false);
-                entry.trellis.deinit();
-                entry.query_seqs.deinit(allocator);
-                allocator.destroy(entry);
-                return error.GeneNotInScratchCache;
-            }
+            // gc.cachefo is guaranteed non-null by the caller (initCache
+            // ran before the gc was built — see PerGeneCache doc-block).
+            try gc.cachefo.append(allocator, entry);
+            break :blk &entry.trellis;
         } else blk: {
             // Have cache: temp trellis borrows from the caller's query_seqs
             // (no clone — lifetime is just this call). Backed by the per-kset
@@ -699,7 +707,7 @@ pub const DPHandler = struct {
             // The path items below are explicitly routed through `allocator`
             // (per-query scratch), not `kset_alloc`, since they're stored in
             // `self.paths` and outlive the kset. (Item 4, #342.)
-            tmptrell = try Trellis.initWithSeqs(kset_alloc, model, query_seqs, cached_trellis);
+            tmptrell = try Trellis.initWithSeqs(kset_alloc, gc.model, query_seqs, cached_trellis);
             origin = "chunk";
             break :blk &tmptrell.?;
         };
@@ -709,30 +717,24 @@ pub const DPHandler = struct {
             try trell_ptr.viterbi();
             const sc = trell_ptr.ending_viterbi_log_prob;
             // Store traceback path
-            var path = TracebackPath.initWithModel(model);
+            var path = TracebackPath.initWithModel(gc.model);
             errdefer path.deinit(allocator);
             if (sc != mathutils.NEG_INF) {
                 // Explicitly pass `allocator` (per-query scratch) so the path's
                 // items don't capture the temp trellis's per-kset arena.
                 try trell_ptr.traceback(allocator, &path);
             }
-            if (self.paths.getPtr(gene)) |gene_paths| {
-                try gene_paths.put(allocator, kset, path);
-            } else {
-                path.deinit(allocator);
-            }
+            try gc.paths.put(allocator, kset, path);
             break :blk sc;
         } else blk: {
             try trell_ptr.forward();
             break :blk trell_ptr.ending_forward_log_prob;
         };
 
-        const gene_choice_score = log(model.overall_prob);
+        const gene_choice_score = log(gc.model.overall_prob);
         const final_score = mathutils.addWithMinusInfinities(uncorrected_score, gene_choice_score);
 
-        if (self.scores.getPtr(gene)) |gene_scores| {
-            try gene_scores.put(allocator, kset, final_score);
-        }
+        try gc.scores.put(allocator, kset, final_score);
 
         return origin;
     }
@@ -985,32 +987,41 @@ pub const DPHandler = struct {
             for (sorted_genes) |gene| {
                 try self.initCache(gene);
 
+                // Hoist all gene-keyed lookups once per gene-block. After
+                // initCache, the outer string-keyed maps don't grow within
+                // this iteration so the inner pointers stay stable. Phase A
+                // measured ~33% of partition wall in HashMap[gene_name]
+                // lookups; this hoist is the primary lever for #366. See
+                // PerGeneCache doc-block.
+                const gc = PerGeneCache{
+                    .cachefo = self.scratch_cachefo.getPtr(gene).?,
+                    .paths = self.paths.getPtr(gene).?,
+                    .scores = self.scores.getPtr(gene).?,
+                    .model = try self.hmms.get(gene),
+                };
+
                 var origin: []const u8 = "";
-                const partial_match = self.findPartialCacheMatch(region, gene, kset);
+                const partial_match = self.findPartialCacheMatch(region, gc.scores, kset);
                 if (!partial_match.isNull()) {
                     // Copy path and score from cached kset. Both go into
                     // `self.paths` / `self.scores`, which outlive the kset
                     // — route through `scratch`, not `allocator`.
-                    if (self.paths.getPtr(gene)) |gp| {
-                        if (gp.get(partial_match)) |cached_path| {
-                            var path_copy = TracebackPath.init();
-                            errdefer path_copy.deinit(scratch);
-                            try path_copy.path.appendSlice(scratch, cached_path.path.items);
-                            path_copy.setScore(cached_path.score);
-                            path_copy.setModel(cached_path.hmm.?);
-                            try gp.put(scratch, kset, path_copy);
-                        }
+                    if (gc.paths.get(partial_match)) |cached_path| {
+                        var path_copy = TracebackPath.init();
+                        errdefer path_copy.deinit(scratch);
+                        try path_copy.path.appendSlice(scratch, cached_path.path.items);
+                        path_copy.setScore(cached_path.score);
+                        path_copy.setModel(cached_path.hmm.?);
+                        try gc.paths.put(scratch, kset, path_copy);
                     }
-                    if (self.scores.getPtr(gene)) |gs| {
-                        const cached_score = gs.get(partial_match) orelse mathutils.NEG_INF;
-                        try gs.put(scratch, kset, cached_score);
-                    }
+                    const cached_score = gc.scores.get(partial_match) orelse mathutils.NEG_INF;
+                    try gc.scores.put(scratch, kset, cached_score);
                     origin = "cached";
                 } else {
-                    origin = try self.fillTrellis(allocator, kset, &query_seqs, gene);
+                    origin = try self.fillTrellis(allocator, kset, &query_seqs, &gc);
                 }
 
-                const gene_score = if (self.scores.getPtr(gene)) |gs| gs.get(kset) orelse mathutils.NEG_INF else mathutils.NEG_INF;
+                const gene_score = gc.scores.get(kset) orelse mathutils.NEG_INF;
 
                 // Debug: per-gene viterbi output
                 if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "viterbi")) {
