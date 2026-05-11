@@ -282,6 +282,12 @@ pub const DPHandler = struct {
         // `-Dperf-counters=false` (default), so the bit-equal default build
         // is unaffected.
         perf_counters.reset();
+        // Phase-B outer-perimeter timer: total time inside this run() body
+        // (excluding the reset() above). Tick AFTER reset so reset doesn't
+        // wipe it. Read in `dumpPerfCounters` via a final `addElapsed` at
+        // each exit point that dumps; non-dumping early returns leak the
+        // tick but contribute zero work.
+        const t_run = perf_counters.tick();
 
         // Build a Sequences container that borrows from `seqvector`.
         // Each Sequence is a shallow struct-copy: slice headers are duplicated,
@@ -432,6 +438,13 @@ pub const DPHandler = struct {
             if (!self.args.dont_rescale_emissions) {
                 try self.hmms.unRescaleOverallMuteFreqs(&only_genes);
             }
+            perf_counters.addElapsed(&perf_counters.dpHandler_run_total_ns, t_run);
+            // Accumulate into the process-lifetime counter for Glomerator
+            // attribution. dpHandler_run_total_ns gets reset() to zero on
+            // the next run() entry, so we mirror it here BEFORE the reset.
+            if (perf_counters.enabled) {
+                perf_counters.cumul_dpHandler_run_ns +%= perf_counters.dpHandler_run_total_ns;
+            }
             try self.dumpPerfCounters(&seqs);
             return result;
         }
@@ -465,6 +478,12 @@ pub const DPHandler = struct {
             try self.hmms.unRescaleOverallMuteFreqs(&only_genes);
         }
 
+        perf_counters.addElapsed(&perf_counters.dpHandler_run_total_ns, t_run);
+        // See the no-path early-return above for the rationale: mirror
+        // into the process-lifetime cumul before the next reset() fires.
+        if (perf_counters.enabled) {
+            perf_counters.cumul_dpHandler_run_ns +%= perf_counters.dpHandler_run_total_ns;
+        }
         try self.dumpPerfCounters(&seqs);
         return result;
     }
@@ -504,12 +523,13 @@ pub const DPHandler = struct {
             buckets[idx] += 1;
         }
 
-        // Build the PERFCOUNTER + PERFCOUNTER_CACHE block in one buffer
-        // and emit with a single writeAll. With multiple bcrham processes
-        // appending to the same log (`partis --n-procs N > 1`), splitting
-        // this into two writes would let another process slip a line
-        // between ours, separating the pair. Concatenated, the two lines
-        // share one O_APPEND atomic write.
+        // Build the PERFCOUNTER + PERFCOUNTER_CACHE + PERFCOUNTER_TIMING
+        // block in one buffer and emit with a single writeAll. With
+        // multiple bcrham processes appending to the same log
+        // (`partis --n-procs N > 1`), splitting this into multiple writes
+        // would let another process slip a line between ours, separating
+        // the trio. Concatenated, all three share one O_APPEND atomic
+        // write.
         const main_line = (try perf_counters.formatPerfCounters(allocator, self.algorithm, name_str, seqs.seqs.items.len)) orelse return;
         defer allocator.free(main_line);
         const cache_line = try std.fmt.allocPrint(
@@ -518,7 +538,9 @@ pub const DPHandler = struct {
             .{ self.algorithm, name_str, buckets[0], buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], buckets[6], buckets[7], buckets[8], buckets[9], buckets[10], buckets[11] },
         );
         defer allocator.free(cache_line);
-        const blob = try std.mem.concat(allocator, u8, &.{ main_line, cache_line });
+        const timing_line = (try perf_counters.formatPerfCountersTiming(allocator, self.algorithm, name_str, seqs.seqs.items.len)) orelse return;
+        defer allocator.free(timing_line);
+        const blob = try std.mem.concat(allocator, u8, &.{ main_line, cache_line, timing_line });
         defer allocator.free(blob);
 
         // O_APPEND on regular files: Linux serializes the
@@ -663,12 +685,19 @@ pub const DPHandler = struct {
     ) ![]const u8 {
         const allocator = self.scratchAllocator();
         perf_counters.bumpFillTrellis();
+        // Phase-B: time the whole fillTrellis body so we can divide the
+        // chunkScan/init/tmpInit/viterbi/forward/traceback/put numbers by
+        // their parent total instead of by bcrham wall (which includes
+        // runKSet overhead and the cache-hit path).
+        const t_total = perf_counters.tick();
+        defer perf_counters.addElapsed(&perf_counters.fillTrellis_total_ns, t_total);
 
         // Look for a chunk-cached trellis. Prefix-match is on undigitized
         // strings of the cached trellis's stored query_seqs.
         var cached_trellis: ?*const Trellis = null;
         if (!self.args.no_chunk_cache) {
             perf_counters.bumpChunkCacheLookup();
+            const t_scan = perf_counters.tick();
             for (gc.cachefo.items) |te| {
                 const cached_seqs = te.query_seqs.seqs.items;
                 const current_seqs = query_seqs.seqs.items;
@@ -687,6 +716,7 @@ pub const DPHandler = struct {
                     break;
                 }
             }
+            perf_counters.addElapsed(&perf_counters.fillTrellis_chunkScan_ns, t_scan);
         }
 
         // Match C++ DPHandler::FillTrellis logic exactly:
@@ -715,6 +745,7 @@ pub const DPHandler = struct {
             // from the entry's heap address, so `trellis.seqs = &entry.query_seqs`
             // stays valid across cache_list appends (which only move the *entry
             // pointers in the list, not the entries themselves).
+            const t_init = perf_counters.tick();
             const entry = try allocator.create(TrellisEntry);
             errdefer allocator.destroy(entry);
             entry.query_seqs = try query_seqs.clone(allocator);
@@ -725,6 +756,7 @@ pub const DPHandler = struct {
             // gc.cachefo is guaranteed non-null by the caller (initCache
             // ran before the gc was built — see PerGeneCache doc-block).
             try gc.cachefo.append(allocator, entry);
+            perf_counters.addElapsed(&perf_counters.fillTrellis_init_ns, t_init);
             break :blk &entry.trellis;
         } else blk: {
             // Have cache: temp trellis borrows from the caller's query_seqs
@@ -737,14 +769,18 @@ pub const DPHandler = struct {
             // The path items below are explicitly routed through `allocator`
             // (per-query scratch), not `kset_alloc`, since they're stored in
             // `self.paths` and outlive the kset. (Item 4, #342.)
+            const t_tmpInit = perf_counters.tick();
             tmptrell = try Trellis.initWithSeqs(kset_alloc, model, query_seqs, cached_trellis);
+            perf_counters.addElapsed(&perf_counters.fillTrellis_tmpInit_ns, t_tmpInit);
             origin = "chunk";
             break :blk &tmptrell.?;
         };
 
         // Run the algorithm on trell_ptr
         const uncorrected_score: f64 = if (std.mem.eql(u8, self.algorithm, "viterbi")) blk: {
+            const t_vit = perf_counters.tick();
             try trell_ptr.viterbi();
+            perf_counters.addElapsed(&perf_counters.fillTrellis_viterbi_ns, t_vit);
             const sc = trell_ptr.ending_viterbi_log_prob;
             // Store traceback path
             var path = TracebackPath.initWithModel(model);
@@ -752,19 +788,27 @@ pub const DPHandler = struct {
             if (sc != mathutils.NEG_INF) {
                 // Explicitly pass `allocator` (per-query scratch) so the path's
                 // items don't capture the temp trellis's per-kset arena.
+                const t_tb = perf_counters.tick();
                 try trell_ptr.traceback(allocator, &path);
+                perf_counters.addElapsed(&perf_counters.fillTrellis_traceback_ns, t_tb);
             }
+            const t_put_p = perf_counters.tick();
             try gc.paths.put(allocator, kset, path);
+            perf_counters.addElapsed(&perf_counters.fillTrellis_put_ns, t_put_p);
             break :blk sc;
         } else blk: {
+            const t_fwd = perf_counters.tick();
             try trell_ptr.forward();
+            perf_counters.addElapsed(&perf_counters.fillTrellis_forward_ns, t_fwd);
             break :blk trell_ptr.ending_forward_log_prob;
         };
 
         const gene_choice_score = log(model.overall_prob);
         const final_score = mathutils.addWithMinusInfinities(uncorrected_score, gene_choice_score);
 
+        const t_put_s = perf_counters.tick();
         try gc.scores.put(allocator, kset, final_score);
+        perf_counters.addElapsed(&perf_counters.fillTrellis_put_ns, t_put_s);
 
         return origin;
     }
@@ -909,6 +953,13 @@ pub const DPHandler = struct {
         total_scores: *std.AutoHashMapUnmanaged(KSet, f64),
         best_genes: *std.AutoHashMapUnmanaged(KSet, std.AutoHashMapUnmanaged(Region, []u8)),
     ) !void {
+        // Phase-B outer-perimeter: time the full runKSet body. Pair with
+        // fillTrellis_total_ns + cachedPath_ns to expose runKSet plumbing
+        // (sorted_genes, findPartialCacheMatch, regional_total updates,
+        // per-region sub-seq clones, debug output) as the residual.
+        const t_kset = perf_counters.tick();
+        defer perf_counters.addElapsed(&perf_counters.runKSet_total_ns, t_kset);
+
         const scratch = self.scratchAllocator();
         var kset_arena = std.heap.ArenaAllocator.init(self.parent_allocator);
         defer kset_arena.deinit();
@@ -1032,6 +1083,10 @@ pub const DPHandler = struct {
                 var origin: []const u8 = "";
                 const partial_match = self.findPartialCacheMatch(region, gc.scores, kset);
                 if (!partial_match.isNull()) {
+                    // Phase-B: time the cache-hit path so we can compare it
+                    // to fillTrellis_total_ns. Excludes findPartialCacheMatch
+                    // above (which runs on both branches).
+                    const t_cached = perf_counters.tick();
                     // Copy path and score from cached kset. Both go into
                     // `self.paths` / `self.scores`, which outlive the kset
                     // — route through `scratch`, not `allocator`.
@@ -1046,6 +1101,7 @@ pub const DPHandler = struct {
                     const cached_score = gc.scores.get(partial_match) orelse mathutils.NEG_INF;
                     try gc.scores.put(scratch, kset, cached_score);
                     origin = "cached";
+                    perf_counters.addElapsed(&perf_counters.cachedPath_ns, t_cached);
                 } else {
                     origin = try self.fillTrellis(allocator, kset, &query_seqs, gene, &gc);
                 }

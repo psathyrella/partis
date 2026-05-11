@@ -192,6 +192,9 @@ pub const Trellis = struct {
         defer prev_current_states.deinit(allocator);
 
         // Position 0: transitions from init state
+        // Phase-B'' timer: capture the init-position cost so the main
+        // position-loop body is derivable as fillTrellis_viterbi_ns − init − ending.
+        const t_init = perf_counters.tick();
         const init_st = self.hmm.initial orelse return error.NoInitState;
         // Reset next_seen before populating position 0
         self.next_seen = state_mod.StateBitset.initEmpty();
@@ -219,6 +222,7 @@ pub const Trellis = struct {
                 }
             }
         }
+        perf_counters.addElapsed(&perf_counters.viterbi_init_ns, t_init);
 
         // Positions 1..seq_len-1
         var position: usize = 1;
@@ -229,6 +233,7 @@ pub const Trellis = struct {
         self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
 
         // Compute ending probability
+        const t_ending = perf_counters.tick();
         self.ending_viterbi_pointer = -1;
         self.ending_viterbi_log_prob = mathutils.NEG_INF;
         for (0..n_states) |st_prev| {
@@ -239,6 +244,7 @@ pub const Trellis = struct {
                 self.ending_viterbi_pointer = @intCast(st_prev);
             }
         }
+        perf_counters.addElapsed(&perf_counters.viterbi_ending_ns, t_ending);
     }
 
     /// Run the Forward algorithm.
@@ -274,6 +280,8 @@ pub const Trellis = struct {
         defer prev_current_states.deinit(allocator);
 
         // Position 0: transitions from init state
+        // Phase-B'' timer: capture the init-position cost (see viterbi() above).
+        const t_init = perf_counters.tick();
         const init_st = self.hmm.initial orelse return error.NoInitState;
         // Reset next_seen before populating position 0
         self.next_seen = state_mod.StateBitset.initEmpty();
@@ -295,6 +303,7 @@ pub const Trellis = struct {
             }
             self.cacheForwardVals(0, dpval, i_st);
         }
+        perf_counters.addElapsed(&perf_counters.forward_init_ns, t_init);
 
         // Positions 1..seq_len-1
         var position: usize = 1;
@@ -305,6 +314,7 @@ pub const Trellis = struct {
         self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
 
         // Compute ending probability
+        const t_ending = perf_counters.tick();
         self.ending_forward_log_prob = mathutils.NEG_INF;
         for (0..n_states) |st_prev| {
             if (std.math.isNegativeInf(self.scoring_previous[st_prev])) continue;
@@ -312,6 +322,7 @@ pub const Trellis = struct {
             if (std.math.isNegativeInf(dpval)) continue;
             self.ending_forward_log_prob = mathutils.addInLogSpace(self.ending_forward_log_prob, dpval);
         }
+        perf_counters.addElapsed(&perf_counters.forward_ending_ns, t_ending);
     }
 
     /// Traceback to produce a path.
