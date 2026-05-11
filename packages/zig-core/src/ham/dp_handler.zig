@@ -51,26 +51,39 @@ const TrellisEntry = struct {
     trellis: Trellis,
 };
 
+/// Per-gene scratch cache value: bundles the chunk-cache list of
+/// `*TrellisEntry`s with the pre-resolved `*Model` for the gene
+/// (#366 lever 5).
+///
+/// Resolving the model once at `initCache` time and stashing it
+/// here eliminates per-`fillTrellis` calls into
+/// `HMMHolder.hmms.get(gene)` — that map is `[]const u8 → *Model`
+/// (StringHashMap), and post-#380 perf-record attributes 24.63% of
+/// partition wall to `getIndex__anon_27622`, the `getIndex`
+/// instantiation for that value type. The hoist is intentionally
+/// at per-(gene, query) granularity: the cache-hit path in
+/// `runKSet` already avoids `hmms.get` (it uses
+/// `cached_path.hmm.?`), so we don't want to add a lookup there.
+/// `initCache(gene)` early-returns on subsequent calls within the
+/// same query, so resolving the model in `initCache` is paid once
+/// per (gene, query), not once per (gene, kset).
+///
+/// `*Model` lifetime: HMMHolder owns models for the full process
+/// lifetime — it never evicts and never reloads, so the resolved
+/// pointer is stable across run() calls. We do NOT free the
+/// `*Model` from this struct; HMMHolder.deinit handles that.
+const ScratchCacheEntry = struct {
+    list: std.ArrayListUnmanaged(*TrellisEntry),
+    model: *Model,
+};
+
 /// Per-gene inner-map pointer bundle hoisted once at the top of
 /// `runKSet`'s per-gene loop iteration. Replaces 2-3 redundant
 /// `self.{scratch_cachefo,paths,scores}.getPtr(gene)` lookups in the
 /// gene-block body and inside `fillTrellis` with a single struct of
-/// pre-resolved pointers.
-///
-/// Honest cost framing: the lookups this hoist eliminates show as
-/// 0.00% of partition wall in the post-#380 perf-record (the
-/// `getIndex` symbols for value-types `AutoHashMapUnmanaged(KSet,
-/// TracebackPath)`, `AutoHashMapUnmanaged(KSet, f64)`, and
-/// `ArrayListUnmanaged(*TrellisEntry)` do not appear at the top of
-/// `/tmp/perf-1.1-results/partition-5k.perf.report`). The 24.63%
-/// `getIndex__anon_27622` bucket cited in the Phase A memo is
-/// HMMHolder's `[]const u8 → *Model` map only — a different value
-/// type, with one call per (gene, kset) on the cache-miss path that
-/// this hoist intentionally does NOT touch (hoisting it would add a
-/// `hmms.get` call on the cache-hit path where the original code
-/// uses `cached_path.hmm.?` instead). So this hoist is best framed
-/// as a code-clarity / dead-error-path-removal refactor; any wall
-/// improvement is in the noise.
+/// pre-resolved pointers. Also exposes the per-gene `*Model` via
+/// `cache_entry.model` (#366 lever 5) so `fillTrellis` need not
+/// re-call `self.hmms.get(gene)`.
 ///
 /// Pointer-stability invariants (load-bearing):
 ///   - `initCache(gene)` is the only site that grows
@@ -78,8 +91,8 @@ const TrellisEntry = struct {
 ///     above the cache build at the top of each gene-block iteration.
 ///   - Within one gene-block iteration, the outer string-keyed maps
 ///     don't grow. Inner-map writes (`gp.put(scratch, kset, ...)`,
-///     `cache_list.append(allocator, entry)`, etc.) modify the inner
-///     map's internal pointers but don't relocate the outer-map
+///     `cache_entry.list.append(allocator, entry)`, etc.) modify the
+///     inner map's internal pointers but don't relocate the outer-map
 ///     value slot.
 ///   - `.?` unwraps below would panic in `Debug`/`ReleaseSafe` if
 ///     the invariant ever broke; `ReleaseFast` would silently UAF.
@@ -89,7 +102,7 @@ const TrellisEntry = struct {
 ///     CI). If you change the locking around `initCache` or add a
 ///     new outer-map writer, also re-confirm via that rung.
 const PerGeneCache = struct {
-    cachefo: *std.ArrayListUnmanaged(*TrellisEntry),
+    cache_entry: *ScratchCacheEntry,
     paths: *std.AutoHashMapUnmanaged(KSet, TracebackPath),
     scores: *std.AutoHashMapUnmanaged(KSet, f64),
 };
@@ -117,9 +130,11 @@ pub const DPHandler = struct {
     /// and reuses the backing pages for the next call. Item 4, #342.
     query_arena: std.heap.ArenaAllocator,
 
-    /// scratch_cachefo_: gene → list of *TrellisEntry. Entries are
-    /// individually heap-allocated for stable address (the trellis at each
-    /// entry borrows `&entry.query_seqs` and that pointer must stay valid
+    /// scratch_cachefo_: gene → ScratchCacheEntry (chunk-cache list +
+    /// pre-resolved `*Model` for the gene; see `ScratchCacheEntry` and
+    /// #366 lever 5). Entries within `.list` are individually
+    /// heap-allocated for stable address (the trellis at each entry
+    /// borrows `&entry.query_seqs` and that pointer must stay valid
     /// across appends to the same gene's list). Address stability is
     /// preserved under the per-query arena because arenas only grow —
     /// past allocations are never relocated.
@@ -128,7 +143,7 @@ pub const DPHandler = struct {
     /// `paths` and `scores`, which are populated by the same `initCache`
     /// call (item 5 of #342). `scores` owns the duped key bytes; `clear()`
     /// frees keys only when iterating `scores` to avoid a triple-free.
-    scratch_cachefo: std.StringHashMapUnmanaged(std.ArrayListUnmanaged(*TrellisEntry)),
+    scratch_cachefo: std.StringHashMapUnmanaged(ScratchCacheEntry),
     /// paths_: gene → (KSet → TracebackPath). Keys are borrowed (see
     /// `scratch_cachefo` doc-block); the canonical owner is `scores`.
     paths: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, TracebackPath)),
@@ -190,15 +205,17 @@ pub const DPHandler = struct {
         // trellis first (it doesn't own seqs but may use seq_len etc.), then
         // the Sequences, then destroy the entry struct itself.
         // Keys are shared with `paths` and `scores` (item 5 of #342); freed
-        // once below when iterating `scores`.
+        // once below when iterating `scores`. The `.model` pointer is owned
+        // by HMMHolder (one Model per gene, freed in HMMHolder.deinit) — do
+        // NOT deinit/destroy it here.
         var cit = self.scratch_cachefo.iterator();
         while (cit.next()) |entry| {
-            for (entry.value_ptr.items) |te| {
+            for (entry.value_ptr.list.items) |te| {
                 te.trellis.deinit();
                 te.query_seqs.deinit(allocator);
                 allocator.destroy(te);
             }
-            entry.value_ptr.deinit(allocator);
+            entry.value_ptr.list.deinit(allocator);
         }
         self.scratch_cachefo.deinit(allocator);
         self.scratch_cachefo = .{};
@@ -498,7 +515,7 @@ pub const DPHandler = struct {
         var buckets = [_]u64{0} ** 12;
         var it = self.scratch_cachefo.iterator();
         while (it.next()) |entry| {
-            const n = entry.value_ptr.items.len;
+            const n = entry.value_ptr.list.items.len;
             const idx: usize =
                 if (n == 0) 0 else if (n == 1) 1 else if (n == 2) 2 else if (n == 3) 3 else if (n == 4) 4 else if (n == 5) 5 else if (n < 10) 6 else if (n < 20) 7 else if (n < 50) 8 else if (n < 100) 9 else if (n < 200) 10 else 11;
             buckets[idx] += 1;
@@ -595,8 +612,16 @@ pub const DPHandler = struct {
         try self.paths.ensureUnusedCapacity(allocator, 1);
         try self.scores.ensureUnusedCapacity(allocator, 1);
 
+        // Pre-resolve the gene's `*Model` once per (gene, query) (#366
+        // lever 5). HMMHolder.hmms is a StringHashMap; the lookup is the
+        // 24.63% `getIndex__anon_27622` bucket in the post-#380
+        // perf-record. Fetching here, on the gene's first kset, replaces
+        // the per-`fillTrellis` lookup that would otherwise repeat on
+        // every cache-miss kset for the same gene.
+        const m = try self.hmms.get(gene);
+
         const key = try allocator.dupe(u8, gene);
-        self.scratch_cachefo.putAssumeCapacity(key, .{});
+        self.scratch_cachefo.putAssumeCapacity(key, .{ .list = .{}, .model = m });
         self.paths.putAssumeCapacity(key, .{});
         self.scores.putAssumeCapacity(key, .{});
     }
@@ -658,7 +683,6 @@ pub const DPHandler = struct {
         kset_alloc: std.mem.Allocator,
         kset: KSet,
         query_seqs: *const Sequences,
-        gene: []const u8,
         gc: *const PerGeneCache,
     ) ![]const u8 {
         const allocator = self.scratchAllocator();
@@ -669,7 +693,7 @@ pub const DPHandler = struct {
         var cached_trellis: ?*const Trellis = null;
         if (!self.args.no_chunk_cache) {
             perf_counters.bumpChunkCacheLookup();
-            for (gc.cachefo.items) |te| {
+            for (gc.cache_entry.list.items) |te| {
                 const cached_seqs = te.query_seqs.seqs.items;
                 const current_seqs = query_seqs.seqs.items;
                 if (cached_seqs.len != current_seqs.len) continue;
@@ -701,12 +725,11 @@ pub const DPHandler = struct {
         var tmptrell: ?Trellis = null;
         defer if (tmptrell) |*t| t.deinit();
 
-        // Lazy model load. We do NOT hoist this into PerGeneCache: the
-        // original code only paid `hmms.get(gene)` on the cache-miss path
-        // (the cache-hit path in runKSet uses `cached_path.hmm.?` instead).
-        // Phase 0 reports cache-hit at 78–86% of ksets, so hoisting model
-        // would *add* a per-kset `hmms.get` call to that majority path.
-        const model = try self.hmms.get(gene);
+        // Pre-resolved at `initCache(gene)` (paid once per (gene, query),
+        // #366 lever 5). The runKSet cache-hit branch uses
+        // `cached_path.hmm.?` and never reaches here, so this hoist costs
+        // nothing on the cache-hit path.
+        const model = gc.cache_entry.model;
 
         var origin: []const u8 = "scratch";
         const trell_ptr: *Trellis = if (cached_trellis == null) blk: {
@@ -722,9 +745,9 @@ pub const DPHandler = struct {
             entry.trellis = try Trellis.initWithSeqs(allocator, model, &entry.query_seqs, null);
             errdefer entry.trellis.deinit();
 
-            // gc.cachefo is guaranteed non-null by the caller (initCache
+            // gc.cache_entry is guaranteed non-null by the caller (initCache
             // ran before the gc was built — see PerGeneCache doc-block).
-            try gc.cachefo.append(allocator, entry);
+            try gc.cache_entry.list.append(allocator, entry);
             break :blk &entry.trellis;
         } else blk: {
             // Have cache: temp trellis borrows from the caller's query_seqs
@@ -1020,11 +1043,11 @@ pub const DPHandler = struct {
                 // Hoist the three gene-keyed inner-map pointers once per
                 // gene-block. After initCache(gene), the outer string-keyed
                 // maps don't grow within this iteration so the inner-slot
-                // pointers stay stable. We deliberately do NOT hoist
-                // `self.hmms.get(gene)` — see PerGeneCache doc-block for the
-                // cache-hit-path regression rationale.
+                // pointers stay stable. The per-gene `*Model` reachable via
+                // `gc.cache_entry.model` was pre-resolved by `initCache`
+                // (#366 lever 5).
                 const gc = PerGeneCache{
-                    .cachefo = self.scratch_cachefo.getPtr(gene).?,
+                    .cache_entry = self.scratch_cachefo.getPtr(gene).?,
                     .paths = self.paths.getPtr(gene).?,
                     .scores = self.scores.getPtr(gene).?,
                 };
@@ -1047,7 +1070,7 @@ pub const DPHandler = struct {
                     try gc.scores.put(scratch, kset, cached_score);
                     origin = "cached";
                 } else {
-                    origin = try self.fillTrellis(allocator, kset, &query_seqs, gene, &gc);
+                    origin = try self.fillTrellis(allocator, kset, &query_seqs, &gc);
                 }
 
                 const gene_score = gc.scores.get(kset) orelse mathutils.NEG_INF;
