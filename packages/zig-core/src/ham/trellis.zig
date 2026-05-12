@@ -153,6 +153,16 @@ pub const Trellis = struct {
             return;
         }
 
+        // Phase-B'' timer: capture all pre-position-loop work — log_probs/indices
+        // resize, traceback_table allocate, 4× @memset on log_probs/indices/
+        // traceback_table/scoring_current/scoring_previous, plus the position-0
+        // init transitions below. The main position-loop body is derivable as
+        // fillTrellis_viterbi_ns − init − ending. Skeptic flag (#383 review,
+        // 2026-05-12): t_init was originally placed AFTER the resize/memset
+        // block, so the O(seq_len × n_states) memsets leaked into the
+        // positionLoop residual. Moving the tick up makes init_ns honest.
+        const t_init = perf_counters.tick();
+
         // Initialize storage
         try self.viterbi_log_probs.resize(allocator, seq_len);
         try self.viterbi_indices.resize(allocator, seq_len);
@@ -219,6 +229,7 @@ pub const Trellis = struct {
                 }
             }
         }
+        perf_counters.addElapsed(&perf_counters.viterbi_init_ns, t_init);
 
         // Positions 1..seq_len-1
         var position: usize = 1;
@@ -229,6 +240,7 @@ pub const Trellis = struct {
         self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
 
         // Compute ending probability
+        const t_ending = perf_counters.tick();
         self.ending_viterbi_pointer = -1;
         self.ending_viterbi_log_prob = mathutils.NEG_INF;
         for (0..n_states) |st_prev| {
@@ -239,6 +251,7 @@ pub const Trellis = struct {
                 self.ending_viterbi_pointer = @intCast(st_prev);
             }
         }
+        perf_counters.addElapsed(&perf_counters.viterbi_ending_ns, t_ending);
     }
 
     /// Run the Forward algorithm.
@@ -255,6 +268,12 @@ pub const Trellis = struct {
             self.ending_forward_log_prob = ct.endingForwardLogProbAt(seq_len);
             return;
         }
+
+        // Phase-B'' timer: capture all pre-position-loop work — log_probs
+        // resize, 3× @memset on log_probs/scoring_current/scoring_previous, plus
+        // the position-0 init transitions below. See viterbi() above for the
+        // skeptic-flagged correction (#383 review, 2026-05-12).
+        const t_init = perf_counters.tick();
 
         // Initialize storage
         try self.forward_log_probs.resize(allocator, seq_len);
@@ -295,6 +314,7 @@ pub const Trellis = struct {
             }
             self.cacheForwardVals(0, dpval, i_st);
         }
+        perf_counters.addElapsed(&perf_counters.forward_init_ns, t_init);
 
         // Positions 1..seq_len-1
         var position: usize = 1;
@@ -305,6 +325,7 @@ pub const Trellis = struct {
         self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
 
         // Compute ending probability
+        const t_ending = perf_counters.tick();
         self.ending_forward_log_prob = mathutils.NEG_INF;
         for (0..n_states) |st_prev| {
             if (std.math.isNegativeInf(self.scoring_previous[st_prev])) continue;
@@ -312,6 +333,7 @@ pub const Trellis = struct {
             if (std.math.isNegativeInf(dpval)) continue;
             self.ending_forward_log_prob = mathutils.addInLogSpace(self.ending_forward_log_prob, dpval);
         }
+        perf_counters.addElapsed(&perf_counters.forward_ending_ns, t_ending);
     }
 
     /// Traceback to produce a path.

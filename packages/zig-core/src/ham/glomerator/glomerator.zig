@@ -15,6 +15,7 @@ const Partition = @import("../cluster_path.zig").Partition;
 const Sequence = @import("../sequences.zig").Sequence;
 const mathutils = @import("../mathutils.zig");
 const ham_text = @import("../text.zig");
+const perf_counters = @import("../perf_counters.zig");
 const bcr = @import("../bcr_utils/root.zig");
 const GermLines = bcr.GermLines;
 const HMMHolder = bcr.HMMHolder;
@@ -30,6 +31,54 @@ fn sortPartition(part: *Partition) void {
             return std.mem.order(u8, a, b) == .lt;
         }
     }.lessThan);
+}
+
+/// Phase-B': emit one `PERFCOUNTER_GLOMERATOR` line to `PARTIS_ZIG_PERF_LOG`
+/// at the end of `cluster()` / `cacheNaiveSeqs()`. Pairs with the per-query
+/// `PERFCOUNTER_TIMING` lines from `DPHandler.run()` to expose Glomerator
+/// driver overhead. `kind` is `"cluster"` or `"cacheNaiveSeqs"` so the
+/// aggregator can keep the two modes separate. No-op when counters off or
+/// when the env var is unset (same gate as `dumpPerfCounters`).
+///
+/// Returns `!void` so the caller can choose how to handle failure. Callers
+/// in this module use a defer with `catch reportGlomeratorCountersError`
+/// (below) — they can't propagate via `defer` anyway, so the lowest-noise
+/// useful behavior is to print a one-line diagnostic to stderr instead of
+/// silently dropping the dump. (Advisory from PR #383 review.)
+fn dumpGlomeratorCounters(allocator: std.mem.Allocator, kind: []const u8) !void {
+    if (!perf_counters.enabled) return;
+    const log_path = std.process.getEnvVarOwned(allocator, "PARTIS_ZIG_PERF_LOG") catch |err| switch (err) {
+        error.EnvironmentVariableNotFound => return,
+        else => return err,
+    };
+    defer allocator.free(log_path);
+
+    const line = try std.fmt.allocPrint(
+        allocator,
+        "PERFCOUNTER_GLOMERATOR kind={s} glomerator_total_ns={d} cumul_dpHandler_run_ns={d}\n",
+        .{ kind, perf_counters.glomerator_ns, perf_counters.cumul_dpHandler_run_ns },
+    );
+    defer allocator.free(line);
+
+    const log_path_z = try allocator.dupeZ(u8, log_path);
+    defer allocator.free(log_path_z);
+    const flags: std.posix.O = .{ .ACCMODE = .WRONLY, .APPEND = true, .CREAT = true };
+    const fd = try std.posix.openZ(log_path_z, flags, 0o644);
+    const file = std.fs.File{ .handle = fd };
+    defer file.close();
+    try file.writeAll(line);
+}
+
+/// Stderr-only diagnostic for the defer-catch path. We can't surface
+/// errors via `defer` so the best we can do is leave a breadcrumb when
+/// the perf log was requested but unwritable (wrong path, permissions,
+/// disk full). Silent under the env-var-unset path because that case
+/// returns early from `dumpGlomeratorCounters` itself.
+fn reportGlomeratorCountersError(err: anyerror) void {
+    std.debug.print(
+        "warning: failed to write PERFCOUNTER_GLOMERATOR line to $PARTIS_ZIG_PERF_LOG: {s}\n",
+        .{@errorName(err)},
+    );
 }
 
 /// Corresponds to C++ `ham::Glomerator`.
@@ -344,6 +393,18 @@ pub const Glomerator = struct {
     /// Run full hierarchical clustering and write output.
     /// Corresponds to C++ `Glomerator::Cluster`.
     pub fn cluster(self: *Glomerator) !void {
+        // Phase-B' outer-most timer: total wall in Glomerator.cluster(),
+        // including the merge loop, writePartitions, writeCacheFile, and
+        // setup. Pairs with `cumul_dpHandler_run_ns` to expose Glomerator
+        // driver overhead (merge decisions, partition I/O) as the
+        // residual. Dumped at end of this function via dumpGlomeratorCounters.
+        //
+        // Defer order is LIFO: the dump (registered first) runs LAST, so
+        // it sees the addElapsed-updated counter. Reversing these two
+        // defers would dump a stale 0.
+        const t_glom = perf_counters.tick();
+        defer dumpGlomeratorCounters(self.allocator, "cluster") catch |err| reportGlomeratorCountersError(err);
+        defer perf_counters.addElapsed(&perf_counters.glomerator_ns, t_glom);
         if (self.args.logprob_ratio_threshold == -std.math.inf(f64)) {
             return error.LogprobRatioThresholdNotSet;
         }
@@ -396,6 +457,13 @@ pub const Glomerator = struct {
     /// Cache all naive sequences.
     /// Corresponds to C++ `Glomerator::CacheNaiveSeqs`.
     pub fn cacheNaiveSeqs(self: *Glomerator) !void {
+        // Phase-B' outer-most timer (same as cluster() above): cover the
+        // whole CacheNaiveSeqs path, including writeCacheFile. Defer
+        // order is LIFO — dump registered first runs last, so it sees the
+        // updated counter (see cluster() above for the rationale).
+        const t_glom = perf_counters.tick();
+        defer dumpGlomeratorCounters(self.allocator, "cacheNaiveSeqs") catch |err| reportGlomeratorCountersError(err);
+        defer perf_counters.addElapsed(&perf_counters.glomerator_ns, t_glom);
         try std.fs.File.stdout().writeAll("      caching all naive sequences\n");
         // Sort keys to match C++ map<string,...> iteration order
         const sorted_keys = try self.allocator.alloc([]const u8, self.cachefo.count());
