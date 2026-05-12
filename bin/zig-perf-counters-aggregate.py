@@ -6,8 +6,8 @@ calls, addInLogSpace+log_exp work calls, active-state distribution stats, and
 chunk-cache hit rate. Plus a chunk-cache prefix-list-length histogram across
 all queries.
 
-For Phase-B (added after the issue #366 lever-5 close — see
-/tmp/perf-1.1-results/next-steps-plan.md), also aggregates
+For Phase-B (added after the issue #366 lever-5 close, PR
+https://github.com/psathyrella/partis/pull/383), also aggregates
 PERFCOUNTER_TIMING lines: cycle-precise nanosecond accumulators for
 fillTrellis sub-phases (chunkScan / init / tmpInit / viterbi / forward /
 traceback / put) and the runKSet cache-hit branch (cachedPath). The
@@ -251,7 +251,8 @@ def main(path):
                 # findPartialCacheMatch, regional_total/best updates, the
                 # debug-output and fillRecoEvent assembly. Anything inside
                 # runKSet body but outside fillTrellis() and cachedPath_ns.
-                trow("  (runKSet plumbing)", tot_rks - inner_timed, denom)
+                trow("  (runKSet body, excl. fillTrellis+cachedPath)",
+                     tot_rks - inner_timed, denom)
 
     # Phase-B' outermost perimeter: one PERFCOUNTER_GLOMERATOR per bcrham
     # invocation that ran Glomerator.cluster() or cacheNaiveSeqs(). The
@@ -264,8 +265,13 @@ def main(path):
             tot_glom = sum(r["glomerator_total_ns"] for r in rows)
             tot_dp = sum(r["cumul_dpHandler_run_ns"] for r in rows)
             n_proc = len(rows)
+            # `glomerator_total` is summed across bcrham procs, not elapsed
+            # wall — without the mean-per-proc column readers can mis-read
+            # a 152s sum as a single-process wall claim. Both reported.
+            mean_glom = tot_glom / n_proc if n_proc else 0
             print(f"  kind={kind}, n_bcrham_procs={n_proc}, "
-                  f"glomerator_total={tot_glom / 1e9:.3f}s "
+                  f"mean_glom_per_proc={mean_glom / 1e9:.3f}s, "
+                  f"sum_glomerator_total={tot_glom / 1e9:.3f}s "
                   f"(cumul_dpHandler_run={tot_dp / 1e9:.3f}s, "
                   f"driver_overhead={(tot_glom - tot_dp) / 1e9:.3f}s, "
                   f"driver_overhead_pct={100 * (tot_glom - tot_dp) / tot_glom if tot_glom else 0:.1f}%)")

@@ -125,21 +125,24 @@ pub var viterbi_ending_ns: u64 = 0;
 pub var forward_init_ns: u64 = 0;
 pub var forward_ending_ns: u64 = 0;
 
-// Process-lifetime accumulator: total wall in `Glomerator.cluster()`.
-// Distinct from the per-DPHandler.run() counters above — this one
-// survives the per-query `reset()` so it accumulates across all the
-// nested DPHandler.run() invocations inside one `cluster()` call.
-// Bcrham emits one `PERFCOUNTER_GLOMERATOR` line at the end of
-// `cluster()` reporting this value plus the cumulative DPHandler.run
-// time across all calls inside it (the latter via a paired
-// `cumul_dpHandler_run_ns` accumulator that ALSO survives reset()).
+// Process-lifetime accumulator: total wall in `Glomerator.cluster()` OR
+// `Glomerator.cacheNaiveSeqs()`. The dumped `PERFCOUNTER_GLOMERATOR`
+// line tags which mode via its `kind=` field. Distinct from the
+// per-DPHandler.run() counters above — this one survives the per-query
+// `reset()` so it accumulates across all the nested DPHandler.run()
+// invocations inside one Glomerator entry-point call. Bcrham emits one
+// `PERFCOUNTER_GLOMERATOR` line at the end of each call reporting
+// this value plus the cumulative DPHandler.run time across all calls
+// inside it (the latter via a paired `cumul_dpHandler_run_ns`
+// accumulator that ALSO survives reset()).
+//
 // Together with the `bcrham time:` line printed by partis, the gap
 //   bcrham_CPU − cumul_dpHandler_run_ns × n_procs
 // tells us whether the remaining bcrham CPU is in Glomerator driver
 // code (merge decisions, partition writes) or in bcrham startup /
 // model loading. Phase B' shows ~28% of bcrham CPU lives outside
 // DPHandler.run(); this counter lets us split it.
-pub var glomerator_cluster_ns: u64 = 0;
+pub var glomerator_ns: u64 = 0;
 pub var cumul_dpHandler_run_ns: u64 = 0;
 
 pub fn reset() void {
