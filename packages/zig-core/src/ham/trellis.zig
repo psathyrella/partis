@@ -153,6 +153,16 @@ pub const Trellis = struct {
             return;
         }
 
+        // Phase-B'' timer: capture all pre-position-loop work — log_probs/indices
+        // resize, traceback_table allocate, 4× @memset on log_probs/indices/
+        // traceback_table/scoring_current/scoring_previous, plus the position-0
+        // init transitions below. The main position-loop body is derivable as
+        // fillTrellis_viterbi_ns − init − ending. Skeptic flag (#383 review,
+        // 2026-05-12): t_init was originally placed AFTER the resize/memset
+        // block, so the O(seq_len × n_states) memsets leaked into the
+        // positionLoop residual. Moving the tick up makes init_ns honest.
+        const t_init = perf_counters.tick();
+
         // Initialize storage
         try self.viterbi_log_probs.resize(allocator, seq_len);
         try self.viterbi_indices.resize(allocator, seq_len);
@@ -192,9 +202,6 @@ pub const Trellis = struct {
         defer prev_current_states.deinit(allocator);
 
         // Position 0: transitions from init state
-        // Phase-B'' timer: capture the init-position cost so the main
-        // position-loop body is derivable as fillTrellis_viterbi_ns − init − ending.
-        const t_init = perf_counters.tick();
         const init_st = self.hmm.initial orelse return error.NoInitState;
         // Reset next_seen before populating position 0
         self.next_seen = state_mod.StateBitset.initEmpty();
@@ -262,6 +269,12 @@ pub const Trellis = struct {
             return;
         }
 
+        // Phase-B'' timer: capture all pre-position-loop work — log_probs
+        // resize, 3× @memset on log_probs/scoring_current/scoring_previous, plus
+        // the position-0 init transitions below. See viterbi() above for the
+        // skeptic-flagged correction (#383 review, 2026-05-12).
+        const t_init = perf_counters.tick();
+
         // Initialize storage
         try self.forward_log_probs.resize(allocator, seq_len);
         @memset(self.forward_log_probs.items, mathutils.NEG_INF);
@@ -280,8 +293,6 @@ pub const Trellis = struct {
         defer prev_current_states.deinit(allocator);
 
         // Position 0: transitions from init state
-        // Phase-B'' timer: capture the init-position cost (see viterbi() above).
-        const t_init = perf_counters.tick();
         const init_st = self.hmm.initial orelse return error.NoInitState;
         // Reset next_seen before populating position 0
         self.next_seen = state_mod.StateBitset.initEmpty();
