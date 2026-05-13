@@ -79,7 +79,11 @@ def main(path):
     n_timing_lines = 0
     n_glom_lines = 0
 
-    for line in open(path):
+    try:
+        fh = open(path)
+    except (IOError, OSError) as e:
+        sys.exit(f"error: cannot open {path}: {e}")
+    for line in fh:
         line = line.strip()
         if not line:
             continue
@@ -278,4 +282,6 @@ def main(path):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
     main(sys.argv[1])

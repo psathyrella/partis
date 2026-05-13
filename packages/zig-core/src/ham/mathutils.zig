@@ -82,10 +82,18 @@ pub fn addInLogSpace(first: f64, second: f64) f64 {
     // the call site is still the place where item-3.2's transcendental work
     // used to live — re-naming would invalidate prior #368 measurements.
     perf_counters.bumpAddInLogSpaceLogExp();
+    // fast_softplus's C implementation has a `if (d > 0.0) return d + fast_softplus(-d)`
+    // symmetry recursion. ReleaseFast can elide that guard on subnormal positive d
+    // after negation, so we assert non-positive here at the only Zig call site
+    // (both branches feed (smaller − larger) ≤ 0).
     if (first > second) {
-        return first + fast_softplus(second - first);
+        const d = second - first;
+        std.debug.assert(d <= 0.0);
+        return first + fast_softplus(d);
     } else {
-        return second + fast_softplus(first - second);
+        const d = first - second;
+        std.debug.assert(d <= 0.0);
+        return second + fast_softplus(d);
     }
 }
 

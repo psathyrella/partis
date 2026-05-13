@@ -34,6 +34,7 @@ import partis.glutils as glutils
 import partis.treeutils as treeutils
 import partis.processargs as processargs
 import partis.seqfileopener as seqfileopener
+from partis import partitiondriver
 from partis.partitiondriver import PartitionDriver
 from partis.clusterpath import ClusterPath
 import partis.paircluster as paircluster
@@ -1851,7 +1852,6 @@ start = time.time()
 args.func(args)
 total_time = time.time() - start
 print('      total time: %.1f' % total_time)
-from partis import partitiondriver
 bcrham_t, bcrham_n = partitiondriver.get_bcrham_summary()
 if bcrham_n > 0:
     pct = 100.0 * bcrham_t / total_time if total_time > 0 else 0.0
