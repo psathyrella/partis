@@ -253,6 +253,9 @@ def estimate_expansion_ratio(partition, uid_sw_naives):
     p75 = ratios[min(int(n * 0.75), n - 1)]
     print('  expansion ratio (%d clusters): p50=%.2f, p75=%.2f, p90=%.2f, max=%.2f' % (
         n, p50, p75, ratios[min(int(n * 0.90), n - 1)], ratios[-1]))
+    if n < 500:
+        print('  too few non-singleton clusters (%d < 500) for stable p50, using default 2.0' % n)
+        return 2.0
     print('  adaptive expansion ratio (p50): %.2f' % p50)
     return p50
 
