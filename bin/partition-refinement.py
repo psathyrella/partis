@@ -1126,9 +1126,7 @@ def main():
     else:
         naive_thresh = estimate_naive_threshold(partition, uid_sw_naives)
 
-    adaptive_ratio = None
-    if args.rearrangement_guard:
-        adaptive_ratio = estimate_expansion_ratio(partition, uid_sw_naives)
+    adaptive_ratio = None  # not used; p50 estimation was tested but 2.0 is stable across datasets
 
     if args.jaccard_threshold is not None:
         jaccard_thresh = args.jaccard_threshold
