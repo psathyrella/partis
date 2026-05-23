@@ -828,8 +828,11 @@ pub const Glomerator = struct {
         self.tmp_cachefo.clearRetainingCapacity();
 
         // Issue #342 item 7: parents p1 and p2 are no longer in the partition;
-        // drop their entries from the per-cluster and pair-keyed scoring caches.
-        try self.pruneMergedParentCaches(p1, p2);
+        // drop their entries from the pair-keyed lratios cache. Narrowed to
+        // lratios only in #387 to preserve zig/cpp cache-file parity — cpp
+        // keeps log_probs, naive_seqs, errors, and naive_hfracs until process
+        // exit and writes them to hmm_cached_info.csv.
+        try self.pruneMergedLratios(p1, p2);
 
         // Check if we're done
         const new_size = path.currentPartition().items.len;
@@ -1783,23 +1786,16 @@ pub const Glomerator = struct {
         }
     }
 
-    /// After a merge of (p1, p2) → AB, drop entries that are now unreachable:
-    ///   - log_probs[p1], log_probs[p2]
-    ///   - naive_seqs[p1], naive_seqs[p2]      (NOT naive_seqs[AB] — that's live)
-    ///   - errors[p1], errors[p2]
-    ///   - lratios[K] / naive_hfracs[K] for every K = joinNames(p1, _) or joinNames(p2, _)
-    /// Cachefo / single_seqs / single_seq_cachefo are intentionally retained
-    /// (translation lookup paths). initial_* are read-only ingest-time guards
-    /// for `--only-cache-new-vals` and must not be touched.
-    fn pruneMergedParentCaches(self: *Glomerator, p1: []const u8, p2: []const u8) !void {
-        self.pruneSingleKey(f64, &self.log_probs, p1);
-        self.pruneSingleKey(f64, &self.log_probs, p2);
-        self.pruneSingleKey([]u8, &self.naive_seqs, p1);
-        self.pruneSingleKey([]u8, &self.naive_seqs, p2);
-        self.pruneSingleKey([]u8, &self.errors, p1);
-        self.pruneSingleKey([]u8, &self.errors, p2);
+    /// After a merge of (p1, p2) → AB, drop pair-keyed lratios[K] for every
+    /// K = joinNames(p1, _) or joinNames(p2, _). lratios is compute-only and
+    /// never persisted to the cache file (see partis/utils.py:955), so this
+    /// prune is a free memory win without affecting cache-file parity with
+    /// cpp. The other post-merge maps (log_probs, naive_seqs, errors,
+    /// naive_hfracs) are *not* pruned here: cpp keeps them until process exit
+    /// and writes them to hmm_cached_info.csv, and pruning them on the zig
+    /// side caused the cache-file divergence reported in issue #387.
+    fn pruneMergedLratios(self: *Glomerator, p1: []const u8, p2: []const u8) !void {
         try self.pruneParentPairsF64(&self.lratios, p1, p2);
-        try self.pruneParentPairsF64(&self.naive_hfracs, p1, p2);
     }
 
     /// C++: Glomerator::JoinNames() — glomerator.cc:404
