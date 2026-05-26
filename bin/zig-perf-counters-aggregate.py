@@ -27,9 +27,16 @@ PR #368.
 
 Usage: zig-perf-counters-aggregate.py <log-file>
 """
+import argparse
 import re
 import sys
 from collections import defaultdict
+
+
+# Histogram bucket labels for the chunk-cache prefix-list-length report,
+# in display order.
+CACHE_BUCKET_ORDER = ("0", "1", "2", "3", "4", "5",
+                      "6_9", "10_19", "20_49", "50_99", "100_199", "200p")
 
 
 def parse_kv(line):
@@ -62,6 +69,11 @@ TIMING_SUBPHASES = (
 )
 
 
+def trow(name, ns, denom):
+    pct = (100 * ns / denom) if denom else 0
+    print(f"    {name:<32}  {ns / 1e9:>9.3f}s  ({pct:>5.1f}% of timed)")
+
+
 def main(path):
     by_alg = defaultdict(lambda: {
         "ksets": [], "fillTrellis": [], "addInLogSpace": [],
@@ -83,63 +95,64 @@ def main(path):
         fh = open(path)
     except (IOError, OSError) as e:
         sys.exit(f"error: cannot open {path}: {e}")
-    for line in fh:
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith("PERFCOUNTER_GLOMERATOR"):
-            n_glom_lines += 1
-            kv = parse_kv(line[len("PERFCOUNTER_GLOMERATOR "):])
-            kind = kv.get("kind", "?")
-            glomerator[kind].append({
-                "glomerator_total_ns": int(kv["glomerator_total_ns"]),
-                "cumul_dpHandler_run_ns": int(kv["cumul_dpHandler_run_ns"]),
-            })
-            continue
-        if line.startswith("PERFCOUNTER_CACHE"):
-            n_cache_lines += 1
-            kv = parse_kv(line[len("PERFCOUNTER_CACHE "):])
+    with fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("PERFCOUNTER_GLOMERATOR"):
+                n_glom_lines += 1
+                kv = parse_kv(line[len("PERFCOUNTER_GLOMERATOR "):])
+                kind = kv.get("kind", "?")
+                glomerator[kind].append({
+                    "glomerator_total_ns": int(kv["glomerator_total_ns"]),
+                    "cumul_dpHandler_run_ns": int(kv["cumul_dpHandler_run_ns"]),
+                })
+                continue
+            if line.startswith("PERFCOUNTER_CACHE"):
+                n_cache_lines += 1
+                kv = parse_kv(line[len("PERFCOUNTER_CACHE "):])
+                alg = kv.get("alg", "?")
+                for k, v in kv.items():
+                    if k in ("alg", "q"):
+                        continue
+                    cache_buckets[alg][k] += int(v)
+                continue
+            if line.startswith("PERFCOUNTER_TIMING"):
+                n_timing_lines += 1
+                kv = parse_kv(line[len("PERFCOUNTER_TIMING "):])
+                alg = kv.get("alg", "?")
+                t = timing[alg]
+                t["fillTrellis_total_ns"].append(int(kv["fillTrellis_total_ns"]))
+                t["cachedPath_ns"].append(int(kv["cachedPath_ns"]))
+                for k in TIMING_SUBPHASES:
+                    t[k].append(int(kv[k]))
+                # Outer-perimeter accumulators (older logs omit these; default 0).
+                t["runKSet_total_ns"].append(int(kv.get("runKSet_total_ns", "0")))
+                t["dpHandler_run_total_ns"].append(int(kv.get("dpHandler_run_total_ns", "0")))
+                # Phase-B'' deeper-DP timers (older logs omit; default 0).
+                for k in ("viterbi_init_ns", "viterbi_ending_ns",
+                          "forward_init_ns", "forward_ending_ns"):
+                    t[k].append(int(kv.get(k, "0")))
+                continue
+            if not line.startswith("PERFCOUNTER"):
+                continue
+            n_lines += 1
+            kv = parse_kv(line[len("PERFCOUNTER "):])
             alg = kv.get("alg", "?")
-            for k, v in kv.items():
-                if k in ("alg", "q"):
-                    continue
-                cache_buckets[alg][k] += int(v)
-            continue
-        if line.startswith("PERFCOUNTER_TIMING"):
-            n_timing_lines += 1
-            kv = parse_kv(line[len("PERFCOUNTER_TIMING "):])
-            alg = kv.get("alg", "?")
-            t = timing[alg]
-            t["fillTrellis_total_ns"].append(int(kv["fillTrellis_total_ns"]))
-            t["cachedPath_ns"].append(int(kv["cachedPath_ns"]))
-            for k in TIMING_SUBPHASES:
-                t[k].append(int(kv[k]))
-            # Outer-perimeter accumulators (older logs omit these; default 0).
-            t["runKSet_total_ns"].append(int(kv.get("runKSet_total_ns", "0")))
-            t["dpHandler_run_total_ns"].append(int(kv.get("dpHandler_run_total_ns", "0")))
-            # Phase-B'' deeper-DP timers (older logs omit; default 0).
-            for k in ("viterbi_init_ns", "viterbi_ending_ns",
-                      "forward_init_ns", "forward_ending_ns"):
-                t[k].append(int(kv.get(k, "0")))
-            continue
-        if not line.startswith("PERFCOUNTER"):
-            continue
-        n_lines += 1
-        kv = parse_kv(line[len("PERFCOUNTER "):])
-        alg = kv.get("alg", "?")
-        d = by_alg[alg]
-        d["n_seqs"].append(int(kv["n_seqs"]))
-        d["ksets"].append(int(kv["ksets"]))
-        d["fillTrellis"].append(int(kv["fillTrellis"]))
-        d["addInLogSpace"].append(int(kv["addInLogSpace"]))
-        d["addInLogSpace_log_exp"].append(int(kv["addInLogSpace_log_exp"]))
-        h, l = kv["chunk_hits"].split("/")
-        d["chunk_hits"].append(int(h))
-        d["chunk_lookups"].append(int(l))
-        d["active_med"].append(int(kv["active_states_med"]))
-        d["active_p95"].append(int(kv["active_states_p95"]))
-        d["active_max"].append(int(kv["active_states_max"]))
-        d["active_positions"].append(int(kv["active_states_positions"]))
+            d = by_alg[alg]
+            d["n_seqs"].append(int(kv["n_seqs"]))
+            d["ksets"].append(int(kv["ksets"]))
+            d["fillTrellis"].append(int(kv["fillTrellis"]))
+            d["addInLogSpace"].append(int(kv["addInLogSpace"]))
+            d["addInLogSpace_log_exp"].append(int(kv["addInLogSpace_log_exp"]))
+            h, l = kv["chunk_hits"].split("/")
+            d["chunk_hits"].append(int(h))
+            d["chunk_lookups"].append(int(l))
+            d["active_med"].append(int(kv["active_states_med"]))
+            d["active_p95"].append(int(kv["active_states_p95"]))
+            d["active_max"].append(int(kv["active_states_max"]))
+            d["active_positions"].append(int(kv["active_states_positions"]))
 
     print(f"# parsed {n_lines} PERFCOUNTER + {n_cache_lines} PERFCOUNTER_CACHE + {n_timing_lines} PERFCOUNTER_TIMING + {n_glom_lines} PERFCOUNTER_GLOMERATOR lines from {path}")
     for alg, d in by_alg.items():
@@ -174,9 +187,8 @@ def main(path):
         print("\n## chunk-cache prefix-list-length histogram (across all queries)")
         for alg, buckets in cache_buckets.items():
             print(f"  alg={alg}")
-            order = ["0", "1", "2", "3", "4", "5", "6_9", "10_19", "20_49", "50_99", "100_199", "200p"]
             total = sum(buckets.values())
-            for k in order:
+            for k in CACHE_BUCKET_ORDER:
                 v = buckets.get(k, 0)
                 pct = 100 * v / total if total else 0
                 print(f"    {k:>8}: {v:>10,d}  ({pct:>5.1f}%)")
@@ -210,10 +222,6 @@ def main(path):
                   f"dpHandler_run_total={tot_run / 1e9:.3f}s "
                   f"(runKSet={tot_rks / 1e9:.3f}s, "
                   f"fillTrellis+cachedPath={inner_timed / 1e9:.3f}s)")
-
-            def trow(name, ns, denom):
-                pct = (100 * ns / denom) if denom else 0
-                print(f"    {name:<32}  {ns / 1e9:>9.3f}s  ({pct:>5.1f}% of timed)")
 
             if tot_run > 0:
                 trow("dpHandler_run_total (outer)", tot_run, denom)
@@ -282,6 +290,7 @@ def main(path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit(__doc__)
-    main(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("log_file", help="PERFCOUNTER log produced by partis-zig-core")
+    main(parser.parse_args().log_file)

@@ -7,11 +7,11 @@ Companion to bin/partis-30k-parity-test.sh (issue #375 cpp-mirror gate).
 Exit 0 if identical, 1 otherwise.
 """
 import hashlib
-import json
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from partis import utils
 from partis.clusterpath import ClusterPath
 
 
@@ -25,20 +25,29 @@ FIELDS = ('naive_seq', 'v_gene', 'd_gene', 'j_gene',
           'v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del',
           'vd_insertion', 'dj_insertion', 'cdr3_length')
 
+_MD5_CHUNK_BYTES = 1 << 20
 
-# All partition-{locus}.yaml files paired-loci output writes. Originally the
+
+# All partition-{locus}.yaml files paired-loci output writes. Subdirs and loci
+# are derived from utils.locus_pairs (plus top-level + single-chain/) so a
+# future paired-loci pair addition picks up automatically. Originally the
 # gate only walked igh+igk/ (or igh+igl/ as fallback) and missed single-chain
 # divergence at 50k — see #386.
-PARTITION_RELPATHS = []
-for _sub in ('', 'igh+igk', 'igh+igl', 'single-chain'):
-    for _loc in ('igh', 'igk', 'igl'):
-        PARTITION_RELPATHS.append((_sub, _loc, f'{_sub}/partition-{_loc}.yaml' if _sub else f'partition-{_loc}.yaml'))
+def _partition_relpaths():
+    pairs = utils.locus_pairs['ig']
+    loci = sorted({l for lp in pairs for l in lp})
+    subs = [''] + ['+'.join(lp) for lp in pairs] + ['single-chain']
+    return [(sub, loc, f'{sub}/partition-{loc}.yaml' if sub else f'partition-{loc}.yaml')
+            for sub in subs for loc in loci]
+
+
+PARTITION_RELPATHS = _partition_relpaths()
 
 
 def md5(path):
     h = hashlib.md5()
     with open(path, 'rb') as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b''):
+        for chunk in iter(lambda: fh.read(_MD5_CHUNK_BYTES), b''):
             h.update(chunk)
     return h.hexdigest()
 
@@ -61,10 +70,8 @@ def diff_one(label, bp, np_):
     if bpart != npart:
         print(f'{label}: PARTITION DIFF ({len(bpart)} vs {len(npart)} clusters)')
         return 1
-    with open(bp) as fh:
-        bd = json.load(fh)
-    with open(np_) as fh:
-        nd = json.load(fh)
+    bd = utils.read_json_yaml(bp)
+    nd = utils.read_json_yaml(np_)
     bk = {tuple(sorted(e['unique_ids'])): e for e in bd['events']}
     nk = {tuple(sorted(e['unique_ids'])): e for e in nd['events']}
     if set(bk) != set(nk):
@@ -78,7 +85,7 @@ def diff_one(label, bp, np_):
             if bk[k].get(f) != nk[k].get(f):
                 field_diffs += 1
                 if field_diffs <= 3:
-                    print(f'{label} {k[:1]}...: {f} diff: {bk[k].get(f)} vs {nk[k].get(f)}')
+                    print(f'{label} {k[0]}...: {f} diff: {bk[k].get(f)} vs {nk[k].get(f)}')
     if field_diffs:
         print(f'{label}: {field_diffs} FIELD DIFFS across {len(bk)} events')
         return 1

@@ -237,6 +237,11 @@ pub const Trellis = struct {
             self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
             try self.middleViterbiVals(allocator, current_states, &next_states, position);
         }
+        // After this final swap `scoring_current` is left dirty by design:
+        // the ending loop below reads only `scoring_previous`, and the next
+        // entry into viterbi()/forward() does its own full @memset before
+        // reuse. Don't add a clear here without revisiting the next-entry
+        // contract — it's load-bearing for the sparse-clear win.
         self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
 
         // Compute ending probability
@@ -322,6 +327,7 @@ pub const Trellis = struct {
             self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
             try self.middleForwardVals(allocator, current_states, &next_states, position);
         }
+        // See viterbi(): `scoring_current` is intentionally left dirty here.
         self.swapColumnsActive(&current_states, &next_states, &prev_current_states);
 
         // Compute ending probability

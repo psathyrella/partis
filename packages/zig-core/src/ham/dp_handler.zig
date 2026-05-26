@@ -442,10 +442,11 @@ pub const DPHandler = struct {
             // Accumulate into the process-lifetime counter for Glomerator
             // attribution. dpHandler_run_total_ns gets reset() to zero on
             // the next run() entry, so we mirror it here BEFORE the reset.
-            if (perf_counters.enabled) {
+            // `comptime` so the dead-write in Debug builds collapses too.
+            if (comptime perf_counters.enabled) {
                 perf_counters.cumul_dpHandler_run_ns +%= perf_counters.dpHandler_run_total_ns;
             }
-            try self.dumpPerfCounters(&seqs);
+            if (comptime perf_counters.enabled) try self.dumpPerfCounters(&seqs);
             return result;
         }
 
@@ -481,10 +482,11 @@ pub const DPHandler = struct {
         perf_counters.addElapsed(&perf_counters.dpHandler_run_total_ns, t_run);
         // See the no-path early-return above for the rationale: mirror
         // into the process-lifetime cumul before the next reset() fires.
-        if (perf_counters.enabled) {
+        // `comptime` so the dead-write in Debug builds collapses too.
+        if (comptime perf_counters.enabled) {
             perf_counters.cumul_dpHandler_run_ns +%= perf_counters.dpHandler_run_total_ns;
         }
-        try self.dumpPerfCounters(&seqs);
+        if (comptime perf_counters.enabled) try self.dumpPerfCounters(&seqs);
         return result;
     }
 

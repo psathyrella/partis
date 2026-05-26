@@ -27,6 +27,13 @@ OUTBASE="${2:-/tmp/parity-30k-test}"
 N="${3:-30000}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Match bin/zig-perf-counters-run.sh: per project CLAUDE.md, activate the venv
+# before invoking partis so an unactivated shell doesn't fall back to system
+# python and fail with an import error.
+# shellcheck disable=SC1091
+source "${REPO_ROOT}/.venv/bin/activate"
+
 COMPARE="${REPO_ROOT}/bin/zig-compare.py"
 if [[ ! -x "${COMPARE}" ]]; then
   echo "ERROR: cannot find zig-compare.py at ${COMPARE}" >&2
