@@ -137,7 +137,9 @@ The following keys can also be added to the output file using `--extra-annotatio
 
 |   name                  |  description
 |-------------------------|----------------------------------------------------------------------------
-| cdr3_seqs				  |  nucleotide CDR3 sequence, including bounding conserved codons `[per-seq]`
+| cdr3_seqs				  |  nucleotide CDR3 sequence (with SHM indels reversed, i.e. in naive/rearrangement coordinates), including bounding conserved codons. See `mature_cdr3_seqs` for the CDR3 as it appears in the input sequence. `[per-seq]`
+| mature_cdr3_seqs		  |  nucleotide CDR3 sequence as it appears in the input sequence, i.e. with SHM indels left in (corresponds to `mature_cdr3_lengths`; equals `cdr3_seqs` for sequences without SHM indels in the CDR3), including bounding conserved codons `[per-seq]`
+| mature_cdr3_seqs_aa	  |  amino-acid translation of `mature_cdr3_seqs` (note that for a CDR3 indel whose length is not a multiple of three, the translation downstream of the indel is frame-shifted) `[per-seq]`
 | full_coding_naive_seq	  |  in cases where the input reads do not extend through the entire V and J regions, the input_seqs and naive_seq keys will also not cover the whole coding regions. In such cases full_coding_naive_seq and full_coding_input_seqs can be used to tack on the missing bits.
 | full_coding_input_seqs  |  see full_coding_naive_seq `[per-seq]`
 | cons_dists_nuc          |  nucleotide distance to clonal family consensus sequence

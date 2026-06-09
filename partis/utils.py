@@ -788,7 +788,7 @@ linekeys['per_family'] = ['naive_seq', 'cdr3_length', 'codon_positions', 'length
 linekeys['per_seq'] = ['seqs', 'unique_ids', 'mut_freqs', 'n_mutations', 'shm_aa', 'input_seqs', 'indel_reversed_seqs', 'cdr3_seqs', 'cdr3_seqs_aa', 'full_coding_input_seqs', 'padlefts', 'padrights', 'indelfos', 'duplicates',
                        'leader_seqs', 'c_gene_seqs',  'leaders', 'c_genes', # these are kind of replacing fv/jf insertions, and the latter probably should just be removed, since they're really more per-seq things, but i don't know if it'd really work, and it'd for sure be hard, so whatever (otoh, maybe fv/jf insertions are necessary for padding to same length in sw? not sure atm)
                        'has_shm_indels', 'qr_gap_seqs', 'gl_gap_seqs', 'loci', 'paired-uids', 'all_matches', 'seqs_aa', 'input_seqs_aa', 'cons_dists_nuc', 'cons_dists_aa', 'lambdas', 'nearest_target_indices',
-                       'min_target_distances', 'vrc01-muts', 'mut_positions', 'subjects', 'mature_cdr3_lengths'] + \
+                       'min_target_distances', 'vrc01-muts', 'mut_positions', 'subjects', 'mature_cdr3_lengths', 'mature_cdr3_seqs', 'mature_cdr3_seqs_aa'] + \
                       [r + '_qr_seqs' for r in regions] + \
                       ['aligned_' + r + '_seqs' for r in regions] + \
                       functional_columns
@@ -805,6 +805,8 @@ implicit_linekeys = set(['naive_seq', 'cdr3_length', 'codon_positions', 'lengths
 
 extra_annotation_headers = [  # you can specify additional columns (that you want written to csv) on the command line from among these choices (in addition to <annotation_headers>)
     'cdr3_seqs',
+    'mature_cdr3_seqs',
+    'mature_cdr3_seqs_aa',
     'full_coding_naive_seq',
     'full_coding_input_seqs',
     'linearham-info',
@@ -4651,6 +4653,12 @@ def get_cdr3_seq(info, iseq):  # NOTE includeds both codons, i.e. not the same a
     return info['seqs'][iseq][info['codon_positions']['v'] : info['codon_positions']['j'] + 3]
 
 # ----------------------------------------------------------------------------------------
+def get_mature_cdr3_seq(info, iseq):  # cdr3 as it appears in the input sequence, i.e. with SHM indels *left in* (cf. get_cdr3_seq(), which uses the indel-reversed 'seqs' and so gives the naive/rearrangement-coordinate cdr3). For seqs without indels this is identical to get_cdr3_seq().
+    from . import indelutils
+    icp = indelutils.get_codon_positions_with_indels_reinstated(info, iseq, info['codon_positions'])  # codon positions in input-sequence coordinates
+    return info['input_seqs'][iseq][icp['v'] : icp['j'] + 3]
+
+# ----------------------------------------------------------------------------------------
 def add_naive_seq_aa(line):
     if 'naive_seq_aa' in line:
         return
@@ -4844,6 +4852,10 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         outfo[key] = [get_cdr3_seq(info, iseq) for iseq in range(len(info['unique_ids']))]
     if key == 'cdr3_seqs_aa':
         outfo[key] = [ltranslate(get_cdr3_seq(info, iseq)) for iseq in range(len(info['unique_ids']))]
+    if key == 'mature_cdr3_seqs':
+        outfo[key] = [get_mature_cdr3_seq(info, iseq) for iseq in range(len(info['unique_ids']))]
+    if key == 'mature_cdr3_seqs_aa':  # NOTE for a seq whose cdr3 indel isn't a multiple of three, the aa downstream of the indel is frame-shifted and so not biologically meaningful (ltranslate pads, so it won't crash)
+        outfo[key] = [ltranslate(get_mature_cdr3_seq(info, iseq)) for iseq in range(len(info['unique_ids']))]
     elif key == 'full_coding_naive_seq':
         if glfo is None:
             raise Exception('have to pass in glfo for extra annotation column \'%s\'' % key)
