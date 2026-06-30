@@ -8,14 +8,21 @@ const Sequence = @import("../sequences.zig").Sequence;
 const KBounds = @import("../bcr_utils/k_bounds.zig").KBounds;
 
 /// Corresponds to C++ `ham::Query`.
+///
+/// Sequence ownership (issue #342, items 6 and 16): `seqs` holds **borrowed**
+/// `*const Sequence` pointers into buffers owned by `Glomerator.single_seqs`.
+/// The Query must not outlive the Glomerator that owns those buffers, and
+/// `Query.deinit` must not call `Sequence.deinit` on the pointed-to values —
+/// only the pointer slice itself is owned.
 pub const Query = struct {
     name: []u8,
-    /// Owned copies of sequences belonging to this query/cluster.
-    seqs: std.ArrayListUnmanaged(Sequence),
+    /// Borrowed pointers into `Glomerator.single_seqs`. Allocated as a single
+    /// slice at create-time; never grown. Must not be deinit'd per-item.
+    seqs: []*const Sequence,
     seed_missing: bool,
     only_genes: std.ArrayListUnmanaged([]u8),
     kbounds: KBounds,
-    mute_freq: f32,
+    mute_freq: f64,
     cdr3_length: usize,
     /// Names of the two parent queries (may be empty when not set).
     parents: ?[2][]u8,
@@ -24,7 +31,7 @@ pub const Query = struct {
         _ = allocator;
         return Query{
             .name = &.{},
-            .seqs = .{},
+            .seqs = &.{},
             .seed_missing = false,
             .only_genes = .{},
             .kbounds = .{},
@@ -34,22 +41,24 @@ pub const Query = struct {
         };
     }
 
-    /// Create a fully-specified Query.
+    /// Create a fully-specified Query. `seqs` is borrowed: each pointer is
+    /// stored verbatim, and the pointed-to Sequences must outlive this Query.
+    /// See struct doc comment.
     pub fn create(
         allocator: std.mem.Allocator,
         name: []const u8,
-        seqs: []Sequence,
+        seqs: []const *const Sequence,
         seed_missing: bool,
         only_genes: []const []const u8,
         kbounds: KBounds,
-        mute_freq: f32,
+        mute_freq: f64,
         cdr3_length: usize,
         parent1: ?[]const u8,
         parent2: ?[]const u8,
     ) !Query {
         var q = Query{
             .name = try allocator.dupe(u8, name),
-            .seqs = .{},
+            .seqs = &.{},
             .seed_missing = seed_missing,
             .only_genes = .{},
             .kbounds = kbounds,
@@ -59,8 +68,10 @@ pub const Query = struct {
         };
         errdefer q.deinit(allocator);
 
-        for (seqs) |*sq| {
-            try q.seqs.append(allocator, try sq.clone(allocator));
+        if (seqs.len > 0) {
+            const seqs_buf = try allocator.alloc(*const Sequence, seqs.len);
+            @memcpy(seqs_buf, seqs);
+            q.seqs = seqs_buf;
         }
         for (only_genes) |g| {
             try q.only_genes.append(allocator, try allocator.dupe(u8, g));
@@ -76,8 +87,9 @@ pub const Query = struct {
 
     pub fn deinit(self: *Query, allocator: std.mem.Allocator) void {
         if (self.name.len > 0) allocator.free(self.name);
-        for (self.seqs.items) |*sq| sq.deinit(allocator);
-        self.seqs.deinit(allocator);
+        // seqs entries are borrowed pointers (see struct doc); do not call
+        // Sequence.deinit on them. Only the pointer slice itself is owned.
+        if (self.seqs.len > 0) allocator.free(self.seqs);
         for (self.only_genes.items) |g| allocator.free(g);
         self.only_genes.deinit(allocator);
         if (self.parents) |*ps| {
@@ -88,6 +100,6 @@ pub const Query = struct {
 
     /// Return number of sequences.
     pub fn nSeqs(self: *const Query) usize {
-        return self.seqs.items.len;
+        return self.seqs.len;
     }
 };

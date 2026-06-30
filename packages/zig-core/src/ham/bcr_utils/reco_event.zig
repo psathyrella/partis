@@ -16,7 +16,7 @@ pub const RecoEvent = struct {
     /// Insertion sequences: "fv", "vd", "dj", "jf".
     insertions: std.StringHashMapUnmanaged([]u8),
     naive_seq: []u8,
-    score: f32,
+    score: f64,
     cyst_position: i32,
     tryp_position: i32,
     cdr3_length: i32,
@@ -107,7 +107,7 @@ pub const RecoEvent = struct {
     }
 
     pub fn setScore(self: *RecoEvent, s: f64) void {
-        self.score = @floatCast(s);
+        self.score = s;
     }
 
     pub fn clear(self: *RecoEvent, allocator: std.mem.Allocator) void {

@@ -64,10 +64,10 @@ pub const Args = struct {
     ambig_base: []u8,
     seed_unique_id: []u8,
 
-    hamming_fraction_bound_lo: f32,
-    hamming_fraction_bound_hi: f32,
-    logprob_ratio_threshold: f32,
-    max_logprob_drop: f32,
+    hamming_fraction_bound_lo: f64,
+    hamming_fraction_bound_hi: f64,
+    logprob_ratio_threshold: f64,
+    max_logprob_drop: f64,
 
     debug: i32,
     naive_hamming_cluster: i32,
@@ -108,7 +108,7 @@ pub const Args = struct {
             .seed_unique_id = try allocator.dupe(u8, ""),
             .hamming_fraction_bound_lo = 0.0,
             .hamming_fraction_bound_hi = 1.0,
-            .logprob_ratio_threshold = -std.math.inf(f32),
+            .logprob_ratio_threshold = -std.math.inf(f64),
             .max_logprob_drop = -1.0,
             .debug = 0,
             .naive_hamming_cluster = 0,

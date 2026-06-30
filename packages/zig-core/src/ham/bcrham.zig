@@ -89,18 +89,23 @@ pub fn runAlgorithm(
         defer allocator.free(only_genes);
         for (qrow.only_genes.items, only_genes) |g, *out| out.* = g;
 
+        // Build pointer view into qseqs for the DP and stream calls (item 16).
+        const qseq_ptrs = try allocator.alloc(*const Sequence, qseqs.items.len);
+        defer allocator.free(qseq_ptrs);
+        for (qseqs.items, qseq_ptrs) |*sq, *out| out.* = sq;
+
         var dph = try DPHandler.init(allocator, args.algorithm, args, gl, hmms);
         defer dph.deinit();
 
-        var result = try dph.run(qseqs.items, kbounds, only_genes, @floatCast(qrow.mut_freq), true);
+        var result = try dph.run(qseq_ptrs, kbounds, only_genes, qrow.mut_freq, true);
         defer result.deinit();
 
         if (result.no_path) {
-            try bcr_text.streamErrorput(writer, args.algorithm, allocator, qseqs.items, "no_path");
+            try bcr_text.streamErrorput(writer, args.algorithm, allocator, qseq_ptrs, "no_path");
         } else if (std.mem.eql(u8, args.algorithm, "viterbi")) {
-            try bcr_text.streamViterbiOutput(writer, allocator, &result.best_event.?, qseqs.items, "");
+            try bcr_text.streamViterbiOutput(writer, allocator, &result.best_event.?, qseq_ptrs, "");
         } else if (std.mem.eql(u8, args.algorithm, "forward")) {
-            try bcr_text.streamForwardOutput(writer, allocator, qseqs.items, result.total_score, "");
+            try bcr_text.streamForwardOutput(writer, allocator, qseq_ptrs, result.total_score, "");
         } else {
             return error.UnknownAlgorithm;
         }
@@ -154,7 +159,7 @@ pub fn run(allocator: std.mem.Allocator, argv: []const [*:0]const u8) !void {
             .{ "--random-seed", "random_seed" },
             .{ "--min-largest-cluster-size", "min_largest_cluster_size" },
         };
-        const f32_flags = .{
+        const f64_flags = .{
             .{ "--hamming-fraction-bound-lo", "hamming_fraction_bound_lo" },
             .{ "--hamming-fraction-bound-hi", "hamming_fraction_bound_hi" },
             .{ "--logprob-ratio-threshold", "logprob_ratio_threshold" },
@@ -207,9 +212,9 @@ pub fn run(allocator: std.mem.Allocator, argv: []const [*:0]const u8) !void {
                     matched = true;
                 }
             }
-            inline for (f32_flags) |entry| {
+            inline for (f64_flags) |entry| {
                 if (std.mem.eql(u8, flag, entry[0])) {
-                    @field(args, entry[1]) = try std.fmt.parseFloat(f32, val);
+                    @field(args, entry[1]) = try std.fmt.parseFloat(f64, val);
                     matched = true;
                 }
             }

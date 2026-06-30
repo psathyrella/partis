@@ -13,6 +13,7 @@
 
 const std = @import("std");
 const math = std.math;
+const perf_counters = @import("perf_counters.zig");
 
 // Use glibc log/exp via C wrapper (glibc_math.c) to match C++ bcrham bit-for-bit.
 // Zig's `extern fn log/exp` resolves to compiler-rt (bundled as local 't' symbols),
@@ -22,6 +23,15 @@ extern fn glibc_log(x: f64) f64;
 extern fn glibc_exp(x: f64) f64;
 pub const log = glibc_log;
 pub const exp = glibc_exp;
+
+// fast_softplus(d) = log(1 + exp(d)), via 64K-entry linear-interp LUT.
+// Implemented in fast_math.c; mirrored on the C++ side at
+// packages/ham/src/fast_math.c. Replaces 1 log + 1 exp glibc call inside
+// addInLogSpace with a single load + 1 mul + 1 fma — ~22-40% speedup
+// per addInLogSpace call across Zen 3-5 and Intel Broadwell. Accuracy
+// 6.5e-9 max abs over [-30, 0] (5 orders under partis-test 1e-5 gate).
+// See fast_math.c for the design notes (issue #366 item 3.2).
+extern fn fast_softplus(d: f64) f64;
 
 /// Negative infinity constant for log-probability computations.
 /// Replaces the verbose `-std.math.inf(f64)` throughout the codebase.
@@ -64,12 +74,26 @@ pub fn addWithMinusInfinities(first: f64, second: f64) f64 {
 /// Implements the log-space *or* operation (a OR b = a + b in probability space).
 /// Corresponds to C++ `ham::AddInLogSpace<T>(T first, T second)`.
 pub fn addInLogSpace(first: f64, second: f64) f64 {
+    perf_counters.bumpAddInLogSpace();
     if (first == NEG_INF) return second;
     if (second == NEG_INF) return first;
+    // Past both early-outs: one call to fast_softplus (LUT lookup, no glibc
+    // log/exp). The counter name kept its original log+exp suffix because
+    // the call site is still the place where item-3.2's transcendental work
+    // used to live — re-naming would invalidate prior #368 measurements.
+    perf_counters.bumpAddInLogSpaceLogExp();
+    // fast_softplus's C implementation has a `if (d > 0.0) return d + fast_softplus(-d)`
+    // symmetry recursion. ReleaseFast can elide that guard on subnormal positive d
+    // after negation, so we assert non-positive here at the only Zig call site
+    // (both branches feed (smaller − larger) ≤ 0).
     if (first > second) {
-        return first + log(1.0 + exp(second - first));
+        const d = second - first;
+        std.debug.assert(d <= 0.0);
+        return first + fast_softplus(d);
     } else {
-        return second + log(1.0 + exp(first - second));
+        const d = first - second;
+        std.debug.assert(d <= 0.0);
+        return second + fast_softplus(d);
     }
 }
 

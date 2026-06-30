@@ -4,6 +4,19 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // -Dperf-counters: gate the issue-#366 phase-0 diagnostics counters in
+    // src/ham/perf_counters.zig. When false (default), every counter site
+    // is `if (enabled) { ... }` with `enabled = false`, so the inner-loop
+    // calls compile to nothing and bit-equal output is preserved.
+    const perf_counters = b.option(
+        bool,
+        "perf-counters",
+        "Enable Phase-0 perf counters (issue #366). Default false; counters compile out when off.",
+    ) orelse false;
+    const perf_opts = b.addOptions();
+    perf_opts.addOption(bool, "perf_counters", perf_counters);
+    const build_options_module = perf_opts.createModule();
+
     // ── partis-zig-core executable: bcrham-compatible CLI ────────────────
     // `zig build` produces this by default. No external library deps.
     const exe = b.addExecutable(.{
@@ -14,6 +27,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    exe.root_module.addImport("build_options", build_options_module);
     // Link libc so release builds can use std.heap.c_allocator (malloc/free),
     // which avoids GPA's per-allocation tracking overhead.
     exe.root_module.linkSystemLibrary("c", .{});
@@ -21,6 +35,11 @@ pub fn build(b: *std.Build) void {
     // to actual glibc (dynamic 'U' symbols) rather than Zig's compiler-rt
     // (local 't' symbols that may differ from glibc on some CPUs).
     exe.addCSourceFile(.{ .file = b.path("src/ham/glibc_math.c"), .flags = &.{ "-O2", "-fno-builtin" } });
+    // fast_math.c — fast_softplus LUT (issue #366 item 3.2). Mirrors
+    // packages/ham/src/fast_math.c on the C++ side; both must stay in sync.
+    // -ffp-contract=off keeps the linear-interp arithmetic bit-deterministic
+    // across compilers (cheap insurance for cross-backend bit equality).
+    exe.addCSourceFile(.{ .file = b.path("src/ham/fast_math.c"), .flags = &.{ "-O3", "-ffp-contract=off", "-fno-builtin" } });
     b.installArtifact(exe);
 
     // ── compare: equivalence harness binary ──────────────────────────────
@@ -32,6 +51,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    compare.root_module.addImport("build_options", build_options_module);
     b.installArtifact(compare);
 
     // ── lib: C ABI shared library (requires ig-sw sources from partis) ───
@@ -45,6 +65,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    cabi_mod.addImport("build_options", build_options_module);
     if (igsw_src.len > 0) {
         cabi_mod.addIncludePath(.{ .cwd_relative = igsw_src });
     }
@@ -96,7 +117,15 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    ham_test_mod.addImport("build_options", build_options_module);
+    // Link libc + glibc_math shim so tests that exercise mathutils.log/exp
+    // resolve `glibc_log` / `glibc_exp`. Without these, unit tests linking
+    // anything that uses the math hot path fail with "undefined symbol:
+    // glibc_log". Symmetric with the `exe` setup above.
+    ham_test_mod.linkSystemLibrary("c", .{});
     const unit_tests = b.addTest(.{ .root_module = ham_test_mod });
+    unit_tests.addCSourceFile(.{ .file = b.path("src/ham/glibc_math.c"), .flags = &.{ "-O2", "-fno-builtin" } });
+    unit_tests.addCSourceFile(.{ .file = b.path("src/ham/fast_math.c"), .flags = &.{ "-O3", "-ffp-contract=off", "-fno-builtin" } });
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);

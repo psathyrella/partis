@@ -70,8 +70,14 @@ pub const Result = struct {
         _ = _gl;
         std.debug.assert(!self.finalized);
 
-        // Sort events descending by score
-        std.mem.sort(RecoEvent, self.events.items, {}, struct {
+        // Sort events descending by score. STABLE sort to make tied scores
+        // resolve to first-pushed (deterministic across runs and backends).
+        // With score stored as f64 (#377) the f32-collapse failure mode from
+        // #375 is gone, but two ksets can still produce machine-epsilon-equal
+        // f64 scores; an unstable pdqsort/introsort would otherwise pick
+        // different "best" events between Zig and C++, cascading through
+        // naive_seq → hfrac → cluster merges. Originally added in #375.
+        std.sort.block(RecoEvent, self.events.items, {}, struct {
             fn desc(_: void, a: RecoEvent, b: RecoEvent) bool {
                 return a.score > b.score;
             }
