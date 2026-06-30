@@ -26,6 +26,12 @@ To have partis write to an AIRR-format tsv file, set the partis option `--airr-o
 To convert existing partis output to AIRR tsv, pass the same option to `bin/parse-output.py`.
 Both `bin/partis` and `bin/parse-output.py` also take AIRR files as input with the flag `--airr-input`.
 
+One subtlety of these AIRR files concerns the light chain (igk/igl) N region.
+Light chain has no D gene, so there is a single VJ N region, which partis stores internally in `dj_insertion` (with `vd_insertion` empty).
+In the tsv, partis writes it to the `np1` column (with `np2` empty), following the AIRR spec, where `np1` is the N region between V and D, or between V and J when there is no D.
+This is also where external tools such as IgBLAST write it, so their files read back correctly.
+(For back-compatibility the reader also accepts the N region in `np2`, which is where partis versions before this change wrote it.)
+
 For more information on all options, run `partis <action> --help`.
 
 #### output file overview

@@ -2111,6 +2111,12 @@ def get_airr_line(pline, iseq, extra_columns=None, skip_columns=None, args=None,
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
 
+    if not has_d_gene(get_locus(pline['v_gene'])):  # light chain (igk/igl): single VJ N region, which partis keeps in dj_insertion. AIRR's convention (and external tools like igblast) put it in np1 (the V-J junction, since there's no D), with np2 empty -- so emit it there. The reader (convert_airr_line) reverses this. See issue #389.
+        if 'np1' in aline:
+            aline['np1'] = pline['vd_insertion'] + pline['dj_insertion']  # vd_insertion is always empty for light chain, but concatenate to mirror the reader and be robust
+        if 'np2' in aline:
+            aline['np2'] = ''
+
     if extra_columns is not None:
         for key in extra_columns:
             if key in pline:
@@ -2131,6 +2137,11 @@ def convert_airr_line(aline, glfo):
         if pky is not None:  # if there's a direct correspondence to a partis key
             pline[pky] = [aline[aky]] if pky in linekeys['per_seq'] else aline[aky]  # NOTE/TODO all end up as single-sequence annotations
     pline['duplicates'] = [[]]
+
+    if not has_d_gene(glfo['locus']):  # light chain (igk/igl) has a single VJ N region, which partis always keeps in dj_insertion (vd_insertion stays empty for light chain). External AIRR tools (e.g. igblast), and partis's own airr writer, put it in np1 -> vd_insertion; older/other files may have it in np2 -> dj_insertion. Move it to dj_insertion regardless of source. See issue #389.
+        assert pline['vd_insertion'] == '' or pline['dj_insertion'] == ''  # at most one is populated (light chain has a single N region); if both were set we'd be silently merging two distinct insertions, which would mean the file doesn't follow either convention
+        pline['dj_insertion'] = pline['vd_insertion'] + pline['dj_insertion']  # one is always empty, so this just moves whichever is set into dj_insertion
+        pline['vd_insertion'] = ''
 
     # print aline['v_call'], aline['d_call'], aline['j_call']
     if aline['d_germline_start'] == '':  # igblast leaves this blank for light chain (and sometimes for heavy)
