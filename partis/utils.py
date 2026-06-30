@@ -2111,6 +2111,12 @@ def get_airr_line(pline, iseq, extra_columns=None, skip_columns=None, args=None,
         else:
             raise Exception('unhandled airr key / partis key \'%s\' / \'%s\'' % (akey, pkey))
 
+    if not has_d_gene(get_locus(pline['v_gene'])):  # light chain (igk/igl): single VJ N region, which partis keeps in dj_insertion. AIRR's convention (and external tools like igblast) put it in np1 (the V-J junction, since there's no D), with np2 empty -- so emit it there. The reader (convert_airr_line) reverses this. See issue #389.
+        if 'np1' in aline:
+            aline['np1'] = pline['vd_insertion'] + pline['dj_insertion']  # vd_insertion is always empty for light chain, but concatenate to mirror the reader and be robust
+        if 'np2' in aline:
+            aline['np2'] = ''
+
     if extra_columns is not None:
         for key in extra_columns:
             if key in pline:
