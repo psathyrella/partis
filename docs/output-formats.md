@@ -27,7 +27,7 @@ To convert existing partis output to AIRR tsv, pass the same option to `bin/pars
 Both `bin/partis` and `bin/parse-output.py` also take AIRR files as input with the flag `--airr-input`.
 
 Note on light chain (igk/igl) N regions: since light chain has no D gene, there is a single VJ N region.
-Partis stores this internally in `dj_insertion` (matching the convention used by `cache-parameters`), but writes it to the AIRR `np1` field (and leaves `np2` empty), following the AIRR spec, in which `np1` is the N region between V and D *or between V and J* when there is no D.
+Partis always stores this internally in `dj_insertion` (`vd_insertion` is left empty for light chain), but writes it to the AIRR `np1` field (and leaves `np2` empty), following the AIRR spec, in which `np1` is the N region between V and D *or between V and J* when there is no D.
 On input, partis reads the light-chain N region from `np1` + `np2` (one is always empty) back into `dj_insertion`, so files from either partis or external tools (e.g. IgBLAST, which also uses `np1`) are handled correctly.
 
 For more information on all options, run `partis <action> --help`.

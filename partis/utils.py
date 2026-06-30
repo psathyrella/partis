@@ -2138,7 +2138,7 @@ def convert_airr_line(aline, glfo):
             pline[pky] = [aline[aky]] if pky in linekeys['per_seq'] else aline[aky]  # NOTE/TODO all end up as single-sequence annotations
     pline['duplicates'] = [[]]
 
-    if not has_d_gene(glfo['locus']):  # light chain (igk/igl) has a single VJ N region. partis's convention (matching cache-parameters) keeps it in dj_insertion, but external AIRR tools (e.g. igblast) put it in np1 -> vd_insertion, while partis writes it to np2 -> dj_insertion. Concatenate (one is always empty for light chain) so we land in dj_insertion regardless of source, and partis-written files still round-trip. See issue #389.
+    if not has_d_gene(glfo['locus']):  # light chain (igk/igl) has a single VJ N region, which partis always keeps in dj_insertion (vd_insertion stays empty for light chain). External AIRR tools (e.g. igblast), and partis's own airr writer, put it in np1 -> vd_insertion; older/other files may have it in np2 -> dj_insertion. Concatenate (one is always empty for light chain) so we land in dj_insertion regardless of source. See issue #389.
         pline['dj_insertion'] = pline['vd_insertion'] + pline['dj_insertion']
         pline['vd_insertion'] = ''
 
