@@ -53,6 +53,16 @@ partis-test.py --no-simu
 partis-test.py --paired --no-simu
 ```
 
+##### Zig backend (optional)
+
+Partis includes an optional alternative backend, written in [Zig](https://ziglang.org), that replaces the default C++ `bcrham` and C `ig-sw` binaries.
+It is much faster, uses substantially less memory, and has far fewer dependencies, but has not yet been tested as thoroughly, so it is opt-in (see [`--zig`](subcommands.md#the-zig-backend---zig)).
+To build it (no extra system dependencies beyond a C toolchain; the script fetches a pinned Zig compiler into the tree):
+```bash
+bin/zig-build.sh
+```
+Then add `--zig` to any partis command to use it instead of the default backend.
+
 #### Simulation
 
 A variety of partis simulation options will work using the base install described above; however for full functionality you'll need to install R and some R packages, as well as potentially compile bio++.
