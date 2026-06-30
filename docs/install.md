@@ -4,6 +4,7 @@
 
 Partis can be installed via:
   - [pip and pipx](#installation-with-pip-or-pipx): recommended
+  - [the optional zig backend](#zig-backend): faster, lower-memory, almost nothing to install
   - [additional steps for simulation installation](#simulation)
   - [with Docker](#installation-with-docker)
   - [plotting dependencies](#plotting)
@@ -53,15 +54,17 @@ partis-test.py --no-simu
 partis-test.py --paired --no-simu
 ```
 
-##### Zig backend (optional)
+#### Zig backend
 
 Partis includes an optional alternative backend, written in [Zig](https://ziglang.org), that replaces the default C++ `bcrham` and C `ig-sw` binaries.
-It is much faster, uses substantially less memory, and has far fewer dependencies, but has not yet been tested as thoroughly, so it is opt-in (see [`--zig`](subcommands.md#the-zig-backend---zig)).
-To build it (no extra system dependencies beyond a C toolchain; the script fetches a pinned Zig compiler into the tree):
+It is much faster, uses less memory, and has far fewer dependencies, but has not yet been tested as thoroughly, so it is opt-in (see [`--zig`](subcommands.md#the-zig-backend---zig)).
+
+There is essentially nothing extra to install: it needs no new system packages (one of its advantages), and `bin/zig-build.sh` downloads its own pinned Zig compiler into the source tree (`packages/zig-core/.zig-install/`), so it doesn't touch your system or environment.
+Just run, from the partis directory:
 ```bash
 bin/zig-build.sh
 ```
-Then add `--zig` to any partis command to use it instead of the default backend.
+This compiles the in-tree backend (a minute or two). Then add `--zig` to any partis command to use it instead of the default backend.
 
 #### Simulation
 

@@ -470,10 +470,10 @@ You can then add novel alleles to the germline set by telling it how many novel 
 ##### the zig backend (`--zig`)
 
 Partis ships an alternative backend, written in [Zig](https://ziglang.org), that replaces the default C++ `bcrham` and C `ig-sw` binaries.
-It is much faster, uses substantially less memory, and has far fewer dependencies than the default backend, but has not yet been tested as thoroughly, so for now it remains opt-in.
+It is much faster, uses less memory, and has far fewer dependencies than the default backend, but has not yet been tested as thoroughly, so for now it remains opt-in.
 Output is intended to be identical to the default backend (the two are checked for byte-identical results on paired clustering).
 
-Build it once with `bin/zig-build.sh` (this fetches a pinned Zig compiler and compiles the in-tree backend; see [install](install.md#zig-backend-optional)), then add `--zig` to any partis command, e.g.:
+Build it once with `bin/zig-build.sh` (this fetches a pinned Zig compiler and compiles the in-tree backend; see [install](install.md#zig-backend)), then add `--zig` to any partis command, e.g.:
 ```
 partis --zig annotate --infname <input> --outfname <output>
 ```
