@@ -76,6 +76,19 @@ def compare_directories(args, plotdirlist, outdir):
 def plot_single_variable(args, varname, hlist, outdir, pathnameclues):
     if varname in plotconfig.gene_usage_columns:
         hlist = plotting.add_bin_labels_not_in_all_hists(hlist)
+        # Strip the locus+region prefix ("IGHV"/"IGHD"/"IGHJ"/"IGKV"/...) from
+        # each per-allele bin label, so the x-tick text isn't dominated by the
+        # locus+region the plot's filename and xtitle already identify. Leaves
+        # any non-matching label untouched.
+        region = varname.split('_')[0]
+        prefix = args.locus.upper() + region.upper()
+        for h in hlist:
+            if h.bin_labels is None:
+                continue
+            h.bin_labels = [
+                lbl[len(prefix):] if lbl.startswith(prefix) else lbl
+                for lbl in h.bin_labels
+            ]
 
     no_labels = False
     xline, bounds, figsize, adjust = None, None, None, None
