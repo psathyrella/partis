@@ -2320,14 +2320,15 @@ def read_airr_output(fname, glfo=None, locus=None, glfo_dir=None, skip_other_loc
     if len(plines) > 0:
         sorted_ids = [l['unique_ids'][0] for l in plines]
         sorted_id_set = set(sorted_ids)
+        sorted_id_idx = {u : i for i, u in enumerate(sorted_ids)}  # avoid sorted_ids.index() inside the sort key (used to make read_airr_output O(N^2 log N) — observed ~10 hr on 432k-row AIRR TSVs)
         partition = [[u for u in c if u in sorted_id_set] for c in partition]
         partition = [c for c in partition if len(c) > 0]
-        partition = sorted(partition, key=lambda c: min(sorted_ids.index(u) for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster
+        partition = sorted(partition, key=lambda c: min(sorted_id_idx[u] for u in c))  # sort by min index in <sorted_ids> of any uid in each cluster
     antn_list = []
     if len(plines) > 0:
         antn_dict = get_annotation_dict(plines)
         for iclust, cluster in enumerate(partition):  # may as well sort by length, otherwise order is just random
-            cluster = [u for u in sorted_ids if u in cluster]  # it's nice to try to keep them in the same order, and if partis wrote the single-seq lines this'll put them back in the same order
+            cluster = sorted(cluster, key=lambda u: sorted_id_idx[u])  # nice to keep cluster members in input order; was previously `[u for u in sorted_ids if u in cluster]` which is O(N) per cluster -> O(N^2) overall on big AIRR TSVs
             partition[iclust] = cluster
             multi_line = synthesize_multi_seq_line_from_reco_info(cluster, antn_dict)
             # print_reco_event(multi_line, extra_str='  ')
