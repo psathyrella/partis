@@ -6,11 +6,26 @@
  *
  * We dlopen libm.so.6 and resolve log/exp from it directly, bypassing
  * any compiler-rt symbols in the binary.
+ *
+ * macOS has no libm.so.6 (no glibc), so there we just use the system libm's
+ * log/exp.  Results won't be bit-identical to the Linux glibc reference, but
+ * that's fine: the C++ backend (ig-sw/bcrham) can't be built on macOS anyway
+ * (SSE2/emmintrin), so there is no Linux-parity requirement on that platform.
  */
 #define _GNU_SOURCE
-#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef __APPLE__
+
+#include <math.h>
+
+double glibc_log(double x) { return log(x); }
+double glibc_exp(double x) { return exp(x); }
+
+#else
+
+#include <dlfcn.h>
 
 typedef double (*math_fn)(double);
 
@@ -35,3 +50,5 @@ static void init_glibc_math(void) {
 
 double glibc_log(double x) { return real_log(x); }
 double glibc_exp(double x) { return real_exp(x); }
+
+#endif

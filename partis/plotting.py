@@ -1429,7 +1429,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
 
     fig, ax = mpl_init()
     data = numpy.array(smatrix)
-    cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
+    cmap = plt.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
     heatmap = ax.pcolormesh(data, cmap=cmap, vmin=0., vmax=1.)
     cbar = plt.colorbar(heatmap, label='overlap / %s size' % iscn_denominator.replace('min', 'smaller').replace('max', 'larger'), pad=0.09)
@@ -1514,7 +1514,7 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
             print('')
 
     fig, ax = mpl_init()
-    cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
+    cmap = plt.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
     smtx_min = min([v for r in smatrix for v in r])
     vmin = min(0., smtx_min) if float_vals else 0.5

@@ -91,7 +91,7 @@ jobs:
           brew install gsl yaml-cpp scons mafft r
           # brew tap jydu/homebrew-biopp
           # brew install libbpp-core bppsuite  # which packages do i actually have to write here?
-          brew install --cask font-lato
+          brew install --cask font-lato || true  # font download server sometimes 403s; not needed for tests
         fi
         
     # - name: Set Homebrew paths for ARM64 Mac  # not used atm, but we'll want these if we manage to fix the emmintrin.h/SSE2 issue, so leaving in
