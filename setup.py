@@ -12,38 +12,67 @@ from setuptools.command.egg_info import egg_info
 from setuptools.dist import Distribution
 
 
-def check_system_dependencies():
-    """Check that required system dependencies are available."""
-    required_commands = ['scons', 'gcc', 'g++', 'python3', 'mafft']
+def check_system_dependencies(required_commands):
+    """Check that the given system commands are available."""
     missing = []
-    
+
     for cmd in required_commands:
         try:
             subprocess.run([cmd, '--version'], capture_output=True, check=True)
         except (subprocess.CalledProcessError, FileNotFoundError):
             missing.append(cmd)
-    
+
     # Check python3-venv separately since it's a module, not a command
     try:
         subprocess.run([sys.executable, '-m', 'venv', '--help'], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         missing.append('python3-venv')
-    
+
     if missing:
         raise RuntimeError('Missing required system dependencies: %s. Please install all packages listed in the manual (docs/install.md#installation-with-pip), then try the installation again.' % ', '.join(missing))
 
 
 def build_compiled_components():
-    """Build the required C++ components using the build script."""
+    """Build the backend requested by $PARTIS_BACKEND (default 'cpp').
+
+    'cpp' (default): compile the C++ bcrham + C ig-sw via bin/build.sh (needs the
+      C/C++ toolchain: scons, gcc, g++).
+    'zig': build the in-tree Zig backend via bin/zig-build.sh (fetches its own Zig
+      compiler; needs only curl+tar, no C/C++ toolchain / gsl / yaml-cpp), then
+      symlink the zig binaries onto the default bcrham/ig-sw paths so plain `partis`
+      (without --zig) uses them.
+    """
+    base_dir = Path(__file__).parent.absolute()
+    backend = os.environ.get('PARTIS_BACKEND', 'cpp').lower()
+    if backend not in ('cpp', 'zig'):
+        raise RuntimeError("PARTIS_BACKEND must be 'cpp' or 'zig' (got '%s')" % backend)
+
+    if backend == 'zig':
+        print("Building partis zig backend (PARTIS_BACKEND=zig)...")
+        if not any((base_dir / 'packages/zig-core').iterdir()):
+            raise RuntimeError('Submodule packages/zig-core is empty. Run: git submodule update --init packages/zig-core')
+        check_system_dependencies(['curl', 'tar', 'mafft'])  # zig-build.sh fetches its own compiler; no gcc/scons/gsl/yaml-cpp
+        result = subprocess.run([str(base_dir / 'bin' / 'zig-build.sh')], cwd=str(base_dir))
+        if result.returncode != 0:
+            raise Exception('zig-build.sh failed with exit code %d' % result.returncode)
+        # point the default binary paths at the zig binaries, so `partis` uses zig without needing --zig
+        zbin = base_dir / 'packages/zig-core/zig-out/bin'
+        for zname, dst in [('partis-zig-core', 'packages/ham/bcrham'),
+                           ('partis-zig-igsw', 'packages/ig-sw/src/ig_align/ig-sw')]:
+            dpath = base_dir / dst
+            dpath.parent.mkdir(parents=True, exist_ok=True)
+            if dpath.is_symlink() or dpath.exists():
+                dpath.unlink()
+            os.symlink(zbin / zname, dpath)
+        print("✓ Successfully built zig backend (bcrham/ig-sw point at the zig binaries)")
+        return
 
     print("Building partis compiled components (ig-sw and ham)...")
-
-    base_dir = Path(__file__).parent.absolute()
     for submod in ['packages/ham', 'packages/ig-sw']:
         if not any((base_dir / submod).iterdir()):
             raise RuntimeError('Submodule %s is empty. Run: git submodule update --init %s' % (submod, submod))
 
-    check_system_dependencies()
+    check_system_dependencies(['scons', 'gcc', 'g++', 'python3', 'mafft'])
     build_script = base_dir / "bin" / "build.sh"
 
     if not build_script.exists():
