@@ -32,6 +32,21 @@ def check_system_dependencies(required_commands):
         raise RuntimeError('Missing required system dependencies: %s. Please install all packages listed in the manual (docs/install.md#installation-with-pip), then try the installation again.' % ', '.join(missing))
 
 
+def build_fasttree_macos(base_dir):
+    """Compile FastTree on macOS (it has no prebuilt mac binary; Linux uses the bundled
+    one). Backend-independent -- bin/build.sh does the same for the C++ path."""
+    if sys.platform != 'darwin':
+        return
+    ftdir = base_dir / 'packages' / 'FastTree'
+    print('Building FastTree (macOS)...')
+    subprocess.run(['gcc', '-O3', '-fopenmp-simd', '-funsafe-math-optimizations', '-march=native',
+                    '-o', 'FastTree', 'FastTree.c', '-lm'], cwd=str(ftdir), check=True)
+    link = base_dir / 'bin' / 'FastTree-macos'
+    if link.is_symlink() or link.exists():
+        link.unlink()
+    os.symlink(ftdir / 'FastTree', link)
+
+
 def build_compiled_components():
     """Build the backend requested by $PARTIS_BACKEND (default 'cpp').
 
@@ -56,6 +71,7 @@ def build_compiled_components():
         result = subprocess.run([str(base_dir / 'bin' / 'zig-build.sh')], cwd=str(base_dir))
         if result.returncode != 0:
             raise Exception('zig-build.sh failed with exit code %d' % result.returncode)
+        build_fasttree_macos(base_dir)  # FastTree is backend-independent; no prebuilt mac binary, so compile it (bin/build.sh does this for the cpp path)
         print("✓ Successfully built zig backend (run partis with --zig to use it)")
         return
 
