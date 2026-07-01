@@ -12,6 +12,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:  # allow manual runs from the Actions tab (does not publish to PyPI, since that step is tag-guarded)
 
 jobs:
   docker:
