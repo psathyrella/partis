@@ -56,15 +56,18 @@ partis-test.py --paired --no-simu
 
 #### Zig backend
 
-Partis includes an optional alternative backend, written in [Zig](https://ziglang.org), that replaces the default C++ `bcrham` and C `ig-sw` binaries.
-It is much faster, uses less memory, and has far fewer dependencies, but has not yet been tested as thoroughly, so it is opt-in (see [`--zig`](subcommands.md#the-zig-backend---zig)).
+We have reimplemented the partis internals (ig-sw and bcrham) in [Zig](https://ziglang.org), but have not yet turned it on by default.
+It is around twice as fast, uses comparable memory (marginally less on large samples), and is substantially easier to install: building it needs only the zig compiler (fetched automatically), rather than the C/C++ toolchain (build-essential, cmake, scons, gsl, yaml-cpp).
+It still requires the same Python packages and `mafft` as the default backend.
+Since it is much newer, and has not been tested quite as thoroughly, for now it is still opt-in (see [`--zig`](subcommands.md#the-zig-backend---zig)).
 
-There is essentially nothing extra to install: it needs no new system packages (one of its advantages), and `bin/zig-build.sh` downloads its own pinned Zig compiler into the source tree (`packages/zig-core/.zig-install/`), so it doesn't touch your system or environment.
-Just run, from the partis directory:
+To install with the zig backend, set `PARTIS_BACKEND=zig` when installing from source:
 ```bash
-bin/zig-build.sh
+PARTIS_BACKEND=zig pip install -e .
 ```
-This compiles the in-tree backend (a minute or two). Then add `--zig` to any partis command to use it instead of the default backend.
+This builds the zig binaries (via `bin/zig-build.sh`, a minute or two — it downloads a pinned zig compiler into the source tree) instead of compiling the C/C++ backend, and points the default `bcrham`/`ig-sw` paths at them, so plain `partis` transparently uses zig with no `--zig` needed.
+
+Alternatively, on an existing default (C/C++) install, build zig alongside it with `bin/zig-build.sh` and select it per command with `--zig`.
 
 #### Simulation
 
