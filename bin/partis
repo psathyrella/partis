@@ -1844,6 +1844,11 @@ if getattr(args, 'zig', False):
         if not os.path.exists(path):
             raise Exception('Zig binary not found: %s (run bin/zig-build.sh first)' % path)
         setattr(args, binary, path)
+else:  # default (C++) backend: if its binaries aren't built but the zig ones are, point at --zig
+    zig_bin = partis_dir + '/packages/zig-core/zig-out/bin'
+    for binary, zname in [('bcrham_binary', 'partis-zig-core'), ('ig_sw_binary', 'partis-zig-igsw')]:
+        if not os.path.exists(getattr(args, binary)) and os.path.exists(zig_bin + '/' + zname):
+            raise Exception('C++ backend binary not found (%s), but the zig backend is built -- pass --zig to use it (or reinstall the C++ backend with bin/build.sh)' % getattr(args, binary))
 
 processargs.process(args)
 random.seed(args.random_seed)

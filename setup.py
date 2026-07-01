@@ -38,9 +38,10 @@ def build_compiled_components():
     'cpp' (default): compile the C++ bcrham + C ig-sw via bin/build.sh (needs the
       C/C++ toolchain: scons, gcc, g++).
     'zig': build the in-tree Zig backend via bin/zig-build.sh (fetches its own Zig
-      compiler; needs only curl+tar, no C/C++ toolchain / gsl / yaml-cpp), then
-      symlink the zig binaries onto the default bcrham/ig-sw paths so plain `partis`
-      (without --zig) uses them.
+      compiler; needs only curl+tar, no C/C++ toolchain / gsl / yaml-cpp). This does
+      NOT change the default backend: the C++ backend remains the default and zig is
+      selected at run time with --zig. (In a zig-only install the C++ backend isn't
+      built, so you must pass --zig.)
     """
     base_dir = Path(__file__).parent.absolute()
     backend = os.environ.get('PARTIS_BACKEND', 'cpp').lower()
@@ -55,16 +56,7 @@ def build_compiled_components():
         result = subprocess.run([str(base_dir / 'bin' / 'zig-build.sh')], cwd=str(base_dir))
         if result.returncode != 0:
             raise Exception('zig-build.sh failed with exit code %d' % result.returncode)
-        # point the default binary paths at the zig binaries, so `partis` uses zig without needing --zig
-        zbin = base_dir / 'packages/zig-core/zig-out/bin'
-        for zname, dst in [('partis-zig-core', 'packages/ham/bcrham'),
-                           ('partis-zig-igsw', 'packages/ig-sw/src/ig_align/ig-sw')]:
-            dpath = base_dir / dst
-            dpath.parent.mkdir(parents=True, exist_ok=True)
-            if dpath.is_symlink() or dpath.exists():
-                dpath.unlink()
-            os.symlink(zbin / zname, dpath)
-        print("✓ Successfully built zig backend (bcrham/ig-sw point at the zig binaries)")
+        print("✓ Successfully built zig backend (run partis with --zig to use it)")
         return
 
     print("Building partis compiled components (ig-sw and ham)...")

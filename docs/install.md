@@ -56,18 +56,18 @@ partis-test.py --paired --no-simu
 
 #### Zig backend
 
-We have reimplemented the partis internals (ig-sw and bcrham) in [Zig](https://ziglang.org), but have not yet turned it on by default.
-It is around twice as fast, uses comparable memory (marginally less on large samples), and is substantially easier to install: building it needs only the zig compiler (fetched automatically), rather than the C/C++ toolchain (build-essential, cmake, scons, gsl, yaml-cpp).
-It still requires the same Python packages and `mafft` as the default backend.
-Since it is much newer, and has not been tested quite as thoroughly, for now it is still opt-in (see [`--zig`](subcommands.md#the-zig-backend---zig)).
+We have reimplemented the partis backend (ig-sw and bcrham) in [Zig](https://ziglang.org), but have not yet turned it on by default.
+The zig version is around twice as fast, and substantially easier to install: building it requires only the zig compiler (fetched automatically), rather than system installs of the the C++ toolchain (build-essential, cmake, scons, gsl, yaml-cpp).
+Since it is much newer, and has not been tested quite as thoroughly, for now it is still opt-in either at compile or run time (see [`--zig`](subcommands.md#the-zig-backend---zig)).
 
 To install with the zig backend, set `PARTIS_BACKEND=zig` when installing from source:
 ```bash
 PARTIS_BACKEND=zig pip install -e .
 ```
-This builds the zig binaries (via `bin/zig-build.sh`, a minute or two — it downloads a pinned zig compiler into the source tree) instead of compiling the C/C++ backend, and points the default `bcrham`/`ig-sw` paths at them, so plain `partis` transparently uses zig with no `--zig` needed.
+This builds the zig binaries (via `bin/zig-build.sh`) instead of the C++ backend.
+To use zig at run time, pass `--zig` to each partis command.
 
-Alternatively, on an existing default (C/C++) install, build zig alongside it with `bin/zig-build.sh` and select it per command with `--zig`.
+Alternatively, on an existing C++ install, build zig alongside it with `bin/zig-build.sh` and likewise select it per command with `--zig`.
 
 #### Simulation
 
