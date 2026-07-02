@@ -20,7 +20,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
     - name: Checkout tags
       run: git fetch --unshallow origin +refs/tags/*:refs/tags/*
     - name: Set docker tag variable
@@ -56,7 +56,7 @@ jobs:
       TERM: xterm
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
     
@@ -69,7 +69,7 @@ jobs:
         fi
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: '3.12'
 
@@ -87,6 +87,7 @@ jobs:
     - name: Install system dependencies (macOS)
       if: startsWith(matrix.os, 'macos')
       run: |
+        brew untap aws/tap 2>/dev/null || true  # preinstalled on the runner; silences the "tap not trusted" warning
         if [ "${{ matrix.backend }}" = zig ]; then  # no gsl/yaml-cpp/scons -- zig fetches its own compiler
           brew install mafft
         else
