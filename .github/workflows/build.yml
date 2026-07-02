@@ -12,6 +12,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main   # run CI on every push to main (PyPI publish still only fires on v* tags, below)
   workflow_dispatch:  # allow manual runs from the Actions tab (does not publish to PyPI, since that step is tag-guarded)
 
 jobs:
