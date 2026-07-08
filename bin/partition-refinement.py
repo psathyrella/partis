@@ -64,27 +64,16 @@ def main():
                         help='use V+D+J majority guard for IGH deep-tree protection')
     args = parser.parse_args()
 
-    print('loading partition from %s' % args.partition_path)
-    original_data = refine.load_partition(args.partition_path)
-    partition = [list(c) for c in original_data['partitions'][-1]['partition']]
-    print('  %d clusters, %d seqs' % (len(partition), sum(len(c) for c in partition)))
+    print('reading partition %s and sw-cache %s' % (args.partition_path, args.sw_cache_path))
+    inp = refine.read_refine_inputs(args.partition_path, args.sw_cache_path)
+    partition = inp['partition']
+    print('  %d clusters, %d seqs, %d per-sequence sw annotations' % (
+        len(partition), sum(len(c) for c in partition), len(inp['sw_info'])))
 
-    print('loading annotations')
-    uid_info = refine.load_annotations(original_data)
-    print('  %d annotated sequences' % len(uid_info))
-
-    print('loading SW naives from %s' % args.sw_cache_path)
-    uid_sw_naives = refine.load_sw_naives(args.sw_cache_path)
-    print('  %d per-sequence naives' % len(uid_sw_naives))
-
+    uid_sw_naives = inp['uid_sw_naives']
     if args.hmm_annotation_path is not None:
         print('loading HMM naives from %s' % args.hmm_annotation_path)
         uid_sw_naives = refine.load_hmm_naives(args.hmm_annotation_path, sw_naives=uid_sw_naives)
-
-    uid_rearr_features = None
-    if args.rearrangement_guard:
-        print('loading rearrangement features from %s' % args.sw_cache_path)
-        uid_rearr_features = refine.load_rearrangement_features(args.sw_cache_path)
 
     true_partition = None
     if args.simu_path is not None:
@@ -99,8 +88,9 @@ def main():
         print('  max family size from %s: %d' % (args.cluster_size_csv, max_family_size))
 
     final_partition = refine.refine_partition(
-        partition, uid_info, uid_sw_naives,
-        uid_rearr_features=uid_rearr_features, max_family_size=max_family_size,
+        partition, inp['uid_info'], uid_sw_naives,
+        uid_rearr_features=(inp['uid_rearr_features'] if args.rearrangement_guard else None),
+        max_family_size=max_family_size,
         jaccard_threshold=args.jaccard_threshold, naive_threshold=args.naive_threshold,
         min_agreement=args.min_agreement, min_fp_positions=args.min_fp_positions,
         skip_singleton_merge=args.skip_singleton_merge, step3_threshold=args.step3_threshold,
@@ -116,12 +106,8 @@ def main():
         print('  %-25s %8.4f %12.4f %8d' % ('refined', pur_f, comp_f, len(final_partition)))
 
     if args.output_path is not None:
-        outdir = os.path.dirname(args.output_path)
-        if outdir:
-            os.makedirs(outdir, exist_ok=True)
-        with open(args.output_path, 'w') as f:
-            json.dump({'partitions': [{'partition': final_partition}]}, f)
-        print('\nwrote refined partition to %s (%d clusters)' % (args.output_path, len(final_partition)))
+        n = refine.write_full_output(args.output_path, inp['glfo'], final_partition, inp['sw_info'])
+        print('\nwrote refined partition (full partis output) to %s (%d clusters)' % (args.output_path, n))
 
 
 if __name__ == '__main__':

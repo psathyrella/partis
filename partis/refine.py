@@ -1007,3 +1007,75 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
         uid_rearr_features=uid_rearr_features, rearrangement_guard=rearrangement_guard)
 
     return final_partition
+
+
+# ----------------------------------------------------------------------------
+# File I/O layer (reads already-generated partition + sw-cache, writes full
+# partis output). Kept separate from the pure algorithm above; imports
+# partis.utils lazily so refine_partition() stays dependency-light. Works as a
+# standalone per-group job: no SW, vsearch, bcrham, or HMM is re-run.
+# ----------------------------------------------------------------------------
+
+def read_refine_inputs(partition_fname, sw_cache_fname):
+    """Read an existing partition file and sw-cache (no recompute) and build the
+    inputs refine_partition() needs plus the per-sequence sw_info used to write
+    full output. Returns a dict with keys: glfo, partition, uid_info,
+    uid_sw_naives, uid_rearr_features, sw_info."""
+    from partis import utils
+    _, part_antns, cpath = utils.read_output(partition_fname)
+    partition = [list(c) for c in (cpath.best() if cpath is not None else [])]
+    uid_info = {}
+    for antn in part_antns:
+        naive = antn.get('naive_seq')
+        cdr3 = antn.get('cdr3_length', 0)
+        iseqs = antn.get('input_seqs', [])
+        for i, uid in enumerate(antn['unique_ids']):
+            if naive is not None and i < len(iseqs):
+                uid_info[uid] = {'seq': iseqs[i], 'naive': naive, 'cdr3_length': cdr3}
+
+    sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname)
+    sw_info, uid_sw_naives, uid_rearr_features = {}, {}, {}
+    for antn in sw_antns:
+        for uid in antn['unique_ids']:
+            sw_info[uid] = antn
+            uid_sw_naives[uid] = antn['naive_seq']
+            uid_rearr_features[uid] = {'vdj': (antn.get('v_gene', ''),
+                                               antn.get('d_gene', ''),
+                                               antn.get('j_gene', ''))}
+    return {'glfo': sw_glfo, 'partition': partition, 'uid_info': uid_info,
+            'uid_sw_naives': uid_sw_naives, 'uid_rearr_features': uid_rearr_features,
+            'sw_info': sw_info}
+
+
+def write_full_output(outfname, glfo, refined_partition, sw_info):
+    """Write a full partis output file (germline-info + annotations + partition)
+    for a refined partition. Each cluster's annotation is synthesized from the
+    cached per-sequence sw_info via the same no-recompute path partis uses for
+    --fast (synthesize_multi_seq_line_from_reco_info). Returns n written."""
+    import os
+    from partis import utils
+    from partis import clusterpath
+    annotation_list = []
+    n_failed = 0
+    for cluster in refined_partition:
+        if not all(uid in sw_info for uid in cluster):
+            n_failed += 1
+            continue
+        antn = utils.synthesize_multi_seq_line_from_reco_info(cluster, sw_info, warn=False)
+        utils.remove_all_implicit_info(antn)
+        try:
+            utils.add_implicit_info(glfo, antn, reset_indel_genes=True)
+        except Exception:
+            n_failed += 1
+            continue
+        annotation_list.append(antn)
+    cpath = clusterpath.ClusterPath(partition=[list(c) for c in refined_partition])
+    partition_lines = cpath.get_partition_lines()
+    outdir = os.path.dirname(outfname)
+    if outdir and not os.path.exists(outdir):
+        os.makedirs(outdir)
+    utils.write_annotations(outfname, glfo, annotation_list, utils.annotation_headers,
+                            partition_lines=partition_lines)
+    if n_failed:
+        print('  %d/%d clusters failed annotation synthesis' % (n_failed, len(refined_partition)))
+    return len(annotation_list)
