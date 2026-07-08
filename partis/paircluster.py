@@ -348,7 +348,7 @@ def handle_concatd_heavy_chain(lpairs, lp_infos, dont_deep_copy=False, ig_or_tr=
 
 # ----------------------------------------------------------------------------------------
 # merge multiple paired output directories into one, analogous to utils.merge_yamls() for single-chain files
-def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_git_info=False, ig_or_tr='ig', merge_overlaps=False, dont_calculate_annotations=False, seed_unique_id=None, input_labels=None, debug=False):
+def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_git_info=False, ig_or_tr='ig', merge_overlaps=False, dont_calculate_annotations=False, seed_unique_id=None, input_labels=None, input_label_key=None, debug=False):
     # ----------------------------------------------------------------------------------------
     def print_dup_warning(ptn, wstr):
         n_tot, n_uniq = sum(len(c) for c in ptn), len(set(u for c in ptn for u in c))
@@ -366,6 +366,9 @@ def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_
 
     if input_labels is not None:
         assert len(input_labels) == len(pdir_list)
+    if input_label_key is not None:
+        assert input_labels is not None, 'input_label_key requires input_labels'
+        utils.add_input_meta_keys([input_label_key], are_line_keys=True)
 
     # separate empty vs non-empty dirs (for --keep-all-unpaired-seqs)
     lpfo_list, locus_lpfos, i_empty = [], [], []
@@ -379,6 +382,13 @@ def merge_paired_yamls(outdir, pdir_list, headers, use_pyyaml=False, dont_write_
                     continue
                 for ltmp in lpfo['antn_lists']:
                     utils.translate_uids(lpfo['antn_lists'][ltmp], trfcn=trfcn, translate_pids=True, cpath=lpfo['cpaths'][ltmp])
+        if input_label_key is not None:
+            for lpair_key, lpfo in tmp_lpfos.items():
+                if lpfo['glfos'] is None:
+                    continue
+                for ltmp in lpfo['antn_lists']:
+                    for antn in lpfo['antn_lists'][ltmp]:
+                        antn[input_label_key + 's'] = [input_labels[ipd]] * len(antn['unique_ids'])
         if all(tmp_lpfos[tuple(lp)]['glfos'] is None for lp in lpairs):  # this should mean that we're keeping all unpaired-seqs, and there were no paired annotations for this dir, so it copied/linked the single chain files to the joint location
             i_empty.append(ipd)
             locus_lpfos.append(read_paired_dir(pdir, joint=True))

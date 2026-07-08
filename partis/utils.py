@@ -5140,10 +5140,21 @@ def check_annotation_glfo_consistency(glfo, annotation_list, die_on_error=False,
     return not any_missing
 
 # ----------------------------------------------------------------------------------------
-def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, add_implicit_info_to_returned_objects=False, debug=False):
+def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, dont_write_git_info=False, remove_duplicates=False, return_merged_objects=False, input_labels=None, input_label_key=None, add_implicit_info_to_returned_objects=False, debug=False):
+    """
+    If <input_label_key> is set, each annotation from yaml <iyaml> gets a
+    per-seq key <input_label_key>+'s' set to [input_labels[iyaml]] * n_seqs,
+    stamped alongside the existing <input_labels> uid-prefixing. This is
+    the supported way to carry per-file subject/sample/experiment tags
+    forward as a first-class per-seq key rather than having downstream
+    code reparse the uid prefix.
+    """
     from . import glutils
     if input_labels is not None:
         assert len(input_labels) == len(yaml_list)
+    if input_label_key is not None:
+        assert input_labels is not None, 'input_label_key requires input_labels'
+        add_input_meta_keys([input_label_key], are_line_keys=True)
     merged_annotation_list, merged_keys = [], set()
     merged_cpath, merged_glfo = None, None
     n_event_list, n_seq_list = [], []
@@ -5153,6 +5164,9 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
             prefix = input_labels[iyaml]
             trfcn = lambda u, _pfx=prefix: '%s_%s' % (_pfx, u)
             translate_uids(annotation_list, trfcn=trfcn, translate_pids=True, cpath=cpath)
+        if input_label_key is not None:
+            for antn in annotation_list:
+                antn[input_label_key + 's'] = [input_labels[iyaml]] * len(antn['unique_ids'])
         if debug:
             print('        %d sequences in %d clusters from %s' % (sum(len(l['unique_ids']) for l in annotation_list), len(annotation_list), infname))
         if remove_duplicates:  # NOTE this doesn't catch duplicates *within* each subfile, but atm I'm only worried about the case where they appear at most once in each subfile, so oh well
