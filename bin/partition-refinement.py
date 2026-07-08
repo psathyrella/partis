@@ -53,10 +53,10 @@ def load_sw_naives(sw_cache_path):
 def load_rearrangement_features(sw_cache_path):
     """Load per-sequence rearrangement features from sw-cache.
 
-    Returns dict: uid -> (v_gene, d_gene, j_gene, v_3p_del, j_5p_del, dj_ins_len)
-    The VDJ tuple is used for the majority guard.
-    The boundary features (v_3p_del, j_5p_del, dj_ins_len) are used for
-    rearrangement-first splitting.
+    Returns dict: uid -> {'vdj': (v_gene, d_gene, j_gene)}.
+    The VDJ tuple is used for the step-3 D-gene majority guard. (Boundary
+    features v_3p_del/j_5p_del/dj_ins were explored for a rearrangement-first
+    split but reverted -- guard only. See refinement-pipeline.md.)
     """
     with open(sw_cache_path) as f:
         data = json.load(f)
@@ -66,8 +66,6 @@ def load_rearrangement_features(sw_cache_path):
             continue
         feat = {
             'vdj': (evt.get('v_gene', ''), evt.get('d_gene', ''), evt.get('j_gene', '')),
-            'boundaries': (evt.get('v_3p_del', 0), evt.get('j_5p_del', 0),
-                           len(evt.get('dj_insertion', ''))),
         }
         for uid in evt['unique_ids']:
             uid_features[uid] = feat
@@ -218,46 +216,6 @@ def compute_naive_frequencies(uid_sw_naives):
     for uid, naive in uid_sw_naives.items():
         naive_freq[naive] += 1
     return naive_freq
-
-
-def estimate_expansion_ratio(partition, uid_sw_naives):
-    """Estimate adaptive expansion ratio threshold from the data.
-
-    Computes cluster_size / top_naive_count for all non-singleton clusters
-    and returns the median (p50) as the threshold. The ratio distribution
-    is a mixture of two populations: real families (ratio near 1.0) and
-    collision clusters (ratio > 2.0). The p50 approximates the crossing
-    point between these populations, anchored by size-2 clusters with
-    boundary disagreement (ratio exactly 2.0, the most common cluster type).
-    Adapts to SHM rate: higher SHM produces more boundary noise, shifting
-    the distribution.
-    """
-    ratios = []
-    for cluster in partition:
-        if len(cluster) < 2:
-            continue
-        naive_counts = defaultdict(int)
-        for uid in cluster:
-            if uid in uid_sw_naives:
-                naive_counts[uid_sw_naives[uid]] += 1
-        if not naive_counts:
-            continue
-        top_count = max(naive_counts.values())
-        ratios.append(len(cluster) / top_count)
-    if not ratios:
-        print('  no non-singleton clusters for ratio estimation, using default 2.0')
-        return 2.0
-    ratios.sort()
-    n = len(ratios)
-    p50 = ratios[n // 2]
-    p75 = ratios[min(int(n * 0.75), n - 1)]
-    print('  expansion ratio (%d clusters): p50=%.2f, p75=%.2f, p90=%.2f, max=%.2f' % (
-        n, p50, p75, ratios[min(int(n * 0.90), n - 1)], ratios[-1]))
-    if n < 500:
-        print('  too few non-singleton clusters (%d < 500) for stable p50, using default 2.0' % n)
-        return 2.0
-    print('  adaptive expansion ratio (p50): %.2f' % p50)
-    return p50
 
 
 def get_cluster_fingerprint(uids, uid_to_muts_with_base):
@@ -466,59 +424,10 @@ def step1_validated_split(partition, uid_to_muts, uid_sw_naives,
     return result
 
 
-def estimate_fp_noise(frag_fps, naive_to_frags, naive_threshold, frag_naives,
-                      max_sample=200):
-    """Sample fingerprint agreement between naive-similar fragment pairs
-    to estimate the noise floor for step 2.
-
-    Returns the p75 of sampled agreements.
-    """
-    import random
-    agreements = []
-
-    # collect naive-similar pairs (same logic as merge, but just sample)
-    candidate_pairs = []
-
-    # within same-naive bucket
-    for naive_seq, indices in naive_to_frags.items():
-        for ii in range(len(indices)):
-            for jj in range(ii + 1, len(indices)):
-                candidate_pairs.append((indices[ii], indices[jj]))
-
-    # cross-bucket
-    unique_naives = list(naive_to_frags.keys())
-    for ni in range(len(unique_naives)):
-        for nj in range(ni + 1, len(unique_naives)):
-            if hamming_frac(unique_naives[ni], unique_naives[nj]) > naive_threshold:
-                continue
-            for i in naive_to_frags[unique_naives[ni]]:
-                for j in naive_to_frags[unique_naives[nj]]:
-                    candidate_pairs.append((i, j))
-
-    if len(candidate_pairs) == 0:
-        return 0.0
-
-    # sample
-    if len(candidate_pairs) > max_sample:
-        candidate_pairs = random.sample(candidate_pairs, max_sample)
-
-    for i, j in candidate_pairs:
-        fp_i, n_i = frag_fps[i]
-        fp_j, n_j = frag_fps[j]
-        agreement, _ = fingerprint_agreement(fp_i, n_i, fp_j, n_j, min_fp_positions=0)
-        if agreement >= 0:
-            agreements.append(agreement)
-
-    if not agreements:
-        return 0.0
-    agreements.sort()
-    return agreements[int(len(agreements) * 0.75)]
-
-
 def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                             uid_to_muts_with_base, naive_threshold,
                             min_agreement=0.15, min_fp_positions=0,
-                            adaptive_fp=False, skip_singleton_merge=False):
+                            skip_singleton_merge=False):
     """Step 2: Incremental naive merge with fingerprint validation.
 
     For each CDR3 group, find clusters with similar naives (candidates),
@@ -846,8 +755,7 @@ def step3_ej_centroid(merged_partition, uid_info, uid_sw_naives,
                       rescue_threshold=None, step3_mode='fixed',
                       min_mutations=0, ej_margin=0.05,
                       max_expansion_ratio=2.0, max_family_size=None,
-                      uid_rearr_features=None, rearrangement_guard=False,
-                      adaptive_ratio=None):
+                      uid_rearr_features=None, rearrangement_guard=False):
     """Step 3: EJ centroid split on collision groups.
 
     step3_mode controls how the EJ threshold is determined:
@@ -860,9 +768,6 @@ def step3_ej_centroid(merged_partition, uid_info, uid_sw_naives,
       - V+D+J majority guard: if >= 80% of cluster members agree on V+D+J
         gene assignment, skip splitting (rearrangement-consistent, one family).
         Replaces the concentration ratio guard.
-      - Rearrangement-first split: before EJ centroid, split by boundary
-        features (v_3p_del, j_5p_del, dj_ins_len). Only sub-clusters with
-        identical boundary features proceed to EJ centroid splitting.
 
     When rearrangement_guard is False, uses the original two-level expansion
     guard (concentration ratio + max_family_size).
@@ -927,10 +832,10 @@ def step3_ej_centroid(merged_partition, uid_info, uid_sw_naives,
             n_must_collision += 1
             # definitely collision, proceed to splitting
         else:
-            # level 2: concentration ratio check
-            # use adaptive_ratio (p50 from data) when rearrangement guard
-            # is active, otherwise use the fixed max_expansion_ratio
-            ratio_threshold = adaptive_ratio if adaptive_ratio is not None else max_expansion_ratio
+            # level 2: concentration ratio check (fixed 2.0). Adaptive p50
+            # from data was tested but reverted -- 2.0 is stable across
+            # datasets (see refinement-pipeline.md).
+            ratio_threshold = max_expansion_ratio
             if rep_naive is not None and ratio_threshold > 0:
                 naive_count_in_cluster = sum(1 for uid in cluster
                                             if uid in uid_sw_naives and uid_sw_naives[uid] == rep_naive)
@@ -1045,8 +950,6 @@ def main():
                         help='min fingerprint agreement for step 2 merge (default 0.15)')
     parser.add_argument('--min-fp-positions', type=int, default=0,
                         help='min strong fingerprint positions for step 2 (0=disabled, try 3)')
-    parser.add_argument('--adaptive-fp', action='store_true',
-                        help='adaptive fingerprint threshold in step 2 (p75 noise floor)')
     parser.add_argument('--skip-singleton-merge', action='store_true',
                         help='skip merge attempts between two singleton clusters')
     parser.add_argument('--step3-threshold', type=float, default=0.10)
@@ -1126,8 +1029,6 @@ def main():
     else:
         naive_thresh = estimate_naive_threshold(partition, uid_sw_naives)
 
-    adaptive_ratio = None  # not used; p50 estimation was tested but 2.0 is stable across datasets
-
     if args.jaccard_threshold is not None:
         jaccard_thresh = args.jaccard_threshold
     else:
@@ -1180,7 +1081,7 @@ def main():
     merged_partition = step2_incremental_merge(
         split_partition, uid_info, uid_sw_naives,
         uid_to_muts_with_base, naive_thresh, args.min_agreement, args.min_fp_positions,
-        adaptive_fp=False, skip_singleton_merge=args.skip_singleton_merge)
+        skip_singleton_merge=args.skip_singleton_merge)
 
     if true_partition is not None:
         pur_m, comp_m = calc_metrics(true_partition, merged_partition)
@@ -1212,8 +1113,7 @@ def main():
         args.rescue_threshold, args.step3_mode, args.min_mutations, args.ej_margin,
         args.max_expansion_ratio, max_family_size,
         uid_rearr_features=uid_rearr_features,
-        rearrangement_guard=args.rearrangement_guard,
-        adaptive_ratio=adaptive_ratio)
+        rearrangement_guard=args.rearrangement_guard)
 
     if true_partition is not None:
         pur_f, comp_f = calc_metrics(true_partition, final_partition)
