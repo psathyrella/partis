@@ -8,10 +8,9 @@ partition. Usable after any partis partition (standard or disjoint grouping).
   Step 2: Incremental naive merge (merge only if mutation fingerprints agree)
   Step 3: EJ centroid split on collision groups (naive_freq >= threshold)
 
-Entry point: refine_partition(). Its defaults are the validated production
-config (relative-mode step 3, singleton-skip, rearrangement guard). See
-refinement-pipeline.md for the derivation of every threshold. The standalone
-CLI lives in bin/partition-refinement.py, which imports this module.
+Entry point: refine_partition(); its defaults run relative-mode step 3 with
+singleton-skip and the rearrangement guard. The standalone CLI lives in
+bin/partition-refinement.py, which imports this module.
 """
 import json
 from collections import defaultdict
@@ -43,9 +42,7 @@ def load_rearrangement_features(sw_cache_path):
     """Load per-sequence rearrangement features from sw-cache.
 
     Returns dict: uid -> {'vdj': (v_gene, d_gene, j_gene)}.
-    The VDJ tuple is used for the step-3 D-gene majority guard. (Boundary
-    features v_3p_del/j_5p_del/dj_ins were explored for a rearrangement-first
-    split but reverted -- guard only. See refinement-pipeline.md.)
+    The VDJ tuple is used for the step-3 D-gene majority guard.
     """
     with open(sw_cache_path) as f:
         data = json.load(f)
@@ -821,9 +818,9 @@ def step3_ej_centroid(merged_partition, uid_info, uid_sw_naives,
             n_must_collision += 1
             # definitely collision, proceed to splitting
         else:
-            # level 2: concentration ratio check (fixed 2.0). Adaptive p50
-            # from data was tested but reverted -- 2.0 is stable across
-            # datasets (see refinement-pipeline.md).
+            # level 2: concentration ratio check. A cluster whose size is within
+            # max_expansion_ratio of its dominant-naive count is treated as a real
+            # expansion (star-like) and kept intact.
             ratio_threshold = max_expansion_ratio
             if rep_naive is not None and ratio_threshold > 0:
                 naive_count_in_cluster = sum(1 for uid in cluster
@@ -968,8 +965,7 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     uid_rearr_features: uid -> {'vdj': (v, d, j)} (required if rearrangement_guard).
     max_family_size: from cluster_size.csv, for the step-3 level-1 expansion guard.
 
-    Defaults are the validated production config (relative-mode step 3,
-    singleton-skip, rearrangement guard). See refinement-pipeline.md.
+    Defaults run relative-mode step 3 with singleton-skip and the rearrangement guard.
     """
     partition = [list(c) for c in partition]
     uid_to_muts, uid_to_muts_with_base = {}, {}
