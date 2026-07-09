@@ -79,7 +79,7 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
     clist = strip_paired_args(copy.deepcopy(sys.argv), args)
     # strip additional args not needed for disjoint per-group commands
     for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
-                    '--disjoint-groups', '--hfrac', '--prepend-coverage-command',
+                    '--disjoint-groups', '--hfrac', '--refine', '--prepend-coverage-command',
                     '--plot-annotation-performance']:  # requires --is-simu which is also stripped
         utils.remove_from_arglist(clist, argname)
     for argname in ['--n-subsets', '--n-max-subprocs', '--n-sub-procs', '--hfrac-merge-factor', '--hfrac-max-bin-size', '--hfrac-min-seqs']:
@@ -1492,6 +1492,38 @@ def run_all_loci(args, ig_or_tr='ig'):
             else:
                 print('    running %d group partition jobs (%d concurrent, logs in %s/groups/cdr3-*/out):' % (len(cmdfos), n_max_jobs, disjoint_dir), end=' ')
                 utils.run_cmds(cmdfos, n_max_procs=n_max_jobs, debug='write', progress=True)
+
+        # step 2.5: refine each group (optional). Reads each group's partition + sw-cache
+        # (already generated above) and writes a refined partition; assemble then uses it.
+        # Runs as independent per-group jobs, matching the disjoint external-job model.
+        if args.refine:
+            refine_script = '%s/bin/partition-refinement.py' % partis_dir
+            csv_path = '%s/hmm/cluster_size.csv' % getpdir(ltmp)
+            csv_arg = (' --cluster-size-csv %s' % csv_path) if os.path.exists(csv_path) else ''
+            refine_cmdfos = []
+            for ginfo in manifest['groups']:
+                fasta_dir = os.path.dirname(ginfo['fasta_path'])
+                vs_part_full = '%s/%s' % (disjoint_dir, ginfo['partition_path'])
+                sw_full = '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, ltmp)
+                if not os.path.exists(vs_part_full) or not os.path.exists(sw_full):
+                    continue  # leave partition_path as-is; assemble handles missing/empty groups
+                refined_rel = '%s/refined-partition-%s.yaml' % (fasta_dir, ltmp)
+                ginfo['partition_path'] = refined_rel  # assemble will use the refined output
+                refined_full = '%s/%s' % (disjoint_dir, refined_rel)
+                if os.path.exists(refined_full):
+                    continue
+                cmd = ('%s %s --partition-path %s --sw-cache-path %s --output-path %s'
+                       ' --step3-mode relative --ej-margin 0.05 --skip-singleton-merge'
+                       ' --min-agreement 0.15 --naive-freq-threshold 10 --rearrangement-guard%s') % (
+                           sys.executable, refine_script, vs_part_full, sw_full, refined_full, csv_arg)
+                refine_cmdfos.append({'cmd_str' : cmd, 'outfname' : refined_full, 'workdir' : '%s/%s' % (disjoint_dir, fasta_dir)})
+            if len(refine_cmdfos) > 0:
+                if args.dry_run:
+                    print('    --dry-run: would run %d group refine jobs (%d concurrent)' % (len(refine_cmdfos), n_max_jobs))
+                else:
+                    print('    running %d group refine jobs (%d concurrent):' % (len(refine_cmdfos), n_max_jobs), end=' ')
+                    utils.run_cmds(refine_cmdfos, n_max_procs=n_max_jobs, debug='write', progress=True)
+
         # write updated manifest with partition paths
         if not args.dry_run:
             with open(manifest_path, 'w') as mfile:
@@ -1875,6 +1907,7 @@ subargs['partition'].append({'name' : '--max-n-seqs-to-likelihood-cluster', 'kwa
 subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs' : {'action' : 'store_true', 'help' : 'When --input-partition-fname is set, continue partitoning starting from the input partition (instead of the default of keeping the input partition without any additional clustering). Arguably this should be the default, but I can\'t change it without breaking backward compatibility.'}})
 subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length, then partition each group independently and concatenate. Speeds up large single-chain partitions by splitting into guaranteed-disjoint subsets.'}})
 subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'When used with --disjoint-groups, further split CDR3 groups by naive hamming fraction into sub-groups. Reduces group sizes for better parallelism and potentially enables HA clustering on smaller sub-groups.'}})
+subargs['partition'].append({'name' : '--refine', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, run post-partition refinement (three-step split/merge, partis.refine) on each group before assembling. Reads each group\'s partition + sw-cache and writes a refined partition; no SW/HMM is re-run.'}})
 subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
 subargs['partition'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
