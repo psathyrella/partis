@@ -8,12 +8,17 @@
     - [ignore small clusters](#ignore-smaller-clusters)
     - [subset-partition](#partition-in-subsets)
     - [disjoint groups](#disjoint-groups)
+    - [hybrid HA correction and refinement](#hybrid-ha-correction-and-refinement)
     - [limit maximum cluster size](#limit-maximum-cluster-size)
     - [deliberate over-clustering](#deliberate-over-clustering)
 	- [progress file](#progress-file)
   - [subset-partition](#subset-partition)
   - [create-disjoint-groups](#create-disjoint-groups) split sequences by CDR3 length for independent partition (standalone action for batch workflows)
   - [assemble-groups](#assemble-groups) concatenate per-group partition results (standalone action for batch workflows)
+  - [create-hybrid-jobs](#create-hybrid-jobs) write per-cluster inputs for hybrid HA correction (standalone action for batch workflows)
+  - [run-hybrid-jobs](#run-hybrid-jobs) run hybrid HA on a slice of clusters (standalone action for batch workflows)
+  - [assemble-hybrid](#assemble-hybrid) merge per-cluster HA results into per-group partitions (standalone action for batch workflows)
+  - [run-refine-jobs](#run-refine-jobs) run refinement on a slice of groups (standalone action for batch workflows)
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
     - [choosing antibodies](#choosing-antibodies)
@@ -108,6 +113,22 @@ Note that each sub-group is partitioned independently, and the clustering method
 To use vsearch on all groups regardless of size, pass `--fast`.
 For running the individual steps separately (e.g. as independent batch jobs), see [`create-disjoint-groups`](#create-disjoint-groups) and [`assemble-groups`](#assemble-groups) below.
 
+##### hybrid HA correction and refinement
+
+With `--disjoint-groups`, large groups are partitioned with the fast vsearch method (see [above](#disjoint-groups)), which trades some accuracy for speed.
+Two optional post-processing steps recover most of that accuracy while keeping vsearch's speed.
+
+`--hybrid` reruns the full likelihood (HMM) clustering on each vsearch cluster of at least three sequences, one cluster at a time, and keeps the result only where it splits an over-merged cluster.
+Because each cluster is handled in isolation (a single keep-or-split decision, with no comparisons between clusters) this is fast, and it fixes the over-merging vsearch does on similar-but-distinct families.
+
+`--refine` runs a three-step split/merge refinement on each group: it splits clusters that combine distinct naive rearrangements, merges fragments that share the same somatic mutations, and splits any remaining collisions.
+When `--hybrid` is also set, refinement additionally recovers the small number of pure clusters the hybrid step over-splits, so the steps are always applied in the order vsearch, then `--hybrid`, then `--refine`.
+Refinement uses the family-size distribution in the parameter directory's `cluster_size.csv` (written by `cache-parameters`, or with true family sizes by a post-partition run with `--count-parameters`) to avoid over-splitting genuine clonal expansions.
+
+Both flags require `--disjoint-groups` and work with or without `--paired-loci`; with paired data the cleaner single-chain partitions also give paired clustering a better starting point.
+The per-cluster hybrid runs are bundled into a few processes (each loading germline info once, then looping over its clusters), with concurrency set by `--n-max-subprocs`.
+For running these steps as independent batch jobs, see [`create-hybrid-jobs`](#create-hybrid-jobs), [`run-hybrid-jobs`](#run-hybrid-jobs), [`assemble-hybrid`](#assemble-hybrid), and [`run-refine-jobs`](#run-refine-jobs) below.
+
 ##### limit maximum cluster size
 
 Cases where memory is a limiting factor typically stem from a sample with several very large families. Some recent optimizations mean that this doesn't really happen any more, but limiting clonal family size with `--max-cluster-size N` nevertheless can reduce memory usage. Care must be exercised when interpreting the resulting partition, since it will simply stop clustering when any cluster reaches the specified size, rather than stopping at the most likely partition.
@@ -176,6 +197,30 @@ This is the standalone version of the grouping step in `--disjoint-groups` (see 
 
 Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
 Requires `--locus` and `--outfname`.
+
+### create-hybrid-jobs
+
+Write the per-cluster inputs for [hybrid HA correction](#hybrid-ha-correction-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list enumerating all the per-cluster jobs.
+Requires `--locus` and the disjoint-groups directory produced by [`create-disjoint-groups`](#create-disjoint-groups) (located via `--paired-outdir` or `--workdir`, or given explicitly with `--disjoint-dir`).
+This is the standalone version of the hybrid step's setup, intended for workflows where each step is submitted as a separate batch job.
+
+### run-hybrid-jobs
+
+Run hybrid HA on a slice of the task list written by [`create-hybrid-jobs`](#create-hybrid-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters.
+Each invocation loads germline info once and clusters its assigned vsearch clusters in-process (the same code path as the integrated `--hybrid`), and appends per-cluster timing to `hybrid-timing-<locus>.csv`.
+Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and the disjoint-groups directory.
+
+### assemble-hybrid
+
+Merge the per-cluster HA results into per-group hybrid partitions for a single locus (each over-merged cluster is replaced by its split; all others are kept unchanged).
+Requires `--locus` and the disjoint-groups directory.
+Run this once all [`run-hybrid-jobs`](#run-hybrid-jobs) tasks have finished.
+
+### run-refine-jobs
+
+Run [refinement](#hybrid-ha-correction-and-refinement) on a slice of the disjoint groups for a single locus, selected with `--job-start` and `--job-count`.
+It refines each group's hybrid partition (or the vsearch partition, if the hybrid step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
+Requires `--locus` and `--parameter-dir` (the locus-level parameter directory, for the `cluster_size.csv` guard).
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
 This is the standalone version of the assembly step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
 
